@@ -35,6 +35,7 @@ interface ActivityItem {
 interface ProjectRoomsProps {
   jobId: string;
   onOpenPlan: () => void;
+  onOpenRoom: (room: string) => void;
 }
 
 /* ── Room Card ── */
@@ -63,7 +64,7 @@ function RoomCard({ icon, title, children, onClick, className }: RoomCardProps) 
 
 /* ── Main Component ── */
 
-export function ProjectRooms({ jobId, onOpenPlan }: ProjectRoomsProps) {
+export function ProjectRooms({ jobId, onOpenPlan, onOpenRoom }: ProjectRoomsProps) {
   const [messages, setMessages] = useState<any[]>([]);
   const [tasks, setTasks] = useState<any[]>([]);
   const [docs, setDocs] = useState<any[]>([]);
@@ -153,6 +154,7 @@ export function ProjectRooms({ jobId, onOpenPlan }: ProjectRoomsProps) {
         <RoomCard
           icon={<MessageSquare className="h-5 w-5" />}
           title="Meldinger"
+          onClick={() => onOpenRoom("meldinger")}
         >
           {messages.length === 0 ? (
             <p className="text-sm text-muted-foreground/50 text-center mt-4">Ingen meldinger ennå</p>
@@ -174,6 +176,7 @@ export function ProjectRooms({ jobId, onOpenPlan }: ProjectRoomsProps) {
         <RoomCard
           icon={<CheckCircle2 className="h-5 w-5" />}
           title="Oppgaver"
+          onClick={() => onOpenRoom("oppgaver")}
         >
           {tasks.length === 0 ? (
             <p className="text-sm text-muted-foreground/50 text-center mt-4">Ingen oppgaver ennå</p>
@@ -203,6 +206,7 @@ export function ProjectRooms({ jobId, onOpenPlan }: ProjectRoomsProps) {
         <RoomCard
           icon={<FileText className="h-5 w-5" />}
           title="Dokumenter"
+          onClick={() => onOpenRoom("dokumenter")}
         >
           {docs.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full gap-2 text-muted-foreground/50">
@@ -225,6 +229,7 @@ export function ProjectRooms({ jobId, onOpenPlan }: ProjectRoomsProps) {
         <RoomCard
           icon={<MessagesSquare className="h-5 w-5" />}
           title="E-post"
+          onClick={() => onOpenRoom("epost")}
         >
           {emails.length === 0 ? (
             <p className="text-sm text-muted-foreground/50 text-center mt-4">Ingen e-post ennå</p>

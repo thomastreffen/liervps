@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ProjectHeader } from "@/components/project/ProjectHeader";
 import { ProjectRooms } from "@/components/project/ProjectRooms";
+import { ProjectFeed } from "@/components/project/ProjectFeed";
 import { ProjectPlanTab } from "@/components/ProjectPlanTab";
 import { Button } from "@/components/ui/button";
 import type { Job, Attachment } from "@/lib/mock-data";
@@ -15,7 +16,7 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { EditJobDialog } from "@/components/EditJobDialog";
 import { ImageLightbox } from "@/components/ImageLightbox";
-import { Loader2, X } from "lucide-react";
+import { Loader2, X, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import type { OutlookSyncStatus } from "@/lib/mock-data";
 
@@ -31,6 +32,7 @@ export default function JobDetail() {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const [showPlan, setShowPlan] = useState(false);
+  const [activeRoom, setActiveRoom] = useState<string | null>(null);
 
   /* ── Fetch data ── */
   const fetchJob = useCallback(async () => {
@@ -166,12 +168,56 @@ export default function JobDetail() {
           onOpenPlan={() => setShowPlan(true)}
         />
 
-        {/* Rooms — Basecamp-style project home */}
+        {/* Room content or Rooms overview */}
         <div className="mx-auto max-w-5xl px-4 sm:px-6 py-8 pb-28 md:pb-8">
-          <ProjectRooms
-            jobId={id!}
-            onOpenPlan={() => setShowPlan(true)}
-          />
+          {activeRoom ? (
+            <div className="space-y-4">
+              <button
+                onClick={() => setActiveRoom(null)}
+                className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <ArrowLeft className="h-3.5 w-3.5" />
+                Tilbake til prosjektet
+              </button>
+              <h2 className="text-xl font-bold text-foreground capitalize">{activeRoom}</h2>
+
+              {activeRoom === "meldinger" && (
+                <ProjectFeed
+                  jobId={id!}
+                  jobTitle={job.title}
+                  customer={job.customer}
+                  internalNumber={job.internalNumber || null}
+                />
+              )}
+              {activeRoom === "oppgaver" && (
+                <ProjectFeed
+                  jobId={id!}
+                  jobTitle={job.title}
+                  customer={job.customer}
+                  internalNumber={job.internalNumber || null}
+                />
+              )}
+              {activeRoom === "dokumenter" && (
+                <div className="text-sm text-muted-foreground py-8 text-center">
+                  Dokumenter-rommet kommer snart.
+                </div>
+              )}
+              {activeRoom === "epost" && (
+                <ProjectFeed
+                  jobId={id!}
+                  jobTitle={job.title}
+                  customer={job.customer}
+                  internalNumber={job.internalNumber || null}
+                />
+              )}
+            </div>
+          ) : (
+            <ProjectRooms
+              jobId={id!}
+              onOpenPlan={() => setShowPlan(true)}
+              onOpenRoom={(room) => setActiveRoom(room)}
+            />
+          )}
         </div>
       </div>
 
