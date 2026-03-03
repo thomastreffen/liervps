@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { X, Download, FolderOpen, ExternalLink, Loader2, FileText, Image, File } from "lucide-react";
+import { X, Download, FolderOpen, ExternalLink, Loader2, FileText, Image, File, FileSpreadsheet, FileCode, FileArchive, Presentation } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
@@ -45,6 +45,35 @@ function getCurrentFolderId(item: PreviewItem): string | null {
   return item.kind === "doc" ? item.file.folder_id : null;
 }
 
+/** Build a signed URL that forces inline display (not download). */
+async function buildSignedUrl(item: PreviewItem): Promise<string | null> {
+  if (item.kind === "doc") {
+    const meta = item.file.source_meta;
+    if (item.file.source_type === "sharepoint") {
+      return meta?.web_url || null;
+    }
+    if (meta?.file_path && meta?.bucket) {
+      const { data } = await supabase.storage
+        .from(meta.bucket)
+        .createSignedUrl(meta.file_path, 3600, { download: false });
+      return data?.signedUrl || meta.public_url || null;
+    }
+    return meta?.public_url || null;
+  }
+
+  // Attachment
+  const attUrl = item.attachment.url;
+  const storageMatch = attUrl.match(/\/storage\/v1\/object\/(?:public|sign)\/([^/]+)\/(.+)/);
+  if (storageMatch) {
+    const [, bucket, path] = storageMatch;
+    const { data } = await supabase.storage
+      .from(bucket)
+      .createSignedUrl(decodeURIComponent(path), 3600, { download: false });
+    return data?.signedUrl || attUrl;
+  }
+  return attUrl;
+}
+
 /* ── Component ── */
 
 export function FilePreviewPanel({ item, folders, onClose, onMoveToFolder }: FilePreviewPanelProps) {
@@ -61,45 +90,12 @@ export function FilePreviewPanel({ item, folders, onClose, onMoveToFolder }: Fil
     setLoading(true);
     setSignedUrl(null);
 
-    (async () => {
-      let url: string | null = null;
-
-      if (item.kind === "doc") {
-        const meta = item.file.source_meta;
-        if (item.file.source_type === "sharepoint") {
-          url = meta?.web_url || null;
-        } else if (meta?.file_path && meta?.bucket) {
-          // Create signed URL with inline disposition
-          const { data } = await supabase.storage
-            .from(meta.bucket)
-            .createSignedUrl(meta.file_path, 3600, {
-              download: false,
-            });
-          url = data?.signedUrl || meta.public_url || null;
-        } else if (meta?.public_url) {
-          url = meta.public_url;
-        }
-      } else {
-        // Attachment – check if it's a storage URL we can sign
-        const attUrl = item.attachment.url;
-        // Try to extract bucket/path from supabase storage URL
-        const storageMatch = attUrl.match(/\/storage\/v1\/object\/(?:public|sign)\/([^/]+)\/(.+)/);
-        if (storageMatch) {
-          const [, bucket, path] = storageMatch;
-          const { data } = await supabase.storage
-            .from(bucket)
-            .createSignedUrl(decodeURIComponent(path), 3600, { download: false });
-          url = data?.signedUrl || attUrl;
-        } else {
-          url = attUrl;
-        }
-      }
-
+    buildSignedUrl(item).then((url) => {
       if (!cancelled) {
         setSignedUrl(url);
         setLoading(false);
       }
-    })();
+    });
 
     return () => { cancelled = true; };
   }, [item]);
@@ -110,13 +106,17 @@ export function FilePreviewPanel({ item, folders, onClose, onMoveToFolder }: Fil
   };
 
   const handleDownload = () => {
-    if (signedUrl) {
-      const a = document.createElement("a");
-      a.href = signedUrl;
-      a.download = title;
-      a.click();
-    }
+    if (!signedUrl) return;
+    const a = document.createElement("a");
+    a.href = signedUrl;
+    a.download = title;
+    a.click();
   };
+
+  // For PDFs we append response-content-type to ensure the browser treats it as PDF
+  const pdfEmbedUrl = signedUrl
+    ? signedUrl + (signedUrl.includes("?") ? "&" : "?") + "response-content-type=application/pdf"
+    : null;
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
@@ -163,12 +163,31 @@ export function FilePreviewPanel({ item, folders, onClose, onMoveToFolder }: Fil
                 className="max-w-full max-h-full object-contain rounded-lg shadow-md"
               />
             </div>
-          ) : previewType === "pdf" && signedUrl ? (
-            <iframe
-              src={signedUrl}
-              className="w-full h-full border-0"
-              title={title}
-            />
+          ) : previewType === "pdf" && pdfEmbedUrl ? (
+            <object
+              data={pdfEmbedUrl}
+              type="application/pdf"
+              className="w-full h-full"
+              aria-label={title}
+            >
+              {/* Fallback if object embedding fails */}
+              <div className="flex flex-col items-center justify-center h-full gap-4 text-muted-foreground p-6">
+                <FileText className="h-16 w-16 opacity-30" />
+                <p className="text-sm text-center">
+                  PDF-forhåndsvisning er ikke tilgjengelig i nettleseren.
+                </p>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" className="gap-2" onClick={() => window.open(pdfEmbedUrl, "_blank")}>
+                    <ExternalLink className="h-3.5 w-3.5" />
+                    Åpne i ny fane
+                  </Button>
+                  <Button variant="outline" size="sm" className="gap-2" onClick={handleDownload}>
+                    <Download className="h-3.5 w-3.5" />
+                    Last ned
+                  </Button>
+                </div>
+              </div>
+            </object>
           ) : signedUrl ? (
             <div className="flex flex-col items-center justify-center h-full gap-4 text-muted-foreground">
               <File className="h-16 w-16 opacity-30" />
