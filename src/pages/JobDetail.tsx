@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { ProjectHeader } from "@/components/project/ProjectHeader";
 import { ProjectSubnav } from "@/components/project/ProjectSubnav";
 import { ProjectDashboard } from "@/components/project/ProjectDashboard";
+import { ProjectToolCards } from "@/components/project/ProjectToolCards";
 
 import { DocumentCenter } from "@/components/DocumentCenter";
 import { JobRiskPanel } from "@/components/risk/JobRiskPanel";
@@ -80,7 +81,8 @@ export default function JobDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const activeTab = searchParams.get("tab") || "dash";
+  const activeTab = searchParams.get("tab") || "home";
+  const isToolHome = activeTab === "home";
   const { user, isAdmin } = useAuth();
   const isMobile = useIsMobile();
 
@@ -339,8 +341,10 @@ export default function JobDetail() {
           onNavigateTab={handleTabChange}
         />
 
-        {/* ═══ Subnav ═══ */}
-        <ProjectSubnav activeTab={activeTab} onTabChange={handleTabChange} />
+        {/* ═══ Subnav — only show when inside a tool ═══ */}
+        {!isToolHome && (
+          <ProjectSubnav activeTab={activeTab} onTabChange={handleTabChange} />
+        )}
 
         {/* ═══ Proposed time-change banner ═══ */}
         {job.status === "time_change_proposed" && job.proposedStart && job.proposedEnd && (
@@ -400,6 +404,17 @@ export default function JobDetail() {
 
         {/* ═══ Main Content ═══ */}
         <div className="mx-auto max-w-6xl px-4 sm:px-6 py-6 pb-28 md:pb-8">
+
+          {/* ── HOME: Basecamp-style tool cards ── */}
+          {isToolHome && (
+            <ProjectToolCards
+              jobId={id!}
+              technicianNames={technicianNames}
+              start={job.start}
+              end={job.end}
+              onNavigateTool={handleTabChange}
+            />
+          )}
 
           {/* ── DASHBOARD ── */}
           {activeTab === "dash" && (

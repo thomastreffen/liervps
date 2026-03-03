@@ -1,4 +1,5 @@
 import {
+  Home,
   LayoutDashboard,
   CalendarCheck,
   ClipboardList,
@@ -11,14 +12,14 @@ import {
 import { cn } from "@/lib/utils";
 
 const TABS = [
-  { key: "dash", label: "Dashboard", icon: LayoutDashboard },
+  { key: "home", label: "Hjem", icon: Home },
   { key: "plan", label: "Plan", icon: CalendarCheck },
-  { key: "servicearbeid", label: "Servicearbeid", icon: Hammer },
-  { key: "skjemaer", label: "Skjemaer", icon: ClipboardList },
+  { key: "epost", label: "Meldinger", icon: Mail },
   { key: "dokumenter", label: "Dokumenter", icon: FileText },
+  { key: "skjemaer", label: "Skjemaer", icon: ClipboardList },
+  { key: "servicearbeid", label: "Service", icon: Hammer },
   { key: "risiko", label: "Risiko", icon: AlertTriangle },
   { key: "okonomi", label: "Økonomi", icon: DollarSign },
-  { key: "epost", label: "E-post", icon: Mail },
 ] as const;
 
 interface ProjectSubnavProps {
