@@ -1,30 +1,36 @@
 import { useState, useEffect } from "react";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, FileText, File } from "lucide-react";
+import { Loader2, File } from "lucide-react";
 
 interface FileHoverPreviewProps {
   children: React.ReactNode;
   name: string;
   mimeType: string | null;
-  /** Either a storage path or public URL */
   storageUrl?: string | null;
   bucket?: string | null;
   filePath?: string | null;
 }
 
-function isPreviewableMime(mime: string | null, name: string): "image" | "pdf" | null {
+function isImageMime(mime: string | null, name: string): boolean {
   const ext = name.split(".").pop()?.toLowerCase() || "";
-  if (mime?.startsWith("image/") || ["jpg", "jpeg", "png", "gif", "webp", "svg"].includes(ext)) return "image";
-  if (mime?.includes("pdf") || ext === "pdf") return "pdf";
-  return null;
+  return !!(mime?.startsWith("image/") || ["jpg", "jpeg", "png", "gif", "webp", "svg"].includes(ext));
+}
+
+function buildProxyUrl(bucket: string, filePath: string): string {
+  const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+  const params = new URLSearchParams({ bucket, path: filePath });
+  return `https://${projectId}.supabase.co/functions/v1/file-preview?${params.toString()}`;
+}
+
+function extractStorageInfo(url: string): { bucket: string; path: string } | null {
+  const match = url.match(/\/storage\/v1\/object\/(?:public|sign)\/([^/]+)\/(.+?)(?:\?|$)/);
+  if (!match) return null;
+  return { bucket: match[1], path: decodeURIComponent(match[2]) };
 }
 
 export function FileHoverPreview({ children, name, mimeType, storageUrl, bucket, filePath }: FileHoverPreviewProps) {
-  const previewType = isPreviewableMime(mimeType, name);
-  
-  // Only show hover preview for images
-  if (previewType !== "image") {
+  if (!isImageMime(mimeType, name)) {
     return <>{children}</>;
   }
 
@@ -50,27 +56,46 @@ function HoverImagePreview({ bucket, filePath, storageUrl, name }: { bucket?: st
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      let result: string | null = null;
-      if (bucket && filePath) {
-        const { data } = await supabase.storage
-          .from(bucket)
-          .createSignedUrl(filePath, 300, { download: false });
-        result = data?.signedUrl || storageUrl || null;
-      } else if (storageUrl) {
-        // Try to extract and sign
-        const match = storageUrl.match(/\/storage\/v1\/object\/(?:public|sign)\/([^/]+)\/(.+)/);
-        if (match) {
-          const { data } = await supabase.storage
-            .from(match[1])
-            .createSignedUrl(decodeURIComponent(match[2]), 300, { download: false });
-          result = data?.signedUrl || storageUrl;
-        } else {
-          result = storageUrl;
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+
+      let resolvedBucket = bucket;
+      let resolvedPath = filePath;
+
+      if (!resolvedBucket || !resolvedPath) {
+        if (storageUrl) {
+          const info = extractStorageInfo(storageUrl);
+          if (info) {
+            resolvedBucket = info.bucket;
+            resolvedPath = info.path;
+          }
         }
       }
-      if (!cancelled) { setUrl(result); setLoading(false); }
+
+      if (resolvedBucket && resolvedPath && token) {
+        try {
+          const proxyUrl = buildProxyUrl(resolvedBucket, resolvedPath);
+          const response = await fetch(proxyUrl, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (response.ok) {
+            const blob = await response.blob();
+            const blobUrl = URL.createObjectURL(blob);
+            if (!cancelled) { setUrl(blobUrl); setLoading(false); }
+            return;
+          }
+        } catch {
+          // fall through
+        }
+      }
+
+      // Fallback to direct URL
+      if (!cancelled) { setUrl(storageUrl || null); setLoading(false); }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      if (url?.startsWith("blob:")) URL.revokeObjectURL(url);
+    };
   }, [bucket, filePath, storageUrl]);
 
   if (loading) {
