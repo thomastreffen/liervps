@@ -1140,6 +1140,196 @@ export type Database = {
           },
         ]
       }
+      conversation_attachments: {
+        Row: {
+          created_at: string
+          file_name: string
+          file_size: number | null
+          id: string
+          mime_type: string | null
+          post_id: string
+          sharepoint_drive_item_id: string | null
+          sharepoint_web_url: string | null
+          storage_path: string | null
+        }
+        Insert: {
+          created_at?: string
+          file_name: string
+          file_size?: number | null
+          id?: string
+          mime_type?: string | null
+          post_id: string
+          sharepoint_drive_item_id?: string | null
+          sharepoint_web_url?: string | null
+          storage_path?: string | null
+        }
+        Update: {
+          created_at?: string
+          file_name?: string
+          file_size?: number | null
+          id?: string
+          mime_type?: string | null
+          post_id?: string
+          sharepoint_drive_item_id?: string | null
+          sharepoint_web_url?: string | null
+          storage_path?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversation_attachments_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "conversation_posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      conversation_posts: {
+        Row: {
+          author_id: string | null
+          body_html: string | null
+          body_text: string | null
+          cc_emails: string[] | null
+          company_id: string
+          created_at: string
+          direction: string | null
+          from_email: string | null
+          from_name: string | null
+          id: string
+          outlook_message_id: string | null
+          outlook_weblink: string | null
+          post_type: Database["public"]["Enums"]["conversation_post_type"]
+          sent_at: string | null
+          subject: string | null
+          thread_id: string
+          to_emails: string[] | null
+        }
+        Insert: {
+          author_id?: string | null
+          body_html?: string | null
+          body_text?: string | null
+          cc_emails?: string[] | null
+          company_id: string
+          created_at?: string
+          direction?: string | null
+          from_email?: string | null
+          from_name?: string | null
+          id?: string
+          outlook_message_id?: string | null
+          outlook_weblink?: string | null
+          post_type?: Database["public"]["Enums"]["conversation_post_type"]
+          sent_at?: string | null
+          subject?: string | null
+          thread_id: string
+          to_emails?: string[] | null
+        }
+        Update: {
+          author_id?: string | null
+          body_html?: string | null
+          body_text?: string | null
+          cc_emails?: string[] | null
+          company_id?: string
+          created_at?: string
+          direction?: string | null
+          from_email?: string | null
+          from_name?: string | null
+          id?: string
+          outlook_message_id?: string | null
+          outlook_weblink?: string | null
+          post_type?: Database["public"]["Enums"]["conversation_post_type"]
+          sent_at?: string | null
+          subject?: string | null
+          thread_id?: string
+          to_emails?: string[] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversation_posts_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "user_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversation_posts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "internal_companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversation_posts_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "conversation_threads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      conversation_threads: {
+        Row: {
+          company_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          is_archived: boolean
+          last_activity_at: string
+          last_author_name: string | null
+          post_count: number
+          project_id: string
+          thread_type: string
+          title: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_archived?: boolean
+          last_activity_at?: string
+          last_author_name?: string | null
+          post_count?: number
+          project_id: string
+          thread_type?: string
+          title: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_archived?: boolean
+          last_activity_at?: string
+          last_author_name?: string | null
+          post_count?: number
+          project_id?: string
+          thread_type?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversation_threads_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "internal_companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversation_threads_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "user_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversation_threads_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customer_contacts: {
         Row: {
           created_at: string
@@ -4940,6 +5130,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      has_samtaler_access: {
+        Args: { _auth_user_id: string; _project_id: string }
+        Returns: boolean
+      }
       has_space_access: {
         Args: { _auth_user_id: string; _space_id: string }
         Returns: boolean
@@ -5001,6 +5195,7 @@ export type Database = {
         | "closed"
         | "archived"
         | "in_progress"
+      conversation_post_type: "internal_message" | "email" | "system"
       event_status: "pending" | "accepted" | "declined" | "change_request"
       fag_priority: "normal" | "viktig"
       fag_regime: "nek" | "fel" | "fse" | "fsl" | "annet"
@@ -5210,6 +5405,7 @@ export const Constants = {
         "archived",
         "in_progress",
       ],
+      conversation_post_type: ["internal_message", "email", "system"],
       event_status: ["pending", "accepted", "declined", "change_request"],
       fag_priority: ["normal", "viktig"],
       fag_regime: ["nek", "fel", "fse", "fsl", "annet"],
