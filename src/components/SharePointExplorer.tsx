@@ -27,7 +27,9 @@ import {
   Ruler,
   Lock,
   FolderOpen,
+  Settings2,
 } from "lucide-react";
+import { SharePointCategoryMapper } from "@/components/docs/SharePointCategoryMapper";
 import { format } from "date-fns";
 import { nb } from "date-fns/locale";
 import {
@@ -239,6 +241,9 @@ export function SharePointExplorer({ jobId, companyId, connection, onConnectionC
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<"newest" | "name" | "size">("newest");
   const [listError, setListError] = useState<StructuredError | null>(null);
+
+  // Mapping mode
+  const [showMapper, setShowMapper] = useState(false);
 
   // Raw explorer mode
   const [rawMode, setRawMode] = useState(false);
@@ -733,6 +738,9 @@ export function SharePointExplorer({ jobId, companyId, connection, onConnectionC
           }} disabled={loadingTiles || loadingItems}>
             <RefreshCw className={`h-3 w-3 ${(loadingTiles || loadingItems) ? "animate-spin" : ""}`} />
           </Button>
+          <Button variant="ghost" size="sm" className="h-7 text-xs gap-1" onClick={() => setShowMapper(true)} title="Kategori-mapping">
+            <Settings2 className="h-3 w-3" />
+          </Button>
           <Button variant="ghost" size="sm" className="h-7 text-xs gap-1" onClick={() => { setSwitchingFolder(true); setProjectCode(connection.projectCode || ""); }} title="Bytt mappe">
             <FolderSync className="h-3 w-3" />
           </Button>
@@ -745,8 +753,19 @@ export function SharePointExplorer({ jobId, companyId, connection, onConnectionC
       {/* Error */}
       {listError && <InlineError error={listError} onDismiss={() => setListError(null)} />}
 
+      {/* ── MAPPING UI ── */}
+      {showMapper && (
+        <SharePointCategoryMapper
+          jobId={jobId}
+          projectId={jobId}
+          driveId={connection.driveId || ""}
+          onClose={() => setShowMapper(false)}
+          onMappingChanged={() => { setShowMapper(false); loadTiles(); }}
+        />
+      )}
+
       {/* ── CURATED TILES VIEW ── */}
-      {!activeCategory && !rawMode && (
+      {!activeCategory && !rawMode && !showMapper && (
         <>
           {loadingTiles ? (
             <div className="flex justify-center py-8">
@@ -805,6 +824,14 @@ export function SharePointExplorer({ jobId, companyId, connection, onConnectionC
                     )}
                     {!tile.exists && tile.read_only && (
                       <p className="text-[10px] text-muted-foreground mt-1">Ikke funnet</p>
+                    )}
+                    {tile.exists && tile.file_count === 0 && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setShowMapper(true); }}
+                        className="text-[10px] text-amber-600 hover:text-amber-700 underline mt-1 block"
+                      >
+                        Feil mapping?
+                      </button>
                     )}
                   </button>
                 ))}
