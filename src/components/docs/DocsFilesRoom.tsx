@@ -34,7 +34,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { SharePointPicker } from "@/components/docs/SharePointPicker";
+import { SharePointExplorer } from "@/components/SharePointExplorer";
 import type { Attachment } from "@/lib/mock-data";
 
 /* ── Helpers ── */
@@ -97,19 +97,45 @@ export function DocsFilesRoom({ projectId, jobId }: DocsFilesRoomProps) {
   const [projectAttachments, setProjectAttachments] = useState<Attachment[]>([]);
   const [attachmentsLoading, setAttachmentsLoading] = useState(true);
 
+  // SharePoint connection state
+  const [spConnection, setSpConnection] = useState<{
+    projectCode: string | null;
+    siteId: string | null;
+    driveId: string | null;
+    folderId: string | null;
+    folderWebUrl: string | null;
+    connectedAt: string | null;
+  }>({
+    projectCode: null, siteId: null, driveId: null, folderId: null, folderWebUrl: null, connectedAt: null,
+  });
+  const [spCompanyId, setSpCompanyId] = useState<string | null>(null);
+
   const fetchAttachments = useCallback(async () => {
     setAttachmentsLoading(true);
     const { data } = await supabase
       .from("events")
-      .select("attachments")
+      .select("attachments, company_id, sharepoint_project_code, sharepoint_site_id, sharepoint_drive_id, sharepoint_folder_id, sharepoint_folder_web_url, sharepoint_connected_at")
       .eq("id", jobId)
       .single();
     const atts = Array.isArray(data?.attachments) ? (data.attachments as unknown as Attachment[]) : [];
     setProjectAttachments(atts);
+    if (data) {
+      setSpCompanyId((data as any).company_id || null);
+      setSpConnection({
+        projectCode: (data as any).sharepoint_project_code || null,
+        siteId: (data as any).sharepoint_site_id || null,
+        driveId: (data as any).sharepoint_drive_id || null,
+        folderId: (data as any).sharepoint_folder_id || null,
+        folderWebUrl: (data as any).sharepoint_folder_web_url || null,
+        connectedAt: (data as any).sharepoint_connected_at || null,
+      });
+    }
     setAttachmentsLoading(false);
   }, [jobId]);
 
   useEffect(() => { fetchAttachments(); }, [fetchAttachments]);
+
+  const spIsConnected = !!spConnection.folderId;
 
   // Check if SharePoint files exist
   const hasSharePointFiles = files.some((f) => f.source_type === "sharepoint");
@@ -208,7 +234,7 @@ export function DocsFilesRoom({ projectId, jobId }: DocsFilesRoomProps) {
     );
   }
 
-  /* ── SharePoint picker overlay ── */
+  /* ── SharePoint explorer overlay ── */
 
   if (showSharePoint) {
     return (
@@ -220,7 +246,12 @@ export function DocsFilesRoom({ projectId, jobId }: DocsFilesRoomProps) {
           <ArrowLeft className="h-3.5 w-3.5" />
           Tilbake til dokumenter
         </button>
-        <SharePointPicker jobId={jobId} onSelect={handleSharePointSelect} />
+        <SharePointExplorer
+          jobId={jobId}
+          companyId={spCompanyId}
+          connection={spConnection}
+          onConnectionChange={() => fetchAttachments()}
+        />
       </div>
     );
   }
@@ -430,37 +461,57 @@ export function DocsFilesRoom({ projectId, jobId }: DocsFilesRoomProps) {
       )}
 
       {/* ── Section 3: SharePoint ── */}
-      {hasSharePointFiles ? (
-        <section className="space-y-3">
-          <div className="flex items-center gap-2">
-            <Link2 className="h-4 w-4 text-primary" />
-            <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide">
-              SharePoint
-            </h3>
-            <span className="text-xs text-muted-foreground">({sharePointFiles.length})</span>
+      <section className="space-y-3">
+        <div className="flex items-center gap-2">
+          <Link2 className="h-4 w-4 text-primary" />
+          <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide">
+            SharePoint
+          </h3>
+          {spIsConnected && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-[hsl(var(--success))]/10 text-[hsl(var(--success))] px-2 py-0.5 text-[10px] font-medium">
+              Koblet
+            </span>
+          )}
+          {!spIsConnected && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-muted text-muted-foreground px-2 py-0.5 text-[10px] font-medium">
+              <CloudOff className="h-3 w-3" />
+              Ikke koblet
+            </span>
+          )}
+        </div>
+
+        {spIsConnected ? (
+          <>
+            {hasSharePointFiles && (
+              <FileList files={sharePointFiles} onOpen={openFile} onDelete={isAdmin ? handleDelete : undefined} />
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              onClick={() => setShowSharePoint(true)}
+            >
+              <FolderOpen className="h-3.5 w-3.5" />
+              Åpne SharePoint-utforsker
+            </Button>
+          </>
+        ) : (
+          <div className="rounded-xl border border-dashed border-border/60 bg-muted/30 p-6 space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Koble denne jobben til en prosjektmappe i SharePoint for å synkronisere dokumenter.
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              onClick={() => setShowSharePoint(true)}
+            >
+              <Link2 className="h-3.5 w-3.5" />
+              Koble til SharePoint
+            </Button>
           </div>
-          <FileList files={sharePointFiles} onOpen={openFile} onDelete={isAdmin ? handleDelete : undefined} />
-        </section>
-      ) : (
-        <section className="rounded-xl border border-dashed border-border/60 bg-muted/30 p-6 text-center space-y-3">
-          <div className="flex items-center justify-center gap-2 text-muted-foreground">
-            <CloudOff className="h-5 w-5" />
-            <span className="text-sm font-medium">SharePoint ikke koblet</span>
-          </div>
-          <p className="text-xs text-muted-foreground max-w-sm mx-auto">
-            Koble til SharePoint for å synkronisere prosjektdokumenter fra din organisasjon.
-          </p>
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-2"
-            onClick={() => setShowSharePoint(true)}
-          >
-            <Link2 className="h-3.5 w-3.5" />
-            Koble til SharePoint
-          </Button>
-        </section>
-      )}
+        )}
+      </section>
 
       <input ref={uploadRef} type="file" multiple onChange={handleUpload} className="hidden" />
       {uploading && <UploadingIndicator />}
