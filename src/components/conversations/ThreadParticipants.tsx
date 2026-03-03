@@ -1,12 +1,13 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useThreadParticipants } from "@/hooks/useThreadParticipants";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { Users, Plus, X, Search, UserPlus, Mail, Send, Shield } from "lucide-react";
+import { Users, Plus, X, Search, UserPlus, Mail, Send, Clock, RotateCw, Ban, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -25,8 +26,17 @@ interface SearchResult {
   email: string | null;
 }
 
+interface PendingInvite {
+  id: string;
+  invited_email: string;
+  invited_name: string | null;
+  status: string;
+  expires_at: string;
+  created_at: string;
+}
+
 export function ThreadParticipants({ threadId, companyId, projectId, isAdmin, allowParticipantsInvite = true }: ThreadParticipantsProps) {
-  const { participants, loading, addInternal, addExternal, remove } = useThreadParticipants(threadId);
+  const { participants, loading, addInternal, addExternal, remove, refresh } = useThreadParticipants(threadId);
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -37,7 +47,23 @@ export function ThreadParticipants({ threadId, companyId, projectId, isAdmin, al
   const [extEmail, setExtEmail] = useState("");
   const [extName, setExtName] = useState("");
   const [sendingInvite, setSendingInvite] = useState(false);
+  const [lockThread, setLockThread] = useState(true);
+  const [pendingInvites, setPendingInvites] = useState<PendingInvite[]>([]);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+
+  // Fetch pending invites
+  useEffect(() => {
+    if (!threadId || !isAdmin) return;
+    (async () => {
+      const { data } = await (supabase as any)
+        .from("conversation_thread_invites")
+        .select("id, invited_email, invited_name, status, expires_at, created_at")
+        .eq("thread_id", threadId)
+        .in("status", ["pending"])
+        .order("created_at", { ascending: false });
+      setPendingInvites(data ?? []);
+    })();
+  }, [threadId, isAdmin, sendingInvite]);
 
   const getMyAccountId = async () => {
     if (!user) return null;
@@ -50,11 +76,7 @@ export function ThreadParticipants({ threadId, companyId, projectId, isAdmin, al
     return data?.id || null;
   };
 
-  // Check if current user is a participant with invite permissions
-  const myParticipant = participants.find(p => {
-    // Match by user_account_id - we need to check async but for UI we use cached data
-    return p.user_account_id !== null;
-  });
+  const myParticipant = participants.find(p => p.user_account_id !== null);
 
   const canInvite = isAdmin || (allowParticipantsInvite && myParticipant && (
     (myParticipant as any).can_invite_external || (myParticipant as any).can_invite_internal
@@ -123,18 +145,56 @@ export function ThreadParticipants({ threadId, companyId, projectId, isAdmin, al
           invited_email: extEmail.trim(),
           invited_name: extName.trim() || null,
           invite_type: "external",
+          lock_thread: lockThread,
         },
       });
       if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-      toast.success(`Invitasjon sendt til ${extEmail.trim()}`);
-      setExtEmail("");
-      setExtName("");
-      setInviteMode(false);
+      if (data?.error === "already_participant") {
+        toast.info(data.message || "Allerede deltaker");
+      } else if (data?.error) {
+        throw new Error(data.error);
+      } else {
+        toast.success(data?.resent
+          ? `Invitasjon sendt på nytt til ${extEmail.trim()}`
+          : `Invitasjon sendt til ${extEmail.trim()}`
+        );
+        setExtEmail("");
+        setExtName("");
+        setInviteMode(false);
+      }
     } catch (err: any) {
       toast.error(err.message || "Kunne ikke sende invitasjon");
     } finally {
       setSendingInvite(false);
+    }
+  };
+
+  const handleResendInvite = async (inviteId: string) => {
+    try {
+      const { data, error } = await supabase.functions.invoke("conversation-invite-send", {
+        body: { action: "resend", invite_id: inviteId },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast.success("Invitasjon sendt på nytt");
+      // Refresh invites
+      setSendingInvite(prev => !prev);
+    } catch (err: any) {
+      toast.error(err.message || "Kunne ikke sende på nytt");
+    }
+  };
+
+  const handleRevokeInvite = async (inviteId: string) => {
+    try {
+      const { data, error } = await supabase.functions.invoke("conversation-invite-send", {
+        body: { action: "revoke", invite_id: inviteId },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast.success("Invitasjon trukket tilbake");
+      setPendingInvites(prev => prev.filter(i => i.id !== inviteId));
+    } catch (err: any) {
+      toast.error(err.message || "Kunne ikke trekke tilbake");
     }
   };
 
@@ -156,6 +216,7 @@ export function ThreadParticipants({ threadId, companyId, projectId, isAdmin, al
       toast.error("Kunne ikke oppdatere rettighet");
     } else {
       toast.success("Rettighet oppdatert");
+      refresh();
     }
   };
 
@@ -221,6 +282,23 @@ export function ThreadParticipants({ threadId, companyId, projectId, isAdmin, al
                       onChange={e => setExtName(e.target.value)}
                       className="h-8 text-xs"
                     />
+                    {/* Lock thread confirmation */}
+                    <label className="flex items-start gap-2 cursor-pointer rounded-md border border-border/40 p-2 bg-muted/30">
+                      <Checkbox
+                        checked={lockThread}
+                        onCheckedChange={(v) => setLockThread(!!v)}
+                        className="mt-0.5"
+                      />
+                      <div className="min-w-0">
+                        <span className="text-[11px] font-medium text-foreground flex items-center gap-1">
+                          <Lock className="h-3 w-3" />
+                          Lås tråden til kun deltakere
+                        </span>
+                        <span className="text-[10px] text-muted-foreground block mt-0.5">
+                          Andre prosjektmedlemmer mister tilgang. Slå av dersom de fortsatt skal kunne se.
+                        </span>
+                      </div>
+                    </label>
                     <Button size="sm" className="w-full h-7 text-xs" onClick={handleSendInvite} disabled={!extEmail.trim() || sendingInvite}>
                       <Send className="h-3 w-3 mr-1" />
                       {sendingInvite ? "Sender…" : "Send invitasjon"}
@@ -335,6 +413,43 @@ export function ThreadParticipants({ threadId, companyId, projectId, isAdmin, al
                 </PopoverContent>
               )}
             </Popover>
+          ))}
+        </div>
+      )}
+
+      {/* Pending invites (admin only) */}
+      {isAdmin && pendingInvites.length > 0 && (
+        <div className="space-y-1.5 pt-1">
+          <p className="text-[10px] font-medium text-muted-foreground flex items-center gap-1">
+            <Clock className="h-3 w-3" />
+            Ventende invitasjoner
+          </p>
+          {pendingInvites.map(inv => (
+            <div key={inv.id} className="flex items-center gap-2 text-[10px] bg-muted/30 rounded-md px-2 py-1.5 border border-border/30">
+              <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-warning/40 text-warning shrink-0">
+                Venter
+              </Badge>
+              <span className="truncate flex-1 text-foreground">
+                {inv.invited_name || inv.invited_email}
+              </span>
+              <span className="text-muted-foreground shrink-0">
+                {new Date(inv.expires_at) < new Date() ? "Utløpt" : `Utløper ${new Date(inv.expires_at).toLocaleDateString("nb-NO")}`}
+              </span>
+              <button
+                onClick={() => handleResendInvite(inv.id)}
+                className="text-primary hover:text-primary/80 transition-colors shrink-0"
+                title="Send på nytt"
+              >
+                <RotateCw className="h-3 w-3" />
+              </button>
+              <button
+                onClick={() => handleRevokeInvite(inv.id)}
+                className="text-destructive hover:text-destructive/80 transition-colors shrink-0"
+                title="Trekk tilbake"
+              >
+                <Ban className="h-3 w-3" />
+              </button>
+            </div>
           ))}
         </div>
       )}
