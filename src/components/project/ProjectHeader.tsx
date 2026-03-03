@@ -4,22 +4,11 @@ import { nb } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
 import { JobStatusBadge } from "@/components/JobStatusBadge";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
   ArrowLeft,
   CalendarCheck,
-  MoreHorizontal,
-  Copy,
-  ExternalLink,
   Users,
 } from "lucide-react";
-import { toast } from "sonner";
 import type { JobStatus } from "@/lib/job-status";
-import { getDisplayNumber } from "@/lib/job-status";
 
 interface ProjectHeaderProps {
   jobNumber: string | null;
@@ -31,25 +20,19 @@ interface ProjectHeaderProps {
   end: Date;
   status: JobStatus;
   technicianNames: string[];
-  projectType?: string;
-  onNavigateTab: (tab: string) => void;
+  onOpenPlan: () => void;
 }
 
 export function ProjectHeader({
-  jobNumber,
-  internalNumber,
   title,
   customer,
-  address,
   start,
   end,
   status,
   technicianNames,
-  projectType,
-  onNavigateTab,
+  onOpenPlan,
 }: ProjectHeaderProps) {
   const navigate = useNavigate();
-  const displayNumber = getDisplayNumber(jobNumber, internalNumber);
   const period = `${format(start, "d. MMM", { locale: nb })} – ${format(end, "d. MMM yyyy", { locale: nb })}`;
 
   return (
@@ -64,7 +47,7 @@ export function ProjectHeader({
           Prosjekter
         </button>
 
-        {/* Title */}
+        {/* Title row */}
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
             <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">
@@ -76,9 +59,6 @@ export function ProjectHeader({
                 <span className="text-sm text-muted-foreground">{customer}</span>
               )}
               <span className="text-sm text-muted-foreground">{period}</span>
-              {displayNumber && (
-                <span className="text-xs text-muted-foreground/50 font-mono">{displayNumber}</span>
-              )}
             </div>
             {technicianNames.length > 0 && (
               <div className="flex items-center gap-1.5 mt-2 text-xs text-muted-foreground">
@@ -88,41 +68,15 @@ export function ProjectHeader({
             )}
           </div>
 
-          <div className="flex items-center gap-1.5 shrink-0">
-            <Button
-              variant="outline"
-              size="sm"
-              className="rounded-lg gap-1.5 h-8 text-xs font-medium"
-              onClick={() => onNavigateTab("plan")}
-            >
-              <CalendarCheck className="h-3.5 w-3.5" />
-              Se plan
-            </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="rounded-lg h-8 w-8">
-                  <MoreHorizontal className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuItem
-                  className="gap-2"
-                  onClick={() => {
-                    navigator.clipboard.writeText(window.location.href);
-                    toast.success("Lenke kopiert");
-                  }}
-                >
-                  <Copy className="h-3.5 w-3.5" /> Kopier lenke
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  className="gap-2"
-                  onClick={() => window.open(window.location.href, "_blank")}
-                >
-                  <ExternalLink className="h-3.5 w-3.5" /> Åpne i ny fane
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="rounded-lg gap-1.5 h-8 text-xs font-medium shrink-0"
+            onClick={onOpenPlan}
+          >
+            <CalendarCheck className="h-3.5 w-3.5" />
+            Se plan
+          </Button>
         </div>
       </div>
     </div>
