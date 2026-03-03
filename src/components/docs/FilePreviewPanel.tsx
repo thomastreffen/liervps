@@ -1,11 +1,10 @@
 import { useState, useEffect } from "react";
-import { X, Download, FolderOpen, ExternalLink, Loader2, FileText, Image, File, FileSpreadsheet, FileCode, FileArchive, Presentation } from "lucide-react";
+import { X, Download, FolderOpen, ExternalLink, Loader2, FileText, File } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import type { DocFile, DocFolder } from "@/hooks/useDocsFiles";
 import type { Attachment } from "@/lib/mock-data";
-import { cn } from "@/lib/utils";
 
 /* ── Types ── */
 
@@ -45,39 +44,41 @@ function getCurrentFolderId(item: PreviewItem): string | null {
   return item.kind === "doc" ? item.file.folder_id : null;
 }
 
-/** Build a signed URL that forces inline display (not download). */
-async function buildSignedUrl(item: PreviewItem): Promise<string | null> {
+/** Extract bucket and file_path from a Supabase storage URL */
+function extractStorageInfo(url: string): { bucket: string; path: string } | null {
+  const match = url.match(/\/storage\/v1\/object\/(?:public|sign)\/([^/]+)\/(.+?)(?:\?|$)/);
+  if (!match) return null;
+  return { bucket: match[1], path: decodeURIComponent(match[2]) };
+}
+
+/** Build a proxy URL that serves the file from our own edge function domain */
+function buildProxyUrl(bucket: string, filePath: string): string {
+  const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+  const params = new URLSearchParams({ bucket, path: filePath });
+  return `https://${projectId}.supabase.co/functions/v1/file-preview?${params.toString()}`;
+}
+
+/** Resolve storage info from a PreviewItem */
+function resolveStorageInfo(item: PreviewItem): { bucket: string; path: string } | null {
   if (item.kind === "doc") {
     const meta = item.file.source_meta;
-    if (item.file.source_type === "sharepoint") {
-      return meta?.web_url || null;
+    if (meta?.bucket && meta?.file_path) {
+      return { bucket: meta.bucket, path: meta.file_path };
     }
-    if (meta?.file_path && meta?.bucket) {
-      const { data } = await supabase.storage
-        .from(meta.bucket)
-        .createSignedUrl(meta.file_path, 3600, { download: false });
-      return data?.signedUrl || meta.public_url || null;
+    if (meta?.public_url) {
+      return extractStorageInfo(meta.public_url);
     }
-    return meta?.public_url || null;
+    return null;
   }
-
   // Attachment
-  const attUrl = item.attachment.url;
-  const storageMatch = attUrl.match(/\/storage\/v1\/object\/(?:public|sign)\/([^/]+)\/(.+)/);
-  if (storageMatch) {
-    const [, bucket, path] = storageMatch;
-    const { data } = await supabase.storage
-      .from(bucket)
-      .createSignedUrl(decodeURIComponent(path), 3600, { download: false });
-    return data?.signedUrl || attUrl;
-  }
-  return attUrl;
+  return extractStorageInfo(item.attachment.url);
 }
 
 /* ── Component ── */
 
 export function FilePreviewPanel({ item, folders, onClose, onMoveToFolder }: FilePreviewPanelProps) {
-  const [signedUrl, setSignedUrl] = useState<string | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [moveTarget, setMoveTarget] = useState<string>(getCurrentFolderId(item) ?? "__unsorted");
 
@@ -88,16 +89,68 @@ export function FilePreviewPanel({ item, folders, onClose, onMoveToFolder }: Fil
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    setSignedUrl(null);
+    setPreviewUrl(null);
+    setDownloadUrl(null);
 
-    buildSignedUrl(item).then((url) => {
+    (async () => {
+      // SharePoint files open externally
+      if (item.kind === "doc" && item.file.source_type === "sharepoint") {
+        const url = (item.file.source_meta as any)?.web_url || null;
+        if (!cancelled) {
+          setPreviewUrl(url);
+          setDownloadUrl(url);
+          setLoading(false);
+        }
+        return;
+      }
+
+      const storageInfo = resolveStorageInfo(item);
+
+      if (storageInfo) {
+        // Get auth token for the proxy request
+        const { data: sessionData } = await supabase.auth.getSession();
+        const token = sessionData?.session?.access_token;
+
+        if (token) {
+          const proxyUrl = buildProxyUrl(storageInfo.bucket, storageInfo.path);
+          // For the preview, we'll fetch via proxy with auth header and create a blob URL
+          try {
+            const response = await fetch(proxyUrl, {
+              headers: { Authorization: `Bearer ${token}` },
+            });
+            if (response.ok) {
+              const blob = await response.blob();
+              const blobUrl = URL.createObjectURL(blob);
+              if (!cancelled) {
+                setPreviewUrl(blobUrl);
+                setDownloadUrl(blobUrl);
+                setLoading(false);
+              }
+              return;
+            }
+          } catch (err) {
+            console.warn("[FilePreviewPanel] Proxy fetch failed, falling back:", err);
+          }
+        }
+      }
+
+      // Fallback: use direct URL (for non-storage files or if proxy fails)
+      const fallbackUrl = item.kind === "doc"
+        ? (item.file.source_meta as any)?.public_url || null
+        : item.attachment.url;
+
       if (!cancelled) {
-        setSignedUrl(url);
+        setPreviewUrl(fallbackUrl);
+        setDownloadUrl(fallbackUrl);
         setLoading(false);
       }
-    });
+    })();
 
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      // Cleanup blob URLs
+      if (previewUrl?.startsWith("blob:")) URL.revokeObjectURL(previewUrl);
+    };
   }, [item]);
 
   const handleMove = () => {
@@ -106,17 +159,14 @@ export function FilePreviewPanel({ item, folders, onClose, onMoveToFolder }: Fil
   };
 
   const handleDownload = () => {
-    if (!signedUrl) return;
+    if (!downloadUrl) return;
     const a = document.createElement("a");
-    a.href = signedUrl;
+    a.href = downloadUrl;
     a.download = title;
     a.click();
   };
 
-  // For PDFs we append response-content-type to ensure the browser treats it as PDF
-  const pdfEmbedUrl = signedUrl
-    ? signedUrl + (signedUrl.includes("?") ? "&" : "?") + "response-content-type=application/pdf"
-    : null;
+  const isSharePoint = item.kind === "doc" && item.file.source_type === "sharepoint";
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
@@ -133,13 +183,13 @@ export function FilePreviewPanel({ item, folders, onClose, onMoveToFolder }: Fil
             )}
           </div>
           <div className="flex items-center gap-1.5">
-            {signedUrl && (
+            {downloadUrl && (
               <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleDownload} title="Last ned">
                 <Download className="h-4 w-4" />
               </Button>
             )}
-            {item.kind === "doc" && item.file.source_type === "sharepoint" && signedUrl && (
-              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => window.open(signedUrl, "_blank")} title="Åpne i SharePoint">
+            {isSharePoint && previewUrl && (
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => window.open(previewUrl, "_blank")} title="Åpne i SharePoint">
                 <ExternalLink className="h-4 w-4" />
               </Button>
             )}
@@ -155,17 +205,17 @@ export function FilePreviewPanel({ item, folders, onClose, onMoveToFolder }: Fil
             <div className="flex items-center justify-center h-full">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
-          ) : previewType === "image" && signedUrl ? (
+          ) : previewType === "image" && previewUrl ? (
             <div className="flex items-center justify-center p-6 h-full">
               <img
-                src={signedUrl}
+                src={previewUrl}
                 alt={title}
                 className="max-w-full max-h-full object-contain rounded-lg shadow-md"
               />
             </div>
-          ) : previewType === "pdf" && pdfEmbedUrl ? (
+          ) : previewType === "pdf" && previewUrl ? (
             <object
-              data={pdfEmbedUrl}
+              data={previewUrl}
               type="application/pdf"
               className="w-full h-full"
               aria-label={title}
@@ -177,7 +227,7 @@ export function FilePreviewPanel({ item, folders, onClose, onMoveToFolder }: Fil
                   PDF-forhåndsvisning er ikke tilgjengelig i nettleseren.
                 </p>
                 <div className="flex gap-2">
-                  <Button variant="outline" size="sm" className="gap-2" onClick={() => window.open(pdfEmbedUrl, "_blank")}>
+                  <Button variant="outline" size="sm" className="gap-2" onClick={() => window.open(previewUrl, "_blank")}>
                     <ExternalLink className="h-3.5 w-3.5" />
                     Åpne i ny fane
                   </Button>
@@ -188,7 +238,7 @@ export function FilePreviewPanel({ item, folders, onClose, onMoveToFolder }: Fil
                 </div>
               </div>
             </object>
-          ) : signedUrl ? (
+          ) : previewUrl ? (
             <div className="flex flex-col items-center justify-center h-full gap-4 text-muted-foreground">
               <File className="h-16 w-16 opacity-30" />
               <p className="text-sm">Forhåndsvisning er ikke tilgjengelig for denne filtypen.</p>
