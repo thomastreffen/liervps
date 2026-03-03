@@ -168,6 +168,35 @@ export default function ConversationDetailPage() {
                 </Badge>
                 <span>{thread.post_count} innlegg</span>
 
+                {/* Access summary chips */}
+                <Badge variant="outline" className={cn(
+                  "text-[9px] px-1.5 py-0 gap-0.5",
+                  thread.participants_only
+                    ? "border-warning/30 text-warning"
+                    : "border-muted-foreground/30 text-muted-foreground"
+                )}>
+                  {thread.participants_only ? <Lock className="h-2.5 w-2.5" /> : <Globe className="h-2.5 w-2.5" />}
+                  {thread.participants_only ? "Kun deltakere" : "Åpen for rom"}
+                </Badge>
+                <Badge variant="outline" className={cn(
+                  "text-[9px] px-1.5 py-0 gap-0.5",
+                  thread.email_enabled
+                    ? "border-accent/30 text-accent"
+                    : "border-muted-foreground/30 text-muted-foreground"
+                )}>
+                  <MailIcon className="h-2.5 w-2.5" />
+                  E-post {thread.email_enabled ? "på" : "av"}
+                </Badge>
+                <Badge variant="outline" className={cn(
+                  "text-[9px] px-1.5 py-0 gap-0.5",
+                  (thread.allow_participants_invite ?? true)
+                    ? "border-primary/30 text-primary"
+                    : "border-muted-foreground/30 text-muted-foreground"
+                )}>
+                  <UserPlus className="h-2.5 w-2.5" />
+                  Invitasjoner {(thread.allow_participants_invite ?? true) ? "på" : "av"}
+                </Badge>
+
                 {category === "risk" && (
                   <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-destructive/30 text-destructive gap-0.5">
                     <AlertTriangle className="h-2.5 w-2.5" />
@@ -190,12 +219,6 @@ export default function ConversationDetailPage() {
                   <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-muted-foreground/30 text-muted-foreground gap-0.5">
                     <XCircle className="h-2.5 w-2.5" />
                     Lukket
-                  </Badge>
-                )}
-                {thread.participants_only && (
-                  <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-warning/30 text-warning gap-0.5">
-                    <Lock className="h-2.5 w-2.5" />
-                    Kun deltakere
                   </Badge>
                 )}
               </div>
