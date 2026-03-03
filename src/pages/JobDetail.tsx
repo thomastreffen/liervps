@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { ProjectHeader } from "@/components/project/ProjectHeader";
 import { ProjectRooms } from "@/components/project/ProjectRooms";
 import { ProjectFeed } from "@/components/project/ProjectFeed";
+import { DocsFilesRoom } from "@/components/docs/DocsFilesRoom";
 import { ProjectPlanTab } from "@/components/ProjectPlanTab";
 import { Button } from "@/components/ui/button";
 import type { Job, Attachment } from "@/lib/mock-data";
@@ -200,13 +201,7 @@ export default function JobDetail() {
                 />
               )}
               {activeRoom === "dokumenter" && (
-                <ProjectFeed
-                  jobId={id!}
-                  jobTitle={job.title}
-                  customer={job.customer}
-                  internalNumber={job.internalNumber || null}
-                  filter="documents"
-                />
+                <DocsFilesRoom projectId={id!} jobId={id!} />
               )}
             </div>
           ) : (

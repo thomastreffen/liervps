@@ -75,12 +75,10 @@ export function ProjectRooms({ jobId, onOpenPlan, onOpenRoom }: ProjectRoomsProp
         .select("id", { count: "exact", head: true })
         .eq("job_id", jobId)
         .neq("status", "completed"),
-      // Dokumenter – kun prosjektfiler, ikke vedlegg fra feed/e-post
-      supabase.from("documents")
+      // Dokumenter – filer fra docs_files-tabellen
+      supabase.from("docs_files")
         .select("id", { count: "exact", head: true })
-        .eq("entity_id", jobId)
-        .eq("entity_type", "job")
-        .is("deleted_at", null),
+        .eq("project_id", jobId),
       // Tidsplan – kun kommende hendelser (dato >= i dag)
       supabase.from("job_tasks")
         .select("id", { count: "exact", head: true })
