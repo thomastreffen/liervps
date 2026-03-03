@@ -46,6 +46,7 @@ const adminItems = [
   { title: "Systemhelse", url: "/admin/system-health" },
   { title: "Dataintegritet", url: "/admin/data-integrity" },
   { title: "Kontraktvarsler", url: "/admin/contract-cron" },
+  { title: "Microsoft", url: "/admin/microsoft", requireSuperAdmin: true },
   { title: "Innstillinger", url: "/admin/settings" },
   { title: "Papirkurv", url: "/admin/trash" },
 ];
