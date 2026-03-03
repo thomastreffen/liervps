@@ -1736,6 +1736,7 @@ export type Database = {
       events: {
         Row: {
           address: string | null
+          allow_clients: boolean
           archived_at: string | null
           archived_by: string | null
           attachments: Json | null
@@ -1790,9 +1791,11 @@ export type Database = {
           title: string
           updated_at: string
           updated_by: string | null
+          visibility_type: string
         }
         Insert: {
           address?: string | null
+          allow_clients?: boolean
           archived_at?: string | null
           archived_by?: string | null
           attachments?: Json | null
@@ -1847,9 +1850,11 @@ export type Database = {
           title: string
           updated_at?: string
           updated_by?: string | null
+          visibility_type?: string
         }
         Update: {
           address?: string | null
+          allow_clients?: boolean
           archived_at?: string | null
           archived_by?: string | null
           attachments?: Json | null
@@ -1904,6 +1909,7 @@ export type Database = {
           title?: string
           updated_at?: string
           updated_by?: string | null
+          visibility_type?: string
         }
         Relationships: [
           {
@@ -3677,22 +3683,67 @@ export type Database = {
         }
         Relationships: []
       }
+      project_members: {
+        Row: {
+          created_at: string
+          id: string
+          member_type: string
+          project_id: string
+          role: string
+          user_account_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          member_type?: string
+          project_id: string
+          role?: string
+          user_account_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          member_type?: string
+          project_id?: string
+          role?: string
+          user_account_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_members_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_members_user_account_id_fkey"
+            columns: ["user_account_id"]
+            isOneToOne: false
+            referencedRelation: "user_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_spaces: {
         Row: {
           created_at: string
           id: string
+          is_enabled: boolean
           project_id: string
           space_key: string
         }
         Insert: {
           created_at?: string
           id?: string
+          is_enabled?: boolean
           project_id: string
           space_key: string
         }
         Update: {
           created_at?: string
           id?: string
+          is_enabled?: boolean
           project_id?: string
           space_key?: string
         }
@@ -4863,6 +4914,14 @@ export type Database = {
         }
         Returns: Json
       }
+      get_project_member_type: {
+        Args: { _auth_user_id: string; _project_id: string }
+        Returns: string
+      }
+      get_project_role: {
+        Args: { _auth_user_id: string; _project_id: string }
+        Returns: string
+      }
       get_user_account_id: { Args: { _auth_user_id: string }; Returns: string }
       get_user_scope: { Args: { _user_id: string }; Returns: string }
       get_user_scope_v2: { Args: { _auth_user_id: string }; Returns: string }
@@ -4883,6 +4942,10 @@ export type Database = {
       }
       is_admin: { Args: never; Returns: boolean }
       is_project_admin: {
+        Args: { _auth_user_id: string; _project_id: string }
+        Returns: boolean
+      }
+      is_project_member: {
         Args: { _auth_user_id: string; _project_id: string }
         Returns: boolean
       }

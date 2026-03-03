@@ -1,6 +1,7 @@
 import { useState, useRef } from "react";
 import { useDocsFiles, type DocFolder, type DocFile } from "@/hooks/useDocsFiles";
 import { useAuth } from "@/hooks/useAuth";
+import { FolderAccessDrawer } from "@/components/docs/FolderAccessDrawer";
 import {
   FolderOpen,
   Plus,
@@ -84,6 +85,7 @@ export function DocsFilesRoom({ projectId, jobId }: DocsFilesRoomProps) {
   const [showNewFolder, setShowNewFolder] = useState(false);
   const [showSharePoint, setShowSharePoint] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [accessFolderId, setAccessFolderId] = useState<string | null>(null);
   const uploadRef = useRef<HTMLInputElement>(null);
 
   const activeFolder = folders.find((f) => f.id === activeFolderId);
@@ -205,23 +207,44 @@ export function DocsFilesRoom({ projectId, jobId }: DocsFilesRoomProps) {
         {/* Folder header */}
         <div className="flex items-center gap-3 pb-2 border-b border-border/40">
           <FolderOpen className="h-6 w-6 text-primary" />
-          <div>
+          <div className="flex-1">
             <h3 className="text-lg font-bold text-foreground">{activeFolder?.name}</h3>
             <p className="text-xs text-muted-foreground">
               {folderFiles.length} {folderFiles.length === 1 ? "fil" : "filer"}
-              {activeFolder?.has_member_override && (
-                <span className="ml-2 inline-flex items-center gap-1">
-                  <Users className="h-3 w-3" /> Begrenset tilgang
-                </span>
-              )}
             </p>
           </div>
+          {isAdmin && (
+            <button
+              onClick={() => setAccessFolderId(activeFolderId)}
+              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors rounded-md border border-border/40 px-2.5 py-1.5"
+            >
+              <Users className="h-3.5 w-3.5" />
+              {activeFolder?.has_member_override ? "Begrenset tilgang" : "Tilgang"}
+            </button>
+          )}
         </div>
 
         <FileList files={folderFiles} onOpen={openFile} onDelete={isAdmin ? handleDelete : undefined} />
 
         <input ref={uploadRef} type="file" multiple onChange={handleUpload} className="hidden" />
         {uploading && <UploadingIndicator />}
+
+        {/* Folder access drawer */}
+        {accessFolderId && activeFolder && (
+          <div className="fixed inset-0 z-50 flex justify-end">
+            <div className="absolute inset-0 bg-black/20 backdrop-blur-[2px]" onClick={() => setAccessFolderId(null)} />
+            <div className="relative w-full max-w-md bg-background border-l border-border shadow-xl overflow-y-auto p-6">
+              <FolderAccessDrawer
+                folderId={accessFolderId}
+                folderName={activeFolder.name}
+                projectId={projectId}
+                hasOverride={activeFolder.has_member_override}
+                onClose={() => setAccessFolderId(null)}
+                onUpdated={refresh}
+              />
+            </div>
+          </div>
+        )}
       </div>
     );
   }

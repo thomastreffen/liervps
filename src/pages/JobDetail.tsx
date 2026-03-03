@@ -17,6 +17,7 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { EditJobDialog } from "@/components/EditJobDialog";
 import { ImageLightbox } from "@/components/ImageLightbox";
+import { ProjectAccessDrawer } from "@/components/project/ProjectAccessDrawer";
 import { Loader2, X, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import type { OutlookSyncStatus } from "@/lib/mock-data";
@@ -34,6 +35,8 @@ export default function JobDetail() {
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const [showPlan, setShowPlan] = useState(false);
   const [activeRoom, setActiveRoom] = useState<string | null>(null);
+  const [accessDrawerOpen, setAccessDrawerOpen] = useState(false);
+  const [accessDrawerTab, setAccessDrawerTab] = useState<"members" | "spaces">("members");
 
   /* ── Fetch data ── */
   const fetchJob = useCallback(async () => {
@@ -167,6 +170,9 @@ export default function JobDetail() {
           status={job.status}
           technicianNames={technicianNames}
           onOpenPlan={() => setShowPlan(true)}
+          onEdit={() => setEditOpen(true)}
+          onOpenAccess={() => { setAccessDrawerTab("members"); setAccessDrawerOpen(true); }}
+          onOpenSpaces={() => { setAccessDrawerTab("spaces"); setAccessDrawerOpen(true); }}
         />
 
         {/* Room content or Rooms overview */}
@@ -236,6 +242,23 @@ export default function JobDetail() {
           if (!error) { setJob((p) => p ? { ...p, attachments: updated } : null); toast.success("Vedlegg slettet"); }
         }}
       />
+
+      {/* Access drawer – slides in from right */}
+      {accessDrawerOpen && id && (
+        <div className="fixed inset-0 z-50 flex justify-end">
+          <div
+            className="absolute inset-0 bg-black/20 backdrop-blur-[2px]"
+            onClick={() => setAccessDrawerOpen(false)}
+          />
+          <div className="relative w-full max-w-md bg-background border-l border-border shadow-xl overflow-y-auto p-6">
+            <ProjectAccessDrawer
+              projectId={id}
+              onClose={() => setAccessDrawerOpen(false)}
+              initialTab={accessDrawerTab}
+            />
+          </div>
+        </div>
+      )}
     </>
   );
 }
