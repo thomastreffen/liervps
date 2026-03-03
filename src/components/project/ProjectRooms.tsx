@@ -58,28 +58,35 @@ export function ProjectRooms({ jobId, onOpenPlan, onOpenRoom }: ProjectRoomsProp
 
   const fetchCounts = useCallback(async () => {
     setLoading(true);
+    const today = new Date().toISOString().split("T")[0];
 
     const [msgRes, emailRes, taskRes, docRes, scheduleRes] = await Promise.all([
+      // Samtaler – interne meldinger
       supabase.from("activity_log")
         .select("id", { count: "exact", head: true })
         .eq("entity_id", jobId)
         .in("type", ["note", "comment"]),
+      // Samtaler – e-posttråder
       supabase.from("communication_logs")
         .select("id", { count: "exact", head: true })
         .eq("entity_id", jobId),
+      // Oppgaver – kun åpne
       supabase.from("job_tasks")
         .select("id", { count: "exact", head: true })
         .eq("job_id", jobId)
         .neq("status", "completed"),
+      // Dokumenter – kun prosjektfiler, ikke vedlegg fra feed/e-post
       supabase.from("documents")
         .select("id", { count: "exact", head: true })
         .eq("entity_id", jobId)
         .eq("entity_type", "job")
         .is("deleted_at", null),
+      // Tidsplan – kun kommende hendelser (dato >= i dag)
       supabase.from("job_tasks")
         .select("id", { count: "exact", head: true })
         .eq("job_id", jobId)
-        .not("scheduled_date", "is", null),
+        .not("scheduled_date", "is", null)
+        .gte("scheduled_date", today),
     ]);
 
     setCounts({
