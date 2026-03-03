@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { useConversationPosts, type ConversationPost, type ConversationAttachment } from "@/hooks/useConversations";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { triggerConversationEmailSend } from "@/lib/conversation-email";
 import { format } from "date-fns";
 import { nb } from "date-fns/locale";
 import {
@@ -66,12 +67,8 @@ export function ThreadDetail({ threadId, threadTitle, threadType, projectId, com
     if (!failedEmail) return;
     setResending(true);
     try {
-      const { data, error } = await supabase.functions.invoke("conversation-email-send", {
-        body: { post_id: failedEmail.post_id },
-      });
-      if (error) throw error;
-      if (data?.status === "sent" || data?.sent) {
-        // Update the failed record status
+      const result = await triggerConversationEmailSend(threadId, "resend", { post_id: failedEmail.post_id });
+      if (result.sent) {
         await (supabase as any)
           .from("conversation_email_messages")
           .update({ status: "resent" })
@@ -79,7 +76,7 @@ export function ThreadDetail({ threadId, threadTitle, threadType, projectId, com
         toast.success("E-post sendt på nytt");
         setFailedEmail(null);
       } else {
-        toast.error("Sending feilet igjen");
+        toast.error(result.error || "Sending feilet igjen");
       }
     } catch (err: any) {
       toast.error(err.message || "Kunne ikke sende på nytt");
@@ -121,18 +118,12 @@ export function ThreadDetail({ threadId, threadTitle, threadType, projectId, com
   const triggerEmailSend = async (postId: string) => {
     if (!emailEnabled) return;
     try {
-      const projectIdEnv = import.meta.env.VITE_SUPABASE_PROJECT_ID;
-      await fetch(
-        `https://${projectIdEnv}.supabase.co/functions/v1/conversation-email-send`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-          },
-          body: JSON.stringify({ post_id: postId }),
-        }
-      );
+      const result = await triggerConversationEmailSend(threadId, "new_post", { post_id: postId });
+      if (result.sent) {
+        console.log("Email sent for post", postId);
+      } else if (!result.skipped) {
+        console.warn("Email send failed", result.error);
+      }
     } catch {
       console.warn("Email send failed silently");
     }
