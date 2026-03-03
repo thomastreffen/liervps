@@ -17,6 +17,7 @@ import { format } from "date-fns";
 import { nb } from "date-fns/locale";
 
 type SubAction = "ensure" | "renew" | "recreate" | "disable";
+type EmailFilter = "all" | "invite" | "participant_added" | "new_post" | "resend";
 
 export default function MicrosoftAdminPage() {
   const { activeCompanyId } = useCompanyContext();
@@ -30,6 +31,7 @@ export default function MicrosoftAdminPage() {
     verified?: boolean; webLink?: string; internetMessageId?: string;
   } | null>(null);
   const [resendingId, setResendingId] = useState<string | null>(null);
+  const [emailFilter, setEmailFilter] = useState<EmailFilter>("all");
 
   // ── Subscriptions ──
   const { data: subscriptions, isLoading } = useQuery({
@@ -357,13 +359,31 @@ export default function MicrosoftAdminPage() {
             </Button>
           </div>
           <CardDescription>Siste 50 utgående e-postforsøk med leveringsbevis</CardDescription>
+          <div className="flex gap-1.5 flex-wrap pt-2">
+            {(["all", "invite", "participant_added", "new_post", "resend"] as EmailFilter[]).map(f => (
+              <Button
+                key={f}
+                variant={emailFilter === f ? "default" : "outline"}
+                size="sm"
+                className="h-6 text-[10px] px-2"
+                onClick={() => setEmailFilter(f)}
+              >
+                {f === "all" ? "Alle" : f === "invite" ? "Invitasjon" : f === "participant_added" ? "Velkommen" : f === "new_post" ? "Nytt innlegg" : "Resend"}
+              </Button>
+            ))}
+          </div>
         </CardHeader>
         <CardContent>
-          {!emailLogs || emailLogs.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Ingen e-postforsøk registrert ennå.</p>
-          ) : (
+          {(() => {
+            const filtered = emailFilter === "all"
+              ? (emailLogs || [])
+              : (emailLogs || []).filter((l: any) => l.processing_status === emailFilter);
+            if (filtered.length === 0) {
+              return <p className="text-sm text-muted-foreground">Ingen e-postforsøk {emailFilter !== "all" ? `av type "${emailFilter}" ` : ""}registrert.</p>;
+            }
+            return (
             <div className="space-y-2">
-              {emailLogs.map((log: any) => (
+              {filtered.map((log: any) => (
                 <div key={log.id} className="rounded-lg border p-3 space-y-1.5">
                   <div className="flex items-center gap-2 flex-wrap">
                     <Badge variant={emailStatusVariant(log.status)} className="text-[10px]">
@@ -421,7 +441,8 @@ export default function MicrosoftAdminPage() {
                 </div>
               ))}
             </div>
-          )}
+            );
+          })()}
         </CardContent>
       </Card>
 
