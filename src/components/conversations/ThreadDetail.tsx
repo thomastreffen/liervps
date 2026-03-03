@@ -6,7 +6,7 @@ import { format } from "date-fns";
 import { nb } from "date-fns/locale";
 import {
   MessageSquare, Mail, Send, Loader2, Paperclip,
-  ExternalLink, Copy, FileText, Image, ChevronDown, ChevronUp, Upload,
+  ExternalLink, Copy, FileText, Image, ChevronDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -20,9 +20,10 @@ interface ThreadDetailProps {
   threadType: "conversation" | "email_thread";
   projectId: string;
   companyId: string;
+  isClosed?: boolean;
 }
 
-export function ThreadDetail({ threadId, threadTitle, threadType, projectId, companyId }: ThreadDetailProps) {
+export function ThreadDetail({ threadId, threadTitle, threadType, projectId, companyId, isClosed = false }: ThreadDetailProps) {
   const { posts, loading, refresh } = useConversationPosts(threadId);
   const { user } = useAuth();
   const [replyText, setReplyText] = useState("");
@@ -34,10 +35,7 @@ export function ThreadDetail({ threadId, threadTitle, threadType, projectId, com
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
-    if (files.length > 0) {
-      setPendingFiles(prev => [...prev, ...files]);
-    }
-    // Reset input so same file can be re-selected
+    if (files.length > 0) setPendingFiles(prev => [...prev, ...files]);
     e.target.value = "";
   };
 
@@ -51,12 +49,10 @@ export function ThreadDetail({ threadId, threadTitle, threadType, projectId, com
       const { error: uploadErr } = await supabase.storage
         .from("conversation-files")
         .upload(filePath, file);
-
       if (uploadErr) {
         toast.error(`Kunne ikke laste opp ${file.name}`);
         continue;
       }
-
       await (supabase as any).from("conversation_attachments").insert({
         post_id: postId,
         file_name: file.name,
@@ -115,16 +111,22 @@ export function ThreadDetail({ threadId, threadTitle, threadType, projectId, com
   }
 
   return (
-    <div className="space-y-0">
-      <div className="space-y-0 divide-y divide-border/30">
+    <div>
+      <div className="divide-y divide-border/20">
         {posts.map((post, i) => (
-          <PostCard key={post.id} post={post} isFirst={i === 0} companyId={companyId} projectId={projectId} threadId={threadId} />
+          <PostCard key={post.id} post={post} isFirst={i === 0} />
         ))}
       </div>
 
       {/* Reply composer */}
-      <div className="sticky bottom-0 bg-background pt-4 pb-2 border-t border-border/40 mt-6">
-        <div className="rounded-xl border border-border/50 bg-card p-4 space-y-3">
+      {isClosed ? (
+        <div className="px-5 py-4 bg-muted/30 border-t border-border/20">
+          <p className="text-xs text-muted-foreground text-center">
+            Denne tråden er lukket. Kun administratorer kan gjenåpne den.
+          </p>
+        </div>
+      ) : (
+        <div className="border-t border-border/20 p-4">
           <Textarea
             ref={textareaRef}
             value={replyText}
@@ -136,9 +138,8 @@ export function ThreadDetail({ threadId, threadTitle, threadType, projectId, com
             }}
           />
 
-          {/* Pending files */}
           {pendingFiles.length > 0 && (
-            <div className="flex flex-wrap gap-1.5">
+            <div className="flex flex-wrap gap-1.5 mt-2">
               {pendingFiles.map((f, i) => (
                 <Badge key={i} variant="outline" className="text-[10px] gap-1 pr-1">
                   <Paperclip className="h-2.5 w-2.5" />
@@ -149,7 +150,7 @@ export function ThreadDetail({ threadId, threadTitle, threadType, projectId, com
             </div>
           )}
 
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between mt-3">
             <div className="flex items-center gap-2">
               <input
                 ref={fileInputRef}
@@ -177,23 +178,23 @@ export function ThreadDetail({ threadId, threadTitle, threadType, projectId, com
             </Button>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
 
 /* ── Post Card ── */
 
-function PostCard({ post, isFirst, companyId, projectId, threadId }: { post: ConversationPost; isFirst: boolean; companyId: string; projectId: string; threadId: string }) {
+function PostCard({ post, isFirst }: { post: ConversationPost; isFirst: boolean }) {
   const [expanded, setExpanded] = useState(isFirst || post.post_type === "internal_message");
   const isEmail = post.post_type === "email";
   const isSystem = post.post_type === "system";
 
   if (isSystem) {
     return (
-      <div className="flex items-center gap-2 py-3 px-2 text-xs text-muted-foreground">
+      <div className="flex items-center gap-2 py-3 px-5 text-xs text-muted-foreground">
         <div className="h-px flex-1 bg-border/40" />
-        <span>{post.body_text || post.subject || "Systemhendelse"}</span>
+        <span className="italic">{post.body_text || post.subject || "Systemhendelse"}</span>
         <div className="h-px flex-1 bg-border/40" />
       </div>
     );
@@ -214,7 +215,7 @@ function PostCard({ post, isFirst, companyId, projectId, threadId }: { post: Con
   };
 
   return (
-    <div className={cn("py-5 px-1", isEmail ? "bg-accent/[0.02]" : "")}>
+    <div className={cn("py-5 px-5")}>
       <div className="flex items-start gap-3">
         <div className={cn(
           "flex h-9 w-9 items-center justify-center rounded-full text-xs font-bold shrink-0",
@@ -251,7 +252,6 @@ function PostCard({ post, isFirst, companyId, projectId, threadId }: { post: Con
                 <p className="text-sm text-foreground/90 whitespace-pre-wrap">{post.body_text}</p>
               ) : null}
 
-              {/* Attachments */}
               {post.attachments && post.attachments.length > 0 && (
                 <div className="flex flex-wrap gap-2 pt-1">
                   {post.attachments.map((a) => (

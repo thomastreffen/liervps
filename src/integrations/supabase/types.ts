@@ -1184,6 +1184,85 @@ export type Database = {
           },
         ]
       }
+      conversation_email_messages: {
+        Row: {
+          cc_emails: string[] | null
+          company_id: string
+          created_at: string
+          direction: string
+          error: string | null
+          from_email: string | null
+          id: string
+          outlook_conversation_id: string | null
+          outlook_internet_message_id: string | null
+          outlook_message_id: string | null
+          post_id: string | null
+          provider: string
+          status: string
+          subject: string | null
+          thread_id: string
+          to_emails: string[] | null
+        }
+        Insert: {
+          cc_emails?: string[] | null
+          company_id: string
+          created_at?: string
+          direction: string
+          error?: string | null
+          from_email?: string | null
+          id?: string
+          outlook_conversation_id?: string | null
+          outlook_internet_message_id?: string | null
+          outlook_message_id?: string | null
+          post_id?: string | null
+          provider?: string
+          status?: string
+          subject?: string | null
+          thread_id: string
+          to_emails?: string[] | null
+        }
+        Update: {
+          cc_emails?: string[] | null
+          company_id?: string
+          created_at?: string
+          direction?: string
+          error?: string | null
+          from_email?: string | null
+          id?: string
+          outlook_conversation_id?: string | null
+          outlook_internet_message_id?: string | null
+          outlook_message_id?: string | null
+          post_id?: string | null
+          provider?: string
+          status?: string
+          subject?: string | null
+          thread_id?: string
+          to_emails?: string[] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversation_email_messages_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "internal_companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversation_email_messages_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "conversation_posts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversation_email_messages_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "conversation_threads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       conversation_posts: {
         Row: {
           author_id: string | null
@@ -1276,6 +1355,7 @@ export type Database = {
           id: string
           participant_type: string
           project_id: string
+          receive_email: boolean
           thread_id: string
           user_account_id: string | null
         }
@@ -1288,6 +1368,7 @@ export type Database = {
           id?: string
           participant_type: string
           project_id: string
+          receive_email?: boolean
           thread_id: string
           user_account_id?: string | null
         }
@@ -1300,6 +1381,7 @@ export type Database = {
           id?: string
           participant_type?: string
           project_id?: string
+          receive_email?: boolean
           thread_id?: string
           user_account_id?: string | null
         }
@@ -1343,56 +1425,92 @@ export type Database = {
       }
       conversation_threads: {
         Row: {
+          closed_at: string | null
+          closed_by: string | null
           company_id: string
           created_at: string
           created_by: string | null
+          decision_marked_at: string | null
+          decision_marked_by: string | null
+          decision_summary: string | null
           email_enabled: boolean
           email_subject: string | null
           email_thread_id: string | null
           id: string
+          inbound_token: string | null
           is_archived: boolean
+          is_formal_decision: boolean
           last_activity_at: string
           last_author_name: string | null
           last_emailed_at: string | null
+          linked_offer_id: string | null
+          linked_order_id: string | null
+          linked_order_line_id: string | null
           participants_only: boolean
           post_count: number
           project_id: string
+          status: string
+          thread_category: string
           thread_type: string
           title: string
         }
         Insert: {
+          closed_at?: string | null
+          closed_by?: string | null
           company_id: string
           created_at?: string
           created_by?: string | null
+          decision_marked_at?: string | null
+          decision_marked_by?: string | null
+          decision_summary?: string | null
           email_enabled?: boolean
           email_subject?: string | null
           email_thread_id?: string | null
           id?: string
+          inbound_token?: string | null
           is_archived?: boolean
+          is_formal_decision?: boolean
           last_activity_at?: string
           last_author_name?: string | null
           last_emailed_at?: string | null
+          linked_offer_id?: string | null
+          linked_order_id?: string | null
+          linked_order_line_id?: string | null
           participants_only?: boolean
           post_count?: number
           project_id: string
+          status?: string
+          thread_category?: string
           thread_type?: string
           title: string
         }
         Update: {
+          closed_at?: string | null
+          closed_by?: string | null
           company_id?: string
           created_at?: string
           created_by?: string | null
+          decision_marked_at?: string | null
+          decision_marked_by?: string | null
+          decision_summary?: string | null
           email_enabled?: boolean
           email_subject?: string | null
           email_thread_id?: string | null
           id?: string
+          inbound_token?: string | null
           is_archived?: boolean
+          is_formal_decision?: boolean
           last_activity_at?: string
           last_author_name?: string | null
           last_emailed_at?: string | null
+          linked_offer_id?: string | null
+          linked_order_id?: string | null
+          linked_order_line_id?: string | null
           participants_only?: boolean
           post_count?: number
           project_id?: string
+          status?: string
+          thread_category?: string
           thread_type?: string
           title?: string
         }

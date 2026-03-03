@@ -13,8 +13,22 @@ export interface ConversationThread {
   post_count: number;
   last_author_name: string | null;
   is_archived: boolean;
+  // v2 fields
+  status: "open" | "closed";
+  closed_at: string | null;
+  closed_by: string | null;
+  participants_only: boolean;
+  is_formal_decision: boolean;
+  decision_summary: string | null;
+  thread_category: "normal" | "risk" | "change";
+  linked_offer_id: string | null;
+  linked_order_id: string | null;
+  email_enabled: boolean;
+  inbound_token: string | null;
   author_name?: string;
 }
+
+export type ThreadFilter = "all" | "risk" | "change" | "decision" | "closed";
 
 export interface ConversationPost {
   id: string;
@@ -49,28 +63,39 @@ export interface ConversationAttachment {
   created_at: string;
 }
 
-export function useConversationThreads(projectId: string) {
+export function useConversationThreads(projectId: string, filter: ThreadFilter = "all") {
   const [threads, setThreads] = useState<ConversationThread[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchThreads = useCallback(async () => {
     setLoading(true);
-    const { data } = await supabase
+    const baseQuery = supabase
       .from("conversation_threads")
       .select("*")
       .eq("project_id", projectId)
       .eq("is_archived", false)
-      .order("last_activity_at", { ascending: false });
+      .order("last_activity_at", { ascending: false }) as any;
 
+    let query = baseQuery;
+    if (filter === "risk") {
+      query = query.eq("thread_category", "risk");
+    } else if (filter === "change") {
+      query = query.eq("thread_category", "change");
+    } else if (filter === "decision") {
+      query = query.eq("is_formal_decision", true);
+    } else if (filter === "closed") {
+      query = query.eq("status", "closed");
+    }
+
+    const { data } = await query;
     setThreads((data as any[]) ?? []);
     setLoading(false);
-  }, [projectId]);
+  }, [projectId, filter]);
 
   useEffect(() => {
     fetchThreads();
   }, [fetchThreads]);
 
-  // Realtime subscription
   useEffect(() => {
     const channel = supabase
       .channel(`conv-threads-${projectId}`)
@@ -134,7 +159,6 @@ export function useConversationPosts(threadId: string | null) {
 
   useEffect(() => { fetchPosts(); }, [fetchPosts]);
 
-  // Realtime for posts
   useEffect(() => {
     if (!threadId) return;
     const channel = supabase

@@ -4,10 +4,15 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { ThreadDetail } from "@/components/conversations/ThreadDetail";
 import { ThreadParticipants } from "@/components/conversations/ThreadParticipants";
-import { ArrowLeft, Loader2, MessageSquare, Mail, Lock, Globe } from "lucide-react";
+import { ThreadAdminActions } from "@/components/conversations/ThreadAdminActions";
+import {
+  ArrowLeft, Loader2, MessageSquare, Mail, Lock, Globe,
+  AlertTriangle, Repeat, Gavel, XCircle,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 export default function ConversationDetailPage() {
   const { id: projectId, threadId } = useParams<{ id: string; threadId: string }>();
@@ -31,7 +36,6 @@ export default function ConversationDetailPage() {
     })();
   }, [threadId]);
 
-  // Check if current user is admin
   useEffect(() => {
     if (!user || !projectId) return;
     (async () => {
@@ -58,9 +62,13 @@ export default function ConversationDetailPage() {
     }
   };
 
+  const handleThreadUpdate = (patch: Record<string, any>) => {
+    setThread((prev: any) => prev ? { ...prev, ...patch } : prev);
+  };
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center min-h-screen bg-[#F6F7F9]">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
       </div>
     );
@@ -68,16 +76,18 @@ export default function ConversationDetailPage() {
 
   if (!thread) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center min-h-screen bg-[#F6F7F9]">
         <p className="text-muted-foreground">Samtale ikke funnet</p>
       </div>
     );
   }
 
   const isEmail = thread.thread_type === "email_thread";
+  const isClosed = thread.status === "closed";
+  const category = thread.thread_category || "normal";
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-[#F6F7F9]">
       {/* Header */}
       <div className="sticky top-0 z-30 border-b border-border/40 bg-background/95 backdrop-blur-sm">
         <div className="mx-auto max-w-3xl px-4 sm:px-6 py-4">
@@ -89,19 +99,64 @@ export default function ConversationDetailPage() {
             Samtaler
           </button>
           <div className="flex items-start gap-3">
-            <div className={`flex h-10 w-10 items-center justify-center rounded-xl shrink-0 ${isEmail ? "bg-accent/10 text-accent" : "bg-primary/10 text-primary"}`}>
-              {isEmail ? <Mail className="h-5 w-5" /> : <MessageSquare className="h-5 w-5" />}
+            <div className={cn(
+              "flex h-10 w-10 items-center justify-center rounded-xl shrink-0",
+              category === "risk"
+                ? "bg-destructive/10 text-destructive"
+                : category === "change"
+                ? "bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400"
+                : isEmail
+                ? "bg-accent/10 text-accent"
+                : "bg-primary/10 text-primary"
+            )}>
+              {category === "risk" ? (
+                <AlertTriangle className="h-5 w-5" />
+              ) : category === "change" ? (
+                <Repeat className="h-5 w-5" />
+              ) : isEmail ? (
+                <Mail className="h-5 w-5" />
+              ) : (
+                <MessageSquare className="h-5 w-5" />
+              )}
             </div>
             <div className="flex-1 min-w-0">
               <h1 className="text-lg font-bold text-foreground truncate">{thread.title}</h1>
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap mt-0.5">
                 <Badge
                   variant="outline"
-                  className={`text-[9px] px-1.5 py-0 ${isEmail ? "border-accent/30 text-accent" : "border-primary/30 text-primary"}`}
+                  className={cn(
+                    "text-[9px] px-1.5 py-0",
+                    isEmail ? "border-accent/30 text-accent" : "border-primary/30 text-primary"
+                  )}
                 >
                   {isEmail ? "E-posttråd" : "Samtale"}
                 </Badge>
                 <span>{thread.post_count} innlegg</span>
+
+                {category === "risk" && (
+                  <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-destructive/30 text-destructive gap-0.5">
+                    <AlertTriangle className="h-2.5 w-2.5" />
+                    Risiko
+                  </Badge>
+                )}
+                {category === "change" && (
+                  <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-orange-400/30 text-orange-600 dark:text-orange-400 gap-0.5">
+                    <Repeat className="h-2.5 w-2.5" />
+                    Endring
+                  </Badge>
+                )}
+                {thread.is_formal_decision && (
+                  <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-primary/30 text-primary gap-0.5">
+                    <Gavel className="h-2.5 w-2.5" />
+                    Beslutning
+                  </Badge>
+                )}
+                {isClosed && (
+                  <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-muted-foreground/30 text-muted-foreground gap-0.5">
+                    <XCircle className="h-2.5 w-2.5" />
+                    Lukket
+                  </Badge>
+                )}
                 {thread.participants_only && (
                   <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-warning/30 text-warning gap-0.5">
                     <Lock className="h-2.5 w-2.5" />
@@ -109,15 +164,33 @@ export default function ConversationDetailPage() {
                   </Badge>
                 )}
               </div>
+
+              {/* Decision summary */}
+              {thread.is_formal_decision && thread.decision_summary && (
+                <div className="mt-2 p-2.5 rounded-lg bg-primary/5 border border-primary/10">
+                  <p className="text-xs font-medium text-primary flex items-center gap-1.5">
+                    <Gavel className="h-3 w-3" />
+                    Beslutning
+                  </p>
+                  <p className="text-xs text-foreground/80 mt-1">{thread.decision_summary}</p>
+                </div>
+              )}
             </div>
+
+            {/* Admin actions */}
+            <ThreadAdminActions
+              thread={thread}
+              isAdmin={isAdmin}
+              onUpdate={handleThreadUpdate}
+            />
           </div>
         </div>
       </div>
 
       {/* Content */}
-      <div className="mx-auto max-w-3xl px-4 sm:px-6 py-6 space-y-6">
+      <div className="mx-auto max-w-3xl px-4 sm:px-6 py-6 space-y-4">
         {/* Participants + access toggle */}
-        <div className="rounded-xl border border-border/30 bg-card/50 p-4 space-y-3">
+        <div className="rounded-[14px] border border-border/30 bg-card p-4 space-y-3 shadow-sm">
           <ThreadParticipants
             threadId={thread.id}
             companyId={thread.company_id}
@@ -149,13 +222,16 @@ export default function ConversationDetailPage() {
         </div>
 
         {/* Thread posts */}
-        <ThreadDetail
-          threadId={thread.id}
-          threadTitle={thread.title}
-          threadType={thread.thread_type}
-          projectId={projectId!}
-          companyId={thread.company_id}
-        />
+        <div className="rounded-[14px] border border-border/30 bg-card shadow-sm overflow-hidden">
+          <ThreadDetail
+            threadId={thread.id}
+            threadTitle={thread.title}
+            threadType={thread.thread_type}
+            projectId={projectId!}
+            companyId={thread.company_id}
+            isClosed={isClosed}
+          />
+        </div>
       </div>
     </div>
   );
