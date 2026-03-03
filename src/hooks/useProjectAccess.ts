@@ -18,17 +18,35 @@ export interface SpaceAccess {
   member_count: number;
 }
 
+export interface SearchablePerson {
+  user_account_id: string;
+  name: string;
+  email: string | null;
+}
+
 export function useProjectAccess(projectId: string) {
   const [members, setMembers] = useState<ProjectMember[]>([]);
   const [spaces, setSpaces] = useState<SpaceAccess[]>([]);
   const [loading, setLoading] = useState(true);
   const [myRole, setMyRole] = useState<string | null>(null);
+  const [isCompanyAdmin, setIsCompanyAdmin] = useState(false);
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
 
     const { data: userData } = await supabase.auth.getUser();
     const authUid = userData.user?.id;
+
+    // Check if user is company admin (can manage any project)
+    let companyAdmin = false;
+    if (authUid) {
+      const { data: permData } = await supabase.rpc("check_permission_v2", {
+        _auth_user_id: authUid,
+        _perm: "admin.manage_users",
+      });
+      companyAdmin = permData === true;
+    }
+    setIsCompanyAdmin(companyAdmin);
 
     const [membersRes, spacesRes, myMemberRes] = await Promise.all([
       supabase
@@ -85,6 +103,46 @@ export function useProjectAccess(projectId: string) {
   useEffect(() => {
     fetchAll();
   }, [fetchAll]);
+
+  const searchPeople = useCallback(
+    async (query: string): Promise<SearchablePerson[]> => {
+      if (!query || query.length < 2) return [];
+
+      // Search user_accounts joined with people, excluding already-added members
+      const existingIds = members.map((m) => m.user_account_id);
+
+      const { data } = await supabase
+        .from("user_accounts")
+        .select(`
+          id,
+          people:people!user_accounts_person_id_fkey ( first_name, last_name, email )
+        `)
+        .eq("is_active", true)
+        .limit(20);
+
+      if (!data) return [];
+
+      return (data as any[])
+        .map((ua) => {
+          const person = ua.people?.[0] ?? ua.people;
+          const name = person
+            ? `${person.first_name || ""} ${person.last_name || ""}`.trim()
+            : "";
+          return {
+            user_account_id: ua.id,
+            name,
+            email: person?.email || null,
+          };
+        })
+        .filter(
+          (p) =>
+            !existingIds.includes(p.user_account_id) &&
+            (p.name.toLowerCase().includes(query.toLowerCase()) ||
+              (p.email && p.email.toLowerCase().includes(query.toLowerCase())))
+        );
+    },
+    [members]
+  );
 
   const addMember = useCallback(
     async (userAccountId: string, memberType: string, role: string) => {
@@ -146,7 +204,7 @@ export function useProjectAccess(projectId: string) {
     [projectId, fetchAll]
   );
 
-  const isAdmin = myRole === "owner" || myRole === "manager";
+  const isAdmin = myRole === "owner" || myRole === "manager" || isCompanyAdmin;
 
   return {
     members,
@@ -154,7 +212,9 @@ export function useProjectAccess(projectId: string) {
     loading,
     myRole,
     isAdmin,
+    isCompanyAdmin,
     refresh: fetchAll,
+    searchPeople,
     addMember,
     removeMember,
     updateMemberRole,
