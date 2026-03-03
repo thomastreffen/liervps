@@ -9,6 +9,8 @@ export interface ThreadParticipant {
   email: string | null;
   display_name: string | null;
   added_at: string;
+  can_invite_internal: boolean;
+  can_invite_external: boolean;
   // Enriched
   full_name?: string;
 }

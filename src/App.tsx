@@ -69,6 +69,7 @@ import FormBuilderPage from "./pages/FormBuilderPage";
 import FormFillPage from "./pages/FormFillPage";
 import SuperofficeSettingsPage from "./pages/SuperofficeSettingsPage";
 import MicrosoftAdminPage from "./pages/MicrosoftAdminPage";
+import ThreadInviteAcceptPage from "./pages/ThreadInviteAcceptPage";
 import { CompanyProvider } from "@/hooks/useCompanyContext";
 
 const queryClient = new QueryClient();
@@ -87,6 +88,7 @@ const App = () => (
             <Route path="/approval/:token" element={<ApprovalPage />} />
             <Route path="/offer/accept/:token" element={<OfferAcceptPage />} />
             <Route path="/approve-change-order" element={<ApproveChangeOrderPage />} />
+            <Route path="/invite/thread/:token" element={<ThreadInviteAcceptPage />} />
 
             {/* App layout with sidebar */}
             <Route

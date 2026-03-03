@@ -2,10 +2,11 @@ import { useState, useRef } from "react";
 import { useThreadParticipants } from "@/hooks/useThreadParticipants";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { Users, Plus, X, Search, UserPlus, Mail } from "lucide-react";
+import { Users, Plus, X, Search, UserPlus, Mail, Send, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -15,6 +16,7 @@ interface ThreadParticipantsProps {
   companyId: string;
   projectId: string;
   isAdmin: boolean;
+  allowParticipantsInvite?: boolean;
 }
 
 interface SearchResult {
@@ -23,7 +25,7 @@ interface SearchResult {
   email: string | null;
 }
 
-export function ThreadParticipants({ threadId, companyId, projectId, isAdmin }: ThreadParticipantsProps) {
+export function ThreadParticipants({ threadId, companyId, projectId, isAdmin, allowParticipantsInvite = true }: ThreadParticipantsProps) {
   const { participants, loading, addInternal, addExternal, remove } = useThreadParticipants(threadId);
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
@@ -31,8 +33,10 @@ export function ThreadParticipants({ threadId, companyId, projectId, isAdmin }: 
   const [results, setResults] = useState<SearchResult[]>([]);
   const [searching, setSearching] = useState(false);
   const [externalMode, setExternalMode] = useState(false);
+  const [inviteMode, setInviteMode] = useState(false);
   const [extEmail, setExtEmail] = useState("");
   const [extName, setExtName] = useState("");
+  const [sendingInvite, setSendingInvite] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
 
   const getMyAccountId = async () => {
@@ -45,6 +49,16 @@ export function ThreadParticipants({ threadId, companyId, projectId, isAdmin }: 
       .maybeSingle();
     return data?.id || null;
   };
+
+  // Check if current user is a participant with invite permissions
+  const myParticipant = participants.find(p => {
+    // Match by user_account_id - we need to check async but for UI we use cached data
+    return p.user_account_id !== null;
+  });
+
+  const canInvite = isAdmin || (allowParticipantsInvite && myParticipant && (
+    (myParticipant as any).can_invite_external || (myParticipant as any).can_invite_internal
+  ));
 
   const handleSearch = (value: string) => {
     setSearch(value);
@@ -99,6 +113,31 @@ export function ThreadParticipants({ threadId, companyId, projectId, isAdmin }: 
     }
   };
 
+  const handleSendInvite = async () => {
+    if (!extEmail.trim()) return;
+    setSendingInvite(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("conversation-invite-send", {
+        body: {
+          thread_id: threadId,
+          invited_email: extEmail.trim(),
+          invited_name: extName.trim() || null,
+          invite_type: "external",
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast.success(`Invitasjon sendt til ${extEmail.trim()}`);
+      setExtEmail("");
+      setExtName("");
+      setInviteMode(false);
+    } catch (err: any) {
+      toast.error(err.message || "Kunne ikke sende invitasjon");
+    } finally {
+      setSendingInvite(false);
+    }
+  };
+
   const handleRemove = async (p: typeof participants[0]) => {
     try {
       await remove(p.id);
@@ -108,6 +147,20 @@ export function ThreadParticipants({ threadId, companyId, projectId, isAdmin }: 
     }
   };
 
+  const toggleInvitePermission = async (participantId: string, key: "can_invite_internal" | "can_invite_external", value: boolean) => {
+    const { error } = await (supabase as any)
+      .from("conversation_thread_participants")
+      .update({ [key]: value })
+      .eq("id", participantId);
+    if (error) {
+      toast.error("Kunne ikke oppdatere rettighet");
+    } else {
+      toast.success("Rettighet oppdatert");
+    }
+  };
+
+  const showAddButton = isAdmin || canInvite;
+
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-2">
@@ -116,7 +169,7 @@ export function ThreadParticipants({ threadId, companyId, projectId, isAdmin }: 
           {participants.length} {participants.length === 1 ? "deltaker" : "deltakere"}
         </span>
 
-        {isAdmin && (
+        {showAddButton && (
           <Popover open={open} onOpenChange={setOpen}>
             <PopoverTrigger asChild>
               <Button variant="ghost" size="sm" className="h-6 w-6 p-0 rounded-full">
@@ -127,18 +180,53 @@ export function ThreadParticipants({ threadId, companyId, projectId, isAdmin }: 
               <div className="space-y-3">
                 <div className="flex items-center gap-2">
                   <h4 className="text-sm font-semibold flex-1">Legg til deltaker</h4>
-                  <Button
-                    variant={externalMode ? "default" : "outline"}
-                    size="sm"
-                    className="h-6 text-[10px] px-2 gap-1"
-                    onClick={() => setExternalMode(!externalMode)}
-                  >
-                    <Mail className="h-3 w-3" />
-                    Ekstern
-                  </Button>
+                  {isAdmin && (
+                    <Button
+                      variant={externalMode ? "default" : "outline"}
+                      size="sm"
+                      className="h-6 text-[10px] px-2 gap-1"
+                      onClick={() => { setExternalMode(!externalMode); setInviteMode(false); }}
+                    >
+                      <Mail className="h-3 w-3" />
+                      Ekstern
+                    </Button>
+                  )}
+                  {(canInvite || isAdmin) && (
+                    <Button
+                      variant={inviteMode ? "default" : "outline"}
+                      size="sm"
+                      className="h-6 text-[10px] px-2 gap-1"
+                      onClick={() => { setInviteMode(!inviteMode); setExternalMode(false); }}
+                    >
+                      <Send className="h-3 w-3" />
+                      Inviter
+                    </Button>
+                  )}
                 </div>
 
-                {externalMode ? (
+                {inviteMode ? (
+                  <div className="space-y-2">
+                    <p className="text-[10px] text-muted-foreground">
+                      Send en invitasjonslenke per e-post. Mottakeren får kun tilgang til denne samtalen.
+                    </p>
+                    <Input
+                      placeholder="E-postadresse"
+                      value={extEmail}
+                      onChange={e => setExtEmail(e.target.value)}
+                      className="h-8 text-xs"
+                    />
+                    <Input
+                      placeholder="Navn (valgfritt)"
+                      value={extName}
+                      onChange={e => setExtName(e.target.value)}
+                      className="h-8 text-xs"
+                    />
+                    <Button size="sm" className="w-full h-7 text-xs" onClick={handleSendInvite} disabled={!extEmail.trim() || sendingInvite}>
+                      <Send className="h-3 w-3 mr-1" />
+                      {sendingInvite ? "Sender…" : "Send invitasjon"}
+                    </Button>
+                  </div>
+                ) : externalMode ? (
                   <div className="space-y-2">
                     <Input
                       placeholder="E-postadresse"
@@ -203,21 +291,50 @@ export function ThreadParticipants({ threadId, companyId, projectId, isAdmin }: 
       {participants.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
           {participants.map(p => (
-            <Badge
-              key={p.id}
-              variant="outline"
-              className={cn(
-                "text-[10px] gap-1 pr-1",
-                p.participant_type === "external" ? "border-accent/30 text-accent" : "border-primary/30 text-primary"
-              )}
-            >
-              {p.full_name || p.display_name || p.email || "Ukjent"}
+            <Popover key={p.id}>
+              <PopoverTrigger asChild>
+                <Badge
+                  variant="outline"
+                  className={cn(
+                    "text-[10px] gap-1 pr-1 cursor-pointer hover:bg-muted/50 transition-colors",
+                    p.participant_type === "external" ? "border-accent/30 text-accent" : "border-primary/30 text-primary"
+                  )}
+                >
+                  {p.full_name || p.display_name || p.email || "Ukjent"}
+                  {((p as any).can_invite_external || (p as any).can_invite_internal) && (
+                    <Send className="h-2 w-2 text-muted-foreground" />
+                  )}
+                  {isAdmin && (
+                    <button onClick={(e) => { e.stopPropagation(); handleRemove(p); }} className="ml-0.5 hover:text-destructive transition-colors">
+                      <X className="h-2.5 w-2.5" />
+                    </button>
+                  )}
+                </Badge>
+              </PopoverTrigger>
               {isAdmin && (
-                <button onClick={() => handleRemove(p)} className="ml-0.5 hover:text-destructive transition-colors">
-                  <X className="h-2.5 w-2.5" />
-                </button>
+                <PopoverContent className="w-56 p-3" align="start">
+                  <div className="space-y-3">
+                    <p className="text-xs font-semibold">{p.full_name || p.display_name || p.email}</p>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] text-muted-foreground">Kan invitere interne</span>
+                        <Switch
+                          checked={(p as any).can_invite_internal || false}
+                          onCheckedChange={(v) => toggleInvitePermission(p.id, "can_invite_internal", v)}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] text-muted-foreground">Kan invitere eksterne</span>
+                        <Switch
+                          checked={(p as any).can_invite_external || false}
+                          onCheckedChange={(v) => toggleInvitePermission(p.id, "can_invite_external", v)}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </PopoverContent>
               )}
-            </Badge>
+            </Popover>
           ))}
         </div>
       )}
