@@ -572,21 +572,90 @@ async function sendInviteEmail(
     ],
   });
 
-  // 4. Update log
-  if (logId) {
-    await supabase.from("conversation_email_messages").update({
-      status: result.error ? "failed" : "sent",
-      error: result.error || null,
-      processed_at: new Date().toISOString(),
-      processing_duration_ms: result.durationMs,
-    }).eq("id", logId);
-  }
-
   if (result.error) {
     console.error("INVITE EMAIL FAILED", { email, error: result.error, statusCode: result.statusCode });
+    if (logId) {
+      await supabase.from("conversation_email_messages").update({
+        status: "failed", error: result.error,
+        processed_at: new Date().toISOString(),
+        processing_duration_ms: result.durationMs,
+      }).eq("id", logId);
+    }
     return false;
   }
 
-  console.log("INVITE EMAIL SUCCESS", { email, mailbox: MAILBOX, durationMs: result.durationMs });
+  // 4. Verify in Sent Items
+  const verification = await verifySentItems(tokenResult.token!, MAILBOX, subject, [email]);
+
+  if (logId) {
+    await supabase.from("conversation_email_messages").update({
+      status: verification.verified ? "sent" : "failed",
+      error: verification.verified ? null : "SendMail 202 OK but invite not found in Sent Items",
+      processed_at: new Date().toISOString(),
+      processing_duration_ms: result.durationMs,
+      verified: verification.verified,
+      outlook_weblink: verification.webLink || null,
+      outlook_internet_message_id: verification.internetMessageId || null,
+    }).eq("id", logId);
+  }
+
+  if (!verification.verified) {
+    console.error("INVITE DELIVERY_PROOF_FAILED", { email });
+    return false;
+  }
+
+  console.log("INVITE DELIVERY_PROOF_SENTITEMS_FOUND", {
+    email, mailbox: MAILBOX, webLink: verification.webLink,
+    internetMessageId: verification.internetMessageId,
+  });
   return true;
+}
+
+// ── Sent Items verification ─────────────────────────
+
+interface VerificationResult {
+  verified: boolean;
+  webLink?: string;
+  internetMessageId?: string;
+}
+
+async function verifySentItems(
+  token: string,
+  mailbox: string,
+  subject: string,
+  recipients: string[],
+): Promise<VerificationResult> {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    if (attempt > 0) await new Promise(r => setTimeout(r, 2500));
+
+    try {
+      const twoMinAgo = new Date(Date.now() - 2 * 60 * 1000).toISOString();
+      const filter = `subject eq '${subject.replace(/'/g, "''")}' and sentDateTime ge ${twoMinAgo}`;
+      const endpoint = `https://graph.microsoft.com/v1.0/users/${mailbox}/mailFolders/SentItems/messages?$filter=${encodeURIComponent(filter)}&$top=5&$select=id,subject,internetMessageId,webLink,sentDateTime`;
+
+      const resp = await fetch(endpoint, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!resp.ok) {
+        console.error("INVITE DELIVERY_PROOF_SEARCH_ERROR", { status: resp.status });
+        continue;
+      }
+
+      const data = await resp.json();
+      const messages = data?.value || [];
+
+      if (messages.length > 0) {
+        const msg = messages[0];
+        return {
+          verified: true,
+          webLink: msg.webLink || undefined,
+          internetMessageId: msg.internetMessageId || undefined,
+        };
+      }
+    } catch (err) {
+      console.error("INVITE DELIVERY_PROOF_ERROR", { attempt: attempt + 1, error: String(err) });
+    }
+  }
+  return { verified: false };
 }
