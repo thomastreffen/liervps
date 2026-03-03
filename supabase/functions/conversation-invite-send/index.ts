@@ -79,6 +79,53 @@ async function logSystemPost(supabase: any, threadId: string, companyId: string,
   });
 }
 
+// ── RATE LIMIT ───────────────────────────────────────────────
+async function checkRateLimit(supabase: any, threadId: string, userId: string): Promise<string | null> {
+  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+
+  // Thread rate limit: max 10 invites per thread per hour
+  const { count: threadCount } = await supabase
+    .from("conversation_thread_invites")
+    .select("id", { count: "exact", head: true })
+    .eq("thread_id", threadId)
+    .gte("created_at", oneHourAgo);
+
+  if ((threadCount ?? 0) >= 10) {
+    return "Maks 10 invitasjoner per tråd per time. Prøv igjen senere.";
+  }
+
+  // User rate limit: max 20 invites per user per hour (by invited_by_participant_id lookup)
+  // We use the user's auth id to find their participant records
+  const { data: userAccounts } = await supabase
+    .from("user_accounts")
+    .select("id")
+    .eq("auth_user_id", userId)
+    .eq("is_active", true);
+
+  const uaIds = (userAccounts ?? []).map((u: any) => u.id);
+  if (uaIds.length > 0) {
+    const { data: participantIds } = await supabase
+      .from("conversation_thread_participants")
+      .select("id")
+      .in("user_account_id", uaIds);
+
+    const pIds = (participantIds ?? []).map((p: any) => p.id);
+    if (pIds.length > 0) {
+      const { count: userCount } = await supabase
+        .from("conversation_thread_invites")
+        .select("id", { count: "exact", head: true })
+        .in("invited_by_participant_id", pIds)
+        .gte("created_at", oneHourAgo);
+
+      if ((userCount ?? 0) >= 20) {
+        return "Du har sendt for mange invitasjoner siste time (maks 20). Prøv igjen senere.";
+      }
+    }
+  }
+
+  return null;
+}
+
 // ── SEND INVITE ──────────────────────────────────────────────
 async function handleSendInvite(supabase: any, user: any, body: any) {
   const { thread_id, invited_email, invited_name, invite_type, lock_thread } = body;
@@ -100,6 +147,14 @@ async function handleSendInvite(supabase: any, user: any, body: any) {
 
   if (!thread.allow_participants_invite) {
     return json({ error: "Invitations disabled for this thread" }, 403);
+  }
+
+  // Rate limit check
+  const rateLimitMsg = await checkRateLimit(supabase, thread_id, user.id);
+  if (rateLimitMsg) {
+    await logSystemPost(supabase, thread_id, thread.company_id,
+      `⚠️ Invitasjoner begrenset pga. rate limit.`);
+    return json({ error: "rate_limited", message: rateLimitMsg }, 429);
   }
 
   const ua = await getCallerAccount(supabase, user.id);

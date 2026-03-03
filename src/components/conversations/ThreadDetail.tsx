@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useConversationPosts, type ConversationPost, type ConversationAttachment } from "@/hooks/useConversations";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -7,6 +7,7 @@ import { nb } from "date-fns/locale";
 import {
   MessageSquare, Mail, Send, Loader2, Paperclip,
   ExternalLink, Copy, FileText, Image, ChevronDown,
+  AlertTriangle, RotateCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -24,6 +25,14 @@ interface ThreadDetailProps {
   emailEnabled?: boolean;
 }
 
+interface FailedEmail {
+  id: string;
+  post_id: string;
+  subject: string | null;
+  error: string | null;
+  created_at: string;
+}
+
 export function ThreadDetail({ threadId, threadTitle, threadType, projectId, companyId, isClosed = false, emailEnabled = true }: ThreadDetailProps) {
   const { posts, loading, refresh } = useConversationPosts(threadId);
   const { user } = useAuth();
@@ -31,8 +40,53 @@ export function ThreadDetail({ threadId, threadTitle, threadType, projectId, com
   const [sending, setSending] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [failedEmail, setFailedEmail] = useState<FailedEmail | null>(null);
+  const [resending, setResending] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Check for last failed outbound email
+  useEffect(() => {
+    if (!threadId) return;
+    (async () => {
+      const { data } = await (supabase as any)
+        .from("conversation_email_messages")
+        .select("id, post_id, subject, error, created_at")
+        .eq("thread_id", threadId)
+        .eq("direction", "outbound")
+        .eq("status", "failed")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      setFailedEmail(data ?? null);
+    })();
+  }, [threadId, sending]);
+
+  const handleResendEmail = async () => {
+    if (!failedEmail) return;
+    setResending(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("conversation-email-send", {
+        body: { post_id: failedEmail.post_id },
+      });
+      if (error) throw error;
+      if (data?.status === "sent" || data?.sent) {
+        // Update the failed record status
+        await (supabase as any)
+          .from("conversation_email_messages")
+          .update({ status: "resent" })
+          .eq("id", failedEmail.id);
+        toast.success("E-post sendt på nytt");
+        setFailedEmail(null);
+      } else {
+        toast.error("Sending feilet igjen");
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Kunne ikke sende på nytt");
+    } finally {
+      setResending(false);
+    }
+  };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -80,7 +134,6 @@ export function ThreadDetail({ threadId, threadTitle, threadType, projectId, com
         }
       );
     } catch {
-      // Email send is best-effort, don't block user
       console.warn("Email send failed silently");
     }
   };
@@ -117,7 +170,6 @@ export function ThreadDetail({ threadId, threadTitle, threadType, projectId, com
       setUploading(false);
     }
 
-    // Trigger email send in background
     if (post) triggerEmailSend(post.id);
 
     toast.success("Svar lagt til");
@@ -137,6 +189,29 @@ export function ThreadDetail({ threadId, threadTitle, threadType, projectId, com
 
   return (
     <div>
+      {/* Failed email banner */}
+      {failedEmail && (
+        <div className="flex items-center gap-3 px-5 py-3 bg-destructive/5 border-b border-destructive/20">
+          <AlertTriangle className="h-4 w-4 text-destructive shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-medium text-destructive">E-postsending feilet</p>
+            <p className="text-[10px] text-destructive/70 truncate">
+              {failedEmail.error || "Ukjent feil"} — {format(new Date(failedEmail.created_at), "d. MMM HH:mm", { locale: nb })}
+            </p>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7 text-xs gap-1 border-destructive/30 text-destructive hover:bg-destructive/10 shrink-0"
+            onClick={handleResendEmail}
+            disabled={resending}
+          >
+            {resending ? <Loader2 className="h-3 w-3 animate-spin" /> : <RotateCw className="h-3 w-3" />}
+            Send på nytt
+          </Button>
+        </div>
+      )}
+
       <div className="divide-y divide-border/20">
         {posts.map((post, i) => (
           <PostCard key={post.id} post={post} isFirst={i === 0} />
