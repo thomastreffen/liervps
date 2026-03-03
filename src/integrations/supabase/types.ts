@@ -1184,6 +1184,59 @@ export type Database = {
           },
         ]
       }
+      conversation_email_dead_letters: {
+        Row: {
+          attempt_count: number
+          company_id: string | null
+          created_at: string
+          error: string | null
+          graph_message_id: string | null
+          headers: Json | null
+          id: string
+          internet_message_id: string | null
+          raw_payload: Json
+          status: string
+          subscription_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          attempt_count?: number
+          company_id?: string | null
+          created_at?: string
+          error?: string | null
+          graph_message_id?: string | null
+          headers?: Json | null
+          id?: string
+          internet_message_id?: string | null
+          raw_payload: Json
+          status?: string
+          subscription_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          attempt_count?: number
+          company_id?: string | null
+          created_at?: string
+          error?: string | null
+          graph_message_id?: string | null
+          headers?: Json | null
+          id?: string
+          internet_message_id?: string | null
+          raw_payload?: Json
+          status?: string
+          subscription_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversation_email_dead_letters_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "internal_companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       conversation_email_messages: {
         Row: {
           cc_emails: string[] | null
@@ -1197,11 +1250,15 @@ export type Database = {
           outlook_internet_message_id: string | null
           outlook_message_id: string | null
           post_id: string | null
+          processed_at: string | null
+          processing_duration_ms: number | null
+          processing_status: string | null
           provider: string
           status: string
           subject: string | null
           thread_id: string
           to_emails: string[] | null
+          webhook_received_at: string | null
         }
         Insert: {
           cc_emails?: string[] | null
@@ -1215,11 +1272,15 @@ export type Database = {
           outlook_internet_message_id?: string | null
           outlook_message_id?: string | null
           post_id?: string | null
+          processed_at?: string | null
+          processing_duration_ms?: number | null
+          processing_status?: string | null
           provider?: string
           status?: string
           subject?: string | null
           thread_id: string
           to_emails?: string[] | null
+          webhook_received_at?: string | null
         }
         Update: {
           cc_emails?: string[] | null
@@ -1233,11 +1294,15 @@ export type Database = {
           outlook_internet_message_id?: string | null
           outlook_message_id?: string | null
           post_id?: string | null
+          processed_at?: string | null
+          processing_duration_ms?: number | null
+          processing_status?: string | null
           provider?: string
           status?: string
           subject?: string | null
           thread_id?: string
           to_emails?: string[] | null
+          webhook_received_at?: string | null
         }
         Relationships: [
           {
