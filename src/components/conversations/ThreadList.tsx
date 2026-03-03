@@ -2,7 +2,7 @@ import { useConversationThreads, type ConversationThread } from "@/hooks/useConv
 import { useNavigate } from "react-router-dom";
 import { formatDistanceToNow } from "date-fns";
 import { nb } from "date-fns/locale";
-import { MessageSquare, Mail, Loader2, Plus, ChevronRight } from "lucide-react";
+import { MessageSquare, Mail, Loader2, Plus, ChevronRight, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -97,9 +97,18 @@ function ThreadRow({ thread, onClick }: { thread: ConversationThread; onClick: (
             <span className="font-medium text-foreground/70">{thread.last_author_name}</span>
           )}
           <span>·</span>
-          <span>{thread.post_count} {thread.post_count === 1 ? "innlegg" : "innlegg"}</span>
+          <span>{thread.post_count} innlegg</span>
           <span>·</span>
           <span>{formatDistanceToNow(new Date(thread.last_activity_at), { addSuffix: true, locale: nb })}</span>
+          {(thread as any).participants_only && (
+            <>
+              <span>·</span>
+              <span className="inline-flex items-center gap-0.5 text-warning">
+                <Lock className="h-2.5 w-2.5" />
+                Lukket
+              </span>
+            </>
+          )}
         </div>
       </div>
 
