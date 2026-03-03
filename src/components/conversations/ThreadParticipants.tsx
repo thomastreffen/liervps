@@ -316,6 +316,9 @@ export function ThreadParticipants({ threadId, companyId, projectId, isAdmin, al
                       <Send className="h-3 w-3 mr-1" />
                       {sendingInvite ? "Sender…" : "Send invitasjon"}
                     </Button>
+                    <p className="text-[9px] text-muted-foreground/70 text-center pt-1">
+                      Invitasjoner sendes fra postkontoret@mcsservice.no. Mottaker ser hvem som inviterte.
+                    </p>
                   </div>
                 ) : externalMode ? (
                   <div className="space-y-2">
