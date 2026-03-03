@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -18,6 +19,7 @@ interface ThreadParticipantsProps {
   projectId: string;
   isAdmin: boolean;
   allowParticipantsInvite?: boolean;
+  compact?: boolean;
 }
 
 interface SearchResult {
@@ -35,9 +37,10 @@ interface PendingInvite {
   created_at: string;
 }
 
-export function ThreadParticipants({ threadId, companyId, projectId, isAdmin, allowParticipantsInvite = true }: ThreadParticipantsProps) {
+export function ThreadParticipants({ threadId, companyId, projectId, isAdmin, allowParticipantsInvite = true, compact = false }: ThreadParticipantsProps) {
   const { participants, loading, addInternal, addExternal, remove, refresh } = useThreadParticipants(threadId);
   const { user } = useAuth();
+  const [sheetOpen, setSheetOpen] = useState(false);
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
@@ -234,6 +237,134 @@ export function ThreadParticipants({ threadId, companyId, projectId, isAdmin, al
 
   const showAddButton = isAdmin || canInvite;
 
+  // ── Add participant panel content (shared between Sheet and Popover) ──
+  const addParticipantContent = (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2">
+        <h4 className="text-sm font-semibold flex-1">Legg til deltaker</h4>
+        {isAdmin && (
+          <Button
+            variant={externalMode ? "default" : "outline"}
+            size="sm"
+            className="h-6 text-[10px] px-2 gap-1"
+            onClick={() => { setExternalMode(!externalMode); setInviteMode(false); }}
+          >
+            <Mail className="h-3 w-3" />
+            Ekstern
+          </Button>
+        )}
+        {(canInvite || isAdmin) && (
+          <Button
+            variant={inviteMode ? "default" : "outline"}
+            size="sm"
+            className="h-6 text-[10px] px-2 gap-1"
+            onClick={() => { setInviteMode(!inviteMode); setExternalMode(false); }}
+          >
+            <Send className="h-3 w-3" />
+            Inviter
+          </Button>
+        )}
+      </div>
+
+      {inviteMode ? (
+        <div className="space-y-2">
+          <p className="text-[10px] text-muted-foreground">
+            Send en invitasjonslenke per e-post. Mottakeren får kun tilgang til denne samtalen.
+          </p>
+          <Input
+            placeholder="E-postadresse"
+            value={extEmail}
+            onChange={e => setExtEmail(e.target.value)}
+            className="h-8 text-xs"
+          />
+          <Input
+            placeholder="Navn (valgfritt)"
+            value={extName}
+            onChange={e => setExtName(e.target.value)}
+            className="h-8 text-xs"
+          />
+          <label className="flex items-start gap-2 cursor-pointer rounded-md border border-border/40 p-2 bg-muted/30">
+            <Checkbox
+              checked={lockThread}
+              onCheckedChange={(v) => setLockThread(!!v)}
+              className="mt-0.5"
+            />
+            <div className="min-w-0">
+              <span className="text-[11px] font-medium text-foreground flex items-center gap-1">
+                <Lock className="h-3 w-3" />
+                Lås tråden til kun deltakere
+              </span>
+              <span className="text-[10px] text-muted-foreground block mt-0.5">
+                Andre prosjektmedlemmer mister tilgang. Slå av dersom de fortsatt skal kunne se.
+              </span>
+            </div>
+          </label>
+          <Button size="sm" className="w-full h-7 text-xs" onClick={handleSendInvite} disabled={!extEmail.trim() || sendingInvite}>
+            <Send className="h-3 w-3 mr-1" />
+            {sendingInvite ? "Sender…" : "Send invitasjon"}
+          </Button>
+          <p className="text-[9px] text-muted-foreground/70 text-center pt-1">
+            Invitasjoner sendes fra postkontoret@mcsservice.no. Mottaker ser hvem som inviterte.
+          </p>
+        </div>
+      ) : externalMode ? (
+        <div className="space-y-2">
+          <Input
+            placeholder="E-postadresse"
+            value={extEmail}
+            onChange={e => setExtEmail(e.target.value)}
+            className="h-8 text-xs"
+          />
+          <Input
+            placeholder="Navn (valgfritt)"
+            value={extName}
+            onChange={e => setExtName(e.target.value)}
+            className="h-8 text-xs"
+          />
+          <Button size="sm" className="w-full h-7 text-xs" onClick={handleAddExternal} disabled={!extEmail.trim()}>
+            <UserPlus className="h-3 w-3 mr-1" />
+            Legg til ekstern
+          </Button>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          <div className="relative">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+            <Input
+              placeholder="Søk ansatt…"
+              value={search}
+              onChange={e => handleSearch(e.target.value)}
+              className="h-8 text-xs pl-7"
+              autoFocus
+            />
+          </div>
+          {results.length > 0 && (
+            <div className="max-h-40 overflow-y-auto divide-y divide-border/30 rounded-md border border-border/50">
+              {results.map(r => (
+                <button
+                  key={r.id}
+                  onClick={() => handleAddInternal(r)}
+                  className="flex items-center gap-2 w-full text-left px-2.5 py-2 hover:bg-muted/50 transition-colors"
+                >
+                  <div className="h-6 w-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-bold shrink-0">
+                    {r.full_name.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-medium truncate">{r.full_name}</p>
+                    {r.email && <p className="text-[10px] text-muted-foreground truncate">{r.email}</p>}
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+          {search.length >= 2 && results.length === 0 && !searching && (
+            <p className="text-[10px] text-muted-foreground text-center py-2">Ingen treff</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-2">
@@ -243,228 +374,99 @@ export function ThreadParticipants({ threadId, companyId, projectId, isAdmin, al
         </span>
 
         {showAddButton && (
-          <Popover open={open} onOpenChange={setOpen}>
-            <PopoverTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-6 w-6 p-0 rounded-full">
-                <Plus className="h-3.5 w-3.5" />
+          <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+            <SheetTrigger asChild>
+              <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5 ml-auto">
+                <UserPlus className="h-3.5 w-3.5" />
+                Legg til deltaker
               </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-80 p-3" align="end">
-              <div className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <h4 className="text-sm font-semibold flex-1">Legg til deltaker</h4>
-                  {isAdmin && (
-                    <Button
-                      variant={externalMode ? "default" : "outline"}
-                      size="sm"
-                      className="h-6 text-[10px] px-2 gap-1"
-                      onClick={() => { setExternalMode(!externalMode); setInviteMode(false); }}
-                    >
-                      <Mail className="h-3 w-3" />
-                      Ekstern
-                    </Button>
-                  )}
-                  {(canInvite || isAdmin) && (
-                    <Button
-                      variant={inviteMode ? "default" : "outline"}
-                      size="sm"
-                      className="h-6 text-[10px] px-2 gap-1"
-                      onClick={() => { setInviteMode(!inviteMode); setExternalMode(false); }}
-                    >
-                      <Send className="h-3 w-3" />
-                      Inviter
-                    </Button>
-                  )}
+            </SheetTrigger>
+            <SheetContent side="right" className="w-[340px] sm:w-[380px]">
+              <SheetHeader>
+                <SheetTitle className="text-base">Deltakere</SheetTitle>
+              </SheetHeader>
+              <div className="mt-4 space-y-4">
+                {addParticipantContent}
+
+                {/* Current participants list in sheet */}
+                <div className="border-t pt-3 space-y-2">
+                  <p className="text-xs font-medium text-muted-foreground">Nåværende deltakere</p>
+                  {participants.map(p => (
+                    <div key={p.id} className="flex items-center justify-between gap-2 py-1.5">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className={cn(
+                          "h-6 w-6 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0",
+                          p.participant_type === "external" ? "bg-accent/10 text-accent" : "bg-primary/10 text-primary"
+                        )}>
+                          {(p.full_name || p.display_name || p.email || "U").charAt(0).toUpperCase()}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-xs font-medium truncate">{p.full_name || p.display_name || p.email || "Ukjent"}</p>
+                          {p.email && <p className="text-[10px] text-muted-foreground truncate">{p.email}</p>}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <Badge variant="outline" className="text-[9px] px-1 py-0">
+                          {p.participant_type === "external" ? "Ekstern" : "Intern"}
+                        </Badge>
+                        {isAdmin && (
+                          <button onClick={() => handleRemove(p)} className="text-muted-foreground hover:text-destructive transition-colors p-0.5">
+                            <X className="h-3 w-3" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
                 </div>
 
-                {inviteMode ? (
-                  <div className="space-y-2">
-                    <p className="text-[10px] text-muted-foreground">
-                      Send en invitasjonslenke per e-post. Mottakeren får kun tilgang til denne samtalen.
+                {/* Pending invites in sheet */}
+                {pendingInvites.length > 0 && (
+                  <div className="border-t pt-3 space-y-2">
+                    <p className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                      <Clock className="h-3 w-3" />
+                      Ventende invitasjoner
                     </p>
-                    <Input
-                      placeholder="E-postadresse"
-                      value={extEmail}
-                      onChange={e => setExtEmail(e.target.value)}
-                      className="h-8 text-xs"
-                    />
-                    <Input
-                      placeholder="Navn (valgfritt)"
-                      value={extName}
-                      onChange={e => setExtName(e.target.value)}
-                      className="h-8 text-xs"
-                    />
-                    {/* Lock thread confirmation */}
-                    <label className="flex items-start gap-2 cursor-pointer rounded-md border border-border/40 p-2 bg-muted/30">
-                      <Checkbox
-                        checked={lockThread}
-                        onCheckedChange={(v) => setLockThread(!!v)}
-                        className="mt-0.5"
-                      />
-                      <div className="min-w-0">
-                        <span className="text-[11px] font-medium text-foreground flex items-center gap-1">
-                          <Lock className="h-3 w-3" />
-                          Lås tråden til kun deltakere
-                        </span>
-                        <span className="text-[10px] text-muted-foreground block mt-0.5">
-                          Andre prosjektmedlemmer mister tilgang. Slå av dersom de fortsatt skal kunne se.
-                        </span>
+                    {pendingInvites.map(inv => (
+                      <div key={inv.id} className="flex items-center justify-between gap-2 py-1.5">
+                        <div className="min-w-0">
+                          <p className="text-xs font-medium truncate">{inv.invited_name || inv.invited_email}</p>
+                          <p className="text-[10px] text-muted-foreground truncate">{inv.invited_email}</p>
+                        </div>
+                        <div className="flex gap-1 shrink-0">
+                          <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => handleResendInvite(inv.id)}>
+                            <RotateCw className="h-3 w-3" />
+                          </Button>
+                          <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-destructive" onClick={() => handleRevokeInvite(inv.id)}>
+                            <Ban className="h-3 w-3" />
+                          </Button>
+                        </div>
                       </div>
-                    </label>
-                    <Button size="sm" className="w-full h-7 text-xs" onClick={handleSendInvite} disabled={!extEmail.trim() || sendingInvite}>
-                      <Send className="h-3 w-3 mr-1" />
-                      {sendingInvite ? "Sender…" : "Send invitasjon"}
-                    </Button>
-                    <p className="text-[9px] text-muted-foreground/70 text-center pt-1">
-                      Invitasjoner sendes fra postkontoret@mcsservice.no. Mottaker ser hvem som inviterte.
-                    </p>
-                  </div>
-                ) : externalMode ? (
-                  <div className="space-y-2">
-                    <Input
-                      placeholder="E-postadresse"
-                      value={extEmail}
-                      onChange={e => setExtEmail(e.target.value)}
-                      className="h-8 text-xs"
-                    />
-                    <Input
-                      placeholder="Navn (valgfritt)"
-                      value={extName}
-                      onChange={e => setExtName(e.target.value)}
-                      className="h-8 text-xs"
-                    />
-                    <Button size="sm" className="w-full h-7 text-xs" onClick={handleAddExternal} disabled={!extEmail.trim()}>
-                      <UserPlus className="h-3 w-3 mr-1" />
-                      Legg til ekstern
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    <div className="relative">
-                      <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                      <Input
-                        placeholder="Søk ansatt…"
-                        value={search}
-                        onChange={e => handleSearch(e.target.value)}
-                        className="h-8 text-xs pl-7"
-                        autoFocus
-                      />
-                    </div>
-                    {results.length > 0 && (
-                      <div className="max-h-40 overflow-y-auto divide-y divide-border/30 rounded-md border border-border/50">
-                        {results.map(r => (
-                          <button
-                            key={r.id}
-                            onClick={() => handleAddInternal(r)}
-                            className="flex items-center gap-2 w-full text-left px-2.5 py-2 hover:bg-muted/50 transition-colors"
-                          >
-                            <div className="h-6 w-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-bold shrink-0">
-                              {r.full_name.charAt(0).toUpperCase()}
-                            </div>
-                            <div className="min-w-0">
-                              <p className="text-xs font-medium truncate">{r.full_name}</p>
-                              {r.email && <p className="text-[10px] text-muted-foreground truncate">{r.email}</p>}
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                    {search.length >= 2 && results.length === 0 && !searching && (
-                      <p className="text-[10px] text-muted-foreground text-center py-2">Ingen treff</p>
-                    )}
+                    ))}
                   </div>
                 )}
               </div>
-            </PopoverContent>
-          </Popover>
+            </SheetContent>
+          </Sheet>
         )}
       </div>
 
-      {/* Participant chips */}
-      {participants.length > 0 && (
+      {/* Participant chips (compact: just avatars, full: badges) */}
+      {participants.length > 0 && !compact && (
         <div className="flex flex-wrap gap-1.5">
           {participants.map(p => (
-            <Popover key={p.id}>
-              <PopoverTrigger asChild>
-                <Badge
-                  variant="outline"
-                  className={cn(
-                    "text-[10px] gap-1 pr-1 cursor-pointer hover:bg-muted/50 transition-colors",
-                    p.participant_type === "external" ? "border-accent/30 text-accent" : "border-primary/30 text-primary"
-                  )}
-                >
-                  {p.full_name || p.display_name || p.email || "Ukjent"}
-                  {((p as any).can_invite_external || (p as any).can_invite_internal) && (
-                    <Send className="h-2 w-2 text-muted-foreground" />
-                  )}
-                  {isAdmin && (
-                    <button onClick={(e) => { e.stopPropagation(); handleRemove(p); }} className="ml-0.5 hover:text-destructive transition-colors">
-                      <X className="h-2.5 w-2.5" />
-                    </button>
-                  )}
-                </Badge>
-              </PopoverTrigger>
-              {isAdmin && (
-                <PopoverContent className="w-56 p-3" align="start">
-                  <div className="space-y-3">
-                    <p className="text-xs font-semibold">{p.full_name || p.display_name || p.email}</p>
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] text-muted-foreground">Kan invitere interne</span>
-                        <Switch
-                          checked={(p as any).can_invite_internal || false}
-                          onCheckedChange={(v) => toggleInvitePermission(p.id, "can_invite_internal", v)}
-                        />
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] text-muted-foreground">Kan invitere eksterne</span>
-                        <Switch
-                          checked={(p as any).can_invite_external || false}
-                          onCheckedChange={(v) => toggleInvitePermission(p.id, "can_invite_external", v)}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </PopoverContent>
+            <Badge
+              key={p.id}
+              variant="outline"
+              className={cn(
+                "text-[10px] gap-1 cursor-default",
+                p.participant_type === "external" ? "border-accent/30 text-accent" : "border-primary/30 text-primary"
               )}
-            </Popover>
-          ))}
-        </div>
-      )}
-
-      {/* Pending invites (admin only) */}
-      {isAdmin && pendingInvites.length > 0 && (
-        <div className="space-y-1.5 pt-1">
-          <p className="text-[10px] font-medium text-muted-foreground flex items-center gap-1">
-            <Clock className="h-3 w-3" />
-            Ventende invitasjoner
-          </p>
-          {pendingInvites.map(inv => (
-            <div key={inv.id} className="flex items-center gap-2 text-[10px] bg-muted/30 rounded-md px-2 py-1.5 border border-border/30">
-              <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-warning/40 text-warning shrink-0">
-                Venter
-              </Badge>
-              <span className="truncate flex-1 text-foreground">
-                {inv.invited_name || inv.invited_email}
-              </span>
-              <span className="text-muted-foreground shrink-0">
-                {new Date(inv.expires_at) < new Date() ? "Utløpt" : `Utløper ${new Date(inv.expires_at).toLocaleDateString("nb-NO")}`}
-              </span>
-              <button
-                onClick={() => handleResendInvite(inv.id)}
-                className="text-primary hover:text-primary/80 transition-colors shrink-0"
-                title="Send på nytt"
-              >
-                <RotateCw className="h-3 w-3" />
-              </button>
-              <button
-                onClick={() => handleRevokeInvite(inv.id)}
-                className="text-destructive hover:text-destructive/80 transition-colors shrink-0"
-                title="Trekk tilbake"
-              >
-                <Ban className="h-3 w-3" />
-              </button>
-            </div>
+            >
+              {p.full_name || p.display_name || p.email || "Ukjent"}
+              {((p as any).can_invite_external || (p as any).can_invite_internal) && (
+                <Send className="h-2 w-2 text-muted-foreground" />
+              )}
+            </Badge>
           ))}
         </div>
       )}

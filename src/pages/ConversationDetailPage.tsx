@@ -265,6 +265,7 @@ export default function ConversationDetailPage() {
             projectId={projectId!}
             isAdmin={isAdmin}
             allowParticipantsInvite={thread.allow_participants_invite ?? true}
+            compact
           />
 
           {isAdmin && (

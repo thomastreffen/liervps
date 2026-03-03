@@ -329,12 +329,32 @@ export default function MicrosoftAdminPage() {
                   </p>
                 </div>
               ) : (
-                <div className="flex items-start gap-2">
-                  <XCircle className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
-                  <div>
-                    <p className="font-medium text-destructive">Sending feilet{testResult.status_code ? ` (HTTP ${testResult.status_code})` : ""}</p>
-                    <p className="text-xs text-destructive/80 mt-0.5 break-all">{testResult.error}</p>
+                <div className="space-y-2">
+                  <div className="flex items-start gap-2">
+                    <XCircle className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
+                    <div>
+                      <p className="font-medium text-destructive">Sending feilet{testResult.status_code ? ` (HTTP ${testResult.status_code})` : ""}</p>
+                      <p className="text-xs text-destructive/80 mt-0.5 break-all">{testResult.error}</p>
+                    </div>
                   </div>
+                  {testResult.status_code === 403 && (
+                    <div className="rounded-md border border-destructive/20 bg-destructive/5 p-3 space-y-2">
+                      <p className="text-xs font-semibold text-destructive">⚠️ Mangler Mail.Send (Application) permission</p>
+                      <ol className="text-xs text-destructive/80 space-y-1 list-decimal list-inside">
+                        <li>Gå til <strong>Azure Portal → App registrations → Din app</strong></li>
+                        <li>Klikk <strong>API permissions → Add a permission → Microsoft Graph → Application permissions</strong></li>
+                        <li>Søk etter <code className="bg-muted px-1 rounded">Mail.Send</code> og legg den til</li>
+                        <li>Klikk <strong>"Grant admin consent for [tenant]"</strong></li>
+                        <li>Vent 1-2 minutter, og test på nytt</li>
+                      </ol>
+                      <p className="text-[10px] text-muted-foreground mt-1">Behold også <code>Mail.ReadWrite</code> (Application) for Sent Items-verifisering.</p>
+                    </div>
+                  )}
+                  {testResult.status_code === 401 && (
+                    <div className="rounded-md border border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800 p-3">
+                      <p className="text-xs text-amber-700 dark:text-amber-300">Token er ugyldig eller utløpt. Sjekk at <code>AZURE_CLIENT_SECRET</code> ikke er utløpt i Azure Portal.</p>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
