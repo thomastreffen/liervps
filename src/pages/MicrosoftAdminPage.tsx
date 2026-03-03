@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { triggerConversationEmailSend } from "@/lib/conversation-email";
 import { useCompanyContext } from "@/hooks/useCompanyContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,6 +11,7 @@ import { toast } from "sonner";
 import {
   RefreshCw, ShieldOff, Plus, RotateCcw, CheckCircle2,
   AlertTriangle, XCircle, Clock, Mail, Info, Inbox, RotateCw, Ban, Send,
+  Activity,
 } from "lucide-react";
 import { format } from "date-fns";
 import { nb } from "date-fns/locale";
@@ -23,8 +25,10 @@ export default function MicrosoftAdminPage() {
   const [reprocessingId, setReprocessingId] = useState<string | null>(null);
   const [testEmail, setTestEmail] = useState("");
   const [testSending, setTestSending] = useState(false);
-  const [testResult, setTestResult] = useState<{ success: boolean; error?: string; graph_message_id?: string } | null>(null);
+  const [testResult, setTestResult] = useState<{ success: boolean; error?: string; status_code?: number; mailbox?: string } | null>(null);
+  const [resendingId, setResendingId] = useState<string | null>(null);
 
+  // ── Subscriptions ──
   const { data: subscriptions, isLoading } = useQuery({
     queryKey: ["ms-graph-subscriptions", activeCompanyId],
     queryFn: async () => {
@@ -37,20 +41,22 @@ export default function MicrosoftAdminPage() {
     enabled: !!activeCompanyId,
   });
 
-  const { data: recentEmails } = useQuery({
-    queryKey: ["recent-inbound-emails", activeCompanyId],
+  // ── Email send monitor (last 50) ──
+  const { data: emailLogs, refetch: refetchLogs } = useQuery({
+    queryKey: ["email-send-monitor", activeCompanyId],
     queryFn: async () => {
       const { data } = await supabase
         .from("conversation_email_messages")
-        .select("id, direction, status, subject, from_email, created_at, error, processing_status, processing_duration_ms")
+        .select("id, direction, status, subject, from_email, to_emails, created_at, processed_at, error, processing_status, processing_duration_ms, thread_id, post_id")
         .eq("company_id", activeCompanyId!)
         .order("created_at", { ascending: false })
-        .limit(20);
+        .limit(50);
       return data || [];
     },
     enabled: !!activeCompanyId,
   });
 
+  // ── Dead letters ──
   const { data: deadLetters } = useQuery({
     queryKey: ["dead-letters", activeCompanyId],
     queryFn: async () => {
@@ -67,9 +73,9 @@ export default function MicrosoftAdminPage() {
 
   // Computed stats
   const activeSubCount = (subscriptions || []).filter((s: any) => s.health === "healthy").length;
-  const lastInbound = recentEmails?.find((e: any) => e.direction === "inbound");
+  const lastSent = (emailLogs || []).find((e: any) => e.status === "sent");
   const pendingDL = (deadLetters || []).filter((d: any) => d.status === "pending").length;
-  const failedDL = (deadLetters || []).filter((d: any) => d.status === "failed").length;
+  const failedEmails = (emailLogs || []).filter((e: any) => e.status === "failed").length;
 
   const runAction = async (action: SubAction) => {
     setActionLoading(action);
@@ -102,7 +108,7 @@ export default function MicrosoftAdminPage() {
         toast.warning("Reprocessering feilet", { description: data?.error });
       }
       queryClient.invalidateQueries({ queryKey: ["dead-letters"] });
-      queryClient.invalidateQueries({ queryKey: ["recent-inbound-emails"] });
+      queryClient.invalidateQueries({ queryKey: ["email-send-monitor"] });
     } catch (err: any) {
       toast.error("Reprocessering feilet", { description: err.message });
     } finally {
@@ -146,6 +152,27 @@ export default function MicrosoftAdminPage() {
     }
   };
 
+  const handleResend = async (log: any) => {
+    setResendingId(log.id);
+    try {
+      const result = await triggerConversationEmailSend(
+        log.thread_id,
+        "resend",
+        { post_id: log.post_id, recipient_email: log.to_emails?.[0] }
+      );
+      if (result.sent) {
+        toast.success("E-post sendt på nytt");
+      } else {
+        toast.error(result.error || "Sending feilet");
+      }
+      refetchLogs();
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setResendingId(null);
+    }
+  };
+
   const healthIcon = (health: string) => {
     switch (health) {
       case "healthy": return <CheckCircle2 className="h-4 w-4 text-emerald-500" />;
@@ -174,16 +201,24 @@ export default function MicrosoftAdminPage() {
     return "outline";
   };
 
+  const emailStatusVariant = (s: string): "default" | "secondary" | "destructive" | "outline" => {
+    if (s === "sent") return "default";
+    if (s === "attempted") return "secondary";
+    if (s === "failed") return "destructive";
+    if (s === "skipped") return "outline";
+    return "outline";
+  };
+
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Microsoft Graph – Webhooks</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Microsoft Graph – Webhooks & E-post</h1>
         <p className="text-muted-foreground text-sm mt-1">
-          Administrer Graph-subscriptions for automatisk innhenting av e-postsvar i samtaler.
+          Administrer Graph-subscriptions og overvåk all e-postutsending.
         </p>
       </div>
 
-      {/* Inbound health summary */}
+      {/* Health summary */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Card>
           <CardContent className="pt-4 pb-3">
@@ -193,10 +228,16 @@ export default function MicrosoftAdminPage() {
         </Card>
         <Card>
           <CardContent className="pt-4 pb-3">
-            <div className="text-xs text-muted-foreground">Siste inbound</div>
+            <div className="text-xs text-muted-foreground">Siste sendt e-post</div>
             <div className="text-sm font-medium">
-              {lastInbound ? format(new Date(lastInbound.created_at), "d. MMM HH:mm", { locale: nb }) : "—"}
+              {lastSent ? format(new Date(lastSent.created_at), "d. MMM HH:mm", { locale: nb }) : "—"}
             </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4 pb-3">
+            <div className="text-xs text-muted-foreground">Feilede sendinger</div>
+            <div className={`text-2xl font-semibold ${failedEmails > 0 ? "text-destructive" : ""}`}>{failedEmails}</div>
           </CardContent>
         </Card>
         <Card>
@@ -205,18 +246,130 @@ export default function MicrosoftAdminPage() {
             <div className={`text-2xl font-semibold ${pendingDL > 0 ? "text-amber-600" : ""}`}>{pendingDL}</div>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="pt-4 pb-3">
-            <div className="text-xs text-muted-foreground">Dead letters (feilet)</div>
-            <div className={`text-2xl font-semibold ${failedDL > 0 ? "text-destructive" : ""}`}>{failedDL}</div>
-          </CardContent>
-        </Card>
       </div>
+
+      {/* Send testmail */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Send className="h-4 w-4" />
+            Send testmail
+          </CardTitle>
+          <CardDescription>
+            Verifiser at Graph-integrasjonen kan sende e-post fra <code className="text-xs bg-muted px-1 rounded">postkontoret@mcsservice.no</code>
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex gap-2">
+            <Input
+              placeholder="mottaker@example.com"
+              value={testEmail}
+              onChange={e => setTestEmail(e.target.value)}
+              className="h-9 text-sm"
+              onKeyDown={e => { if (e.key === "Enter") sendTestEmail(); }}
+            />
+            <Button size="sm" onClick={sendTestEmail} disabled={!testEmail.trim() || testSending} className="gap-1.5 shrink-0">
+              {testSending ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+              Send
+            </Button>
+          </div>
+          {testResult && (
+            <div className={`rounded-lg border p-3 text-sm ${testResult.success ? "bg-emerald-50 border-emerald-200 dark:bg-emerald-950/20 dark:border-emerald-800" : "bg-destructive/5 border-destructive/20"}`}>
+              {testResult.success ? (
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                  <div>
+                    <p className="font-medium text-emerald-700 dark:text-emerald-300">Testmail sendt via <code className="text-xs">/users/{testResult.mailbox}/sendMail</code></p>
+                    <p className="text-xs text-muted-foreground mt-0.5">saveToSentItems=true — sjekk Sendte elementer i Outlook for {testResult.mailbox}</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-start gap-2">
+                  <XCircle className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
+                  <div>
+                    <p className="font-medium text-destructive">Sending feilet{testResult.status_code ? ` (HTTP ${testResult.status_code})` : ""}</p>
+                    <p className="text-xs text-destructive/80 mt-0.5 break-all">{testResult.error}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+          <div className="text-xs text-muted-foreground space-y-1 border-t pt-2 mt-2">
+            <p><strong>Endepunkt:</strong> <code>POST /users/postkontoret@mcsservice.no/sendMail</code></p>
+            <p><strong>Nødvendige permissions:</strong> <code>Mail.Send</code> (Application)</p>
+            <p>Hvis testmail ikke dukker opp i Sendte elementer, mangler appen <code>Mail.Send</code> permission i Azure AD.</p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* ═══ EMAIL SEND MONITOR ═══ */}
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Activity className="h-4 w-4" />
+              E-post sendingslogg
+            </CardTitle>
+            <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => refetchLogs()}>
+              <RefreshCw className="h-3 w-3 mr-1" /> Oppdater
+            </Button>
+          </div>
+          <CardDescription>Siste 50 utgående e-postforsøk med full sporbarhet</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {!emailLogs || emailLogs.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Ingen e-postforsøk registrert ennå.</p>
+          ) : (
+            <div className="space-y-2">
+              {emailLogs.map((log: any) => (
+                <div key={log.id} className="rounded-lg border p-3 space-y-1.5">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Badge variant={emailStatusVariant(log.status)} className="text-[10px]">
+                      {log.status}
+                    </Badge>
+                    <Badge variant="outline" className="text-[10px]">
+                      {log.processing_status || log.direction}
+                    </Badge>
+                    <span className="text-[10px] text-muted-foreground">
+                      {format(new Date(log.created_at), "d. MMM HH:mm:ss", { locale: nb })}
+                    </span>
+                    {log.processing_duration_ms != null && (
+                      <span className="text-[10px] text-muted-foreground">{log.processing_duration_ms}ms</span>
+                    )}
+                    <span className="flex-1" />
+                    {(log.status === "failed" || log.status === "attempted") && log.thread_id && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-6 text-[10px] px-2"
+                        disabled={resendingId === log.id}
+                        onClick={() => handleResend(log)}
+                      >
+                        <RotateCw className="h-2.5 w-2.5 mr-1" />
+                        {resendingId === log.id ? "Sender…" : "Resend"}
+                      </Button>
+                    )}
+                  </div>
+                  <div className="text-xs text-muted-foreground space-y-0.5">
+                    {log.subject && <div className="truncate"><strong>Emne:</strong> {log.subject}</div>}
+                    <div><strong>Fra:</strong> {log.from_email || "—"}</div>
+                    <div><strong>Til:</strong> {(log.to_emails || []).join(", ") || "—"}</div>
+                    {log.thread_id && <div className="font-mono text-[10px]">Thread: {log.thread_id.slice(0, 12)}…</div>}
+                  </div>
+                  {log.error && (
+                    <p className="text-xs text-destructive line-clamp-2 mt-1">{log.error}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Actions */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">Handlinger</CardTitle>
+          <CardTitle className="text-base">Webhook-handlinger</CardTitle>
           <CardDescription>Administrer webhook-subscription for dette selskapet</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-2">
@@ -288,7 +441,7 @@ export default function MicrosoftAdminPage() {
         </CardHeader>
         <CardContent>
           {!deadLetters || deadLetters.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Ingen dead letters. Alt fungerer som det skal.</p>
+            <p className="text-sm text-muted-foreground">Ingen dead letters.</p>
           ) : (
             <div className="space-y-2">
               {deadLetters.map((dl: any) => (
@@ -296,163 +449,28 @@ export default function MicrosoftAdminPage() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Badge variant={dlStatusVariant(dl.status)}>{dl.status}</Badge>
-                      <span className="text-xs text-muted-foreground">
-                        Forsøk: {dl.attempt_count}
-                      </span>
+                      <span className="text-xs text-muted-foreground">Forsøk: {dl.attempt_count}</span>
                       <span className="text-xs text-muted-foreground">
                         {format(new Date(dl.created_at), "d. MMM HH:mm", { locale: nb })}
                       </span>
                     </div>
                     {(dl.status === "pending" || dl.status === "failed") && (
                       <div className="flex gap-1">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-7 text-xs"
-                          disabled={reprocessingId === dl.id}
-                          onClick={() => reprocessDeadLetter(dl.id)}
-                        >
+                        <Button size="sm" variant="outline" className="h-7 text-xs" disabled={reprocessingId === dl.id} onClick={() => reprocessDeadLetter(dl.id)}>
                           <RotateCw className="mr-1 h-3 w-3" />
                           {reprocessingId === dl.id ? "Prosesserer…" : "Reprocess"}
                         </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="h-7 text-xs"
-                          onClick={() => ignoreDeadLetter(dl.id)}
-                        >
+                        <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => ignoreDeadLetter(dl.id)}>
                           <Ban className="mr-1 h-3 w-3" />
                           Ignorer
                         </Button>
                       </div>
                     )}
                   </div>
-                  {dl.error && (
-                    <p className="text-xs text-destructive line-clamp-2">{dl.error}</p>
-                  )}
+                  {dl.error && <p className="text-xs text-destructive line-clamp-2">{dl.error}</p>}
                   {dl.internet_message_id && (
-                    <p className="text-xs text-muted-foreground font-mono truncate">
-                      {dl.internet_message_id}
-                    </p>
+                    <p className="text-xs text-muted-foreground font-mono truncate">{dl.internet_message_id}</p>
                   )}
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Send testmail */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center gap-2">
-            <Send className="h-4 w-4" />
-            Send testmail
-          </CardTitle>
-          <CardDescription>Verifiser at Graph-integrasjonen fungerer korrekt</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex gap-2">
-            <Input
-              placeholder="mottaker@example.com"
-              value={testEmail}
-              onChange={e => setTestEmail(e.target.value)}
-              className="h-9 text-sm"
-              onKeyDown={e => { if (e.key === "Enter") sendTestEmail(); }}
-            />
-            <Button size="sm" onClick={sendTestEmail} disabled={!testEmail.trim() || testSending} className="gap-1.5 shrink-0">
-              {testSending ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
-              Send
-            </Button>
-          </div>
-          {testResult && (
-            <div className={`rounded-lg border p-3 text-sm ${testResult.success ? "bg-emerald-50 border-emerald-200 dark:bg-emerald-950/20 dark:border-emerald-800" : "bg-destructive/5 border-destructive/20"}`}>
-              {testResult.success ? (
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                  <div>
-                    <p className="font-medium text-emerald-700 dark:text-emerald-300">Testmail sendt</p>
-                    {testResult.graph_message_id && (
-                      <p className="text-xs text-muted-foreground font-mono mt-0.5">{testResult.graph_message_id}</p>
-                    )}
-                  </div>
-                </div>
-              ) : (
-                <div className="flex items-start gap-2">
-                  <XCircle className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
-                  <div>
-                    <p className="font-medium text-destructive">Sending feilet</p>
-                    <p className="text-xs text-destructive/80 mt-0.5 break-all">{testResult.error}</p>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-          <p className="text-xs text-muted-foreground">
-            Sender en e-post via Graph API fra postkontoret@mcsservice.no. Sjekk om den dukker opp i Sent Items – hvis ikke, er Graph-config/permissions feil.
-          </p>
-        </CardContent>
-      </Card>
-
-      {/* Test innkommende e-post */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center gap-2">
-            <Mail className="h-4 w-4" />
-            Test innkommende e-post
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="text-sm text-muted-foreground space-y-2">
-          <p>For å teste inbound-flyten:</p>
-          <ol className="list-decimal list-inside space-y-1">
-            <li>Opprett en samtaletråd i et prosjekt og legg til en ekstern deltaker.</li>
-            <li>Post et innlegg – e-post sendes til deltakeren.</li>
-            <li>Svar på e-posten i Outlook.</li>
-            <li>Svaret dukker opp i samtalen automatisk (30–60 sek).</li>
-          </ol>
-          <p className="text-xs mt-2">
-            Webhook-en må være aktiv (grønn status over). Graph sender notifikasjoner i nær sanntid.
-          </p>
-        </CardContent>
-      </Card>
-
-      {/* Recent email messages */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">Siste e-postmeldinger</CardTitle>
-          <CardDescription>De 20 nyeste utgående og innkommende meldingene</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {!recentEmails || recentEmails.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Ingen e-postmeldinger ennå.</p>
-          ) : (
-            <div className="space-y-2">
-              {recentEmails.map((msg: any) => (
-                <div key={msg.id} className="flex items-center gap-3 text-sm border-b pb-2 last:border-0">
-                  <Badge variant={msg.direction === "inbound" ? "secondary" : "outline"} className="text-xs shrink-0">
-                    {msg.direction === "inbound" ? "Inn" : "Ut"}
-                  </Badge>
-                  <Badge
-                    variant={
-                      msg.status === "sent" || msg.status === "received" ? "default"
-                        : msg.status === "failed" ? "destructive" : "outline"
-                    }
-                    className="text-xs shrink-0"
-                  >
-                    {msg.status}
-                  </Badge>
-                  <span className="truncate flex-1 text-muted-foreground">
-                    {msg.subject || "(ingen emne)"}
-                  </span>
-                  {msg.processing_duration_ms != null && (
-                    <span className="text-xs text-muted-foreground shrink-0">{msg.processing_duration_ms}ms</span>
-                  )}
-                  <span className="text-xs text-muted-foreground shrink-0">
-                    {msg.from_email?.split("@")[0] || "—"}
-                  </span>
-                  <span className="text-xs text-muted-foreground shrink-0">
-                    {format(new Date(msg.created_at), "d. MMM HH:mm", { locale: nb })}
-                  </span>
                 </div>
               ))}
             </div>
