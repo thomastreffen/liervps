@@ -187,6 +187,7 @@ export default function JobDetail() {
                   jobTitle={job.title}
                   customer={job.customer}
                   internalNumber={job.internalNumber || null}
+                  filter="conversations"
                 />
               )}
               {activeRoom === "oppgaver" && (
@@ -195,12 +196,17 @@ export default function JobDetail() {
                   jobTitle={job.title}
                   customer={job.customer}
                   internalNumber={job.internalNumber || null}
+                  filter="tasks"
                 />
               )}
               {activeRoom === "dokumenter" && (
-                <div className="text-sm text-muted-foreground py-8 text-center">
-                  Dokumenter-rommet kommer snart.
-                </div>
+                <ProjectFeed
+                  jobId={id!}
+                  jobTitle={job.title}
+                  customer={job.customer}
+                  internalNumber={job.internalNumber || null}
+                  filter="documents"
+                />
               )}
             </div>
           ) : (

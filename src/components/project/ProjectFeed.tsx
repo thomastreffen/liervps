@@ -26,23 +26,26 @@ interface FeedItem {
   metadata?: Record<string, any>;
 }
 
+export type FeedFilter = "all" | "conversations" | "tasks" | "documents";
+
 interface ProjectFeedProps {
   jobId: string;
   jobTitle: string;
   customer: string;
   internalNumber: string | null;
+  filter?: FeedFilter;
 }
 
 /* ── Feed Component ── */
 
-export function ProjectFeed({ jobId, jobTitle, customer, internalNumber }: ProjectFeedProps) {
+export function ProjectFeed({ jobId, jobTitle, customer, internalNumber, filter = "all" }: ProjectFeedProps) {
   const { user } = useAuth();
   const [feedItems, setFeedItems] = useState<FeedItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Composer state
   const [composerText, setComposerText] = useState("");
-  const [isTask, setIsTask] = useState(false);
+  const [isTask, setIsTask] = useState(filter === "tasks");
   const [taskDate, setTaskDate] = useState("");
   const [sending, setSending] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -52,29 +55,45 @@ export function ProjectFeed({ jobId, jobTitle, customer, internalNumber }: Proje
     setLoading(true);
     const items: FeedItem[] = [];
 
+    const fetchMessages = filter === "all" || filter === "conversations";
+    const fetchEmails = filter === "all" || filter === "conversations";
+    const fetchTasks = filter === "all" || filter === "tasks";
+    const fetchDocs = filter === "all" || filter === "documents";
+
+    const emptyRes = { data: [] as any[] };
+
     const [activityRes, commRes, tasksRes, docsRes] = await Promise.all([
-      supabase.from("activity_log")
-        .select("id, action, title, description, created_at, performed_by, type")
-        .eq("entity_id", jobId)
-        .order("created_at", { ascending: false })
-        .limit(50),
-      supabase.from("communication_logs")
-        .select("id, subject, body_preview, created_at, direction, mode, to_recipients, created_by")
-        .eq("entity_id", jobId)
-        .order("created_at", { ascending: false })
-        .limit(20),
-      supabase.from("job_tasks")
-        .select("id, title, status, created_at, scheduled_date")
-        .eq("job_id", jobId)
-        .order("created_at", { ascending: false })
-        .limit(20),
-      supabase.from("documents")
-        .select("id, file_name, created_at, uploaded_by, category")
-        .eq("entity_id", jobId)
-        .eq("entity_type", "job")
-        .is("deleted_at", null)
-        .order("created_at", { ascending: false })
-        .limit(10),
+      fetchMessages
+        ? supabase.from("activity_log")
+            .select("id, action, title, description, created_at, performed_by, type")
+            .eq("entity_id", jobId)
+            .in("type", ["note", "comment"])
+            .order("created_at", { ascending: false })
+            .limit(50)
+        : emptyRes,
+      fetchEmails
+        ? supabase.from("communication_logs")
+            .select("id, subject, body_preview, created_at, direction, mode, to_recipients, created_by")
+            .eq("entity_id", jobId)
+            .order("created_at", { ascending: false })
+            .limit(20)
+        : emptyRes,
+      fetchTasks
+        ? supabase.from("job_tasks")
+            .select("id, title, status, created_at, scheduled_date")
+            .eq("job_id", jobId)
+            .order("created_at", { ascending: false })
+            .limit(50)
+        : emptyRes,
+      fetchDocs
+        ? supabase.from("documents")
+            .select("id, file_name, created_at, uploaded_by, category")
+            .eq("entity_id", jobId)
+            .eq("entity_type", "job")
+            .is("deleted_at", null)
+            .order("created_at", { ascending: false })
+            .limit(50)
+        : emptyRes,
     ]);
 
     for (const a of (activityRes.data || [])) {
@@ -100,7 +119,7 @@ export function ProjectFeed({ jobId, jobTitle, customer, internalNumber }: Proje
     items.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     setFeedItems(items);
     setLoading(false);
-  }, [jobId]);
+  }, [jobId, filter]);
 
   useEffect(() => { fetchFeed(); }, [fetchFeed]);
 
@@ -134,7 +153,7 @@ export function ProjectFeed({ jobId, jobTitle, customer, internalNumber }: Proje
     }
 
     setComposerText("");
-    setIsTask(false);
+    if (filter !== "tasks") setIsTask(false);
     setTaskDate("");
     setSending(false);
     fetchFeed();
@@ -163,70 +182,88 @@ export function ProjectFeed({ jobId, jobTitle, customer, internalNumber }: Proje
     }
   };
 
+  const showComposer = filter !== "documents";
+  const composerPlaceholder = filter === "tasks"
+    ? "Hva skal gjøres?"
+    : filter === "conversations"
+      ? "Skriv en melding til teamet…"
+      : isTask ? "Hva skal gjøres?" : "Skriv en melding til teamet…";
+  const emptyMessage = filter === "conversations"
+    ? "Ingen samtaler ennå. Skriv en melding for å komme i gang."
+    : filter === "tasks"
+      ? "Ingen oppgaver ennå. Opprett en oppgave for å komme i gang."
+      : filter === "documents"
+        ? "Ingen dokumenter lastet opp ennå."
+        : "Ingen aktivitet ennå. Skriv en melding for å komme i gang.";
+
   return (
     <div className="space-y-6">
       {/* ── Composer ── */}
-      <div className="rounded-xl border border-border/50 bg-card p-4 space-y-3">
-        <Textarea
-          ref={textareaRef}
-          value={composerText}
-          onChange={(e) => setComposerText(e.target.value)}
-          placeholder={isTask ? "Hva skal gjøres?" : "Skriv en melding til teamet…"}
-          className="min-h-[72px] border-0 bg-transparent p-0 focus-visible:ring-0 resize-none text-sm"
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handleSubmit();
-          }}
-        />
+      {showComposer && (
+        <div className="rounded-xl border border-border/50 bg-card p-4 space-y-3">
+          <Textarea
+            ref={textareaRef}
+            value={composerText}
+            onChange={(e) => setComposerText(e.target.value)}
+            placeholder={composerPlaceholder}
+            className="min-h-[72px] border-0 bg-transparent p-0 focus-visible:ring-0 resize-none text-sm"
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handleSubmit();
+            }}
+          />
 
-        {/* Task fields */}
-        {isTask && (
-          <div className="flex items-center gap-3 pt-1">
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <Calendar className="h-3.5 w-3.5" />
-              <Input
-                type="date"
-                value={taskDate}
-                onChange={(e) => setTaskDate(e.target.value)}
-                className="h-7 w-auto border-border/40 text-xs px-2"
-              />
+          {/* Task fields */}
+          {isTask && (
+            <div className="flex items-center gap-3 pt-1">
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Calendar className="h-3.5 w-3.5" />
+                <Input
+                  type="date"
+                  value={taskDate}
+                  onChange={(e) => setTaskDate(e.target.value)}
+                  className="h-7 w-auto border-border/40 text-xs px-2"
+                />
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Actions bar */}
-        <div className="flex items-center justify-between pt-1 border-t border-border/30">
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setIsTask(!isTask)}
-              className={cn(
-                "flex items-center gap-1.5 text-xs rounded-md px-2 py-1 transition-colors",
-                isTask
-                  ? "bg-success/10 text-success font-medium"
-                  : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+          {/* Actions bar */}
+          <div className="flex items-center justify-between pt-1 border-t border-border/30">
+            <div className="flex items-center gap-2">
+              {filter !== "tasks" && (
+                <button
+                  onClick={() => setIsTask(!isTask)}
+                  className={cn(
+                    "flex items-center gap-1.5 text-xs rounded-md px-2 py-1 transition-colors",
+                    isTask
+                      ? "bg-success/10 text-success font-medium"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                  )}
+                >
+                  {isTask ? <ToggleRight className="h-3.5 w-3.5" /> : <ToggleLeft className="h-3.5 w-3.5" />}
+                  Oppgave
+                </button>
               )}
-            >
-              {isTask ? <ToggleRight className="h-3.5 w-3.5" /> : <ToggleLeft className="h-3.5 w-3.5" />}
-              Oppgave
-            </button>
-          </div>
+            </div>
 
-          <Button
-            size="sm"
-            onClick={handleSubmit}
-            disabled={!composerText.trim() || sending}
-            className="gap-1.5 text-xs rounded-lg h-7"
-          >
-            {sending ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : isTask ? (
-              <CheckCircle2 className="h-3.5 w-3.5" />
-            ) : (
-              <Send className="h-3.5 w-3.5" />
-            )}
-            {isTask ? "Opprett" : "Send"}
-          </Button>
+            <Button
+              size="sm"
+              onClick={handleSubmit}
+              disabled={!composerText.trim() || sending}
+              className="gap-1.5 text-xs rounded-lg h-7"
+            >
+              {sending ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : isTask ? (
+                <CheckCircle2 className="h-3.5 w-3.5" />
+              ) : (
+                <Send className="h-3.5 w-3.5" />
+              )}
+              {isTask ? "Opprett" : "Send"}
+            </Button>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* ── Feed ── */}
       {loading ? (
@@ -235,7 +272,7 @@ export function ProjectFeed({ jobId, jobTitle, customer, internalNumber }: Proje
         </div>
       ) : feedItems.length === 0 ? (
         <div className="text-center py-16">
-          <p className="text-muted-foreground/60 text-sm">Ingen aktivitet ennå. Skriv en melding for å komme i gang.</p>
+          <p className="text-muted-foreground/60 text-sm">{emptyMessage}</p>
         </div>
       ) : (
         <div className="space-y-1">
