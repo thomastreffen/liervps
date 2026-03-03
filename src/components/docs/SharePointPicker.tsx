@@ -67,16 +67,36 @@ export function SharePointPicker({ jobId, onSelect }: SharePointPickerProps) {
     setLoadingTiles(true);
     setError(null);
     try {
-      const { data } = await supabase.functions.invoke("sharepoint-list", {
+      const { data, error: fnError } = await supabase.functions.invoke("sharepoint-list", {
         body: { job_id: jobId, view_mode: "curated" },
       });
+
+      // Handle 409 (not linked) gracefully
+      if (fnError) {
+        const msg = typeof fnError === "object" && fnError.message ? fnError.message : String(fnError);
+        if (msg.includes("409") || msg.includes("not_linked") || msg.includes("ikke koblet")) {
+          setError("Prosjektet er ikke koblet til SharePoint ennå. Koble først via prosjektinnstillinger.");
+          return;
+        }
+        setError(msg);
+        return;
+      }
       if (data?.error) {
+        if (data.step === "not_linked" || data.error.includes("ikke koblet")) {
+          setError("Prosjektet er ikke koblet til SharePoint ennå. Koble først via prosjektinnstillinger.");
+          return;
+        }
         setError(data.error);
         return;
       }
       setTiles(data?.tiles || []);
     } catch (err: any) {
-      setError(err.message || "Kunne ikke laste SharePoint-kategorier");
+      const msg = err?.message || "Kunne ikke laste SharePoint-kategorier";
+      if (msg.includes("409") || msg.includes("not_linked")) {
+        setError("Prosjektet er ikke koblet til SharePoint ennå.");
+        return;
+      }
+      setError(msg);
     } finally {
       setLoadingTiles(false);
     }
