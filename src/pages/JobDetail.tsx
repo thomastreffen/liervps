@@ -170,7 +170,7 @@ export default function JobDetail() {
 
         {/* Room content or Rooms overview */}
         <div className="mx-auto max-w-5xl px-4 sm:px-6 py-8 pb-28 md:pb-8">
-          {activeRoom ? (
+         {activeRoom ? (
             <div className="space-y-4">
               <button
                 onClick={() => setActiveRoom(null)}
@@ -181,7 +181,7 @@ export default function JobDetail() {
               </button>
               <h2 className="text-xl font-bold text-foreground capitalize">{activeRoom}</h2>
 
-              {activeRoom === "meldinger" && (
+              {activeRoom === "samtaler" && (
                 <ProjectFeed
                   jobId={id!}
                   jobTitle={job.title}
@@ -201,14 +201,6 @@ export default function JobDetail() {
                 <div className="text-sm text-muted-foreground py-8 text-center">
                   Dokumenter-rommet kommer snart.
                 </div>
-              )}
-              {activeRoom === "epost" && (
-                <ProjectFeed
-                  jobId={id!}
-                  jobTitle={job.title}
-                  customer={job.customer}
-                  internalNumber={job.internalNumber || null}
-                />
               )}
             </div>
           ) : (
