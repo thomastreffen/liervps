@@ -1,8 +1,12 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useDocsFiles, type DocFolder, type DocFile } from "@/hooks/useDocsFiles";
 import { useAuth } from "@/hooks/useAuth";
+import { useActivityLog } from "@/hooks/useActivityLog";
 import { FolderAccessDrawer } from "@/components/docs/FolderAccessDrawer";
 import { FilePreviewPanel, type PreviewItem } from "@/components/docs/FilePreviewPanel";
+import { FileContextMenu } from "@/components/docs/FileContextMenu";
+import { FileHoverPreview } from "@/components/docs/FileHoverPreview";
+import { getFileTypeIcon, inferMimeType } from "@/lib/file-icons";
 import { supabase } from "@/integrations/supabase/client";
 import {
   DndContext,
@@ -19,9 +23,6 @@ import {
   FolderOpen,
   Plus,
   Upload,
-  FileText,
-  Image,
-  File,
   Loader2,
   ArrowLeft,
   Trash2,
@@ -34,6 +35,8 @@ import {
   CloudOff,
   GripVertical,
   Eye,
+  CheckSquare,
+  Square,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -59,22 +62,6 @@ function formatSize(bytes: number | null): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function getFileIcon(file: DocFile) {
-  const mime = file.mime_type || "";
-  const ext = file.title.split(".").pop()?.toLowerCase() || "";
-  if (mime.startsWith("image/") || ["jpg", "jpeg", "png", "gif", "webp", "svg"].includes(ext))
-    return <Image className="h-5 w-5 text-[hsl(var(--success))] shrink-0" />;
-  if (mime.includes("pdf") || ext === "pdf")
-    return <FileText className="h-5 w-5 text-destructive shrink-0" />;
-  if (mime.includes("word") || ["doc", "docx"].includes(ext))
-    return <FileText className="h-5 w-5 text-primary shrink-0" />;
-  if (mime.includes("excel") || mime.includes("spreadsheet") || ["xls", "xlsx"].includes(ext))
-    return <FileText className="h-5 w-5 text-[hsl(var(--success))] shrink-0" />;
-  if (file.source_type === "sharepoint")
-    return <Link2 className="h-5 w-5 text-primary shrink-0" />;
-  return <File className="h-5 w-5 text-muted-foreground shrink-0" />;
-}
-
 /* ── Props ── */
 
 interface DocsFilesRoomProps {
@@ -86,14 +73,26 @@ interface DocsFilesRoomProps {
 
 function DraggableFileRow({
   file,
+  folders,
+  isSelected,
+  isMultiSelectMode,
+  onToggleSelect,
   onOpen,
   onPreview,
   onDelete,
+  onMoveToFolder,
+  isAdmin,
 }: {
   file: DocFile;
+  folders: DocFolder[];
+  isSelected: boolean;
+  isMultiSelectMode: boolean;
+  onToggleSelect: (id: string, e: React.MouseEvent) => void;
   onOpen: (f: DocFile) => void;
   onPreview: (f: DocFile) => void;
   onDelete?: (f: DocFile) => void;
+  onMoveToFolder: (fileId: string, folderId: string | null) => void;
+  isAdmin: boolean;
 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: `doc-${file.id}`,
@@ -104,20 +103,39 @@ function DraggableFileRow({
     ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` }
     : undefined;
 
-  return (
+  const handleDownload = () => {
+    const url = (file.source_meta as any)?.public_url;
+    if (url) {
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = file.title;
+      a.click();
+    }
+  };
+
+  const row = (
     <div
       ref={setNodeRef}
       style={style}
       className={cn(
-        "flex items-center gap-3 rounded-lg border border-border/40 bg-card px-4 py-3 hover:border-border/70 transition-colors group",
-        isDragging && "opacity-40 shadow-lg ring-2 ring-primary/30"
+        "flex items-center gap-3 rounded-lg border bg-card px-4 py-3 transition-colors group",
+        isDragging && "opacity-40 shadow-lg ring-2 ring-primary/30",
+        isSelected ? "border-primary/50 bg-primary/5" : "border-border/40 hover:border-border/70"
       )}
     >
+      {isMultiSelectMode && (
+        <button onClick={(e) => onToggleSelect(file.id, e)} className="shrink-0 text-muted-foreground hover:text-foreground">
+          {isSelected ? <CheckSquare className="h-4 w-4 text-primary" /> : <Square className="h-4 w-4" />}
+        </button>
+      )}
       <button {...listeners} {...attributes} className="cursor-grab active:cursor-grabbing touch-none text-muted-foreground/50 hover:text-muted-foreground transition-colors">
         <GripVertical className="h-4 w-4" />
       </button>
-      {getFileIcon(file)}
-      <div className="flex-1 min-w-0 cursor-pointer" onClick={() => onPreview(file)}>
+      {getFileTypeIcon(file.mime_type, file.title, file.source_type)}
+      <div className="flex-1 min-w-0 cursor-pointer" onClick={(e) => {
+        if (e.shiftKey || e.metaKey || e.ctrlKey) { onToggleSelect(file.id, e); return; }
+        onPreview(file);
+      }}>
         <p className="text-sm font-medium text-foreground truncate">{file.title}</p>
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           {file.source_type === "sharepoint" && <span className="text-primary">SharePoint</span>}
@@ -140,6 +158,29 @@ function DraggableFileRow({
       </div>
     </div>
   );
+
+  return (
+    <FileHoverPreview
+      name={file.title}
+      mimeType={file.mime_type}
+      bucket={(file.source_meta as any)?.bucket}
+      filePath={(file.source_meta as any)?.file_path}
+      storageUrl={(file.source_meta as any)?.public_url}
+    >
+      <FileContextMenu
+        folders={folders}
+        currentFolderId={file.folder_id}
+        canDelete={isAdmin}
+        onPreview={() => onPreview(file)}
+        onOpen={() => onOpen(file)}
+        onDownload={handleDownload}
+        onDelete={onDelete ? () => onDelete(file) : undefined}
+        onMoveToFolder={(fId) => onMoveToFolder(file.id, fId)}
+      >
+        {row}
+      </FileContextMenu>
+    </FileHoverPreview>
+  );
 }
 
 /* ── Draggable attachment row ── */
@@ -147,15 +188,25 @@ function DraggableFileRow({
 function DraggableAttachmentRow({
   att,
   jobId,
+  folders,
   isAdmin,
+  isSelected,
+  isMultiSelectMode,
+  onToggleSelect,
   onPreview,
   onRemove,
+  onConvertAndMove,
 }: {
   att: Attachment;
   jobId: string;
+  folders: DocFolder[];
   isAdmin: boolean;
+  isSelected: boolean;
+  isMultiSelectMode: boolean;
+  onToggleSelect: (id: string, e: React.MouseEvent) => void;
   onPreview: (att: Attachment) => void;
   onRemove: (name: string) => void;
+  onConvertAndMove: (att: Attachment, folderId: string | null) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: `att-${att.name}`,
@@ -166,20 +217,31 @@ function DraggableAttachmentRow({
     ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` }
     : undefined;
 
-  return (
+  const attMime = inferMimeType(att.name);
+
+  const row = (
     <div
       ref={setNodeRef}
       style={style}
       className={cn(
-        "flex items-center gap-3 rounded-lg border border-border/40 bg-card px-4 py-3 hover:border-border/70 transition-colors group",
-        isDragging && "opacity-40 shadow-lg ring-2 ring-primary/30"
+        "flex items-center gap-3 rounded-lg border bg-card px-4 py-3 transition-colors group",
+        isDragging && "opacity-40 shadow-lg ring-2 ring-primary/30",
+        isSelected ? "border-primary/50 bg-primary/5" : "border-border/40 hover:border-border/70"
       )}
     >
+      {isMultiSelectMode && (
+        <button onClick={(e) => onToggleSelect(`att-${att.name}`, e)} className="shrink-0 text-muted-foreground hover:text-foreground">
+          {isSelected ? <CheckSquare className="h-4 w-4 text-primary" /> : <Square className="h-4 w-4" />}
+        </button>
+      )}
       <button {...listeners} {...attributes} className="cursor-grab active:cursor-grabbing touch-none text-muted-foreground/50 hover:text-muted-foreground transition-colors">
         <GripVertical className="h-4 w-4" />
       </button>
-      <FileText className="h-5 w-5 text-muted-foreground shrink-0" />
-      <div className="flex-1 min-w-0 cursor-pointer" onClick={() => onPreview(att)}>
+      {getFileTypeIcon(attMime, att.name)}
+      <div className="flex-1 min-w-0 cursor-pointer" onClick={(e) => {
+        if (e.shiftKey || e.metaKey || e.ctrlKey) { onToggleSelect(`att-${att.name}`, e); return; }
+        onPreview(att);
+      }}>
         <p className="text-sm font-medium text-foreground truncate">{att.name}</p>
         {att.size && <p className="text-xs text-muted-foreground">{formatSize(att.size)}</p>}
       </div>
@@ -205,6 +267,27 @@ function DraggableAttachmentRow({
         )}
       </div>
     </div>
+  );
+
+  return (
+    <FileHoverPreview
+      name={att.name}
+      mimeType={attMime}
+      storageUrl={att.url}
+    >
+      <FileContextMenu
+        folders={folders}
+        currentFolderId={null}
+        canDelete={isAdmin}
+        onPreview={() => onPreview(att)}
+        onOpen={() => window.open(att.url, "_blank")}
+        onDownload={() => { const a = document.createElement("a"); a.href = att.url; a.download = att.name; a.click(); }}
+        onDelete={isAdmin ? () => onRemove(att.name) : undefined}
+        onMoveToFolder={(fId) => onConvertAndMove(att, fId)}
+      >
+        {row}
+      </FileContextMenu>
+    </FileHoverPreview>
   );
 }
 
@@ -277,6 +360,7 @@ function DroppableUnsortedZone({ children }: { children: React.ReactNode }) {
 
 export function DocsFilesRoom({ projectId, jobId }: DocsFilesRoomProps) {
   const { isAdmin } = useAuth();
+  const { logActivity } = useActivityLog("project", projectId);
   const {
     folders,
     files,
@@ -298,6 +382,7 @@ export function DocsFilesRoom({ projectId, jobId }: DocsFilesRoomProps) {
   const [accessFolderId, setAccessFolderId] = useState<string | null>(null);
   const [previewItem, setPreviewItem] = useState<PreviewItem | null>(null);
   const [draggedItem, setDraggedItem] = useState<{ id: string; title: string } | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const uploadRef = useRef<HTMLInputElement>(null);
 
   // Project attachments from events table
@@ -316,6 +401,38 @@ export function DocsFilesRoom({ projectId, jobId }: DocsFilesRoomProps) {
     projectCode: null, siteId: null, driveId: null, folderId: null, folderWebUrl: null, connectedAt: null,
   });
   const [spCompanyId, setSpCompanyId] = useState<string | null>(null);
+
+  const isMultiSelectMode = selectedIds.size > 0;
+
+  const handleToggleSelect = useCallback((id: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const handleBulkMoveToFolder = useCallback(async (targetFolderId: string | null) => {
+    const docIds = [...selectedIds].filter((id) => !id.startsWith("att-")).map((id) => id);
+    const attNames = [...selectedIds].filter((id) => id.startsWith("att-")).map((id) => id.replace("att-", ""));
+
+    try {
+      for (const docId of docIds) {
+        await moveFile(docId, targetFolderId);
+      }
+      for (const attName of attNames) {
+        const att = projectAttachments.find((a) => a.name === attName);
+        if (att) await convertAttachmentToDocFile(att, targetFolderId);
+      }
+      toast.success(`${selectedIds.size} filer flyttet`);
+      setSelectedIds(new Set());
+    } catch {
+      toast.error("Kunne ikke flytte alle filer");
+    }
+  }, [selectedIds, projectAttachments]);
 
   const fetchAttachments = useCallback(async () => {
     setAttachmentsLoading(true);
@@ -374,22 +491,37 @@ export function DocsFilesRoom({ projectId, jobId }: DocsFilesRoomProps) {
     const overData = over.data.current;
     const activeData = active.data.current;
     const targetFolderId: string | null = overData?.folderId ?? null;
+    const targetFolderName = targetFolderId
+      ? folders.find((f) => f.id === targetFolderId)?.name || "mappe"
+      : "Usortert";
 
     if (activeData?.type === "doc") {
       const file = activeData.file as DocFile;
       if (file.folder_id === targetFolderId) return;
       try {
         await moveFile(file.id, targetFolderId);
+        logActivity({
+          action: "file_moved",
+          description: `Flyttet "${file.title}" til ${targetFolderName}`,
+          type: "file",
+          title: `Fil flyttet: ${file.title}`,
+        });
         toast.success(`"${file.title}" flyttet`);
       } catch {
         toast.error("Kunne ikke flytte fil");
       }
     } else if (activeData?.type === "attachment") {
       const att = activeData.attachment as Attachment;
-      if (targetFolderId === null) return; // already in unsorted
+      if (targetFolderId === null) return;
       try {
-        // Convert attachment to docs_files entry and remove from attachments
         await convertAttachmentToDocFile(att, targetFolderId);
+        logActivity({
+          action: "attachment_categorized",
+          description: `Kategorisert vedlegg "${att.name}" til ${targetFolderName}`,
+          type: "file",
+          title: `Vedlegg kategorisert: ${att.name}`,
+          metadata: { original_event_id: jobId },
+        });
         toast.success(`"${att.name}" flyttet til mappe`);
       } catch {
         toast.error("Kunne ikke flytte vedlegg");
@@ -406,25 +538,31 @@ export function DocsFilesRoom({ projectId, jobId }: DocsFilesRoomProps) {
       .eq("is_active", true)
       .single();
 
-    // Insert into docs_files
-    const ext = att.name.split(".").pop()?.toLowerCase() || "";
-    let mimeType: string | null = null;
-    if (["jpg", "jpeg", "png", "gif", "webp", "svg"].includes(ext)) mimeType = `image/${ext === "jpg" ? "jpeg" : ext}`;
-    else if (ext === "pdf") mimeType = "application/pdf";
+    const mimeType = inferMimeType(att.name);
+
+    // Try to extract bucket/path from URL for proper source_meta
+    const storageMatch = att.url.match(/\/storage\/v1\/object\/(?:public|sign)\/([^/]+)\/(.+?)(?:\?|$)/);
+    const sourceMeta: Record<string, any> = {
+      public_url: att.url,
+      original_event_id: jobId,
+    };
+    if (storageMatch) {
+      sourceMeta.bucket = storageMatch[1];
+      sourceMeta.file_path = decodeURIComponent(storageMatch[2]);
+    }
 
     const { error: insertErr } = await supabase.from("docs_files").insert({
       project_id: projectId,
       folder_id: folderId,
       title: att.name,
       source_type: "internal",
-      source_meta: { public_url: att.url },
+      source_meta: sourceMeta,
       mime_type: mimeType,
       file_size: att.size || null,
       created_by: uaData?.id || null,
     });
     if (insertErr) throw insertErr;
 
-    // Remove from events.attachments
     const updated = projectAttachments.filter((a) => a.name !== att.name);
     const { error: updateErr } = await supabase
       .from("events")
@@ -434,6 +572,23 @@ export function DocsFilesRoom({ projectId, jobId }: DocsFilesRoomProps) {
 
     setProjectAttachments(updated);
     await refresh();
+  };
+
+  const handleMoveFileToFolder = async (fileId: string, folderId: string | null) => {
+    try {
+      await moveFile(fileId, folderId);
+      const file = files.find((f) => f.id === fileId);
+      const folderName = folderId ? folders.find((f) => f.id === folderId)?.name || "mappe" : "Usortert";
+      logActivity({
+        action: "file_moved",
+        description: `Flyttet "${file?.title}" til ${folderName}`,
+        type: "file",
+        title: `Fil flyttet: ${file?.title}`,
+      });
+      toast.success("Fil flyttet");
+    } catch {
+      toast.error("Kunne ikke flytte fil");
+    }
   };
 
   /* ── Handlers ── */
@@ -505,6 +660,13 @@ export function DocsFilesRoom({ projectId, jobId }: DocsFilesRoomProps) {
     if (previewItem.kind === "doc") {
       try {
         await moveFile(previewItem.file.id, folderId);
+        const folderName = folderId ? folders.find((f) => f.id === folderId)?.name || "mappe" : "Usortert";
+        logActivity({
+          action: "file_moved",
+          description: `Flyttet "${previewItem.file.title}" til ${folderName}`,
+          type: "file",
+          title: `Fil flyttet: ${previewItem.file.title}`,
+        });
         toast.success("Fil flyttet");
         setPreviewItem(null);
       } catch {
@@ -560,7 +722,7 @@ export function DocsFilesRoom({ projectId, jobId }: DocsFilesRoomProps) {
       <div className="space-y-5">
         <div className="flex items-center justify-between gap-4">
           <button
-            onClick={() => setActiveFolderId(null)}
+            onClick={() => { setActiveFolderId(null); setSelectedIds(new Set()); }}
             className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
             <ArrowLeft className="h-3.5 w-3.5" />
@@ -588,6 +750,16 @@ export function DocsFilesRoom({ projectId, jobId }: DocsFilesRoomProps) {
           )}
         </div>
 
+        {/* Multi-select bar */}
+        {isMultiSelectMode && (
+          <BulkActionBar
+            count={selectedIds.size}
+            folders={folders}
+            onMoveToFolder={handleBulkMoveToFolder}
+            onClear={() => setSelectedIds(new Set())}
+          />
+        )}
+
         <div className="space-y-1">
           {folderFiles.length === 0 ? (
             <p className="text-sm text-muted-foreground py-6 text-center">Ingen filer i denne mappen.</p>
@@ -596,9 +768,15 @@ export function DocsFilesRoom({ projectId, jobId }: DocsFilesRoomProps) {
               <DraggableFileRow
                 key={file.id}
                 file={file}
+                folders={folders}
+                isSelected={selectedIds.has(file.id)}
+                isMultiSelectMode={isMultiSelectMode}
+                onToggleSelect={handleToggleSelect}
                 onOpen={openFile}
                 onPreview={(f) => setPreviewItem({ kind: "doc", file: f })}
                 onDelete={isAdmin ? handleDelete : undefined}
+                onMoveToFolder={handleMoveFileToFolder}
+                isAdmin={isAdmin}
               />
             ))
           )}
@@ -656,6 +834,16 @@ export function DocsFilesRoom({ projectId, jobId }: DocsFilesRoomProps) {
           <div className="w-[88px]" />
         </div>
 
+        {/* Multi-select bar */}
+        {isMultiSelectMode && (
+          <BulkActionBar
+            count={selectedIds.size}
+            folders={folders}
+            onMoveToFolder={handleBulkMoveToFolder}
+            onClear={() => setSelectedIds(new Set())}
+          />
+        )}
+
         {/* New folder inline */}
         {showNewFolder && (
           <div className="flex items-center gap-2 rounded-xl border border-border/60 bg-card p-3">
@@ -699,7 +887,7 @@ export function DocsFilesRoom({ projectId, jobId }: DocsFilesRoomProps) {
               <span className="text-xs text-muted-foreground">({projectAttachments.length})</span>
             </div>
             <p className="text-xs text-muted-foreground -mt-1">
-              Dra filer til en mappe for å kategorisere dem.
+              Dra filer til en mappe for å kategorisere dem. Shift/Cmd-klikk for å velge flere.
             </p>
             <div className="space-y-1">
               {projectAttachments.map((att) => (
@@ -707,9 +895,14 @@ export function DocsFilesRoom({ projectId, jobId }: DocsFilesRoomProps) {
                   key={att.name}
                   att={att}
                   jobId={jobId}
+                  folders={folders}
                   isAdmin={isAdmin}
+                  isSelected={selectedIds.has(`att-${att.name}`)}
+                  isMultiSelectMode={isMultiSelectMode}
+                  onToggleSelect={handleToggleSelect}
                   onPreview={(a) => setPreviewItem({ kind: "attachment", attachment: a, jobId })}
                   onRemove={handleRemoveAttachment}
+                  onConvertAndMove={convertAttachmentToDocFile}
                 />
               ))}
             </div>
@@ -739,9 +932,15 @@ export function DocsFilesRoom({ projectId, jobId }: DocsFilesRoomProps) {
                     <DraggableFileRow
                       key={file.id}
                       file={file}
+                      folders={folders}
+                      isSelected={selectedIds.has(file.id)}
+                      isMultiSelectMode={isMultiSelectMode}
+                      onToggleSelect={handleToggleSelect}
                       onOpen={openFile}
                       onPreview={(f) => setPreviewItem({ kind: "doc", file: f })}
                       onDelete={isAdmin ? handleDelete : undefined}
+                      onMoveToFolder={handleMoveFileToFolder}
+                      isAdmin={isAdmin}
                     />
                   ))}
                 </div>
@@ -777,9 +976,15 @@ export function DocsFilesRoom({ projectId, jobId }: DocsFilesRoomProps) {
                     <DraggableFileRow
                       key={file.id}
                       file={file}
+                      folders={folders}
+                      isSelected={selectedIds.has(file.id)}
+                      isMultiSelectMode={isMultiSelectMode}
+                      onToggleSelect={handleToggleSelect}
                       onOpen={openFile}
                       onPreview={(f) => setPreviewItem({ kind: "doc", file: f })}
                       onDelete={isAdmin ? handleDelete : undefined}
+                      onMoveToFolder={handleMoveFileToFolder}
+                      isAdmin={isAdmin}
                     />
                   ))}
                 </div>
@@ -826,6 +1031,45 @@ export function DocsFilesRoom({ projectId, jobId }: DocsFilesRoomProps) {
         />
       )}
     </DndContext>
+  );
+}
+
+/* ── Bulk action bar ── */
+
+function BulkActionBar({
+  count,
+  folders,
+  onMoveToFolder,
+  onClear,
+}: {
+  count: number;
+  folders: DocFolder[];
+  onMoveToFolder: (folderId: string | null) => void;
+  onClear: () => void;
+}) {
+  return (
+    <div className="flex items-center gap-3 rounded-xl border border-primary/30 bg-primary/5 px-4 py-3">
+      <CheckSquare className="h-4 w-4 text-primary" />
+      <span className="text-sm font-medium text-foreground">{count} valgt</span>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button size="sm" variant="outline" className="gap-1.5 ml-2">
+            <FolderOpen className="h-3.5 w-3.5" />
+            Flytt til…
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent className="w-48">
+          <DropdownMenuItem onClick={() => onMoveToFolder(null)}>Usortert</DropdownMenuItem>
+          <DropdownMenuSeparator />
+          {folders.map((f) => (
+            <DropdownMenuItem key={f.id} onClick={() => onMoveToFolder(f.id)}>{f.name}</DropdownMenuItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <Button size="sm" variant="ghost" onClick={onClear} className="ml-auto text-muted-foreground">
+        Avbryt
+      </Button>
+    </div>
   );
 }
 
