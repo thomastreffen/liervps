@@ -9,13 +9,13 @@ import {
   Image,
   File,
   Loader2,
-  ChevronRight,
   ArrowLeft,
   Trash2,
   ExternalLink,
   Users,
   FolderPlus,
   Link2,
+  Search,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,6 +25,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
   DropdownMenuSeparator,
+  DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -43,13 +44,13 @@ function getFileIcon(file: DocFile) {
   const mime = file.mime_type || "";
   const ext = file.title.split(".").pop()?.toLowerCase() || "";
   if (mime.startsWith("image/") || ["jpg", "jpeg", "png", "gif", "webp", "svg"].includes(ext))
-    return <Image className="h-5 w-5 text-green-600 shrink-0" />;
+    return <Image className="h-5 w-5 text-[hsl(var(--success))] shrink-0" />;
   if (mime.includes("pdf") || ext === "pdf")
-    return <FileText className="h-5 w-5 text-red-500 shrink-0" />;
+    return <FileText className="h-5 w-5 text-destructive shrink-0" />;
   if (mime.includes("word") || ["doc", "docx"].includes(ext))
-    return <FileText className="h-5 w-5 text-blue-600 shrink-0" />;
+    return <FileText className="h-5 w-5 text-primary shrink-0" />;
   if (mime.includes("excel") || mime.includes("spreadsheet") || ["xls", "xlsx"].includes(ext))
-    return <FileText className="h-5 w-5 text-green-700 shrink-0" />;
+    return <FileText className="h-5 w-5 text-[hsl(var(--success))] shrink-0" />;
   if (file.source_type === "sharepoint")
     return <Link2 className="h-5 w-5 text-primary shrink-0" />;
   return <File className="h-5 w-5 text-muted-foreground shrink-0" />;
@@ -185,24 +186,24 @@ export function DocsFilesRoom({ projectId, jobId }: DocsFilesRoomProps) {
   if (activeFolderId) {
     return (
       <div className="space-y-5">
-        <div className="flex items-center justify-between">
+        {/* Top bar */}
+        <div className="flex items-center justify-between gap-4">
           <button
             onClick={() => setActiveFolderId(null)}
             className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
             <ArrowLeft className="h-3.5 w-3.5" />
-            Alle mapper
+            Dokumenter & Filer
           </button>
 
-          <div className="flex items-center gap-2">
-            <NewDropdown
-              onUpload={() => uploadRef.current?.click()}
-              onSharePoint={() => setShowSharePoint(true)}
-            />
-          </div>
+          <NewButton
+            onUpload={() => uploadRef.current?.click()}
+            onSharePoint={() => setShowSharePoint(true)}
+          />
         </div>
 
-        <div className="flex items-center gap-3">
+        {/* Folder header */}
+        <div className="flex items-center gap-3 pb-2 border-b border-border/40">
           <FolderOpen className="h-6 w-6 text-primary" />
           <div>
             <h3 className="text-lg font-bold text-foreground">{activeFolder?.name}</h3>
@@ -220,29 +221,29 @@ export function DocsFilesRoom({ projectId, jobId }: DocsFilesRoomProps) {
         <FileList files={folderFiles} onOpen={openFile} onDelete={isAdmin ? handleDelete : undefined} />
 
         <input ref={uploadRef} type="file" multiple onChange={handleUpload} className="hidden" />
-        {uploading && (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin" /> Laster opp…
-          </div>
-        )}
+        {uploading && <UploadingIndicator />}
       </div>
     );
   }
 
-  /* ── Main view: Folders grid + unsorted ── */
+  /* ── Main view: Basecamp-style ── */
 
   const isEmpty = folders.length === 0 && unsortedFiles.length === 0;
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold text-foreground">Dokumenter & Filer</h2>
-        <NewDropdown
+      {/* Top bar: New button + Title */}
+      <div className="flex items-center justify-between gap-4">
+        <NewButton
           onNewFolder={() => setShowNewFolder(true)}
           onUpload={() => uploadRef.current?.click()}
           onSharePoint={() => setShowSharePoint(true)}
         />
+        <h2 className="text-2xl font-extrabold text-foreground tracking-tight text-center flex-1">
+          Docs & Files
+        </h2>
+        {/* Spacer for centering */}
+        <div className="w-[88px]" />
       </div>
 
       {/* New folder inline */}
@@ -268,8 +269,8 @@ export function DocsFilesRoom({ projectId, jobId }: DocsFilesRoomProps) {
 
       {/* Empty state */}
       {isEmpty && !showNewFolder && (
-        <div className="flex flex-col items-center justify-center py-20 text-center space-y-4">
-          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/8 text-primary">
+        <div className="flex flex-col items-center justify-center py-24 text-center space-y-4">
+          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-primary">
             <FolderOpen className="h-8 w-8" />
           </div>
           <div className="space-y-1">
@@ -278,44 +279,44 @@ export function DocsFilesRoom({ projectId, jobId }: DocsFilesRoomProps) {
               Opprett en mappe, last opp filer eller koble til SharePoint for å komme i gang.
             </p>
           </div>
-          <NewDropdown
-            onNewFolder={() => setShowNewFolder(true)}
-            onUpload={() => uploadRef.current?.click()}
-            onSharePoint={() => setShowSharePoint(true)}
-            asCta
-          />
         </div>
       )}
 
-      {/* Folder tiles */}
+      {/* Folder tiles – Basecamp card style */}
       {folders.length > 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="flex flex-wrap gap-5 justify-center">
           {folders.map((folder) => (
             <button
               key={folder.id}
               onClick={() => setActiveFolderId(folder.id)}
               className={cn(
-                "flex items-center gap-4 rounded-xl border border-border/40 bg-card p-5",
+                "group relative flex flex-col items-start rounded-xl border border-border/50 bg-card",
+                "w-[200px] min-h-[180px] p-5",
                 "text-left transition-all duration-200",
-                "hover:shadow-md hover:shadow-foreground/[0.04] hover:border-border/70 hover:scale-[1.01]",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                "hover:shadow-lg hover:shadow-foreground/[0.06] hover:border-border hover:-translate-y-0.5",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
               )}
             >
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/8 text-primary shrink-0">
-                <FolderOpen className="h-6 w-6" />
+              {/* Mini search icon top-left like Basecamp */}
+              <div className="absolute top-3 left-3">
+                <Search className="h-3.5 w-3.5 text-muted-foreground/40" />
               </div>
-              <div className="min-w-0 flex-1">
-                <h4 className="font-semibold text-foreground truncate">{folder.name}</h4>
+
+              {/* Colored top strip */}
+              <div className="absolute top-3 right-8 left-8 h-1.5 rounded-full bg-muted-foreground/15" />
+
+              <div className="mt-6 space-y-1">
+                <h4 className="text-base font-bold text-foreground">{folder.name}</h4>
                 <p className="text-xs text-muted-foreground">
                   {folder.file_count || 0} {(folder.file_count || 0) === 1 ? "fil" : "filer"}
-                  {folder.has_member_override && (
-                    <span className="ml-1.5 inline-flex items-center gap-0.5">
-                      · <Users className="h-3 w-3" /> Begrenset
-                    </span>
-                  )}
                 </p>
               </div>
-              <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+
+              {folder.has_member_override && (
+                <div className="mt-auto pt-3 flex items-center gap-1 text-[11px] text-muted-foreground">
+                  <Users className="h-3 w-3" /> Begrenset
+                </div>
+              )}
             </button>
           ))}
         </div>
@@ -323,58 +324,59 @@ export function DocsFilesRoom({ projectId, jobId }: DocsFilesRoomProps) {
 
       {/* Unsorted files */}
       {unsortedFiles.length > 0 && (
-        <div className="space-y-3">
+        <div className="space-y-3 pt-2">
           <h3 className="text-sm font-medium text-muted-foreground">Usorterte filer</h3>
           <FileList files={unsortedFiles} onOpen={openFile} onDelete={isAdmin ? handleDelete : undefined} />
         </div>
       )}
 
       <input ref={uploadRef} type="file" multiple onChange={handleUpload} className="hidden" />
-      {uploading && (
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin" /> Laster opp…
-        </div>
-      )}
+      {uploading && <UploadingIndicator />}
     </div>
   );
 }
 
-/* ── New... Dropdown ── */
+/* ── New... Button (Basecamp green style) ── */
 
-function NewDropdown({
+function NewButton({
   onNewFolder,
   onUpload,
   onSharePoint,
-  asCta,
 }: {
   onNewFolder?: () => void;
   onUpload: () => void;
   onSharePoint: () => void;
-  asCta?: boolean;
 }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant={asCta ? "default" : "outline"} size="sm" className="gap-1.5">
+        <Button
+          size="sm"
+          className="gap-1.5 rounded-full bg-[hsl(var(--success))] text-[hsl(var(--success-foreground))] hover:bg-[hsl(var(--success))]/90 font-semibold px-4 shadow-sm"
+        >
           <Plus className="h-4 w-4" />
-          Ny…
+          New…
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-52">
+      <DropdownMenuContent align="start" className="w-56">
         {onNewFolder && (
-          <DropdownMenuItem onClick={onNewFolder} className="gap-2">
-            <FolderPlus className="h-4 w-4" />
+          <DropdownMenuItem onClick={onNewFolder} className="gap-2.5 py-2">
+            <FolderPlus className="h-4 w-4 text-muted-foreground" />
             Opprett mappe
           </DropdownMenuItem>
         )}
-        <DropdownMenuItem onClick={onUpload} className="gap-2">
-          <Upload className="h-4 w-4" />
+        <DropdownMenuItem onClick={onUpload} className="gap-2.5 py-2">
+          <Upload className="h-4 w-4 text-muted-foreground" />
           Last opp filer
         </DropdownMenuItem>
+
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={onSharePoint} className="gap-2">
-          <Link2 className="h-4 w-4" />
-          Koble fra SharePoint
+        <DropdownMenuLabel className="text-xs text-muted-foreground font-normal px-2">
+          Koble fra ekstern kilde…
+        </DropdownMenuLabel>
+        <DropdownMenuItem onClick={onSharePoint} className="gap-2.5 py-2">
+          <Link2 className="h-4 w-4 text-primary" />
+          SharePoint
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
@@ -394,7 +396,7 @@ function FileList({
 }) {
   if (files.length === 0) {
     return (
-      <p className="text-sm text-muted-foreground py-4 text-center">Ingen filer i denne mappen.</p>
+      <p className="text-sm text-muted-foreground py-6 text-center">Ingen filer i denne mappen.</p>
     );
   }
 
@@ -438,6 +440,16 @@ function FileList({
           </div>
         </div>
       ))}
+    </div>
+  );
+}
+
+/* ── Uploading indicator ── */
+
+function UploadingIndicator() {
+  return (
+    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+      <Loader2 className="h-4 w-4 animate-spin" /> Laster opp…
     </div>
   );
 }
