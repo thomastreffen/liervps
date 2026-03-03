@@ -65,11 +65,28 @@ Deno.serve(async (req) => {
       });
     }
 
-    const systemMailbox = "postkontoret@mcsservice.no";
     let processed = 0;
 
     for (const notification of notifications) {
       try {
+        // Validate clientState against DB
+        const clientState = notification.clientState;
+        if (clientState) {
+          const expectedCompanyId = clientState.replace("mcs-", "");
+          const { data: subRecord } = await supabase
+            .from("ms_graph_subscriptions")
+            .select("id, company_id")
+            .eq("subscription_id", notification.subscriptionId)
+            .eq("client_state", clientState)
+            .eq("status", "active")
+            .maybeSingle();
+
+          if (!subRecord) {
+            console.warn("ClientState mismatch or unknown subscription:", notification.subscriptionId);
+            continue;
+          }
+        }
+
         const resourceUrl = notification.resource;
         if (!resourceUrl) continue;
 
@@ -108,8 +125,11 @@ Deno.serve(async (req) => {
         let threadId: string | null = null;
         let thread: any = null;
 
-        // Strategy 1: Check custom header X-MCS-THREAD
+        // Strategy 1: Check custom header X-MCS-THREAD or X-MCS-Thread-Token
         const singleValueProps = message.singleValueExtendedProperties || [];
+        const internetHeaders = message.internetMessageHeaders || [];
+
+        // Check extended properties first
         for (const prop of singleValueProps) {
           if (prop.id?.includes("X-MCS-THREAD") && prop.value) {
             const { data } = await supabase
@@ -122,10 +142,27 @@ Deno.serve(async (req) => {
           }
         }
 
+        // Check internet headers for X-MCS-Thread-Token
+        if (!threadId) {
+          for (const header of internetHeaders) {
+            if (header.name === "X-MCS-Thread-Token" && header.value) {
+              const { data } = await supabase
+                .from("conversation_threads")
+                .select("*")
+                .eq("inbound_token", header.value)
+                .maybeSingle();
+              if (data) { thread = data; threadId = data.id; }
+              break;
+            }
+          }
+        }
+
         // Strategy 2: Check reply-to address for inbound_token
         if (!threadId) {
           const replyTo = message.replyTo?.[0]?.emailAddress?.address || "";
-          const tokenMatch = replyTo.match(/thread\+([a-f0-9-]+)@/i);
+          const toAddresses = (message.toRecipients || []).map((r: any) => r.emailAddress?.address || "");
+          const allAddresses = [replyTo, ...toAddresses].join(" ");
+          const tokenMatch = allAddresses.match(/thread\+([a-f0-9-]+)@/i);
           if (tokenMatch) {
             const token = tokenMatch[1];
             const { data } = await supabase
@@ -166,9 +203,34 @@ Deno.serve(async (req) => {
           }
         }
 
+        // Strategy 5: Subject fallback - match [JOB-XXXXXX] prefix
+        if (!threadId && message.subject) {
+          const subjectMatch = message.subject.match(/\[JOB-(\d+)\]/);
+          if (subjectMatch) {
+            // Find project by internal_number, then match thread by title
+            const jobRef = `JOB-${subjectMatch[1]}`;
+            const { data: project } = await supabase
+              .from("events")
+              .select("id")
+              .eq("internal_number", jobRef)
+              .maybeSingle();
+            if (project) {
+              // Find most recent open thread in this project
+              const { data: recentThread } = await supabase
+                .from("conversation_threads")
+                .select("*")
+                .eq("project_id", project.id)
+                .eq("email_enabled", true)
+                .order("last_activity_at", { ascending: false })
+                .limit(1)
+                .maybeSingle();
+              if (recentThread) { thread = recentThread; threadId = recentThread.id; }
+            }
+          }
+        }
+
         if (!threadId || !thread) {
           console.log("Could not match inbound email to thread, skipping");
-          // Log as ignored
           await supabase.from("conversation_email_messages").insert({
             company_id: thread?.company_id || "00000000-0000-0000-0000-000000000000",
             thread_id: thread?.id || "00000000-0000-0000-0000-000000000000",
@@ -186,11 +248,8 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        // Validate sender is a participant or has access
         const senderEmail = message.from?.emailAddress?.address?.toLowerCase();
         const senderName = message.from?.emailAddress?.name || senderEmail;
-
-        // Sanitize body
         const bodyContent = message.body?.content || "";
         const bodyText = message.bodyPreview || "";
 
@@ -201,7 +260,6 @@ Deno.serve(async (req) => {
             .update({ status: "open", closed_at: null, closed_by: null })
             .eq("id", threadId);
 
-          // System post about reopening
           await supabase.from("conversation_posts").insert({
             thread_id: threadId,
             company_id: thread.company_id,

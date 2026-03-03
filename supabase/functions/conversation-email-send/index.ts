@@ -61,7 +61,6 @@ Deno.serve(async (req) => {
 
     const recipientEmails: string[] = [];
     for (const p of participants || []) {
-      // Skip the author
       if (p.user_account_id && p.user_account_id === post.author_id) continue;
 
       if (p.participant_type === "external" && p.email) {
@@ -93,13 +92,14 @@ Deno.serve(async (req) => {
       (Array.isArray(project?.customers)
         ? project.customers[0]?.name
         : (project?.customers as any)?.name) || "";
+
+    // Build subject with [JOB-XXXXXX] prefix for threading
     const subject =
       thread.email_subject ||
       `[${jobRef}] ${customerName ? customerName + " | " : ""}${thread.title}`;
 
     // 5. Build email body
-    const systemUrl = Deno.env.get("SUPABASE_URL")?.replace(".supabase.co", "")
-      || "https://mcsressurs.lovable.app";
+    const systemUrl = "https://mcsressurs.lovable.app";
     const threadLink = `${systemUrl}/projects/${thread.project_id}/conversations/${thread.id}`;
 
     const bodyHtml = `
@@ -122,7 +122,6 @@ Deno.serve(async (req) => {
     const azureClientSecret = Deno.env.get("AZURE_CLIENT_SECRET");
 
     if (!azureTenantId || !azureClientId || !azureClientSecret) {
-      // Log as failed
       await supabase.from("conversation_email_messages").insert({
         company_id: thread.company_id,
         thread_id: thread.id,
@@ -173,10 +172,10 @@ Deno.serve(async (req) => {
       );
     }
 
-    // TODO: Replace with system mailbox UPN
     const systemMailbox = "postkontoret@mcsservice.no";
+    const inboundToken = thread.inbound_token || thread.id;
 
-    // Create draft
+    // Create draft with threading headers
     const draftResp = await fetch(
       `https://graph.microsoft.com/v1.0/users/${systemMailbox}/messages`,
       {
@@ -194,10 +193,17 @@ Deno.serve(async (req) => {
           replyTo: [
             {
               emailAddress: {
-                address: `thread+${thread.inbound_token || thread.id}@mcsservice.no`,
+                address: `thread+${inboundToken}@mcsservice.no`,
                 name: thread.title,
               },
             },
+          ],
+          // Custom headers for thread matching
+          internetMessageHeaders: [
+            { name: "X-MCS-Thread-Token", value: inboundToken },
+            { name: "X-MCS-THREAD", value: thread.id },
+            { name: "X-MCS-ENTITY", value: "CONVERSATION" },
+            { name: "X-MCS-ID", value: thread.id },
           ],
           singleValueExtendedProperties: [
             {
