@@ -5,7 +5,7 @@ import { formatDistanceToNow } from "date-fns";
 import { nb } from "date-fns/locale";
 import {
   MessageSquare, Mail, Loader2, Plus, ChevronRight, Lock,
-  AlertTriangle, Repeat, Gavel, XCircle,
+  AlertTriangle, Repeat, Gavel, XCircle, Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -43,7 +43,6 @@ export function ThreadList({ projectId }: ThreadListProps) {
         <Button
           onClick={() => navigate(`/projects/${projectId}/conversations/new`)}
           className="gap-2 rounded-xl h-10 text-sm font-semibold shrink-0"
-          style={{ backgroundColor: "hsl(var(--primary))", color: "hsl(var(--primary-foreground))" }}
         >
           <Plus className="h-4 w-4" />
           Ny samtale
@@ -57,7 +56,7 @@ export function ThreadList({ projectId }: ThreadListProps) {
             key={f.key}
             onClick={() => setFilter(f.key)}
             className={cn(
-              "px-3 py-1.5 text-xs font-medium rounded-lg transition-colors whitespace-nowrap",
+              "px-3 py-1.5 text-xs font-medium rounded-lg transition-colors whitespace-nowrap cursor-pointer",
               filter === f.key
                 ? "bg-foreground text-background"
                 : "text-muted-foreground hover:bg-muted/60"
@@ -99,11 +98,11 @@ function ThreadRow({ thread, onClick }: { thread: ConversationThread; onClick: (
     <button
       onClick={onClick}
       className={cn(
-        "flex items-start gap-3 w-full text-left px-4 py-4 transition-all rounded-[10px] border",
-        "bg-card hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        "flex items-start gap-3 w-full text-left px-5 py-4 transition-all rounded-[10px] border cursor-pointer",
+        "bg-card hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         isClosed
-          ? "border-border/30 opacity-70"
-          : "border-border/40 hover:border-border/60"
+          ? "border-[#E6E8EC] opacity-70"
+          : "border-[#E6E8EC] hover:border-border/60"
       )}
     >
       {/* Icon */}

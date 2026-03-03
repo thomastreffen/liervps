@@ -104,6 +104,21 @@ export default function ConversationNewPage() {
       }
     }
 
+    // Trigger email send for first post
+    if (!postErr && post) {
+      try {
+        const pid = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+        fetch(`https://${pid}.supabase.co/functions/v1/conversation-email-send`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          },
+          body: JSON.stringify({ post_id: post.id }),
+        }).catch(() => {});
+      } catch {}
+    }
+
     if (postErr) {
       toast.error("Samtale opprettet, men innlegg feilet");
     } else {
@@ -115,12 +130,12 @@ export default function ConversationNewPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen" style={{ backgroundColor: "#F6F7F9" }}>
       <div className="sticky top-0 z-30 border-b border-border/40 bg-background/95 backdrop-blur-sm">
         <div className="mx-auto max-w-3xl px-4 sm:px-6 py-4 flex items-center gap-3">
           <button
             onClick={() => navigate(`/projects/${projectId}`)}
-            className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+            className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
           >
             <ArrowLeft className="h-4 w-4" />
             Tilbake
@@ -129,65 +144,68 @@ export default function ConversationNewPage() {
         </div>
       </div>
 
-      <div className="mx-auto max-w-3xl px-4 sm:px-6 py-8 space-y-6">
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-foreground">Tittel</label>
-          <Input
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="Hva handler dette om?"
-            className="text-base h-12"
-            autoFocus
-          />
-        </div>
-
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-foreground">Melding</label>
-          <Textarea
-            value={body}
-            onChange={(e) => setBody(e.target.value)}
-            placeholder="Skriv din melding her…"
-            className="min-h-[200px] text-sm"
-          />
-        </div>
-
-        {/* Pending files */}
-        {pendingFiles.length > 0 && (
-          <div className="flex flex-wrap gap-1.5">
-            {pendingFiles.map((f, i) => (
-              <Badge key={i} variant="outline" className="text-[10px] gap-1 pr-1">
-                <Paperclip className="h-2.5 w-2.5" />
-                <span className="max-w-[120px] truncate">{f.name}</span>
-                <button onClick={() => removePendingFile(i)} className="ml-0.5 hover:text-destructive">×</button>
-              </Badge>
-            ))}
+      <div className="mx-auto max-w-3xl px-4 sm:px-6 py-8">
+        <div className="rounded-[14px] border border-[#E6E8EC] bg-card p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04)] space-y-6">
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-foreground">Tittel</label>
+            <Input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Hva handler dette om?"
+              className="text-base h-12"
+              autoFocus
+            />
           </div>
-        )}
 
-        <div className="flex items-center justify-between pt-2">
-          <input
-            ref={fileInputRef}
-            type="file"
-            multiple
-            className="hidden"
-            onChange={handleFileSelect}
-          />
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <Paperclip className="h-4 w-4" />
-            Legg ved fil
-          </button>
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-foreground">Melding</label>
+            <Textarea
+              value={body}
+              onChange={(e) => setBody(e.target.value)}
+              placeholder="Skriv din melding her…"
+              className="min-h-[200px] text-sm"
+            />
+          </div>
 
-          <Button
-            onClick={handleSubmit}
-            disabled={!title.trim() || !body.trim() || sending}
-            className="gap-2 rounded-xl h-10 px-6"
-          >
-            {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-            Publiser samtale
-          </Button>
+          {/* Pending files */}
+          {pendingFiles.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {pendingFiles.map((f, i) => (
+                <Badge key={i} variant="outline" className="text-[10px] gap-1 pr-1">
+                  <Paperclip className="h-2.5 w-2.5" />
+                  <span className="max-w-[120px] truncate">{f.name}</span>
+                  <button onClick={() => removePendingFile(i)} className="ml-0.5 hover:text-destructive cursor-pointer">×</button>
+                </Badge>
+              ))}
+            </div>
+          )}
+
+          <div className="flex items-center justify-between pt-2">
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              className="hidden"
+              onChange={handleFileSelect}
+            />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+            >
+              <Paperclip className="h-4 w-4" />
+              Legg ved fil
+            </button>
+
+            <Button
+              onClick={handleSubmit}
+              disabled={!title.trim() || !body.trim() || sending}
+              className="gap-2 rounded-xl h-10 px-6"
+            >
+              {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+              Publiser samtale
+            </Button>
+          </div>
         </div>
       </div>
     </div>
