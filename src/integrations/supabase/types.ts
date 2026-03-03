@@ -1410,10 +1410,76 @@ export type Database = {
           },
         ]
       }
+      conversation_thread_invites: {
+        Row: {
+          company_id: string
+          created_at: string
+          expires_at: string
+          id: string
+          invite_token: string
+          invited_by_participant_id: string
+          invited_email: string
+          invited_name: string | null
+          status: string
+          thread_id: string
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          invite_token?: string
+          invited_by_participant_id: string
+          invited_email: string
+          invited_name?: string | null
+          status?: string
+          thread_id: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          invite_token?: string
+          invited_by_participant_id?: string
+          invited_email?: string
+          invited_name?: string | null
+          status?: string
+          thread_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversation_thread_invites_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "internal_companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversation_thread_invites_invited_by_participant_id_fkey"
+            columns: ["invited_by_participant_id"]
+            isOneToOne: false
+            referencedRelation: "conversation_thread_participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversation_thread_invites_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "conversation_threads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       conversation_thread_participants: {
         Row: {
           added_at: string
           added_by: string | null
+          can_invite_external: boolean
+          can_invite_internal: boolean
           company_id: string
           display_name: string | null
           email: string | null
@@ -1427,6 +1493,8 @@ export type Database = {
         Insert: {
           added_at?: string
           added_by?: string | null
+          can_invite_external?: boolean
+          can_invite_internal?: boolean
           company_id: string
           display_name?: string | null
           email?: string | null
@@ -1440,6 +1508,8 @@ export type Database = {
         Update: {
           added_at?: string
           added_by?: string | null
+          can_invite_external?: boolean
+          can_invite_internal?: boolean
           company_id?: string
           display_name?: string | null
           email?: string | null
@@ -1490,6 +1560,7 @@ export type Database = {
       }
       conversation_threads: {
         Row: {
+          allow_participants_invite: boolean
           closed_at: string | null
           closed_by: string | null
           company_id: string
@@ -1520,6 +1591,7 @@ export type Database = {
           title: string
         }
         Insert: {
+          allow_participants_invite?: boolean
           closed_at?: string | null
           closed_by?: string | null
           company_id: string
@@ -1550,6 +1622,7 @@ export type Database = {
           title: string
         }
         Update: {
+          allow_participants_invite?: boolean
           closed_at?: string | null
           closed_by?: string | null
           company_id?: string

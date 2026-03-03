@@ -116,3 +116,6 @@ verify_jwt = false
 
 [functions.conversation-email-reprocess]
 verify_jwt = false
+
+[functions.conversation-invite-send]
+verify_jwt = false

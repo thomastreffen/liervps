@@ -8,6 +8,7 @@ import { ThreadAdminActions } from "@/components/conversations/ThreadAdminAction
 import {
   ArrowLeft, Loader2, MessageSquare, Mail, Lock, Globe,
   AlertTriangle, Repeat, Gavel, XCircle, Link2, Mail as MailIcon,
+  UserPlus,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
@@ -240,6 +241,7 @@ export default function ConversationDetailPage() {
             companyId={thread.company_id}
             projectId={projectId!}
             isAdmin={isAdmin}
+            allowParticipantsInvite={thread.allow_participants_invite ?? true}
           />
 
           {isAdmin && (
@@ -272,6 +274,29 @@ export default function ConversationDetailPage() {
                 <Switch
                   checked={thread.email_enabled}
                   onCheckedChange={toggleEmailEnabled}
+                />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <UserPlus className="h-3 w-3" />
+                  <span>Deltakere kan invitere andre</span>
+                </div>
+                <Switch
+                  checked={thread.allow_participants_invite ?? true}
+                  onCheckedChange={async () => {
+                    const newVal = !(thread.allow_participants_invite ?? true);
+                    const { error } = await (supabase as any)
+                      .from("conversation_threads")
+                      .update({ allow_participants_invite: newVal })
+                      .eq("id", thread.id);
+                    if (error) {
+                      toast.error("Kunne ikke endre innstilling");
+                    } else {
+                      setThread({ ...thread, allow_participants_invite: newVal });
+                      toast.success(newVal ? "Delegert invitasjon aktivert" : "Delegert invitasjon deaktivert");
+                    }
+                  }}
                 />
               </div>
             </div>
