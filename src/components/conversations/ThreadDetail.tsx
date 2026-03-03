@@ -21,9 +21,10 @@ interface ThreadDetailProps {
   projectId: string;
   companyId: string;
   isClosed?: boolean;
+  emailEnabled?: boolean;
 }
 
-export function ThreadDetail({ threadId, threadTitle, threadType, projectId, companyId, isClosed = false }: ThreadDetailProps) {
+export function ThreadDetail({ threadId, threadTitle, threadType, projectId, companyId, isClosed = false, emailEnabled = true }: ThreadDetailProps) {
   const { posts, loading, refresh } = useConversationPosts(threadId);
   const { user } = useAuth();
   const [replyText, setReplyText] = useState("");
@@ -63,6 +64,27 @@ export function ThreadDetail({ threadId, threadTitle, threadType, projectId, com
     }
   };
 
+  const triggerEmailSend = async (postId: string) => {
+    if (!emailEnabled) return;
+    try {
+      const projectIdEnv = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+      await fetch(
+        `https://${projectIdEnv}.supabase.co/functions/v1/conversation-email-send`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          },
+          body: JSON.stringify({ post_id: postId }),
+        }
+      );
+    } catch {
+      // Email send is best-effort, don't block user
+      console.warn("Email send failed silently");
+    }
+  };
+
   const handleReply = async () => {
     if ((!replyText.trim() && pendingFiles.length === 0) || !user) return;
     setSending(true);
@@ -94,6 +116,9 @@ export function ThreadDetail({ threadId, threadTitle, threadType, projectId, com
       await uploadAttachments(post.id);
       setUploading(false);
     }
+
+    // Trigger email send in background
+    if (post) triggerEmailSend(post.id);
 
     toast.success("Svar lagt til");
     setReplyText("");
@@ -160,8 +185,9 @@ export function ThreadDetail({ threadId, threadTitle, threadType, projectId, com
                 onChange={handleFileSelect}
               />
               <button
+                type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors rounded-md px-2 py-1 hover:bg-muted/50"
+                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors rounded-md px-2 py-1.5 hover:bg-muted/50 cursor-pointer"
               >
                 <Paperclip className="h-3.5 w-3.5" />
                 Vedlegg
@@ -275,7 +301,7 @@ function PostCard({ post, isFirst }: { post: ConversationPost; isFirst: boolean 
                   )}
                   <button
                     onClick={handleCopyEmail}
-                    className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors rounded-md px-2.5 py-1.5 border border-border/40 hover:bg-muted/50"
+                    className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors rounded-md px-2.5 py-1.5 border border-border/40 hover:bg-muted/50 cursor-pointer"
                   >
                     <Copy className="h-3 w-3" />
                     Kopier
@@ -286,7 +312,7 @@ function PostCard({ post, isFirst }: { post: ConversationPost; isFirst: boolean 
           ) : (
             <button
               onClick={() => setExpanded(true)}
-              className="mt-1 text-xs text-muted-foreground hover:text-foreground"
+              className="mt-1 text-xs text-muted-foreground hover:text-foreground cursor-pointer"
             >
               <ChevronDown className="h-3 w-3 inline mr-1" />
               Vis innhold

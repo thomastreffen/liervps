@@ -7,7 +7,7 @@ import { ThreadParticipants } from "@/components/conversations/ThreadParticipant
 import { ThreadAdminActions } from "@/components/conversations/ThreadAdminActions";
 import {
   ArrowLeft, Loader2, MessageSquare, Mail, Lock, Globe,
-  AlertTriangle, Repeat, Gavel, XCircle,
+  AlertTriangle, Repeat, Gavel, XCircle, Link2, Mail as MailIcon,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
@@ -22,6 +22,7 @@ export default function ConversationDetailPage() {
   const [thread, setThread] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [linkedOffer, setLinkedOffer] = useState<any>(null);
 
   useEffect(() => {
     if (!threadId) return;
@@ -33,6 +34,16 @@ export default function ConversationDetailPage() {
         .single();
       setThread(data);
       setLoading(false);
+
+      // Fetch linked offer if present
+      if (data?.linked_offer_id) {
+        const { data: offer } = await supabase
+          .from("offers")
+          .select("id, offer_number, project_title")
+          .eq("id", data.linked_offer_id)
+          .maybeSingle();
+        setLinkedOffer(offer);
+      }
     })();
   }, [threadId]);
 
@@ -62,13 +73,36 @@ export default function ConversationDetailPage() {
     }
   };
 
+  const toggleEmailEnabled = async () => {
+    if (!thread) return;
+    const newValue = !thread.email_enabled;
+    const { error } = await (supabase as any)
+      .from("conversation_threads")
+      .update({ email_enabled: newValue })
+      .eq("id", thread.id);
+    if (error) {
+      toast.error("Kunne ikke endre e-postinnstilling");
+    } else {
+      setThread({ ...thread, email_enabled: newValue });
+      toast.success(newValue ? "E-postkopi aktivert" : "E-postkopi deaktivert");
+    }
+  };
+
   const handleThreadUpdate = (patch: Record<string, any>) => {
     setThread((prev: any) => prev ? { ...prev, ...patch } : prev);
+    if (patch.linked_offer_id) {
+      supabase
+        .from("offers")
+        .select("id, offer_number, project_title")
+        .eq("id", patch.linked_offer_id)
+        .maybeSingle()
+        .then(({ data }) => setLinkedOffer(data));
+    }
   };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-[#F6F7F9]">
+      <div className="flex items-center justify-center min-h-screen" style={{ backgroundColor: "#F6F7F9" }}>
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
       </div>
     );
@@ -76,7 +110,7 @@ export default function ConversationDetailPage() {
 
   if (!thread) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-[#F6F7F9]">
+      <div className="flex items-center justify-center min-h-screen" style={{ backgroundColor: "#F6F7F9" }}>
         <p className="text-muted-foreground">Samtale ikke funnet</p>
       </div>
     );
@@ -87,13 +121,13 @@ export default function ConversationDetailPage() {
   const category = thread.thread_category || "normal";
 
   return (
-    <div className="min-h-screen bg-[#F6F7F9]">
+    <div className="min-h-screen" style={{ backgroundColor: "#F6F7F9" }}>
       {/* Header */}
       <div className="sticky top-0 z-30 border-b border-border/40 bg-background/95 backdrop-blur-sm">
         <div className="mx-auto max-w-3xl px-4 sm:px-6 py-4">
           <button
             onClick={() => navigate(`/projects/${projectId}`)}
-            className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-3"
+            className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-3 cursor-pointer"
           >
             <ArrowLeft className="h-4 w-4" />
             Samtaler
@@ -165,6 +199,16 @@ export default function ConversationDetailPage() {
                 )}
               </div>
 
+              {/* Linked offer chip */}
+              {linkedOffer && (
+                <div className="mt-2">
+                  <Badge variant="outline" className="text-[10px] px-2 py-0.5 gap-1 border-primary/20 text-primary">
+                    <Link2 className="h-2.5 w-2.5" />
+                    Tilbud {linkedOffer.offer_number || linkedOffer.project_title}
+                  </Badge>
+                </div>
+              )}
+
               {/* Decision summary */}
               {thread.is_formal_decision && thread.decision_summary && (
                 <div className="mt-2 p-2.5 rounded-lg bg-primary/5 border border-primary/10">
@@ -190,7 +234,7 @@ export default function ConversationDetailPage() {
       {/* Content */}
       <div className="mx-auto max-w-3xl px-4 sm:px-6 py-6 space-y-4">
         {/* Participants + access toggle */}
-        <div className="rounded-[14px] border border-border/30 bg-card p-4 space-y-3 shadow-sm">
+        <div className="rounded-[14px] border border-[#E6E8EC] bg-card p-4 space-y-3 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
           <ThreadParticipants
             threadId={thread.id}
             companyId={thread.company_id}
@@ -199,30 +243,43 @@ export default function ConversationDetailPage() {
           />
 
           {isAdmin && (
-            <div className="flex items-center justify-between pt-2 border-t border-border/20">
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                {thread.participants_only ? (
-                  <>
-                    <Lock className="h-3 w-3" />
-                    <span>Kun deltakere kan se tråden</span>
-                  </>
-                ) : (
-                  <>
-                    <Globe className="h-3 w-3" />
-                    <span>Åpen for alle med romtilgang</span>
-                  </>
-                )}
+            <div className="space-y-2 pt-2 border-t border-border/20">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  {thread.participants_only ? (
+                    <>
+                      <Lock className="h-3 w-3" />
+                      <span>Kun deltakere kan se tråden</span>
+                    </>
+                  ) : (
+                    <>
+                      <Globe className="h-3 w-3" />
+                      <span>Åpen for alle med romtilgang</span>
+                    </>
+                  )}
+                </div>
+                <Switch
+                  checked={thread.participants_only}
+                  onCheckedChange={toggleParticipantsOnly}
+                />
               </div>
-              <Switch
-                checked={thread.participants_only}
-                onCheckedChange={toggleParticipantsOnly}
-              />
+
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <MailIcon className="h-3 w-3" />
+                  <span>E-postkopi til deltakere</span>
+                </div>
+                <Switch
+                  checked={thread.email_enabled}
+                  onCheckedChange={toggleEmailEnabled}
+                />
+              </div>
             </div>
           )}
         </div>
 
         {/* Thread posts */}
-        <div className="rounded-[14px] border border-border/30 bg-card shadow-sm overflow-hidden">
+        <div className="rounded-[14px] border border-[#E6E8EC] bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
           <ThreadDetail
             threadId={thread.id}
             threadTitle={thread.title}
@@ -230,6 +287,7 @@ export default function ConversationDetailPage() {
             projectId={projectId!}
             companyId={thread.company_id}
             isClosed={isClosed}
+            emailEnabled={thread.email_enabled}
           />
         </div>
       </div>
