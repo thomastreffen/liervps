@@ -2,7 +2,19 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { useDocsFiles, type DocFolder, type DocFile } from "@/hooks/useDocsFiles";
 import { useAuth } from "@/hooks/useAuth";
 import { FolderAccessDrawer } from "@/components/docs/FolderAccessDrawer";
+import { FilePreviewPanel, type PreviewItem } from "@/components/docs/FilePreviewPanel";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  DndContext,
+  DragOverlay,
+  useDraggable,
+  useDroppable,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragStartEvent,
+  type DragEndEvent,
+} from "@dnd-kit/core";
 import {
   FolderOpen,
   Plus,
@@ -17,10 +29,11 @@ import {
   Users,
   FolderPlus,
   Link2,
-  Search,
   Paperclip,
   Download,
   CloudOff,
+  GripVertical,
+  Eye,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -69,6 +82,197 @@ interface DocsFilesRoomProps {
   jobId: string;
 }
 
+/* ── Draggable file row ── */
+
+function DraggableFileRow({
+  file,
+  onOpen,
+  onPreview,
+  onDelete,
+}: {
+  file: DocFile;
+  onOpen: (f: DocFile) => void;
+  onPreview: (f: DocFile) => void;
+  onDelete?: (f: DocFile) => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: `doc-${file.id}`,
+    data: { type: "doc", file },
+  });
+
+  const style = transform
+    ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` }
+    : undefined;
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        "flex items-center gap-3 rounded-lg border border-border/40 bg-card px-4 py-3 hover:border-border/70 transition-colors group",
+        isDragging && "opacity-40 shadow-lg ring-2 ring-primary/30"
+      )}
+    >
+      <button {...listeners} {...attributes} className="cursor-grab active:cursor-grabbing touch-none text-muted-foreground/50 hover:text-muted-foreground transition-colors">
+        <GripVertical className="h-4 w-4" />
+      </button>
+      {getFileIcon(file)}
+      <div className="flex-1 min-w-0 cursor-pointer" onClick={() => onPreview(file)}>
+        <p className="text-sm font-medium text-foreground truncate">{file.title}</p>
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          {file.source_type === "sharepoint" && <span className="text-primary">SharePoint</span>}
+          {file.file_size ? <span>{formatSize(file.file_size)}</span> : null}
+          <span>{new Date(file.created_at).toLocaleDateString("nb-NO")}</span>
+        </div>
+      </div>
+      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onPreview(file)} title="Forhåndsvisning">
+          <Eye className="h-3.5 w-3.5" />
+        </Button>
+        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onOpen(file)} title="Åpne">
+          <ExternalLink className="h-3.5 w-3.5" />
+        </Button>
+        {onDelete && (
+          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => onDelete(file)} title="Slett">
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ── Draggable attachment row ── */
+
+function DraggableAttachmentRow({
+  att,
+  jobId,
+  isAdmin,
+  onPreview,
+  onRemove,
+}: {
+  att: Attachment;
+  jobId: string;
+  isAdmin: boolean;
+  onPreview: (att: Attachment) => void;
+  onRemove: (name: string) => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: `att-${att.name}`,
+    data: { type: "attachment", attachment: att },
+  });
+
+  const style = transform
+    ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` }
+    : undefined;
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        "flex items-center gap-3 rounded-lg border border-border/40 bg-card px-4 py-3 hover:border-border/70 transition-colors group",
+        isDragging && "opacity-40 shadow-lg ring-2 ring-primary/30"
+      )}
+    >
+      <button {...listeners} {...attributes} className="cursor-grab active:cursor-grabbing touch-none text-muted-foreground/50 hover:text-muted-foreground transition-colors">
+        <GripVertical className="h-4 w-4" />
+      </button>
+      <FileText className="h-5 w-5 text-muted-foreground shrink-0" />
+      <div className="flex-1 min-w-0 cursor-pointer" onClick={() => onPreview(att)}>
+        <p className="text-sm font-medium text-foreground truncate">{att.name}</p>
+        {att.size && <p className="text-xs text-muted-foreground">{formatSize(att.size)}</p>}
+      </div>
+      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onPreview(att)} title="Forhåndsvis">
+          <Eye className="h-3.5 w-3.5" />
+        </Button>
+        <a
+          href={att.url}
+          download={att.name}
+          className="inline-flex items-center justify-center h-8 w-8 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <Download className="h-3.5 w-3.5" />
+        </a>
+        {isAdmin && (
+          <button
+            onClick={() => onRemove(att.name)}
+            className="inline-flex items-center justify-center h-8 w-8 rounded-md text-muted-foreground hover:text-destructive hover:bg-accent transition-colors"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ── Droppable folder tile ── */
+
+function DroppableFolderTile({ folder, onClick }: { folder: DocFolder; onClick: () => void }) {
+  const { isOver, setNodeRef } = useDroppable({
+    id: `folder-${folder.id}`,
+    data: { type: "folder", folderId: folder.id },
+  });
+
+  return (
+    <button
+      ref={setNodeRef}
+      onClick={onClick}
+      className={cn(
+        "group relative flex flex-col items-start rounded-xl border bg-card",
+        "w-[200px] min-h-[180px] p-5",
+        "text-left transition-all duration-200",
+        "hover:shadow-lg hover:shadow-foreground/[0.06] hover:border-border hover:-translate-y-0.5",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        isOver
+          ? "border-primary bg-primary/5 ring-2 ring-primary/30 scale-[1.02]"
+          : "border-border/50",
+      )}
+    >
+      <div className="absolute top-3 right-8 left-8 h-1.5 rounded-full bg-muted-foreground/15" />
+      <div className="mt-6 space-y-1">
+        <h4 className="text-base font-bold text-foreground">{folder.name}</h4>
+        <p className="text-xs text-muted-foreground">
+          {folder.file_count || 0} {(folder.file_count || 0) === 1 ? "fil" : "filer"}
+        </p>
+      </div>
+      {folder.has_member_override && (
+        <div className="mt-auto pt-3 flex items-center gap-1 text-[11px] text-muted-foreground">
+          <Users className="h-3 w-3" /> Begrenset
+        </div>
+      )}
+      {isOver && (
+        <div className="absolute inset-0 rounded-xl bg-primary/10 flex items-center justify-center pointer-events-none">
+          <span className="text-sm font-semibold text-primary">Slipp her</span>
+        </div>
+      )}
+    </button>
+  );
+}
+
+/* ── Droppable unsorted zone ── */
+
+function DroppableUnsortedZone({ children }: { children: React.ReactNode }) {
+  const { isOver, setNodeRef } = useDroppable({
+    id: "unsorted-zone",
+    data: { type: "folder", folderId: null },
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={cn(
+        "space-y-3 pt-2 rounded-xl transition-colors p-3 -m-3",
+        isOver && "bg-primary/5 ring-2 ring-primary/20 ring-inset"
+      )}
+    >
+      {children}
+    </div>
+  );
+}
+
 /* ── Main Component ── */
 
 export function DocsFilesRoom({ projectId, jobId }: DocsFilesRoomProps) {
@@ -83,6 +287,7 @@ export function DocsFilesRoom({ projectId, jobId }: DocsFilesRoomProps) {
     uploadFile,
     addSharePointFile,
     deleteFile,
+    moveFile,
   } = useDocsFiles(projectId);
 
   const [activeFolderId, setActiveFolderId] = useState<string | null>(null);
@@ -91,6 +296,8 @@ export function DocsFilesRoom({ projectId, jobId }: DocsFilesRoomProps) {
   const [showSharePoint, setShowSharePoint] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [accessFolderId, setAccessFolderId] = useState<string | null>(null);
+  const [previewItem, setPreviewItem] = useState<PreviewItem | null>(null);
+  const [draggedItem, setDraggedItem] = useState<{ id: string; title: string } | null>(null);
   const uploadRef = useRef<HTMLInputElement>(null);
 
   // Project attachments from events table
@@ -136,16 +343,98 @@ export function DocsFilesRoom({ projectId, jobId }: DocsFilesRoomProps) {
   useEffect(() => { fetchAttachments(); }, [fetchAttachments]);
 
   const spIsConnected = !!spConnection.folderId;
-
-  // Check if SharePoint files exist
-  const hasSharePointFiles = files.some((f) => f.source_type === "sharepoint");
-  const internalDocsFiles = files.filter((f) => f.source_type !== "sharepoint");
   const sharePointFiles = files.filter((f) => f.source_type === "sharepoint");
+  const hasSharePointFiles = sharePointFiles.length > 0;
 
   const activeFolder = folders.find((f) => f.id === activeFolderId);
   const folderFiles = activeFolderId
     ? files.filter((f) => f.folder_id === activeFolderId)
     : unsortedFiles;
+
+  /* ── DnD ── */
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
+  );
+
+  const handleDragStart = (event: DragStartEvent) => {
+    const data = event.active.data.current;
+    if (data?.type === "doc") {
+      setDraggedItem({ id: event.active.id as string, title: data.file.title });
+    } else if (data?.type === "attachment") {
+      setDraggedItem({ id: event.active.id as string, title: data.attachment.name });
+    }
+  };
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    setDraggedItem(null);
+    const { active, over } = event;
+    if (!over) return;
+
+    const overData = over.data.current;
+    const activeData = active.data.current;
+    const targetFolderId: string | null = overData?.folderId ?? null;
+
+    if (activeData?.type === "doc") {
+      const file = activeData.file as DocFile;
+      if (file.folder_id === targetFolderId) return;
+      try {
+        await moveFile(file.id, targetFolderId);
+        toast.success(`"${file.title}" flyttet`);
+      } catch {
+        toast.error("Kunne ikke flytte fil");
+      }
+    } else if (activeData?.type === "attachment") {
+      const att = activeData.attachment as Attachment;
+      if (targetFolderId === null) return; // already in unsorted
+      try {
+        // Convert attachment to docs_files entry and remove from attachments
+        await convertAttachmentToDocFile(att, targetFolderId);
+        toast.success(`"${att.name}" flyttet til mappe`);
+      } catch {
+        toast.error("Kunne ikke flytte vedlegg");
+      }
+    }
+  };
+
+  const convertAttachmentToDocFile = async (att: Attachment, folderId: string | null) => {
+    const { data: userData } = await supabase.auth.getUser();
+    const { data: uaData } = await supabase
+      .from("user_accounts")
+      .select("id")
+      .eq("auth_user_id", userData.user?.id ?? "")
+      .eq("is_active", true)
+      .single();
+
+    // Insert into docs_files
+    const ext = att.name.split(".").pop()?.toLowerCase() || "";
+    let mimeType: string | null = null;
+    if (["jpg", "jpeg", "png", "gif", "webp", "svg"].includes(ext)) mimeType = `image/${ext === "jpg" ? "jpeg" : ext}`;
+    else if (ext === "pdf") mimeType = "application/pdf";
+
+    const { error: insertErr } = await supabase.from("docs_files").insert({
+      project_id: projectId,
+      folder_id: folderId,
+      title: att.name,
+      source_type: "internal",
+      source_meta: { public_url: att.url },
+      mime_type: mimeType,
+      file_size: att.size || null,
+      created_by: uaData?.id || null,
+    });
+    if (insertErr) throw insertErr;
+
+    // Remove from events.attachments
+    const updated = projectAttachments.filter((a) => a.name !== att.name);
+    const { error: updateErr } = await supabase
+      .from("events")
+      .update({ attachments: updated as any })
+      .eq("id", jobId);
+    if (updateErr) throw updateErr;
+
+    setProjectAttachments(updated);
+    await refresh();
+  };
 
   /* ── Handlers ── */
 
@@ -175,19 +464,6 @@ export function DocsFilesRoom({ projectId, jobId }: DocsFilesRoomProps) {
     } finally {
       setUploading(false);
       if (uploadRef.current) uploadRef.current.value = "";
-    }
-  };
-
-  const handleSharePointSelect = async (
-    title: string,
-    meta: { drive_id: string; item_id: string; web_url: string; preview_url?: string }
-  ) => {
-    try {
-      await addSharePointFile(activeFolderId, title, meta);
-      setShowSharePoint(false);
-      toast.success("SharePoint-fil koblet");
-    } catch (err: any) {
-      toast.error("Kunne ikke koble fil", { description: err.message });
     }
   };
 
@@ -221,6 +497,27 @@ export function DocsFilesRoom({ projectId, jobId }: DocsFilesRoomProps) {
     } else {
       const url = (file.source_meta as any)?.public_url;
       if (url) window.open(url, "_blank");
+    }
+  };
+
+  const handlePreviewMoveToFolder = async (folderId: string | null) => {
+    if (!previewItem) return;
+    if (previewItem.kind === "doc") {
+      try {
+        await moveFile(previewItem.file.id, folderId);
+        toast.success("Fil flyttet");
+        setPreviewItem(null);
+      } catch {
+        toast.error("Kunne ikke flytte fil");
+      }
+    } else {
+      try {
+        await convertAttachmentToDocFile(previewItem.attachment, folderId);
+        toast.success("Vedlegg flyttet til mappe");
+        setPreviewItem(null);
+      } catch {
+        toast.error("Kunne ikke flytte vedlegg");
+      }
     }
   };
 
@@ -291,7 +588,21 @@ export function DocsFilesRoom({ projectId, jobId }: DocsFilesRoomProps) {
           )}
         </div>
 
-        <FileList files={folderFiles} onOpen={openFile} onDelete={isAdmin ? handleDelete : undefined} />
+        <div className="space-y-1">
+          {folderFiles.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-6 text-center">Ingen filer i denne mappen.</p>
+          ) : (
+            folderFiles.map((file) => (
+              <DraggableFileRow
+                key={file.id}
+                file={file}
+                onOpen={openFile}
+                onPreview={(f) => setPreviewItem({ kind: "doc", file: f })}
+                onDelete={isAdmin ? handleDelete : undefined}
+              />
+            ))
+          )}
+        </div>
 
         <input ref={uploadRef} type="file" multiple onChange={handleUpload} className="hidden" />
         {uploading && <UploadingIndicator />}
@@ -311,211 +622,210 @@ export function DocsFilesRoom({ projectId, jobId }: DocsFilesRoomProps) {
             </div>
           </div>
         )}
+
+        {previewItem && (
+          <FilePreviewPanel
+            item={previewItem}
+            folders={folders}
+            onClose={() => setPreviewItem(null)}
+            onMoveToFolder={handlePreviewMoveToFolder}
+          />
+        )}
       </div>
     );
   }
 
-  /* ── Main unified view ── */
+  /* ── Main unified view with DnD ── */
 
   const totalFiles = files.length + projectAttachments.length;
   const isEmpty = folders.length === 0 && totalFiles === 0;
 
   return (
-    <div className="space-y-8">
-      {/* Top bar */}
-      <div className="flex items-center justify-between gap-4">
-        <NewButton
-          onNewFolder={() => setShowNewFolder(true)}
-          onUpload={() => uploadRef.current?.click()}
-          onSharePoint={() => setShowSharePoint(true)}
-        />
-        <h2 className="text-2xl font-extrabold text-foreground tracking-tight text-center flex-1">
-          Dokumenter
-        </h2>
-        <div className="w-[88px]" />
-      </div>
-
-      {/* New folder inline */}
-      {showNewFolder && (
-        <div className="flex items-center gap-2 rounded-xl border border-border/60 bg-card p-3">
-          <FolderPlus className="h-5 w-5 text-primary shrink-0" />
-          <Input
-            placeholder="Mappenavn"
-            value={newFolderName}
-            onChange={(e) => setNewFolderName(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleCreateFolder()}
-            autoFocus
-            className="max-w-xs"
+    <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+      <div className="space-y-8">
+        {/* Top bar */}
+        <div className="flex items-center justify-between gap-4">
+          <NewButton
+            onNewFolder={() => setShowNewFolder(true)}
+            onUpload={() => uploadRef.current?.click()}
+            onSharePoint={() => setShowSharePoint(true)}
           />
-          <Button size="sm" onClick={handleCreateFolder} disabled={!newFolderName.trim()}>Opprett</Button>
-          <Button size="sm" variant="ghost" onClick={() => { setShowNewFolder(false); setNewFolderName(""); }}>Avbryt</Button>
-        </div>
-      )}
-
-      {/* Empty state */}
-      {isEmpty && !showNewFolder && (
-        <div className="flex flex-col items-center justify-center py-24 text-center space-y-4">
-          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-            <FolderOpen className="h-8 w-8" />
-          </div>
-          <div className="space-y-1">
-            <h3 className="text-lg font-semibold text-foreground">Ingen dokumenter ennå</h3>
-            <p className="text-sm text-muted-foreground max-w-sm">
-              Opprett en mappe, last opp filer eller koble til SharePoint for å komme i gang.
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* ── Section 1: Prosjektvedlegg (from events.attachments) ── */}
-      {projectAttachments.length > 0 && (
-        <section className="space-y-3">
-          <div className="flex items-center gap-2">
-            <Paperclip className="h-4 w-4 text-muted-foreground" />
-            <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide">
-              Prosjektvedlegg
-            </h3>
-            <span className="text-xs text-muted-foreground">({projectAttachments.length})</span>
-          </div>
-          <div className="space-y-1">
-            {projectAttachments.map((att) => (
-              <div
-                key={att.name}
-                className="flex items-center gap-3 rounded-lg border border-border/40 bg-card px-4 py-3 hover:border-border/70 transition-colors group"
-              >
-                <FileText className="h-5 w-5 text-muted-foreground shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-foreground truncate">{att.name}</p>
-                  {att.size && (
-                    <p className="text-xs text-muted-foreground">{formatSize(att.size)}</p>
-                  )}
-                </div>
-                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <a
-                    href={att.url}
-                    download={att.name}
-                    className="inline-flex items-center justify-center h-8 w-8 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <Download className="h-3.5 w-3.5" />
-                  </a>
-                  {isAdmin && (
-                    <button
-                      onClick={() => handleRemoveAttachment(att.name)}
-                      className="inline-flex items-center justify-center h-8 w-8 rounded-md text-muted-foreground hover:text-destructive hover:bg-accent transition-colors"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* ── Section 2: Folder tiles + unsorted ── */}
-      {(folders.length > 0 || unsortedFiles.length > 0) && (
-        <section className="space-y-4">
-          {folders.length > 0 && (
-            <div className="flex flex-wrap gap-5 justify-center">
-              {folders.map((folder) => (
-                <button
-                  key={folder.id}
-                  onClick={() => setActiveFolderId(folder.id)}
-                  className={cn(
-                    "group relative flex flex-col items-start rounded-xl border border-border/50 bg-card",
-                    "w-[200px] min-h-[180px] p-5",
-                    "text-left transition-all duration-200",
-                    "hover:shadow-lg hover:shadow-foreground/[0.06] hover:border-border hover:-translate-y-0.5",
-                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                  )}
-                >
-                  <div className="absolute top-3 left-3">
-                    <Search className="h-3.5 w-3.5 text-muted-foreground/40" />
-                  </div>
-                  <div className="absolute top-3 right-8 left-8 h-1.5 rounded-full bg-muted-foreground/15" />
-                  <div className="mt-6 space-y-1">
-                    <h4 className="text-base font-bold text-foreground">{folder.name}</h4>
-                    <p className="text-xs text-muted-foreground">
-                      {folder.file_count || 0} {(folder.file_count || 0) === 1 ? "fil" : "filer"}
-                    </p>
-                  </div>
-                  {folder.has_member_override && (
-                    <div className="mt-auto pt-3 flex items-center gap-1 text-[11px] text-muted-foreground">
-                      <Users className="h-3 w-3" /> Begrenset
-                    </div>
-                  )}
-                </button>
-              ))}
-            </div>
-          )}
-
-          {unsortedFiles.length > 0 && (
-            <div className="space-y-3 pt-2">
-              <h3 className="text-sm font-medium text-muted-foreground">Usorterte filer</h3>
-              <FileList files={unsortedFiles} onOpen={openFile} onDelete={isAdmin ? handleDelete : undefined} />
-            </div>
-          )}
-        </section>
-      )}
-
-      {/* ── Section 3: SharePoint ── */}
-      <section className="space-y-3">
-        <div className="flex items-center gap-2">
-          <Link2 className="h-4 w-4 text-primary" />
-          <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide">
-            SharePoint
-          </h3>
-          {spIsConnected && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-[hsl(var(--success))]/10 text-[hsl(var(--success))] px-2 py-0.5 text-[10px] font-medium">
-              Koblet
-            </span>
-          )}
-          {!spIsConnected && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-muted text-muted-foreground px-2 py-0.5 text-[10px] font-medium">
-              <CloudOff className="h-3 w-3" />
-              Ikke koblet
-            </span>
-          )}
+          <h2 className="text-2xl font-extrabold text-foreground tracking-tight text-center flex-1">
+            Dokumenter
+          </h2>
+          <div className="w-[88px]" />
         </div>
 
-        {spIsConnected ? (
-          <>
-            {hasSharePointFiles && (
-              <FileList files={sharePointFiles} onOpen={openFile} onDelete={isAdmin ? handleDelete : undefined} />
-            )}
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-2"
-              onClick={() => setShowSharePoint(true)}
-            >
-              <FolderOpen className="h-3.5 w-3.5" />
-              Åpne SharePoint-utforsker
-            </Button>
-          </>
-        ) : (
-          <div className="rounded-xl border border-dashed border-border/60 bg-muted/30 p-6 space-y-3">
-            <p className="text-sm text-muted-foreground">
-              Koble denne jobben til en prosjektmappe i SharePoint for å synkronisere dokumenter.
-            </p>
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-2"
-              onClick={() => setShowSharePoint(true)}
-            >
-              <Link2 className="h-3.5 w-3.5" />
-              Koble til SharePoint
-            </Button>
+        {/* New folder inline */}
+        {showNewFolder && (
+          <div className="flex items-center gap-2 rounded-xl border border-border/60 bg-card p-3">
+            <FolderPlus className="h-5 w-5 text-primary shrink-0" />
+            <Input
+              placeholder="Mappenavn"
+              value={newFolderName}
+              onChange={(e) => setNewFolderName(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleCreateFolder()}
+              autoFocus
+              className="max-w-xs"
+            />
+            <Button size="sm" onClick={handleCreateFolder} disabled={!newFolderName.trim()}>Opprett</Button>
+            <Button size="sm" variant="ghost" onClick={() => { setShowNewFolder(false); setNewFolderName(""); }}>Avbryt</Button>
           </div>
         )}
-      </section>
 
-      <input ref={uploadRef} type="file" multiple onChange={handleUpload} className="hidden" />
-      {uploading && <UploadingIndicator />}
-    </div>
+        {/* Empty state */}
+        {isEmpty && !showNewFolder && (
+          <div className="flex flex-col items-center justify-center py-24 text-center space-y-4">
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+              <FolderOpen className="h-8 w-8" />
+            </div>
+            <div className="space-y-1">
+              <h3 className="text-lg font-semibold text-foreground">Ingen dokumenter ennå</h3>
+              <p className="text-sm text-muted-foreground max-w-sm">
+                Opprett en mappe, last opp filer eller koble til SharePoint for å komme i gang.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* ── Section 1: Prosjektvedlegg (ukategorisert) ── */}
+        {projectAttachments.length > 0 && (
+          <section className="space-y-3">
+            <div className="flex items-center gap-2">
+              <Paperclip className="h-4 w-4 text-muted-foreground" />
+              <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide">
+                Ukategorisert
+              </h3>
+              <span className="text-xs text-muted-foreground">({projectAttachments.length})</span>
+            </div>
+            <p className="text-xs text-muted-foreground -mt-1">
+              Dra filer til en mappe for å kategorisere dem.
+            </p>
+            <div className="space-y-1">
+              {projectAttachments.map((att) => (
+                <DraggableAttachmentRow
+                  key={att.name}
+                  att={att}
+                  jobId={jobId}
+                  isAdmin={isAdmin}
+                  onPreview={(a) => setPreviewItem({ kind: "attachment", attachment: a, jobId })}
+                  onRemove={handleRemoveAttachment}
+                />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* ── Section 2: Folder tiles + unsorted docs ── */}
+        {(folders.length > 0 || unsortedFiles.length > 0) && (
+          <section className="space-y-4">
+            {folders.length > 0 && (
+              <div className="flex flex-wrap gap-5 justify-center">
+                {folders.map((folder) => (
+                  <DroppableFolderTile
+                    key={folder.id}
+                    folder={folder}
+                    onClick={() => setActiveFolderId(folder.id)}
+                  />
+                ))}
+              </div>
+            )}
+
+            {unsortedFiles.length > 0 && (
+              <DroppableUnsortedZone>
+                <h3 className="text-sm font-medium text-muted-foreground">Usorterte filer</h3>
+                <div className="space-y-1">
+                  {unsortedFiles.map((file) => (
+                    <DraggableFileRow
+                      key={file.id}
+                      file={file}
+                      onOpen={openFile}
+                      onPreview={(f) => setPreviewItem({ kind: "doc", file: f })}
+                      onDelete={isAdmin ? handleDelete : undefined}
+                    />
+                  ))}
+                </div>
+              </DroppableUnsortedZone>
+            )}
+          </section>
+        )}
+
+        {/* ── Section 3: SharePoint ── */}
+        <section className="space-y-3">
+          <div className="flex items-center gap-2">
+            <Link2 className="h-4 w-4 text-primary" />
+            <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide">
+              SharePoint
+            </h3>
+            {spIsConnected ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-[hsl(var(--success))]/10 text-[hsl(var(--success))] px-2 py-0.5 text-[10px] font-medium">
+                Koblet
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 rounded-full bg-muted text-muted-foreground px-2 py-0.5 text-[10px] font-medium">
+                <CloudOff className="h-3 w-3" />
+                Ikke koblet
+              </span>
+            )}
+          </div>
+
+          {spIsConnected ? (
+            <>
+              {hasSharePointFiles && (
+                <div className="space-y-1">
+                  {sharePointFiles.map((file) => (
+                    <DraggableFileRow
+                      key={file.id}
+                      file={file}
+                      onOpen={openFile}
+                      onPreview={(f) => setPreviewItem({ kind: "doc", file: f })}
+                      onDelete={isAdmin ? handleDelete : undefined}
+                    />
+                  ))}
+                </div>
+              )}
+              <Button variant="outline" size="sm" className="gap-2" onClick={() => setShowSharePoint(true)}>
+                <FolderOpen className="h-3.5 w-3.5" />
+                Åpne SharePoint-utforsker
+              </Button>
+            </>
+          ) : (
+            <div className="rounded-xl border border-dashed border-border/60 bg-muted/30 p-6 space-y-3">
+              <p className="text-sm text-muted-foreground">
+                Koble denne jobben til en prosjektmappe i SharePoint for å synkronisere dokumenter.
+              </p>
+              <Button variant="outline" size="sm" className="gap-2" onClick={() => setShowSharePoint(true)}>
+                <Link2 className="h-3.5 w-3.5" />
+                Koble til SharePoint
+              </Button>
+            </div>
+          )}
+        </section>
+
+        <input ref={uploadRef} type="file" multiple onChange={handleUpload} className="hidden" />
+        {uploading && <UploadingIndicator />}
+      </div>
+
+      {/* Drag overlay */}
+      <DragOverlay>
+        {draggedItem && (
+          <div className="flex items-center gap-2 rounded-lg border border-primary bg-card px-4 py-3 shadow-xl">
+            <GripVertical className="h-4 w-4 text-primary" />
+            <span className="text-sm font-medium text-foreground truncate max-w-[200px]">{draggedItem.title}</span>
+          </div>
+        )}
+      </DragOverlay>
+
+      {/* Preview panel */}
+      {previewItem && (
+        <FilePreviewPanel
+          item={previewItem}
+          folders={folders}
+          onClose={() => setPreviewItem(null)}
+          onMoveToFolder={handlePreviewMoveToFolder}
+        />
+      )}
+    </DndContext>
   );
 }
 
@@ -562,59 +872,6 @@ function NewButton({
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
-  );
-}
-
-/* ── File List ── */
-
-function FileList({
-  files,
-  onOpen,
-  onDelete,
-}: {
-  files: DocFile[];
-  onOpen: (f: DocFile) => void;
-  onDelete?: (f: DocFile) => void;
-}) {
-  if (files.length === 0) {
-    return <p className="text-sm text-muted-foreground py-6 text-center">Ingen filer i denne mappen.</p>;
-  }
-
-  return (
-    <div className="space-y-1">
-      {files.map((file) => (
-        <div
-          key={file.id}
-          className="flex items-center gap-3 rounded-lg border border-border/40 bg-card px-4 py-3 hover:border-border/70 transition-colors group"
-        >
-          {getFileIcon(file)}
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-foreground truncate">{file.title}</p>
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              {file.source_type === "sharepoint" && <span className="text-primary">SharePoint</span>}
-              {file.file_size ? <span>{formatSize(file.file_size)}</span> : null}
-              <span>{new Date(file.created_at).toLocaleDateString("nb-NO")}</span>
-            </div>
-          </div>
-          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onOpen(file)} title="Åpne">
-              <ExternalLink className="h-3.5 w-3.5" />
-            </Button>
-            {onDelete && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                onClick={() => onDelete(file)}
-                title="Slett"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </Button>
-            )}
-          </div>
-        </div>
-      ))}
-    </div>
   );
 }
 

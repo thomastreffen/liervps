@@ -182,6 +182,25 @@ export function useDocsFiles(projectId: string) {
     [fetchAll]
   );
 
+  const moveFile = useCallback(
+    async (fileId: string, newFolderId: string | null) => {
+      // Optimistic update
+      setFiles((prev) =>
+        prev.map((f) => (f.id === fileId ? { ...f, folder_id: newFolderId } : f))
+      );
+      const { error } = await supabase
+        .from("docs_files")
+        .update({ folder_id: newFolderId })
+        .eq("id", fileId);
+      if (error) {
+        // Revert on error
+        await fetchAll();
+        throw error;
+      }
+    },
+    [fetchAll]
+  );
+
   const unsortedFiles = files.filter((f) => !f.folder_id);
 
   return {
@@ -195,5 +214,6 @@ export function useDocsFiles(projectId: string) {
     addSharePointFile,
     deleteFile,
     deleteFolder,
+    moveFile,
   };
 }
