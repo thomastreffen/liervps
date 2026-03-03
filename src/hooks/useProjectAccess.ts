@@ -54,7 +54,7 @@ export function useProjectAccess(projectId: string) {
         .select(`
           id, user_account_id, member_type, role, created_at,
           user_accounts!inner ( id, auth_user_id,
-            people:people!user_accounts_person_id_fkey ( first_name, last_name, email )
+            people:people!user_accounts_person_id_fkey ( full_name, email )
           )
         `)
         .eq("project_id", projectId),
@@ -80,9 +80,7 @@ export function useProjectAccess(projectId: string) {
         member_type: m.member_type,
         role: m.role,
         created_at: m.created_at,
-        person_name: person
-          ? `${person.first_name || ""} ${person.last_name || ""}`.trim()
-          : undefined,
+        person_name: person?.full_name || undefined,
         email: person?.email || undefined,
       };
     });
@@ -108,37 +106,51 @@ export function useProjectAccess(projectId: string) {
     async (query: string): Promise<SearchablePerson[]> => {
       if (!query || query.length < 2) return [];
 
-      // Search user_accounts joined with people, excluding already-added members
+      // Get current user's company_id
+      const { data: userData } = await supabase.auth.getUser();
+      const authUid = userData.user?.id;
+      if (!authUid) return [];
+
+      const { data: myAccount } = await supabase
+        .from("user_accounts")
+        .select("company_id")
+        .eq("auth_user_id", authUid)
+        .eq("is_active", true)
+        .maybeSingle();
+
+      if (!myAccount?.company_id) return [];
+
+      // Existing member IDs to exclude
       const existingIds = members.map((m) => m.user_account_id);
 
+      // Search user_accounts + people for same company, filter by name/email
       const { data } = await supabase
         .from("user_accounts")
         .select(`
           id,
-          people:people!user_accounts_person_id_fkey ( first_name, last_name, email )
+          people:people!user_accounts_person_id_fkey ( full_name, email )
         `)
         .eq("is_active", true)
-        .limit(20);
+        .eq("company_id", myAccount.company_id)
+        .limit(50);
 
       if (!data) return [];
 
+      const q = query.toLowerCase();
       return (data as any[])
         .map((ua) => {
           const person = ua.people?.[0] ?? ua.people;
-          const name = person
-            ? `${person.first_name || ""} ${person.last_name || ""}`.trim()
-            : "";
           return {
             user_account_id: ua.id,
-            name,
+            name: person?.full_name || "",
             email: person?.email || null,
           };
         })
         .filter(
           (p) =>
             !existingIds.includes(p.user_account_id) &&
-            (p.name.toLowerCase().includes(query.toLowerCase()) ||
-              (p.email && p.email.toLowerCase().includes(query.toLowerCase())))
+            (p.name.toLowerCase().includes(q) ||
+              (p.email && p.email.toLowerCase().includes(q)))
         );
     },
     [members]
