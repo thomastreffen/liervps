@@ -1,7 +1,8 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useDocsFiles, type DocFolder, type DocFile } from "@/hooks/useDocsFiles";
 import { useAuth } from "@/hooks/useAuth";
 import { FolderAccessDrawer } from "@/components/docs/FolderAccessDrawer";
+import { supabase } from "@/integrations/supabase/client";
 import {
   FolderOpen,
   Plus,
@@ -17,6 +18,9 @@ import {
   FolderPlus,
   Link2,
   Search,
+  Paperclip,
+  Download,
+  CloudOff,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,6 +35,7 @@ import {
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { SharePointPicker } from "@/components/docs/SharePointPicker";
+import type { Attachment } from "@/lib/mock-data";
 
 /* ── Helpers ── */
 
@@ -87,6 +92,29 @@ export function DocsFilesRoom({ projectId, jobId }: DocsFilesRoomProps) {
   const [uploading, setUploading] = useState(false);
   const [accessFolderId, setAccessFolderId] = useState<string | null>(null);
   const uploadRef = useRef<HTMLInputElement>(null);
+
+  // Project attachments from events table
+  const [projectAttachments, setProjectAttachments] = useState<Attachment[]>([]);
+  const [attachmentsLoading, setAttachmentsLoading] = useState(true);
+
+  const fetchAttachments = useCallback(async () => {
+    setAttachmentsLoading(true);
+    const { data } = await supabase
+      .from("events")
+      .select("attachments")
+      .eq("id", jobId)
+      .single();
+    const atts = Array.isArray(data?.attachments) ? (data.attachments as unknown as Attachment[]) : [];
+    setProjectAttachments(atts);
+    setAttachmentsLoading(false);
+  }, [jobId]);
+
+  useEffect(() => { fetchAttachments(); }, [fetchAttachments]);
+
+  // Check if SharePoint files exist
+  const hasSharePointFiles = files.some((f) => f.source_type === "sharepoint");
+  const internalDocsFiles = files.filter((f) => f.source_type !== "sharepoint");
+  const sharePointFiles = files.filter((f) => f.source_type === "sharepoint");
 
   const activeFolder = folders.find((f) => f.id === activeFolderId);
   const folderFiles = activeFolderId
@@ -146,6 +174,20 @@ export function DocsFilesRoom({ projectId, jobId }: DocsFilesRoomProps) {
     }
   };
 
+  const handleRemoveAttachment = async (name: string) => {
+    const updated = projectAttachments.filter((a) => a.name !== name);
+    const { error } = await supabase
+      .from("events")
+      .update({ attachments: updated as any })
+      .eq("id", jobId);
+    if (!error) {
+      setProjectAttachments(updated);
+      toast.success("Vedlegg fjernet");
+    } else {
+      toast.error("Kunne ikke fjerne vedlegg");
+    }
+  };
+
   const openFile = (file: DocFile) => {
     if (file.source_type === "sharepoint") {
       const url = (file.source_meta as any)?.web_url;
@@ -158,7 +200,7 @@ export function DocsFilesRoom({ projectId, jobId }: DocsFilesRoomProps) {
 
   /* ── Loading state ── */
 
-  if (loading) {
+  if (loading || attachmentsLoading) {
     return (
       <div className="flex items-center justify-center py-20">
         <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
@@ -188,23 +230,17 @@ export function DocsFilesRoom({ projectId, jobId }: DocsFilesRoomProps) {
   if (activeFolderId) {
     return (
       <div className="space-y-5">
-        {/* Top bar */}
         <div className="flex items-center justify-between gap-4">
           <button
             onClick={() => setActiveFolderId(null)}
             className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
             <ArrowLeft className="h-3.5 w-3.5" />
-            Dokumenter & Filer
+            Dokumenter
           </button>
-
-          <NewButton
-            onUpload={() => uploadRef.current?.click()}
-            onSharePoint={() => setShowSharePoint(true)}
-          />
+          <NewButton onUpload={() => uploadRef.current?.click()} onSharePoint={() => setShowSharePoint(true)} />
         </div>
 
-        {/* Folder header */}
         <div className="flex items-center gap-3 pb-2 border-b border-border/40">
           <FolderOpen className="h-6 w-6 text-primary" />
           <div className="flex-1">
@@ -229,7 +265,6 @@ export function DocsFilesRoom({ projectId, jobId }: DocsFilesRoomProps) {
         <input ref={uploadRef} type="file" multiple onChange={handleUpload} className="hidden" />
         {uploading && <UploadingIndicator />}
 
-        {/* Folder access drawer */}
         {accessFolderId && activeFolder && (
           <div className="fixed inset-0 z-50 flex justify-end">
             <div className="absolute inset-0 bg-black/20 backdrop-blur-[2px]" onClick={() => setAccessFolderId(null)} />
@@ -249,13 +284,14 @@ export function DocsFilesRoom({ projectId, jobId }: DocsFilesRoomProps) {
     );
   }
 
-  /* ── Main view: Basecamp-style ── */
+  /* ── Main unified view ── */
 
-  const isEmpty = folders.length === 0 && unsortedFiles.length === 0;
+  const totalFiles = files.length + projectAttachments.length;
+  const isEmpty = folders.length === 0 && totalFiles === 0;
 
   return (
-    <div className="space-y-6">
-      {/* Top bar: New button + Title */}
+    <div className="space-y-8">
+      {/* Top bar */}
       <div className="flex items-center justify-between gap-4">
         <NewButton
           onNewFolder={() => setShowNewFolder(true)}
@@ -263,9 +299,8 @@ export function DocsFilesRoom({ projectId, jobId }: DocsFilesRoomProps) {
           onSharePoint={() => setShowSharePoint(true)}
         />
         <h2 className="text-2xl font-extrabold text-foreground tracking-tight text-center flex-1">
-          Docs & Files
+          Dokumenter
         </h2>
-        {/* Spacer for centering */}
         <div className="w-[88px]" />
       </div>
 
@@ -281,12 +316,8 @@ export function DocsFilesRoom({ projectId, jobId }: DocsFilesRoomProps) {
             autoFocus
             className="max-w-xs"
           />
-          <Button size="sm" onClick={handleCreateFolder} disabled={!newFolderName.trim()}>
-            Opprett
-          </Button>
-          <Button size="sm" variant="ghost" onClick={() => { setShowNewFolder(false); setNewFolderName(""); }}>
-            Avbryt
-          </Button>
+          <Button size="sm" onClick={handleCreateFolder} disabled={!newFolderName.trim()}>Opprett</Button>
+          <Button size="sm" variant="ghost" onClick={() => { setShowNewFolder(false); setNewFolderName(""); }}>Avbryt</Button>
         </div>
       )}
 
@@ -305,52 +336,130 @@ export function DocsFilesRoom({ projectId, jobId }: DocsFilesRoomProps) {
         </div>
       )}
 
-      {/* Folder tiles – Basecamp card style */}
-      {folders.length > 0 && (
-        <div className="flex flex-wrap gap-5 justify-center">
-          {folders.map((folder) => (
-            <button
-              key={folder.id}
-              onClick={() => setActiveFolderId(folder.id)}
-              className={cn(
-                "group relative flex flex-col items-start rounded-xl border border-border/50 bg-card",
-                "w-[200px] min-h-[180px] p-5",
-                "text-left transition-all duration-200",
-                "hover:shadow-lg hover:shadow-foreground/[0.06] hover:border-border hover:-translate-y-0.5",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-              )}
-            >
-              {/* Mini search icon top-left like Basecamp */}
-              <div className="absolute top-3 left-3">
-                <Search className="h-3.5 w-3.5 text-muted-foreground/40" />
-              </div>
-
-              {/* Colored top strip */}
-              <div className="absolute top-3 right-8 left-8 h-1.5 rounded-full bg-muted-foreground/15" />
-
-              <div className="mt-6 space-y-1">
-                <h4 className="text-base font-bold text-foreground">{folder.name}</h4>
-                <p className="text-xs text-muted-foreground">
-                  {folder.file_count || 0} {(folder.file_count || 0) === 1 ? "fil" : "filer"}
-                </p>
-              </div>
-
-              {folder.has_member_override && (
-                <div className="mt-auto pt-3 flex items-center gap-1 text-[11px] text-muted-foreground">
-                  <Users className="h-3 w-3" /> Begrenset
+      {/* ── Section 1: Prosjektvedlegg (from events.attachments) ── */}
+      {projectAttachments.length > 0 && (
+        <section className="space-y-3">
+          <div className="flex items-center gap-2">
+            <Paperclip className="h-4 w-4 text-muted-foreground" />
+            <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide">
+              Prosjektvedlegg
+            </h3>
+            <span className="text-xs text-muted-foreground">({projectAttachments.length})</span>
+          </div>
+          <div className="space-y-1">
+            {projectAttachments.map((att) => (
+              <div
+                key={att.name}
+                className="flex items-center gap-3 rounded-lg border border-border/40 bg-card px-4 py-3 hover:border-border/70 transition-colors group"
+              >
+                <FileText className="h-5 w-5 text-muted-foreground shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-foreground truncate">{att.name}</p>
+                  {att.size && (
+                    <p className="text-xs text-muted-foreground">{formatSize(att.size)}</p>
+                  )}
                 </div>
-              )}
-            </button>
-          ))}
-        </div>
+                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <a
+                    href={att.url}
+                    download={att.name}
+                    className="inline-flex items-center justify-center h-8 w-8 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <Download className="h-3.5 w-3.5" />
+                  </a>
+                  {isAdmin && (
+                    <button
+                      onClick={() => handleRemoveAttachment(att.name)}
+                      className="inline-flex items-center justify-center h-8 w-8 rounded-md text-muted-foreground hover:text-destructive hover:bg-accent transition-colors"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
       )}
 
-      {/* Unsorted files */}
-      {unsortedFiles.length > 0 && (
-        <div className="space-y-3 pt-2">
-          <h3 className="text-sm font-medium text-muted-foreground">Usorterte filer</h3>
-          <FileList files={unsortedFiles} onOpen={openFile} onDelete={isAdmin ? handleDelete : undefined} />
-        </div>
+      {/* ── Section 2: Folder tiles + unsorted ── */}
+      {(folders.length > 0 || unsortedFiles.length > 0) && (
+        <section className="space-y-4">
+          {folders.length > 0 && (
+            <div className="flex flex-wrap gap-5 justify-center">
+              {folders.map((folder) => (
+                <button
+                  key={folder.id}
+                  onClick={() => setActiveFolderId(folder.id)}
+                  className={cn(
+                    "group relative flex flex-col items-start rounded-xl border border-border/50 bg-card",
+                    "w-[200px] min-h-[180px] p-5",
+                    "text-left transition-all duration-200",
+                    "hover:shadow-lg hover:shadow-foreground/[0.06] hover:border-border hover:-translate-y-0.5",
+                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  )}
+                >
+                  <div className="absolute top-3 left-3">
+                    <Search className="h-3.5 w-3.5 text-muted-foreground/40" />
+                  </div>
+                  <div className="absolute top-3 right-8 left-8 h-1.5 rounded-full bg-muted-foreground/15" />
+                  <div className="mt-6 space-y-1">
+                    <h4 className="text-base font-bold text-foreground">{folder.name}</h4>
+                    <p className="text-xs text-muted-foreground">
+                      {folder.file_count || 0} {(folder.file_count || 0) === 1 ? "fil" : "filer"}
+                    </p>
+                  </div>
+                  {folder.has_member_override && (
+                    <div className="mt-auto pt-3 flex items-center gap-1 text-[11px] text-muted-foreground">
+                      <Users className="h-3 w-3" /> Begrenset
+                    </div>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {unsortedFiles.length > 0 && (
+            <div className="space-y-3 pt-2">
+              <h3 className="text-sm font-medium text-muted-foreground">Usorterte filer</h3>
+              <FileList files={unsortedFiles} onOpen={openFile} onDelete={isAdmin ? handleDelete : undefined} />
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* ── Section 3: SharePoint ── */}
+      {hasSharePointFiles ? (
+        <section className="space-y-3">
+          <div className="flex items-center gap-2">
+            <Link2 className="h-4 w-4 text-primary" />
+            <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide">
+              SharePoint
+            </h3>
+            <span className="text-xs text-muted-foreground">({sharePointFiles.length})</span>
+          </div>
+          <FileList files={sharePointFiles} onOpen={openFile} onDelete={isAdmin ? handleDelete : undefined} />
+        </section>
+      ) : (
+        <section className="rounded-xl border border-dashed border-border/60 bg-muted/30 p-6 text-center space-y-3">
+          <div className="flex items-center justify-center gap-2 text-muted-foreground">
+            <CloudOff className="h-5 w-5" />
+            <span className="text-sm font-medium">SharePoint ikke koblet</span>
+          </div>
+          <p className="text-xs text-muted-foreground max-w-sm mx-auto">
+            Koble til SharePoint for å synkronisere prosjektdokumenter fra din organisasjon.
+          </p>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2"
+            onClick={() => setShowSharePoint(true)}
+          >
+            <Link2 className="h-3.5 w-3.5" />
+            Koble til SharePoint
+          </Button>
+        </section>
       )}
 
       <input ref={uploadRef} type="file" multiple onChange={handleUpload} className="hidden" />
@@ -359,7 +468,7 @@ export function DocsFilesRoom({ projectId, jobId }: DocsFilesRoomProps) {
   );
 }
 
-/* ── New... Button (Basecamp green style) ── */
+/* ── New... Button ── */
 
 function NewButton({
   onNewFolder,
@@ -392,7 +501,6 @@ function NewButton({
           <Upload className="h-4 w-4 text-muted-foreground" />
           Last opp filer
         </DropdownMenuItem>
-
         <DropdownMenuSeparator />
         <DropdownMenuLabel className="text-xs text-muted-foreground font-normal px-2">
           Koble fra ekstern kilde…
@@ -418,9 +526,7 @@ function FileList({
   onDelete?: (f: DocFile) => void;
 }) {
   if (files.length === 0) {
-    return (
-      <p className="text-sm text-muted-foreground py-6 text-center">Ingen filer i denne mappen.</p>
-    );
+    return <p className="text-sm text-muted-foreground py-6 text-center">Ingen filer i denne mappen.</p>;
   }
 
   return (
@@ -440,13 +546,7 @@ function FileList({
             </div>
           </div>
           <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8"
-              onClick={() => onOpen(file)}
-              title="Åpne"
-            >
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onOpen(file)} title="Åpne">
               <ExternalLink className="h-3.5 w-3.5" />
             </Button>
             {onDelete && (

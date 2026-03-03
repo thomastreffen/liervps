@@ -16,7 +16,6 @@ import {
   type JobStatus,
 } from "@/lib/job-status";
 import { useAuth } from "@/hooks/useAuth";
-import { EditJobDialog } from "@/components/EditJobDialog";
 import { ImageLightbox } from "@/components/ImageLightbox";
 import { ProjectAccessDrawer } from "@/components/project/ProjectAccessDrawer";
 import { Loader2, X, ArrowLeft } from "lucide-react";
@@ -31,7 +30,6 @@ export default function JobDetail() {
   const [job, setJob] = useState<Job | null>(null);
   const [loading, setLoading] = useState(true);
   const [technicianNames, setTechnicianNames] = useState<string[]>([]);
-  const [editOpen, setEditOpen] = useState(false);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const [showPlan, setShowPlan] = useState(false);
@@ -171,7 +169,7 @@ export default function JobDetail() {
           status={job.status}
           technicianNames={technicianNames}
           onOpenPlan={() => setShowPlan(true)}
-          onEdit={() => setEditOpen(true)}
+          onEdit={() => navigate(`/projects/${id}/settings`)}
           onOpenAccess={() => { setAccessDrawerTab("members"); setAccessDrawerOpen(true); }}
           onOpenSpaces={() => { setAccessDrawerTab("spaces"); setAccessDrawerOpen(true); }}
         />
@@ -215,15 +213,7 @@ export default function JobDetail() {
         </div>
       </div>
 
-      {/* Dialogs */}
-      {id && (
-        <EditJobDialog
-          open={editOpen}
-          onOpenChange={setEditOpen}
-          jobId={id}
-          onSaved={() => fetchJob()}
-        />
-      )}
+      {/* Lightbox */}
       <ImageLightbox
         images={imageAttachments}
         initialIndex={lightboxIndex}
