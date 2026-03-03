@@ -127,6 +127,20 @@ export function ThreadParticipants({ threadId, companyId, projectId, isAdmin, al
       const myId = await getMyAccountId();
       await addExternal(threadId, companyId, projectId, extEmail.trim(), extName.trim() || extEmail.trim(), myId!);
       toast.success(`${extName.trim() || extEmail.trim()} lagt til`);
+
+      // Fire-and-forget: send welcome email with history if email_enabled
+      supabase.functions.invoke("conversation-email-send", {
+        body: {
+          mode: "welcome_participant",
+          thread_id: threadId,
+          recipient_email: extEmail.trim(),
+        },
+      }).then(({ data }) => {
+        if (data?.sent) {
+          toast.success(`Historikk sendt til ${extEmail.trim()}`);
+        }
+      }).catch(() => { /* silent */ });
+
       setExtEmail("");
       setExtName("");
       setExternalMode(false);
