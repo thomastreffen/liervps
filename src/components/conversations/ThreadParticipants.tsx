@@ -128,18 +128,22 @@ export function ThreadParticipants({ threadId, companyId, projectId, isAdmin, al
       await addExternal(threadId, companyId, projectId, extEmail.trim(), extName.trim() || extEmail.trim(), myId!);
       toast.success(`${extName.trim() || extEmail.trim()} lagt til`);
 
-      // Fire-and-forget: send welcome email with history if email_enabled
+      // Send welcome email with history (awaited for atomicity)
       supabase.functions.invoke("conversation-email-send", {
         body: {
           mode: "welcome_participant",
           thread_id: threadId,
           recipient_email: extEmail.trim(),
         },
-      }).then(({ data }) => {
+      }).then(({ data, error }) => {
         if (data?.sent) {
           toast.success(`Historikk sendt til ${extEmail.trim()}`);
+        } else if (data?.error || error) {
+          toast.warning(`Kunne ikke sende historikk til ${extEmail.trim()}`);
         }
-      }).catch(() => { /* silent */ });
+      }).catch(() => {
+        toast.warning("E-postsending feilet – se e-postlogg");
+      });
 
       setExtEmail("");
       setExtName("");

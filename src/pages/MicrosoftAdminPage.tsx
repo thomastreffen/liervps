@@ -5,10 +5,11 @@ import { useCompanyContext } from "@/hooks/useCompanyContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import {
   RefreshCw, ShieldOff, Plus, RotateCcw, CheckCircle2,
-  AlertTriangle, XCircle, Clock, Mail, Info, Inbox, RotateCw, Ban,
+  AlertTriangle, XCircle, Clock, Mail, Info, Inbox, RotateCw, Ban, Send,
 } from "lucide-react";
 import { format } from "date-fns";
 import { nb } from "date-fns/locale";
@@ -20,6 +21,9 @@ export default function MicrosoftAdminPage() {
   const queryClient = useQueryClient();
   const [actionLoading, setActionLoading] = useState<SubAction | null>(null);
   const [reprocessingId, setReprocessingId] = useState<string | null>(null);
+  const [testEmail, setTestEmail] = useState("");
+  const [testSending, setTestSending] = useState(false);
+  const [testResult, setTestResult] = useState<{ success: boolean; error?: string; graph_message_id?: string } | null>(null);
 
   const { data: subscriptions, isLoading } = useQuery({
     queryKey: ["ms-graph-subscriptions", activeCompanyId],
@@ -116,6 +120,29 @@ export default function MicrosoftAdminPage() {
     } else {
       toast.success("Markert som ignorert");
       queryClient.invalidateQueries({ queryKey: ["dead-letters"] });
+    }
+  };
+
+  const sendTestEmail = async () => {
+    if (!testEmail.trim()) return;
+    setTestSending(true);
+    setTestResult(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("conversation-email-send", {
+        body: { test_mode: true, test_recipient: testEmail.trim() },
+      });
+      if (error) throw error;
+      setTestResult(data);
+      if (data?.success) {
+        toast.success("Testmail sendt!");
+      } else {
+        toast.error("Testmail feilet");
+      }
+    } catch (err: any) {
+      setTestResult({ success: false, error: err.message });
+      toast.error("Feil ved sending");
+    } finally {
+      setTestSending(false);
     }
   };
 
@@ -315,7 +342,59 @@ export default function MicrosoftAdminPage() {
         </CardContent>
       </Card>
 
-      {/* Test help */}
+      {/* Send testmail */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Send className="h-4 w-4" />
+            Send testmail
+          </CardTitle>
+          <CardDescription>Verifiser at Graph-integrasjonen fungerer korrekt</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex gap-2">
+            <Input
+              placeholder="mottaker@example.com"
+              value={testEmail}
+              onChange={e => setTestEmail(e.target.value)}
+              className="h-9 text-sm"
+              onKeyDown={e => { if (e.key === "Enter") sendTestEmail(); }}
+            />
+            <Button size="sm" onClick={sendTestEmail} disabled={!testEmail.trim() || testSending} className="gap-1.5 shrink-0">
+              {testSending ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+              Send
+            </Button>
+          </div>
+          {testResult && (
+            <div className={`rounded-lg border p-3 text-sm ${testResult.success ? "bg-emerald-50 border-emerald-200 dark:bg-emerald-950/20 dark:border-emerald-800" : "bg-destructive/5 border-destructive/20"}`}>
+              {testResult.success ? (
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                  <div>
+                    <p className="font-medium text-emerald-700 dark:text-emerald-300">Testmail sendt</p>
+                    {testResult.graph_message_id && (
+                      <p className="text-xs text-muted-foreground font-mono mt-0.5">{testResult.graph_message_id}</p>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-start gap-2">
+                  <XCircle className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
+                  <div>
+                    <p className="font-medium text-destructive">Sending feilet</p>
+                    <p className="text-xs text-destructive/80 mt-0.5 break-all">{testResult.error}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+          <p className="text-xs text-muted-foreground">
+            Sender en e-post via Graph API fra postkontoret@mcsservice.no. Sjekk om den dukker opp i Sent Items – hvis ikke, er Graph-config/permissions feil.
+          </p>
+        </CardContent>
+      </Card>
+
+      {/* Test innkommende e-post */}
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
