@@ -16,144 +16,51 @@ Deno.serve(async (req) => {
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceKey);
 
-    // Validate caller
     const authHeader = req.headers.get("Authorization") || "";
     const userClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
       global: { headers: { Authorization: authHeader } },
     });
     const { data: { user }, error: authErr } = await userClient.auth.getUser();
     if (authErr || !user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return json({ error: "Unauthorized" }, 401);
     }
 
-    const { thread_id, invited_email, invited_name, invite_type } = await req.json();
+    const body = await req.json();
+    const { action } = body;
 
-    if (!thread_id || !invited_email) {
-      return new Response(JSON.stringify({ error: "thread_id and invited_email required" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    // Revoke action
+    if (action === "revoke") {
+      return await handleRevoke(supabase, user, body);
     }
 
-    // Get thread
-    const { data: thread } = await supabase
-      .from("conversation_threads")
-      .select("*")
-      .eq("id", thread_id)
-      .single();
-
-    if (!thread) {
-      return new Response(JSON.stringify({ error: "Thread not found" }), {
-        status: 404,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    // Resend action
+    if (action === "resend") {
+      return await handleResend(supabase, user, body);
     }
 
-    // Check allow_participants_invite
-    if (!thread.allow_participants_invite) {
-      return new Response(JSON.stringify({ error: "Invitations disabled for this thread" }), {
-        status: 403,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // Get caller's user_account_id
-    const { data: ua } = await supabase
-      .from("user_accounts")
-      .select("id")
-      .eq("auth_user_id", user.id)
-      .eq("is_active", true)
-      .maybeSingle();
-
-    if (!ua) {
-      return new Response(JSON.stringify({ error: "No active user account" }), {
-        status: 403,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // Check caller is participant with invite permission
-    const { data: callerParticipant } = await supabase
-      .from("conversation_thread_participants")
-      .select("*")
-      .eq("thread_id", thread_id)
-      .eq("user_account_id", ua.id)
-      .maybeSingle();
-
-    const isAdmin = await checkIsAdmin(supabase, user.id, thread.project_id);
-
-    const isExternal = invite_type === "external";
-    const permKey = isExternal ? "can_invite_external" : "can_invite_internal";
-
-    if (!isAdmin) {
-      if (!callerParticipant) {
-        return new Response(JSON.stringify({ error: "Not a participant" }), {
-          status: 403,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      if (!callerParticipant[permKey]) {
-        return new Response(JSON.stringify({ error: `No ${permKey} permission` }), {
-          status: 403,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-    }
-
-    // Check for existing pending invite
-    const { data: existing } = await supabase
-      .from("conversation_thread_invites")
-      .select("id")
-      .eq("thread_id", thread_id)
-      .eq("invited_email", invited_email.toLowerCase().trim())
-      .eq("status", "pending")
-      .maybeSingle();
-
-    if (existing) {
-      return new Response(JSON.stringify({ error: "Invite already pending" }), {
-        status: 409,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // Create invite
-    const participantId = callerParticipant?.id || ua.id;
-    const { data: invite, error: insertErr } = await supabase
-      .from("conversation_thread_invites")
-      .insert({
-        thread_id,
-        invited_email: invited_email.toLowerCase().trim(),
-        invited_name: invited_name || null,
-        invited_by_participant_id: callerParticipant?.id,
-        company_id: thread.company_id,
-      })
-      .select()
-      .single();
-
-    if (insertErr) {
-      return new Response(JSON.stringify({ error: insertErr.message }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // Send invite email via Graph
-    const sent = await sendInviteEmail(supabase, thread, invite, invited_email, invited_name);
-
-    return new Response(
-      JSON.stringify({ ok: true, invite_id: invite.id, email_sent: sent }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    // Default: send invite
+    return await handleSendInvite(supabase, user, body);
   } catch (err) {
-    return new Response(JSON.stringify({ error: String(err) }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return json({ error: String(err) }, 500);
   }
 });
+
+function json(data: any, status = 200) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
+async function getCallerAccount(supabase: any, authUserId: string) {
+  const { data } = await supabase
+    .from("user_accounts")
+    .select("id")
+    .eq("auth_user_id", authUserId)
+    .eq("is_active", true)
+    .maybeSingle();
+  return data;
+}
 
 async function checkIsAdmin(supabase: any, authUserId: string, projectId: string): Promise<boolean> {
   const { data } = await supabase.rpc("is_project_admin", {
@@ -163,6 +70,187 @@ async function checkIsAdmin(supabase: any, authUserId: string, projectId: string
   return !!data;
 }
 
+async function logSystemPost(supabase: any, threadId: string, companyId: string, message: string) {
+  await supabase.from("conversation_posts").insert({
+    thread_id: threadId,
+    company_id: companyId,
+    post_type: "system",
+    body_text: message,
+  });
+}
+
+// ── SEND INVITE ──────────────────────────────────────────────
+async function handleSendInvite(supabase: any, user: any, body: any) {
+  const { thread_id, invited_email, invited_name, invite_type, lock_thread } = body;
+
+  if (!thread_id || !invited_email) {
+    return json({ error: "thread_id and invited_email required" }, 400);
+  }
+
+  const email = invited_email.toLowerCase().trim();
+
+  // Get thread
+  const { data: thread } = await supabase
+    .from("conversation_threads")
+    .select("*")
+    .eq("id", thread_id)
+    .single();
+
+  if (!thread) return json({ error: "Thread not found" }, 404);
+
+  if (!thread.allow_participants_invite) {
+    return json({ error: "Invitations disabled for this thread" }, 403);
+  }
+
+  const ua = await getCallerAccount(supabase, user.id);
+  if (!ua) return json({ error: "No active user account" }, 403);
+
+  const isAdmin = await checkIsAdmin(supabase, user.id, thread.project_id);
+
+  // Permission check
+  const { data: callerParticipant } = await supabase
+    .from("conversation_thread_participants")
+    .select("*")
+    .eq("thread_id", thread_id)
+    .eq("user_account_id", ua.id)
+    .maybeSingle();
+
+  const isExternal = invite_type === "external";
+  const permKey = isExternal ? "can_invite_external" : "can_invite_internal";
+
+  if (!isAdmin) {
+    if (!callerParticipant) return json({ error: "Not a participant" }, 403);
+    if (!callerParticipant[permKey]) return json({ error: `No ${permKey} permission` }, 403);
+  }
+
+  // Check if already a participant
+  const { data: existingParticipant } = await supabase
+    .from("conversation_thread_participants")
+    .select("id")
+    .eq("thread_id", thread_id)
+    .eq("email", email)
+    .maybeSingle();
+
+  if (existingParticipant) {
+    return json({ error: "already_participant", message: "Denne e-postadressen er allerede deltaker i tråden." }, 409);
+  }
+
+  // Check for existing pending invite → resend
+  const { data: existing } = await supabase
+    .from("conversation_thread_invites")
+    .select("*")
+    .eq("thread_id", thread_id)
+    .eq("invited_email", email)
+    .eq("status", "pending")
+    .maybeSingle();
+
+  if (existing) {
+    // Resend: update expires_at
+    const newExpiry = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
+    await supabase
+      .from("conversation_thread_invites")
+      .update({ expires_at: newExpiry, updated_at: new Date().toISOString() })
+      .eq("id", existing.id);
+
+    const sent = await sendInviteEmail(supabase, thread, existing, email, invited_name || existing.invited_name);
+    await logSystemPost(supabase, thread_id, thread.company_id,
+      `📧 Invitasjon til ${invited_name || email} ble sendt på nytt.`);
+
+    return json({ ok: true, invite_id: existing.id, email_sent: sent, resent: true });
+  }
+
+  // Optionally lock thread
+  if (lock_thread === true && !thread.participants_only) {
+    await supabase
+      .from("conversation_threads")
+      .update({ participants_only: true })
+      .eq("id", thread_id);
+  }
+
+  // Create invite
+  const { data: invite, error: insertErr } = await supabase
+    .from("conversation_thread_invites")
+    .insert({
+      thread_id,
+      invited_email: email,
+      invited_name: invited_name || null,
+      invited_by_participant_id: callerParticipant?.id || ua.id,
+      company_id: thread.company_id,
+    })
+    .select()
+    .single();
+
+  if (insertErr) return json({ error: insertErr.message }, 500);
+
+  const sent = await sendInviteEmail(supabase, thread, invite, email, invited_name);
+
+  await logSystemPost(supabase, thread_id, thread.company_id,
+    `📧 ${invited_name || email} ble invitert til samtalen.`);
+
+  return json({ ok: true, invite_id: invite.id, email_sent: sent });
+}
+
+// ── REVOKE ───────────────────────────────────────────────────
+async function handleRevoke(supabase: any, user: any, body: any) {
+  const { invite_id } = body;
+  if (!invite_id) return json({ error: "invite_id required" }, 400);
+
+  const { data: invite } = await supabase
+    .from("conversation_thread_invites")
+    .select("*, conversation_threads:thread_id(project_id, company_id)")
+    .eq("id", invite_id)
+    .maybeSingle();
+
+  if (!invite) return json({ error: "Invite not found" }, 404);
+
+  const thread = Array.isArray(invite.conversation_threads) ? invite.conversation_threads[0] : invite.conversation_threads;
+  const isAdmin = await checkIsAdmin(supabase, user.id, thread.project_id);
+  if (!isAdmin) return json({ error: "Only admin can revoke" }, 403);
+
+  await supabase
+    .from("conversation_thread_invites")
+    .update({ status: "revoked", updated_at: new Date().toISOString() })
+    .eq("id", invite_id);
+
+  await logSystemPost(supabase, invite.thread_id, thread.company_id,
+    `🚫 Invitasjon til ${invite.invited_name || invite.invited_email} ble trukket tilbake.`);
+
+  return json({ ok: true });
+}
+
+// ── RESEND ───────────────────────────────────────────────────
+async function handleResend(supabase: any, user: any, body: any) {
+  const { invite_id } = body;
+  if (!invite_id) return json({ error: "invite_id required" }, 400);
+
+  const { data: invite } = await supabase
+    .from("conversation_thread_invites")
+    .select("*, conversation_threads:thread_id(id, title, project_id, company_id)")
+    .eq("id", invite_id)
+    .maybeSingle();
+
+  if (!invite) return json({ error: "Invite not found" }, 404);
+  if (invite.status !== "pending") return json({ error: "Invite is not pending" }, 400);
+
+  const thread = Array.isArray(invite.conversation_threads) ? invite.conversation_threads[0] : invite.conversation_threads;
+  const isAdmin = await checkIsAdmin(supabase, user.id, thread.project_id);
+  if (!isAdmin) return json({ error: "Only admin can resend" }, 403);
+
+  const newExpiry = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
+  await supabase
+    .from("conversation_thread_invites")
+    .update({ expires_at: newExpiry, updated_at: new Date().toISOString() })
+    .eq("id", invite_id);
+
+  const sent = await sendInviteEmail(supabase, thread, invite, invite.invited_email, invite.invited_name);
+
+  await logSystemPost(supabase, invite.thread_id, thread.company_id,
+    `📧 Invitasjon til ${invite.invited_name || invite.invited_email} ble sendt på nytt.`);
+
+  return json({ ok: true, email_sent: sent });
+}
+
+// ── EMAIL SENDER ─────────────────────────────────────────────
 async function sendInviteEmail(
   supabase: any,
   thread: any,

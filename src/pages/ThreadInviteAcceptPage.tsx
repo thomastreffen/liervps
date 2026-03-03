@@ -15,6 +15,7 @@ export default function ThreadInviteAcceptPage() {
   const [loading, setLoading] = useState(true);
   const [accepting, setAccepting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [done, setDone] = useState(false);
 
   useEffect(() => {
     if (!token) return;
@@ -41,52 +42,34 @@ export default function ThreadInviteAcceptPage() {
   }, [token]);
 
   const handleAccept = async () => {
-    if (!invite || !user) return;
+    if (!invite) return;
     setAccepting(true);
 
     try {
-      const thread = Array.isArray(invite.conversation_threads)
-        ? invite.conversation_threads[0]
-        : invite.conversation_threads;
+      // Call the accept edge function (works for both authenticated and unauthenticated)
+      const { data, error: fnErr } = await supabase.functions.invoke("conversation-invite-accept", {
+        body: { token },
+      });
 
-      if (!thread) throw new Error("Thread not found");
-
-      // Get user's account id
-      const { data: ua } = await supabase
-        .from("user_accounts")
-        .select("id")
-        .eq("auth_user_id", user.id)
-        .eq("is_active", true)
-        .maybeSingle();
-
-      // Create participant
-      await (supabase as any)
-        .from("conversation_thread_participants")
-        .insert({
-          thread_id: thread.id,
-          company_id: thread.company_id,
-          project_id: thread.project_id,
-          participant_type: ua ? "internal" : "external",
-          user_account_id: ua?.id || null,
-          email: invite.invited_email,
-          display_name: invite.invited_name || invite.invited_email,
-          added_by: invite.invited_by_participant_id,
-        });
-
-      // Ensure thread is participants_only so invited user only sees this thread
-      await (supabase as any)
-        .from("conversation_threads")
-        .update({ participants_only: true })
-        .eq("id", thread.id);
-
-      // Mark invite as accepted
-      await (supabase as any)
-        .from("conversation_thread_invites")
-        .update({ status: "accepted" })
-        .eq("id", invite.id);
+      if (fnErr) throw fnErr;
+      if (data?.error) {
+        const messages: Record<string, string> = {
+          not_found: "Invitasjonen ble ikke funnet.",
+          already_accepted: "Denne invitasjonen er allerede brukt.",
+          revoked: "Denne invitasjonen er trukket tilbake.",
+          expired: "Denne invitasjonen har utløpt.",
+        };
+        throw new Error(messages[data.error] || data.error);
+      }
 
       toast.success("Invitasjon godtatt!");
-      navigate(`/projects/${thread.project_id}/conversations/${thread.id}`);
+      setDone(true);
+
+      if (data?.project_id && data?.thread_id) {
+        setTimeout(() => {
+          navigate(`/projects/${data.project_id}/conversations/${data.thread_id}`);
+        }, 1500);
+      }
     } catch (err: any) {
       toast.error(err.message || "Kunne ikke godta invitasjonen");
     } finally {
@@ -96,7 +79,7 @@ export default function ThreadInviteAcceptPage() {
 
   if (loading || authLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#F6F7F9]">
+      <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
       </div>
     );
@@ -104,32 +87,26 @@ export default function ThreadInviteAcceptPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#F6F7F9]">
+      <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="bg-card rounded-2xl border border-border/40 p-8 max-w-md w-full text-center shadow-sm space-y-4">
           <XCircle className="h-12 w-12 text-destructive mx-auto" />
           <h1 className="text-lg font-bold text-foreground">Invitasjon ugyldig</h1>
           <p className="text-sm text-muted-foreground">{error}</p>
-          <Button variant="outline" onClick={() => navigate("/login")}>
-            Gå til innlogging
+          <Button variant="outline" onClick={() => navigate("/")}>
+            Gå til forsiden
           </Button>
         </div>
       </div>
     );
   }
 
-  if (!user) {
+  if (done) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#F6F7F9]">
+      <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="bg-card rounded-2xl border border-border/40 p-8 max-w-md w-full text-center shadow-sm space-y-4">
-          <Clock className="h-12 w-12 text-primary mx-auto" />
-          <h1 className="text-lg font-bold text-foreground">Logg inn for å godta</h1>
-          <p className="text-sm text-muted-foreground">
-            Du må logge inn for å godta invitasjonen til samtalen
-            <strong> "{invite?.conversation_threads?.title}"</strong>.
-          </p>
-          <Button onClick={() => navigate(`/login?redirect=/invite/thread/${token}`)}>
-            Logg inn med Microsoft
-          </Button>
+          <CheckCircle className="h-12 w-12 text-primary mx-auto" />
+          <h1 className="text-lg font-bold text-foreground">Velkommen!</h1>
+          <p className="text-sm text-muted-foreground">Du er nå deltaker i samtalen. Du blir viderekoblet…</p>
         </div>
       </div>
     );
@@ -139,8 +116,11 @@ export default function ThreadInviteAcceptPage() {
     ? invite.conversation_threads[0]
     : invite?.conversation_threads;
 
+  // External users can accept without login
+  const isExternalAccept = !user;
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#F6F7F9]">
+    <div className="min-h-screen flex items-center justify-center bg-background">
       <div className="bg-card rounded-2xl border border-border/40 p-8 max-w-md w-full text-center shadow-sm space-y-4">
         <CheckCircle className="h-12 w-12 text-primary mx-auto" />
         <h1 className="text-lg font-bold text-foreground">Godta invitasjon</h1>
@@ -149,6 +129,11 @@ export default function ThreadInviteAcceptPage() {
           <br />
           Du vil kun få tilgang til denne samtalen.
         </p>
+        {isExternalAccept && (
+          <p className="text-xs text-muted-foreground bg-muted/50 rounded-lg p-2">
+            Du godtar som ekstern deltaker ({invite?.invited_email}).
+          </p>
+        )}
         <Button onClick={handleAccept} disabled={accepting} className="w-full">
           {accepting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
           Godta invitasjon
