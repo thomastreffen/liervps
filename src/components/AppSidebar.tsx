@@ -2,29 +2,12 @@ import { useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
   FolderKanban,
-  CalendarDays,
-  Calculator,
   Users,
   Settings,
   Wrench,
-  ReceiptText,
   TrendingUp,
-  UserPlus,
-  BarChart3,
-  Building,
-  Trash2,
-  ShieldCheck,
-  Plug,
-  HeartPulse,
-  BookOpen,
-  Activity,
-  DatabaseZap,
-  FileSignature,
-  Timer,
-  HardHat,
-  Upload,
   Inbox,
-  FolderTree,
+  ChevronDown,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/hooks/useAuth";
@@ -41,84 +24,71 @@ import {
   SidebarHeader,
   useSidebar,
 } from "@/components/ui/sidebar";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import { cn } from "@/lib/utils";
 
-const mainNavBase = [
+/* ─── Simplified nav structure ─── */
+
+const homeNav = [
   { title: "Oversikt", url: "/overview", icon: LayoutDashboard },
-  { title: "Integrasjoner", url: "/settings/integrations", icon: Plug },
 ];
 
 const postkontoretNav = { title: "Postkontoret", url: "/inbox", icon: Inbox };
 
-const customerNav = [
-  { title: "Alle kunder", url: "/customers", icon: Users },
-  { title: "Import", url: "/customers/import", icon: Upload },
+const projectNav = [
+  { title: "Prosjekter", url: "/projects", icon: FolderKanban },
 ];
 
 const salesNav = [
-  { title: "Sales Pulse", url: "/sales", icon: BarChart3 },
-  { title: "Pipeline", url: "/sales/pipeline", icon: TrendingUp },
-  { title: "Leads", url: "/sales/leads", icon: UserPlus },
-  { title: "Tilbud", url: "/sales/offers", icon: ReceiptText },
+  { title: "Salg", url: "/sales", icon: TrendingUp },
 ];
 
-const projectNav = [
-  { title: "Alle prosjekter", url: "/projects", icon: FolderKanban },
-  { title: "Ressursplan", url: "/projects/plan", icon: CalendarDays },
-  { title: "Kontrakter", url: "/projects/contracts", icon: FileSignature },
+const customerNav = [
+  { title: "Kunder", url: "/customers", icon: Users },
 ];
 
-const fagNav = [
-  { title: "Fag", url: "/fag", icon: BookOpen },
-  { title: "Fag-innsikt", url: "/admin/fag-insights", icon: BarChart3, requireAdmin: true },
+const adminItems = [
+  { title: "Firma", url: "/admin/company", requireSuperAdmin: true },
+  { title: "Organisasjon", url: "/admin/organisasjon", requireSuperAdmin: true },
+  { title: "Personer", url: "/admin/personer" },
+  { title: "Roller", url: "/admin/roller", requireSuperAdmin: true },
+  { title: "Postkontoret", url: "/admin/superoffice", requirePostkontorAdmin: true },
+  { title: "Skjemamaler", url: "/admin/forms" },
+  { title: "Integrasjoner", url: "/settings/integrations" },
+  { title: "Integrasjonshelse", url: "/admin/integration-health" },
+  { title: "Systemhelse", url: "/admin/system-health" },
+  { title: "Dataintegritet", url: "/admin/data-integrity" },
+  { title: "Kontraktvarsler", url: "/admin/contract-cron" },
+  { title: "Innstillinger", url: "/admin/settings" },
+  { title: "Papirkurv", url: "/admin/trash" },
 ];
 
-const adminNav = [
-  { title: "Firma", url: "/admin/company", icon: Building, requireSuperAdmin: true },
-  { title: "Organisasjon", url: "/admin/organisasjon", icon: FolderTree, requireSuperAdmin: true },
-  { title: "Personer", url: "/admin/personer", icon: Users, requireAdmin: true },
-  { title: "Roller", url: "/admin/roller", icon: ShieldCheck, requireSuperAdmin: true },
-  { title: "Postkontoret", url: "/admin/superoffice", icon: Inbox, requirePostkontorAdmin: true },
-  { title: "Skjemamaler", url: "/admin/forms", icon: BookOpen, requireAdmin: true },
-  { title: "Integrasjonshelse", url: "/admin/integration-health", icon: HeartPulse, requireAdmin: true },
-  { title: "Systemhelse", url: "/admin/system-health", icon: Activity, requireAdmin: true },
-  { title: "Dataintegritet", url: "/admin/data-integrity", icon: DatabaseZap, requireAdmin: true },
-  { title: "Kontraktvarsler", url: "/admin/contract-cron", icon: Timer, requireAdmin: true },
-  { title: "Innstillinger", url: "/admin/settings", icon: Settings, requireAdmin: true },
-  { title: "Papirkurv", url: "/admin/trash", icon: Trash2, requireAdmin: true },
-];
-
-function NavGroup({ label, items, isActive, collapsed }: {
-  label?: string;
-  items: { title: string; url: string; icon: React.ElementType }[];
+function NavItem({ item, isActive, collapsed }: {
+  item: { title: string; url: string; icon?: React.ElementType };
   isActive: (url: string) => boolean;
   collapsed: boolean;
 }) {
+  const active = isActive(item.url);
+  const Icon = item.icon;
   return (
-    <SidebarGroup>
-      {label && <SidebarGroupLabel>{label}</SidebarGroupLabel>}
-      <SidebarGroupContent>
-        <SidebarMenu>
-          {items.map((item) => {
-            const active = isActive(item.url);
-            return (
-              <SidebarMenuItem key={item.url}>
-                <SidebarMenuButton
-                  asChild
-                  isActive={active}
-                  tooltip={item.title}
-                  className={active ? "border-l-[3px] border-l-accent rounded-l-none bg-sidebar-accent/60" : ""}
-                >
-                  <NavLink to={item.url} end={item.url === "/overview" || item.url === "/sales"}>
-                    <item.icon className="h-4 w-4" />
-                    <span>{item.title}</span>
-                  </NavLink>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            );
-          })}
-        </SidebarMenu>
-      </SidebarGroupContent>
-    </SidebarGroup>
+    <SidebarMenuItem>
+      <SidebarMenuButton
+        asChild
+        isActive={active}
+        tooltip={item.title}
+        className={active ? "border-l-[3px] border-l-accent rounded-l-none bg-sidebar-accent/60" : ""}
+      >
+        <NavLink to={item.url} end={item.url === "/overview" || item.url === "/sales"}>
+          {Icon && <Icon className="h-4 w-4" />}
+          {!Icon && <div className="h-4 w-4" />}
+          <span>{item.title}</span>
+        </NavLink>
+      </SidebarMenuButton>
+    </SidebarMenuItem>
   );
 }
 
@@ -135,20 +105,13 @@ export function AppSidebar() {
   const hasPostkontor = isAdmin || hasPermission("postkontor.view");
   const hasPostkontorAdmin = isAdmin || hasPermission("postkontor.admin");
 
-  // Build main nav with conditional Postkontoret
-  const mainNav = hasPostkontor
-    ? [mainNavBase[0], postkontoretNav, mainNavBase[1]]
-    : [...mainNavBase];
-
-  const filteredAdmin = adminNav.filter((item) => {
+  const filteredAdmin = adminItems.filter((item) => {
     if ('requireSuperAdmin' in item && item.requireSuperAdmin) return isSuperAdmin;
-    // Postkontoret settings: require postkontor.admin
     if ('requirePostkontorAdmin' in item && (item as any).requirePostkontorAdmin) return hasPostkontorAdmin;
-    if ('requireAdmin' in item && item.requireAdmin) return isAdmin;
     return true;
   });
 
-  const filteredFag = fagNav.filter((item) => !('requireAdmin' in item && item.requireAdmin) || isAdmin);
+  const adminActive = filteredAdmin.some((item) => isActive(item.url));
 
   return (
     <Sidebar collapsible="icon">
@@ -167,12 +130,75 @@ export function AppSidebar() {
       </SidebarHeader>
 
       <SidebarContent className="px-1">
-        <NavGroup items={mainNav} isActive={isActive} collapsed={collapsed} />
-        <NavGroup label="Kunder" items={customerNav} isActive={isActive} collapsed={collapsed} />
-        {isAdmin && <NavGroup label="Salg" items={salesNav} isActive={isActive} collapsed={collapsed} />}
-        <NavGroup label="Prosjekter" items={projectNav} isActive={isActive} collapsed={collapsed} />
-        <NavGroup label="Fag & Forskrift" items={filteredFag} isActive={isActive} collapsed={collapsed} />
-        {isAdmin && <NavGroup label="Administrasjon" items={filteredAdmin} isActive={isActive} collapsed={collapsed} />}
+        {/* Hjem */}
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {homeNav.map((item) => (
+                <NavItem key={item.url} item={item} isActive={isActive} collapsed={collapsed} />
+              ))}
+              {hasPostkontor && (
+                <NavItem item={postkontoretNav} isActive={isActive} collapsed={collapsed} />
+              )}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        {/* Prosjekter */}
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {projectNav.map((item) => (
+                <NavItem key={item.url} item={item} isActive={isActive} collapsed={collapsed} />
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        {/* Salg */}
+        {isAdmin && (
+          <SidebarGroup>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {salesNav.map((item) => (
+                  <NavItem key={item.url} item={item} isActive={isActive} collapsed={collapsed} />
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
+
+        {/* Kunder */}
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {customerNav.map((item) => (
+                <NavItem key={item.url} item={item} isActive={isActive} collapsed={collapsed} />
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        {/* Admin – collapsible */}
+        {isAdmin && (
+          <SidebarGroup>
+            <Collapsible defaultOpen={adminActive}>
+              <CollapsibleTrigger className="flex w-full items-center justify-between px-2 py-1.5 text-xs font-medium uppercase tracking-wider text-sidebar-foreground/60 hover:text-sidebar-foreground/80 transition-colors">
+                <span>Administrasjon</span>
+                {!collapsed && <ChevronDown className="h-3 w-3 transition-transform duration-200 group-data-[state=open]:rotate-180" />}
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <SidebarGroupContent>
+                  <SidebarMenu>
+                    {filteredAdmin.map((item) => (
+                      <NavItem key={item.url} item={item} isActive={isActive} collapsed={collapsed} />
+                    ))}
+                  </SidebarMenu>
+                </SidebarGroupContent>
+              </CollapsibleContent>
+            </Collapsible>
+          </SidebarGroup>
+        )}
       </SidebarContent>
     </Sidebar>
   );
