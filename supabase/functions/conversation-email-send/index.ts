@@ -24,7 +24,7 @@ Deno.serve(async (req) => {
 
     // ── Test mode ──
     if (test_mode) {
-      console.log("EMAIL TEST START", { test_recipient, mailbox: MAILBOX });
+      console.log("EMAIL TEST START", { test_recipient, mailbox: MAILBOX, token_type: "application" });
       if (!test_recipient) return json({ error: "test_recipient required" }, 400);
 
       const tokenResult = await getGraphToken();
@@ -51,8 +51,18 @@ Deno.serve(async (req) => {
         console.error("EMAIL TEST FAILED", { error: result.error, statusCode: result.statusCode });
         return json({ success: false, error: result.error, status_code: result.statusCode });
       }
-      console.log("EMAIL TEST SUCCESS", { mailbox: MAILBOX, recipient: test_recipient });
-      return json({ success: true, mailbox: MAILBOX });
+
+      // Verify in Sent Items
+      const verification = await verifySentItems(tokenResult.token!, MAILBOX, "Testmail fra MCS Ressurs", [test_recipient]);
+      console.log("EMAIL TEST VERIFICATION", verification);
+
+      return json({
+        success: true,
+        mailbox: MAILBOX,
+        verified: verification.verified,
+        webLink: verification.webLink,
+        internetMessageId: verification.internetMessageId,
+      });
     }
 
     // ── Validate thread ──
@@ -85,7 +95,9 @@ Deno.serve(async (req) => {
       recipient_email: recipient_email || null,
       email_enabled: thread.email_enabled,
       thread_closed: !!thread.closed_at,
-      mailbox: MAILBOX,
+      sender_mailbox: MAILBOX,
+      graph_token_type: "application",
+      tenant_id: Deno.env.get("AZURE_TENANT_ID")?.slice(0, 8) + "…",
       participants_receive_email: participantCount,
     });
 
@@ -137,7 +149,7 @@ Deno.serve(async (req) => {
     const inboundToken = thread.inbound_token || thread.id;
 
     // ══════════════════════════════════════════════════════════════
-    // REASON: participant_added → send history to new participant
+    // REASON: participant_added
     // ══════════════════════════════════════════════════════════════
     if (reason === "participant_added") {
       if (!recipient_email) return json({ error: "recipient_email required" }, 400);
@@ -177,17 +189,14 @@ Deno.serve(async (req) => {
       const subject = `${jobRef ? `[${jobRef}] ` : ""}Du er lagt til i samtale: ${thread.title}`;
       const bodyHtml = buildWelcomeHtml(thread.title, summaryHtml, threadLink);
 
-      // 1. Log attempted
       const logId = await logEmailAttempt(supabase, {
         company_id: thread.company_id, thread_id: thread.id,
         direction: "outbound", status: "attempted", reason: "participant_added",
         from_email: MAILBOX, to_emails: [recipient_email], subject,
       });
 
-      // 2. Send via Graph (sendMail with saveToSentItems)
       const result = await sendMailViaGraph(tokenResult.token!, {
-        subject,
-        bodyHtml,
+        subject, bodyHtml,
         recipients: [recipient_email],
         mailbox: MAILBOX,
         saveToSentItems: true,
@@ -201,35 +210,50 @@ Deno.serve(async (req) => {
         ],
       });
 
-      // 3. Update log
-      if (logId) {
-        await supabase.from("conversation_email_messages").update({
-          status: result.error ? "failed" : "sent",
-          error: result.error || null,
-          processed_at: new Date().toISOString(),
-          processing_duration_ms: result.durationMs,
-        }).eq("id", logId);
-      }
-
-      // 4. System post
       if (result.error) {
-        console.error("EMAIL SEND FAILED", {
-          thread_id, recipient_email, error: result.error, statusCode: result.statusCode,
-        });
+        console.error("EMAIL SEND FAILED", { thread_id, recipient_email, error: result.error, statusCode: result.statusCode });
+        if (logId) {
+          await supabase.from("conversation_email_messages").update({
+            status: "failed", error: result.error,
+            processed_at: new Date().toISOString(),
+            processing_duration_ms: result.durationMs,
+          }).eq("id", logId);
+        }
         await insertSystemPost(supabase, thread, `❌ Kunne ikke sende historikk til ${recipient_email}. Feil: ${truncate(result.error, 80)}. Se e-postlogg.`);
         return json({ sent: false, error: result.error });
       }
 
-      console.log("EMAIL SEND SUCCESS", {
-        thread_id, recipient_email, mailbox: MAILBOX,
-        saveToSentItems: true, durationMs: result.durationMs,
+      // Verify delivery in Sent Items
+      const verification = await verifySentItems(tokenResult.token!, MAILBOX, subject, [recipient_email]);
+
+      if (logId) {
+        await supabase.from("conversation_email_messages").update({
+          status: verification.verified ? "sent" : "failed",
+          error: verification.verified ? null : "SendMail returned 202 but message not found in Sent Items. Possible permission or mailbox config issue.",
+          processed_at: new Date().toISOString(),
+          processing_duration_ms: result.durationMs,
+          verified: verification.verified,
+          outlook_weblink: verification.webLink || null,
+          outlook_internet_message_id: verification.internetMessageId || null,
+        }).eq("id", logId);
+      }
+
+      if (!verification.verified) {
+        console.error("DELIVERY_PROOF_FAILED", { thread_id, recipient_email, reason: "not_found_in_sent_items" });
+        await insertSystemPost(supabase, thread, `❌ E-post til ${recipient_email} ble akseptert av Graph men ikke funnet i Sendte elementer. Se e-postlogg.`);
+        return json({ sent: false, error: "Message not verified in Sent Items" });
+      }
+
+      console.log("DELIVERY_PROOF_SENTITEMS_FOUND", {
+        thread_id, recipient_email, webLink: verification.webLink,
+        internetMessageId: verification.internetMessageId,
       });
       await insertSystemPost(supabase, thread, `📧 Historikk sendt til ${recipient_email}`);
-      return json({ sent: true, recipient: recipient_email });
+      return json({ sent: true, verified: true, recipient: recipient_email });
     }
 
     // ══════════════════════════════════════════════════════════════
-    // REASON: new_post / resend → send a specific post
+    // REASON: new_post / resend
     // ══════════════════════════════════════════════════════════════
     if (!post_id) return json({ error: "post_id required for new_post/resend" }, 400);
 
@@ -241,7 +265,6 @@ Deno.serve(async (req) => {
 
     if (postErr || !post) return json({ error: "Post not found" }, 404);
 
-    // Resolve recipient emails (exclude author)
     const recipientEmails: string[] = [];
     for (const p of allParticipants || []) {
       if (p.user_account_id && p.user_account_id === post.author_id) continue;
@@ -279,17 +302,14 @@ Deno.serve(async (req) => {
       </p>
     </div>`;
 
-    // 1. Log attempted
     const logId = await logEmailAttempt(supabase, {
       company_id: thread.company_id, thread_id: thread.id, post_id: post.id,
       direction: "outbound", status: "attempted", reason: reason || "new_post",
       from_email: MAILBOX, to_emails: recipientEmails, subject,
     });
 
-    // 2. Send via Graph
     const result = await sendMailViaGraph(tokenResult.token!, {
-      subject,
-      bodyHtml,
+      subject, bodyHtml,
       recipients: recipientEmails,
       mailbox: MAILBOX,
       saveToSentItems: true,
@@ -303,38 +323,54 @@ Deno.serve(async (req) => {
       ],
     });
 
-    // 3. Update log
-    if (logId) {
-      await supabase.from("conversation_email_messages").update({
-        status: result.error ? "failed" : "sent",
-        error: result.error || null,
-        processed_at: new Date().toISOString(),
-        processing_duration_ms: result.durationMs,
-      }).eq("id", logId);
-    }
-
     if (result.error) {
       console.error("EMAIL SEND FAILED", {
         thread_id, post_id, error: result.error,
         statusCode: result.statusCode, recipients: recipientEmails,
       });
+      if (logId) {
+        await supabase.from("conversation_email_messages").update({
+          status: "failed", error: result.error,
+          processed_at: new Date().toISOString(),
+          processing_duration_ms: result.durationMs,
+        }).eq("id", logId);
+      }
       return json({ sent: false, error: result.error }, 500);
     }
 
-    console.log("EMAIL SEND SUCCESS", {
+    // Verify delivery
+    const verification = await verifySentItems(tokenResult.token!, MAILBOX, subject, recipientEmails);
+
+    if (logId) {
+      await supabase.from("conversation_email_messages").update({
+        status: verification.verified ? "sent" : "failed",
+        error: verification.verified ? null : "SendMail 202 OK but not found in Sent Items",
+        processed_at: new Date().toISOString(),
+        processing_duration_ms: result.durationMs,
+        verified: verification.verified,
+        outlook_weblink: verification.webLink || null,
+        outlook_internet_message_id: verification.internetMessageId || null,
+      }).eq("id", logId);
+    }
+
+    if (!verification.verified) {
+      console.error("DELIVERY_PROOF_FAILED", { thread_id, post_id });
+      return json({ sent: false, error: "Message not verified in Sent Items" });
+    }
+
+    console.log("DELIVERY_PROOF_SENTITEMS_FOUND", {
       thread_id, post_id, mailbox: MAILBOX,
       recipients: recipientEmails.length,
-      saveToSentItems: true,
-      durationMs: result.durationMs,
+      webLink: verification.webLink,
+      internetMessageId: verification.internetMessageId,
     });
 
-    // Update thread metadata
     await supabase.from("conversation_threads").update({
       last_emailed_at: new Date().toISOString(),
       email_subject: subject,
     }).eq("id", thread.id);
 
-    return json({ sent: true, recipients: recipientEmails.length });
+    return json({ sent: true, verified: true, recipients: recipientEmails.length });
   } catch (err) {
     console.error("EMAIL SEND UNHANDLED ERROR", String(err), (err as any)?.stack);
     return json({ error: String(err) }, 500);
@@ -418,7 +454,7 @@ async function logEmailAttempt(supabase: any, input: EmailLogInput): Promise<str
 }
 
 // ═══════════════════════════════════════════════════
-// Graph API - using /sendMail with saveToSentItems
+// Graph API
 // ═══════════════════════════════════════════════════
 
 async function getGraphToken(): Promise<{ token?: string; error?: string }> {
@@ -470,17 +506,9 @@ interface SendMailResult {
   error?: string;
   statusCode?: number;
   durationMs: number;
+  requestId?: string;
 }
 
-/**
- * Uses /users/{mailbox}/sendMail endpoint.
- * This is simpler than draft+send and explicitly supports saveToSentItems.
- * 
- * Required Graph Application Permissions:
- * - Mail.Send (to send as the mailbox user)
- * 
- * If saveToSentItems=true, the email appears in mailbox's "Sent Items".
- */
 async function sendMailViaGraph(token: string, opts: SendMailOptions): Promise<SendMailResult> {
   const start = Date.now();
   const endpoint = `https://graph.microsoft.com/v1.0/users/${opts.mailbox}/sendMail`;
@@ -509,11 +537,6 @@ async function sendMailViaGraph(token: string, opts: SendMailOptions): Promise<S
     messagePayload.internetMessageHeaders = opts.headers;
   }
 
-  const requestBody = {
-    message: messagePayload,
-    saveToSentItems: opts.saveToSentItems,
-  };
-
   try {
     const resp = await fetch(endpoint, {
       method: "POST",
@@ -521,22 +544,23 @@ async function sendMailViaGraph(token: string, opts: SendMailOptions): Promise<S
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(requestBody),
+      body: JSON.stringify({ message: messagePayload, saveToSentItems: opts.saveToSentItems }),
     });
 
     const durationMs = Date.now() - start;
+    const requestId = resp.headers.get("request-id") || resp.headers.get("x-ms-request-id") || undefined;
 
     if (resp.status === 202 || resp.ok) {
       console.log("GRAPH API SUCCESS", {
-        status: resp.status,
+        httpStatus: resp.status,
+        requestId,
         durationMs,
         mailbox: opts.mailbox,
         recipientCount: opts.recipients.length,
       });
-      return { durationMs };
+      return { durationMs, requestId };
     }
 
-    // Error
     const errBody = await resp.text();
     let parsedError = errBody;
     try {
@@ -544,32 +568,94 @@ async function sendMailViaGraph(token: string, opts: SendMailOptions): Promise<S
       parsedError = errJson?.error?.message || errJson?.error?.code || errBody;
     } catch { /* use raw */ }
 
-    console.error("GRAPH API ERROR", {
-      status: resp.status,
-      error: parsedError,
-      endpoint,
-      mailbox: opts.mailbox,
-      durationMs,
-    });
-
-    // Provide helpful hints for common errors
     let hint = "";
-    if (resp.status === 403) {
-      hint = " [HINT: App mangler sannsynligvis Mail.Send permission i Azure AD]";
-    } else if (resp.status === 404) {
-      hint = ` [HINT: Postboks '${opts.mailbox}' finnes ikke eller appen har ikke tilgang]`;
-    } else if (resp.status === 401) {
-      hint = " [HINT: Graph-token er ugyldig eller utløpt]";
-    }
+    if (resp.status === 403) hint = " [App mangler Mail.Send permission i Azure AD]";
+    else if (resp.status === 404) hint = ` [Postboks '${opts.mailbox}' finnes ikke eller appen har ikke tilgang]`;
+    else if (resp.status === 401) hint = " [Graph-token er ugyldig eller utløpt]";
+
+    console.error("GRAPH API ERROR", {
+      httpStatus: resp.status, requestId, error: parsedError, endpoint, mailbox: opts.mailbox, durationMs,
+    });
 
     return {
       error: `Graph ${resp.status}: ${parsedError}${hint}`,
       statusCode: resp.status,
       durationMs,
+      requestId,
     };
   } catch (networkErr) {
     const durationMs = Date.now() - start;
     console.error("GRAPH API NETWORK ERROR", { error: String(networkErr), durationMs });
     return { error: `Network error: ${String(networkErr)}`, durationMs };
   }
+}
+
+// ═══════════════════════════════════════════════════
+// Delivery Proof – verify message exists in Sent Items
+// ═══════════════════════════════════════════════════
+
+interface VerificationResult {
+  verified: boolean;
+  webLink?: string;
+  internetMessageId?: string;
+}
+
+async function verifySentItems(
+  token: string,
+  mailbox: string,
+  subject: string,
+  recipients: string[],
+): Promise<VerificationResult> {
+  // Poll twice with 2.5s delay between attempts
+  for (let attempt = 0; attempt < 2; attempt++) {
+    if (attempt > 0) {
+      await new Promise(r => setTimeout(r, 2500));
+    }
+
+    try {
+      // Search Sent Items by subject (last 2 minutes)
+      const twoMinAgo = new Date(Date.now() - 2 * 60 * 1000).toISOString();
+      const filter = `subject eq '${subject.replace(/'/g, "''")}' and sentDateTime ge ${twoMinAgo}`;
+      const endpoint = `https://graph.microsoft.com/v1.0/users/${mailbox}/mailFolders/SentItems/messages?$filter=${encodeURIComponent(filter)}&$top=5&$select=id,subject,internetMessageId,webLink,sentDateTime,toRecipients`;
+
+      console.log("DELIVERY_PROOF_CHECK", { attempt: attempt + 1, mailbox, filter });
+
+      const resp = await fetch(endpoint, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!resp.ok) {
+        console.error("DELIVERY_PROOF_SEARCH_ERROR", {
+          status: resp.status,
+          error: await resp.text().catch(() => ""),
+          hint: resp.status === 403 ? "App mangler Mail.Read permission for Sent Items" : "",
+        });
+        continue;
+      }
+
+      const data = await resp.json();
+      const messages = data?.value || [];
+
+      if (messages.length > 0) {
+        const msg = messages[0];
+        console.log("DELIVERY_PROOF_SENTITEMS_FOUND", {
+          messageId: msg.id,
+          internetMessageId: msg.internetMessageId,
+          webLink: msg.webLink,
+          sentDateTime: msg.sentDateTime,
+        });
+        return {
+          verified: true,
+          webLink: msg.webLink || undefined,
+          internetMessageId: msg.internetMessageId || undefined,
+        };
+      }
+
+      console.log("DELIVERY_PROOF_NOT_FOUND_YET", { attempt: attempt + 1, messagesChecked: messages.length });
+    } catch (err) {
+      console.error("DELIVERY_PROOF_ERROR", { attempt: attempt + 1, error: String(err) });
+    }
+  }
+
+  return { verified: false };
 }

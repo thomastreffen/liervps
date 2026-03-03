@@ -1249,6 +1249,7 @@ export type Database = {
           outlook_conversation_id: string | null
           outlook_internet_message_id: string | null
           outlook_message_id: string | null
+          outlook_weblink: string | null
           post_id: string | null
           processed_at: string | null
           processing_duration_ms: number | null
@@ -1258,6 +1259,7 @@ export type Database = {
           subject: string | null
           thread_id: string
           to_emails: string[] | null
+          verified: boolean | null
           webhook_received_at: string | null
         }
         Insert: {
@@ -1271,6 +1273,7 @@ export type Database = {
           outlook_conversation_id?: string | null
           outlook_internet_message_id?: string | null
           outlook_message_id?: string | null
+          outlook_weblink?: string | null
           post_id?: string | null
           processed_at?: string | null
           processing_duration_ms?: number | null
@@ -1280,6 +1283,7 @@ export type Database = {
           subject?: string | null
           thread_id: string
           to_emails?: string[] | null
+          verified?: boolean | null
           webhook_received_at?: string | null
         }
         Update: {
@@ -1293,6 +1297,7 @@ export type Database = {
           outlook_conversation_id?: string | null
           outlook_internet_message_id?: string | null
           outlook_message_id?: string | null
+          outlook_weblink?: string | null
           post_id?: string | null
           processed_at?: string | null
           processing_duration_ms?: number | null
@@ -1302,6 +1307,7 @@ export type Database = {
           subject?: string | null
           thread_id?: string
           to_emails?: string[] | null
+          verified?: boolean | null
           webhook_received_at?: string | null
         }
         Relationships: [

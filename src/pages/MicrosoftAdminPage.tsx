@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import {
   RefreshCw, ShieldOff, Plus, RotateCcw, CheckCircle2,
   AlertTriangle, XCircle, Clock, Mail, Info, Inbox, RotateCw, Ban, Send,
-  Activity,
+  Activity, ExternalLink, ShieldCheck, HelpCircle,
 } from "lucide-react";
 import { format } from "date-fns";
 import { nb } from "date-fns/locale";
@@ -25,7 +25,10 @@ export default function MicrosoftAdminPage() {
   const [reprocessingId, setReprocessingId] = useState<string | null>(null);
   const [testEmail, setTestEmail] = useState("");
   const [testSending, setTestSending] = useState(false);
-  const [testResult, setTestResult] = useState<{ success: boolean; error?: string; status_code?: number; mailbox?: string } | null>(null);
+  const [testResult, setTestResult] = useState<{
+    success: boolean; error?: string; status_code?: number; mailbox?: string;
+    verified?: boolean; webLink?: string; internetMessageId?: string;
+  } | null>(null);
   const [resendingId, setResendingId] = useState<string | null>(null);
 
   // ── Subscriptions ──
@@ -45,9 +48,9 @@ export default function MicrosoftAdminPage() {
   const { data: emailLogs, refetch: refetchLogs } = useQuery({
     queryKey: ["email-send-monitor", activeCompanyId],
     queryFn: async () => {
-      const { data } = await supabase
+      const { data } = await (supabase as any)
         .from("conversation_email_messages")
-        .select("id, direction, status, subject, from_email, to_emails, created_at, processed_at, error, processing_status, processing_duration_ms, thread_id, post_id")
+        .select("id, direction, status, subject, from_email, to_emails, created_at, processed_at, error, processing_status, processing_duration_ms, thread_id, post_id, verified, outlook_weblink, outlook_internet_message_id")
         .eq("company_id", activeCompanyId!)
         .order("created_at", { ascending: false })
         .limit(50);
@@ -76,6 +79,7 @@ export default function MicrosoftAdminPage() {
   const lastSent = (emailLogs || []).find((e: any) => e.status === "sent");
   const pendingDL = (deadLetters || []).filter((d: any) => d.status === "pending").length;
   const failedEmails = (emailLogs || []).filter((e: any) => e.status === "failed").length;
+  const verifiedCount = (emailLogs || []).filter((e: any) => e.verified).length;
 
   const runAction = async (action: SubAction) => {
     setActionLoading(action);
@@ -139,8 +143,10 @@ export default function MicrosoftAdminPage() {
       });
       if (error) throw error;
       setTestResult(data);
-      if (data?.success) {
-        toast.success("Testmail sendt!");
+      if (data?.success && data?.verified) {
+        toast.success("Testmail sendt og verifisert i Sendte elementer!");
+      } else if (data?.success) {
+        toast.warning("Testmail akseptert av Graph, men IKKE funnet i Sendte elementer");
       } else {
         toast.error("Testmail feilet");
       }
@@ -214,12 +220,12 @@ export default function MicrosoftAdminPage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Microsoft Graph – Webhooks & E-post</h1>
         <p className="text-muted-foreground text-sm mt-1">
-          Administrer Graph-subscriptions og overvåk all e-postutsending.
+          Administrer Graph-subscriptions og overvåk all e-postutsending med leveringsbevis.
         </p>
       </div>
 
       {/* Health summary */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <Card>
           <CardContent className="pt-4 pb-3">
             <div className="text-xs text-muted-foreground">Aktive subscriptions</div>
@@ -228,7 +234,7 @@ export default function MicrosoftAdminPage() {
         </Card>
         <Card>
           <CardContent className="pt-4 pb-3">
-            <div className="text-xs text-muted-foreground">Siste sendt e-post</div>
+            <div className="text-xs text-muted-foreground">Siste sendt</div>
             <div className="text-sm font-medium">
               {lastSent ? format(new Date(lastSent.created_at), "d. MMM HH:mm", { locale: nb }) : "—"}
             </div>
@@ -236,13 +242,19 @@ export default function MicrosoftAdminPage() {
         </Card>
         <Card>
           <CardContent className="pt-4 pb-3">
-            <div className="text-xs text-muted-foreground">Feilede sendinger</div>
+            <div className="text-xs text-muted-foreground">Verifisert</div>
+            <div className="text-2xl font-semibold text-emerald-600">{verifiedCount}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4 pb-3">
+            <div className="text-xs text-muted-foreground">Feilede</div>
             <div className={`text-2xl font-semibold ${failedEmails > 0 ? "text-destructive" : ""}`}>{failedEmails}</div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-4 pb-3">
-            <div className="text-xs text-muted-foreground">Dead letters (ventende)</div>
+            <div className="text-xs text-muted-foreground">Dead letters</div>
             <div className={`text-2xl font-semibold ${pendingDL > 0 ? "text-amber-600" : ""}`}>{pendingDL}</div>
           </CardContent>
         </Card>
@@ -256,7 +268,7 @@ export default function MicrosoftAdminPage() {
             Send testmail
           </CardTitle>
           <CardDescription>
-            Verifiser at Graph-integrasjonen kan sende e-post fra <code className="text-xs bg-muted px-1 rounded">postkontoret@mcsservice.no</code>
+            Verifiser at Graph-integrasjonen kan sende e-post fra <code className="text-xs bg-muted px-1 rounded">postkontoret@mcsservice.no</code> og at den dukker opp i Sendte elementer.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -274,14 +286,45 @@ export default function MicrosoftAdminPage() {
             </Button>
           </div>
           {testResult && (
-            <div className={`rounded-lg border p-3 text-sm ${testResult.success ? "bg-emerald-50 border-emerald-200 dark:bg-emerald-950/20 dark:border-emerald-800" : "bg-destructive/5 border-destructive/20"}`}>
-              {testResult.success ? (
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                  <div>
-                    <p className="font-medium text-emerald-700 dark:text-emerald-300">Testmail sendt via <code className="text-xs">/users/{testResult.mailbox}/sendMail</code></p>
-                    <p className="text-xs text-muted-foreground mt-0.5">saveToSentItems=true — sjekk Sendte elementer i Outlook for {testResult.mailbox}</p>
+            <div className={`rounded-lg border p-3 text-sm ${
+              testResult.success && testResult.verified
+                ? "bg-emerald-50 border-emerald-200 dark:bg-emerald-950/20 dark:border-emerald-800"
+                : testResult.success
+                  ? "bg-amber-50 border-amber-200 dark:bg-amber-950/20 dark:border-amber-800"
+                  : "bg-destructive/5 border-destructive/20"
+            }`}>
+              {testResult.success && testResult.verified ? (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                    <p className="font-medium text-emerald-700 dark:text-emerald-300">
+                      Testmail sendt og verifisert ✓
+                    </p>
                   </div>
+                  <div className="text-xs text-muted-foreground space-y-1">
+                    <p><strong>Mailbox:</strong> {testResult.mailbox}</p>
+                    {testResult.internetMessageId && (
+                      <p className="font-mono text-[10px] break-all"><strong>Internet-Message-Id:</strong> {testResult.internetMessageId}</p>
+                    )}
+                    {testResult.webLink && (
+                      <a href={testResult.webLink} target="_blank" rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-primary hover:underline">
+                        <ExternalLink className="h-3 w-3" /> Åpne i Outlook
+                      </a>
+                    )}
+                  </div>
+                </div>
+              ) : testResult.success ? (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4 text-amber-600" />
+                    <p className="font-medium text-amber-700 dark:text-amber-300">
+                      Graph aksepterte meldingen, men den ble IKKE funnet i Sendte elementer
+                    </p>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Dette kan bety at appen mangler <code>Mail.ReadWrite</code> permission, eller at Exchange har en transport rule som blokkerer.
+                  </p>
                 </div>
               ) : (
                 <div className="flex items-start gap-2">
@@ -296,8 +339,7 @@ export default function MicrosoftAdminPage() {
           )}
           <div className="text-xs text-muted-foreground space-y-1 border-t pt-2 mt-2">
             <p><strong>Endepunkt:</strong> <code>POST /users/postkontoret@mcsservice.no/sendMail</code></p>
-            <p><strong>Nødvendige permissions:</strong> <code>Mail.Send</code> (Application)</p>
-            <p>Hvis testmail ikke dukker opp i Sendte elementer, mangler appen <code>Mail.Send</code> permission i Azure AD.</p>
+            <p><strong>Nødvendige permissions:</strong> <code>Mail.Send</code> + <code>Mail.ReadWrite</code> (for Sent Items-verifisering)</p>
           </div>
         </CardContent>
       </Card>
@@ -314,7 +356,7 @@ export default function MicrosoftAdminPage() {
               <RefreshCw className="h-3 w-3 mr-1" /> Oppdater
             </Button>
           </div>
-          <CardDescription>Siste 50 utgående e-postforsøk med full sporbarhet</CardDescription>
+          <CardDescription>Siste 50 utgående e-postforsøk med leveringsbevis</CardDescription>
         </CardHeader>
         <CardContent>
           {!emailLogs || emailLogs.length === 0 ? (
@@ -327,6 +369,12 @@ export default function MicrosoftAdminPage() {
                     <Badge variant={emailStatusVariant(log.status)} className="text-[10px]">
                       {log.status}
                     </Badge>
+                    {log.verified && (
+                      <Badge variant="default" className="text-[10px] bg-emerald-600 hover:bg-emerald-700 gap-0.5">
+                        <ShieldCheck className="h-2.5 w-2.5" />
+                        Verified
+                      </Badge>
+                    )}
                     <Badge variant="outline" className="text-[10px]">
                       {log.processing_status || log.direction}
                     </Badge>
@@ -337,6 +385,14 @@ export default function MicrosoftAdminPage() {
                       <span className="text-[10px] text-muted-foreground">{log.processing_duration_ms}ms</span>
                     )}
                     <span className="flex-1" />
+                    {log.outlook_weblink && (
+                      <a href={log.outlook_weblink} target="_blank" rel="noopener noreferrer">
+                        <Button variant="outline" size="sm" className="h-6 text-[10px] px-2 gap-1">
+                          <ExternalLink className="h-2.5 w-2.5" />
+                          Åpne sendt
+                        </Button>
+                      </a>
+                    )}
                     {(log.status === "failed" || log.status === "attempted") && log.thread_id && (
                       <Button
                         variant="outline"
@@ -354,6 +410,9 @@ export default function MicrosoftAdminPage() {
                     {log.subject && <div className="truncate"><strong>Emne:</strong> {log.subject}</div>}
                     <div><strong>Fra:</strong> {log.from_email || "—"}</div>
                     <div><strong>Til:</strong> {(log.to_emails || []).join(", ") || "—"}</div>
+                    {log.outlook_internet_message_id && (
+                      <div className="font-mono text-[10px] truncate"><strong>Message-ID:</strong> {log.outlook_internet_message_id}</div>
+                    )}
                     {log.thread_id && <div className="font-mono text-[10px]">Thread: {log.thread_id.slice(0, 12)}…</div>}
                   </div>
                   {log.error && (
@@ -363,6 +422,53 @@ export default function MicrosoftAdminPage() {
               ))}
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Troubleshooting help */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <HelpCircle className="h-4 w-4" />
+            Feilsøking: E-post sendt men ikke mottatt?
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="text-sm space-y-2">
+            <p className="text-muted-foreground">
+              Hvis loggen viser <Badge variant="default" className="text-[10px] bg-emerald-600 mx-1"><ShieldCheck className="h-2.5 w-2.5 mr-0.5" />Verified</Badge> 
+              men mottaker ikke har fått e-posten, sjekk følgende:
+            </p>
+            <div className="grid gap-2">
+              <div className="rounded-md border p-3">
+                <p className="text-xs font-medium">1. Message Trace i Microsoft 365 Admin Center</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Gå til <code className="bg-muted px-1 rounded">admin.microsoft.com → Exchange → Mail flow → Message trace</code>. 
+                  Søk på avsender <code className="bg-muted px-1 rounded">postkontoret@mcsservice.no</code> for å se leveringsstatus.
+                </p>
+              </div>
+              <div className="rounded-md border p-3">
+                <p className="text-xs font-medium">2. Quarantine</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Sjekk <code className="bg-muted px-1 rounded">security.microsoft.com → Email & collaboration → Review → Quarantine</code> 
+                  for å se om meldingen ble satt i karantene av Exchange Online Protection.
+                </p>
+              </div>
+              <div className="rounded-md border p-3">
+                <p className="text-xs font-medium">3. Transport Rules</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Sjekk <code className="bg-muted px-1 rounded">Exchange Admin → Mail flow → Rules</code> for transport rules 
+                  som kan blokkere ekstern e-post fra shared mailboxes.
+                </p>
+              </div>
+              <div className="rounded-md border p-3">
+                <p className="text-xs font-medium">4. Mottakers spamfilter</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Be mottaker sjekke Spam/Junk-mappen i sin e-postklient (Gmail, Outlook, etc.).
+                </p>
+              </div>
+            </div>
+          </div>
         </CardContent>
       </Card>
 
