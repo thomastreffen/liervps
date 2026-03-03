@@ -6,7 +6,7 @@ import { format } from "date-fns";
 import { nb } from "date-fns/locale";
 import {
   MessageSquare, Mail, Send, Loader2, Paperclip,
-  ExternalLink, Copy, FileText, Image, ChevronDown, ChevronUp,
+  ExternalLink, Copy, FileText, Image, ChevronDown, ChevronUp, Upload,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -27,13 +27,50 @@ export function ThreadDetail({ threadId, threadTitle, threadType, projectId, com
   const { user } = useAuth();
   const [replyText, setReplyText] = useState("");
   const [sending, setSending] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length > 0) {
+      setPendingFiles(prev => [...prev, ...files]);
+    }
+    // Reset input so same file can be re-selected
+    e.target.value = "";
+  };
+
+  const removePendingFile = (index: number) => {
+    setPendingFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const uploadAttachments = async (postId: string) => {
+    for (const file of pendingFiles) {
+      const filePath = `${companyId}/${projectId}/${threadId}/${Date.now()}_${file.name}`;
+      const { error: uploadErr } = await supabase.storage
+        .from("conversation-files")
+        .upload(filePath, file);
+
+      if (uploadErr) {
+        toast.error(`Kunne ikke laste opp ${file.name}`);
+        continue;
+      }
+
+      await (supabase as any).from("conversation_attachments").insert({
+        post_id: postId,
+        file_name: file.name,
+        file_size: file.size,
+        mime_type: file.type || null,
+        storage_path: filePath,
+      });
+    }
+  };
 
   const handleReply = async () => {
-    if (!replyText.trim() || !user) return;
+    if ((!replyText.trim() && pendingFiles.length === 0) || !user) return;
     setSending(true);
 
-    // Get user_account_id
     const { data: ua } = await supabase
       .from("user_accounts")
       .select("id")
@@ -41,21 +78,30 @@ export function ThreadDetail({ threadId, threadTitle, threadType, projectId, com
       .eq("is_active", true)
       .maybeSingle();
 
-    const { error } = await (supabase as any).from("conversation_posts").insert({
+    const { data: post, error } = await (supabase as any).from("conversation_posts").insert({
       thread_id: threadId,
       company_id: companyId,
       author_id: ua?.id || null,
       post_type: "internal_message",
-      body_text: replyText.trim(),
-      body_html: `<p>${replyText.trim().replace(/\n/g, "<br/>")}</p>`,
-    });
+      body_text: replyText.trim() || null,
+      body_html: replyText.trim() ? `<p>${replyText.trim().replace(/\n/g, "<br/>")}</p>` : null,
+    }).select("id").single();
 
     if (error) {
       toast.error("Kunne ikke sende svar");
-    } else {
-      toast.success("Svar lagt til");
-      setReplyText("");
+      setSending(false);
+      return;
     }
+
+    if (pendingFiles.length > 0 && post) {
+      setUploading(true);
+      await uploadAttachments(post.id);
+      setUploading(false);
+    }
+
+    toast.success("Svar lagt til");
+    setReplyText("");
+    setPendingFiles([]);
     setSending(false);
     refresh();
   };
@@ -70,10 +116,9 @@ export function ThreadDetail({ threadId, threadTitle, threadType, projectId, com
 
   return (
     <div className="space-y-0">
-      {/* Posts timeline */}
       <div className="space-y-0 divide-y divide-border/30">
         {posts.map((post, i) => (
-          <PostCard key={post.id} post={post} isFirst={i === 0} />
+          <PostCard key={post.id} post={post} isFirst={i === 0} companyId={companyId} projectId={projectId} threadId={threadId} />
         ))}
       </div>
 
@@ -90,10 +135,33 @@ export function ThreadDetail({ threadId, threadTitle, threadType, projectId, com
               if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handleReply();
             }}
           />
+
+          {/* Pending files */}
+          {pendingFiles.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {pendingFiles.map((f, i) => (
+                <Badge key={i} variant="outline" className="text-[10px] gap-1 pr-1">
+                  <Paperclip className="h-2.5 w-2.5" />
+                  <span className="max-w-[120px] truncate">{f.name}</span>
+                  <button onClick={() => removePendingFile(i)} className="ml-0.5 hover:text-destructive">×</button>
+                </Badge>
+              ))}
+            </div>
+          )}
+
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              {/* Attachment button placeholder */}
-              <button className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors rounded-md px-2 py-1 hover:bg-muted/50">
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                className="hidden"
+                onChange={handleFileSelect}
+              />
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors rounded-md px-2 py-1 hover:bg-muted/50"
+              >
                 <Paperclip className="h-3.5 w-3.5" />
                 Vedlegg
               </button>
@@ -101,10 +169,10 @@ export function ThreadDetail({ threadId, threadTitle, threadType, projectId, com
             <Button
               size="sm"
               onClick={handleReply}
-              disabled={!replyText.trim() || sending}
+              disabled={(!replyText.trim() && pendingFiles.length === 0) || sending || uploading}
               className="gap-1.5 text-xs rounded-lg h-8"
             >
-              {sending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+              {sending || uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
               Svar
             </Button>
           </div>
@@ -116,7 +184,7 @@ export function ThreadDetail({ threadId, threadTitle, threadType, projectId, com
 
 /* ── Post Card ── */
 
-function PostCard({ post, isFirst }: { post: ConversationPost; isFirst: boolean }) {
+function PostCard({ post, isFirst, companyId, projectId, threadId }: { post: ConversationPost; isFirst: boolean; companyId: string; projectId: string; threadId: string }) {
   const [expanded, setExpanded] = useState(isFirst || post.post_type === "internal_message");
   const isEmail = post.post_type === "email";
   const isSystem = post.post_type === "system";
@@ -146,13 +214,8 @@ function PostCard({ post, isFirst }: { post: ConversationPost; isFirst: boolean 
   };
 
   return (
-    <div className={cn(
-      "py-5 px-1",
-      isEmail ? "bg-accent/[0.02]" : ""
-    )}>
-      {/* Header */}
+    <div className={cn("py-5 px-1", isEmail ? "bg-accent/[0.02]" : "")}>
       <div className="flex items-start gap-3">
-        {/* Avatar */}
         <div className={cn(
           "flex h-9 w-9 items-center justify-center rounded-full text-xs font-bold shrink-0",
           isEmail ? "bg-accent/10 text-accent" : "bg-primary/10 text-primary"
@@ -177,7 +240,6 @@ function PostCard({ post, isFirst }: { post: ConversationPost; isFirst: boolean 
             </p>
           )}
 
-          {/* Body */}
           {expanded ? (
             <div className="mt-3 space-y-3">
               {post.body_html ? (
@@ -198,7 +260,6 @@ function PostCard({ post, isFirst }: { post: ConversationPost; isFirst: boolean 
                 </div>
               )}
 
-              {/* Email actions */}
               {isEmail && (
                 <div className="flex items-center gap-2 pt-2">
                   {post.outlook_weblink && (
@@ -247,11 +308,31 @@ function AttachmentChip({ attachment }: { attachment: ConversationAttachment }) 
       : `${Math.round(attachment.file_size / 1_000)} KB`
     : null;
 
+  const handleClick = async () => {
+    if (!attachment.storage_path) {
+      if (attachment.sharepoint_web_url) {
+        window.open(attachment.sharepoint_web_url, "_blank");
+      }
+      return;
+    }
+    const { data } = await supabase.storage
+      .from("conversation-files")
+      .createSignedUrl(attachment.storage_path, 3600);
+    if (data?.signedUrl) {
+      window.open(data.signedUrl, "_blank");
+    } else {
+      toast.error("Kunne ikke åpne fil");
+    }
+  };
+
   return (
-    <div className="inline-flex items-center gap-1.5 rounded-lg border border-border/40 bg-muted/30 px-2.5 py-1.5 text-xs text-foreground hover:bg-muted/60 transition-colors cursor-default">
+    <button
+      onClick={handleClick}
+      className="inline-flex items-center gap-1.5 rounded-lg border border-border/40 bg-muted/30 px-2.5 py-1.5 text-xs text-foreground hover:bg-muted/60 transition-colors cursor-pointer"
+    >
       {isImage ? <Image className="h-3 w-3 text-muted-foreground" /> : <FileText className="h-3 w-3 text-muted-foreground" />}
       <span className="max-w-[150px] truncate">{attachment.file_name}</span>
       {sizeStr && <span className="text-muted-foreground/60">{sizeStr}</span>}
-    </div>
+    </button>
   );
 }

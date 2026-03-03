@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -7,6 +7,7 @@ import { ArrowLeft, Send, Loader2, Paperclip } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 
 export default function ConversationNewPage() {
@@ -18,12 +19,23 @@ export default function ConversationNewPage() {
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [sending, setSending] = useState(false);
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length > 0) setPendingFiles(prev => [...prev, ...files]);
+    e.target.value = "";
+  };
+
+  const removePendingFile = (index: number) => {
+    setPendingFiles(prev => prev.filter((_, i) => i !== index));
+  };
 
   const handleSubmit = async () => {
     if (!title.trim() || !body.trim() || !user || !projectId) return;
     setSending(true);
 
-    // Get user_account_id and company_id
     const { data: ua } = await supabase
       .from("user_accounts")
       .select("id, company_id")
@@ -58,7 +70,7 @@ export default function ConversationNewPage() {
     }
 
     // Create first post
-    const { error: postErr } = await (supabase as any)
+    const { data: post, error: postErr } = await (supabase as any)
       .from("conversation_posts")
       .insert({
         thread_id: thread.id,
@@ -68,7 +80,29 @@ export default function ConversationNewPage() {
         subject: title.trim(),
         body_text: body.trim(),
         body_html: `<p>${body.trim().replace(/\n/g, "<br/>")}</p>`,
-      });
+      })
+      .select("id")
+      .single();
+
+    // Upload attachments
+    if (!postErr && post && pendingFiles.length > 0) {
+      for (const file of pendingFiles) {
+        const filePath = `${companyId}/${projectId}/${thread.id}/${Date.now()}_${file.name}`;
+        const { error: uploadErr } = await supabase.storage
+          .from("conversation-files")
+          .upload(filePath, file);
+
+        if (!uploadErr) {
+          await (supabase as any).from("conversation_attachments").insert({
+            post_id: post.id,
+            file_name: file.name,
+            file_size: file.size,
+            mime_type: file.type || null,
+            storage_path: filePath,
+          });
+        }
+      }
+    }
 
     if (postErr) {
       toast.error("Samtale opprettet, men innlegg feilet");
@@ -82,7 +116,6 @@ export default function ConversationNewPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
       <div className="sticky top-0 z-30 border-b border-border/40 bg-background/95 backdrop-blur-sm">
         <div className="mx-auto max-w-3xl px-4 sm:px-6 py-4 flex items-center gap-3">
           <button
@@ -96,7 +129,6 @@ export default function ConversationNewPage() {
         </div>
       </div>
 
-      {/* Form */}
       <div className="mx-auto max-w-3xl px-4 sm:px-6 py-8 space-y-6">
         <div className="space-y-2">
           <label className="text-sm font-medium text-foreground">Tittel</label>
@@ -119,8 +151,31 @@ export default function ConversationNewPage() {
           />
         </div>
 
+        {/* Pending files */}
+        {pendingFiles.length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {pendingFiles.map((f, i) => (
+              <Badge key={i} variant="outline" className="text-[10px] gap-1 pr-1">
+                <Paperclip className="h-2.5 w-2.5" />
+                <span className="max-w-[120px] truncate">{f.name}</span>
+                <button onClick={() => removePendingFile(i)} className="ml-0.5 hover:text-destructive">×</button>
+              </Badge>
+            ))}
+          </div>
+        )}
+
         <div className="flex items-center justify-between pt-2">
-          <button className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            className="hidden"
+            onChange={handleFileSelect}
+          />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
             <Paperclip className="h-4 w-4" />
             Legg ved fil
           </button>

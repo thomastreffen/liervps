@@ -1266,15 +1266,95 @@ export type Database = {
           },
         ]
       }
+      conversation_thread_participants: {
+        Row: {
+          added_at: string
+          added_by: string | null
+          company_id: string
+          display_name: string | null
+          email: string | null
+          id: string
+          participant_type: string
+          project_id: string
+          thread_id: string
+          user_account_id: string | null
+        }
+        Insert: {
+          added_at?: string
+          added_by?: string | null
+          company_id: string
+          display_name?: string | null
+          email?: string | null
+          id?: string
+          participant_type: string
+          project_id: string
+          thread_id: string
+          user_account_id?: string | null
+        }
+        Update: {
+          added_at?: string
+          added_by?: string | null
+          company_id?: string
+          display_name?: string | null
+          email?: string | null
+          id?: string
+          participant_type?: string
+          project_id?: string
+          thread_id?: string
+          user_account_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversation_thread_participants_added_by_fkey"
+            columns: ["added_by"]
+            isOneToOne: false
+            referencedRelation: "user_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversation_thread_participants_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "internal_companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversation_thread_participants_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversation_thread_participants_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "conversation_threads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversation_thread_participants_user_account_id_fkey"
+            columns: ["user_account_id"]
+            isOneToOne: false
+            referencedRelation: "user_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       conversation_threads: {
         Row: {
           company_id: string
           created_at: string
           created_by: string | null
+          email_enabled: boolean
+          email_subject: string | null
+          email_thread_id: string | null
           id: string
           is_archived: boolean
           last_activity_at: string
           last_author_name: string | null
+          last_emailed_at: string | null
+          participants_only: boolean
           post_count: number
           project_id: string
           thread_type: string
@@ -1284,10 +1364,15 @@ export type Database = {
           company_id: string
           created_at?: string
           created_by?: string | null
+          email_enabled?: boolean
+          email_subject?: string | null
+          email_thread_id?: string | null
           id?: string
           is_archived?: boolean
           last_activity_at?: string
           last_author_name?: string | null
+          last_emailed_at?: string | null
+          participants_only?: boolean
           post_count?: number
           project_id: string
           thread_type?: string
@@ -1297,10 +1382,15 @@ export type Database = {
           company_id?: string
           created_at?: string
           created_by?: string | null
+          email_enabled?: boolean
+          email_subject?: string | null
+          email_thread_id?: string | null
           id?: string
           is_archived?: boolean
           last_activity_at?: string
           last_author_name?: string | null
+          last_emailed_at?: string | null
+          participants_only?: boolean
           post_count?: number
           project_id?: string
           thread_type?: string
@@ -5136,6 +5226,10 @@ export type Database = {
       }
       has_space_access: {
         Args: { _auth_user_id: string; _space_id: string }
+        Returns: boolean
+      }
+      has_thread_access: {
+        Args: { _auth_user_id: string; _thread_id: string }
         Returns: boolean
       }
       is_admin: { Args: never; Returns: boolean }
