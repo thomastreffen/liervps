@@ -2,7 +2,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ProjectHeader } from "@/components/project/ProjectHeader";
-import { ProjectFeed } from "@/components/project/ProjectFeed";
+import { ProjectRooms } from "@/components/project/ProjectRooms";
 import { ProjectPlanTab } from "@/components/ProjectPlanTab";
 import { Button } from "@/components/ui/button";
 import type { Job, Attachment } from "@/lib/mock-data";
@@ -166,13 +166,11 @@ export default function JobDetail() {
           onOpenPlan={() => setShowPlan(true)}
         />
 
-        {/* Feed — the entire project lives here */}
-        <div className="mx-auto max-w-3xl px-4 sm:px-6 py-6 pb-28 md:pb-8">
-          <ProjectFeed
+        {/* Rooms — Basecamp-style project home */}
+        <div className="mx-auto max-w-5xl px-4 sm:px-6 py-8 pb-28 md:pb-8">
+          <ProjectRooms
             jobId={id!}
-            jobTitle={job.title}
-            customer={job.customer}
-            internalNumber={job.internalNumber || null}
+            onOpenPlan={() => setShowPlan(true)}
           />
         </div>
       </div>
