@@ -70,6 +70,20 @@ export default function ConversationNewPage() {
       return;
     }
 
+    // Auto-add creator as participant
+    if (ua?.id) {
+      await (supabase as any).from("conversation_thread_participants").insert({
+        thread_id: thread.id,
+        company_id: companyId,
+        project_id: projectId,
+        user_account_id: ua.id,
+        participant_type: "internal",
+        receive_email: true,
+        can_invite_internal: true,
+        can_invite_external: true,
+      }).then(() => {}).catch(() => {});
+    }
+
     // Create first post
     const { data: post, error: postErr } = await (supabase as any)
       .from("conversation_posts")
