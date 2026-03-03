@@ -4323,6 +4323,56 @@ export type Database = {
           },
         ]
       }
+      project_sharepoint_category_mappings: {
+        Row: {
+          category_key: string
+          created_at: string
+          display_name: string
+          drive_id: string
+          folder_id: string
+          folder_path: string
+          folder_web_url: string | null
+          id: string
+          project_id: string
+          site_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          category_key: string
+          created_at?: string
+          display_name: string
+          drive_id: string
+          folder_id: string
+          folder_path: string
+          folder_web_url?: string | null
+          id?: string
+          project_id: string
+          site_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          category_key?: string
+          created_at?: string
+          display_name?: string
+          drive_id?: string
+          folder_id?: string
+          folder_path?: string
+          folder_web_url?: string | null
+          id?: string
+          project_id?: string
+          site_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_sharepoint_category_mappings_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_spaces: {
         Row: {
           created_at: string
