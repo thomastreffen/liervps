@@ -62,6 +62,7 @@ import CustomerNewPage from "./pages/CustomerNewPage";
 import CustomerDetailPage from "./pages/CustomerDetailPage";
 import CustomerImportPage from "./pages/CustomerImportPage";
 import ProjectNewPage from "./pages/ProjectNewPage";
+import ProjectSettingsPage from "./pages/ProjectSettingsPage";
 import ConversationNewPage from "./pages/ConversationNewPage";
 import ConversationDetailPage from "./pages/ConversationDetailPage";
 import InboxPage from "./pages/InboxPage";
@@ -109,6 +110,7 @@ const App = () => (
               <Route path="/projects" element={<JobsPage />} />
               <Route path="/projects/new" element={<ProjectNewPage />} />
               <Route path="/projects/:id" element={<JobDetail />} />
+              <Route path="/projects/:id/settings" element={<ProjectSettingsPage />} />
               <Route path="/projects/:id/conversations/new" element={<ConversationNewPage />} />
               <Route path="/projects/:id/conversations/:threadId" element={<ConversationDetailPage />} />
               <Route path="/projects/plan" element={<ResourcePlan />} />
