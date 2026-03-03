@@ -19,27 +19,25 @@ export function AppLayout() {
 
   return (
     <SidebarProvider>
-      <div className="flex min-h-screen w-full">
-        {/* Desktop sidebar */}
+      <div className="flex min-h-screen w-full bg-background">
         {!isMobile && <AppSidebar />}
 
         <div className="flex flex-1 flex-col min-w-0">
-          {/* Top header bar */}
-          <header className="flex items-center justify-between border-b border-border/40 bg-card/80 backdrop-blur-xl px-4 py-3 sticky top-0 z-30">
+          {/* Minimal top bar */}
+          <header className="flex items-center justify-between border-b border-border/40 bg-background px-4 py-2.5 sticky top-0 z-30">
             <div className="flex items-center gap-2">
               {!isMobile && <SidebarTrigger />}
             </div>
 
             <div className="flex items-center gap-1.5">
-              {/* Desktop notification bell */}
               {!isMobile && (
                 <Button
                   variant="ghost"
                   size="icon"
                   onClick={() => setDrawerOpen(true)}
-                  className="relative"
+                  className="relative h-8 w-8"
                 >
-                  <Bell className="h-4 w-4" />
+                  <Bell className="h-4 w-4 text-muted-foreground" />
                   {unreadCount > 0 && (
                     <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground">
                       {unreadCount > 9 ? "9+" : unreadCount}
@@ -49,28 +47,25 @@ export function AppLayout() {
               )}
 
               {user && (
-                <span className="hidden sm:inline text-sm text-muted-foreground mr-1">
+                <span className="hidden sm:inline text-xs text-muted-foreground mr-1">
                   {user.name}
                 </span>
               )}
 
-              <Button variant="ghost" size="sm" onClick={signOut} className="gap-1.5">
-                <LogOut className="h-4 w-4" />
+              <Button variant="ghost" size="sm" onClick={signOut} className="gap-1.5 h-8 text-xs text-muted-foreground">
+                <LogOut className="h-3.5 w-3.5" />
                 <span className="hidden sm:inline">Logg ut</span>
               </Button>
             </div>
           </header>
 
-          {/* MS Connection banner for technicians */}
           <MsConnectionBanner />
 
-          {/* Page content */}
           <main className={`flex-1 overflow-y-auto ${isMobile ? "pb-16" : ""}`}>
             <Outlet />
           </main>
         </div>
 
-        {/* Mobile bottom tab bar */}
         {isMobile && <MobileTabBar />}
       </div>
 

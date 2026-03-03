@@ -1,13 +1,12 @@
 import { useLocation } from "react-router-dom";
 import {
-  LayoutDashboard,
+  Home,
   FolderKanban,
   Users,
-  Settings,
-  Wrench,
   TrendingUp,
   Inbox,
   ChevronDown,
+  Settings,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/hooks/useAuth";
@@ -17,7 +16,6 @@ import {
   SidebarContent,
   SidebarGroup,
   SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
@@ -31,24 +29,9 @@ import {
 } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 
-/* ─── Simplified nav structure ─── */
-
-const homeNav = [
-  { title: "Oversikt", url: "/overview", icon: LayoutDashboard },
-];
-
-const postkontoretNav = { title: "Postkontoret", url: "/inbox", icon: Inbox };
-
-const projectNav = [
+const mainNav = [
+  { title: "Hjem", url: "/overview", icon: Home },
   { title: "Prosjekter", url: "/projects", icon: FolderKanban },
-];
-
-const salesNav = [
-  { title: "Salg", url: "/sales", icon: TrendingUp },
-];
-
-const customerNav = [
-  { title: "Kunder", url: "/customers", icon: Users },
 ];
 
 const adminItems = [
@@ -80,12 +63,17 @@ function NavItem({ item, isActive, collapsed }: {
         asChild
         isActive={active}
         tooltip={item.title}
-        className={active ? "border-l-[3px] border-l-accent rounded-l-none bg-sidebar-accent/60" : ""}
+        className={cn(
+          "rounded-lg h-9 transition-colors",
+          active
+            ? "bg-primary/10 text-primary font-medium"
+            : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent"
+        )}
       >
-        <NavLink to={item.url} end={item.url === "/overview" || item.url === "/sales"}>
-          {Icon && <Icon className="h-4 w-4" />}
-          {!Icon && <div className="h-4 w-4" />}
-          <span>{item.title}</span>
+        <NavLink to={item.url} end={item.url === "/overview"}>
+          {Icon && <Icon className="h-[18px] w-[18px]" />}
+          {!Icon && <div className="h-[18px] w-[18px]" />}
+          <span className="text-[13px]">{item.title}</span>
         </NavLink>
       </SidebarMenuButton>
     </SidebarMenuItem>
@@ -114,82 +102,53 @@ export function AppSidebar() {
   const adminActive = filteredAdmin.some((item) => isActive(item.url));
 
   return (
-    <Sidebar collapsible="icon">
-      <SidebarHeader className="p-4">
+    <Sidebar collapsible="icon" className="border-r border-sidebar-border">
+      <SidebarHeader className="p-4 pb-6">
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/15">
-            <Wrench className="h-4.5 w-4.5 text-white" />
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground text-sm font-bold">
+            M
           </div>
           {!collapsed && (
             <div>
-              <h1 className="text-sm font-bold leading-tight text-white tracking-tight">MCS Service</h1>
-              <p className="text-[10px] text-white/50 mt-0.5">Salg & Prosjekt</p>
+              <h1 className="text-sm font-semibold leading-tight text-sidebar-foreground tracking-tight">MCS Service</h1>
             </div>
           )}
         </div>
       </SidebarHeader>
 
-      <SidebarContent className="px-1">
-        {/* Hjem */}
+      <SidebarContent className="px-2">
+        {/* Hovedmeny */}
         <SidebarGroup>
           <SidebarGroupContent>
-            <SidebarMenu>
-              {homeNav.map((item) => (
+            <SidebarMenu className="space-y-0.5">
+              {mainNav.map((item) => (
                 <NavItem key={item.url} item={item} isActive={isActive} collapsed={collapsed} />
               ))}
               {hasPostkontor && (
-                <NavItem item={postkontoretNav} isActive={isActive} collapsed={collapsed} />
+                <NavItem item={{ title: "Postkontoret", url: "/inbox", icon: Inbox }} isActive={isActive} collapsed={collapsed} />
               )}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        {/* Prosjekter */}
-        <SidebarGroup>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {projectNav.map((item) => (
-                <NavItem key={item.url} item={item} isActive={isActive} collapsed={collapsed} />
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        {/* Salg */}
-        {isAdmin && (
-          <SidebarGroup>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {salesNav.map((item) => (
-                  <NavItem key={item.url} item={item} isActive={isActive} collapsed={collapsed} />
-                ))}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        )}
-
-        {/* Kunder */}
-        <SidebarGroup>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {customerNav.map((item) => (
-                <NavItem key={item.url} item={item} isActive={isActive} collapsed={collapsed} />
-              ))}
+              {isAdmin && (
+                <NavItem item={{ title: "Salg", url: "/sales", icon: TrendingUp }} isActive={isActive} collapsed={collapsed} />
+              )}
+              <NavItem item={{ title: "Kunder", url: "/customers", icon: Users }} isActive={isActive} collapsed={collapsed} />
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
 
         {/* Admin – collapsible */}
         {isAdmin && (
-          <SidebarGroup>
+          <SidebarGroup className="mt-4">
             <Collapsible defaultOpen={adminActive}>
-              <CollapsibleTrigger className="flex w-full items-center justify-between px-2 py-1.5 text-xs font-medium uppercase tracking-wider text-sidebar-foreground/60 hover:text-sidebar-foreground/80 transition-colors">
-                <span>Administrasjon</span>
+              <CollapsibleTrigger className="flex w-full items-center justify-between px-3 py-1.5 text-[11px] font-medium uppercase tracking-wider text-sidebar-foreground/40 hover:text-sidebar-foreground/60 transition-colors">
+                <span className="flex items-center gap-1.5">
+                  <Settings className="h-3 w-3" />
+                  Admin
+                </span>
                 {!collapsed && <ChevronDown className="h-3 w-3 transition-transform duration-200 group-data-[state=open]:rotate-180" />}
               </CollapsibleTrigger>
               <CollapsibleContent>
                 <SidebarGroupContent>
-                  <SidebarMenu>
+                  <SidebarMenu className="space-y-0.5 mt-1">
                     {filteredAdmin.map((item) => (
                       <NavItem key={item.url} item={item} isActive={isActive} collapsed={collapsed} />
                     ))}

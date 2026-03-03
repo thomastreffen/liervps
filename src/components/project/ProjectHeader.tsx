@@ -11,18 +11,10 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   ArrowLeft,
-  Building2,
-  MapPin,
-  Clock,
-  Plus,
   CalendarCheck,
   MoreHorizontal,
   Copy,
   ExternalLink,
-  ClipboardList,
-  FileText,
-  Mail,
-  AlertTriangle,
   Users,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -58,105 +50,57 @@ export function ProjectHeader({
 }: ProjectHeaderProps) {
   const navigate = useNavigate();
   const displayNumber = getDisplayNumber(jobNumber, internalNumber);
-
   const period = `${format(start, "d. MMM", { locale: nb })} – ${format(end, "d. MMM yyyy", { locale: nb })}`;
 
   return (
-    <div className="sticky top-0 z-30 border-b border-border/60 bg-card/95 backdrop-blur-xl">
-      <div className="mx-auto max-w-6xl px-4 sm:px-6 py-3">
-        <div className="flex items-start justify-between gap-3">
-          {/* Left: back + info */}
-          <div className="flex items-start gap-2.5 min-w-0">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => navigate("/projects")}
-              className="shrink-0 mt-0.5 rounded-xl h-8 w-8"
-            >
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-            <div className="min-w-0">
-              {/* Title row */}
-              <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="text-base sm:text-lg font-bold tracking-tight truncate">
-                  {displayNumber} – {title}
-                </h1>
-                <JobStatusBadge status={status} />
-              </div>
-              {/* Sub-line */}
-              <div className="flex items-center gap-3 mt-0.5 text-xs text-muted-foreground flex-wrap">
-                <span className="flex items-center gap-1">
-                  <Building2 className="h-3 w-3" />
-                  {customer || "Ingen kunde"}
-                </span>
-                {address && (
-                  <span className="flex items-center gap-1 hidden sm:flex">
-                    <MapPin className="h-3 w-3" />
-                    {address}
-                  </span>
-                )}
-                <span className="flex items-center gap-1">
-                  <Clock className="h-3 w-3" />
-                  {period}
-                </span>
-                {projectType && (
-                  <span className="text-muted-foreground/70">{projectType}</span>
-                )}
-                {technicianNames.length > 0 && (
-                  <span className="flex items-center gap-1 hidden md:flex">
-                    <Users className="h-3 w-3" />
-                    {technicianNames.slice(0, 3).join(", ")}
-                    {technicianNames.length > 3 && ` +${technicianNames.length - 3}`}
-                  </span>
-                )}
-              </div>
+    <div className="border-b border-border/40 bg-background">
+      <div className="mx-auto max-w-3xl px-4 sm:px-6 py-6">
+        {/* Back */}
+        <button
+          onClick={() => navigate("/projects")}
+          className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors mb-4"
+        >
+          <ArrowLeft className="h-3 w-3" />
+          Prosjekter
+        </button>
+
+        {/* Title */}
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">
+              {title}
+            </h1>
+            <div className="flex items-center gap-3 mt-2 flex-wrap">
+              <JobStatusBadge status={status} />
+              {customer && (
+                <span className="text-sm text-muted-foreground">{customer}</span>
+              )}
+              <span className="text-sm text-muted-foreground">{period}</span>
+              {displayNumber && (
+                <span className="text-xs text-muted-foreground/50 font-mono">{displayNumber}</span>
+              )}
             </div>
+            {technicianNames.length > 0 && (
+              <div className="flex items-center gap-1.5 mt-2 text-xs text-muted-foreground">
+                <Users className="h-3 w-3" />
+                {technicianNames.join(", ")}
+              </div>
+            )}
           </div>
 
-          {/* Right: actions */}
           <div className="flex items-center gap-1.5 shrink-0">
-            {/* Opprett dropdown */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button size="sm" className="rounded-xl gap-1.5 h-8 text-xs font-medium">
-                  <Plus className="h-3.5 w-3.5" />
-                  Opprett
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-44">
-                <DropdownMenuItem onClick={() => onNavigateTab("plan")} className="gap-2">
-                  <CalendarCheck className="h-3.5 w-3.5" /> Oppgave
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onNavigateTab("skjemaer")} className="gap-2">
-                  <ClipboardList className="h-3.5 w-3.5" /> Skjema
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onNavigateTab("dokumenter")} className="gap-2">
-                  <FileText className="h-3.5 w-3.5" /> Dokument
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onNavigateTab("epost")} className="gap-2">
-                  <Mail className="h-3.5 w-3.5" /> E-post
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onNavigateTab("risiko")} className="gap-2">
-                  <AlertTriangle className="h-3.5 w-3.5" /> Risiko / Avvik
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            {/* Planlegg */}
             <Button
               variant="outline"
               size="sm"
-              className="rounded-xl gap-1.5 h-8 text-xs font-medium hidden sm:flex"
+              className="rounded-lg gap-1.5 h-8 text-xs font-medium"
               onClick={() => onNavigateTab("plan")}
             >
               <CalendarCheck className="h-3.5 w-3.5" />
-              Planlegg
+              Se plan
             </Button>
-
-            {/* More menu */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="rounded-xl h-8 w-8">
+                <Button variant="ghost" size="icon" className="rounded-lg h-8 w-8">
                   <MoreHorizontal className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>

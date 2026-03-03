@@ -4,25 +4,25 @@
 
 @layer base {
   :root {
-    --background: 220 20% 97%;
-    --foreground: 222 28% 14%;
+    --background: 210 20% 98%;
+    --foreground: 220 20% 14%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222 28% 14%;
+    --card-foreground: 220 20% 14%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222 28% 14%;
+    --popover-foreground: 220 20% 14%;
 
-    --primary: 213 56% 38%;
+    --primary: 220 65% 48%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 218 18% 94%;
-    --secondary-foreground: 222 24% 22%;
+    --secondary: 220 14% 96%;
+    --secondary-foreground: 220 20% 22%;
 
-    --muted: 220 14% 92%;
+    --muted: 220 14% 95%;
     --muted-foreground: 220 10% 46%;
 
-    --accent: 28 76% 50%;
+    --accent: 24 80% 52%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 68% 50%;
@@ -34,16 +34,11 @@
     --info: 213 48% 52%;
     --info-foreground: 0 0% 100%;
 
-    --border: 220 16% 90%;
-    --input: 220 16% 88%;
-    --ring: 213 56% 38%;
+    --border: 220 16% 91%;
+    --input: 220 16% 89%;
+    --ring: 220 65% 48%;
 
-    --radius: 0.875rem;
-
-    /* Glass effect */
-    --glass-bg: 0 0% 100% / 0.72;
-    --glass-border: 220 16% 90% / 0.5;
-    --glass-shadow: 0 1px 3px 0 hsl(220 20% 20% / 0.04), 0 4px 14px 0 hsl(220 20% 20% / 0.06);
+    --radius: 0.75rem;
 
     /* Status colors */
     --status-requested: 28 76% 50%;
@@ -56,7 +51,7 @@
     --status-rejected-foreground: 0 0% 100%;
     --status-scheduled: 213 50% 52%;
     --status-scheduled-foreground: 0 0% 100%;
-    --status-in-progress: 213 56% 38%;
+    --status-in-progress: 220 65% 48%;
     --status-in-progress-foreground: 0 0% 100%;
     --status-completed: 152 60% 30%;
     --status-completed-foreground: 0 0% 100%;
@@ -65,14 +60,15 @@
     --status-invoiced: 220 12% 62%;
     --status-invoiced-foreground: 0 0% 100%;
 
-    --sidebar-background: 213 52% 24%;
-    --sidebar-foreground: 218 18% 94%;
-    --sidebar-primary: 0 0% 100%;
-    --sidebar-primary-foreground: 213 52% 24%;
-    --sidebar-accent: 213 44% 30%;
-    --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 213 36% 32%;
-    --sidebar-ring: 0 0% 100%;
+    /* Sidebar – light, calm, warm gray */
+    --sidebar-background: 220 16% 97%;
+    --sidebar-foreground: 220 20% 22%;
+    --sidebar-primary: 220 65% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 14% 93%;
+    --sidebar-accent-foreground: 220 20% 14%;
+    --sidebar-border: 220 16% 91%;
+    --sidebar-ring: 220 65% 48%;
   }
 
   .dark {
@@ -82,7 +78,7 @@
     --card-foreground: 218 18% 94%;
     --popover: 222 22% 11%;
     --popover-foreground: 218 18% 94%;
-    --primary: 213 56% 52%;
+    --primary: 220 65% 52%;
     --primary-foreground: 0 0% 100%;
     --secondary: 222 18% 16%;
     --secondary-foreground: 218 18% 88%;
@@ -98,19 +94,15 @@
     --info-foreground: 0 0% 100%;
     --border: 222 18% 18%;
     --input: 222 18% 18%;
-    --ring: 213 56% 52%;
+    --ring: 220 65% 52%;
 
-    --glass-bg: 222 22% 11% / 0.72;
-    --glass-border: 222 18% 18% / 0.5;
-    --glass-shadow: 0 1px 3px 0 hsl(0 0% 0% / 0.12), 0 4px 14px 0 hsl(0 0% 0% / 0.16);
-
-    --sidebar-background: 213 50% 14%;
+    --sidebar-background: 222 22% 10%;
     --sidebar-foreground: 218 18% 88%;
     --sidebar-primary: 0 0% 100%;
-    --sidebar-primary-foreground: 213 50% 14%;
-    --sidebar-accent: 213 42% 22%;
+    --sidebar-primary-foreground: 222 22% 10%;
+    --sidebar-accent: 222 18% 16%;
     --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 213 36% 22%;
+    --sidebar-border: 222 18% 18%;
     --sidebar-ring: 0 0% 100%;
   }
 }
@@ -122,12 +114,11 @@
 
   body {
     @apply bg-background text-foreground antialiased;
-    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Segoe UI', Roboto, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
 
-  /* Disabled buttons get cursor-not-allowed globally */
   button:disabled,
   [role="button"]:disabled {
     @apply cursor-not-allowed;
@@ -137,21 +128,6 @@
 @layer utilities {
   .safe-area-bottom {
     padding-bottom: env(safe-area-inset-bottom, 0px);
-  }
-
-  .glass {
-    background: hsl(var(--glass-bg));
-    backdrop-filter: blur(20px) saturate(1.2);
-    -webkit-backdrop-filter: blur(20px) saturate(1.2);
-    border: 1px solid hsl(var(--glass-border));
-    box-shadow: var(--glass-shadow);
-  }
-
-  .glass-subtle {
-    background: hsl(var(--glass-bg));
-    backdrop-filter: blur(12px) saturate(1.1);
-    -webkit-backdrop-filter: blur(12px) saturate(1.1);
-    border: 1px solid hsl(var(--glass-border));
   }
 }
 
@@ -169,7 +145,7 @@
 /* FullCalendar – Google Calendar theme */
 .fc-wrapper .fc {
   --fc-border-color: hsl(220 14% 90%);
-  --fc-today-bg-color: hsl(213 56% 96%);
+  --fc-today-bg-color: hsl(220 65% 96%);
   --fc-neutral-bg-color: transparent;
   --fc-page-bg-color: hsl(var(--card));
   --fc-now-indicator-color: hsl(0 68% 50%);
@@ -194,7 +170,6 @@
   border-bottom: 1px solid hsl(220 14% 90%);
   padding: 0;
 }
-/* Event chip – Google Calendar solid color pill */
 .fc-wrapper .fc .fc-timegrid-event {
   border-radius: 8px;
   border-width: 0;
@@ -218,11 +193,9 @@
 .fc-wrapper .fc .fc-timegrid-event .fc-event-main {
   padding: 0;
 }
-/* Side-by-side overlapping events */
 .fc-wrapper .fc .fc-timegrid-event-harness {
   margin-right: 2px;
 }
-/* External / busy event — tinted in technician color, dashed border */
 .fc-wrapper .fc .fc-timegrid-event:has(.fc-event-external) {
   border-style: dashed;
   border-width: 1.5px;
@@ -235,7 +208,6 @@
   transform: none;
   box-shadow: none;
 }
-/* Now indicator – red line like Google */
 .fc-wrapper .fc .fc-timegrid-now-indicator-line {
   border-color: hsl(0 68% 50%);
   border-width: 2px;
@@ -261,7 +233,6 @@
   background: hsl(var(--primary) / 0.08);
   border-radius: 4px;
 }
-/* Day grid (month view) event chips */
 .fc-wrapper .fc .fc-daygrid-event {
   border-radius: 4px;
   border-width: 0;
@@ -271,7 +242,6 @@
   padding: 1px 4px;
   margin-bottom: 1px;
 }
-/* List view */
 .fc-wrapper .fc .fc-list-event td {
   border-color: hsl(220 14% 92%);
 }

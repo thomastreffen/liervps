@@ -7,7 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { ProjectHeader } from "@/components/project/ProjectHeader";
 import { ProjectSubnav } from "@/components/project/ProjectSubnav";
 import { ProjectDashboard } from "@/components/project/ProjectDashboard";
-import { ProjectToolCards } from "@/components/project/ProjectToolCards";
+import { ProjectFeed } from "@/components/project/ProjectFeed";
 
 import { DocumentCenter } from "@/components/DocumentCenter";
 import { JobRiskPanel } from "@/components/risk/JobRiskPanel";
@@ -403,16 +403,15 @@ export default function JobDetail() {
         )}
 
         {/* ═══ Main Content ═══ */}
-        <div className="mx-auto max-w-6xl px-4 sm:px-6 py-6 pb-28 md:pb-8">
+        <div className="mx-auto max-w-3xl px-4 sm:px-6 py-6 pb-28 md:pb-8">
 
-          {/* ── HOME: Basecamp-style tool cards ── */}
+          {/* ── HOME: Feed-based workspace ── */}
           {isToolHome && (
-            <ProjectToolCards
+            <ProjectFeed
               jobId={id!}
-              technicianNames={technicianNames}
-              start={job.start}
-              end={job.end}
-              onNavigateTool={handleTabChange}
+              jobTitle={job.title}
+              customer={job.customer}
+              internalNumber={job.internalNumber || null}
             />
           )}
 
