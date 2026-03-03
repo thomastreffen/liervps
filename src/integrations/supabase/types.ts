@@ -1266,6 +1266,134 @@ export type Database = {
           },
         ]
       }
+      doc_folders: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          has_member_override: boolean
+          icon: string | null
+          id: string
+          name: string
+          parent_folder_id: string | null
+          project_id: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          has_member_override?: boolean
+          icon?: string | null
+          id?: string
+          name: string
+          parent_folder_id?: string | null
+          project_id: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          has_member_override?: boolean
+          icon?: string | null
+          id?: string
+          name?: string
+          parent_folder_id?: string | null
+          project_id?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "doc_folders_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "user_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "doc_folders_parent_folder_id_fkey"
+            columns: ["parent_folder_id"]
+            isOneToOne: false
+            referencedRelation: "doc_folders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "doc_folders_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      docs_files: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          file_size: number | null
+          folder_id: string | null
+          id: string
+          mime_type: string | null
+          project_id: string
+          source_meta: Json | null
+          source_type: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          file_size?: number | null
+          folder_id?: string | null
+          id?: string
+          mime_type?: string | null
+          project_id: string
+          source_meta?: Json | null
+          source_type?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          file_size?: number | null
+          folder_id?: string | null
+          id?: string
+          mime_type?: string | null
+          project_id?: string
+          source_meta?: Json | null
+          source_type?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "docs_files_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "user_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "docs_files_folder_id_fkey"
+            columns: ["folder_id"]
+            isOneToOne: false
+            referencedRelation: "doc_folders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "docs_files_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       document_analyses: {
         Row: {
           analysis_type: string
@@ -1944,6 +2072,42 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "internal_companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      folder_members: {
+        Row: {
+          created_at: string
+          folder_id: string
+          id: string
+          user_account_id: string
+        }
+        Insert: {
+          created_at?: string
+          folder_id: string
+          id?: string
+          user_account_id: string
+        }
+        Update: {
+          created_at?: string
+          folder_id?: string
+          id?: string
+          user_account_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "folder_members_folder_id_fkey"
+            columns: ["folder_id"]
+            isOneToOne: false
+            referencedRelation: "doc_folders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "folder_members_user_account_id_fkey"
+            columns: ["user_account_id"]
+            isOneToOne: false
+            referencedRelation: "user_accounts"
             referencedColumns: ["id"]
           },
         ]
@@ -3513,6 +3677,35 @@ export type Database = {
         }
         Relationships: []
       }
+      project_spaces: {
+        Row: {
+          created_at: string
+          id: string
+          project_id: string
+          space_key: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          project_id: string
+          space_key: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          project_id?: string
+          space_key?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_spaces_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       regulation_queries: {
         Row: {
           actions: Json | null
@@ -3780,6 +3973,55 @@ export type Database = {
           value?: Json
         }
         Relationships: []
+      }
+      space_members: {
+        Row: {
+          added_by: string | null
+          created_at: string
+          id: string
+          role: string
+          space_id: string
+          user_account_id: string
+        }
+        Insert: {
+          added_by?: string | null
+          created_at?: string
+          id?: string
+          role?: string
+          space_id: string
+          user_account_id: string
+        }
+        Update: {
+          added_by?: string | null
+          created_at?: string
+          id?: string
+          role?: string
+          space_id?: string
+          user_account_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "space_members_added_by_fkey"
+            columns: ["added_by"]
+            isOneToOne: false
+            referencedRelation: "user_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "space_members_space_id_fkey"
+            columns: ["space_id"]
+            isOneToOne: false
+            referencedRelation: "project_spaces"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "space_members_user_account_id_fkey"
+            columns: ["user_account_id"]
+            isOneToOne: false
+            referencedRelation: "user_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       superoffice_settings: {
         Row: {
@@ -4624,6 +4866,10 @@ export type Database = {
       get_user_account_id: { Args: { _auth_user_id: string }; Returns: string }
       get_user_scope: { Args: { _user_id: string }; Returns: string }
       get_user_scope_v2: { Args: { _auth_user_id: string }; Returns: string }
+      has_folder_access: {
+        Args: { _auth_user_id: string; _folder_id: string }
+        Returns: boolean
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -4631,7 +4877,15 @@ export type Database = {
         }
         Returns: boolean
       }
+      has_space_access: {
+        Args: { _auth_user_id: string; _space_id: string }
+        Returns: boolean
+      }
       is_admin: { Args: never; Returns: boolean }
+      is_project_admin: {
+        Args: { _auth_user_id: string; _project_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       app_role: "admin" | "montør" | "super_admin"
