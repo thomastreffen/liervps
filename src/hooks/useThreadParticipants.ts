@@ -73,19 +73,37 @@ export function useThreadParticipants(threadId: string | null) {
   };
 
   const addExternal = async (threadId: string, companyId: string, projectId: string, email: string, displayName: string, addedBy: string) => {
-    const { error } = await (supabase as any)
-      .from("conversation_thread_participants")
-      .insert({
+    // Use server-side edge function for atomic insert + welcome email
+    const { data, error } = await supabase.functions.invoke("add-participant", {
+      body: {
+        thread_id: threadId,
         company_id: companyId,
         project_id: projectId,
-        thread_id: threadId,
         participant_type: "external",
         email,
         display_name: displayName,
-        added_by: addedBy,
-      });
+      },
+    });
     if (error) throw error;
+    if (data?.error) throw new Error(data.error);
     fetch();
+    return data;
+  };
+
+  const addInternal2 = async (threadId: string, companyId: string, projectId: string, userAccountId: string, addedBy: string) => {
+    const { data, error } = await supabase.functions.invoke("add-participant", {
+      body: {
+        thread_id: threadId,
+        company_id: companyId,
+        project_id: projectId,
+        participant_type: "internal",
+        user_account_id: userAccountId,
+      },
+    });
+    if (error) throw error;
+    if (data?.error) throw new Error(data.error);
+    fetch();
+    return data;
   };
 
   const remove = async (participantId: string) => {

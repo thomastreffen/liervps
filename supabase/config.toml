@@ -122,3 +122,6 @@ verify_jwt = false
 
 [functions.conversation-invite-accept]
 verify_jwt = false
+
+[functions.add-participant]
+verify_jwt = false

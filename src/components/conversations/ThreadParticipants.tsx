@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useThreadParticipants } from "@/hooks/useThreadParticipants";
 import { supabase } from "@/integrations/supabase/client";
-import { triggerConversationEmailSend } from "@/lib/conversation-email";
 import { useAuth } from "@/hooks/useAuth";
 import { Users, Plus, X, Search, UserPlus, Mail, Send, Clock, RotateCw, Ban, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -126,19 +125,19 @@ export function ThreadParticipants({ threadId, companyId, projectId, isAdmin, al
     if (!extEmail.trim()) return;
     try {
       const myId = await getMyAccountId();
-      await addExternal(threadId, companyId, projectId, extEmail.trim(), extName.trim() || extEmail.trim(), myId!);
-      toast.success(`${extName.trim() || extEmail.trim()} lagt til`);
+      const result = await addExternal(threadId, companyId, projectId, extEmail.trim(), extName.trim() || extEmail.trim(), myId!);
 
-      // Send welcome email with history via centralized backend
-      triggerConversationEmailSend(threadId, "participant_added", {
-        recipient_email: extEmail.trim(),
-      }).then((result) => {
-        if (result.sent) {
-          toast.success(`Historikk sendt til ${extEmail.trim()}`);
-        } else if (result.error) {
-          toast.warning(`Kunne ikke sende historikk til ${extEmail.trim()}`);
-        }
-      });
+      // Server handles welcome email atomically – just show result
+      if (result?.email_result?.sent) {
+        toast.success(`${extName.trim() || extEmail.trim()} lagt til – historikk sendt`);
+      } else if (result?.email_result?.skipped) {
+        toast.success(`${extName.trim() || extEmail.trim()} lagt til`);
+      } else if (result?.email_result?.error) {
+        toast.success(`${extName.trim() || extEmail.trim()} lagt til`);
+        toast.warning(`Kunne ikke sende historikk: ${result.email_result.error}`);
+      } else {
+        toast.success(`${extName.trim() || extEmail.trim()} lagt til`);
+      }
 
       setExtEmail("");
       setExtName("");
