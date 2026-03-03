@@ -3834,6 +3834,62 @@ export type Database = {
         }
         Relationships: []
       }
+      ms_graph_subscriptions: {
+        Row: {
+          change_type: string
+          client_state: string
+          company_id: string
+          created_at: string
+          expiration_at: string
+          id: string
+          last_error: string | null
+          last_renewed_at: string | null
+          notification_url: string
+          resource: string
+          status: string
+          subscription_id: string
+          updated_at: string
+        }
+        Insert: {
+          change_type?: string
+          client_state: string
+          company_id: string
+          created_at?: string
+          expiration_at: string
+          id?: string
+          last_error?: string | null
+          last_renewed_at?: string | null
+          notification_url: string
+          resource: string
+          status?: string
+          subscription_id: string
+          updated_at?: string
+        }
+        Update: {
+          change_type?: string
+          client_state?: string
+          company_id?: string
+          created_at?: string
+          expiration_at?: string
+          id?: string
+          last_error?: string | null
+          last_renewed_at?: string | null
+          notification_url?: string
+          resource?: string
+          status?: string
+          subscription_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ms_graph_subscriptions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "internal_companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           company_id: string | null

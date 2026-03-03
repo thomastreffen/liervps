@@ -68,6 +68,7 @@ import InboxPage from "./pages/InboxPage";
 import FormBuilderPage from "./pages/FormBuilderPage";
 import FormFillPage from "./pages/FormFillPage";
 import SuperofficeSettingsPage from "./pages/SuperofficeSettingsPage";
+import MicrosoftAdminPage from "./pages/MicrosoftAdminPage";
 import { CompanyProvider } from "@/hooks/useCompanyContext";
 
 const queryClient = new QueryClient();
@@ -304,6 +305,14 @@ const App = () => (
                 element={
                   <ProtectedRoute requiredPermission="postkontor.admin">
                     <SuperofficeSettingsPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/microsoft"
+                element={
+                  <ProtectedRoute requiredRoles={["admin", "super_admin"]}>
+                    <MicrosoftAdminPage />
                   </ProtectedRoute>
                 }
               />

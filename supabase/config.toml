@@ -98,3 +98,18 @@ verify_jwt = false
 
 [functions.sharepoint-preview-url]
 verify_jwt = false
+
+[functions.conversation-email-send]
+verify_jwt = false
+
+[functions.conversation-export-pdf]
+verify_jwt = false
+
+[functions.graph-webhook-inbound]
+verify_jwt = false
+
+[functions.graph-subscription-manage]
+verify_jwt = false
+
+[functions.graph-subscription-renew-cron]
+verify_jwt = false
