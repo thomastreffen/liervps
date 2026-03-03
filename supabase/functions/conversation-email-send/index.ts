@@ -13,11 +13,41 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { post_id, mode, thread_id, recipient_email } = body;
+    const { post_id, mode, thread_id, recipient_email, test_mode, test_recipient } = body;
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceKey);
+
+    // ── Test mode: send a test email to verify Graph config ──
+    if (test_mode) {
+      if (!test_recipient) {
+        return new Response(JSON.stringify({ error: "test_recipient required" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const testResult = await sendViaGraphRaw(
+        "Testmail fra MCS Ressurs",
+        `<div style="font-family: sans-serif; padding: 20px;">
+          <h2>✅ Test e-post</h2>
+          <p>Denne e-posten bekrefter at Microsoft Graph-integrasjonen fungerer korrekt.</p>
+          <p style="color: #6b7280; font-size: 12px;">Sendt: ${new Date().toISOString()}</p>
+        </div>`,
+        [test_recipient]
+      );
+
+      return new Response(
+        JSON.stringify({
+          success: !testResult.error,
+          error: testResult.error || null,
+          status: testResult.status || null,
+          graph_message_id: testResult.draft?.id || null,
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     // ── Welcome mode: send history summary to newly added participant ──
     if (mode === "welcome_participant") {
@@ -119,17 +149,49 @@ Deno.serve(async (req) => {
         </div>
       `;
 
-      // Send via Graph
+      // 1. Log attempted status BEFORE Graph call
+      const { data: emailLog } = await supabase.from("conversation_email_messages").insert({
+        company_id: thread.company_id,
+        thread_id: thread.id,
+        direction: "outbound",
+        provider: "graph",
+        subject,
+        from_email: "postkontoret@mcsservice.no",
+        to_emails: [recipient_email],
+        status: "attempted",
+      }).select("id").single();
+
+      // 2. Send via Graph
       const sendResult = await sendViaGraph(supabase, thread, subject, bodyHtml, [recipient_email]);
 
+      // 3. Update email log with result
+      if (emailLog) {
+        await supabase.from("conversation_email_messages")
+          .update({
+            status: sendResult.error ? "failed" : (sendResult.status || "sent"),
+            error: sendResult.error || sendResult.sendError || null,
+            outlook_message_id: sendResult.draft?.id || null,
+            outlook_conversation_id: sendResult.draft?.conversationId || null,
+            outlook_internet_message_id: sendResult.draft?.internetMessageId || null,
+            processed_at: new Date().toISOString(),
+          })
+          .eq("id", emailLog.id);
+      }
+
+      // 4. Create appropriate system post
       if (sendResult.error) {
+        await supabase.from("conversation_posts").insert({
+          thread_id: thread.id,
+          company_id: thread.company_id,
+          post_type: "system",
+          body_text: `📧 Kunne ikke sende historikk til ${recipient_email}. Se e-postlogg.`,
+        });
         return new Response(JSON.stringify({ error: sendResult.error }), {
           status: 500,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
 
-      // Log system post
       await supabase.from("conversation_posts").insert({
         thread_id: thread.id,
         company_id: thread.company_id,
@@ -243,42 +305,42 @@ Deno.serve(async (req) => {
       </div>
     `;
 
-    // 6. Send via Graph
-    const sendResult = await sendViaGraph(supabase, thread, subject, bodyHtml, recipientEmails);
-
-    if (sendResult.error) {
-      await supabase.from("conversation_email_messages").insert({
-        company_id: thread.company_id,
-        thread_id: thread.id,
-        post_id: post.id,
-        direction: "outbound",
-        subject,
-        to_emails: recipientEmails,
-        status: "failed",
-        error: sendResult.error,
-      });
-      return new Response(
-        JSON.stringify({ error: sendResult.error }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // Log email message
-    await supabase.from("conversation_email_messages").insert({
+    // 6. Log attempted status BEFORE Graph call
+    const { data: emailLog } = await supabase.from("conversation_email_messages").insert({
       company_id: thread.company_id,
       thread_id: thread.id,
       post_id: post.id,
       direction: "outbound",
       provider: "graph",
-      outlook_message_id: sendResult.draft?.id,
-      outlook_conversation_id: sendResult.draft?.conversationId || null,
-      outlook_internet_message_id: sendResult.draft?.internetMessageId || null,
       subject,
       from_email: "postkontoret@mcsservice.no",
       to_emails: recipientEmails,
-      status: sendResult.status,
-      error: sendResult.sendError,
-    });
+      status: "attempted",
+    }).select("id").single();
+
+    // 7. Send via Graph
+    const sendResult = await sendViaGraph(supabase, thread, subject, bodyHtml, recipientEmails);
+
+    // 8. Update email log with actual result
+    if (emailLog) {
+      await supabase.from("conversation_email_messages")
+        .update({
+          status: sendResult.error ? "failed" : (sendResult.status || "sent"),
+          error: sendResult.error || sendResult.sendError || null,
+          outlook_message_id: sendResult.draft?.id || null,
+          outlook_conversation_id: sendResult.draft?.conversationId || null,
+          outlook_internet_message_id: sendResult.draft?.internetMessageId || null,
+          processed_at: new Date().toISOString(),
+        })
+        .eq("id", emailLog.id);
+    }
+
+    if (sendResult.error) {
+      return new Response(
+        JSON.stringify({ error: sendResult.error }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     // Update thread
     await supabase
@@ -302,7 +364,82 @@ Deno.serve(async (req) => {
   }
 });
 
-// ── Shared Graph send helper ──
+// ── Raw Graph send (no thread context, for test mode) ──
+async function sendViaGraphRaw(
+  subject: string,
+  bodyHtml: string,
+  recipientEmails: string[]
+): Promise<{ error?: string; draft?: any; status?: string; sendError?: string | null }> {
+  const azureTenantId = Deno.env.get("AZURE_TENANT_ID");
+  const azureClientId = Deno.env.get("AZURE_CLIENT_ID");
+  const azureClientSecret = Deno.env.get("AZURE_CLIENT_SECRET");
+
+  if (!azureTenantId || !azureClientId || !azureClientSecret) {
+    return { error: "Missing Azure credentials" };
+  }
+
+  const tokenResp = await fetch(
+    `https://login.microsoftonline.com/${azureTenantId}/oauth2/v2.0/token`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        client_id: azureClientId,
+        client_secret: azureClientSecret,
+        scope: "https://graph.microsoft.com/.default",
+        grant_type: "client_credentials",
+      }),
+    }
+  );
+  const tokenData = await tokenResp.json();
+  if (!tokenData.access_token) {
+    return { error: `Token acquisition failed: ${JSON.stringify(tokenData)}` };
+  }
+
+  const systemMailbox = "postkontoret@mcsservice.no";
+
+  const draftResp = await fetch(
+    `https://graph.microsoft.com/v1.0/users/${systemMailbox}/messages`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${tokenData.access_token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        subject,
+        body: { contentType: "HTML", content: bodyHtml },
+        toRecipients: recipientEmails.map((e) => ({
+          emailAddress: { address: e },
+        })),
+      }),
+    }
+  );
+
+  if (!draftResp.ok) {
+    const errText = await draftResp.text();
+    return { error: `Draft failed (${draftResp.status}): ${errText}` };
+  }
+
+  const draft = await draftResp.json();
+
+  const sendResp = await fetch(
+    `https://graph.microsoft.com/v1.0/users/${systemMailbox}/messages/${draft.id}/send`,
+    {
+      method: "POST",
+      headers: { Authorization: `Bearer ${tokenData.access_token}` },
+    }
+  );
+
+  if (!sendResp.ok) {
+    const sendErr = await sendResp.text();
+    return { draft, status: "failed", sendError: sendErr };
+  }
+
+  return { draft, status: "sent", sendError: null };
+}
+
+// ── Shared Graph send helper (with thread context) ──
 async function sendViaGraph(
   supabase: any,
   thread: any,
