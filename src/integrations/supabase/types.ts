@@ -4925,6 +4925,10 @@ export type Database = {
       get_user_account_id: { Args: { _auth_user_id: string }; Returns: string }
       get_user_scope: { Args: { _user_id: string }; Returns: string }
       get_user_scope_v2: { Args: { _auth_user_id: string }; Returns: string }
+      has_docs_space_access: {
+        Args: { _auth_user_id: string; _project_id: string }
+        Returns: boolean
+      }
       has_folder_access: {
         Args: { _auth_user_id: string; _folder_id: string }
         Returns: boolean
@@ -4941,6 +4945,14 @@ export type Database = {
         Returns: boolean
       }
       is_admin: { Args: never; Returns: boolean }
+      is_explicit_space_member: {
+        Args: { _auth_user_id: string; _space_id: string }
+        Returns: boolean
+      }
+      is_internal_nonfollow_member: {
+        Args: { _auth_user_id: string; _project_id: string }
+        Returns: boolean
+      }
       is_project_admin: {
         Args: { _auth_user_id: string; _project_id: string }
         Returns: boolean

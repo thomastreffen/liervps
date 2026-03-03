@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useProjectAccess, type ProjectMember } from "@/hooks/useProjectAccess";
+import { useState, useEffect } from "react";
+import { useProjectAccess, type ProjectMember, type SearchablePerson } from "@/hooks/useProjectAccess";
 import {
   Users,
   Shield,
@@ -9,11 +9,10 @@ import {
   Trash2,
   Loader2,
   X,
-  ChevronDown,
-  ToggleLeft,
-  ToggleRight,
+  Search,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -41,11 +40,6 @@ const ROLE_ICONS: Record<string, React.ReactNode> = {
   follower: <Eye className="h-3.5 w-3.5 text-muted-foreground" />,
 };
 
-const TYPE_LABELS: Record<string, string> = {
-  internal: "Intern",
-  external: "Ekstern",
-};
-
 const SPACE_LABELS: Record<string, string> = {
   samtaler: "Samtaler",
   oppgaver: "Oppgaver",
@@ -71,6 +65,8 @@ export function ProjectAccessDrawer({
     spaces,
     loading,
     isAdmin,
+    searchPeople,
+    addMember,
     removeMember,
     updateMemberRole,
     toggleSpace,
@@ -98,6 +94,11 @@ export function ProjectAccessDrawer({
           <X className="h-4 w-4" />
         </Button>
       </div>
+
+      {/* Explanation */}
+      <p className="text-xs text-muted-foreground leading-relaxed">
+        Interne medlemmer ser automatisk alle aktive rom. Eksterne må legges til eksplisitt per rom.
+      </p>
 
       {/* Tab switcher */}
       <div className="flex gap-1 rounded-lg bg-muted p-1">
@@ -136,6 +137,8 @@ export function ProjectAccessDrawer({
           isAdmin={isAdmin}
           onRemove={removeMember}
           onUpdateRole={updateMemberRole}
+          onSearch={searchPeople}
+          onAdd={addMember}
         />
       ) : (
         <SpacesTab spaces={spaces} isAdmin={isAdmin} onToggle={toggleSpace} />
@@ -151,14 +154,39 @@ function MembersTab({
   isAdmin,
   onRemove,
   onUpdateRole,
+  onSearch,
+  onAdd,
 }: {
   members: ProjectMember[];
   isAdmin: boolean;
   onRemove: (id: string) => Promise<void>;
   onUpdateRole: (id: string, role: string) => Promise<void>;
+  onSearch: (q: string) => Promise<SearchablePerson[]>;
+  onAdd: (uaId: string, type: string, role: string) => Promise<void>;
 }) {
+  const [showAdd, setShowAdd] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [results, setResults] = useState<SearchablePerson[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [addingRole, setAddingRole] = useState("member");
+  const [addingType, setAddingType] = useState("internal");
+
   const internals = members.filter((m) => m.member_type === "internal");
   const externals = members.filter((m) => m.member_type === "external");
+
+  useEffect(() => {
+    if (!searchQuery || searchQuery.length < 2) {
+      setResults([]);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      setSearching(true);
+      const r = await onSearch(searchQuery);
+      setResults(r);
+      setSearching(false);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery, onSearch]);
 
   const handleRemove = async (m: ProjectMember) => {
     try {
@@ -178,17 +206,116 @@ function MembersTab({
     }
   };
 
-  if (members.length === 0) {
-    return (
-      <div className="text-center py-8 space-y-2">
-        <Users className="h-8 w-8 text-muted-foreground mx-auto" />
-        <p className="text-sm text-muted-foreground">Ingen medlemmer lagt til ennå.</p>
-      </div>
-    );
-  }
+  const handleAdd = async (person: SearchablePerson) => {
+    try {
+      await onAdd(person.user_account_id, addingType, addingRole);
+      toast.success(`${person.name} lagt til`);
+      setSearchQuery("");
+      setResults([]);
+    } catch (err: any) {
+      toast.error("Kunne ikke legge til", { description: err.message });
+    }
+  };
 
   return (
     <div className="space-y-4">
+      {/* Add member */}
+      {isAdmin && (
+        <>
+          {!showAdd ? (
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full gap-2"
+              onClick={() => setShowAdd(true)}
+            >
+              <UserPlus className="h-4 w-4" />
+              Legg til medlem
+            </Button>
+          ) : (
+            <div className="space-y-3 rounded-xl border border-border/60 bg-card p-3">
+              <div className="flex items-center gap-2">
+                <Select value={addingType} onValueChange={setAddingType}>
+                  <SelectTrigger className="w-[100px] h-8 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="internal">Intern</SelectItem>
+                    <SelectItem value="external">Ekstern</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={addingRole} onValueChange={setAddingRole}>
+                  <SelectTrigger className="w-[130px] h-8 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="manager">Prosjektleder</SelectItem>
+                    <SelectItem value="member">Deltaker</SelectItem>
+                    <SelectItem value="follower">Følger</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="ml-auto text-xs"
+                  onClick={() => { setShowAdd(false); setSearchQuery(""); setResults([]); }}
+                >
+                  Avbryt
+                </Button>
+              </div>
+
+              <div className="relative">
+                <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                <Input
+                  placeholder="Søk etter navn eller e-post…"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-8 h-9 text-sm"
+                  autoFocus
+                />
+              </div>
+
+              {searching && (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground py-1">
+                  <Loader2 className="h-3 w-3 animate-spin" /> Søker…
+                </div>
+              )}
+
+              {results.length > 0 && (
+                <div className="space-y-1 max-h-48 overflow-y-auto">
+                  {results.map((p) => (
+                    <button
+                      key={p.user_account_id}
+                      onClick={() => handleAdd(p)}
+                      className="flex items-center gap-2 w-full rounded-md px-2 py-2 text-left hover:bg-muted transition-colors"
+                    >
+                      <div className="h-7 w-7 rounded-full bg-muted flex items-center justify-center text-xs font-medium text-muted-foreground shrink-0">
+                        {p.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium truncate">{p.name}</p>
+                        {p.email && <p className="text-xs text-muted-foreground truncate">{p.email}</p>}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {searchQuery.length >= 2 && !searching && results.length === 0 && (
+                <p className="text-xs text-muted-foreground py-1">Ingen treff</p>
+              )}
+            </div>
+          )}
+        </>
+      )}
+
+      {members.length === 0 && (
+        <div className="text-center py-8 space-y-2">
+          <Users className="h-8 w-8 text-muted-foreground mx-auto" />
+          <p className="text-sm text-muted-foreground">Ingen medlemmer lagt til ennå.</p>
+        </div>
+      )}
+
       {internals.length > 0 && (
         <div className="space-y-1.5">
           <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
@@ -299,6 +426,9 @@ function SpacesTab({
 
   return (
     <div className="space-y-1.5">
+      <p className="text-xs text-muted-foreground mb-2">
+        Aktiver eller deaktiver rom. Deaktiverte rom er skjult for alle brukere.
+      </p>
       {spaces.map((s) => (
         <div
           key={s.space_id}
