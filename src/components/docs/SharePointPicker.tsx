@@ -71,14 +71,25 @@ export function SharePointPicker({ jobId, onSelect }: SharePointPickerProps) {
         body: { job_id: jobId, view_mode: "curated" },
       });
 
-      // Handle 409 (not linked) gracefully
+      // Parse actual error body from FunctionsHttpError context
+      let errorBody: any = null;
       if (fnError) {
-        const msg = typeof fnError === "object" && fnError.message ? fnError.message : String(fnError);
-        if (msg.includes("409") || msg.includes("not_linked") || msg.includes("ikke koblet")) {
+        try {
+          // supabase-js wraps the response in error.context
+          const ctx = (fnError as any)?.context;
+          if (ctx && typeof ctx.json === "function") {
+            errorBody = await ctx.json();
+          }
+        } catch { /* ignore parse errors */ }
+
+        // Check if it's a "not linked" error
+        const bodyMsg = errorBody?.error || "";
+        const bodyStep = errorBody?.step || "";
+        if (bodyStep === "not_linked" || bodyMsg.includes("ikke koblet")) {
           setError("Prosjektet er ikke koblet til SharePoint ennå. Koble først via prosjektinnstillinger.");
           return;
         }
-        setError(msg);
+        setError(errorBody?.error || fnError.message || "Kunne ikke laste SharePoint-data");
         return;
       }
       if (data?.error) {
