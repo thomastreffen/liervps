@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { ProjectHeader } from "@/components/project/ProjectHeader";
 import { ProjectRooms } from "@/components/project/ProjectRooms";
 import { ProjectFeed } from "@/components/project/ProjectFeed";
+import { ThreadList } from "@/components/conversations/ThreadList";
 import { DocsFilesRoom } from "@/components/docs/DocsFilesRoom";
 import { ProjectPlanTab } from "@/components/ProjectPlanTab";
 import { Button } from "@/components/ui/button";
@@ -189,13 +190,7 @@ export default function JobDetail() {
               <h2 className="text-xl font-bold text-foreground capitalize">{activeRoom}</h2>
 
               {activeRoom === "samtaler" && (
-                <ProjectFeed
-                  jobId={id!}
-                  jobTitle={job.title}
-                  customer={job.customer}
-                  internalNumber={job.internalNumber || null}
-                  filter="conversations"
-                />
+                <ThreadList projectId={id!} />
               )}
               {activeRoom === "oppgaver" && (
                 <ProjectFeed

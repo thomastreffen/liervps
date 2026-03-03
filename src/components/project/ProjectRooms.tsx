@@ -60,16 +60,12 @@ export function ProjectRooms({ jobId, onOpenPlan, onOpenRoom }: ProjectRoomsProp
     setLoading(true);
     const today = new Date().toISOString().split("T")[0];
 
-    const [msgRes, emailRes, taskRes, docRes, scheduleRes] = await Promise.all([
-      // Samtaler – interne meldinger
-      supabase.from("activity_log")
+    const [threadRes, taskRes, docRes, scheduleRes] = await Promise.all([
+      // Samtaler – conversation threads
+      supabase.from("conversation_threads")
         .select("id", { count: "exact", head: true })
-        .eq("entity_id", jobId)
-        .in("type", ["note", "comment"]),
-      // Samtaler – e-posttråder
-      supabase.from("communication_logs")
-        .select("id", { count: "exact", head: true })
-        .eq("entity_id", jobId),
+        .eq("project_id", jobId)
+        .eq("is_archived", false),
       // Oppgaver – kun åpne
       supabase.from("job_tasks")
         .select("id", { count: "exact", head: true })
@@ -88,7 +84,7 @@ export function ProjectRooms({ jobId, onOpenPlan, onOpenRoom }: ProjectRoomsProp
     ]);
 
     setCounts({
-      conversations: (msgRes.count ?? 0) + (emailRes.count ?? 0),
+      conversations: threadRes.count ?? 0,
       tasks: taskRes.count ?? 0,
       docs: docRes.count ?? 0,
       schedule: scheduleRes.count ?? 0,
