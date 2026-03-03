@@ -1,6 +1,7 @@
 import { useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { triggerConversationEmailSend } from "@/lib/conversation-email";
 import { useAuth } from "@/hooks/useAuth";
 import { useCompanyContext } from "@/hooks/useCompanyContext";
 import { ArrowLeft, Send, Loader2, Paperclip } from "lucide-react";
@@ -104,19 +105,10 @@ export default function ConversationNewPage() {
       }
     }
 
-    // Trigger email send for first post
+    // Trigger email send for first post via centralized backend
     if (!postErr && post) {
-      try {
-        const pid = import.meta.env.VITE_SUPABASE_PROJECT_ID;
-        fetch(`https://${pid}.supabase.co/functions/v1/conversation-email-send`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-          },
-          body: JSON.stringify({ post_id: post.id }),
-        }).catch(() => {});
-      } catch {}
+      triggerConversationEmailSend(thread.id, "new_post", { post_id: post.id })
+        .catch(() => {});
     }
 
     if (postErr) {
