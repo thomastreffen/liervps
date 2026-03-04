@@ -13,6 +13,7 @@ import { Lock, CalendarCheck, AlertTriangle, Globe, Monitor } from "lucide-react
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { format } from "date-fns";
 import { nb } from "date-fns/locale";
+import { toast } from "sonner";
 
 interface TechLookup {
   name: string;
@@ -264,6 +265,7 @@ export const ResourceCalendar = memo(function ResourceCalendar({
 
     // Schedule block click → always open side panel
     if (props.isScheduleBlock) {
+      toast.info(`Clicked block: sb-${(props.scheduleBlock as ScheduleBlock).id.slice(0, 8)}`);
       onScheduleBlockClick?.(props.scheduleBlock as ScheduleBlock);
       return;
     }
@@ -273,6 +275,7 @@ export const ResourceCalendar = memo(function ResourceCalendar({
       const busyStart = info.event.start?.getTime() ?? 0;
       const busyEnd = info.event.end?.getTime() ?? busyStart;
       const busyTechId = props.busyTechId as string | undefined;
+      toast.info(`Clicked busy slot: tech=${busyTechId?.slice(0,8)}, blocks=${scheduleBlocks.length}`);
       if (busyTechId && scheduleBlocks.length > 0) {
         const match = scheduleBlocks.find(
           (sb) =>
@@ -285,13 +288,47 @@ export const ResourceCalendar = memo(function ResourceCalendar({
           return;
         }
       }
-      // No matching schedule_block – ignore click (nothing to show)
+      // No matching schedule_block – open debug panel with synthetic block
+      if (busyTechId && onScheduleBlockClick) {
+        const debugBlock: ScheduleBlock = {
+          id: `debug-${busyTechId}-${busyStart}`,
+          company_id: "",
+          technician_id: busyTechId,
+          project_id: null,
+          outlook_event_id: null,
+          calendar_id: null,
+          source: "outlook",
+          start_at: info.event.start || new Date(busyStart),
+          end_at: info.event.end || new Date(busyEnd),
+          title: props.techName ? `${props.techName} – opptatt` : "Opptatt",
+          location: null,
+          description: `NO_MATCH: ${scheduleBlocks.length} schedule_blocks vurdert, ingen traff for tech=${busyTechId}`,
+          match_confidence: 0,
+          match_reason: `Debug: busy slot uten schedule_block. Checked ${scheduleBlocks.filter(sb => sb.technician_id === busyTechId).length} blocks for this tech.`,
+          match_state: "external",
+          mcs_block_id: null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          outlook_subject: props.techName ? `${props.techName} – opptatt (ekstern)` : "Opptatt (ekstern)",
+          outlook_location: null,
+          outlook_preview: null,
+          outlook_weblink: null,
+          outlook_organizer: null,
+          ai_match_reason: null,
+          ai_confidence: null,
+          technician_name: props.techName || "Ukjent",
+          technician_color: props.busyTechColor || null,
+          project_title: null,
+        };
+        onScheduleBlockClick(debugBlock);
+      }
       return;
     }
 
     // Regular calendar event → check if a schedule_block covers it first
     const calEvent = props.calendarEvent as CalendarEvent | undefined;
     if (calEvent) {
+      toast.info(`Clicked event: ${calEvent.id.slice(0, 8)}`);
       const evStart = info.event.start?.getTime() ?? 0;
       const evEnd = info.event.end?.getTime() ?? evStart;
       const matchBlock = scheduleBlocks.find(

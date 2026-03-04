@@ -262,9 +262,11 @@ export default function ResourcePlan() {
         {/* Header */}
         <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-xl sm:text-2xl font-bold tracking-tight flex items-center gap-2.5">
-              <CalendarDays className="h-6 w-6 text-primary" />
-              Ressursplan
+            <div className="flex items-center gap-2.5">
+              <h1 className="text-xl sm:text-2xl font-bold tracking-tight flex items-center gap-2.5">
+                <CalendarDays className="h-6 w-6 text-primary" />
+                Ressursplan
+              </h1>
               {selectedTech && (
                 <span
                   className="inline-flex items-center gap-1.5 text-base font-semibold px-3 py-1 rounded-full"
@@ -277,7 +279,10 @@ export default function ResourcePlan() {
                   {selectedTech.name}
                 </span>
               )}
-            </h1>
+            </div>
+            <span className="text-[9px] font-mono text-muted-foreground/60 select-all">
+              UI build: 2026-03-04 14:30
+            </span>
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
