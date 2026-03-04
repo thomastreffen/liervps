@@ -211,15 +211,18 @@ Deno.serve(async (req) => {
             }
           }
 
-          // 2. Fuzzy match on subject
+           // 2. Fuzzy match on subject + aliases
           if (!projectId && ev.subject) {
-            const firstWord = ev.subject.split(/[\s–\-,]+/).filter(w => w.length > 2)[0];
+            const words = ev.subject.split(/[\s–\-,]+/).filter((w: string) => w.length > 2);
+            const firstWord = words[0];
             if (firstWord) {
+              // Search by title, customer, AND aliases
               const { data: matchedProjects } = await supabase
                 .from("events")
-                .select("id, title, customer, address")
-                .or(`title.ilike.%${firstWord}%,customer.ilike.%${firstWord}%`)
-                .limit(5);
+                .select("id, title, customer, address, project_aliases")
+                .or(`title.ilike.%${firstWord}%,customer.ilike.%${firstWord}%,project_aliases.cs.{${firstWord}}`)
+                .is("deleted_at", null)
+                .limit(10);
 
               if (matchedProjects?.length) {
                 const subject = ev.subject.toLowerCase();
@@ -230,13 +233,24 @@ Deno.serve(async (req) => {
                   let score = 0;
                   const title = (p.title || "").toLowerCase();
                   const customer = (p.customer || "").toLowerCase();
+                  const aliases: string[] = ((p as any).project_aliases || []).map((a: string) => a.toLowerCase());
+
+                  // Alias match – strongest signal
+                  for (const alias of aliases) {
+                    if (subject.includes(alias) || alias.includes(subject.split(" ")[0])) {
+                      score += 60;
+                      break;
+                    }
+                    for (const w of words) {
+                      if (alias === w.toLowerCase()) { score += 45; break; }
+                    }
+                  }
 
                   if (subject.includes(title) || title.includes(subject)) score += 50;
                   else {
-                    const words = subject.split(/[\s–\-,]+/).filter(w => w.length > 2);
                     for (const w of words) {
-                      if (title.includes(w)) score += 15;
-                      if (customer.includes(w)) score += 10;
+                      if (title.includes(w.toLowerCase())) score += 15;
+                      if (customer.includes(w.toLowerCase())) score += 10;
                     }
                   }
 
@@ -354,6 +368,22 @@ Deno.serve(async (req) => {
     // Determine if there are more techs to process (continuation)
     const lastTechName = techs[techs.length - 1]?.name;
     const continuationToken = techs.length >= BATCH_SIZE ? lastTechName : null;
+
+    // Trigger AI project matcher if there are needs_confirmation blocks
+    if (totalNeedsConfirmation > 0) {
+      try {
+        await fetch(`${supabaseUrl}/functions/v1/ai-project-matcher`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${serviceKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({}),
+        });
+      } catch (aiErr: any) {
+        console.error("[outlook-schedule-sync] AI matcher trigger failed:", aiErr.message);
+      }
+    }
 
     // Log run completion
     await supabase.from("schedule_sync_runs").update({

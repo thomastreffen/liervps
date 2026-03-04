@@ -32,6 +32,8 @@ export default function ProjectSettingsPage() {
   const [endDate, setEndDate] = useState("");
   const [endTime, setEndTime] = useState("16:00");
   const [techIds, setTechIds] = useState<string[]>([]);
+  const [aliases, setAliases] = useState<string[]>([]);
+  const [aliasInput, setAliasInput] = useState("");
   const [notifyParticipants, setNotifyParticipants] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -69,6 +71,7 @@ export default function ProjectSettingsPage() {
       setEndTime(format(end, "HH:mm"));
 
       setTechIds((data.event_technicians ?? []).map((et: any) => et.technician_id));
+      setAliases((data as any).project_aliases ?? []);
       setLoading(false);
     })();
   }, [jobId, navigate]);
@@ -135,7 +138,8 @@ export default function ProjectSettingsPage() {
           start_time: startISO,
           end_time: endISO,
           updated_by: userId || null,
-        })
+          project_aliases: aliases,
+        } as any)
         .eq("id", jobId);
 
       if (updateError) {
@@ -224,6 +228,56 @@ export default function ProjectSettingsPage() {
           <div>
             <Label>Adresse</Label>
             <Input value={address} onChange={(e) => setAddress(e.target.value)} required className="mt-1.5" />
+          </div>
+
+          {/* Project Aliases */}
+          <div>
+            <Label>Kallenavn / Aliases</Label>
+            <p className="text-xs text-muted-foreground mb-1.5">Montørene bruker ofte kallenavn i Outlook. Legg til her for bedre automatisk matching.</p>
+            <div className="flex flex-wrap gap-1.5 mb-2">
+              {aliases.map((alias, i) => (
+                <span
+                  key={i}
+                  className="inline-flex items-center gap-1 text-xs font-medium bg-primary/10 text-primary rounded-full px-2.5 py-1"
+                >
+                  {alias}
+                  <button
+                    type="button"
+                    onClick={() => setAliases(prev => prev.filter((_, idx) => idx !== i))}
+                    className="hover:text-destructive"
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <Input
+                placeholder="F.eks. DC Odin, Kirkeveien..."
+                value={aliasInput}
+                onChange={(e) => setAliasInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && aliasInput.trim()) {
+                    e.preventDefault();
+                    setAliases(prev => [...prev, aliasInput.trim()]);
+                    setAliasInput("");
+                  }
+                }}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  if (aliasInput.trim()) {
+                    setAliases(prev => [...prev, aliasInput.trim()]);
+                    setAliasInput("");
+                  }
+                }}
+              >
+                Legg til
+              </Button>
+            </div>
           </div>
 
           {/* Dates */}

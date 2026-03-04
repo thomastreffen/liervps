@@ -249,6 +249,8 @@ export const ResourceCalendar = memo(function ResourceCalendar({
           blockStartAt: block.start_at,
           blockEndAt: block.end_at,
           outlookLocation: block.outlook_location,
+          aiConfidence: block.ai_confidence,
+          aiMatchReason: block.ai_match_reason,
         },
       });
     }
@@ -340,6 +342,9 @@ export const ResourceCalendar = memo(function ResourceCalendar({
                     <p className="text-amber-400">⚠ Trenger bekreftelse ({props.matchConfidence}%)</p>
                     {props.matchReason && <p className="text-muted-foreground italic">{props.matchReason}</p>}
                   </>
+                )}
+                {props.aiConfidence > 0 && (
+                  <p className="text-primary">✨ AI: {props.aiMatchReason || `${props.aiConfidence}%`}</p>
                 )}
               </div>
             );

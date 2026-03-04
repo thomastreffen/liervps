@@ -134,3 +134,6 @@ verify_jwt = false
 
 [functions.outlook-schedule-sync]
 verify_jwt = false
+
+[functions.ai-project-matcher]
+verify_jwt = false
