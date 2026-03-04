@@ -168,6 +168,11 @@ export function useConversationPosts(threadId: string | null) {
         { event: "INSERT", schema: "public", table: "conversation_posts", filter: `thread_id=eq.${threadId}` },
         () => fetchPosts()
       )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "conversation_posts", filter: `thread_id=eq.${threadId}` },
+        () => fetchPosts()
+      )
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [threadId, fetchPosts]);
