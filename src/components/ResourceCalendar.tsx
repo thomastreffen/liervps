@@ -225,9 +225,11 @@ export const ResourceCalendar = memo(function ResourceCalendar({
       const colors = matchStateColors[block.match_state] || matchStateColors.external;
       const techName = block.technician_name?.split(" ")[0] || "";
       const sourceLabel = block.source === "outlook" ? "Outlook" : "System";
+      // Use outlook_subject for display title when available
+      const displayTitle = block.outlook_subject || block.title || "Outlook-blokk";
       result.push({
         id: `sb-${block.id}`,
-        title: block.title || "Outlook-blokk",
+        title: displayTitle,
         start: block.start_at,
         end: block.end_at,
         backgroundColor: hexToRgba(colors.bg, 0.85),
@@ -246,6 +248,7 @@ export const ResourceCalendar = memo(function ResourceCalendar({
           matchReason: block.match_reason,
           blockStartAt: block.start_at,
           blockEndAt: block.end_at,
+          outlookLocation: block.outlook_location,
         },
       });
     }

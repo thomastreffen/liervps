@@ -13,6 +13,9 @@ interface GraphEvent {
   location?: { displayName?: string };
   lastModifiedDateTime?: string;
   body?: { content?: string };
+  bodyPreview?: string;
+  webLink?: string;
+  organizer?: { emailAddress?: { name?: string; address?: string } };
   categories?: string[];
 }
 
@@ -134,7 +137,7 @@ Deno.serve(async (req) => {
           calUrl = syncState.delta_link;
         } else {
           // Full sync - calendarView
-          calUrl = `https://graph.microsoft.com/v1.0/users/${email}/calendarView/delta?startDateTime=${now.toISOString()}&endDateTime=${fourWeeks.toISOString()}&$select=id,subject,start,end,location,lastModifiedDateTime,body,categories`;
+          calUrl = `https://graph.microsoft.com/v1.0/users/${email}/calendarView/delta?startDateTime=${now.toISOString()}&endDateTime=${fourWeeks.toISOString()}&$select=id,subject,start,end,location,lastModifiedDateTime,body,bodyPreview,webLink,organizer,categories`;
         }
 
         // Fetch events (follow @odata.nextLink for pagination)
@@ -150,7 +153,7 @@ Deno.serve(async (req) => {
           if (!calRes.ok) {
             // If deltaLink is stale (410 Gone), reset and do full sync
             if (calRes.status === 410 && syncState?.delta_link) {
-              const fullUrl = `https://graph.microsoft.com/v1.0/users/${email}/calendarView/delta?startDateTime=${now.toISOString()}&endDateTime=${fourWeeks.toISOString()}&$select=id,subject,start,end,location,lastModifiedDateTime,body,categories`;
+              const fullUrl = `https://graph.microsoft.com/v1.0/users/${email}/calendarView/delta?startDateTime=${now.toISOString()}&endDateTime=${fourWeeks.toISOString()}&$select=id,subject,start,end,location,lastModifiedDateTime,body,bodyPreview,webLink,organizer,categories`;
               const retryRes = await fetch(fullUrl, {
                 headers: { Authorization: `Bearer ${graphToken}` },
               });
@@ -311,6 +314,12 @@ Deno.serve(async (req) => {
                 match_state: matchState,
                 last_modified: ev.lastModifiedDateTime || null,
                 mcs_block_id: existingBlockId,
+                // Outlook detail fields
+                outlook_subject: ev.subject || null,
+                outlook_location: ev.location?.displayName || null,
+                outlook_preview: ev.bodyPreview || null,
+                outlook_weblink: ev.webLink || null,
+                outlook_organizer: ev.organizer?.emailAddress?.name || null,
               },
               { onConflict: "outlook_event_id,calendar_id" }
             );

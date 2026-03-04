@@ -4591,6 +4591,11 @@ export type Database = {
           mcs_block_id: string | null
           outlook_etag: string | null
           outlook_event_id: string | null
+          outlook_location: string | null
+          outlook_organizer: string | null
+          outlook_preview: string | null
+          outlook_subject: string | null
+          outlook_weblink: string | null
           project_id: string | null
           source: string
           start_at: string
@@ -4613,6 +4618,11 @@ export type Database = {
           mcs_block_id?: string | null
           outlook_etag?: string | null
           outlook_event_id?: string | null
+          outlook_location?: string | null
+          outlook_organizer?: string | null
+          outlook_preview?: string | null
+          outlook_subject?: string | null
+          outlook_weblink?: string | null
           project_id?: string | null
           source?: string
           start_at: string
@@ -4635,6 +4645,11 @@ export type Database = {
           mcs_block_id?: string | null
           outlook_etag?: string | null
           outlook_event_id?: string | null
+          outlook_location?: string | null
+          outlook_organizer?: string | null
+          outlook_preview?: string | null
+          outlook_subject?: string | null
+          outlook_weblink?: string | null
           project_id?: string | null
           source?: string
           start_at?: string
