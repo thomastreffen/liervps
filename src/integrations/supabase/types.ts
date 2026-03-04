@@ -4666,6 +4666,86 @@ export type Database = {
           },
         ]
       }
+      schedule_sync_runs: {
+        Row: {
+          continuation_token: string | null
+          errors: string[] | null
+          events_fetched: number
+          finished_at: string | null
+          id: string
+          needs_confirmation: number
+          run_id: string
+          started_at: string
+          status: string
+          techs_processed: number
+          upserts: number
+        }
+        Insert: {
+          continuation_token?: string | null
+          errors?: string[] | null
+          events_fetched?: number
+          finished_at?: string | null
+          id?: string
+          needs_confirmation?: number
+          run_id: string
+          started_at?: string
+          status?: string
+          techs_processed?: number
+          upserts?: number
+        }
+        Update: {
+          continuation_token?: string | null
+          errors?: string[] | null
+          events_fetched?: number
+          finished_at?: string | null
+          id?: string
+          needs_confirmation?: number
+          run_id?: string
+          started_at?: string
+          status?: string
+          techs_processed?: number
+          upserts?: number
+        }
+        Relationships: []
+      }
+      schedule_sync_state: {
+        Row: {
+          calendar_id: string
+          created_at: string
+          delta_link: string | null
+          id: string
+          last_synced_at: string | null
+          technician_id: string
+          updated_at: string
+        }
+        Insert: {
+          calendar_id: string
+          created_at?: string
+          delta_link?: string | null
+          id?: string
+          last_synced_at?: string | null
+          technician_id: string
+          updated_at?: string
+        }
+        Update: {
+          calendar_id?: string
+          created_at?: string
+          delta_link?: string | null
+          id?: string
+          last_synced_at?: string | null
+          technician_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "schedule_sync_state_technician_id_fkey"
+            columns: ["technician_id"]
+            isOneToOne: false
+            referencedRelation: "technicians"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       service_jobs: {
         Row: {
           address: string | null

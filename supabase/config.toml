@@ -131,3 +131,6 @@ verify_jwt = false
 
 [functions.inbox-debug]
 verify_jwt = false
+
+[functions.outlook-schedule-sync]
+verify_jwt = false
