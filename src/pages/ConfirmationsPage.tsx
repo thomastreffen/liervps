@@ -53,6 +53,7 @@ export default function ConfirmationsPage() {
         technicians!inner(name, color),
         events(title)
       `)
+      .is("deleted_at", null)
       .eq("match_state", "needs_confirmation")
       .order("start_at", { ascending: true });
 

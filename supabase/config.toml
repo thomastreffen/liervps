@@ -137,3 +137,6 @@ verify_jwt = false
 
 [functions.ai-project-matcher]
 verify_jwt = false
+
+[functions.delete-schedule-block]
+verify_jwt = false
