@@ -779,6 +779,53 @@ async function matchToConversationThread(
   return null;
 }
 
+// ── Strip quoted replies from email body ──
+function stripQuotedText(text: string): string {
+  const lines = text.split("\n");
+  const stopPatterns = [
+    /^[-]+\s*original\s*message/i,
+    /^[-]+\s*opprinnelig\s*melding/i,
+    /^on\s+.+wrote:$/i,
+    /^\d{1,2}[\./]\s?\w+\s+\d{4}.*skrev.*:$/i,
+    /^den\s+\d/i,
+    /^fra:/i,
+    /^from:/i,
+    /^sent:/i,
+    /^sendt:/i,
+    /^>\s/,
+    /^_{3,}/,
+    /^-{3,}/,
+    /wrote:$/i,
+    /skrev:$/i,
+  ];
+  const result: string[] = [];
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (stopPatterns.some(p => p.test(trimmed))) break;
+    result.push(line);
+  }
+  // Trim trailing whitespace
+  while (result.length > 0 && result[result.length - 1].trim() === "") result.pop();
+  return result.join("\n");
+}
+
+function stripQuotedHtml(html: string): string {
+  // Remove gmail_quote divs, blockquotes, and outlook-style quoted content
+  let clean = html;
+  // Gmail: <div class="gmail_quote">...</div>
+  clean = clean.replace(/<div\s+class="gmail_quote"[\s\S]*$/i, "");
+  // Generic blockquote removal (often used for quoted replies)
+  clean = clean.replace(/<blockquote[\s\S]*$/i, "");
+  // Outlook: <div id="divRplyFwdMsg">...</div> or appendonsend
+  clean = clean.replace(/<div\s+id="divRplyFwdMsg"[\s\S]*$/i, "");
+  clean = clean.replace(/<div\s+id="appendonsend"[\s\S]*$/i, "");
+  // Outlook: <hr style=...> followed by From: block
+  clean = clean.replace(/<hr\s+style[^>]*>[\s\S]*$/i, "");
+  // Remove trailing empty divs/paragraphs
+  clean = clean.replace(/(<br\s*\/?>|\s|<\/?p>|<\/?div>)*$/i, "");
+  return clean.trim();
+}
+
 // ── Create conversation post from inbound mail ──
 async function createConversationPost(
   msg: any,
@@ -790,6 +837,11 @@ async function createConversationPost(
 ): Promise<string | null> {
   const senderEmail = msg.from?.emailAddress?.address?.toLowerCase();
   const senderName = msg.from?.emailAddress?.name || senderEmail;
+
+  const rawHtml = msg.body?.content || "";
+  const rawText = msg.bodyPreview || "";
+  const cleanText = stripQuotedText(rawText);
+  const cleanHtml = rawHtml ? stripQuotedHtml(rawHtml) : null;
 
   // Reopen closed thread
   if (thread.status === "closed") {
@@ -805,8 +857,10 @@ async function createConversationPost(
   const { data: post } = await admin.from("conversation_posts").insert({
     thread_id: threadId, company_id: thread.company_id,
     post_type: "email", subject: msg.subject,
-    body_html: msg.body?.content || "",
-    body_text: msg.bodyPreview || "",
+    body_html: cleanHtml || cleanText,
+    body_text: cleanText,
+    body_raw: rawHtml || rawText,
+    body_clean: cleanText,
     from_email: senderEmail, from_name: senderName,
     to_emails: (msg.toRecipients || []).map((r: any) => r.emailAddress?.address),
     cc_emails: (msg.ccRecipients || []).map((r: any) => r.emailAddress?.address),
