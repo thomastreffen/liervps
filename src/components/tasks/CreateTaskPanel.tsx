@@ -69,6 +69,8 @@ export function CreateTaskPanel({
   const [assigneeIds, setAssigneeIds] = useState<string[]>([]);
   const [selectedDocIds, setSelectedDocIds] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const [clientRequestId] = useState(() => crypto.randomUUID());
   const [aiLoading, setAiLoading] = useState(false);
   const [aiSuggestion, setAiSuggestion] = useState<AISuggestion | null>(null);
   const [createdTaskId, setCreatedTaskId] = useState<string | null>(null);
@@ -141,7 +143,7 @@ export function CreateTaskPanel({
   };
 
   const handleSubmit = async () => {
-    if (!title.trim() || !user) return;
+    if (!title.trim() || !user || saving || submitted) return;
     setSaving(true);
     try {
       // Resolve technician IDs to user IDs for assignees
@@ -181,6 +183,7 @@ export function CreateTaskPanel({
       );
 
       setCreatedTaskId(taskId);
+      setSubmitted(true);
       toast.success("Oppgave opprettet!", {
         action: {
           label: "Åpne oppgave",
@@ -340,7 +343,7 @@ export function CreateTaskPanel({
 
         {/* Submit */}
         <div className="flex gap-2 pt-2">
-          <Button onClick={handleSubmit} disabled={!title.trim() || saving} className="gap-1.5">
+          <Button onClick={handleSubmit} disabled={!title.trim() || saving || submitted} className="gap-1.5">
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <ListTodo className="h-4 w-4" />}
             Opprett oppgave
           </Button>

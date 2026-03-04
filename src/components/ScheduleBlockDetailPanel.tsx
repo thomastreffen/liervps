@@ -52,6 +52,9 @@ export const ScheduleBlockDetailPanel = memo(function ScheduleBlockDetailPanel({
   // Action states
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const [createdEventId, setCreatedEventId] = useState<string | null>(null);
+  const [clientRequestId] = useState(() => crypto.randomUUID());
 
   // Link to existing project
   const [showProjectSearch, setShowProjectSearch] = useState(false);
@@ -80,45 +83,34 @@ export const ScheduleBlockDetailPanel = memo(function ScheduleBlockDetailPanel({
     return () => clearTimeout(timer);
   }, [searchQuery, showProjectSearch]);
 
-  // A) Action: Create new job from this outlook block
+  // A) Action: Create new job from this outlook block (idempotent)
   const handleCreateJob = async () => {
+    if (actionLoading || submitted) return;
     setActionLoading("create");
     try {
-      const { data: session } = await supabase.auth.getSession();
-      const userId = session?.session?.user?.id;
+      const { data, error } = await supabase.functions.invoke("create-job-from-schedule-block", {
+        body: {
+          client_request_id: clientRequestId,
+          schedule_block_id: block.id,
+          title: block.outlook_subject || block.title || "Ny jobb",
+          address: block.outlook_location || block.location || null,
+          description: block.outlook_preview || block.description || null,
+          start_time: block.start_at.toISOString(),
+          end_time: block.end_at.toISOString(),
+          technician_id: block.technician_id,
+          company_id: block.company_id || null,
+        },
+      });
 
-      const { data: created, error } = await supabase.from("events").insert({
-        title: block.outlook_subject || block.title || "Ny jobb",
-        address: block.outlook_location || block.location || null,
-        description: block.outlook_preview || block.description || null,
-        start_time: block.start_at.toISOString(),
-        end_time: block.end_at.toISOString(),
-        technician_id: block.technician_id,
-        status: "requested" as any,
-        created_by: userId || null,
-      } as any).select("id").single();
-
-      if (error || !created) {
-        toast.error("Kunne ikke opprette jobb", { description: error?.message });
+      if (error) {
+        toast.error("Kunne ikke opprette jobb", { description: error.message });
         return;
       }
 
-      // Assign technician
-      await supabase.from("event_technicians").insert({
-        event_id: created.id,
-        technician_id: block.technician_id,
-      });
-
-      // Link schedule_block to the new project
-      await supabase.from("schedule_blocks").update({
-        project_id: created.id,
-        match_state: "confirmed",
-        match_reason: "Manuelt opprettet fra Outlook-blokk",
-      }).eq("id", block.id);
-
-      toast.success("Jobb opprettet og koblet ✓");
+      setSubmitted(true);
+      setCreatedEventId(data.event_id);
+      toast.success(data.idempotent ? "Jobb allerede opprettet ✓" : "Jobb opprettet og koblet ✓");
       onConfirmed?.();
-      onClose();
     } catch (err: any) {
       toast.error("Feil", { description: err?.message });
     } finally {
@@ -369,11 +361,11 @@ export const ScheduleBlockDetailPanel = memo(function ScheduleBlockDetailPanel({
         )}
 
         {/* ──── A) Outlook block without project: 3 actions ──── */}
-        {isOutlook && hasNoProject && !showProjectSearch && (
+        {isOutlook && hasNoProject && !showProjectSearch && !submitted && (
           <div className="space-y-1.5 pt-1">
             <Button
               size="sm" className="h-8 text-xs gap-1.5 rounded-lg w-full justify-start"
-              onClick={handleCreateJob} disabled={isLoading}
+              onClick={handleCreateJob} disabled={isLoading || submitted}
             >
               {actionLoading === "create" ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}
               Opprett ny jobb
@@ -452,10 +444,10 @@ export const ScheduleBlockDetailPanel = memo(function ScheduleBlockDetailPanel({
         )}
 
         {/* needs_confirmation without project */}
-        {block.match_state === "needs_confirmation" && !block.project_id && !showProjectSearch && (
+        {block.match_state === "needs_confirmation" && !block.project_id && !showProjectSearch && !submitted && (
           <div className="space-y-1.5 pt-1">
             <Button size="sm" className="h-8 text-xs gap-1.5 rounded-lg w-full justify-start"
-              onClick={handleCreateJob} disabled={isLoading}>
+              onClick={handleCreateJob} disabled={isLoading || submitted}>
               {actionLoading === "create" ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}
               Opprett ny jobb
             </Button>
@@ -468,6 +460,20 @@ export const ScheduleBlockDetailPanel = memo(function ScheduleBlockDetailPanel({
               onClick={handleMarkExternal} disabled={isLoading}>
               {actionLoading === "external" ? <Loader2 className="h-3 w-3 animate-spin" /> : <Globe className="h-3 w-3" />}
               Behold ekstern
+            </Button>
+          </div>
+        )}
+
+        {/* Success state after create */}
+        {submitted && createdEventId && (
+          <div className="flex items-center gap-2 p-2 rounded-lg bg-green-500/10 border border-green-500/20">
+            <Check className="h-4 w-4 text-green-600 shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium text-green-700">Opprettet ✓</p>
+            </div>
+            <Button variant="outline" size="sm" className="h-6 text-[10px] gap-1 shrink-0"
+              onClick={() => navigate(`/projects/${createdEventId}`)}>
+              Åpne jobb <ArrowRight className="h-2.5 w-2.5" />
             </Button>
           </div>
         )}

@@ -4689,6 +4689,7 @@ export type Database = {
           ai_confidence: number | null
           ai_match_reason: string | null
           calendar_id: string | null
+          client_request_id: string | null
           company_id: string
           created_at: string
           deleted_at: string | null
@@ -4719,6 +4720,7 @@ export type Database = {
           ai_confidence?: number | null
           ai_match_reason?: string | null
           calendar_id?: string | null
+          client_request_id?: string | null
           company_id: string
           created_at?: string
           deleted_at?: string | null
@@ -4749,6 +4751,7 @@ export type Database = {
           ai_confidence?: number | null
           ai_match_reason?: string | null
           calendar_id?: string | null
+          client_request_id?: string | null
           company_id?: string
           created_at?: string
           deleted_at?: string | null
@@ -4883,6 +4886,7 @@ export type Database = {
         Row: {
           address: string | null
           case_id: string | null
+          client_request_id: string | null
           company_id: string
           created_at: string
           created_by: string | null
@@ -4899,6 +4903,7 @@ export type Database = {
         Insert: {
           address?: string | null
           case_id?: string | null
+          client_request_id?: string | null
           company_id: string
           created_at?: string
           created_by?: string | null
@@ -4915,6 +4920,7 @@ export type Database = {
         Update: {
           address?: string | null
           case_id?: string | null
+          client_request_id?: string | null
           company_id?: string
           created_at?: string
           created_by?: string | null
@@ -5167,6 +5173,7 @@ export type Database = {
           ai_confidence: number | null
           ai_rationale: string | null
           ai_suggested: boolean
+          client_request_id: string | null
           company_id: string
           created_at: string
           created_by: string
@@ -5191,6 +5198,7 @@ export type Database = {
           ai_confidence?: number | null
           ai_rationale?: string | null
           ai_suggested?: boolean
+          client_request_id?: string | null
           company_id: string
           created_at?: string
           created_by: string
@@ -5215,6 +5223,7 @@ export type Database = {
           ai_confidence?: number | null
           ai_rationale?: string | null
           ai_suggested?: boolean
+          client_request_id?: string | null
           company_id?: string
           created_at?: string
           created_by?: string
