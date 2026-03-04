@@ -47,8 +47,11 @@ export function PlanJobDialog({
   const [address, setAddress] = useState("");
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const [clientRequestId, setClientRequestId] = useState(() => crypto.randomUUID());
 
   const handleSave = async () => {
+    if (saving || submitted) return;
     if (!techId || !date || !startTime) {
       toast.error("Velg ressurs, dato og starttid");
       return;
@@ -133,16 +136,19 @@ export function PlanJobDialog({
       } as any);
 
       toast.success("Servicearbeid opprettet!");
+      setSubmitted(true);
       onPlanned(projectId!, sj.id);
       onOpenChange(false);
 
-      // Reset
+      // Reset for next open
       setTechId("");
       setDate("");
       setStartTime("08:00");
       setDuration("60");
       setAddress("");
       setNote("");
+      setSubmitted(false);
+      setClientRequestId(crypto.randomUUID());
     } catch (err: any) {
       console.error("PlanJob error:", err);
       toast.error("Kunne ikke opprette servicearbeid: " + (err.message || "Ukjent feil"));
@@ -226,9 +232,9 @@ export function PlanJobDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
             Avbryt
           </Button>
-          <Button onClick={handleSave} disabled={saving} className="gap-1.5">
+          <Button onClick={handleSave} disabled={saving || submitted} className="gap-1.5">
             {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-            Opprett
+            {saving ? "Oppretter…" : submitted ? "Opprettet ✓" : "Opprett"}
           </Button>
         </DialogFooter>
       </DialogContent>

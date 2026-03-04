@@ -2395,6 +2395,7 @@ export type Database = {
           calendar_last_synced_at: string | null
           cancelled_at: string | null
           cancelled_by: string | null
+          client_request_id: string | null
           company_id: string | null
           contract_alert_count: number | null
           contract_risk_level: string | null
@@ -2455,6 +2456,7 @@ export type Database = {
           calendar_last_synced_at?: string | null
           cancelled_at?: string | null
           cancelled_by?: string | null
+          client_request_id?: string | null
           company_id?: string | null
           contract_alert_count?: number | null
           contract_risk_level?: string | null
@@ -2515,6 +2517,7 @@ export type Database = {
           calendar_last_synced_at?: string | null
           cancelled_at?: string | null
           cancelled_by?: string | null
+          client_request_id?: string | null
           company_id?: string | null
           contract_alert_count?: number | null
           contract_risk_level?: string | null

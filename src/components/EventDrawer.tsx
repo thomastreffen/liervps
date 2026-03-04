@@ -96,6 +96,8 @@ export function EventDrawer({
   const [endTime, setEndTime] = useState("16:00");
   const [techIds, setTechIds] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const [clientRequestId, setClientRequestId] = useState(() => crypto.randomUUID());
 
   // Existing job search
   const [searchQuery, setSearchQuery] = useState("");
@@ -145,6 +147,8 @@ export function EventDrawer({
     setConflicts([]);
     setSearchQuery("");
     setSearchResults([]);
+    setSubmitted(false);
+    setClientRequestId(crypto.randomUUID());
   }, [open, editEvent, preselectedStart, preselectedEnd, preselectedTechId, projectId, projectTitle]);
 
   // Search existing jobs
@@ -213,6 +217,7 @@ export function EventDrawer({
 
   // Save: create or update
   const handleSave = async () => {
+    if (saving || submitted) return;
     setSaving(true);
     try {
       const { data: session } = await supabase.auth.getSession();
@@ -281,33 +286,49 @@ export function EventDrawer({
         const startISO = new Date(`${date}T${startTime}`).toISOString();
         const endISO = new Date(`${date}T${endTime}`).toISOString();
 
-        const { data: created, error } = await supabase.from("events").insert({
-          title: title.trim(),
-          customer: customer || null,
-          address: address || null,
-          description: description || null,
-          start_time: startISO,
-          end_time: endISO,
-          technician_id: techIds[0],
-          status: "requested" as any,
-          created_by: userId || null,
-        }).select("id").single();
+        // Idempotency: check if already created with this client_request_id
+        const { data: existing } = await supabase
+          .from("events")
+          .select("id")
+          .eq("client_request_id", clientRequestId)
+          .maybeSingle();
 
-        if (error || !created) {
-          toast.error("Kunne ikke opprette hendelse", { description: error?.message });
-          setSaving(false);
-          return;
+        let createdId: string;
+
+        if (existing) {
+          createdId = existing.id;
+        } else {
+          const { data: created, error } = await supabase.from("events").insert({
+            title: title.trim(),
+            customer: customer || null,
+            address: address || null,
+            description: description || null,
+            start_time: startISO,
+            end_time: endISO,
+            technician_id: techIds[0],
+            status: "requested" as any,
+            created_by: userId || null,
+            client_request_id: clientRequestId,
+          } as any).select("id").single();
+
+          if (error || !created) {
+            toast.error("Kunne ikke opprette hendelse", { description: error?.message });
+            setSaving(false);
+            return;
+          }
+          createdId = created.id;
+
+          await supabase.from("event_technicians").insert(
+            techIds.map((tid) => ({ event_id: createdId, technician_id: tid }))
+          );
+          await supabase.functions.invoke("create-approval", { body: { job_id: createdId } });
         }
-
-        await supabase.from("event_technicians").insert(
-          techIds.map((tid) => ({ event_id: created.id, technician_id: tid }))
-        );
-        await supabase.functions.invoke("create-approval", { body: { job_id: created.id } });
 
         toast.success("Hendelse opprettet og planlagt", {
           description: `${title} er tildelt ${techIds.length} montør(er).`,
         });
-        onSaved?.(created.id);
+        setSubmitted(true);
+        onSaved?.(createdId);
       }
 
       // Don't auto-close per spec
@@ -509,13 +530,16 @@ export function EventDrawer({
               </Button>
             )}
             <Button className="flex-1 gap-1.5" onClick={handleSave}
-              disabled={saving || (isEditing && !hasChanges) || techIds.length === 0}>
+              disabled={saving || submitted || (isEditing && !hasChanges) || techIds.length === 0}>
               {saving ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : submitted ? (
+                <Save className="h-3.5 w-3.5" />
               ) : (
                 <Save className="h-3.5 w-3.5" />
               )}
-              {saving ? "Lagrer..." :
+              {saving ? "Oppretter…" :
+               submitted ? "Opprettet ✓" :
                isEditing ? (conflicts.length > 0 ? "Lagre likevel" : "Lagre endringer") :
                conflicts.length > 0 ? "Lagre likevel" : "Opprett og planlegg"}
             </Button>
