@@ -69,6 +69,9 @@ export type Database = {
           created_at: string
           event_subject: string | null
           extracted_signals: string[] | null
+          final_decision: string | null
+          guardrail_reason: string | null
+          guardrail_signals: Json | null
           id: string
           latency_ms: number | null
           outcome: string
@@ -81,6 +84,9 @@ export type Database = {
           created_at?: string
           event_subject?: string | null
           extracted_signals?: string[] | null
+          final_decision?: string | null
+          guardrail_reason?: string | null
+          guardrail_signals?: Json | null
           id?: string
           latency_ms?: number | null
           outcome?: string
@@ -93,6 +99,9 @@ export type Database = {
           created_at?: string
           event_subject?: string | null
           extracted_signals?: string[] | null
+          final_decision?: string | null
+          guardrail_reason?: string | null
+          guardrail_signals?: Json | null
           id?: string
           latency_ms?: number | null
           outcome?: string
@@ -831,6 +840,53 @@ export type Database = {
           website?: string | null
         }
         Relationships: []
+      }
+      confirmation_learnings: {
+        Row: {
+          alias_hits: string[] | null
+          company_id: string
+          confirmed_at: string
+          customer_hits: string[] | null
+          expires_at: string
+          id: string
+          project_id: string
+          signal_tokens: string[]
+          source_block_id: string | null
+          technician_id: string
+        }
+        Insert: {
+          alias_hits?: string[] | null
+          company_id: string
+          confirmed_at?: string
+          customer_hits?: string[] | null
+          expires_at?: string
+          id?: string
+          project_id: string
+          signal_tokens?: string[]
+          source_block_id?: string | null
+          technician_id: string
+        }
+        Update: {
+          alias_hits?: string[] | null
+          company_id?: string
+          confirmed_at?: string
+          customer_hits?: string[] | null
+          expires_at?: string
+          id?: string
+          project_id?: string
+          signal_tokens?: string[]
+          source_block_id?: string | null
+          technician_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "confirmation_learnings_source_block_id_fkey"
+            columns: ["source_block_id"]
+            isOneToOne: false
+            referencedRelation: "schedule_blocks"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       contract_alerts: {
         Row: {

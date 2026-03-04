@@ -5,6 +5,24 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+/** Extract lowercase tokens from a string (words > 2 chars) */
+function tokenize(s: string | null): string[] {
+  if (!s) return [];
+  return s.split(/[\s–\-,.:;/()]+/).filter(w => w.length > 2).map(w => w.toLowerCase());
+}
+
+/** Check if any token appears in text */
+function hasTokenOverlap(tokens: string[], text: string): boolean {
+  const lower = text.toLowerCase();
+  return tokens.some(t => lower.includes(t));
+}
+
+interface GuardrailResult {
+  passed: boolean;
+  signals: string[];
+  reason: string;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -20,13 +38,12 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Fetch blocks that need AI matching:
-    // match_state = 'needs_confirmation' OR confidence 40-79
+    // Fetch blocks that need AI matching
     const { data: blocks, error: blocksErr } = await supabase
       .from("schedule_blocks")
       .select("id, technician_id, company_id, title, location, outlook_subject, outlook_location, outlook_preview, outlook_organizer, start_at, end_at, match_confidence, match_state, project_id, match_reason, ai_confidence")
       .or("match_state.eq.needs_confirmation,and(match_confidence.gte.40,match_confidence.lt.80)")
-      .is("ai_confidence", null) // Only process blocks not yet AI-matched
+      .is("ai_confidence", null)
       .order("start_at", { ascending: true })
       .limit(20);
 
@@ -34,7 +51,7 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ status: "ok", processed: 0 }), { headers: corsHeaders });
     }
 
-    // Fetch candidate projects: active + last 90 days, with aliases
+    // Fetch candidate projects
     const ninetyDaysAgo = new Date(Date.now() - 90 * 86400000).toISOString();
     const { data: projects } = await supabase
       .from("events")
@@ -48,7 +65,6 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ status: "ok", processed: 0, reason: "no projects" }), { headers: corsHeaders });
     }
 
-    // Compact project list for AI
     const projectList = projects.map(p => ({
       id: p.id,
       job_number: p.job_number,
@@ -57,6 +73,9 @@ Deno.serve(async (req) => {
       address: p.address,
       aliases: p.project_aliases || [],
     }));
+
+    // Build a project lookup for guardrail checks
+    const projectMap = new Map(projects.map(p => [p.id, p]));
 
     let totalProcessed = 0;
     let totalAutoMatched = 0;
@@ -114,24 +133,10 @@ ${JSON.stringify(projectList, null, 2)}`;
                   parameters: {
                     type: "object",
                     properties: {
-                      suggested_project_id: {
-                        type: "string",
-                        description: "UUID of the matched project, or null if no match",
-                        nullable: true,
-                      },
-                      confidence: {
-                        type: "integer",
-                        description: "Confidence 0-100",
-                      },
-                      reason: {
-                        type: "string",
-                        description: "One-sentence explanation",
-                      },
-                      extracted_signals: {
-                        type: "array",
-                        items: { type: "string" },
-                        description: "Key signals used for matching",
-                      },
+                      suggested_project_id: { type: "string", description: "UUID of the matched project, or null if no match", nullable: true },
+                      confidence: { type: "integer", description: "Confidence 0-100" },
+                      reason: { type: "string", description: "One-sentence explanation" },
+                      extracted_signals: { type: "array", items: { type: "string" }, description: "Key signals used for matching" },
                     },
                     required: ["suggested_project_id", "confidence", "reason", "extracted_signals"],
                     additionalProperties: false,
@@ -148,14 +153,14 @@ ${JSON.stringify(projectList, null, 2)}`;
         if (!aiResponse.ok) {
           const errText = await aiResponse.text();
           console.error(`[ai-project-matcher] AI error ${aiResponse.status}:`, errText);
-          
-          // Log the failed attempt
           await supabase.from("ai_match_runs").insert({
             schedule_block_id: block.id,
             event_subject: block.outlook_subject || block.title,
             confidence: 0,
             reason: `AI error: ${aiResponse.status}`,
             outcome: "no_change",
+            final_decision: "no_change",
+            guardrail_reason: "AI call failed",
             latency_ms: latencyMs,
           });
           continue;
@@ -163,7 +168,7 @@ ${JSON.stringify(projectList, null, 2)}`;
 
         const aiData = await aiResponse.json();
         const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
-        
+
         if (!toolCall?.function?.arguments) {
           await supabase.from("ai_match_runs").insert({
             schedule_block_id: block.id,
@@ -171,6 +176,7 @@ ${JSON.stringify(projectList, null, 2)}`;
             confidence: 0,
             reason: "No tool call returned",
             outcome: "no_change",
+            final_decision: "no_change",
             latency_ms: latencyMs,
           });
           continue;
@@ -182,20 +188,32 @@ ${JSON.stringify(projectList, null, 2)}`;
         const aiReason = result.reason ?? "";
         const signals = result.extracted_signals ?? [];
 
-        // Decision logic
+        // === GUARDRAIL CHECK ===
+        // Even if AI confidence >= 85, require at least one hard/soft signal
+        let guardrail: GuardrailResult = { passed: false, signals: [], reason: "" };
+
+        if (aiProjectId && aiConfidence >= 85) {
+          guardrail = await checkGuardrails(
+            supabase, block, aiProjectId, projectMap, signals
+          );
+        }
+
+        // === DECISION LOGIC ===
         let outcome = "no_change";
+        let finalDecision = "none";
         const updates: Record<string, any> = {
           ai_confidence: aiConfidence,
           ai_match_reason: `AI: ${aiReason}`,
         };
 
-        if (aiProjectId && aiConfidence >= 85) {
-          // Auto-match
+        if (aiProjectId && aiConfidence >= 85 && guardrail.passed) {
+          // Auto-match: high confidence + guardrail passed
           updates.project_id = aiProjectId;
           updates.match_state = "auto";
           updates.match_confidence = aiConfidence;
           updates.match_reason = `AI: ${aiReason}`;
           outcome = "auto";
+          finalDecision = "auto";
           totalAutoMatched++;
         } else if (aiProjectId && aiConfidence >= 60) {
           // Suggestion – keep needs_confirmation but update suggested project
@@ -203,16 +221,24 @@ ${JSON.stringify(projectList, null, 2)}`;
           updates.match_confidence = aiConfidence;
           updates.match_reason = `AI: ${aiReason}`;
           outcome = "suggestion";
+          finalDecision = "suggest";
+          totalSuggested++;
+        } else if (aiProjectId && aiConfidence >= 85 && !guardrail.passed) {
+          // High confidence but guardrail blocked → downgrade to suggestion
+          updates.project_id = aiProjectId;
+          updates.match_confidence = aiConfidence;
+          updates.match_reason = `AI: ${aiReason}`;
+          outcome = "suggestion";
+          finalDecision = "suggest";
           totalSuggested++;
         }
-        // < 60: no change to project or state
 
         await supabase
           .from("schedule_blocks")
           .update(updates)
           .eq("id", block.id);
 
-        // Log the run
+        // Log the run with guardrail info
         await supabase.from("ai_match_runs").insert({
           schedule_block_id: block.id,
           event_subject: block.outlook_subject || block.title,
@@ -221,6 +247,9 @@ ${JSON.stringify(projectList, null, 2)}`;
           reason: aiReason,
           extracted_signals: signals,
           outcome,
+          final_decision: finalDecision,
+          guardrail_reason: guardrail.reason || null,
+          guardrail_signals: guardrail.signals,
           latency_ms: latencyMs,
         });
 
@@ -244,3 +273,94 @@ ${JSON.stringify(projectList, null, 2)}`;
     return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: corsHeaders });
   }
 });
+
+/**
+ * Guardrail check: require at least one hard/soft signal before auto-matching.
+ * Signals checked:
+ *   a) Alias match in subject/location
+ *   b) Customer name match in subject/location
+ *   c) Recent affinity (technician linked to same project in last 30 days)
+ *   d) Location overlap (event location contains project address tokens)
+ */
+async function checkGuardrails(
+  supabase: any,
+  block: any,
+  projectId: string,
+  projectMap: Map<string, any>,
+  aiSignals: string[]
+): Promise<GuardrailResult> {
+  const project = projectMap.get(projectId);
+  if (!project) return { passed: false, signals: [], reason: "Project not found in candidates" };
+
+  const foundSignals: string[] = [];
+  const subject = (block.outlook_subject || block.title || "").toLowerCase();
+  const location = (block.outlook_location || block.location || "").toLowerCase();
+  const searchText = `${subject} ${location}`;
+
+  // a) Alias match
+  const aliases: string[] = (project.project_aliases || []).map((a: string) => a.toLowerCase());
+  for (const alias of aliases) {
+    if (searchText.includes(alias)) {
+      foundSignals.push(`alias:${alias}`);
+      break;
+    }
+  }
+
+  // b) Customer name match
+  if (project.customer) {
+    const custTokens = tokenize(project.customer);
+    if (custTokens.length > 0 && hasTokenOverlap(custTokens, searchText)) {
+      foundSignals.push(`customer:${project.customer}`);
+    }
+  }
+
+  // c) Recent affinity: same technician + project in last 30 days
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString();
+  const { count } = await supabase
+    .from("schedule_blocks")
+    .select("id", { count: "exact", head: true })
+    .eq("technician_id", block.technician_id)
+    .eq("project_id", projectId)
+    .in("match_state", ["auto", "confirmed", "manual"])
+    .gte("start_at", thirtyDaysAgo);
+
+  if (count && count > 0) {
+    foundSignals.push(`affinity:${count}_blocks_30d`);
+  }
+
+  // d) Location overlap: project address tokens in event location
+  if (project.address && location) {
+    const addrTokens = tokenize(project.address);
+    const matchingTokens = addrTokens.filter(t => location.includes(t));
+    if (matchingTokens.length >= 2) {
+      foundSignals.push(`location:${matchingTokens.join(",")}`);
+    }
+  }
+
+  // Also check confirmation_learnings for learned token boosts
+  const { data: learnings } = await supabase
+    .from("confirmation_learnings")
+    .select("signal_tokens")
+    .eq("technician_id", block.technician_id)
+    .eq("project_id", projectId)
+    .gte("expires_at", new Date().toISOString())
+    .limit(5);
+
+  if (learnings?.length) {
+    const learnedTokens = learnings.flatMap((l: any) => l.signal_tokens || []);
+    const subjectTokens = tokenize(block.outlook_subject || block.title);
+    const overlap = subjectTokens.filter(t => learnedTokens.includes(t));
+    if (overlap.length > 0) {
+      foundSignals.push(`learned:${overlap.join(",")}`);
+    }
+  }
+
+  const passed = foundSignals.length > 0;
+  return {
+    passed,
+    signals: foundSignals,
+    reason: passed
+      ? `Guardrails passed: ${foundSignals.join("; ")}`
+      : "No hard/soft signals found – downgraded to suggestion",
+  };
+}

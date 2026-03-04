@@ -117,8 +117,22 @@ export const ScheduleBlockDetailPanel = memo(function ScheduleBlockDetailPanel({
         </button>
       )}
 
-      {/* Confidence info for needs_confirmation */}
-      {block.match_state === "needs_confirmation" && (
+      {/* Suggested project for needs_confirmation */}
+      {block.match_state === "needs_confirmation" && block.project_title && block.project_id && (
+        <div className="p-2 rounded-lg bg-amber-500/5 border border-amber-500/20 space-y-1">
+          <p className="text-xs font-medium text-amber-700">
+            Foreslått prosjekt: {block.project_title}
+            {block.ai_confidence !== null && block.ai_confidence > 0 && (
+              <span className="text-muted-foreground ml-1">(AI {block.ai_confidence}%)</span>
+            )}
+          </p>
+          {block.match_reason && (
+            <p className="text-[10px] text-muted-foreground">{block.match_reason}</p>
+          )}
+        </div>
+      )}
+      {/* Confidence info when no project suggestion */}
+      {block.match_state === "needs_confirmation" && !block.project_id && (
         <div className="p-2 rounded-lg bg-amber-500/5 border border-amber-500/20 space-y-1">
           <div className="flex items-center gap-1.5 text-xs font-medium text-amber-700">
             <Info className="h-3 w-3" />

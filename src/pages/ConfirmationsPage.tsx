@@ -13,11 +13,13 @@ import { useNavigate } from "react-router-dom";
 interface ConfirmationBlock {
   id: string;
   technician_id: string;
+  company_id: string;
   project_id: string | null;
   start_at: string;
   end_at: string;
   title: string;
   location: string | null;
+  outlook_subject: string | null;
   match_confidence: number;
   match_reason: string | null;
   match_state: string;
@@ -45,8 +47,9 @@ export default function ConfirmationsPage() {
     const { data, error } = await supabase
       .from("schedule_blocks")
       .select(`
-        id, technician_id, project_id, start_at, end_at, title, location,
+        id, technician_id, company_id, project_id, start_at, end_at, title, location,
         match_confidence, match_reason, match_state, ai_match_reason, ai_confidence,
+        outlook_subject,
         technicians!inner(name, color),
         events(title)
       `)
@@ -89,6 +92,25 @@ export default function ConfirmationsPage() {
     return () => { supabase.removeChannel(channel); };
   }, [fetchBlocks]);
 
+  /** Log confirmation learning when user confirms or assigns */
+  const logLearning = async (block: ConfirmationBlock, chosenProjectId: string) => {
+    try {
+      // Extract signal tokens from subject
+      const subject = block.outlook_subject || block.title || "";
+      const tokens = subject.split(/[\s–\-,.:;/()]+/).filter(w => w.length > 2).map(w => w.toLowerCase());
+
+      await supabase.from("confirmation_learnings").insert({
+        company_id: block.company_id,
+        technician_id: block.technician_id,
+        project_id: chosenProjectId,
+        signal_tokens: tokens,
+        source_block_id: block.id,
+      });
+    } catch (e) {
+      console.error("[ConfirmationsPage] Learning log failed:", e);
+    }
+  };
+
   const handleConfirm = async (blockId: string) => {
     const block = blocks.find(b => b.id === blockId);
     if (!block?.suggested_project_id) return;
@@ -99,11 +121,13 @@ export default function ConfirmationsPage() {
     if (error) toast.error("Kunne ikke bekrefte");
     else {
       toast.success("Bekreftet ✓");
+      logLearning(block, block.suggested_project_id);
       setBlocks(prev => prev.filter(b => b.id !== blockId));
     }
   };
 
   const handleAssignProject = async (blockId: string, projectId: string) => {
+    const block = blocks.find(b => b.id === blockId);
     const { error } = await supabase
       .from("schedule_blocks")
       .update({ match_state: "confirmed", project_id: projectId })
@@ -111,6 +135,7 @@ export default function ConfirmationsPage() {
     if (error) toast.error("Kunne ikke koble til prosjekt");
     else {
       toast.success("Koblet til prosjekt ✓");
+      if (block) logLearning(block, projectId);
       setBlocks(prev => prev.filter(b => b.id !== blockId));
       setSelectingProjectFor(null);
     }
@@ -183,19 +208,26 @@ export default function ConfirmationsPage() {
                     <p className="text-xs text-muted-foreground">
                       {block.technician_name} · {format(new Date(block.start_at), "EEE d. MMM HH:mm", { locale: nb })}–{format(new Date(block.end_at), "HH:mm")}
                     </p>
+                    {/* Suggested project inline */}
+                    {block.suggested_project_title && isAiSuggested(block) && (
+                      <p className="text-xs text-primary mt-0.5 truncate">
+                        Foreslått: {block.suggested_project_title}
+                        <span className="text-muted-foreground ml-1">(AI {block.ai_confidence}%)</span>
+                      </p>
+                    )}
                   </div>
                 </div>
 
                 {/* Suggested project + confidence + AI chip */}
                 <div className="flex items-center gap-2 min-w-0">
-                  {block.suggested_project_title ? (
+                  {block.suggested_project_title && !isAiSuggested(block) ? (
                     <Badge variant="outline" className="text-xs truncate max-w-[200px]">
                       {block.suggested_project_title}
                     </Badge>
-                  ) : (
+                  ) : !block.suggested_project_title ? (
                     <span className="text-xs text-muted-foreground italic">Ingen forslag</span>
-                  )}
-                  {block.match_confidence > 0 && (
+                  ) : null}
+                  {block.match_confidence > 0 && !isAiSuggested(block) && (
                     <span className="text-[10px] font-mono text-muted-foreground">
                       {block.match_confidence}%
                     </span>
@@ -205,7 +237,7 @@ export default function ConfirmationsPage() {
                       <TooltipTrigger asChild>
                         <span className="inline-flex items-center gap-0.5 text-[9px] font-semibold uppercase tracking-wider text-primary bg-primary/10 rounded px-1.5 py-0.5 cursor-default">
                           <Sparkles className="h-2.5 w-2.5" />
-                          AI
+                          AI {block.ai_confidence}%
                         </span>
                       </TooltipTrigger>
                       <TooltipContent side="top" className="text-xs max-w-[250px]">
