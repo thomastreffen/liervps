@@ -4575,6 +4575,97 @@ export type Database = {
         }
         Relationships: []
       }
+      schedule_blocks: {
+        Row: {
+          calendar_id: string | null
+          company_id: string
+          created_at: string
+          description: string | null
+          end_at: string
+          id: string
+          last_modified: string | null
+          location: string | null
+          match_confidence: number | null
+          match_reason: string | null
+          match_state: string
+          mcs_block_id: string | null
+          outlook_etag: string | null
+          outlook_event_id: string | null
+          project_id: string | null
+          source: string
+          start_at: string
+          technician_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          calendar_id?: string | null
+          company_id: string
+          created_at?: string
+          description?: string | null
+          end_at: string
+          id?: string
+          last_modified?: string | null
+          location?: string | null
+          match_confidence?: number | null
+          match_reason?: string | null
+          match_state?: string
+          mcs_block_id?: string | null
+          outlook_etag?: string | null
+          outlook_event_id?: string | null
+          project_id?: string | null
+          source?: string
+          start_at: string
+          technician_id: string
+          title?: string
+          updated_at?: string
+        }
+        Update: {
+          calendar_id?: string | null
+          company_id?: string
+          created_at?: string
+          description?: string | null
+          end_at?: string
+          id?: string
+          last_modified?: string | null
+          location?: string | null
+          match_confidence?: number | null
+          match_reason?: string | null
+          match_state?: string
+          mcs_block_id?: string | null
+          outlook_etag?: string | null
+          outlook_event_id?: string | null
+          project_id?: string | null
+          source?: string
+          start_at?: string
+          technician_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "schedule_blocks_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "internal_companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "schedule_blocks_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "schedule_blocks_technician_id_fkey"
+            columns: ["technician_id"]
+            isOneToOne: false
+            referencedRelation: "technicians"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       service_jobs: {
         Row: {
           address: string | null

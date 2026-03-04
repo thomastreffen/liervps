@@ -71,6 +71,7 @@ import FormFillPage from "./pages/FormFillPage";
 import SuperofficeSettingsPage from "./pages/SuperofficeSettingsPage";
 import MicrosoftAdminPage from "./pages/MicrosoftAdminPage";
 import ThreadInviteAcceptPage from "./pages/ThreadInviteAcceptPage";
+import ConfirmationsPage from "./pages/ConfirmationsPage";
 import { CompanyProvider } from "@/hooks/useCompanyContext";
 
 const queryClient = new QueryClient();
@@ -114,6 +115,7 @@ const App = () => (
               <Route path="/projects/:id/conversations/new" element={<ConversationNewPage />} />
               <Route path="/projects/:id/conversations/:threadId" element={<ConversationDetailPage />} />
               <Route path="/projects/plan" element={<ResourcePlan />} />
+              <Route path="/calendar/confirmations" element={<ConfirmationsPage />} />
               <Route path="/projects/contracts" element={<ContractsPage />} />
               <Route path="/projects/contracts/:id" element={<ContractDetail />} />
               <Route path="/customers" element={<CustomersPage />} />
