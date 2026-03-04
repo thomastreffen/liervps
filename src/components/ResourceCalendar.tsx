@@ -209,6 +209,7 @@ export const ResourceCalendar = memo(function ResourceCalendar({
                 isBusy: true,
                 techName: displayName,
                 busyTechColor,
+                busyTechId: techId,
               },
             });
           }
@@ -259,14 +260,54 @@ export const ResourceCalendar = memo(function ResourceCalendar({
   }, [calendarEvents, getBusySlotsForDay, technicianMap, techColorMap, referenceDate, isAdmin, isMonthView, scheduleBlocks]);
 
   const handleEventClick = useCallback((info: EventClickArg) => {
-    // Schedule block click
-    if (info.event.extendedProps.isScheduleBlock) {
-      onScheduleBlockClick?.(info.event.extendedProps.scheduleBlock as ScheduleBlock);
+    const props = info.event.extendedProps;
+
+    // Schedule block click → always open side panel
+    if (props.isScheduleBlock) {
+      onScheduleBlockClick?.(props.scheduleBlock as ScheduleBlock);
       return;
     }
-    const calEvent = info.event.extendedProps.calendarEvent as CalendarEvent | undefined;
-    if (calEvent && !info.event.extendedProps.isBusy) onEventClick?.(calEvent);
-  }, [onEventClick]);
+
+    // Busy slot click → find matching schedule_block by technician + time overlap
+    if (props.isBusy) {
+      const busyStart = info.event.start?.getTime() ?? 0;
+      const busyEnd = info.event.end?.getTime() ?? busyStart;
+      const busyTechId = props.busyTechId as string | undefined;
+      if (busyTechId && scheduleBlocks.length > 0) {
+        const match = scheduleBlocks.find(
+          (sb) =>
+            sb.technician_id === busyTechId &&
+            sb.start_at.getTime() < busyEnd &&
+            sb.end_at.getTime() > busyStart
+        );
+        if (match) {
+          onScheduleBlockClick?.(match);
+          return;
+        }
+      }
+      // No matching schedule_block – ignore click (nothing to show)
+      return;
+    }
+
+    // Regular calendar event → check if a schedule_block covers it first
+    const calEvent = props.calendarEvent as CalendarEvent | undefined;
+    if (calEvent) {
+      const evStart = info.event.start?.getTime() ?? 0;
+      const evEnd = info.event.end?.getTime() ?? evStart;
+      const matchBlock = scheduleBlocks.find(
+        (sb) =>
+          sb.start_at.getTime() < evEnd &&
+          sb.end_at.getTime() > evStart &&
+          (sb.project_id === calEvent.id ||
+           sb.mcs_block_id === calEvent.id)
+      );
+      if (matchBlock) {
+        onScheduleBlockClick?.(matchBlock);
+        return;
+      }
+      onEventClick?.(calEvent);
+    }
+  }, [onEventClick, onScheduleBlockClick, scheduleBlocks]);
 
   const handleDateSelect = useCallback((info: DateSelectArg) => {
     if (isAdmin) onDateSelect?.(info.start, info.end);
@@ -392,7 +433,7 @@ export const ResourceCalendar = memo(function ResourceCalendar({
           if (isMonthView) {
             if (props.isBusy) {
               return (
-                <div className="flex items-center gap-1 px-1 py-0.5 text-[10px] truncate">
+                <div className="flex items-center gap-1 px-1 py-0.5 text-[10px] truncate cursor-pointer">
                    <Lock className="h-2.5 w-2.5 opacity-50 shrink-0" />
                    <span className="truncate">{props.techName || "Ukjent montør"}</span>
                 </div>
@@ -413,7 +454,7 @@ export const ResourceCalendar = memo(function ResourceCalendar({
           // Day/Week view – detailed
           if (props.isBusy) {
             return (
-              <div className="fc-event-external flex items-center gap-1.5 px-2 py-1.5 cursor-default select-none">
+              <div className="fc-event-external flex items-center gap-1.5 px-2 py-1.5 cursor-pointer select-none">
                 <Lock className="h-3 w-3 opacity-50 shrink-0" />
                 <div className="min-w-0 flex-1">
                   {props.techName && (
