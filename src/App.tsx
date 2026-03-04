@@ -72,6 +72,7 @@ import SuperofficeSettingsPage from "./pages/SuperofficeSettingsPage";
 import MicrosoftAdminPage from "./pages/MicrosoftAdminPage";
 import ThreadInviteAcceptPage from "./pages/ThreadInviteAcceptPage";
 import ConfirmationsPage from "./pages/ConfirmationsPage";
+import AiMatcherReportPage from "./pages/AiMatcherReportPage";
 import { CompanyProvider } from "@/hooks/useCompanyContext";
 
 const queryClient = new QueryClient();
@@ -116,6 +117,11 @@ const App = () => (
               <Route path="/projects/:id/conversations/:threadId" element={<ConversationDetailPage />} />
               <Route path="/projects/plan" element={<ResourcePlan />} />
               <Route path="/calendar/confirmations" element={<ConfirmationsPage />} />
+              <Route path="/admin/ai-matcher" element={
+                <ProtectedRoute requiredRoles={["admin", "super_admin"]}>
+                  <AiMatcherReportPage />
+                </ProtectedRoute>
+              } />
               <Route path="/projects/contracts" element={<ContractsPage />} />
               <Route path="/projects/contracts/:id" element={<ContractDetail />} />
               <Route path="/customers" element={<CustomersPage />} />
