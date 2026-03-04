@@ -8,7 +8,8 @@ import type { EventInput, EventDropArg, DateSelectArg, EventClickArg } from "@fu
 import { useCalendarEvents, type CalendarEvent } from "@/hooks/useCalendarEvents";
 import type { ExternalBusySlot } from "@/hooks/useExternalBusy";
 import type { DayCapacity } from "@/hooks/useCapacity";
-import { Lock } from "lucide-react";
+import type { ScheduleBlock } from "@/hooks/useScheduleBlocks";
+import { Lock, CalendarCheck, AlertTriangle, Globe } from "lucide-react";
 
 interface TechLookup {
   name: string;
@@ -22,7 +23,9 @@ interface ResourceCalendarProps {
   technicianMap: Map<string, TechLookup>;
   getBusySlotsForDay?: (date: Date) => ExternalBusySlot[];
   dayCapacities?: DayCapacity[];
+  scheduleBlocks?: ScheduleBlock[];
   onEventClick?: (event: CalendarEvent) => void;
+  onScheduleBlockClick?: (block: ScheduleBlock) => void;
   onDateSelect?: (start: Date, end: Date) => void;
   onEventDrop?: (eventId: string, newStart: Date, newEnd: Date) => void;
   onEventResize?: (eventId: string, newStart: Date, newEnd: Date) => void;
@@ -72,6 +75,15 @@ const statusDotColors: Record<string, string> = {
   invoiced: "#9CA3AF",
 };
 
+/** Match state color map */
+const matchStateColors: Record<string, { bg: string; border: string; text: string }> = {
+  auto: { bg: "#059669", border: "#059669", text: "#FFFFFF" },
+  confirmed: { bg: "#059669", border: "#059669", text: "#FFFFFF" },
+  needs_confirmation: { bg: "#D97706", border: "#D97706", text: "#FFFFFF" },
+  external: { bg: "#6B7280", border: "#6B7280", text: "#FFFFFF" },
+  manual: { bg: "#2563EB", border: "#2563EB", text: "#FFFFFF" },
+};
+
 export function ResourceCalendar({
   technicianId,
   referenceDate,
@@ -79,7 +91,9 @@ export function ResourceCalendar({
   technicianMap,
   getBusySlotsForDay,
   dayCapacities,
+  scheduleBlocks = [],
   onEventClick,
+  onScheduleBlockClick,
   onDateSelect,
   onEventDrop,
   onEventResize,
@@ -203,10 +217,38 @@ export function ResourceCalendar({
       console.warn(`[ResourceCalendar] ${missingNameCount} busy slot(s) rendered with missing technician displayName`);
     }
 
+    // Schedule blocks (Outlook-synced)
+    for (const block of scheduleBlocks) {
+      const colors = matchStateColors[block.match_state] || matchStateColors.external;
+      const techName = block.technician_name?.split(" ")[0] || "";
+      result.push({
+        id: `sb-${block.id}`,
+        title: block.title || "Outlook-blokk",
+        start: block.start_at,
+        end: block.end_at,
+        backgroundColor: hexToRgba(colors.bg, 0.85),
+        borderColor: colors.border,
+        textColor: colors.text,
+        editable: false,
+        extendedProps: {
+          isScheduleBlock: true,
+          scheduleBlock: block,
+          matchState: block.match_state,
+          techName,
+          projectTitle: block.project_title,
+        },
+      });
+    }
+
     return result;
-  }, [calendarEvents, getBusySlotsForDay, technicianMap, techColorMap, referenceDate, isAdmin, isMonthView]);
+  }, [calendarEvents, getBusySlotsForDay, technicianMap, techColorMap, referenceDate, isAdmin, isMonthView, scheduleBlocks]);
 
   const handleEventClick = useCallback((info: EventClickArg) => {
+    // Schedule block click
+    if (info.event.extendedProps.isScheduleBlock) {
+      onScheduleBlockClick?.(info.event.extendedProps.scheduleBlock as ScheduleBlock);
+      return;
+    }
     const calEvent = info.event.extendedProps.calendarEvent as CalendarEvent | undefined;
     if (calEvent && !info.event.extendedProps.isBusy) onEventClick?.(calEvent);
   }, [onEventClick]);
@@ -264,6 +306,35 @@ export function ResourceCalendar({
 
           // List view – simple text
           if (calendarView === "listWeek") return undefined;
+
+          // Schedule block rendering
+          if (props.isScheduleBlock) {
+            const StateIcon = props.matchState === "needs_confirmation" ? AlertTriangle
+              : props.matchState === "external" ? Globe : CalendarCheck;
+            if (isMonthView) {
+              return (
+                <div className="flex items-center gap-1 px-1 py-0.5 text-[10px] truncate">
+                  <StateIcon className="h-2.5 w-2.5 shrink-0 opacity-80" />
+                  <span className="truncate">{arg.event.title}</span>
+                </div>
+              );
+            }
+            return (
+              <div className="px-2 py-1.5 overflow-hidden h-full cursor-pointer select-none">
+                <div className="flex items-center gap-1.5">
+                  <StateIcon className="h-3 w-3 shrink-0 opacity-80" />
+                  <p className="text-[12px] font-bold leading-tight truncate">
+                    {props.techName}
+                  </p>
+                </div>
+                <p className="text-[11px] font-medium truncate mt-0.5">{arg.event.title}</p>
+                {props.projectTitle && (
+                  <p className="text-[10px] opacity-75 truncate mt-0.5">{props.projectTitle}</p>
+                )}
+                <span className="text-[9px] opacity-60 mt-0.5 block">{arg.timeText}</span>
+              </div>
+            );
+          }
 
           // Month view – compact
           if (isMonthView) {

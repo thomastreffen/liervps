@@ -23,10 +23,11 @@ import { useCapacity } from "@/hooks/useCapacity";
 import { useTechnicianNowStatus, getContiguousFreeMinutes } from "@/hooks/useTechnicianNowStatus";
 import { useCalendarSync } from "@/hooks/useCalendarSync";
 import { OutlookConflictDialog } from "@/components/OutlookConflictDialog";
-import { useConfirmationCount } from "@/hooks/useScheduleBlocks";
+import { useConfirmationCount, useScheduleBlocks, type ScheduleBlock } from "@/hooks/useScheduleBlocks";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { ScheduleBlockDetailPanel } from "@/components/ScheduleBlockDetailPanel";
 
 type CalendarViewType = "timeGridDay" | "timeGridWeek" | "dayGridMonth" | "listWeek";
 
@@ -59,6 +60,7 @@ export default function ResourcePlan() {
   const [calendarView, setCalendarView] = useState<CalendarViewType>(getStoredView);
   const { busySlots, getBusySlotsForDay, getExternalBusyMinutesForDay } = useExternalBusy(selectedTechId);
   const { syncUpdate, syncCreate, forceUpdate, acceptGraphVersion, conflict, dismissConflict } = useCalendarSync();
+  const [selectedBlock, setSelectedBlock] = useState<ScheduleBlock | null>(null);
 
   // Persist view choice
   useEffect(() => {
@@ -74,6 +76,7 @@ export default function ResourcePlan() {
 
   // Week navigation
   const [referenceDate, setReferenceDate] = useState<Date>(new Date());
+  const { blocks: scheduleBlocks, refetch: refetchBlocks } = useScheduleBlocks(referenceDate, selectedTechId);
   const isCurrentWeek = isSameWeek(referenceDate, new Date(), { weekStartsOn: 1 });
   const weekStart = startOfWeek(referenceDate, { weekStartsOn: 1 });
 
@@ -413,7 +416,9 @@ export default function ResourcePlan() {
           technicianMap={technicianMap}
           getBusySlotsForDay={getBusySlotsForDay}
           dayCapacities={aggregatedDays}
+          scheduleBlocks={scheduleBlocks}
           onEventClick={handleEventClick}
+          onScheduleBlockClick={(block) => setSelectedBlock(block)}
           onDateSelect={handleDateSelect}
           onEventDrop={handleEventDrop}
           onEventResize={handleEventResize}
@@ -448,6 +453,14 @@ export default function ResourcePlan() {
         }}
         onDismiss={dismissConflict}
       />
+
+      {selectedBlock && (
+        <ScheduleBlockDetailPanel
+          block={selectedBlock}
+          onClose={() => setSelectedBlock(null)}
+          onConfirmed={() => refetchBlocks()}
+        />
+      )}
     </div>
   );
 }
