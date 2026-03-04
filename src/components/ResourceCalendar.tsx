@@ -1,4 +1,4 @@
-import { useRef, useCallback, useMemo, useEffect } from "react";
+import { useRef, useCallback, useMemo, useEffect, useState } from "react";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
@@ -9,7 +9,10 @@ import { useCalendarEvents, type CalendarEvent } from "@/hooks/useCalendarEvents
 import type { ExternalBusySlot } from "@/hooks/useExternalBusy";
 import type { DayCapacity } from "@/hooks/useCapacity";
 import type { ScheduleBlock } from "@/hooks/useScheduleBlocks";
-import { Lock, CalendarCheck, AlertTriangle, Globe } from "lucide-react";
+import { Lock, CalendarCheck, AlertTriangle, Globe, Monitor } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
+import { format } from "date-fns";
+import { nb } from "date-fns/locale";
 
 interface TechLookup {
   name: string;
@@ -221,6 +224,7 @@ export function ResourceCalendar({
     for (const block of scheduleBlocks) {
       const colors = matchStateColors[block.match_state] || matchStateColors.external;
       const techName = block.technician_name?.split(" ")[0] || "";
+      const sourceLabel = block.source === "outlook" ? "Outlook" : "System";
       result.push({
         id: `sb-${block.id}`,
         title: block.title || "Outlook-blokk",
@@ -236,6 +240,12 @@ export function ResourceCalendar({
           matchState: block.match_state,
           techName,
           projectTitle: block.project_title,
+          sourceLabel,
+          blockSource: block.source,
+          matchConfidence: block.match_confidence,
+          matchReason: block.match_reason,
+          blockStartAt: block.start_at,
+          blockEndAt: block.end_at,
         },
       });
     }
@@ -268,6 +278,7 @@ export function ResourceCalendar({
   }, [onEventResize]);
 
   return (
+    <TooltipProvider delayDuration={300}>
     <div className="fc-wrapper rounded-2xl border border-border/40 bg-card shadow-sm overflow-hidden">
       <FullCalendar
         ref={calendarRef}
@@ -311,28 +322,61 @@ export function ResourceCalendar({
           if (props.isScheduleBlock) {
             const StateIcon = props.matchState === "needs_confirmation" ? AlertTriangle
               : props.matchState === "external" ? Globe : CalendarCheck;
+            const SourceIcon = props.blockSource === "outlook" ? CalendarCheck : Monitor;
+
+            const tooltipContent = (
+              <div className="space-y-1 text-xs max-w-[220px]">
+                <p className="font-semibold">{arg.event.title}</p>
+                <p className="text-muted-foreground">
+                  {props.blockStartAt ? format(props.blockStartAt, "EEE d. MMM HH:mm", { locale: nb }) : ""} – {props.blockEndAt ? format(props.blockEndAt, "HH:mm") : ""}
+                </p>
+                {props.projectTitle && <p>Prosjekt: {props.projectTitle}</p>}
+                <p>Kilde: {props.sourceLabel}</p>
+                {props.matchState === "needs_confirmation" && (
+                  <>
+                    <p className="text-amber-400">⚠ Trenger bekreftelse ({props.matchConfidence}%)</p>
+                    {props.matchReason && <p className="text-muted-foreground italic">{props.matchReason}</p>}
+                  </>
+                )}
+              </div>
+            );
+
             if (isMonthView) {
               return (
-                <div className="flex items-center gap-1 px-1 py-0.5 text-[10px] truncate">
-                  <StateIcon className="h-2.5 w-2.5 shrink-0 opacity-80" />
-                  <span className="truncate">{arg.event.title}</span>
-                </div>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="flex items-center gap-1 px-1 py-0.5 text-[10px] truncate">
+                      <StateIcon className="h-2.5 w-2.5 shrink-0 opacity-80" />
+                      <span className="truncate">{arg.event.title}</span>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent side="top">{tooltipContent}</TooltipContent>
+                </Tooltip>
               );
             }
             return (
-              <div className="px-2 py-1.5 overflow-hidden h-full cursor-pointer select-none">
-                <div className="flex items-center gap-1.5">
-                  <StateIcon className="h-3 w-3 shrink-0 opacity-80" />
-                  <p className="text-[12px] font-bold leading-tight truncate">
-                    {props.techName}
-                  </p>
-                </div>
-                <p className="text-[11px] font-medium truncate mt-0.5">{arg.event.title}</p>
-                {props.projectTitle && (
-                  <p className="text-[10px] opacity-75 truncate mt-0.5">{props.projectTitle}</p>
-                )}
-                <span className="text-[9px] opacity-60 mt-0.5 block">{arg.timeText}</span>
-              </div>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="px-2 py-1.5 overflow-hidden h-full cursor-pointer select-none">
+                    <div className="flex items-center gap-1.5">
+                      <StateIcon className="h-3 w-3 shrink-0 opacity-80" />
+                      <p className="text-[12px] font-bold leading-tight truncate">
+                        {props.techName}
+                      </p>
+                      <span className="ml-auto flex items-center gap-0.5 text-[8px] font-semibold uppercase tracking-wider opacity-70 bg-white/15 rounded px-1 py-px shrink-0">
+                        <SourceIcon className="h-2.5 w-2.5" />
+                        {props.sourceLabel}
+                      </span>
+                    </div>
+                    <p className="text-[11px] font-medium truncate mt-0.5">{arg.event.title}</p>
+                    {props.projectTitle && (
+                      <p className="text-[10px] opacity-75 truncate mt-0.5">{props.projectTitle}</p>
+                    )}
+                    <span className="text-[9px] opacity-60 mt-0.5 block">{arg.timeText}</span>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="top">{tooltipContent}</TooltipContent>
+              </Tooltip>
             );
           }
 
@@ -433,5 +477,6 @@ export function ResourceCalendar({
         loading={() => {}}
       />
     </div>
+    </TooltipProvider>
   );
 }

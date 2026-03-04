@@ -28,6 +28,8 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ScheduleBlockDetailPanel } from "@/components/ScheduleBlockDetailPanel";
+import { useSyncHealth } from "@/hooks/useSyncHealth";
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 
 type CalendarViewType = "timeGridDay" | "timeGridWeek" | "dayGridMonth" | "listWeek";
 
@@ -52,6 +54,7 @@ export default function ResourcePlan() {
   const navigate = useNavigate();
   const { isAdmin } = useAuth();
   const confirmationCount = useConfirmationCount();
+  const syncHealth = useSyncHealth(isAdmin);
   const { technicians } = useTechnicians();
   const [selectedTechId, setSelectedTechId] = useState<string | null>(null);
   const [capacityFilter, setCapacityFilter] = useState<"all" | "available" | "partial">("all");
@@ -328,6 +331,31 @@ export default function ResourcePlan() {
               <Switch checked={externalBlocksCapacity} onCheckedChange={setExternalBlocksCapacity} className="scale-75" />
               <span className="whitespace-nowrap">Ekstern blokkerer</span>
             </div>
+
+            {isAdmin && (
+              <TooltipProvider delayDuration={200}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="flex items-center gap-1.5 text-xs cursor-default">
+                      <span
+                        className="h-2 w-2 rounded-full shrink-0"
+                        style={{
+                          backgroundColor: syncHealth.color === "green" ? "hsl(var(--success, 142 71% 45%))"
+                            : syncHealth.color === "yellow" ? "hsl(var(--accent, 38 92% 50%))"
+                            : "hsl(var(--destructive, 0 84% 60%))",
+                        }}
+                      />
+                      <span className="text-muted-foreground whitespace-nowrap">Synk: {syncHealth.label}</span>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="text-xs">
+                    {syncHealth.minutesAgo !== null
+                      ? `Siste synkronisering ${syncHealth.minutesAgo} min siden${syncHealth.status === "error" ? " (feil)" : ""}`
+                      : "Ingen synkroniseringsdata"}
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
 
             <StatusLegend />
 
