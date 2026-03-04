@@ -1337,7 +1337,9 @@ export type Database = {
       conversation_posts: {
         Row: {
           author_id: string | null
+          body_clean: string | null
           body_html: string | null
+          body_raw: string | null
           body_text: string | null
           cc_emails: string[] | null
           company_id: string
@@ -1356,7 +1358,9 @@ export type Database = {
         }
         Insert: {
           author_id?: string | null
+          body_clean?: string | null
           body_html?: string | null
+          body_raw?: string | null
           body_text?: string | null
           cc_emails?: string[] | null
           company_id: string
@@ -1375,7 +1379,9 @@ export type Database = {
         }
         Update: {
           author_id?: string | null
+          body_clean?: string | null
           body_html?: string | null
+          body_raw?: string | null
           body_text?: string | null
           cc_emails?: string[] | null
           company_id?: string

@@ -1,20 +1,20 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { useConversationPosts, type ConversationPost, type ConversationAttachment } from "@/hooks/useConversations";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { triggerConversationEmailSend } from "@/lib/conversation-email";
-import { format } from "date-fns";
+import { format, isSameDay, differenceInMinutes } from "date-fns";
 import { nb } from "date-fns/locale";
 import {
-  MessageSquare, Mail, Send, Loader2, Paperclip,
-  ExternalLink, Copy, FileText, Image, ChevronDown,
-  AlertTriangle, RotateCw,
+  Send, Loader2, Paperclip, ExternalLink, Copy, FileText,
+  Image as ImageIcon, AlertTriangle, RotateCw, ChevronDown, X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 
 interface ThreadDetailProps {
   threadId: string;
@@ -34,6 +34,102 @@ interface FailedEmail {
   created_at: string;
 }
 
+/* ── Avatar color from email/name ── */
+const AVATAR_COLORS = [
+  "bg-blue-100 text-blue-700", "bg-emerald-100 text-emerald-700",
+  "bg-amber-100 text-amber-700", "bg-rose-100 text-rose-700",
+  "bg-purple-100 text-purple-700", "bg-teal-100 text-teal-700",
+  "bg-indigo-100 text-indigo-700", "bg-orange-100 text-orange-700",
+];
+
+function avatarColor(identifier: string): string {
+  let hash = 0;
+  for (let i = 0; i < identifier.length; i++) {
+    hash = identifier.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+}
+
+function initials(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  return name.substring(0, 2).toUpperCase();
+}
+
+function authorKey(post: ConversationPost): string {
+  if (post.post_type === "email") return post.from_email || post.from_name || "unknown";
+  return post.author_name || "unknown";
+}
+
+function authorDisplay(post: ConversationPost): string {
+  if (post.post_type === "email") return post.from_name || post.from_email || "Ukjent";
+  return post.author_name || "Ukjent";
+}
+
+/* ── Group messages from same sender within 3 min ── */
+interface PostGroup {
+  sender: string;
+  senderDisplay: string;
+  senderEmail: string;
+  timestamp: Date;
+  posts: ConversationPost[];
+}
+
+function groupPosts(posts: ConversationPost[]): { date: Date; groups: PostGroup[] }[] {
+  const days: { date: Date; groups: PostGroup[] }[] = [];
+  let currentDay: { date: Date; groups: PostGroup[] } | null = null;
+  let currentGroup: PostGroup | null = null;
+
+  for (const post of posts) {
+    if (post.post_type === "system") {
+      // System messages get their own group
+      const ts = new Date(post.sent_at || post.created_at);
+      if (!currentDay || !isSameDay(currentDay.date, ts)) {
+        currentDay = { date: ts, groups: [] };
+        days.push(currentDay);
+      }
+      currentGroup = null;
+      currentDay.groups.push({
+        sender: "__system__",
+        senderDisplay: "System",
+        senderEmail: "",
+        timestamp: ts,
+        posts: [post],
+      });
+      continue;
+    }
+
+    const ts = new Date(post.sent_at || post.created_at);
+    const key = authorKey(post);
+
+    if (!currentDay || !isSameDay(currentDay.date, ts)) {
+      currentDay = { date: ts, groups: [] };
+      days.push(currentDay);
+      currentGroup = null;
+    }
+
+    if (
+      currentGroup &&
+      currentGroup.sender === key &&
+      differenceInMinutes(ts, currentGroup.timestamp) <= 3
+    ) {
+      currentGroup.posts.push(post);
+      currentGroup.timestamp = ts;
+    } else {
+      currentGroup = {
+        sender: key,
+        senderDisplay: authorDisplay(post),
+        senderEmail: post.from_email || "",
+        timestamp: ts,
+        posts: [post],
+      };
+      currentDay.groups.push(currentGroup);
+    }
+  }
+
+  return days;
+}
+
 export function ThreadDetail({ threadId, threadTitle, threadType, projectId, companyId, isClosed = false, emailEnabled = true }: ThreadDetailProps) {
   const { posts, loading, refresh } = useConversationPosts(threadId);
   const { user } = useAuth();
@@ -45,6 +141,14 @@ export function ThreadDetail({ threadId, threadTitle, threadType, projectId, com
   const [resending, setResending] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const bottomRef = useRef<HTMLDivElement>(null);
+
+  const grouped = useMemo(() => groupPosts(posts), [posts]);
+
+  // Auto-scroll to bottom on new messages
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [posts.length]);
 
   // Check for last failed outbound email
   useEffect(() => {
@@ -119,14 +223,9 @@ export function ThreadDetail({ threadId, threadTitle, threadType, projectId, com
     if (!emailEnabled) return;
     try {
       const result = await triggerConversationEmailSend(threadId, "new_post", { post_id: postId });
-      if (result.sent) {
-        console.log("Email sent for post", postId);
-      } else if (!result.skipped) {
-        console.warn("Email send failed", result.error);
-      }
-    } catch {
-      console.warn("Email send failed silently");
-    }
+      if (result.sent) console.log("Email sent for post", postId);
+      else if (!result.skipped) console.warn("Email send failed", result.error);
+    } catch { console.warn("Email send failed silently"); }
   };
 
   const handleReply = async () => {
@@ -147,6 +246,7 @@ export function ThreadDetail({ threadId, threadTitle, threadType, projectId, com
       post_type: "internal_message",
       body_text: replyText.trim() || null,
       body_html: replyText.trim() ? `<p>${replyText.trim().replace(/\n/g, "<br/>")}</p>` : null,
+      body_clean: replyText.trim() || null,
     }).select("id").single();
 
     if (error) {
@@ -179,7 +279,7 @@ export function ThreadDetail({ threadId, threadTitle, threadType, projectId, com
   }
 
   return (
-    <div>
+    <div className="flex flex-col">
       {/* Failed email banner */}
       {failedEmail && (
         <div className="flex items-center gap-3 px-5 py-3 bg-destructive/5 border-b border-destructive/20">
@@ -191,11 +291,9 @@ export function ThreadDetail({ threadId, threadTitle, threadType, projectId, com
             </p>
           </div>
           <Button
-            size="sm"
-            variant="outline"
+            size="sm" variant="outline"
             className="h-7 text-xs gap-1 border-destructive/30 text-destructive hover:bg-destructive/10 shrink-0"
-            onClick={handleResendEmail}
-            disabled={resending}
+            onClick={handleResendEmail} disabled={resending}
           >
             {resending ? <Loader2 className="h-3 w-3 animate-spin" /> : <RotateCw className="h-3 w-3" />}
             Send på nytt
@@ -203,10 +301,69 @@ export function ThreadDetail({ threadId, threadTitle, threadType, projectId, com
         </div>
       )}
 
-      <div className="divide-y divide-border/20">
-        {posts.map((post, i) => (
-          <PostCard key={post.id} post={post} isFirst={i === 0} />
+      {/* Chat messages */}
+      <div className="px-4 sm:px-5 py-4 space-y-1">
+        {grouped.map((day, di) => (
+          <div key={di}>
+            {/* Day separator */}
+            <div className="flex items-center gap-3 py-3">
+              <div className="h-px flex-1 bg-border/40" />
+              <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                {format(day.date, "EEEE d. MMMM yyyy", { locale: nb })}
+              </span>
+              <div className="h-px flex-1 bg-border/40" />
+            </div>
+
+            {day.groups.map((group, gi) => {
+              if (group.sender === "__system__") {
+                const p = group.posts[0];
+                return (
+                  <div key={`sys-${gi}`} className="flex items-center gap-2 py-2 px-3 text-xs text-muted-foreground">
+                    <div className="h-px flex-1 bg-border/30" />
+                    <span className="italic text-[11px]">{p.body_text || p.subject || "Systemhendelse"}</span>
+                    <div className="h-px flex-1 bg-border/30" />
+                  </div>
+                );
+              }
+
+              const colorClass = avatarColor(group.sender);
+              const ini = initials(group.senderDisplay);
+
+              return (
+                <div key={`g-${gi}`} className="flex gap-2.5 mb-3">
+                  {/* Avatar */}
+                  <div className={cn(
+                    "flex h-8 w-8 items-center justify-center rounded-full text-[11px] font-bold shrink-0 mt-0.5",
+                    colorClass
+                  )}>
+                    {ini}
+                  </div>
+
+                  <div className="flex-1 min-w-0">
+                    {/* Sender + time header */}
+                    <div className="flex items-baseline gap-2 mb-0.5">
+                      <span className="text-[13px] font-semibold text-foreground">{group.senderDisplay}</span>
+                      <span className="text-[10px] text-muted-foreground">
+                        {format(group.posts[0].sent_at ? new Date(group.posts[0].sent_at) : new Date(group.posts[0].created_at), "HH:mm", { locale: nb })}
+                      </span>
+                      {group.posts[0].post_type === "email" && group.posts[0].direction === "inbound" && (
+                        <Badge variant="outline" className="text-[8px] px-1 py-0 border-accent/30 text-accent">
+                          E-post
+                        </Badge>
+                      )}
+                    </div>
+
+                    {/* Messages in group */}
+                    {group.posts.map((post) => (
+                      <ChatBubble key={post.id} post={post} />
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         ))}
+        <div ref={bottomRef} />
       </div>
 
       {/* Reply composer */}
@@ -243,13 +400,7 @@ export function ThreadDetail({ threadId, threadTitle, threadType, projectId, com
 
           <div className="flex items-center justify-between mt-3">
             <div className="flex items-center gap-2">
-              <input
-                ref={fileInputRef}
-                type="file"
-                multiple
-                className="hidden"
-                onChange={handleFileSelect}
-              />
+              <input ref={fileInputRef} type="file" multiple className="hidden" onChange={handleFileSelect} />
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
@@ -260,8 +411,7 @@ export function ThreadDetail({ threadId, threadTitle, threadType, projectId, com
               </button>
             </div>
             <Button
-              size="sm"
-              onClick={handleReply}
+              size="sm" onClick={handleReply}
               disabled={(!replyText.trim() && pendingFiles.length === 0) || sending || uploading}
               className="gap-1.5 text-xs rounded-lg h-8"
             >
@@ -275,125 +425,97 @@ export function ThreadDetail({ threadId, threadTitle, threadType, projectId, com
   );
 }
 
-/* ── Post Card ── */
+/* ── Chat Bubble ── */
 
-function PostCard({ post, isFirst }: { post: ConversationPost; isFirst: boolean }) {
-  const [expanded, setExpanded] = useState(isFirst || post.post_type === "internal_message");
+function ChatBubble({ post }: { post: ConversationPost }) {
+  const [showRaw, setShowRaw] = useState(false);
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+
   const isEmail = post.post_type === "email";
-  const isSystem = post.post_type === "system";
 
-  if (isSystem) {
-    return (
-      <div className="flex items-center gap-2 py-3 px-5 text-xs text-muted-foreground">
-        <div className="h-px flex-1 bg-border/40" />
-        <span className="italic">{post.body_text || post.subject || "Systemhendelse"}</span>
-        <div className="h-px flex-1 bg-border/40" />
-      </div>
-    );
-  }
-
-  const authorDisplay = isEmail
-    ? post.from_name || post.from_email || "Ukjent"
-    : post.author_name || "Ukjent";
-
-  const timeDisplay = post.sent_at
-    ? format(new Date(post.sent_at), "d. MMM yyyy, HH:mm", { locale: nb })
-    : format(new Date(post.created_at), "d. MMM yyyy, HH:mm", { locale: nb });
-
-  const handleCopyEmail = () => {
-    const text = `${post.subject || ""}\n\n${post.body_text || ""}`;
-    navigator.clipboard.writeText(text);
-    toast.success("Kopiert til utklippstavle");
-  };
+  // Use body_clean if available, fall back to body_text
+  const cleanBody = (post as any).body_clean || post.body_text || "";
+  const rawBody = (post as any).body_raw || post.body_html || "";
+  const hasRawContent = isEmail && rawBody && rawBody !== cleanBody;
 
   return (
-    <div className={cn("py-5 px-5")}>
-      <div className="flex items-start gap-3">
-        <div className={cn(
-          "flex h-9 w-9 items-center justify-center rounded-full text-xs font-bold shrink-0",
-          isEmail ? "bg-accent/10 text-accent" : "bg-primary/10 text-primary"
-        )}>
-          {isEmail ? <Mail className="h-4 w-4" /> : authorDisplay.charAt(0).toUpperCase()}
+    <div className="mb-1.5">
+      {/* Clean message text */}
+      {cleanBody && (
+        <p className="text-[13px] text-foreground/90 whitespace-pre-wrap leading-relaxed">{cleanBody}</p>
+      )}
+
+      {/* Attachments */}
+      {post.attachments && post.attachments.length > 0 && (
+        <div className="flex flex-wrap gap-2 mt-1.5">
+          {post.attachments.map((a) => (
+            <AttachmentCard key={a.id} attachment={a} onImageClick={setLightboxUrl} />
+          ))}
         </div>
+      )}
 
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-sm font-semibold text-foreground">{authorDisplay}</span>
-            {isEmail && (
-              <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-accent/30 text-accent">
-                {post.direction === "outbound" ? "Sendt" : "Mottatt"}
-              </Badge>
-            )}
-            <span className="text-[11px] text-muted-foreground ml-auto">{timeDisplay}</span>
-          </div>
-
-          {isEmail && post.to_emails && post.to_emails.length > 0 && (
-            <p className="text-[11px] text-muted-foreground mt-0.5">
-              Til: {post.to_emails.join(", ")}
-            </p>
-          )}
-
-          {expanded ? (
-            <div className="mt-3 space-y-3">
-              {post.body_html ? (
-                <div
-                  className="prose prose-sm max-w-none text-foreground/90 [&_p]:my-1 [&_a]:text-primary"
-                  dangerouslySetInnerHTML={{ __html: post.body_html }}
-                />
-              ) : post.body_text ? (
-                <p className="text-sm text-foreground/90 whitespace-pre-wrap">{post.body_text}</p>
-              ) : null}
-
-              {post.attachments && post.attachments.length > 0 && (
-                <div className="flex flex-wrap gap-2 pt-1">
-                  {post.attachments.map((a) => (
-                    <AttachmentChip key={a.id} attachment={a} />
-                  ))}
-                </div>
-              )}
-
-              {isEmail && (
-                <div className="flex items-center gap-2 pt-2">
-                  {post.outlook_weblink && (
-                    <a
-                      href={post.outlook_weblink}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors rounded-md px-2.5 py-1.5 border border-border/40 hover:bg-muted/50"
-                    >
-                      <ExternalLink className="h-3 w-3" />
-                      Åpne i Outlook
-                    </a>
-                  )}
-                  <button
-                    onClick={handleCopyEmail}
-                    className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors rounded-md px-2.5 py-1.5 border border-border/40 hover:bg-muted/50 cursor-pointer"
-                  >
-                    <Copy className="h-3 w-3" />
-                    Kopier
-                  </button>
-                </div>
-              )}
+      {/* Show raw email toggle */}
+      {hasRawContent && (
+        <div className="mt-1">
+          <button
+            onClick={() => setShowRaw(!showRaw)}
+            className="inline-flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+          >
+            <ChevronDown className={cn("h-3 w-3 transition-transform", showRaw && "rotate-180")} />
+            {showRaw ? "Skjul e-posthistorikk" : "Vis e-posthistorikk"}
+          </button>
+          {showRaw && (
+            <div className="mt-2 p-3 rounded-lg bg-muted/40 border border-border/30 overflow-x-auto">
+              <div
+                className="prose prose-xs max-w-none text-foreground/70 text-[11px] [&_p]:my-0.5 [&_a]:text-primary [&_blockquote]:border-l-2 [&_blockquote]:border-muted-foreground/20 [&_blockquote]:pl-3 [&_blockquote]:text-muted-foreground"
+                dangerouslySetInnerHTML={{ __html: rawBody }}
+              />
             </div>
-          ) : (
-            <button
-              onClick={() => setExpanded(true)}
-              className="mt-1 text-xs text-muted-foreground hover:text-foreground cursor-pointer"
-            >
-              <ChevronDown className="h-3 w-3 inline mr-1" />
-              Vis innhold
-            </button>
           )}
         </div>
-      </div>
+      )}
+
+      {/* Outlook link for email posts */}
+      {isEmail && post.outlook_weblink && (
+        <a
+          href={post.outlook_weblink}
+          target="_blank" rel="noopener noreferrer"
+          className="inline-flex items-center gap-1 mt-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <ExternalLink className="h-2.5 w-2.5" />
+          Åpne i Outlook
+        </a>
+      )}
+
+      {/* Lightbox */}
+      {lightboxUrl && (
+        <Dialog open={!!lightboxUrl} onOpenChange={() => setLightboxUrl(null)}>
+          <DialogContent className="max-w-3xl p-2 bg-black/90 border-none">
+            <img src={lightboxUrl} alt="Vedlegg" className="w-full h-auto max-h-[80vh] object-contain rounded" />
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }
 
-/* ── Attachment Chip ── */
+/* ── Attachment Card ── */
 
-function AttachmentChip({ attachment }: { attachment: ConversationAttachment }) {
+function AttachmentCard({ attachment, onImageClick }: { attachment: ConversationAttachment; onImageClick: (url: string) => void }) {
   const isImage = attachment.mime_type?.startsWith("image/");
+  const isPdf = attachment.mime_type === "application/pdf";
+  const [thumbUrl, setThumbUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isImage || !attachment.storage_path) return;
+    (async () => {
+      const { data } = await supabase.storage
+        .from("conversation-files")
+        .createSignedUrl(attachment.storage_path!, 3600);
+      if (data?.signedUrl) setThumbUrl(data.signedUrl);
+    })();
+  }, [attachment.storage_path, isImage]);
+
   const sizeStr = attachment.file_size
     ? attachment.file_size > 1_000_000
       ? `${(attachment.file_size / 1_000_000).toFixed(1)} MB`
@@ -401,30 +523,50 @@ function AttachmentChip({ attachment }: { attachment: ConversationAttachment }) 
     : null;
 
   const handleClick = async () => {
+    if (isImage && thumbUrl) {
+      onImageClick(thumbUrl);
+      return;
+    }
     if (!attachment.storage_path) {
-      if (attachment.sharepoint_web_url) {
-        window.open(attachment.sharepoint_web_url, "_blank");
-      }
+      if (attachment.sharepoint_web_url) window.open(attachment.sharepoint_web_url, "_blank");
       return;
     }
     const { data } = await supabase.storage
       .from("conversation-files")
       .createSignedUrl(attachment.storage_path, 3600);
-    if (data?.signedUrl) {
-      window.open(data.signedUrl, "_blank");
-    } else {
-      toast.error("Kunne ikke åpne fil");
-    }
+    if (data?.signedUrl) window.open(data.signedUrl, "_blank");
+    else toast.error("Kunne ikke åpne fil");
   };
+
+  if (isImage && thumbUrl) {
+    return (
+      <button
+        onClick={handleClick}
+        className="relative rounded-lg overflow-hidden border border-border/30 hover:border-border/60 transition-colors cursor-pointer group"
+      >
+        <img src={thumbUrl} alt={attachment.file_name} className="h-24 w-auto max-w-[200px] object-cover" />
+        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
+      </button>
+    );
+  }
 
   return (
     <button
       onClick={handleClick}
-      className="inline-flex items-center gap-1.5 rounded-lg border border-border/40 bg-muted/30 px-2.5 py-1.5 text-xs text-foreground hover:bg-muted/60 transition-colors cursor-pointer"
+      className={cn(
+        "inline-flex items-center gap-2 rounded-lg border border-border/30 px-3 py-2 text-xs hover:bg-muted/50 transition-colors cursor-pointer",
+        isPdf ? "bg-red-50/50 dark:bg-red-900/10" : "bg-muted/20"
+      )}
     >
-      {isImage ? <Image className="h-3 w-3 text-muted-foreground" /> : <FileText className="h-3 w-3 text-muted-foreground" />}
-      <span className="max-w-[150px] truncate">{attachment.file_name}</span>
-      {sizeStr && <span className="text-muted-foreground/60">{sizeStr}</span>}
+      {isPdf ? (
+        <FileText className="h-4 w-4 text-red-500 shrink-0" />
+      ) : (
+        <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+      )}
+      <div className="text-left min-w-0">
+        <p className="text-[12px] font-medium text-foreground truncate max-w-[180px]">{attachment.file_name}</p>
+        {sizeStr && <p className="text-[10px] text-muted-foreground">{sizeStr}</p>}
+      </div>
     </button>
   );
 }
