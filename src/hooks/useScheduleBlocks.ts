@@ -90,6 +90,7 @@ export function useScheduleBlocks(
           technicians!inner(name, color),
           events(title)
         `)
+        .is("deleted_at", null)
         .lt("start_at", weekEnd.toISOString())
         .gt("end_at", weekStart.toISOString())
         .order("start_at", { ascending: true });
@@ -192,6 +193,7 @@ export function useConfirmationCount() {
     const { count: c, error } = await supabase
       .from("schedule_blocks")
       .select("id", { count: "exact", head: true })
+      .is("deleted_at", null)
       .eq("match_state", "needs_confirmation");
     if (!error && c !== null) setCount(c);
   }, []);
