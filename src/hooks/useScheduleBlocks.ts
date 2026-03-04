@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { startOfWeek, endOfWeek } from "date-fns";
 
@@ -27,15 +27,22 @@ export interface ScheduleBlock {
   project_title?: string | null;
 }
 
+function isInWeek(dateStr: string, weekStart: Date, weekEnd: Date): boolean {
+  const d = new Date(dateStr);
+  return d >= weekStart && d <= weekEnd;
+}
+
 export function useScheduleBlocks(referenceDate: Date, technicianId?: string | null) {
   const [blocks, setBlocks] = useState<ScheduleBlock[]>([]);
   const [loading, setLoading] = useState(false);
+  const fetchIdRef = useRef(0);
 
   const weekStart = useMemo(() => startOfWeek(referenceDate, { weekStartsOn: 1 }), [referenceDate.toDateString()]);
   const weekEnd = useMemo(() => endOfWeek(referenceDate, { weekStartsOn: 1 }), [referenceDate.toDateString()]);
 
-  const fetchBlocks = useCallback(async () => {
-    setLoading(true);
+  const fetchBlocks = useCallback(async (silent = false) => {
+    const id = ++fetchIdRef.current;
+    if (!silent) setLoading(true);
     try {
       let query = supabase
         .from("schedule_blocks")
@@ -53,6 +60,7 @@ export function useScheduleBlocks(referenceDate: Date, technicianId?: string | n
       }
 
       const { data, error } = await query;
+      if (id !== fetchIdRef.current) return; // stale
       if (error) {
         console.error("[ScheduleBlocks] Fetch error:", error);
         setBlocks([]);
@@ -72,21 +80,78 @@ export function useScheduleBlocks(referenceDate: Date, technicianId?: string | n
     } catch (err) {
       console.error("[ScheduleBlocks] Exception:", err);
     } finally {
-      setLoading(false);
+      if (id === fetchIdRef.current && !silent) setLoading(false);
     }
   }, [weekStart, weekEnd, technicianId]);
 
+  // Initial fetch
   useEffect(() => { fetchBlocks(); }, [fetchBlocks]);
 
-  // Realtime subscription
+  // Realtime – broad subscription, refetch on relevant changes
   useEffect(() => {
     const channel = supabase
-      .channel("schedule-blocks-realtime")
-      .on("postgres_changes", { event: "*", schema: "public", table: "schedule_blocks" }, () => {
-        fetchBlocks();
-      })
+      .channel("schedule-blocks-rt")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "schedule_blocks" },
+        (payload) => {
+          const row = payload.new as any;
+          // If the new row falls in current week range, do a silent refetch
+          // to get joined data (technician name, project title)
+          if (isInWeek(row.start_at, weekStart, weekEnd)) {
+            if (!technicianId || row.technician_id === technicianId) {
+              fetchBlocks(true);
+            }
+          }
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "schedule_blocks" },
+        (payload) => {
+          const row = payload.new as any;
+          // Refetch if updated block is in current view or was previously in view
+          const inView = isInWeek(row.start_at, weekStart, weekEnd);
+          const wasInView = blocks.some((b) => b.id === row.id);
+          if (inView || wasInView) {
+            if (!technicianId || row.technician_id === technicianId) {
+              fetchBlocks(true);
+            }
+          }
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "DELETE", schema: "public", table: "schedule_blocks" },
+        (payload) => {
+          const old = payload.old as any;
+          // Remove from local state immediately
+          setBlocks((prev) => prev.filter((b) => b.id !== old.id));
+        }
+      )
       .subscribe();
     return () => { supabase.removeChannel(channel); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [weekStart, weekEnd, technicianId, fetchBlocks]);
+
+  // Fallback: silent refetch every 60s
+  useEffect(() => {
+    const interval = setInterval(() => fetchBlocks(true), 60_000);
+    return () => clearInterval(interval);
+  }, [fetchBlocks]);
+
+  // Fallback: refetch on tab focus / visibilitychange
+  useEffect(() => {
+    const onFocus = () => fetchBlocks(true);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") fetchBlocks(true);
+    };
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, [fetchBlocks]);
 
   return { blocks, loading, refetch: fetchBlocks };
@@ -108,12 +173,18 @@ export function useConfirmationCount() {
 
   useEffect(() => {
     const channel = supabase
-      .channel("confirmation-count")
+      .channel("confirmation-count-rt")
       .on("postgres_changes", { event: "*", schema: "public", table: "schedule_blocks" }, () => {
         fetchCount();
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
+  }, [fetchCount]);
+
+  // Fallback polling for confirmation count
+  useEffect(() => {
+    const interval = setInterval(fetchCount, 60_000);
+    return () => clearInterval(interval);
   }, [fetchCount]);
 
   return count;
