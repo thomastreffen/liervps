@@ -1,5 +1,6 @@
 import { useState, useCallback, useMemo, useEffect } from "react";
 import { addWeeks, addDays, startOfWeek, startOfMonth, addMonths, format, isSameWeek } from "date-fns";
+import { useNavigate } from "react-router-dom";
 import { nb } from "date-fns/locale";
 import { TechnicianList } from "@/components/TechnicianList";
 import { StatusLegend } from "@/components/StatusLegend";
@@ -11,7 +12,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Plus, CalendarDays, ChevronLeft, ChevronRight, RotateCcw, UserCheck, UserMinus, Clock,
-  Calendar, List,
+  Calendar, List, Bell,
 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/hooks/useAuth";
@@ -22,6 +23,8 @@ import { useCapacity } from "@/hooks/useCapacity";
 import { useTechnicianNowStatus, getContiguousFreeMinutes } from "@/hooks/useTechnicianNowStatus";
 import { useCalendarSync } from "@/hooks/useCalendarSync";
 import { OutlookConflictDialog } from "@/components/OutlookConflictDialog";
+import { useConfirmationCount } from "@/hooks/useScheduleBlocks";
+import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -45,7 +48,9 @@ function getStoredView(): CalendarViewType {
 
 export default function ResourcePlan() {
   const isMobile = useIsMobile();
+  const navigate = useNavigate();
   const { isAdmin } = useAuth();
+  const confirmationCount = useConfirmationCount();
   const { technicians } = useTechnicians();
   const [selectedTechId, setSelectedTechId] = useState<string | null>(null);
   const [capacityFilter, setCapacityFilter] = useState<"all" | "available" | "partial">("all");
@@ -322,6 +327,18 @@ export default function ResourcePlan() {
             </div>
 
             <StatusLegend />
+
+            {confirmationCount > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 rounded-xl relative"
+                onClick={() => navigate("/calendar/confirmations")}
+              >
+                <Bell className="h-4 w-4" />
+                <span>{confirmationCount} bekreftelser</span>
+              </Button>
+            )}
 
             {isAdmin && (
               <Button onClick={handleNewEvent} size="sm" className="gap-1.5 rounded-xl">
