@@ -1,7 +1,7 @@
 import { memo } from "react";
 import { format } from "date-fns";
 import { nb } from "date-fns/locale";
-import { X, ExternalLink, Check, ArrowRight, MapPin, Info } from "lucide-react";
+import { X, ExternalLink, Check, ArrowRight, MapPin, Info, Calendar as CalendarIcon, User, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import type { ScheduleBlock } from "@/hooks/useScheduleBlocks";
@@ -26,6 +26,7 @@ const stateLabels: Record<string, { label: string; variant: "default" | "seconda
 export const ScheduleBlockDetailPanel = memo(function ScheduleBlockDetailPanel({ block, onClose, onConfirmed }: Props) {
   const navigate = useNavigate();
   const stateInfo = stateLabels[block.match_state] || stateLabels.external;
+  const isOutlook = block.source === "outlook";
 
   const handleConfirm = async () => {
     if (!block.project_id) return;
@@ -41,16 +42,24 @@ export const ScheduleBlockDetailPanel = memo(function ScheduleBlockDetailPanel({
     }
   };
 
-  const outlookUrl = block.calendar_id && block.outlook_event_id
-    ? `https://outlook.office.com/calendar/item/${encodeURIComponent(block.outlook_event_id)}`
-    : null;
+  // Prefer outlook_weblink (direct from Graph), fallback to constructed URL
+  const outlookUrl = block.outlook_weblink
+    || (block.calendar_id && block.outlook_event_id
+      ? `https://outlook.office.com/calendar/item/${encodeURIComponent(block.outlook_event_id)}`
+      : null);
 
   return (
     <div className="fixed right-4 top-24 z-50 w-80 bg-card border border-border/60 rounded-2xl shadow-xl p-4 space-y-3 animate-in slide-in-from-right-4 duration-200">
       {/* Header */}
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <p className="text-sm font-semibold truncate">{block.title || "Uten tittel"}</p>
+          {isOutlook && (
+            <div className="flex items-center gap-1.5 mb-1">
+              <CalendarIcon className="h-3.5 w-3.5 text-primary" />
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-primary">Outlook</span>
+            </div>
+          )}
+          <p className="text-sm font-semibold truncate">{block.outlook_subject || block.title || "Uten tittel"}</p>
           <p className="text-xs text-muted-foreground">
             {block.technician_name} · {format(block.start_at, "EEE d. MMM HH:mm", { locale: nb })}–{format(block.end_at, "HH:mm")}
           </p>
@@ -61,10 +70,26 @@ export const ScheduleBlockDetailPanel = memo(function ScheduleBlockDetailPanel({
       </div>
 
       {/* Location */}
-      {block.location && (
+      {(block.outlook_location || block.location) && (
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <MapPin className="h-3 w-3 shrink-0" />
-          <span className="truncate">{block.location}</span>
+          <span className="truncate">{block.outlook_location || block.location}</span>
+        </div>
+      )}
+
+      {/* Organizer */}
+      {block.outlook_organizer && (
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <User className="h-3 w-3 shrink-0" />
+          <span className="truncate">{block.outlook_organizer}</span>
+        </div>
+      )}
+
+      {/* Preview / description */}
+      {block.outlook_preview && (
+        <div className="flex items-start gap-1.5 text-xs text-muted-foreground">
+          <FileText className="h-3 w-3 shrink-0 mt-0.5" />
+          <p className="line-clamp-3">{block.outlook_preview}</p>
         </div>
       )}
 
@@ -121,7 +146,7 @@ export const ScheduleBlockDetailPanel = memo(function ScheduleBlockDetailPanel({
           <a href={outlookUrl} target="_blank" rel="noopener noreferrer">
             <Button variant="ghost" size="sm" className="h-7 text-xs gap-1 rounded-lg">
               <ExternalLink className="h-3 w-3" />
-              Outlook
+              Åpne i Outlook
             </Button>
           </a>
         )}

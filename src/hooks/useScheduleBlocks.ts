@@ -21,6 +21,12 @@ export interface ScheduleBlock {
   mcs_block_id: string | null;
   created_at: string;
   updated_at: string;
+  // Outlook detail fields
+  outlook_subject: string | null;
+  outlook_location: string | null;
+  outlook_preview: string | null;
+  outlook_weblink: string | null;
+  outlook_organizer: string | null;
   // Joined
   technician_name?: string;
   technician_color?: string | null;
