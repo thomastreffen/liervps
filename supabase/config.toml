@@ -140,3 +140,6 @@ verify_jwt = false
 
 [functions.delete-schedule-block]
 verify_jwt = false
+
+[functions.create-job-from-schedule-block]
+verify_jwt = false

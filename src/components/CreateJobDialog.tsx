@@ -75,6 +75,8 @@ function CreateJobDialogInner({
   const [techIds, setTechIds] = useState<string[]>(preselectedTechId ? [preselectedTechId] : []);
   const [files, setFiles] = useState<File[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const [clientRequestId, setClientRequestId] = useState(() => crypto.randomUUID());
   const [conflicts, setConflicts] = useState<ConflictInfo[]>([]);
   const { syncCreate } = useCalendarSync();
 
@@ -123,7 +125,7 @@ function CreateJobDialogInner({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (safeTechIds.length === 0) return;
+    if (safeTechIds.length === 0 || submitting || submitted) return;
     setSubmitting(true);
 
     try {
@@ -147,6 +149,7 @@ function CreateJobDialogInner({
           technician_id: safeTechIds[0],
           status: "requested",
           created_by: userId || null,
+          client_request_id: clientRequestId,
         })
         .select("id")
         .single();
@@ -241,6 +244,7 @@ function CreateJobDialogInner({
         syncCreate(createdEvent.id);
       }
 
+      setSubmitted(true);
       onOpenChange(false);
       resetForm();
       onJobCreated?.();
@@ -262,6 +266,8 @@ function CreateJobDialogInner({
     setEndDate("");
     setTechIds(preselectedTechId ? [preselectedTechId] : []);
     setFiles([]);
+    setSubmitted(false);
+    setClientRequestId(crypto.randomUUID());
   };
 
   return (
@@ -405,8 +411,8 @@ function CreateJobDialogInner({
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Avbryt
             </Button>
-            <Button type="submit" disabled={safeTechIds.length === 0 || submitting}>
-              {submitting ? "Oppretter..." : "Opprett jobb"}
+            <Button type="submit" disabled={safeTechIds.length === 0 || submitting || submitted}>
+              {submitting ? "Oppretter..." : submitted ? "Opprettet ✓" : "Opprett jobb"}
             </Button>
           </DialogFooter>
         </form>

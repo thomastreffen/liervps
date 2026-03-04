@@ -82,6 +82,7 @@ export function PlanJobDialog({
             created_by: userId,
             address: address || null,
             description: note || `Fra henvendelse: ${caseTitle}`,
+            client_request_id: clientRequestId,
           } as any)
           .select("id")
           .single();
