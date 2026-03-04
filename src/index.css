@@ -201,7 +201,7 @@
   border-width: 1.5px;
   border-left-width: 4px;
   border-left-style: solid;
-  cursor: default;
+  cursor: pointer;
   box-shadow: none;
 }
 .fc-wrapper .fc .fc-timegrid-event:has(.fc-event-external):hover {
