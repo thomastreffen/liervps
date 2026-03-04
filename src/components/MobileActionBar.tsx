@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
@@ -34,7 +34,10 @@ import {
   Mail,
   Settings2,
   CircleDot,
+  Loader2,
 } from "lucide-react";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
 
 interface MobileActionBarProps {
   job: {
@@ -89,8 +92,39 @@ export function MobileActionBar({
     setStatusOpen(false);
   };
 
+  const [linkedBlockCount, setLinkedBlockCount] = useState(0);
+  const [blockAction, setBlockAction] = useState<"keep" | "delete">("keep");
+
+  // Check for linked schedule_blocks when delete dialog opens
+  useEffect(() => {
+    if (!deleteConfirmOpen) return;
+    supabase
+      .from("schedule_blocks")
+      .select("id", { count: "exact", head: true })
+      .eq("project_id", job.id)
+      .is("deleted_at", null)
+      .then(({ count }) => setLinkedBlockCount(count || 0));
+  }, [deleteConfirmOpen, job.id]);
+
   const handleSoftDelete = async () => {
     if (!user) return;
+
+    // Handle linked schedule_blocks
+    if (linkedBlockCount > 0 && blockAction === "delete") {
+      await supabase
+        .from("schedule_blocks")
+        .update({ deleted_at: new Date().toISOString() })
+        .eq("project_id", job.id);
+    }
+    // If blockAction === "keep", ON DELETE SET NULL handles it via the FK,
+    // but since we soft-delete (not hard delete), we need to manually unlink
+    if (linkedBlockCount > 0 && blockAction === "keep") {
+      await supabase
+        .from("schedule_blocks")
+        .update({ project_id: null, match_state: "external", match_reason: "Prosjekt slettet – beholdt som ekstern" })
+        .eq("project_id", job.id);
+    }
+
     await supabase
       .from("events")
       .update({
@@ -243,6 +277,25 @@ export function MobileActionBar({
               "{job.title}" flyttes til papirkurven og kan gjenopprettes senere.
             </AlertDialogDescription>
           </AlertDialogHeader>
+
+          {linkedBlockCount > 0 && (
+            <div className="space-y-2 py-2">
+              <p className="text-sm font-medium">
+                Dette prosjektet har {linkedBlockCount} planlagte tidsblokk{linkedBlockCount > 1 ? "er" : ""}. Hva skal skje med dem?
+              </p>
+              <RadioGroup value={blockAction} onValueChange={(v) => setBlockAction(v as "keep" | "delete")} className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <RadioGroupItem value="keep" id="keep-blocks" />
+                  <Label htmlFor="keep-blocks" className="text-sm">Behold som eksterne blokker</Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <RadioGroupItem value="delete" id="delete-blocks" />
+                  <Label htmlFor="delete-blocks" className="text-sm">Slett blokkene også</Label>
+                </div>
+              </RadioGroup>
+            </div>
+          )}
+
           <AlertDialogFooter>
             <AlertDialogCancel>Avbryt</AlertDialogCancel>
             <AlertDialogAction
