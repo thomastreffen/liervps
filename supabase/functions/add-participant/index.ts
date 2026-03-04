@@ -48,6 +48,31 @@ Deno.serve(async (req) => {
 
     if (!callerUa) return json({ error: "No active user account" }, 403);
 
+    // Check if participant already exists
+    if (participant_type === "external" && email) {
+      const { data: existing } = await (supabase as any)
+        .from("conversation_thread_participants")
+        .select("id")
+        .eq("thread_id", thread_id)
+        .eq("email", email)
+        .maybeSingle();
+      if (existing) {
+        console.log("PARTICIPANT ALREADY EXISTS", { thread_id, email });
+        return json({ ok: true, participant_id: existing.id, already_exists: true });
+      }
+    } else if (participant_type === "internal" && user_account_id) {
+      const { data: existing } = await (supabase as any)
+        .from("conversation_thread_participants")
+        .select("id")
+        .eq("thread_id", thread_id)
+        .eq("user_account_id", user_account_id)
+        .maybeSingle();
+      if (existing) {
+        console.log("PARTICIPANT ALREADY EXISTS", { thread_id, user_account_id });
+        return json({ ok: true, participant_id: existing.id, already_exists: true });
+      }
+    }
+
     // Insert participant
     const insertPayload: any = {
       company_id,
@@ -74,6 +99,11 @@ Deno.serve(async (req) => {
       .single();
 
     if (insertErr) {
+      // Handle race condition duplicate
+      if (insertErr.code === "23505") {
+        console.log("PARTICIPANT DUPLICATE (race)", { thread_id, email, user_account_id });
+        return json({ ok: true, already_exists: true });
+      }
       console.error("INSERT PARTICIPANT ERROR", insertErr);
       return json({ error: insertErr.message }, 500);
     }
