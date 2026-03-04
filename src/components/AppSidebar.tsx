@@ -5,6 +5,7 @@ import {
   Users,
   TrendingUp,
   Inbox,
+  CalendarDays,
   ChevronDown,
   Settings,
 } from "lucide-react";
@@ -32,6 +33,7 @@ import { cn } from "@/lib/utils";
 const mainNav = [
   { title: "Hjem", url: "/overview", icon: Home },
   { title: "Prosjekter", url: "/projects", icon: FolderKanban },
+  { title: "Ressursplan", url: "/projects/plan", icon: CalendarDays },
 ];
 
 const adminItems = [
