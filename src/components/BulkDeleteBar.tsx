@@ -27,6 +27,15 @@ export function BulkDeleteBar({ selectedIds, entityType, entityLabel, onComplete
   const handleBulkDelete = async () => {
     setDeleting(true);
     const now = new Date().toISOString();
+
+    // If deleting events, unlink any connected schedule_blocks first
+    if (entityType === "events") {
+      await supabase
+        .from("schedule_blocks")
+        .update({ project_id: null, match_state: "external", match_reason: "Prosjekt slettet (bulk) – beholdt som ekstern" })
+        .in("project_id", selectedIds);
+    }
+
     const { error } = await supabase
       .from(entityType)
       .update({ deleted_at: now, deleted_by: user?.id } as any)

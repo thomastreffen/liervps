@@ -4,7 +4,7 @@ import { nb } from "date-fns/locale";
 import {
   X, ExternalLink, Check, ArrowRight, MapPin, Info,
   Calendar as CalendarIcon, User, FileText, Sparkles,
-  Plus, Link2, Globe, Trash2, Loader2, Search,
+  Plus, Link2, Globe, Trash2, Loader2, Search, Unlink,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -47,7 +47,7 @@ export const ScheduleBlockDetailPanel = memo(function ScheduleBlockDetailPanel({
   const stateInfo = stateLabels[block.match_state] || stateLabels.external;
   const isOutlook = block.source === "outlook";
   const isSystem = block.source === "system" || block.source === "manual" || (block.source as string) === "linked_outlook";
-  const hasNoProject = !block.project_id;
+  const hasProject = !!block.project_id;
 
   // Action states
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -83,7 +83,7 @@ export const ScheduleBlockDetailPanel = memo(function ScheduleBlockDetailPanel({
     return () => clearTimeout(timer);
   }, [searchQuery, showProjectSearch]);
 
-  // A) Action: Create new job from this outlook block (idempotent)
+  // Create new job (idempotent)
   const handleCreateJob = async () => {
     if (actionLoading || submitted) return;
     setActionLoading("create");
@@ -118,7 +118,7 @@ export const ScheduleBlockDetailPanel = memo(function ScheduleBlockDetailPanel({
     }
   };
 
-  // A) Action: Link to existing project
+  // Link to existing project
   const handleLinkProject = async (projectId: string) => {
     setActionLoading("link");
     try {
@@ -156,7 +156,32 @@ export const ScheduleBlockDetailPanel = memo(function ScheduleBlockDetailPanel({
     }
   };
 
-  // A) Action: Mark as external (will not appear as needing action)
+  // Unlink from project
+  const handleUnlinkProject = async () => {
+    setActionLoading("unlink");
+    try {
+      const { error } = await supabase.from("schedule_blocks").update({
+        project_id: null,
+        match_state: "external",
+        match_reason: "Manuelt frakoblet fra sidepanel",
+      }).eq("id", block.id);
+
+      if (error) {
+        toast.error("Kunne ikke koble fra prosjekt");
+        return;
+      }
+
+      toast.success("Frakoblet prosjekt ✓");
+      onConfirmed?.();
+      onClose();
+    } catch (err: any) {
+      toast.error("Feil", { description: err?.message });
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  // Mark as external
   const handleMarkExternal = async () => {
     setActionLoading("external");
     try {
@@ -178,7 +203,7 @@ export const ScheduleBlockDetailPanel = memo(function ScheduleBlockDetailPanel({
     }
   };
 
-  // Confirm existing suggestion (from ConfirmationsPage logic)
+  // Confirm AI suggestion
   const handleConfirmSuggestion = async () => {
     if (!block.project_id) return;
     setActionLoading("confirm");
@@ -190,7 +215,6 @@ export const ScheduleBlockDetailPanel = memo(function ScheduleBlockDetailPanel({
       else {
         toast.success("Bekreftet ✓");
 
-        // Log learning
         const subject = block.outlook_subject || block.title || "";
         const tokens = subject.split(/[\s–\-,.:;/()]+/).filter(w => w.length > 2).map(w => w.toLowerCase());
         try {
@@ -211,12 +235,11 @@ export const ScheduleBlockDetailPanel = memo(function ScheduleBlockDetailPanel({
     }
   };
 
-  // B) Delete / Remove from plan
+  // Delete / Remove from plan
   const handleDelete = async () => {
     setActionLoading("delete");
     try {
       if (isSystem) {
-        // Call edge function to delete from Outlook + soft-delete
         const { data, error } = await supabase.functions.invoke("delete-schedule-block", {
           body: { schedule_block_id: block.id },
         });
@@ -237,7 +260,6 @@ export const ScheduleBlockDetailPanel = memo(function ScheduleBlockDetailPanel({
           toast.error("Feil ved sletting");
         }
       } else {
-        // Outlook block: soft-delete only (don't touch Graph)
         const { error } = await supabase.from("schedule_blocks")
           .update({ deleted_at: new Date().toISOString() })
           .eq("id", block.id);
@@ -334,34 +356,66 @@ export const ScheduleBlockDetailPanel = memo(function ScheduleBlockDetailPanel({
           )}
         </div>
 
-        {/* Project link (when linked) */}
-        {block.project_title && block.project_id && (
-          <button
-            onClick={() => navigate(`/projects/${block.project_id}`)}
-            className="flex items-center gap-2 w-full text-left p-2 rounded-lg bg-primary/5 hover:bg-primary/10 transition-colors"
-          >
-            <span className="text-xs font-medium text-primary truncate">{block.project_title}</span>
-            <ArrowRight className="h-3 w-3 text-primary shrink-0" />
-          </button>
-        )}
-
-        {/* AI suggestion line for needs_confirmation */}
-        {block.match_state === "needs_confirmation" && block.project_title && block.project_id && (
-          <div className="p-2 rounded-lg bg-amber-500/5 border border-amber-500/20">
-            <p className="text-xs font-medium text-amber-700">
-              Foreslått prosjekt: {block.project_title}
-              {block.ai_confidence !== null && block.ai_confidence > 0 && (
-                <span className="text-muted-foreground ml-1">(AI {block.ai_confidence}%)</span>
-              )}
-            </p>
-            {block.match_reason && (
-              <p className="text-[10px] text-muted-foreground mt-0.5">{block.match_reason}</p>
+        {/* ──── ACTIONS: Block HAS project ──── */}
+        {hasProject && !showProjectSearch && (
+          <>
+            {/* Project link */}
+            {block.project_title && (
+              <button
+                onClick={() => navigate(`/projects/${block.project_id}`)}
+                className="flex items-center gap-2 w-full text-left p-2 rounded-lg bg-primary/5 hover:bg-primary/10 transition-colors"
+              >
+                <span className="text-xs font-medium text-primary truncate">{block.project_title}</span>
+                <ArrowRight className="h-3 w-3 text-primary shrink-0" />
+              </button>
             )}
-          </div>
+
+            {/* AI suggestion needing confirmation */}
+            {block.match_state === "needs_confirmation" && (
+              <div className="space-y-2">
+                {block.match_reason && (
+                  <div className="p-2 rounded-lg bg-amber-500/5 border border-amber-500/20">
+                    <p className="text-xs font-medium text-amber-700 dark:text-amber-400">
+                      Foreslått prosjekt
+                      {block.ai_confidence !== null && block.ai_confidence > 0 && (
+                        <span className="text-muted-foreground ml-1">(AI {block.ai_confidence}%)</span>
+                      )}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">{block.match_reason}</p>
+                  </div>
+                )}
+                <div className="flex items-center gap-1.5">
+                  <Button size="sm" className="h-7 text-xs gap-1 rounded-lg flex-1" onClick={handleConfirmSuggestion} disabled={isLoading}>
+                    {actionLoading === "confirm" ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
+                    Godta
+                  </Button>
+                  <Button variant="outline" size="sm" className="h-7 text-xs rounded-lg"
+                    onClick={() => setShowProjectSearch(true)} disabled={isLoading}>
+                    Velg annet
+                  </Button>
+                  <Button variant="ghost" size="sm" className="h-7 text-xs rounded-lg text-muted-foreground"
+                    onClick={handleMarkExternal} disabled={isLoading}>
+                    Ekstern
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Unlink from project */}
+            {block.match_state !== "needs_confirmation" && (
+              <Button
+                variant="outline" size="sm" className="h-8 text-xs gap-1.5 rounded-lg w-full justify-start"
+                onClick={handleUnlinkProject} disabled={isLoading}
+              >
+                {actionLoading === "unlink" ? <Loader2 className="h-3 w-3 animate-spin" /> : <Unlink className="h-3 w-3" />}
+                Koble fra prosjekt
+              </Button>
+            )}
+          </>
         )}
 
-        {/* ──── A) Outlook block without project: 3 actions ──── */}
-        {isOutlook && hasNoProject && !showProjectSearch && !submitted && (
+        {/* ──── ACTIONS: Block has NO project (external) ──── */}
+        {!hasProject && !showProjectSearch && !submitted && (
           <div className="space-y-1.5 pt-1">
             <Button
               size="sm" className="h-8 text-xs gap-1.5 rounded-lg w-full justify-start"
@@ -425,51 +479,12 @@ export const ScheduleBlockDetailPanel = memo(function ScheduleBlockDetailPanel({
           </div>
         )}
 
-        {/* needs_confirmation with suggestion: Godta + Velg annet + Ekstern */}
-        {block.match_state === "needs_confirmation" && block.project_id && !showProjectSearch && (
-          <div className="flex items-center gap-1.5 pt-1">
-            <Button size="sm" className="h-7 text-xs gap-1 rounded-lg flex-1" onClick={handleConfirmSuggestion} disabled={isLoading}>
-              {actionLoading === "confirm" ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
-              Godta
-            </Button>
-            <Button variant="outline" size="sm" className="h-7 text-xs rounded-lg"
-              onClick={() => setShowProjectSearch(true)} disabled={isLoading}>
-              Velg annet
-            </Button>
-            <Button variant="ghost" size="sm" className="h-7 text-xs rounded-lg text-muted-foreground"
-              onClick={handleMarkExternal} disabled={isLoading}>
-              Ekstern
-            </Button>
-          </div>
-        )}
-
-        {/* needs_confirmation without project */}
-        {block.match_state === "needs_confirmation" && !block.project_id && !showProjectSearch && !submitted && (
-          <div className="space-y-1.5 pt-1">
-            <Button size="sm" className="h-8 text-xs gap-1.5 rounded-lg w-full justify-start"
-              onClick={handleCreateJob} disabled={isLoading || submitted}>
-              {actionLoading === "create" ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}
-              Opprett ny jobb
-            </Button>
-            <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5 rounded-lg w-full justify-start"
-              onClick={() => setShowProjectSearch(true)} disabled={isLoading}>
-              <Link2 className="h-3 w-3" />
-              Knytt til eksisterende
-            </Button>
-            <Button variant="ghost" size="sm" className="h-8 text-xs gap-1.5 rounded-lg w-full justify-start text-muted-foreground"
-              onClick={handleMarkExternal} disabled={isLoading}>
-              {actionLoading === "external" ? <Loader2 className="h-3 w-3 animate-spin" /> : <Globe className="h-3 w-3" />}
-              Behold ekstern
-            </Button>
-          </div>
-        )}
-
         {/* Success state after create */}
         {submitted && createdEventId && (
           <div className="flex items-center gap-2 p-2 rounded-lg bg-green-500/10 border border-green-500/20">
             <Check className="h-4 w-4 text-green-600 shrink-0" />
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-medium text-green-700">Opprettet ✓</p>
+              <p className="text-xs font-medium text-green-700 dark:text-green-400">Opprettet ✓</p>
             </div>
             <Button variant="outline" size="sm" className="h-6 text-[10px] gap-1 shrink-0"
               onClick={() => navigate(`/projects/${createdEventId}`)}>
@@ -488,7 +503,7 @@ export const ScheduleBlockDetailPanel = memo(function ScheduleBlockDetailPanel({
           </a>
         )}
 
-        {/* ──── B) Delete / Remove from plan ──── */}
+        {/* ──── Delete / Remove from plan ──── */}
         <div className="border-t border-border/40 pt-2">
           <Tooltip>
             <TooltipTrigger asChild>

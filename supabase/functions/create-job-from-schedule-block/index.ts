@@ -137,13 +137,14 @@ Deno.serve(async (req) => {
       technician_id,
     });
 
-    // 4. Link schedule_block
+    // 4. Link schedule_block and update title to reflect project
     await db
       .from("schedule_blocks")
       .update({
         project_id: created.id,
         match_state: "confirmed",
         match_reason: "Manuelt opprettet fra Outlook-blokk",
+        title: title || "Ny jobb",
       })
       .eq("id", schedule_block_id);
 
