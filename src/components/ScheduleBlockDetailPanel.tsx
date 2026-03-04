@@ -1,7 +1,7 @@
 import { memo } from "react";
 import { format } from "date-fns";
 import { nb } from "date-fns/locale";
-import { X, ExternalLink, Check, ArrowRight, MapPin, Info, Calendar as CalendarIcon, User, FileText } from "lucide-react";
+import { X, ExternalLink, Check, ArrowRight, MapPin, Info, Calendar as CalendarIcon, User, FileText, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import type { ScheduleBlock } from "@/hooks/useScheduleBlocks";
@@ -93,10 +93,18 @@ export const ScheduleBlockDetailPanel = memo(function ScheduleBlockDetailPanel({
         </div>
       )}
 
-      {/* State badge */}
-      <Badge variant={stateInfo.variant} className="text-xs">
-        {stateInfo.label}
-      </Badge>
+      {/* State badge + AI chip */}
+      <div className="flex items-center gap-1.5">
+        <Badge variant={stateInfo.variant} className="text-xs">
+          {stateInfo.label}
+        </Badge>
+        {block.ai_confidence !== null && block.ai_confidence > 0 && (
+          <span className="inline-flex items-center gap-0.5 text-[9px] font-semibold uppercase tracking-wider text-primary bg-primary/10 rounded px-1.5 py-0.5" title={block.ai_match_reason || undefined}>
+            <Sparkles className="h-2.5 w-2.5" />
+            AI {block.ai_confidence}%
+          </span>
+        )}
+      </div>
 
       {/* Project link */}
       {block.project_title && block.project_id && (

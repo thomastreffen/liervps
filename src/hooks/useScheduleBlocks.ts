@@ -27,6 +27,9 @@ export interface ScheduleBlock {
   outlook_preview: string | null;
   outlook_weblink: string | null;
   outlook_organizer: string | null;
+  // AI matcher fields
+  ai_match_reason: string | null;
+  ai_confidence: number | null;
   // Joined
   technician_name?: string;
   technician_color?: string | null;

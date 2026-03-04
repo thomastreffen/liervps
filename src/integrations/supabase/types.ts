@@ -62,6 +62,53 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_match_runs: {
+        Row: {
+          chosen_project_id: string | null
+          confidence: number
+          created_at: string
+          event_subject: string | null
+          extracted_signals: string[] | null
+          id: string
+          latency_ms: number | null
+          outcome: string
+          reason: string | null
+          schedule_block_id: string
+        }
+        Insert: {
+          chosen_project_id?: string | null
+          confidence?: number
+          created_at?: string
+          event_subject?: string | null
+          extracted_signals?: string[] | null
+          id?: string
+          latency_ms?: number | null
+          outcome?: string
+          reason?: string | null
+          schedule_block_id: string
+        }
+        Update: {
+          chosen_project_id?: string | null
+          confidence?: number
+          created_at?: string
+          event_subject?: string | null
+          extracted_signals?: string[] | null
+          id?: string
+          latency_ms?: number | null
+          outcome?: string
+          reason?: string | null
+          schedule_block_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_match_runs_schedule_block_id_fkey"
+            columns: ["schedule_block_id"]
+            isOneToOne: false
+            referencedRelation: "schedule_blocks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       audit_log: {
         Row: {
           action: string
@@ -2322,6 +2369,7 @@ export type Database = {
           outlook_last_synced_at: string | null
           outlook_sync_status: string
           parent_project_id: string | null
+          project_aliases: string[] | null
           project_number: string | null
           project_type: string
           proposed_end: string | null
@@ -2381,6 +2429,7 @@ export type Database = {
           outlook_last_synced_at?: string | null
           outlook_sync_status?: string
           parent_project_id?: string | null
+          project_aliases?: string[] | null
           project_number?: string | null
           project_type?: string
           proposed_end?: string | null
@@ -2440,6 +2489,7 @@ export type Database = {
           outlook_last_synced_at?: string | null
           outlook_sync_status?: string
           parent_project_id?: string | null
+          project_aliases?: string[] | null
           project_number?: string | null
           project_type?: string
           proposed_end?: string | null
@@ -4577,6 +4627,8 @@ export type Database = {
       }
       schedule_blocks: {
         Row: {
+          ai_confidence: number | null
+          ai_match_reason: string | null
           calendar_id: string | null
           company_id: string
           created_at: string
@@ -4604,6 +4656,8 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          ai_confidence?: number | null
+          ai_match_reason?: string | null
           calendar_id?: string | null
           company_id: string
           created_at?: string
@@ -4631,6 +4685,8 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          ai_confidence?: number | null
+          ai_match_reason?: string | null
           calendar_id?: string | null
           company_id?: string
           created_at?: string
