@@ -850,7 +850,7 @@ async function createConversationPost(
   }
 
   // Log email message for observability
-  await admin.from("conversation_email_messages").insert({
+  const { error: cemErr } = await admin.from("conversation_email_messages").insert({
     company_id: thread.company_id, thread_id: threadId,
     post_id: post.id, direction: "inbound", provider: "graph",
     outlook_message_id: msg.id,
@@ -862,7 +862,8 @@ async function createConversationPost(
     cc_emails: (msg.ccRecipients || []).map((r: any) => r.emailAddress?.address),
     status: "received", processing_status: "ok",
     processed_at: new Date().toISOString(),
-  }).catch((e: any) => console.error("[inbox-sync] conversation_email_messages insert error:", e));
+  });
+  if (cemErr) console.error("[inbox-sync] conversation_email_messages insert error:", cemErr);
 
   return post.id;
 }
@@ -1015,6 +1016,20 @@ Deno.serve(async (req) => {
               .maybeSingle();
             if (existingConv) {
               logDrop("already_processed_conversation", msgSubject);
+              totalSkipped++;
+              continue;
+            }
+          }
+
+          // ── STEP 0b2: Check if already processed (conversation_posts by outlook_message_id) ──
+          {
+            const { data: existingPost } = await supabaseAdmin
+              .from("conversation_posts")
+              .select("id")
+              .eq("outlook_message_id", msg.id)
+              .maybeSingle();
+            if (existingPost) {
+              logDrop("already_processed_conv_post", msgSubject);
               totalSkipped++;
               continue;
             }
