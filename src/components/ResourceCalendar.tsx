@@ -1,4 +1,4 @@
-import { useRef, useCallback, useMemo, useEffect, useState } from "react";
+import { useRef, useCallback, useMemo, useEffect, useState, memo } from "react";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
@@ -87,7 +87,7 @@ const matchStateColors: Record<string, { bg: string; border: string; text: strin
   manual: { bg: "#2563EB", border: "#2563EB", text: "#FFFFFF" },
 };
 
-export function ResourceCalendar({
+export const ResourceCalendar = memo(function ResourceCalendar({
   technicianId,
   referenceDate,
   calendarView = "timeGridWeek",
@@ -479,4 +479,4 @@ export function ResourceCalendar({
     </div>
     </TooltipProvider>
   );
-}
+});
