@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { type ConversationPost, type ConversationAttachment } from "@/hooks/useConversations";
 import { type ReactionSummary } from "@/hooks/useMessageReactions";
+import { type SuggestedMessageAction } from "@/hooks/useAIMessageActions";
 import {
   ChevronDown, ExternalLink, FileText, Paperclip, Check, CheckCheck,
 } from "lucide-react";
@@ -11,6 +12,8 @@ import { MessageActions } from "./MessageActions";
 import { ReplyPreview } from "./ReplyPreview";
 import { ImagePreviewModal } from "./ImagePreviewModal";
 import { VoicePlayer } from "./VoicePlayer";
+import { MessageContextBadges } from "./MessageContextBadges";
+import { ChatAIActionChips } from "./ChatAIActionChips";
 
 interface ChatBubbleProps {
   post: ConversationPost;
@@ -25,12 +28,23 @@ interface ChatBubbleProps {
   replyToPost?: ConversationPost | null;
   onScrollToPost?: (postId: string) => void;
   readCount?: number;
+  // Sprint 3: Context filtering
+  onFilterByTag?: (tag: string) => void;
+  onFilterByObjectType?: (type: string) => void;
+  onFilterByLocation?: (loc: string) => void;
+  // Sprint 4: AI actions
+  aiSuggestions?: SuggestedMessageAction[] | null;
+  aiDismissed?: boolean;
+  onDismissAI?: (postId: string) => void;
+  onClickAIAction?: (postId: string, action: SuggestedMessageAction) => void;
 }
 
 export function ChatBubble({
   post, isOwn, isFirst, isLast,
   reactions, onToggleReaction, onReply, onCreateTask, onPinToggle,
   replyToPost, onScrollToPost, readCount = 0,
+  onFilterByTag, onFilterByObjectType, onFilterByLocation,
+  aiSuggestions, aiDismissed, onDismissAI, onClickAIAction,
 }: ChatBubbleProps) {
   const [showRaw, setShowRaw] = useState(false);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
@@ -41,6 +55,12 @@ export function ChatBubble({
   const rawBody = (post as any).body_raw || post.body_html || "";
   const hasRawContent = isEmail && rawBody && rawBody !== cleanBody;
   const isPinned = (post as any).is_pinned === true;
+
+  // Context fields
+  const contextLocation = (post as any).context_location_text;
+  const contextObjectType = (post as any).context_object_type;
+  const contextObjectRef = (post as any).context_object_ref;
+  const contextTags = (post as any).context_tags;
 
   // Check if this post has a voice attachment
   const voiceAttachment = post.attachments?.find(a => a.mime_type?.startsWith("audio/"));
@@ -73,6 +93,18 @@ export function ChatBubble({
       {replyToPost && (
         <ReplyPreview replyToPost={replyToPost} isOwn={isOwn} onScrollToPost={onScrollToPost} />
       )}
+
+      {/* Context badges */}
+      <MessageContextBadges
+        locationText={contextLocation}
+        objectType={contextObjectType}
+        objectRef={contextObjectRef}
+        tags={contextTags}
+        isOwn={isOwn}
+        onFilterByTag={onFilterByTag}
+        onFilterByObjectType={onFilterByObjectType}
+        onFilterByLocation={onFilterByLocation}
+      />
 
       {/* Bubble */}
       <div
@@ -157,6 +189,17 @@ export function ChatBubble({
           </div>
         )}
       </div>
+
+      {/* AI Action Chips (Sprint 4) */}
+      {aiSuggestions && aiSuggestions.length > 0 && onClickAIAction && onDismissAI && (
+        <ChatAIActionChips
+          actions={aiSuggestions}
+          dismissed={!!aiDismissed}
+          isOwn={isOwn}
+          onClickAction={(action) => onClickAIAction(post.id, action)}
+          onDismiss={() => onDismissAI(post.id)}
+        />
+      )}
 
       {/* Hover actions */}
       <MessageActions

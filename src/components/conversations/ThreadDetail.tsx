@@ -3,6 +3,9 @@ import { useConversationPosts, type ConversationPost } from "@/hooks/useConversa
 import { useMessageReactions } from "@/hooks/useMessageReactions";
 import { useMessageReads } from "@/hooks/useMessageReads";
 import { useMentions, filterMentionUsers } from "@/hooks/useMentions";
+import { useContextBinding } from "@/hooks/useContextBinding";
+import { useAIMessageActions, type SuggestedMessageAction } from "@/hooks/useAIMessageActions";
+import { useInbox } from "@/hooks/useInbox";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { triggerConversationEmailSend } from "@/lib/conversation-email";
@@ -10,7 +13,7 @@ import { format, isSameDay, differenceInMinutes } from "date-fns";
 import { nb } from "date-fns/locale";
 import {
   Send, Loader2, Paperclip, AlertTriangle, RotateCw, X,
-  Reply, Pin,
+  Reply, Pin, Inbox,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -18,9 +21,15 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { ChatBubble } from "./ChatBubble";
 import { CreateTaskFromMessageDialog } from "./CreateTaskFromMessageDialog";
+import { CreateDeviationFromMessageDialog } from "./CreateDeviationFromMessageDialog";
+import { CreateFDVNoteFromMessageDialog } from "./CreateFDVNoteFromMessageDialog";
 import { TypingIndicator } from "./TypingIndicator";
 import { VoiceRecorder } from "./VoiceRecorder";
 import { CameraCapture } from "./CameraCapture";
+import { ContextChips } from "./ContextChips";
+import { ContextPicker } from "./ContextPicker";
+import { ChatFilterPanel, type ChatFilter } from "./ChatFilterPanel";
+import { InboxMode } from "./InboxMode";
 
 interface ThreadDetailProps {
   threadId: string;
@@ -141,8 +150,12 @@ export function ThreadDetail({ threadId, threadTitle, threadType, projectId, com
   const [currentUaId, setCurrentUaId] = useState<string | null>(null);
   const [replyToPost, setReplyToPost] = useState<ConversationPost | null>(null);
   const [taskPost, setTaskPost] = useState<ConversationPost | null>(null);
+  const [deviationPost, setDeviationPost] = useState<{ post: ConversationPost; suggestion?: SuggestedMessageAction } | null>(null);
+  const [fdvPost, setFdvPost] = useState<{ post: ConversationPost; suggestion?: SuggestedMessageAction } | null>(null);
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
   const [mentionIndex, setMentionIndex] = useState(0);
+  const [viewMode, setViewMode] = useState<"chat" | "inbox">("chat");
+  const [chatFilter, setChatFilter] = useState<ChatFilter>({});
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -150,6 +163,9 @@ export function ThreadDetail({ threadId, threadTitle, threadType, projectId, com
 
   const { getReactionsForPost, toggleReaction } = useMessageReactions(threadId, currentUaId);
   const { users: mentionUsers } = useMentions(companyId);
+  const contextBinding = useContextBinding();
+  const aiActions = useAIMessageActions(threadId);
+  const inbox = useInbox(threadId, currentUaId);
 
   const postIds = useMemo(() => posts.map(p => p.id), [posts]);
   const { markAsRead, getReadCount } = useMessageReads(threadId, currentUaId, postIds);
@@ -167,6 +183,25 @@ export function ThreadDetail({ threadId, threadTitle, threadType, projectId, com
 
   const pinnedPosts = useMemo(() => posts.filter(p => (p as any).is_pinned), [posts]);
 
+  // Filter posts based on chatFilter
+  const filteredPosts = useMemo(() => {
+    if (!chatFilter.location && !chatFilter.objectType && (!chatFilter.tags || chatFilter.tags.length === 0)) {
+      return posts;
+    }
+    return posts.filter(p => {
+      const loc = (p as any).context_location_text;
+      const objType = (p as any).context_object_type;
+      const tags: string[] = (p as any).context_tags || [];
+
+      if (chatFilter.location && (!loc || !loc.toLowerCase().includes(chatFilter.location.toLowerCase()))) return false;
+      if (chatFilter.objectType && objType !== chatFilter.objectType) return false;
+      if (chatFilter.tags && chatFilter.tags.length > 0 && !chatFilter.tags.some(t => tags.includes(t))) return false;
+      return true;
+    });
+  }, [posts, chatFilter]);
+
+  const filterCount = (chatFilter.location ? 1 : 0) + (chatFilter.objectType ? 1 : 0) + (chatFilter.tags?.length || 0);
+
   useEffect(() => {
     if (!user) return;
     (async () => {
@@ -180,16 +215,17 @@ export function ThreadDetail({ threadId, threadTitle, threadType, projectId, com
     })();
   }, [user]);
 
-  const grouped = useMemo(() => groupPosts(posts, currentUaId), [posts, currentUaId]);
+  const grouped = useMemo(() => groupPosts(filteredPosts, currentUaId), [filteredPosts, currentUaId]);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-    // Mark all visible posts as read when new posts arrive
+    if (viewMode === "chat") {
+      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
     if (posts.length > 0) {
       const otherPostIds = posts.filter(p => p.author_id !== currentUaId && p.post_type !== "system").map(p => p.id);
       markAsRead(otherPostIds);
     }
-  }, [posts.length]);
+  }, [posts.length, viewMode]);
 
   // Failed email check
   useEffect(() => {
@@ -260,7 +296,7 @@ export function ThreadDetail({ threadId, threadTitle, threadType, projectId, com
     if ((!replyText.trim() && pendingFiles.length === 0) || !user) return;
     setSending(true);
 
-    const { data: post, error } = await (supabase as any).from("conversation_posts").insert({
+    const insertData: any = {
       thread_id: threadId,
       company_id: companyId,
       author_id: currentUaId || null,
@@ -269,7 +305,17 @@ export function ThreadDetail({ threadId, threadTitle, threadType, projectId, com
       body_html: replyText.trim() ? `<p>${replyText.trim().replace(/\n/g, "<br/>")}</p>` : null,
       body_clean: replyText.trim() || null,
       reply_to_post_id: replyToPost?.id || null,
-    }).select("id").single();
+    };
+
+    // Add context fields if set (Sprint 3)
+    if (contextBinding.hasContext) {
+      if (contextBinding.context.location_text) insertData.context_location_text = contextBinding.context.location_text;
+      if (contextBinding.context.object_type) insertData.context_object_type = contextBinding.context.object_type;
+      if (contextBinding.context.object_ref) insertData.context_object_ref = contextBinding.context.object_ref;
+      if (contextBinding.context.tags.length > 0) insertData.context_tags = contextBinding.context.tags;
+    }
+
+    const { data: post, error } = await (supabase as any).from("conversation_posts").insert(insertData).select("id").single();
 
     if (error) {
       toast.error("Kunne ikke sende melding");
@@ -283,12 +329,20 @@ export function ThreadDetail({ threadId, threadTitle, threadType, projectId, com
       setUploading(false);
     }
 
-    if (post) triggerEmailSend(post.id);
+    if (post) {
+      triggerEmailSend(post.id);
+      // Trigger AI analysis (Sprint 4)
+      if (replyText.trim()) {
+        aiActions.triggerAnalysis(post.id, replyText.trim(), contextBinding.context.tags);
+      }
+    }
 
+    contextBinding.commitContext();
     setReplyText("");
     setPendingFiles([]);
     setReplyToPost(null);
     setMentionQuery(null);
+    contextBinding.clearContext();
     setSending(false);
     refresh();
   };
@@ -334,6 +388,22 @@ export function ThreadDetail({ threadId, threadTitle, threadType, projectId, com
     else { toast.success(isPinned ? "Melding løsnet" : "Melding festet"); refresh(); }
   };
 
+  const handleAIActionClick = (postId: string, action: SuggestedMessageAction) => {
+    const post = postMap.get(postId);
+    if (!post) return;
+    aiActions.recordClick(postId, action.action_type);
+
+    if (action.action_type === "task") {
+      setTaskPost(post);
+    } else if (action.action_type === "deviation") {
+      setDeviationPost({ post, suggestion: action });
+    } else if (action.action_type === "fdv_note") {
+      setFdvPost({ post, suggestion: action });
+    } else {
+      toast.info(`Handling "${action.action_type}" er ikke implementert ennå`);
+    }
+  };
+
   // @mention detection
   const handleTextChange = (value: string) => {
     setReplyText(value);
@@ -365,6 +435,13 @@ export function ThreadDetail({ threadId, threadTitle, threadType, projectId, com
     setMentionQuery(null);
     textarea.focus();
   };
+
+  // Filter helpers
+  const applyFilterFromBadge = useCallback((type: "location" | "objectType" | "tag", value: string) => {
+    if (type === "location") setChatFilter(f => ({ ...f, location: value }));
+    else if (type === "objectType") setChatFilter(f => ({ ...f, objectType: value }));
+    else if (type === "tag") setChatFilter(f => ({ ...f, tags: [...(f.tags || []), value] }));
+  }, []);
 
   if (loading) {
     return (
@@ -402,8 +479,41 @@ export function ThreadDetail({ threadId, threadTitle, threadType, projectId, com
         </div>
       )}
 
+      {/* Mode toggle + filter bar */}
+      <div className="flex items-center justify-between px-4 py-1.5 border-b border-border/10 bg-card">
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => setViewMode("chat")}
+            className={cn(
+              "text-[11px] font-medium px-2.5 py-1 rounded-md transition-colors cursor-pointer",
+              viewMode === "chat" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+            )}
+          >
+            Chat
+          </button>
+          <button
+            onClick={() => setViewMode("inbox")}
+            className={cn(
+              "text-[11px] font-medium px-2.5 py-1 rounded-md transition-colors cursor-pointer flex items-center gap-1",
+              viewMode === "inbox" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+            )}
+          >
+            <Inbox className="h-3 w-3" />
+            Innboks
+            {inbox.items.length > 0 && (
+              <span className="h-4 min-w-4 px-1 rounded-full bg-destructive text-destructive-foreground text-[9px] flex items-center justify-center font-bold">
+                {inbox.items.length}
+              </span>
+            )}
+          </button>
+        </div>
+        {viewMode === "chat" && (
+          <ChatFilterPanel filter={chatFilter} onFilterChange={setChatFilter} activeCount={filterCount} />
+        )}
+      </div>
+
       {/* Pinned messages bar */}
-      {pinnedPosts.length > 0 && (
+      {viewMode === "chat" && pinnedPosts.length > 0 && (
         <div className="border-b border-border/20 bg-amber-50/50 dark:bg-amber-900/10 px-4 py-2">
           <div className="flex items-center gap-2 text-xs max-w-[900px] mx-auto">
             <Pin className="h-3 w-3 text-amber-600 shrink-0" />
@@ -430,115 +540,142 @@ export function ThreadDetail({ threadId, threadTitle, threadType, projectId, com
         </div>
       )}
 
-      {/* Chat messages */}
-      <div ref={chatContainerRef} className="flex-1 overflow-y-auto px-4 sm:px-5 py-4 relative">
-        <div className="max-w-[900px] mx-auto space-y-1">
-          {grouped.map((day, di) => (
-            <div key={di}>
-              <div className="flex items-center justify-center py-3">
-                <div className="h-px flex-1 bg-border/20" />
-                <span className="text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-widest px-4">
-                  {format(day.date, "EEEE d. MMMM", { locale: nb })}
-                </span>
-                <div className="h-px flex-1 bg-border/20" />
-              </div>
+      {/* Inbox Mode (Sprint 5) */}
+      {viewMode === "inbox" && (
+        <InboxMode
+          items={inbox.items}
+          loading={inbox.loading}
+          onMarkHandled={inbox.markHandled}
+          onScrollToPost={(postId) => {
+            setViewMode("chat");
+            setTimeout(() => scrollToPost(postId), 100);
+          }}
+          onSwitchToChat={() => setViewMode("chat")}
+        />
+      )}
 
-              {day.groups.map((group, gi) => {
-                if (group.sender === "__system__") {
-                  const p = group.posts[0];
+      {/* Chat messages */}
+      {viewMode === "chat" && (
+        <div ref={chatContainerRef} className="flex-1 overflow-y-auto px-4 sm:px-5 py-4 relative">
+          <div className="max-w-[900px] mx-auto space-y-1">
+            {grouped.map((day, di) => (
+              <div key={di}>
+                <div className="flex items-center justify-center py-3">
+                  <div className="h-px flex-1 bg-border/20" />
+                  <span className="text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-widest px-4">
+                    {format(day.date, "EEEE d. MMMM", { locale: nb })}
+                  </span>
+                  <div className="h-px flex-1 bg-border/20" />
+                </div>
+
+                {day.groups.map((group, gi) => {
+                  if (group.sender === "__system__") {
+                    const p = group.posts[0];
+                    return (
+                      <div key={`sys-${gi}`} className="flex items-center justify-center py-2">
+                        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-muted/40 border border-border/20">
+                          <span className="text-[11px] text-muted-foreground/70">
+                            {p.body_text || p.subject || "Systemhendelse"}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  const colorClass = avatarColor(group.sender);
+                  const ini = initials(group.senderDisplay);
+                  const isOwn = group.isOwn;
+
                   return (
-                    <div key={`sys-${gi}`} className="flex items-center justify-center py-2">
-                      <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-muted/40 border border-border/20">
-                        <span className="text-[11px] text-muted-foreground/70">
-                          {p.body_text || p.subject || "Systemhendelse"}
-                        </span>
+                    <div
+                      key={`g-${gi}`}
+                      className={cn("flex gap-2.5 mb-3", isOwn ? "flex-row-reverse" : "flex-row")}
+                    >
+                      {/* Avatar */}
+                      {!isOwn ? (
+                        <div className={cn(
+                          "flex h-8 w-8 items-center justify-center rounded-full text-[11px] font-bold shrink-0 mt-5",
+                          colorClass
+                        )}>
+                          {ini}
+                        </div>
+                      ) : (
+                        <div className="w-8 shrink-0" />
+                      )}
+
+                      <div className={cn("flex flex-col max-w-[75%] min-w-0", isOwn ? "items-end" : "items-start")}>
+                        {/* Sender name + time */}
+                        {!isOwn ? (
+                          <div className="flex items-baseline gap-2 mb-0.5 px-1">
+                            <span className="text-[13px] font-semibold text-foreground/80">{group.senderDisplay}</span>
+                            <span className="text-[10px] text-muted-foreground/50">
+                              {format(group.posts[0].sent_at ? new Date(group.posts[0].sent_at) : group.timestamp, "HH:mm")}
+                            </span>
+                            {group.posts[0].post_type === "email" && group.posts[0].direction === "inbound" && (
+                              <Badge variant="outline" className="text-[8px] px-1 py-0 border-accent/30 text-accent">
+                                E-post
+                              </Badge>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="flex items-baseline gap-2 mb-0.5 px-1">
+                            <span className="text-[10px] text-muted-foreground/50">
+                              {format(group.posts[0].sent_at ? new Date(group.posts[0].sent_at) : group.timestamp, "HH:mm")}
+                            </span>
+                          </div>
+                        )}
+
+                        {group.posts.map((post, pi) => {
+                          const replyTarget = (post as any).reply_to_post_id
+                            ? postMap.get((post as any).reply_to_post_id) || null
+                            : null;
+
+                          const aiRow = aiActions.getSuggestionsForPost(post.id);
+
+                          return (
+                            <ChatBubble
+                              key={post.id}
+                              post={post}
+                              isOwn={isOwn}
+                              isFirst={pi === 0}
+                              isLast={pi === group.posts.length - 1}
+                              reactions={getReactionsForPost(post.id)}
+                              onToggleReaction={toggleReaction}
+                              onReply={(p) => {
+                                setReplyToPost(p);
+                                textareaRef.current?.focus();
+                              }}
+                              onCreateTask={setTaskPost}
+                              onPinToggle={handlePinToggle}
+                              replyToPost={replyTarget}
+                              onScrollToPost={scrollToPost}
+                              readCount={isOwn ? getReadCount(post.id) : undefined}
+                              // Sprint 3
+                              onFilterByTag={(tag) => applyFilterFromBadge("tag", tag)}
+                              onFilterByObjectType={(type) => applyFilterFromBadge("objectType", type)}
+                              onFilterByLocation={(loc) => applyFilterFromBadge("location", loc)}
+                              // Sprint 4
+                              aiSuggestions={aiRow?.suggested_actions as SuggestedMessageAction[] | undefined}
+                              aiDismissed={!!aiRow?.dismissed_at}
+                              onDismissAI={aiActions.dismissSuggestions}
+                              onClickAIAction={handleAIActionClick}
+                            />
+                          );
+                        })}
                       </div>
                     </div>
                   );
-                }
+                })}
+              </div>
+            ))}
 
-                const colorClass = avatarColor(group.sender);
-                const ini = initials(group.senderDisplay);
-                const isOwn = group.isOwn;
+            {/* Typing indicator placeholder */}
+            <TypingIndicator names={[]} />
 
-                return (
-                  <div
-                    key={`g-${gi}`}
-                    className={cn("flex gap-2.5 mb-3", isOwn ? "flex-row-reverse" : "flex-row")}
-                  >
-                    {/* Avatar */}
-                    {!isOwn ? (
-                      <div className={cn(
-                        "flex h-8 w-8 items-center justify-center rounded-full text-[11px] font-bold shrink-0 mt-5",
-                        colorClass
-                      )}>
-                        {ini}
-                      </div>
-                    ) : (
-                      <div className="w-8 shrink-0" />
-                    )}
-
-                    <div className={cn("flex flex-col max-w-[75%] min-w-0", isOwn ? "items-end" : "items-start")}>
-                      {/* Sender name + time */}
-                      {!isOwn ? (
-                        <div className="flex items-baseline gap-2 mb-0.5 px-1">
-                          <span className="text-[13px] font-semibold text-foreground/80">{group.senderDisplay}</span>
-                          <span className="text-[10px] text-muted-foreground/50">
-                            {format(group.posts[0].sent_at ? new Date(group.posts[0].sent_at) : group.timestamp, "HH:mm")}
-                          </span>
-                          {group.posts[0].post_type === "email" && group.posts[0].direction === "inbound" && (
-                            <Badge variant="outline" className="text-[8px] px-1 py-0 border-accent/30 text-accent">
-                              E-post
-                            </Badge>
-                          )}
-                        </div>
-                      ) : (
-                        <div className="flex items-baseline gap-2 mb-0.5 px-1">
-                          <span className="text-[10px] text-muted-foreground/50">
-                            {format(group.posts[0].sent_at ? new Date(group.posts[0].sent_at) : group.timestamp, "HH:mm")}
-                          </span>
-                        </div>
-                      )}
-
-                      {group.posts.map((post, pi) => {
-                        const replyTarget = (post as any).reply_to_post_id
-                          ? postMap.get((post as any).reply_to_post_id) || null
-                          : null;
-
-                        return (
-                          <ChatBubble
-                            key={post.id}
-                            post={post}
-                            isOwn={isOwn}
-                            isFirst={pi === 0}
-                            isLast={pi === group.posts.length - 1}
-                            reactions={getReactionsForPost(post.id)}
-                            onToggleReaction={toggleReaction}
-                            onReply={(p) => {
-                              setReplyToPost(p);
-                              textareaRef.current?.focus();
-                            }}
-                            onCreateTask={setTaskPost}
-                            onPinToggle={handlePinToggle}
-                            replyToPost={replyTarget}
-                            onScrollToPost={scrollToPost}
-                            readCount={isOwn ? getReadCount(post.id) : undefined}
-                          />
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          ))}
-
-          {/* Typing indicator placeholder */}
-          <TypingIndicator names={[]} />
-
-          <div ref={bottomRef} />
+            <div ref={bottomRef} />
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Composer */}
       {isClosed ? (
@@ -547,7 +684,7 @@ export function ThreadDetail({ threadId, threadTitle, threadType, projectId, com
             Denne tråden er lukket. Kun administratorer kan gjenåpne den.
           </p>
         </div>
-      ) : (
+      ) : viewMode === "chat" ? (
         <div className="border-t border-border/20 bg-card">
           <div className="max-w-[900px] mx-auto p-3">
             {/* Reply preview */}
@@ -567,6 +704,29 @@ export function ThreadDetail({ threadId, threadTitle, threadType, projectId, com
                 </button>
               </div>
             )}
+
+            {/* Context chips + picker (Sprint 3) */}
+            <div className="flex items-center gap-2 mb-2 px-1">
+              <ContextPicker
+                context={contextBinding.context}
+                recentLocations={contextBinding.recentLocations}
+                workTypeOptions={contextBinding.WORK_TYPE_OPTIONS}
+                objectTypeOptions={contextBinding.OBJECT_TYPE_OPTIONS}
+                onSetLocation={contextBinding.setLocationText}
+                onSetObjectType={contextBinding.setObjectType}
+                onSetObjectRef={contextBinding.setObjectRef}
+                onAddTag={contextBinding.addTag}
+                onRemoveTag={contextBinding.removeTag}
+              />
+              {contextBinding.hasContext && (
+                <ContextChips
+                  context={contextBinding.context}
+                  onRemoveLocation={() => contextBinding.setLocationText("")}
+                  onRemoveObjectType={() => contextBinding.setObjectType(null)}
+                  onRemoveTag={contextBinding.removeTag}
+                />
+              )}
+            </div>
 
             {/* Pending files */}
             {pendingFiles.length > 0 && (
@@ -691,7 +851,6 @@ export function ThreadDetail({ threadId, threadTitle, threadType, projectId, com
                 onRecorded={async (blob, duration) => {
                   const voiceFile = new File([blob], `voice-${Date.now()}.webm`, { type: "audio/webm" });
                   setPendingFiles(prev => [...prev, voiceFile]);
-                  // Auto-send voice message
                   setTimeout(() => handleReply(), 100);
                 }}
               />
@@ -715,7 +874,7 @@ export function ThreadDetail({ threadId, threadTitle, threadType, projectId, com
             </div>
           </div>
         </div>
-      )}
+      ) : null}
 
       {/* Create task dialog */}
       {taskPost && (
@@ -725,6 +884,32 @@ export function ThreadDetail({ threadId, threadTitle, threadType, projectId, com
           threadId={threadId}
           open={!!taskPost}
           onOpenChange={(open) => { if (!open) setTaskPost(null); }}
+          onCreated={refresh}
+        />
+      )}
+
+      {/* Create deviation dialog (Sprint 4) */}
+      {deviationPost && (
+        <CreateDeviationFromMessageDialog
+          post={deviationPost.post}
+          suggestion={deviationPost.suggestion}
+          projectId={projectId}
+          threadId={threadId}
+          open={!!deviationPost}
+          onOpenChange={(open) => { if (!open) setDeviationPost(null); }}
+          onCreated={refresh}
+        />
+      )}
+
+      {/* Create FDV note dialog (Sprint 4) */}
+      {fdvPost && (
+        <CreateFDVNoteFromMessageDialog
+          post={fdvPost.post}
+          suggestion={fdvPost.suggestion}
+          projectId={projectId}
+          threadId={threadId}
+          open={!!fdvPost}
+          onOpenChange={(open) => { if (!open) setFdvPost(null); }}
           onCreated={refresh}
         />
       )}
