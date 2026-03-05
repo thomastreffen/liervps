@@ -6,6 +6,7 @@ import { useMentions, filterMentionUsers } from "@/hooks/useMentions";
 import { useContextBinding } from "@/hooks/useContextBinding";
 import { useAIMessageActions, type SuggestedMessageAction } from "@/hooks/useAIMessageActions";
 import { useInbox } from "@/hooks/useInbox";
+import { useMediaAnnotations } from "@/hooks/useMediaAnnotations";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { triggerConversationEmailSend } from "@/lib/conversation-email";
@@ -168,6 +169,7 @@ export function ThreadDetail({ threadId, threadTitle, threadType, projectId, com
   const inbox = useInbox(threadId, currentUaId);
 
   const postIds = useMemo(() => posts.map(p => p.id), [posts]);
+  const mediaAnnotations = useMediaAnnotations(threadId, postIds);
   const { markAsRead, getReadCount } = useMessageReads(threadId, currentUaId, postIds);
 
   const filteredMentions = useMemo(
@@ -659,6 +661,14 @@ export function ThreadDetail({ threadId, threadTitle, threadType, projectId, com
                               aiDismissed={!!aiRow?.dismissed_at}
                               onDismissAI={aiActions.dismissSuggestions}
                               onClickAIAction={handleAIActionClick}
+                              // Annotations
+                              annotations={mediaAnnotations.getAnnotationsForPost(post.id)}
+                              hasBeforeAfterPair={mediaAnnotations.beforeAfterPairs.has(post.id)}
+                              projectId={projectId}
+                              companyId={companyId}
+                              onFilterByDocType={(dt) => setChatFilter(f => ({ ...f, tags: [...(f.tags || []), dt] }))}
+                              onFilterByObjectLabel={(label) => setChatFilter(f => ({ ...f, location: label }))}
+                              onAnnotationSaved={mediaAnnotations.refresh}
                             />
                           );
                         })}

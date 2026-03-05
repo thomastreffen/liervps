@@ -2317,6 +2317,44 @@ export type Database = {
           },
         ]
       }
+      drawing_assets: {
+        Row: {
+          created_at: string
+          drawing_type: string | null
+          extracted_text: string | null
+          file_id: string | null
+          id: string
+          key_entities: Json | null
+          project_id: string
+        }
+        Insert: {
+          created_at?: string
+          drawing_type?: string | null
+          extracted_text?: string | null
+          file_id?: string | null
+          id?: string
+          key_entities?: Json | null
+          project_id: string
+        }
+        Update: {
+          created_at?: string
+          drawing_type?: string | null
+          extracted_text?: string | null
+          file_id?: string | null
+          id?: string
+          key_entities?: Json | null
+          project_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "drawing_assets_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       employment_profiles: {
         Row: {
           archived_at: string | null
@@ -3129,6 +3167,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      image_text_extracts: {
+        Row: {
+          created_at: string
+          detected_entities: Json | null
+          extracted_text: string | null
+          file_id: string | null
+          id: string
+          post_id: string
+        }
+        Insert: {
+          created_at?: string
+          detected_entities?: Json | null
+          extracted_text?: string | null
+          file_id?: string | null
+          id?: string
+          post_id: string
+        }
+        Update: {
+          created_at?: string
+          detected_entities?: Json | null
+          extracted_text?: string | null
+          file_id?: string | null
+          id?: string
+          post_id?: string
+        }
+        Relationships: []
       }
       inbox_messages: {
         Row: {
@@ -4153,6 +4218,48 @@ export type Database = {
         }
         Relationships: []
       }
+      media_annotations: {
+        Row: {
+          annotated_file_id: string | null
+          annotation_json: Json
+          created_at: string
+          created_by: string | null
+          doc_type: string | null
+          file_id: string | null
+          id: string
+          linked_object_label: string | null
+          linked_object_ref: string | null
+          linked_object_type: string | null
+          post_id: string
+        }
+        Insert: {
+          annotated_file_id?: string | null
+          annotation_json?: Json
+          created_at?: string
+          created_by?: string | null
+          doc_type?: string | null
+          file_id?: string | null
+          id?: string
+          linked_object_label?: string | null
+          linked_object_ref?: string | null
+          linked_object_type?: string | null
+          post_id: string
+        }
+        Update: {
+          annotated_file_id?: string | null
+          annotation_json?: Json
+          created_at?: string
+          created_by?: string | null
+          doc_type?: string | null
+          file_id?: string | null
+          id?: string
+          linked_object_label?: string | null
+          linked_object_ref?: string | null
+          linked_object_type?: string | null
+          post_id?: string
+        }
+        Relationships: []
+      }
       message_action_suggestions: {
         Row: {
           clicked_action_type: string | null
@@ -4406,6 +4513,47 @@ export type Database = {
           {
             foreignKeyName: "notifications_event_id_fkey"
             columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      objects_catalog: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          label: string
+          meta: Json | null
+          object_type: string
+          project_id: string
+          synonyms: string[] | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          label: string
+          meta?: Json | null
+          object_type?: string
+          project_id: string
+          synonyms?: string[] | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          label?: string
+          meta?: Json | null
+          object_type?: string
+          project_id?: string
+          synonyms?: string[] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "objects_catalog_project_id_fkey"
+            columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "events"
             referencedColumns: ["id"]
@@ -6149,6 +6297,8 @@ export type Database = {
         Args: { _auth_user_id: string; _project_id: string }
         Returns: boolean
       }
+      show_limit: { Args: never; Returns: number }
+      show_trgm: { Args: { "": string }; Returns: string[] }
       sweep_orphan_schedule_blocks: { Args: never; Returns: Json }
     }
     Enums: {

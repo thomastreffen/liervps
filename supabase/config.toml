@@ -150,3 +150,6 @@ verify_jwt = false
 [functions.analyze-message-actions]
 verify_jwt = false
 
+[functions.extract-image-text]
+verify_jwt = false
+

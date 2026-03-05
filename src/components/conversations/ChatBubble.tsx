@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { type ConversationPost, type ConversationAttachment } from "@/hooks/useConversations";
 import { type ReactionSummary } from "@/hooks/useMessageReactions";
 import { type SuggestedMessageAction } from "@/hooks/useAIMessageActions";
+import { type MediaAnnotation } from "@/hooks/useMediaAnnotations";
 import {
   ChevronDown, ExternalLink, FileText, Paperclip, Check, CheckCheck,
 } from "lucide-react";
@@ -14,6 +15,7 @@ import { ImagePreviewModal } from "./ImagePreviewModal";
 import { VoicePlayer } from "./VoicePlayer";
 import { MessageContextBadges } from "./MessageContextBadges";
 import { ChatAIActionChips } from "./ChatAIActionChips";
+import { MediaAnnotationBadges } from "./MediaAnnotationBadges";
 
 interface ChatBubbleProps {
   post: ConversationPost;
@@ -37,6 +39,14 @@ interface ChatBubbleProps {
   aiDismissed?: boolean;
   onDismissAI?: (postId: string) => void;
   onClickAIAction?: (postId: string, action: SuggestedMessageAction) => void;
+  // Annotation props
+  annotations?: MediaAnnotation[];
+  hasBeforeAfterPair?: boolean;
+  projectId?: string;
+  companyId?: string;
+  onFilterByDocType?: (docType: string) => void;
+  onFilterByObjectLabel?: (label: string) => void;
+  onAnnotationSaved?: () => void;
 }
 
 export function ChatBubble({
@@ -45,6 +55,8 @@ export function ChatBubble({
   replyToPost, onScrollToPost, readCount = 0,
   onFilterByTag, onFilterByObjectType, onFilterByLocation,
   aiSuggestions, aiDismissed, onDismissAI, onClickAIAction,
+  annotations, hasBeforeAfterPair, projectId, companyId,
+  onFilterByDocType, onFilterByObjectLabel, onAnnotationSaved,
 }: ChatBubbleProps) {
   const [showRaw, setShowRaw] = useState(false);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
@@ -246,7 +258,27 @@ export function ChatBubble({
         </div>
       )}
 
-      <ImagePreviewModal url={lightboxUrl} alt={lightboxAlt} onClose={() => setLightboxUrl(null)} />
+      <ImagePreviewModal
+        url={lightboxUrl}
+        alt={lightboxAlt}
+        onClose={() => setLightboxUrl(null)}
+        postId={post.id}
+        projectId={projectId}
+        companyId={companyId}
+        onAnnotationSaved={onAnnotationSaved}
+      />
+
+      {/* Annotation badges */}
+      {annotations && annotations.length > 0 && (
+        <div className={cn("px-1", isOwn ? "text-right" : "text-left")}>
+          <MediaAnnotationBadges
+            annotations={annotations}
+            beforeAfterPair={hasBeforeAfterPair}
+            onFilterByDocType={onFilterByDocType}
+            onFilterByObjectLabel={onFilterByObjectLabel}
+          />
+        </div>
+      )}
     </div>
   );
 }

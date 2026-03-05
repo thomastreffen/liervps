@@ -1,18 +1,44 @@
 import { useState } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { Download, ZoomIn, ZoomOut, X } from "lucide-react";
+import { Download, ZoomIn, ZoomOut, X, Pencil } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ImageAnnotator } from "./ImageAnnotator";
 
 interface ImagePreviewModalProps {
   url: string | null;
   alt?: string;
   onClose: () => void;
+  postId?: string;
+  fileId?: string;
+  projectId?: string;
+  companyId?: string;
+  onAnnotationSaved?: () => void;
 }
 
-export function ImagePreviewModal({ url, alt = "Vedlegg", onClose }: ImagePreviewModalProps) {
+export function ImagePreviewModal({
+  url, alt = "Vedlegg", onClose, postId, fileId, projectId, companyId, onAnnotationSaved,
+}: ImagePreviewModalProps) {
   const [zoom, setZoom] = useState(1);
+  const [annotating, setAnnotating] = useState(false);
 
   if (!url) return null;
+
+  if (annotating && postId && projectId && companyId) {
+    return (
+      <ImageAnnotator
+        imageUrl={url}
+        postId={postId}
+        fileId={fileId}
+        projectId={projectId}
+        companyId={companyId}
+        onSave={() => {
+          setAnnotating(false);
+          onAnnotationSaved?.();
+        }}
+        onClose={() => setAnnotating(false)}
+      />
+    );
+  }
 
   const handleDownload = () => {
     const a = document.createElement("a");
@@ -48,6 +74,15 @@ export function ImagePreviewModal({ url, alt = "Vedlegg", onClose }: ImagePrevie
             >
               <Download className="h-4 w-4" />
             </button>
+            {postId && projectId && (
+              <button
+                onClick={() => setAnnotating(true)}
+                className="h-8 w-8 rounded-full bg-primary/80 hover:bg-primary flex items-center justify-center text-white transition-colors cursor-pointer ml-1"
+                title="Annoter"
+              >
+                <Pencil className="h-4 w-4" />
+              </button>
+            )}
             <button
               onClick={() => { setZoom(1); onClose(); }}
               className="h-8 w-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white/80 transition-colors cursor-pointer ml-1"
