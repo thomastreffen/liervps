@@ -15,6 +15,7 @@ import { useNotifications } from "@/hooks/useNotifications";
 import { useActionRequired } from "@/hooks/useActionRequired";
 import { useAuth } from "@/hooks/useAuth";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useModuleVisibility } from "@/hooks/useModuleVisibility";
 import { cn } from "@/lib/utils";
 import {
   Drawer,
@@ -60,6 +61,7 @@ export function MobileTabBar() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { hasPermission } = usePermissions();
+  const { isModuleVisible } = useModuleVisibility();
   const { unreadCount } = useNotifications();
   const actionRequiredCount = useActionRequired();
   const [fabOpen, setFabOpen] = useState(false);
@@ -81,21 +83,24 @@ export function MobileTabBar() {
     <>
       <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-card lg:hidden safe-area-bottom">
         <div className="flex items-stretch">
-          <TabButton
-            label="Oversikt"
-            icon={LayoutDashboard}
-            active={isActive("/overview")}
-            onClick={() => navigate("/overview")}
-          />
+          {isModuleVisible("overview") && (
+            <TabButton
+              label="Oversikt"
+              icon={LayoutDashboard}
+              active={isActive("/overview")}
+              onClick={() => navigate("/overview")}
+            />
+          )}
 
-          {/* Prosjekter */}
-          <TabButton
-            label="Prosjekter"
-            icon={FolderKanban}
-            active={isActive("/projects")}
-            onClick={() => navigate("/projects")}
-            dot={jobsDot}
-          />
+          {isModuleVisible("projects") && (
+            <TabButton
+              label="Prosjekter"
+              icon={FolderKanban}
+              active={isActive("/projects")}
+              onClick={() => navigate("/projects")}
+              dot={jobsDot}
+            />
+          )}
 
           {/* FAB center */}
           <button
@@ -108,13 +113,14 @@ export function MobileTabBar() {
             </span>
           </button>
 
-          {/* Plan */}
-          <TabButton
-            label="Plan"
-            icon={CalendarDays}
-            active={isActive("/projects/plan")}
-            onClick={() => navigate("/projects/plan")}
-          />
+          {isModuleVisible("resource_plan") && (
+            <TabButton
+              label="Plan"
+              icon={CalendarDays}
+              active={isActive("/projects/plan")}
+              onClick={() => navigate("/projects/plan")}
+            />
+          )}
 
           {/* Varsler */}
           <TabButton

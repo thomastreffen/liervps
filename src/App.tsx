@@ -73,6 +73,7 @@ import MicrosoftAdminPage from "./pages/MicrosoftAdminPage";
 import ThreadInviteAcceptPage from "./pages/ThreadInviteAcceptPage";
 import ConfirmationsPage from "./pages/ConfirmationsPage";
 import AiMatcherReportPage from "./pages/AiMatcherReportPage";
+import ModuleManagementPage from "./pages/ModuleManagementPage";
 import { CompanyProvider } from "@/hooks/useCompanyContext";
 
 const queryClient = new QueryClient();
@@ -325,6 +326,14 @@ const App = () => (
                 element={
                   <ProtectedRoute requiredRoles={["admin", "super_admin"]}>
                     <MicrosoftAdminPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/modules"
+                element={
+                  <ProtectedRoute requiredRoles={["super_admin"]}>
+                    <ModuleManagementPage />
                   </ProtectedRoute>
                 }
               />

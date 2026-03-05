@@ -4400,6 +4400,75 @@ export type Database = {
         }
         Relationships: []
       }
+      module_settings: {
+        Row: {
+          created_at: string
+          id: string
+          is_enabled: boolean
+          label: string
+          module_key: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_enabled?: boolean
+          label: string
+          module_key: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_enabled?: boolean
+          label?: string
+          module_key?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      module_user_overrides: {
+        Row: {
+          created_at: string
+          id: string
+          is_hidden: boolean
+          module_key: string
+          user_account_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_hidden?: boolean
+          module_key: string
+          user_account_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_hidden?: boolean
+          module_key?: string
+          user_account_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "module_user_overrides_module_key_fkey"
+            columns: ["module_key"]
+            isOneToOne: false
+            referencedRelation: "module_settings"
+            referencedColumns: ["module_key"]
+          },
+          {
+            foreignKeyName: "module_user_overrides_user_account_id_fkey"
+            columns: ["user_account_id"]
+            isOneToOne: false
+            referencedRelation: "user_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ms_graph_subscriptions: {
         Row: {
           change_type: string

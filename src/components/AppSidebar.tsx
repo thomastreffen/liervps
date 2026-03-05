@@ -8,10 +8,12 @@ import {
   CalendarDays,
   ChevronDown,
   Settings,
+  LayoutGrid,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/hooks/useAuth";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useModuleVisibility } from "@/hooks/useModuleVisibility";
 import {
   Sidebar,
   SidebarContent,
@@ -31,26 +33,26 @@ import {
 import { cn } from "@/lib/utils";
 
 const mainNav = [
-  { title: "Hjem", url: "/overview", icon: Home },
-  { title: "Prosjekter", url: "/projects", icon: FolderKanban },
-  { title: "Ressursplan", url: "/projects/plan", icon: CalendarDays },
+  { title: "Hjem", url: "/overview", icon: Home, moduleKey: "overview" },
+  { title: "Prosjekter", url: "/projects", icon: FolderKanban, moduleKey: "projects" },
+  { title: "Ressursplan", url: "/projects/plan", icon: CalendarDays, moduleKey: "resource_plan" },
 ];
 
 const adminItems = [
-  { title: "Firma", url: "/admin/company", requireSuperAdmin: true },
-  { title: "Organisasjon", url: "/admin/organisasjon", requireSuperAdmin: true },
-  { title: "Personer", url: "/admin/personer" },
-  { title: "Roller", url: "/admin/roller", requireSuperAdmin: true },
-  { title: "Postkontoret", url: "/admin/superoffice", requirePostkontorAdmin: true },
-  { title: "Skjemamaler", url: "/admin/forms" },
-  { title: "Integrasjoner", url: "/settings/integrations" },
-  { title: "Integrasjonshelse", url: "/admin/integration-health" },
-  { title: "Systemhelse", url: "/admin/system-health" },
-  { title: "Dataintegritet", url: "/admin/data-integrity" },
-  { title: "Kontraktvarsler", url: "/admin/contract-cron" },
-  { title: "Microsoft", url: "/admin/microsoft", requireSuperAdmin: true },
-  { title: "Innstillinger", url: "/admin/settings" },
-  { title: "Papirkurv", url: "/admin/trash" },
+  { title: "Firma", url: "/admin/company", requireSuperAdmin: true, moduleKey: "admin_company" },
+  { title: "Organisasjon", url: "/admin/organisasjon", requireSuperAdmin: true, moduleKey: "admin_org" },
+  { title: "Personer", url: "/admin/personer", moduleKey: "admin_people" },
+  { title: "Roller", url: "/admin/roller", requireSuperAdmin: true, moduleKey: "admin_roles" },
+  { title: "Postkontoret", url: "/admin/superoffice", requirePostkontorAdmin: true, moduleKey: "admin_postkontor" },
+  { title: "Skjemamaler", url: "/admin/forms", moduleKey: "admin_forms" },
+  { title: "Integrasjoner", url: "/settings/integrations", moduleKey: "admin_integrations" },
+  { title: "Integrasjonshelse", url: "/admin/integration-health", moduleKey: "admin_integration_health" },
+  { title: "Systemhelse", url: "/admin/system-health", moduleKey: "admin_system_health" },
+  { title: "Dataintegritet", url: "/admin/data-integrity", moduleKey: "admin_data_integrity" },
+  { title: "Kontraktvarsler", url: "/admin/contract-cron", moduleKey: "admin_contract_cron" },
+  { title: "Microsoft", url: "/admin/microsoft", requireSuperAdmin: true, moduleKey: "admin_microsoft" },
+  { title: "Innstillinger", url: "/admin/settings", moduleKey: "admin_settings" },
+  { title: "Papirkurv", url: "/admin/trash", moduleKey: "admin_trash" },
 ];
 
 function NavItem({ item, isActive, collapsed }: {
@@ -88,6 +90,7 @@ export function AppSidebar() {
   const collapsed = state === "collapsed";
   const { isAdmin, isSuperAdmin } = useAuth();
   const { hasPermission } = usePermissions();
+  const { isModuleVisible } = useModuleVisibility();
   const location = useLocation();
 
   const isActive = (url: string) =>
@@ -96,7 +99,13 @@ export function AppSidebar() {
   const hasPostkontor = isAdmin || hasPermission("postkontor.view");
   const hasPostkontorAdmin = isAdmin || hasPermission("postkontor.admin");
 
+  // Filter main nav by module visibility
+  const visibleMainNav = mainNav.filter((item) => isModuleVisible(item.moduleKey));
+
   const filteredAdmin = adminItems.filter((item) => {
+    // First check module visibility
+    if (!isModuleVisible(item.moduleKey)) return false;
+    // Then check role requirements
     if ('requireSuperAdmin' in item && item.requireSuperAdmin) return isSuperAdmin;
     if ('requirePostkontorAdmin' in item && (item as any).requirePostkontorAdmin) return hasPostkontorAdmin;
     return true;
@@ -124,16 +133,18 @@ export function AppSidebar() {
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu className="space-y-0.5">
-              {mainNav.map((item) => (
+              {visibleMainNav.map((item) => (
                 <NavItem key={item.url} item={item} isActive={isActive} collapsed={collapsed} />
               ))}
-              {hasPostkontor && (
+              {hasPostkontor && isModuleVisible("inbox") && (
                 <NavItem item={{ title: "Postkontoret", url: "/inbox", icon: Inbox }} isActive={isActive} collapsed={collapsed} />
               )}
-              {isAdmin && (
+              {isAdmin && isModuleVisible("sales") && (
                 <NavItem item={{ title: "Salg", url: "/sales", icon: TrendingUp }} isActive={isActive} collapsed={collapsed} />
               )}
-              <NavItem item={{ title: "Kunder", url: "/customers", icon: Users }} isActive={isActive} collapsed={collapsed} />
+              {isModuleVisible("customers") && (
+                <NavItem item={{ title: "Kunder", url: "/customers", icon: Users }} isActive={isActive} collapsed={collapsed} />
+              )}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
@@ -155,6 +166,14 @@ export function AppSidebar() {
                     {filteredAdmin.map((item) => (
                       <NavItem key={item.url} item={item} isActive={isActive} collapsed={collapsed} />
                     ))}
+                    {/* Module management - superadmin only */}
+                    {isSuperAdmin && (
+                      <NavItem
+                        item={{ title: "Moduler", url: "/admin/modules", icon: LayoutGrid }}
+                        isActive={isActive}
+                        collapsed={collapsed}
+                      />
+                    )}
                   </SidebarMenu>
                 </SidebarGroupContent>
               </CollapsibleContent>
