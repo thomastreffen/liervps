@@ -116,13 +116,28 @@ export function MobileActionBar({
         .update({ deleted_at: new Date().toISOString() })
         .eq("project_id", job.id);
     }
-    // If blockAction === "keep", ON DELETE SET NULL handles it via the FK,
-    // but since we soft-delete (not hard delete), we need to manually unlink
+    // Since we soft-delete (not hard delete), we need to manually unlink and restore title
     if (linkedBlockCount > 0 && blockAction === "keep") {
-      await supabase
+      // Fetch blocks to restore original outlook_subject as title
+      const { data: linkedBlocks } = await supabase
         .from("schedule_blocks")
-        .update({ project_id: null, match_state: "external", match_reason: "Prosjekt slettet – beholdt som ekstern" })
-        .eq("project_id", job.id);
+        .select("id, outlook_subject, title")
+        .eq("project_id", job.id)
+        .is("deleted_at", null);
+
+      if (linkedBlocks && linkedBlocks.length > 0) {
+        for (const lb of linkedBlocks) {
+          await supabase
+            .from("schedule_blocks")
+            .update({
+              project_id: null,
+              match_state: "external",
+              match_reason: "Prosjekt slettet – beholdt som ekstern",
+              title: lb.outlook_subject || lb.title || "Ekstern blokk",
+            } as any)
+            .eq("id", lb.id);
+        }
+      }
     }
 
     await supabase

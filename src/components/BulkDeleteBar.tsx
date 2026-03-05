@@ -28,12 +28,27 @@ export function BulkDeleteBar({ selectedIds, entityType, entityLabel, onComplete
     setDeleting(true);
     const now = new Date().toISOString();
 
-    // If deleting events, unlink any connected schedule_blocks first
+    // If deleting events, unlink connected schedule_blocks and restore original titles
     if (entityType === "events") {
-      await supabase
+      const { data: linkedBlocks } = await supabase
         .from("schedule_blocks")
-        .update({ project_id: null, match_state: "external", match_reason: "Prosjekt slettet (bulk) – beholdt som ekstern" })
-        .in("project_id", selectedIds);
+        .select("id, outlook_subject, title")
+        .in("project_id", selectedIds)
+        .is("deleted_at", null);
+
+      if (linkedBlocks && linkedBlocks.length > 0) {
+        for (const lb of linkedBlocks) {
+          await supabase
+            .from("schedule_blocks")
+            .update({
+              project_id: null,
+              match_state: "external",
+              match_reason: "Prosjekt slettet (bulk) – beholdt som ekstern",
+              title: lb.outlook_subject || lb.title || "Ekstern blokk",
+            } as any)
+            .eq("id", lb.id);
+        }
+      }
     }
 
     const { error } = await supabase

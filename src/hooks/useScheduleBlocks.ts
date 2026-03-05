@@ -110,7 +110,36 @@ export function useScheduleBlocks(
         return;
       }
 
-      setBlocks((data ?? []).map(mapRow));
+      const mapped = (data ?? []).map(mapRow);
+
+      // Defensive: detect orphaned project_id (project was soft-deleted, events join returns null title)
+      const orphanIds: string[] = [];
+      for (const b of mapped) {
+        if (b.project_id && b.project_title === null) {
+          // project_id set but join returned no title → project likely deleted
+          orphanIds.push(b.id);
+          b.project_id = null;
+          b.match_state = "external";
+        }
+      }
+
+      // Fire-and-forget cleanup for orphaned blocks
+      if (orphanIds.length > 0) {
+        console.warn("[ScheduleBlocks] Cleaning orphaned project_id on blocks:", orphanIds);
+        supabase
+          .from("schedule_blocks")
+          .update({
+            project_id: null,
+            match_state: "external",
+            match_reason: "Auto-renset: prosjekt slettet",
+          } as any)
+          .in("id", orphanIds)
+          .then(({ error: cleanupErr }) => {
+            if (cleanupErr) console.error("[ScheduleBlocks] Orphan cleanup error:", cleanupErr);
+          });
+      }
+
+      setBlocks(mapped);
     } catch (err) {
       console.error("[ScheduleBlocks] Exception:", err);
     } finally {
