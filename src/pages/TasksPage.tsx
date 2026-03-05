@@ -1,9 +1,8 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
 import {
   ListChecks, Plus, Filter, CheckCircle2, Circle,
   AlertCircle, FolderKanban, User, Calendar, ChevronRight,
-  Clock,
+  Clock, ChevronDown,
 } from "lucide-react";
 import { format, isPast, isToday } from "date-fns";
 import { nb } from "date-fns/locale";
@@ -20,20 +19,24 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { TaskDetailSheet } from "@/components/tasks/TaskDetailSheet";
 import { toast } from "sonner";
 
 type ProjectFilter = "all" | "project" | "personal";
 type TimeFilter = "all" | "overdue" | "today" | "week";
 
 export default function TasksPage() {
-  const navigate = useNavigate();
   const { user } = useAuth();
   const { activeCompanyId } = useCompanyContext();
   const [projectFilter, setProjectFilter] = useState<ProjectFilter>("all");
   const [timeFilter, setTimeFilter] = useState<TimeFilter>("all");
   const [showCreate, setShowCreate] = useState(false);
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [doneTasks, setDoneTasks] = useState<Task[]>([]);
+  const [doneOpen, setDoneOpen] = useState(false);
 
-  const { tasks, loading, createTask, completeTask } = useTasks({
+  const { tasks, loading, createTask, completeTask, deleteTask, fetchDoneTasks, refetch } = useTasks({
     projectFilter,
     timeFilter,
   });
@@ -42,6 +45,13 @@ export default function TasksPage() {
   const [newDescription, setNewDescription] = useState("");
   const [newPriority, setNewPriority] = useState("medium");
   const [newDueAt, setNewDueAt] = useState("");
+
+  // Load done tasks when section opened
+  useEffect(() => {
+    if (doneOpen) {
+      fetchDoneTasks().then(setDoneTasks);
+    }
+  }, [doneOpen, fetchDoneTasks]);
 
   const handleCreate = async () => {
     if (!newTitle.trim() || !activeCompanyId) return;
@@ -65,16 +75,81 @@ export default function TasksPage() {
     }
   };
 
-  const handleComplete = async (taskId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleComplete = async (taskId: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
     await completeTask(taskId);
     toast.success("Oppgave fullført");
+    if (doneOpen) fetchDoneTasks().then(setDoneTasks);
+  };
+
+  const handleDelete = async (taskId: string) => {
+    await deleteTask(taskId);
+    toast.success("Oppgave slettet");
+    if (doneOpen) fetchDoneTasks().then(setDoneTasks);
   };
 
   const overdueCount = tasks.filter(t => t.due_at && isPast(new Date(t.due_at))).length;
   const todayCount = tasks.filter(t => t.due_at && isToday(new Date(t.due_at))).length;
   const personalCount = tasks.filter(t => !t.linked_project_id).length;
   const projectCount = tasks.filter(t => t.linked_project_id).length;
+
+  const renderTaskRow = (task: Task) => {
+    const overdue = task.due_at && isPast(new Date(task.due_at));
+    const isDone = task.status === "done";
+    return (
+      <div
+        key={task.id}
+        className="flex items-center gap-3 px-5 py-3.5 hover:bg-primary/[0.02] transition-colors cursor-pointer group"
+        onClick={() => setSelectedTask(task)}
+      >
+        {!isDone && (
+          <button
+            onClick={(e) => { e.stopPropagation(); handleComplete(task.id); }}
+            className="shrink-0"
+          >
+            <Circle className={`h-5 w-5 stroke-[2] transition-colors hover:text-success ${overdue ? "text-destructive" : "text-border"}`} />
+          </button>
+        )}
+        {isDone && (
+          <CheckCircle2 className="h-5 w-5 text-success/50 shrink-0" />
+        )}
+
+        <div className="min-w-0 flex-1">
+          <p className={`text-sm truncate group-hover:text-primary transition-colors ${isDone ? "text-muted-foreground line-through" : "text-foreground"}`}>
+            {task.title}
+          </p>
+          <div className="flex items-center gap-2 mt-0.5">
+            {task.linked_project_id ? (
+              <span className="text-[10px] text-primary/70 flex items-center gap-0.5">
+                <FolderKanban className="h-2.5 w-2.5" /> Prosjekt
+              </span>
+            ) : (
+              <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
+                <User className="h-2.5 w-2.5" /> Personlig
+              </span>
+            )}
+            {task.calendar_event_id && (
+              <span className="text-[10px] text-primary/60 flex items-center gap-0.5">
+                <Calendar className="h-2.5 w-2.5" /> Synket
+              </span>
+            )}
+            {task.priority === "high" && (
+              <Badge variant="destructive" className="text-[9px] px-1.5 py-0 h-3.5">Høy</Badge>
+            )}
+          </div>
+        </div>
+
+        {task.due_at && (
+          <span className={`text-[11px] shrink-0 font-medium flex items-center gap-1 ${overdue && !isDone ? "text-destructive" : "text-muted-foreground/50"}`}>
+            {overdue && !isDone && <AlertCircle className="h-3 w-3" />}
+            {format(new Date(task.due_at), "d. MMM", { locale: nb })}
+          </span>
+        )}
+
+        <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/15 group-hover:text-primary/40 shrink-0" />
+      </div>
+    );
+  };
 
   return (
     <div className="max-w-[900px] mx-auto px-4 sm:px-8 py-10">
@@ -158,69 +233,41 @@ export default function TasksPage() {
         </div>
       ) : (
         <div className="rounded-2xl border-2 border-border/50 bg-card overflow-hidden divide-y divide-border/30">
-          {tasks.map((task) => {
-            const overdue = task.due_at && isPast(new Date(task.due_at));
-            return (
-              <div
-                key={task.id}
-                className="flex items-center gap-3 px-5 py-3.5 hover:bg-primary/[0.02] transition-colors cursor-pointer group"
-                onClick={() => {
-                  if (task.linked_project_id) {
-                    navigate(`/projects/${task.linked_project_id}`);
-                  }
-                }}
-              >
-                <button
-                  onClick={(e) => handleComplete(task.id, e)}
-                  className="shrink-0"
-                >
-                  <Circle className={`h-5 w-5 stroke-[2] transition-colors hover:text-success ${
-                    overdue ? "text-destructive" : "text-border"
-                  }`} />
-                </button>
-
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm text-foreground truncate group-hover:text-primary transition-colors">
-                    {task.title}
-                  </p>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    {task.linked_project_id ? (
-                      <span className="text-[10px] text-primary/70 flex items-center gap-0.5">
-                        <FolderKanban className="h-2.5 w-2.5" /> Prosjekt
-                      </span>
-                    ) : (
-                      <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
-                        <User className="h-2.5 w-2.5" /> Personlig
-                      </span>
-                    )}
-                    {task.calendar_event_id && (
-                      <span className="text-[10px] text-info flex items-center gap-0.5">
-                        <Calendar className="h-2.5 w-2.5" /> Synket
-                      </span>
-                    )}
-                    {task.priority === "high" && (
-                      <Badge variant="destructive" className="text-[9px] px-1.5 py-0 h-3.5">Høy</Badge>
-                    )}
-                  </div>
-                </div>
-
-                {task.due_at && (
-                  <span className={`text-[11px] shrink-0 font-medium flex items-center gap-1 ${
-                    overdue ? "text-destructive" : "text-muted-foreground/50"
-                  }`}>
-                    {overdue && <AlertCircle className="h-3 w-3" />}
-                    {format(new Date(task.due_at), "d. MMM", { locale: nb })}
-                  </span>
-                )}
-
-                {task.linked_project_id && (
-                  <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/15 group-hover:text-primary/40 shrink-0" />
-                )}
-              </div>
-            );
-          })}
+          {tasks.map(renderTaskRow)}
         </div>
       )}
+
+      {/* Completed tasks section */}
+      <div className="mt-8">
+        <Collapsible open={doneOpen} onOpenChange={setDoneOpen}>
+          <CollapsibleTrigger className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors py-2">
+            <ChevronDown className={`h-4 w-4 transition-transform ${doneOpen ? "" : "-rotate-90"}`} />
+            <CheckCircle2 className="h-4 w-4" />
+            Utførte oppgaver
+            {doneTasks.length > 0 && (
+              <Badge variant="secondary" className="text-[10px] h-5 px-1.5">{doneTasks.length}</Badge>
+            )}
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            {doneTasks.length === 0 ? (
+              <p className="text-xs text-muted-foreground/50 py-4 pl-6">Ingen fullførte oppgaver ennå</p>
+            ) : (
+              <div className="rounded-2xl border border-border/30 bg-card/50 overflow-hidden divide-y divide-border/20 mt-2">
+                {doneTasks.map(renderTaskRow)}
+              </div>
+            )}
+          </CollapsibleContent>
+        </Collapsible>
+      </div>
+
+      {/* Task detail sheet */}
+      <TaskDetailSheet
+        task={selectedTask}
+        open={!!selectedTask}
+        onOpenChange={(open) => { if (!open) setSelectedTask(null); }}
+        onComplete={async (id) => { await handleComplete(id); }}
+        onDelete={handleDelete}
+      />
 
       {/* Create dialog */}
       <Dialog open={showCreate} onOpenChange={setShowCreate}>

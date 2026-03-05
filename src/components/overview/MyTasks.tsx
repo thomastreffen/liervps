@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   CheckCircle2, ChevronRight, AlertCircle, Circle, Plus, Loader2,
-  CalendarIcon, Clock, Flag,
+  CalendarIcon, Clock, Flag, Paperclip, X,
 } from "lucide-react";
 import { format, isPast } from "date-fns";
 import { nb } from "date-fns/locale";
@@ -41,13 +41,17 @@ function InlineCreateForm({ onCreated, onCancel }: { onCreated: () => void; onCa
   const [dueDate, setDueDate] = useState<Date | undefined>();
   const [plannedStart, setPlannedStart] = useState("");
   const [plannedEnd, setPlannedEnd] = useState("");
+  const [files, setFiles] = useState<File[]>([]);
   const [saving, setSaving] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   const handleSubmit = async () => {
     if (!title.trim() || !user || saving) return;
     setSaving(true);
     try {
-      const { error } = await supabase.from("tasks").insert({
+      const hasPlannedTime = !!plannedStart || !!plannedEnd;
+
+      const { data, error } = await supabase.from("tasks").insert({
         title: title.trim(),
         description: description.trim() || null,
         company_id: activeCompanyId,
@@ -58,8 +62,36 @@ function InlineCreateForm({ onCreated, onCancel }: { onCreated: () => void; onCa
         due_at: dueDate ? dueDate.toISOString() : null,
         planned_start_at: plannedStart ? new Date(plannedStart).toISOString() : null,
         planned_end_at: plannedEnd ? new Date(plannedEnd).toISOString() : null,
-      } as any);
+      } as any).select("id").single();
       if (error) throw error;
+      const taskId = (data as any).id;
+
+      // Upload attachments
+      if (files.length > 0) {
+        for (const file of files) {
+          const path = `tasks/${taskId}/${Date.now()}-${file.name}`;
+          await supabase.storage.from("user-documents").upload(path, file);
+          await (supabase as any).from("task_attachments").insert({
+            task_id: taskId,
+            file_name: file.name,
+            file_path: path,
+            mime_type: file.type,
+            file_size: file.size,
+          });
+        }
+      }
+
+      // Auto-sync to Outlook calendar if planned time is set
+      if (hasPlannedTime) {
+        try {
+          await supabase.functions.invoke("sync-task-to-calendar", {
+            body: { task_id: taskId },
+          });
+        } catch (e) {
+          console.warn("Calendar sync failed:", e);
+        }
+      }
+
       toast.success("Oppgave opprettet");
       onCreated();
     } catch {
@@ -166,6 +198,35 @@ function InlineCreateForm({ onCreated, onCancel }: { onCreated: () => void; onCa
             onChange={(e) => setPlannedEnd(e.target.value)}
             className="h-9 text-sm"
           />
+        </div>
+      </div>
+
+      {/* Attachments */}
+      <div className="space-y-1">
+        <Label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+          <Paperclip className="h-3 w-3" /> Vedlegg
+        </Label>
+        <input
+          ref={fileRef}
+          type="file"
+          multiple
+          className="hidden"
+          onChange={(e) => {
+            if (e.target.files) setFiles(prev => [...prev, ...Array.from(e.target.files!)]);
+          }}
+        />
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button type="button" variant="outline" size="sm" className="h-8 text-xs gap-1" onClick={() => fileRef.current?.click()}>
+            <Plus className="h-3 w-3" /> Legg til fil
+          </Button>
+          {files.map((f, i) => (
+            <span key={i} className="inline-flex items-center gap-1 text-xs bg-muted rounded-md px-2 py-1">
+              {f.name}
+              <button onClick={() => setFiles(prev => prev.filter((_, j) => j !== i))} className="text-muted-foreground hover:text-destructive">
+                <X className="h-3 w-3" />
+              </button>
+            </span>
+          ))}
         </div>
       </div>
 
