@@ -55,6 +55,7 @@ export function useCalendarEvents(technicianId: string | null, referenceDate?: D
             )
           )
         `)
+        .is("deleted_at", null)
         .gte("start_time", weekStartISO)
         .lte("start_time", weekEndISO)
         .order("start_time", { ascending: true });
