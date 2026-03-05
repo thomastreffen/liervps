@@ -558,7 +558,7 @@ export function EventDrawer({
             </Button>
           </div>
 
-          {/* Delete button – works for both events and schedule blocks */}
+          {/* Remove from plan button */}
           {isEditing && editEvent && (
             <Button
               variant="ghost" size="sm"
@@ -567,7 +567,7 @@ export function EventDrawer({
               disabled={deleting}
             >
               {deleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
-              🗑 Slett
+              Fjern fra plan
             </Button>
           )}
         </SheetFooter>
@@ -576,11 +576,11 @@ export function EventDrawer({
         <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Slett hendelse?</AlertDialogTitle>
+              <AlertDialogTitle>Fjern fra ressursplan?</AlertDialogTitle>
               <AlertDialogDescription>
                 {scheduleBlockId
                   ? "Blokken fjernes fra planoversikten. Hvis den er koblet til Outlook, forsøkes sletting der også."
-                  : "Hendelsen slettes permanent fra systemet. Handlingen kan ikke angres."}
+                  : "Montørtildelingen og tidsplanen fjernes fra kalenderen. Prosjektet forblir intakt."}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -593,7 +593,6 @@ export function EventDrawer({
                   try {
                     if (scheduleBlockId) {
                       // Delete only the schedule block (handles Outlook cleanup)
-                      // Do NOT delete the linked project/event
                       const { error } = await supabase.functions.invoke("delete-schedule-block", {
                         body: { schedule_block_id: scheduleBlockId },
                       });
@@ -602,31 +601,34 @@ export function EventDrawer({
                         return;
                       }
                     } else if (editEvent) {
-                      // Safety: check if this event has ANY schedule blocks
+                      // Delete any linked schedule blocks first
                       const { data: linkedBlocks } = await supabase
                         .from("schedule_blocks")
                         .select("id")
                         .eq("project_id", editEvent.id)
                         .is("deleted_at", null)
-                        .limit(10);
+                        .limit(50);
 
                       if (linkedBlocks && linkedBlocks.length > 0) {
-                        // Has schedule blocks but scheduleBlockId was null (e.g. query failed)
-                        // Delete the schedule blocks only, NOT the project
                         for (const sb of linkedBlocks) {
                           await supabase.functions.invoke("delete-schedule-block", {
                             body: { schedule_block_id: sb.id },
                           });
                         }
-                      } else {
-                        // SAFETY: NEVER soft-delete projects/events from the resource plan.
-                        // This was the root cause of accidental project deletion.
-                        // Users must delete projects from the project detail page.
-                        toast.error("Kan ikke slette prosjekt herfra", {
-                          description: "Gå til prosjektsiden for å slette prosjektet.",
-                        });
-                        return;
                       }
+
+                      // Remove technician assignments → event disappears from calendar
+                      // The PROJECT (event) itself is NOT deleted
+                      await supabase
+                        .from("event_technicians")
+                        .delete()
+                        .eq("event_id", editEvent.id);
+
+                      // Clear scheduling times so it's no longer a "planned" event
+                      await supabase
+                        .from("events")
+                        .update({ status: "requested" } as any)
+                        .eq("id", editEvent.id);
                     }
 
                     toast.success("Slettet ✓");
