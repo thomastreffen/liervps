@@ -592,7 +592,8 @@ export function EventDrawer({
                   setDeleting(true);
                   try {
                     if (scheduleBlockId) {
-                      // Delete via edge function (handles Outlook cleanup)
+                      // Delete only the schedule block (handles Outlook cleanup)
+                      // Do NOT delete the linked project/event
                       const { error } = await supabase.functions.invoke("delete-schedule-block", {
                         body: { schedule_block_id: scheduleBlockId },
                       });
@@ -600,10 +601,9 @@ export function EventDrawer({
                         toast.error("Kunne ikke slette", { description: error.message });
                         return;
                       }
-                    }
-
-                    // Soft-delete the event itself
-                    if (editEvent) {
+                    } else if (editEvent) {
+                      // Only soft-delete the event if there's no schedule block
+                      // (i.e. this is a standalone event, not a calendar block)
                       const { error: delErr } = await supabase
                         .from("events")
                         .update({ deleted_at: new Date().toISOString() } as any)
