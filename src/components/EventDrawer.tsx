@@ -602,13 +602,13 @@ export function EventDrawer({
                         return;
                       }
                     } else if (editEvent) {
-                      // Safety check: if this event has ANY schedule blocks, only delete those, not the project
+                      // Safety: check if this event has ANY schedule blocks
                       const { data: linkedBlocks } = await supabase
                         .from("schedule_blocks")
                         .select("id")
                         .eq("project_id", editEvent.id)
                         .is("deleted_at", null)
-                        .limit(1);
+                        .limit(10);
 
                       if (linkedBlocks && linkedBlocks.length > 0) {
                         // Has schedule blocks but scheduleBlockId was null (e.g. query failed)
@@ -619,15 +619,13 @@ export function EventDrawer({
                           });
                         }
                       } else {
-                        // Truly standalone event with no schedule blocks – safe to soft-delete
-                        const { error: delErr } = await supabase
-                          .from("events")
-                          .update({ deleted_at: new Date().toISOString() } as any)
-                          .eq("id", editEvent.id);
-                        if (delErr) {
-                          toast.error("Kunne ikke slette hendelsen", { description: delErr.message });
-                          return;
-                        }
+                        // SAFETY: NEVER soft-delete projects/events from the resource plan.
+                        // This was the root cause of accidental project deletion.
+                        // Users must delete projects from the project detail page.
+                        toast.error("Kan ikke slette prosjekt herfra", {
+                          description: "Gå til prosjektsiden for å slette prosjektet.",
+                        });
+                        return;
                       }
                     }
 

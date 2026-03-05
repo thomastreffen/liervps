@@ -51,18 +51,17 @@ describe("EventDrawer delete logic", () => {
     scheduleBlockId: string | null;
     editEventId: string | null;
     linkedBlockIds: string[]; // blocks found via safety query
-  }): "delete-block" | "delete-linked-blocks" | "soft-delete-event" | "noop" {
+  }): "delete-block" | "delete-linked-blocks" | "block-project-delete" | "noop" {
     const { scheduleBlockId, editEventId, linkedBlockIds } = params;
 
     if (scheduleBlockId) {
-      // Branch 1: known schedule block → delete only that block
       return "delete-block";
     } else if (editEventId) {
-      // Branch 2: safety check for linked blocks
       if (linkedBlockIds.length > 0) {
         return "delete-linked-blocks";
       } else {
-        return "soft-delete-event";
+        // NEVER soft-delete projects from resource plan – user must go to project page
+        return "block-project-delete";
       }
     }
     return "noop";
@@ -87,16 +86,18 @@ describe("EventDrawer delete logic", () => {
       linkedBlockIds: ["block-456"],
     });
     expect(result).toBe("delete-linked-blocks");
-    expect(result).not.toBe("soft-delete-event"); // THE CRITICAL ASSERTION
+    expect(result).not.toBe("block-project-delete"); // THE CRITICAL ASSERTION
   });
 
-  it("only soft-deletes an event if it truly has zero schedule blocks", () => {
+  it("blocks project deletion when event has zero schedule blocks", () => {
+    // Previously this would soft-delete the project – now it's blocked
     const result = simulateDeleteAction({
       scheduleBlockId: null,
       editEventId: "standalone-event",
       linkedBlockIds: [],
     });
-    expect(result).toBe("soft-delete-event");
+    expect(result).toBe("block-project-delete");
+    expect(result).not.toBe("soft-delete-event"); // Must NEVER happen
   });
 
   it("does nothing if neither scheduleBlockId nor editEvent exist", () => {
