@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { useConversationPosts, type ConversationPost } from "@/hooks/useConversations";
 import { useMessageReactions } from "@/hooks/useMessageReactions";
+import { useMentions, filterMentionUsers } from "@/hooks/useMentions";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { triggerConversationEmailSend } from "@/lib/conversation-email";
@@ -16,6 +17,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { ChatBubble } from "./ChatBubble";
 import { CreateTaskFromMessageDialog } from "./CreateTaskFromMessageDialog";
+import { TypingIndicator } from "./TypingIndicator";
 
 interface ThreadDetailProps {
   threadId: string;
@@ -136,24 +138,28 @@ export function ThreadDetail({ threadId, threadTitle, threadType, projectId, com
   const [currentUaId, setCurrentUaId] = useState<string | null>(null);
   const [replyToPost, setReplyToPost] = useState<ConversationPost | null>(null);
   const [taskPost, setTaskPost] = useState<ConversationPost | null>(null);
+  const [mentionQuery, setMentionQuery] = useState<string | null>(null);
+  const [mentionIndex, setMentionIndex] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
   const { getReactionsForPost, toggleReaction } = useMessageReactions(threadId, currentUaId);
+  const { users: mentionUsers } = useMentions(companyId);
+  const filteredMentions = useMemo(
+    () => mentionQuery !== null ? filterMentionUsers(mentionUsers, mentionQuery) : [],
+    [mentionUsers, mentionQuery]
+  );
 
-  // Build a map of post id -> post for reply lookups
   const postMap = useMemo(() => {
     const map = new Map<string, ConversationPost>();
     for (const p of posts) map.set(p.id, p);
     return map;
   }, [posts]);
 
-  // Pinned posts
   const pinnedPosts = useMemo(() => posts.filter(p => (p as any).is_pinned), [posts]);
 
-  // Get current user account id
   useEffect(() => {
     if (!user) return;
     (async () => {
@@ -270,6 +276,7 @@ export function ThreadDetail({ threadId, threadTitle, threadType, projectId, com
     setReplyText("");
     setPendingFiles([]);
     setReplyToPost(null);
+    setMentionQuery(null);
     setSending(false);
     refresh();
   };
@@ -303,12 +310,9 @@ export function ThreadDetail({ threadId, threadTitle, threadType, projectId, com
 
   const handlePinToggle = async (post: ConversationPost) => {
     const isPinned = (post as any).is_pinned;
-    if (!isPinned) {
-      // Check max 3 pins
-      if (pinnedPosts.length >= 3) {
-        toast.error("Maks 3 festede meldinger");
-        return;
-      }
+    if (!isPinned && pinnedPosts.length >= 3) {
+      toast.error("Maks 3 festede meldinger");
+      return;
     }
     const { error } = await (supabase as any)
       .from("conversation_posts")
@@ -316,6 +320,38 @@ export function ThreadDetail({ threadId, threadTitle, threadType, projectId, com
       .eq("id", post.id);
     if (error) toast.error("Kunne ikke oppdatere");
     else { toast.success(isPinned ? "Melding løsnet" : "Melding festet"); refresh(); }
+  };
+
+  // @mention detection
+  const handleTextChange = (value: string) => {
+    setReplyText(value);
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    const cursorPos = textarea.selectionStart;
+    const textBeforeCursor = value.substring(0, cursorPos);
+    const mentionMatch = textBeforeCursor.match(/@(\w*)$/);
+    if (mentionMatch) {
+      setMentionQuery(mentionMatch[1]);
+      setMentionIndex(0);
+    } else {
+      setMentionQuery(null);
+    }
+  };
+
+  const insertMention = (name: string) => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    const cursorPos = textarea.selectionStart;
+    const textBeforeCursor = replyText.substring(0, cursorPos);
+    const mentionMatch = textBeforeCursor.match(/@(\w*)$/);
+    if (!mentionMatch) return;
+    const start = cursorPos - mentionMatch[0].length;
+    const hasSpace = name.includes(" ");
+    const mention = hasSpace ? `@"${name}" ` : `@${name} `;
+    const newText = replyText.substring(0, start) + mention + replyText.substring(cursorPos);
+    setReplyText(newText);
+    setMentionQuery(null);
+    textarea.focus();
   };
 
   if (loading) {
@@ -357,10 +393,10 @@ export function ThreadDetail({ threadId, threadTitle, threadType, projectId, com
       {/* Pinned messages bar */}
       {pinnedPosts.length > 0 && (
         <div className="border-b border-border/20 bg-amber-50/50 dark:bg-amber-900/10 px-4 py-2">
-          <div className="flex items-center gap-2 text-xs">
+          <div className="flex items-center gap-2 text-xs max-w-[900px] mx-auto">
             <Pin className="h-3 w-3 text-amber-600 shrink-0" />
-            <span className="font-medium text-amber-700 dark:text-amber-400">Festede meldinger:</span>
-            <div className="flex-1 flex gap-2 overflow-x-auto">
+            <span className="font-medium text-amber-700 dark:text-amber-400">Festet:</span>
+            <div className="flex-1 flex gap-3 overflow-x-auto">
               {pinnedPosts.map(p => (
                 <button
                   key={p.id}
@@ -383,99 +419,112 @@ export function ThreadDetail({ threadId, threadTitle, threadType, projectId, com
       )}
 
       {/* Chat messages */}
-      <div ref={chatContainerRef} className="flex-1 overflow-y-auto px-4 sm:px-5 py-4 space-y-1 relative">
-        {grouped.map((day, di) => (
-          <div key={di}>
-            <div className="flex items-center justify-center py-4">
-              <span className="text-[10px] font-semibold text-muted-foreground/70 uppercase tracking-widest bg-card px-3 py-1 rounded-full">
-                {format(day.date, "EEEE d. MMMM", { locale: nb })}
-              </span>
-            </div>
+      <div ref={chatContainerRef} className="flex-1 overflow-y-auto px-4 sm:px-5 py-4 relative">
+        <div className="max-w-[900px] mx-auto space-y-1">
+          {grouped.map((day, di) => (
+            <div key={di}>
+              <div className="flex items-center justify-center py-3">
+                <div className="h-px flex-1 bg-border/20" />
+                <span className="text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-widest px-4">
+                  {format(day.date, "EEEE d. MMMM", { locale: nb })}
+                </span>
+                <div className="h-px flex-1 bg-border/20" />
+              </div>
 
-            {day.groups.map((group, gi) => {
-              if (group.sender === "__system__") {
-                const p = group.posts[0];
-                return (
-                  <div key={`sys-${gi}`} className="flex items-center justify-center py-2">
-                    <span className="text-[11px] text-muted-foreground/60 italic px-3 py-1">
-                      {p.body_text || p.subject || "Systemhendelse"}
-                    </span>
-                  </div>
-                );
-              }
-
-              const colorClass = avatarColor(group.sender);
-              const ini = initials(group.senderDisplay);
-              const isOwn = group.isOwn;
-
-              return (
-                <div
-                  key={`g-${gi}`}
-                  className={cn("flex gap-2 mb-4", isOwn ? "flex-row-reverse" : "flex-row")}
-                >
-                  {!isOwn ? (
-                    <div className={cn(
-                      "flex h-8 w-8 items-center justify-center rounded-full text-[11px] font-bold shrink-0 self-end",
-                      colorClass
-                    )}>
-                      {ini}
-                    </div>
-                  ) : (
-                    <div className="w-8 shrink-0" />
-                  )}
-
-                  <div className={cn("flex flex-col max-w-[75%]", isOwn ? "items-end" : "items-start")}>
-                    {/* Sender name */}
-                    {!isOwn && (
-                      <div className="flex items-center gap-2 mb-1 px-1">
-                        <span className="text-[13px] font-semibold text-foreground/80">{group.senderDisplay}</span>
-                        {group.posts[0].post_type === "email" && group.posts[0].direction === "inbound" && (
-                          <Badge variant="outline" className="text-[8px] px-1 py-0 border-accent/30 text-accent">
-                            E-post
-                          </Badge>
-                        )}
+              {day.groups.map((group, gi) => {
+                if (group.sender === "__system__") {
+                  const p = group.posts[0];
+                  return (
+                    <div key={`sys-${gi}`} className="flex items-center justify-center py-2">
+                      <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-muted/40 border border-border/20">
+                        <span className="text-[11px] text-muted-foreground/70">
+                          {p.body_text || p.subject || "Systemhendelse"}
+                        </span>
                       </div>
+                    </div>
+                  );
+                }
+
+                const colorClass = avatarColor(group.sender);
+                const ini = initials(group.senderDisplay);
+                const isOwn = group.isOwn;
+
+                return (
+                  <div
+                    key={`g-${gi}`}
+                    className={cn("flex gap-2.5 mb-3", isOwn ? "flex-row-reverse" : "flex-row")}
+                  >
+                    {/* Avatar */}
+                    {!isOwn ? (
+                      <div className={cn(
+                        "flex h-8 w-8 items-center justify-center rounded-full text-[11px] font-bold shrink-0 mt-5",
+                        colorClass
+                      )}>
+                        {ini}
+                      </div>
+                    ) : (
+                      <div className="w-8 shrink-0" />
                     )}
 
-                    {group.posts.map((post, pi) => {
-                      const replyTarget = (post as any).reply_to_post_id
-                        ? postMap.get((post as any).reply_to_post_id) || null
-                        : null;
+                    <div className={cn("flex flex-col max-w-[75%] min-w-0", isOwn ? "items-end" : "items-start")}>
+                      {/* Sender name + time */}
+                      {!isOwn ? (
+                        <div className="flex items-baseline gap-2 mb-0.5 px-1">
+                          <span className="text-[13px] font-semibold text-foreground/80">{group.senderDisplay}</span>
+                          <span className="text-[10px] text-muted-foreground/50">
+                            {format(group.posts[0].sent_at ? new Date(group.posts[0].sent_at) : group.timestamp, "HH:mm")}
+                          </span>
+                          {group.posts[0].post_type === "email" && group.posts[0].direction === "inbound" && (
+                            <Badge variant="outline" className="text-[8px] px-1 py-0 border-accent/30 text-accent">
+                              E-post
+                            </Badge>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="flex items-baseline gap-2 mb-0.5 px-1">
+                          <span className="text-[10px] text-muted-foreground/50">
+                            {format(group.posts[0].sent_at ? new Date(group.posts[0].sent_at) : group.timestamp, "HH:mm")}
+                          </span>
+                        </div>
+                      )}
 
-                      return (
-                        <ChatBubble
-                          key={post.id}
-                          post={post}
-                          isOwn={isOwn}
-                          isFirst={pi === 0}
-                          isLast={pi === group.posts.length - 1}
-                          reactions={getReactionsForPost(post.id)}
-                          onToggleReaction={toggleReaction}
-                          onReply={(p) => {
-                            setReplyToPost(p);
-                            textareaRef.current?.focus();
-                          }}
-                          onCreateTask={setTaskPost}
-                          onPinToggle={handlePinToggle}
-                          replyToPost={replyTarget}
-                          onScrollToPost={scrollToPost}
-                        />
-                      );
-                    })}
+                      {group.posts.map((post, pi) => {
+                        const replyTarget = (post as any).reply_to_post_id
+                          ? postMap.get((post as any).reply_to_post_id) || null
+                          : null;
 
-                    <span className={cn(
-                      "text-[10px] text-muted-foreground/50 mt-1 px-1",
-                      isOwn ? "text-right" : "text-left"
-                    )}>
-                      {format(group.timestamp, "HH:mm", { locale: nb })}
-                    </span>
+                        return (
+                          <ChatBubble
+                            key={post.id}
+                            post={post}
+                            isOwn={isOwn}
+                            isFirst={pi === 0}
+                            isLast={pi === group.posts.length - 1}
+                            reactions={getReactionsForPost(post.id)}
+                            onToggleReaction={toggleReaction}
+                            onReply={(p) => {
+                              setReplyToPost(p);
+                              textareaRef.current?.focus();
+                            }}
+                            onCreateTask={setTaskPost}
+                            onPinToggle={handlePinToggle}
+                            replyToPost={replyTarget}
+                            onScrollToPost={scrollToPost}
+                          />
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
-        ))}
-        <div ref={bottomRef} />
+                );
+              })}
+            </div>
+          ))}
+
+          {/* Typing indicator placeholder */}
+          <TypingIndicator names={[]} />
+
+          <div ref={bottomRef} />
+        </div>
       </div>
 
       {/* Composer */}
@@ -486,109 +535,156 @@ export function ThreadDetail({ threadId, threadTitle, threadType, projectId, com
           </p>
         </div>
       ) : (
-        <div className="border-t border-border/20 p-3 bg-card">
-          {/* Reply preview */}
-          {replyToPost && (
-            <div className="flex items-start gap-2 mb-2 px-2 py-1.5 rounded-lg bg-muted/40 border border-border/20">
-              <Reply className="h-3.5 w-3.5 text-primary mt-0.5 shrink-0" />
-              <div className="flex-1 min-w-0">
-                <span className="text-[11px] font-semibold text-foreground/80 block">
-                  Svar til {replyToPost.author_name || replyToPost.from_name || "Ukjent"}
-                </span>
-                <span className="text-[11px] text-muted-foreground truncate block">
-                  {(replyToPost as any).body_clean || replyToPost.body_text || ""}
-                </span>
+        <div className="border-t border-border/20 bg-card">
+          <div className="max-w-[900px] mx-auto p-3">
+            {/* Reply preview */}
+            {replyToPost && (
+              <div className="flex items-start gap-2 mb-2 px-2 py-1.5 rounded-lg bg-muted/40 border-l-2 border-primary/40">
+                <Reply className="h-3.5 w-3.5 text-primary mt-0.5 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <span className="text-[11px] font-semibold text-foreground/80 block">
+                    Svar til {replyToPost.author_name || replyToPost.from_name || "Ukjent"}
+                  </span>
+                  <span className="text-[11px] text-muted-foreground truncate block">
+                    {(replyToPost as any).body_clean || replyToPost.body_text || ""}
+                  </span>
+                </div>
+                <button onClick={() => setReplyToPost(null)} className="shrink-0 hover:text-destructive cursor-pointer">
+                  <X className="h-3.5 w-3.5 text-muted-foreground" />
+                </button>
               </div>
-              <button onClick={() => setReplyToPost(null)} className="shrink-0 hover:text-destructive cursor-pointer">
-                <X className="h-3.5 w-3.5 text-muted-foreground" />
+            )}
+
+            {/* Pending files */}
+            {pendingFiles.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mb-2 px-1">
+                {pendingFiles.map((f, i) => {
+                  const isImage = f.type.startsWith("image/");
+                  return (
+                    <div key={i} className="relative group">
+                      {isImage ? (
+                        <div className="relative h-16 w-16 rounded-lg overflow-hidden border border-border/40">
+                          <img src={URL.createObjectURL(f)} alt={f.name} className="h-full w-full object-cover" />
+                          <button
+                            onClick={() => removePendingFile(i)}
+                            className="absolute top-0.5 right-0.5 h-4 w-4 rounded-full bg-black/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <X className="h-2.5 w-2.5" />
+                          </button>
+                        </div>
+                      ) : (
+                        <Badge variant="outline" className="text-[10px] gap-1 pr-1">
+                          <Paperclip className="h-2.5 w-2.5" />
+                          <span className="max-w-[120px] truncate">{f.name}</span>
+                          <button onClick={() => removePendingFile(i)} className="ml-0.5 hover:text-destructive">×</button>
+                        </Badge>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* @Mention autocomplete */}
+            {mentionQuery !== null && filteredMentions.length > 0 && (
+              <div className="mb-2 bg-card border border-border/40 rounded-lg shadow-lg overflow-hidden">
+                {filteredMentions.map((u, i) => (
+                  <button
+                    key={u.id}
+                    onClick={() => insertMention(u.name)}
+                    className={cn(
+                      "w-full text-left px-3 py-2 text-sm flex items-center gap-2 transition-colors cursor-pointer",
+                      i === mentionIndex ? "bg-primary/10" : "hover:bg-muted/50"
+                    )}
+                  >
+                    <div className={cn(
+                      "h-6 w-6 rounded-full flex items-center justify-center text-[9px] font-bold",
+                      avatarColor(u.name)
+                    )}>
+                      {initials(u.name)}
+                    </div>
+                    <span className="text-foreground/80">{u.name}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <div className="flex items-end gap-2">
+              <input ref={fileInputRef} type="file" multiple className="hidden" onChange={handleFileSelect} />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="flex items-center justify-center h-9 w-9 text-muted-foreground hover:text-foreground transition-colors rounded-full hover:bg-muted/50 cursor-pointer shrink-0 mb-0.5"
+              >
+                <Paperclip className="h-4 w-4" />
+              </button>
+
+              <div className="flex-1 relative">
+                <textarea
+                  ref={textareaRef}
+                  value={replyText}
+                  onChange={(e) => handleTextChange(e.target.value)}
+                  onPaste={handlePaste}
+                  placeholder="Skriv melding... (@ for å nevne)"
+                  rows={1}
+                  className={cn(
+                    "w-full resize-none rounded-2xl border border-border/40 bg-muted/30 px-4 py-2.5 text-sm",
+                    "placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/30",
+                    "max-h-32 overflow-y-auto"
+                  )}
+                  style={{ minHeight: "40px" }}
+                  onInput={(e) => {
+                    const el = e.currentTarget;
+                    el.style.height = "40px";
+                    el.style.height = Math.min(el.scrollHeight, 128) + "px";
+                  }}
+                  onKeyDown={(e) => {
+                    if (mentionQuery !== null && filteredMentions.length > 0) {
+                      if (e.key === "ArrowDown") {
+                        e.preventDefault();
+                        setMentionIndex(i => Math.min(i + 1, filteredMentions.length - 1));
+                        return;
+                      }
+                      if (e.key === "ArrowUp") {
+                        e.preventDefault();
+                        setMentionIndex(i => Math.max(i - 1, 0));
+                        return;
+                      }
+                      if (e.key === "Enter" || e.key === "Tab") {
+                        e.preventDefault();
+                        insertMention(filteredMentions[mentionIndex].name);
+                        return;
+                      }
+                      if (e.key === "Escape") {
+                        setMentionQuery(null);
+                        return;
+                      }
+                    }
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      handleReply();
+                    }
+                  }}
+                />
+              </div>
+
+              <button
+                onClick={handleReply}
+                disabled={(!replyText.trim() && pendingFiles.length === 0) || sending || uploading}
+                className={cn(
+                  "flex items-center justify-center h-9 w-9 rounded-full shrink-0 mb-0.5 transition-colors",
+                  (!replyText.trim() && pendingFiles.length === 0) || sending || uploading
+                    ? "text-muted-foreground/30 cursor-not-allowed"
+                    : "bg-primary text-primary-foreground hover:bg-primary/90 cursor-pointer"
+                )}
+              >
+                {sending || uploading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Send className="h-4 w-4" />
+                )}
               </button>
             </div>
-          )}
-
-          {/* Pending files */}
-          {pendingFiles.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 mb-2 px-1">
-              {pendingFiles.map((f, i) => {
-                const isImage = f.type.startsWith("image/");
-                return (
-                  <div key={i} className="relative group">
-                    {isImage ? (
-                      <div className="relative h-16 w-16 rounded-lg overflow-hidden border border-border/40">
-                        <img src={URL.createObjectURL(f)} alt={f.name} className="h-full w-full object-cover" />
-                        <button
-                          onClick={() => removePendingFile(i)}
-                          className="absolute top-0.5 right-0.5 h-4 w-4 rounded-full bg-black/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                        >
-                          <X className="h-2.5 w-2.5" />
-                        </button>
-                      </div>
-                    ) : (
-                      <Badge variant="outline" className="text-[10px] gap-1 pr-1">
-                        <Paperclip className="h-2.5 w-2.5" />
-                        <span className="max-w-[120px] truncate">{f.name}</span>
-                        <button onClick={() => removePendingFile(i)} className="ml-0.5 hover:text-destructive">×</button>
-                      </Badge>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          <div className="flex items-end gap-2">
-            <input ref={fileInputRef} type="file" multiple className="hidden" onChange={handleFileSelect} />
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              className="flex items-center justify-center h-9 w-9 text-muted-foreground hover:text-foreground transition-colors rounded-full hover:bg-muted/50 cursor-pointer shrink-0 mb-0.5"
-            >
-              <Paperclip className="h-4 w-4" />
-            </button>
-
-            <div className="flex-1 relative">
-              <textarea
-                ref={textareaRef}
-                value={replyText}
-                onChange={(e) => setReplyText(e.target.value)}
-                onPaste={handlePaste}
-                placeholder="Skriv melding..."
-                rows={1}
-                className={cn(
-                  "w-full resize-none rounded-2xl border border-border/40 bg-muted/30 px-4 py-2.5 text-sm",
-                  "placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/30",
-                  "max-h-32 overflow-y-auto"
-                )}
-                style={{ minHeight: "40px" }}
-                onInput={(e) => {
-                  const el = e.currentTarget;
-                  el.style.height = "40px";
-                  el.style.height = Math.min(el.scrollHeight, 128) + "px";
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    handleReply();
-                  }
-                }}
-              />
-            </div>
-
-            <button
-              onClick={handleReply}
-              disabled={(!replyText.trim() && pendingFiles.length === 0) || sending || uploading}
-              className={cn(
-                "flex items-center justify-center h-9 w-9 rounded-full shrink-0 mb-0.5 transition-colors",
-                (!replyText.trim() && pendingFiles.length === 0) || sending || uploading
-                  ? "text-muted-foreground/30 cursor-not-allowed"
-                  : "bg-primary text-primary-foreground hover:bg-primary/90 cursor-pointer"
-              )}
-            >
-              {sending || uploading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Send className="h-4 w-4" />
-              )}
-            </button>
           </div>
         </div>
       )}
