@@ -2,47 +2,36 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { format, startOfDay, endOfDay, isPast } from "date-fns";
 import { nb } from "date-fns/locale";
-import {
-  FolderKanban, Clock, CheckCircle2, Activity, Loader2, Plus,
-} from "lucide-react";
+import { Loader2, Plus, Settings2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { useDashboardConfig, type ModuleKey } from "@/hooks/useDashboardConfig";
 import { ProjectCards, type ProjectCardData } from "@/components/overview/ProjectCards";
 import { YourDay, type DayBlock } from "@/components/overview/YourDay";
 import { MyTasks, type OverviewTask } from "@/components/overview/MyTasks";
 import { ActivityFeed, type ActivityItem } from "@/components/overview/ActivityFeed";
+import { RiskWidget } from "@/components/overview/RiskWidget";
 import { SectionHeader } from "@/components/overview/SectionHeader";
 import { DashboardModuleManager } from "@/components/overview/DashboardModuleManager";
 import type { JobStatus } from "@/lib/job-status";
 import { Button } from "@/components/ui/button";
 
-type ModuleKey = "projects" | "yourday" | "tasks" | "activity";
-
-const DEFAULT_MODULES: ModuleKey[] = ["projects", "yourday", "tasks", "activity"];
-
 export default function OverviewPage() {
   const { user, isSuperAdmin } = useAuth();
-  const [loading, setLoading] = useState(true);
+  const { modules, enabledModules, loading: configLoading, saveModules, isEnabled } = useDashboardConfig();
+  const [dataLoading, setDataLoading] = useState(true);
   const [projects, setProjects] = useState<ProjectCardData[]>([]);
   const [dayBlocks, setDayBlocks] = useState<DayBlock[]>([]);
   const [tasks, setTasks] = useState<OverviewTask[]>([]);
   const [activity, setActivity] = useState<ActivityItem[]>([]);
   const [showModuleManager, setShowModuleManager] = useState(false);
-  const [enabledModules, setEnabledModules] = useState<ModuleKey[]>(() => {
-    const saved = localStorage.getItem("dashboard_modules");
-    return saved ? JSON.parse(saved) : DEFAULT_MODULES;
-  });
 
   useEffect(() => {
-    localStorage.setItem("dashboard_modules", JSON.stringify(enabledModules));
-  }, [enabledModules]);
-
-  useEffect(() => {
-    if (!user) return;
+    if (!user || configLoading) return;
     fetchAll();
-  }, [user]);
+  }, [user, configLoading]);
 
   async function fetchAll() {
-    setLoading(true);
+    setDataLoading(true);
     const now = new Date();
     const dayStart = startOfDay(now).toISOString();
     const dayEnd = endOfDay(now).toISOString();
@@ -100,10 +89,9 @@ export default function OverviewPage() {
         .order("due_at", { ascending: true, nullsFirst: false })
         .limit(10),
       supabase.from("activity_log")
-        .select("id, type, action, title, description, entity_type, entity_id, created_at")
+        .select("id, type, action, title, description, entity_type, entity_id, created_at, performed_by")
         .order("created_at", { ascending: false })
-        .limit(12),
-      // Check which projects have planned schedule_blocks
+        .limit(20),
       projectIds.length > 0
         ? supabase.from("schedule_blocks")
             .select("project_id")
@@ -111,7 +99,6 @@ export default function OverviewPage() {
             .is("deleted_at", null)
             .gte("start_at", now.toISOString())
         : Promise.resolve({ data: [] }),
-      // Count unread messages per project
       projectIds.length > 0
         ? supabase.from("conversation_threads")
             .select("project_id, post_count")
@@ -120,7 +107,6 @@ export default function OverviewPage() {
         : Promise.resolve({ data: [] }),
     ]);
 
-    // Build project cards
     const tasksByProject: Record<string, number> = {};
     (taskCountsRes.data || []).forEach((t: any) => {
       tasksByProject[t.job_id] = (tasksByProject[t.job_id] || 0) + 1;
@@ -180,7 +166,7 @@ export default function OverviewPage() {
     });
     setTasks(rawTasks);
     setActivity((activityRes.data as ActivityItem[]) || []);
-    setLoading(false);
+    setDataLoading(false);
   }
 
   const greeting = () => {
@@ -192,15 +178,75 @@ export default function OverviewPage() {
 
   const firstName = user?.name?.split(" ")[0] || "";
 
-  const isModuleEnabled = (key: ModuleKey) => enabledModules.includes(key);
-
-  if (loading) {
+  if (dataLoading || configLoading) {
     return (
       <div className="flex items-center justify-center p-20">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
       </div>
     );
   }
+
+  // Build module render map
+  const renderModule = (key: ModuleKey) => {
+    switch (key) {
+      case "projects":
+        return (
+          <div key={key}>
+            <SectionHeader title="Prosjekter" count={projects.length} />
+            <ProjectCards projects={projects} />
+          </div>
+        );
+      case "yourday":
+        return (
+          <div key={key}>
+            <SectionHeader title="Din dag" />
+            <div className="rounded-2xl border-2 border-border/50 bg-card overflow-hidden">
+              <YourDay blocks={dayBlocks} />
+            </div>
+          </div>
+        );
+      case "tasks":
+        return (
+          <div key={key}>
+            <SectionHeader title="Mine oppgaver" />
+            <div className="rounded-2xl border-2 border-border/50 bg-card overflow-hidden">
+              <MyTasks tasks={tasks} onTaskCreated={() => fetchAll()} />
+            </div>
+          </div>
+        );
+      case "activity":
+        return (
+          <div key={key}>
+            <SectionHeader title="Aktivitet" />
+            <div className="rounded-2xl border-2 border-border/50 bg-card overflow-hidden">
+              <ActivityFeed
+                items={activity}
+                maxItems={8}
+                userId={user?.id}
+                followedProjectIds={projects.map((p) => p.id)}
+              />
+            </div>
+          </div>
+        );
+      case "risk":
+        return (
+          <div key={key}>
+            <SectionHeader title="Risiko" />
+            <div className="rounded-2xl border-2 border-border/50 bg-card overflow-hidden">
+              <RiskWidget />
+            </div>
+          </div>
+        );
+      default:
+        return null;
+    }
+  };
+
+  // Group modules by column
+  const fullWidthModules = enabledModules.filter((m) => m.column_placement === "full");
+  const leftModules = enabledModules.filter((m) => m.column_placement === "left");
+  const rightModules = enabledModules.filter((m) => m.column_placement === "right");
+  const hasTwoCol = leftModules.length > 0 || rightModules.length > 0;
 
   return (
     <div className="max-w-[1100px] mx-auto px-4 sm:px-8 py-10 sm:py-14">
@@ -212,71 +258,63 @@ export default function OverviewPage() {
         <p className="text-sm text-muted-foreground mt-2">
           {format(new Date(), "EEEE d. MMMM yyyy", { locale: nb })} · Uke {format(new Date(), "w")}
         </p>
-        {isSuperAdmin && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="mt-3 text-xs text-muted-foreground/50 hover:text-primary gap-1"
-            onClick={() => setShowModuleManager(true)}
-          >
-            <Plus className="h-3.5 w-3.5" />
-            Tilpass dashboard
-          </Button>
-        )}
+        <Button
+          variant="ghost"
+          size="sm"
+          className="mt-3 text-xs text-muted-foreground/50 hover:text-primary gap-1"
+          onClick={() => setShowModuleManager(true)}
+        >
+          <Settings2 className="h-3.5 w-3.5" />
+          Tilpass dashboard
+        </Button>
       </div>
 
-      {/* Project cards – desktop: top, mobile: after schedule */}
-      {isModuleEnabled("projects") && (
-        <div className="hidden sm:block mb-14">
-          <SectionHeader title="Prosjekter" count={projects.length} />
-          <ProjectCards projects={projects} />
-        </div>
-      )}
+      {/* Render modules in order: full-width first, then two-col, interleaved by sort_order */}
+      <div className="space-y-10">
+        {/* Render all modules in sort order, grouping left/right into grid rows */}
+        {(() => {
+          const rendered: React.ReactNode[] = [];
+          let i = 0;
+          const all = enabledModules;
 
-      {/* Two columns */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 mb-14">
-        {isModuleEnabled("yourday") && (
-          <div>
-            <SectionHeader title="Din dag" />
-            <div className="rounded-2xl border-2 border-border/50 bg-card overflow-hidden">
-              <YourDay blocks={dayBlocks} />
-            </div>
-          </div>
-        )}
-        {isModuleEnabled("tasks") && (
-          <div>
-            <SectionHeader title="Mine oppgaver" />
-            <div className="rounded-2xl border-2 border-border/50 bg-card overflow-hidden">
-              <MyTasks tasks={tasks} onTaskCreated={() => fetchAll()} />
-            </div>
-          </div>
-        )}
+          while (i < all.length) {
+            const mod = all[i];
+            if (mod.column_placement === "full") {
+              rendered.push(
+                <div key={`full-${mod.module_key}`}>
+                  {renderModule(mod.module_key)}
+                </div>
+              );
+              i++;
+            } else {
+              // Collect consecutive left/right modules into a grid row
+              const gridItems: { left: typeof all; right: typeof all } = { left: [], right: [] };
+              while (i < all.length && all[i].column_placement !== "full") {
+                if (all[i].column_placement === "left") gridItems.left.push(all[i]);
+                else gridItems.right.push(all[i]);
+                i++;
+              }
+              const maxLen = Math.max(gridItems.left.length, gridItems.right.length);
+              for (let j = 0; j < maxLen; j++) {
+                rendered.push(
+                  <div key={`grid-${j}-${gridItems.left[j]?.module_key || gridItems.right[j]?.module_key}`} className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+                    <div>{gridItems.left[j] && renderModule(gridItems.left[j].module_key)}</div>
+                    <div>{gridItems.right[j] && renderModule(gridItems.right[j].module_key)}</div>
+                  </div>
+                );
+              }
+            }
+          }
+          return rendered;
+        })()}
       </div>
-
-      {/* Mobile projects */}
-      {isModuleEnabled("projects") && (
-        <div className="sm:hidden mb-14">
-          <SectionHeader title="Prosjekter" count={projects.length} />
-          <ProjectCards projects={projects} />
-        </div>
-      )}
-
-      {/* Activity */}
-      {isModuleEnabled("activity") && (
-        <div>
-          <SectionHeader title="Aktivitet" />
-          <div className="rounded-2xl border-2 border-border/50 bg-card overflow-hidden">
-            <ActivityFeed items={activity} maxItems={8} />
-          </div>
-        </div>
-      )}
 
       {/* Module manager dialog */}
       {showModuleManager && (
         <DashboardModuleManager
-          enabledModules={enabledModules}
-          onSave={(modules) => {
-            setEnabledModules(modules);
+          modules={modules}
+          onSave={(newModules) => {
+            saveModules(newModules);
             setShowModuleManager(false);
           }}
           onClose={() => setShowModuleManager(false)}
