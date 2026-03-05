@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom";
-import { Clock, MapPin, ChevronRight } from "lucide-react";
+import { Clock, MapPin, ChevronRight, CalendarPlus } from "lucide-react";
 import { format } from "date-fns";
+import { Button } from "@/components/ui/button";
 
 export interface DayBlock {
   id: string;
@@ -18,11 +19,20 @@ export function YourDay({ blocks }: { blocks: DayBlock[] }) {
 
   if (blocks.length === 0) {
     return (
-      <div className="text-center py-16">
+      <div className="text-center py-14 px-4">
         <div className="h-16 w-16 rounded-full bg-muted/50 flex items-center justify-center mx-auto mb-3 border-2 border-border/40">
           <Clock className="h-7 w-7 text-muted-foreground/30" />
         </div>
-        <p className="text-sm text-muted-foreground/50 font-medium">Du har ingen planlagte jobber i dag</p>
+        <p className="text-sm text-muted-foreground/50 font-medium mb-4">Du har ingen planlagte jobber i dag</p>
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-2"
+          onClick={() => navigate("/projects/plan")}
+        >
+          <CalendarPlus className="h-4 w-4" />
+          Planlegg arbeid
+        </Button>
       </div>
     );
   }
@@ -34,7 +44,7 @@ export function YourDay({ blocks }: { blocks: DayBlock[] }) {
           key={b.id}
           onClick={() => b.project_id && navigate(`/projects/${b.project_id}`)}
           disabled={!b.project_id}
-          className="flex items-center gap-4 w-full rounded-xl px-4 py-3.5 text-left hover:bg-primary/5 transition-colors group disabled:opacity-60 disabled:cursor-default"
+          className="flex items-center gap-4 w-full rounded-xl px-4 py-3.5 text-left hover:bg-primary/5 transition-colors group disabled:opacity-60 disabled:cursor-default cursor-pointer"
         >
           {/* Time */}
           <div className="flex flex-col items-center w-16 shrink-0">
