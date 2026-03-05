@@ -51,18 +51,15 @@ describe("EventDrawer delete logic", () => {
     scheduleBlockId: string | null;
     editEventId: string | null;
     linkedBlockIds: string[]; // blocks found via safety query
-  }): "delete-block" | "delete-linked-blocks" | "block-project-delete" | "noop" {
+  }): "delete-block" | "unplan-event" | "noop" {
     const { scheduleBlockId, editEventId, linkedBlockIds } = params;
 
     if (scheduleBlockId) {
       return "delete-block";
     } else if (editEventId) {
-      if (linkedBlockIds.length > 0) {
-        return "delete-linked-blocks";
-      } else {
-        // NEVER soft-delete projects from resource plan – user must go to project page
-        return "block-project-delete";
-      }
+      // Always unplan: delete linked blocks + remove technician assignments
+      // NEVER soft-delete the project/event itself
+      return "unplan-event";
     }
     return "noop";
   }
@@ -76,27 +73,24 @@ describe("EventDrawer delete logic", () => {
     expect(result).toBe("delete-block");
   });
 
-  it("deletes linked blocks (not the project) when scheduleBlockId is null but blocks exist", () => {
-    // This is the exact scenario that caused the bug:
-    // useScheduleBlocks query failed → scheduleBlockId was null
-    // But the project still had schedule blocks in the DB
+  it("unplans event (not delete project) when scheduleBlockId is null but blocks exist", () => {
     const result = simulateDeleteAction({
       scheduleBlockId: null,
       editEventId: "project-abc",
       linkedBlockIds: ["block-456"],
     });
-    expect(result).toBe("delete-linked-blocks");
-    expect(result).not.toBe("block-project-delete"); // THE CRITICAL ASSERTION
+    expect(result).toBe("unplan-event");
   });
 
-  it("blocks project deletion when event has zero schedule blocks", () => {
-    // Previously this would soft-delete the project – now it's blocked
+  it("unplans event (not delete project) when event has zero schedule blocks", () => {
+    // This was the original bug: it would soft-delete the project.
+    // Now it just removes technician assignments.
     const result = simulateDeleteAction({
       scheduleBlockId: null,
       editEventId: "standalone-event",
       linkedBlockIds: [],
     });
-    expect(result).toBe("block-project-delete");
+    expect(result).toBe("unplan-event");
     expect(result).not.toBe("soft-delete-event"); // Must NEVER happen
   });
 
