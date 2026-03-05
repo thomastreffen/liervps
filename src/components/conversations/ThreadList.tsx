@@ -4,8 +4,8 @@ import { useNavigate } from "react-router-dom";
 import { formatDistanceToNow } from "date-fns";
 import { nb } from "date-fns/locale";
 import {
-  MessageSquare, Mail, Loader2, Plus, ChevronRight, Lock,
-  AlertTriangle, Repeat, Gavel, XCircle, Users,
+  MessageSquare, Mail, Loader2, Plus, Lock,
+  AlertTriangle, Repeat, Gavel, XCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -22,6 +22,24 @@ const FILTERS: { key: ThreadFilter; label: string }[] = [
   { key: "decision", label: "Beslutning" },
   { key: "closed", label: "Lukkede" },
 ];
+
+const AVATAR_COLORS = [
+  "bg-blue-100 text-blue-700", "bg-emerald-100 text-emerald-700",
+  "bg-amber-100 text-amber-700", "bg-rose-100 text-rose-700",
+  "bg-purple-100 text-purple-700", "bg-teal-100 text-teal-700",
+];
+
+function avatarColor(name: string): string {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+}
+
+function initials(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  return name.substring(0, 2).toUpperCase();
+}
 
 export function ThreadList({ projectId }: ThreadListProps) {
   const [filter, setFilter] = useState<ThreadFilter>("all");
@@ -75,7 +93,7 @@ export function ThreadList({ projectId }: ThreadListProps) {
           </p>
         </div>
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           {threads.map((thread) => (
             <ThreadRow
               key={thread.id}
@@ -90,112 +108,76 @@ export function ThreadList({ projectId }: ThreadListProps) {
 }
 
 function ThreadRow({ thread, onClick }: { thread: ConversationThread; onClick: () => void }) {
-  const isEmail = thread.thread_type === "email_thread";
   const isClosed = thread.status === "closed";
   const category = thread.thread_category;
+  const authorName = thread.last_author_name || "";
+  const firstName = authorName.split(" ")[0] || "";
+  const color = avatarColor(authorName || thread.title);
+  const ini = initials(authorName || thread.title);
+
+  // Derive time display
+  const timeAgo = formatDistanceToNow(new Date(thread.last_activity_at), { addSuffix: false, locale: nb });
 
   return (
     <button
       onClick={onClick}
       className={cn(
-        "flex items-start gap-3 w-full text-left px-5 py-4 transition-all rounded-[10px] border cursor-pointer",
-        "bg-card hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-        isClosed
-          ? "border-[#E6E8EC] opacity-70"
-          : "border-[#E6E8EC] hover:border-border/60"
+        "flex items-center gap-3 w-full text-left px-4 py-3.5 transition-all rounded-xl cursor-pointer",
+        "hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        isClosed && "opacity-60"
       )}
     >
-      {/* Icon */}
+      {/* Avatar */}
       <div className={cn(
-        "mt-0.5 flex h-9 w-9 items-center justify-center rounded-xl shrink-0",
-        category === "risk"
-          ? "bg-destructive/10 text-destructive"
-          : category === "change"
-          ? "bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400"
-          : isEmail
-          ? "bg-accent/10 text-accent"
-          : "bg-primary/10 text-primary"
+        "flex h-10 w-10 items-center justify-center rounded-full text-[12px] font-bold shrink-0",
+        color
       )}>
-        {category === "risk" ? (
-          <AlertTriangle className="h-4 w-4" />
-        ) : category === "change" ? (
-          <Repeat className="h-4 w-4" />
-        ) : isEmail ? (
-          <Mail className="h-4 w-4" />
-        ) : (
-          <MessageSquare className="h-4 w-4" />
-        )}
+        {ini}
       </div>
 
       {/* Content */}
-      <div className="flex-1 min-w-0 space-y-1.5">
-        <div className="flex items-center gap-2 flex-wrap">
-          <h4 className={cn(
-            "text-sm font-semibold truncate",
-            isClosed ? "text-muted-foreground" : "text-foreground"
-          )}>
-            {thread.title}
-          </h4>
-
-          {/* Type badge */}
-          <Badge
-            variant="outline"
-            className={cn(
-              "text-[9px] px-1.5 py-0 shrink-0",
-              isEmail ? "border-accent/30 text-accent" : "border-primary/30 text-primary"
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <h4 className={cn(
+              "text-sm font-semibold truncate",
+              isClosed ? "text-muted-foreground" : "text-foreground"
+            )}>
+              {thread.title}
+            </h4>
+            {thread.participants_only && !isClosed && (
+              <Lock className="h-3 w-3 text-muted-foreground/50 shrink-0" />
             )}
-          >
-            {isEmail ? "E-post" : "Samtale"}
-          </Badge>
-
-          {/* Category badge */}
-          {category === "risk" && (
-            <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-destructive/30 text-destructive gap-0.5">
-              <AlertTriangle className="h-2.5 w-2.5" />
-              Risiko
-            </Badge>
-          )}
-          {category === "change" && (
-            <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-orange-400/30 text-orange-600 dark:text-orange-400 gap-0.5">
-              <Repeat className="h-2.5 w-2.5" />
-              Endring
-            </Badge>
-          )}
-
-          {/* Decision badge */}
-          {thread.is_formal_decision && (
-            <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-primary/30 text-primary gap-0.5">
-              <Gavel className="h-2.5 w-2.5" />
-              Beslutning
-            </Badge>
-          )}
-
-          {/* Closed badge */}
-          {isClosed && (
-            <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-muted-foreground/30 text-muted-foreground gap-0.5">
-              <XCircle className="h-2.5 w-2.5" />
-              Lukket
-            </Badge>
-          )}
-
-          {/* Participants only */}
-          {thread.participants_only && !isClosed && (
-            <Lock className="h-3 w-3 text-muted-foreground/50 shrink-0" />
-          )}
+            {/* Category icons */}
+            {category === "risk" && <AlertTriangle className="h-3 w-3 text-destructive shrink-0" />}
+            {category === "change" && <Repeat className="h-3 w-3 text-orange-500 shrink-0" />}
+            {thread.is_formal_decision && <Gavel className="h-3 w-3 text-primary shrink-0" />}
+            {isClosed && <XCircle className="h-3 w-3 text-muted-foreground shrink-0" />}
+          </div>
+          <span className="text-[11px] text-muted-foreground/60 shrink-0 whitespace-nowrap">{timeAgo}</span>
         </div>
 
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          {thread.last_author_name && (
-            <span className="font-medium text-foreground/70">{thread.last_author_name}</span>
+        {/* Last message preview */}
+        <p className="text-[13px] text-muted-foreground truncate mt-0.5">
+          {firstName ? (
+            <>
+              <span className="text-foreground/70 font-medium">{firstName}:</span>{" "}
+              <span>{thread.post_count} melding{thread.post_count !== 1 ? "er" : ""}</span>
+            </>
+          ) : (
+            <span>{thread.post_count} melding{thread.post_count !== 1 ? "er" : ""}</span>
           )}
-          <span>·</span>
-          <span>{thread.post_count} innlegg</span>
-          <span>·</span>
-          <span>{formatDistanceToNow(new Date(thread.last_activity_at), { addSuffix: true, locale: nb })}</span>
-        </div>
+        </p>
       </div>
 
-      <ChevronRight className="h-4 w-4 text-muted-foreground/30 mt-2 shrink-0" />
+      {/* Unread dot placeholder - future: use real unread state */}
+      {thread.post_count > 0 && !isClosed && (
+        <div className="flex items-center shrink-0">
+          <Badge variant="secondary" className="h-5 min-w-[20px] text-[10px] font-bold px-1.5 rounded-full bg-primary/10 text-primary border-0">
+            {thread.post_count}
+          </Badge>
+        </div>
+      )}
     </button>
   );
 }
