@@ -146,3 +146,7 @@ verify_jwt = false
 
 [functions.schedule-sweep-orphans]
 verify_jwt = false
+
+[functions.analyze-message-actions]
+verify_jwt = false
+

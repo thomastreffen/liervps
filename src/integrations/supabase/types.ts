@@ -1437,6 +1437,68 @@ export type Database = {
           },
         ]
       }
+      conversation_inbox_items: {
+        Row: {
+          created_at: string
+          handled_at: string | null
+          handled_by: string | null
+          id: string
+          post_id: string
+          reason: string
+          target_user_account_id: string
+          thread_id: string
+        }
+        Insert: {
+          created_at?: string
+          handled_at?: string | null
+          handled_by?: string | null
+          id?: string
+          post_id: string
+          reason?: string
+          target_user_account_id: string
+          thread_id: string
+        }
+        Update: {
+          created_at?: string
+          handled_at?: string | null
+          handled_by?: string | null
+          id?: string
+          post_id?: string
+          reason?: string
+          target_user_account_id?: string
+          thread_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversation_inbox_items_handled_by_fkey"
+            columns: ["handled_by"]
+            isOneToOne: false
+            referencedRelation: "user_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversation_inbox_items_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "conversation_posts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversation_inbox_items_target_user_account_id_fkey"
+            columns: ["target_user_account_id"]
+            isOneToOne: false
+            referencedRelation: "user_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversation_inbox_items_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "conversation_threads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       conversation_posts: {
         Row: {
           author_id: string | null
@@ -1446,6 +1508,10 @@ export type Database = {
           body_text: string | null
           cc_emails: string[] | null
           company_id: string
+          context_location_text: string | null
+          context_object_ref: string | null
+          context_object_type: string | null
+          context_tags: string[] | null
           created_at: string
           direction: string | null
           from_email: string | null
@@ -1469,6 +1535,10 @@ export type Database = {
           body_text?: string | null
           cc_emails?: string[] | null
           company_id: string
+          context_location_text?: string | null
+          context_object_ref?: string | null
+          context_object_type?: string | null
+          context_tags?: string[] | null
           created_at?: string
           direction?: string | null
           from_email?: string | null
@@ -1492,6 +1562,10 @@ export type Database = {
           body_text?: string | null
           cc_emails?: string[] | null
           company_id?: string
+          context_location_text?: string | null
+          context_object_ref?: string | null
+          context_object_type?: string | null
+          context_tags?: string[] | null
           created_at?: string
           direction?: string | null
           from_email?: string | null
@@ -4078,6 +4152,44 @@ export type Database = {
           last_sync_error?: string | null
         }
         Relationships: []
+      }
+      message_action_suggestions: {
+        Row: {
+          clicked_action_type: string | null
+          clicked_at: string | null
+          created_at: string
+          dismissed_at: string | null
+          id: string
+          post_id: string
+          suggested_actions: Json
+        }
+        Insert: {
+          clicked_action_type?: string | null
+          clicked_at?: string | null
+          created_at?: string
+          dismissed_at?: string | null
+          id?: string
+          post_id: string
+          suggested_actions?: Json
+        }
+        Update: {
+          clicked_action_type?: string | null
+          clicked_at?: string | null
+          created_at?: string
+          dismissed_at?: string | null
+          id?: string
+          post_id?: string
+          suggested_actions?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "message_action_suggestions_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "conversation_posts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       message_reactions: {
         Row: {
