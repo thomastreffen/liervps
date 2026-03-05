@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { useConversationPosts, type ConversationPost } from "@/hooks/useConversations";
 import { useMessageReactions } from "@/hooks/useMessageReactions";
+import { useMessageReads } from "@/hooks/useMessageReads";
 import { useMentions, filterMentionUsers } from "@/hooks/useMentions";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -18,6 +19,8 @@ import { cn } from "@/lib/utils";
 import { ChatBubble } from "./ChatBubble";
 import { CreateTaskFromMessageDialog } from "./CreateTaskFromMessageDialog";
 import { TypingIndicator } from "./TypingIndicator";
+import { VoiceRecorder } from "./VoiceRecorder";
+import { CameraCapture } from "./CameraCapture";
 
 interface ThreadDetailProps {
   threadId: string;
@@ -147,6 +150,10 @@ export function ThreadDetail({ threadId, threadTitle, threadType, projectId, com
 
   const { getReactionsForPost, toggleReaction } = useMessageReactions(threadId, currentUaId);
   const { users: mentionUsers } = useMentions(companyId);
+
+  const postIds = useMemo(() => posts.map(p => p.id), [posts]);
+  const { markAsRead, getReadCount } = useMessageReads(threadId, currentUaId, postIds);
+
   const filteredMentions = useMemo(
     () => mentionQuery !== null ? filterMentionUsers(mentionUsers, mentionQuery) : [],
     [mentionUsers, mentionQuery]
@@ -177,6 +184,11 @@ export function ThreadDetail({ threadId, threadTitle, threadType, projectId, com
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    // Mark all visible posts as read when new posts arrive
+    if (posts.length > 0) {
+      const otherPostIds = posts.filter(p => p.author_id !== currentUaId && p.post_type !== "system").map(p => p.id);
+      markAsRead(otherPostIds);
+    }
   }, [posts.length]);
 
   // Failed email check
@@ -510,6 +522,7 @@ export function ThreadDetail({ threadId, threadTitle, threadType, projectId, com
                             onPinToggle={handlePinToggle}
                             replyToPost={replyTarget}
                             onScrollToPost={scrollToPost}
+                            readCount={isOwn ? getReadCount(post.id) : undefined}
                           />
                         );
                       })}
@@ -609,7 +622,7 @@ export function ThreadDetail({ threadId, threadTitle, threadType, projectId, com
               </div>
             )}
 
-            <div className="flex items-end gap-2">
+            <div className="flex items-end gap-1.5">
               <input ref={fileInputRef} type="file" multiple className="hidden" onChange={handleFileSelect} />
               <button
                 type="button"
@@ -618,6 +631,11 @@ export function ThreadDetail({ threadId, threadTitle, threadType, projectId, com
               >
                 <Paperclip className="h-4 w-4" />
               </button>
+
+              <CameraCapture
+                onCapture={(files) => setPendingFiles(prev => [...prev, ...files])}
+                disabled={sending}
+              />
 
               <div className="flex-1 relative">
                 <textarea
@@ -667,6 +685,16 @@ export function ThreadDetail({ threadId, threadTitle, threadType, projectId, com
                   }}
                 />
               </div>
+
+              <VoiceRecorder
+                disabled={sending}
+                onRecorded={async (blob, duration) => {
+                  const voiceFile = new File([blob], `voice-${Date.now()}.webm`, { type: "audio/webm" });
+                  setPendingFiles(prev => [...prev, voiceFile]);
+                  // Auto-send voice message
+                  setTimeout(() => handleReply(), 100);
+                }}
+              />
 
               <button
                 onClick={handleReply}

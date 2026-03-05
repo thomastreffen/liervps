@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { type ConversationPost } from "@/hooks/useConversations";
 import {
-  Reply, Smile, MoreHorizontal, Pin, ListTodo, X, AlertTriangle,
+  Reply, Smile, MoreHorizontal, Pin, ListTodo, X, AlertTriangle, FileText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -18,10 +18,11 @@ interface MessageActionsProps {
   onCreateTask: (post: ConversationPost) => void;
   onPinToggle: (post: ConversationPost) => void;
   onToggleReaction: (postId: string, emoji: string) => void;
+  onAddDocument?: (post: ConversationPost) => void;
 }
 
 export function MessageActions({
-  post, isOwn, isPinned, onReply, onCreateTask, onPinToggle, onToggleReaction,
+  post, isOwn, isPinned, onReply, onCreateTask, onPinToggle, onToggleReaction, onAddDocument,
 }: MessageActionsProps) {
   const [showReactionPicker, setShowReactionPicker] = useState(false);
 
@@ -65,6 +66,9 @@ export function MessageActions({
             </DropdownMenuItem>
             <DropdownMenuItem className="gap-2 text-xs text-amber-600">
               <AlertTriangle className="h-3.5 w-3.5" /> Registrer avvik
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onAddDocument?.(post)} className="gap-2 text-xs">
+              <FileText className="h-3.5 w-3.5" /> Legg til dokument
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
