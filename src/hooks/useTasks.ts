@@ -14,6 +14,10 @@ export interface Task {
   planned_end_at: string | null;
   estimated_minutes: number | null;
   created_by: string;
+  owner_user_id: string | null;
+  assigned_user_id: string | null;
+  calendar_provider: string | null;
+  calendar_event_id: string | null;
   source_case_id: string | null;
   source_case_item_id: string | null;
   linked_work_order_id: string | null;
@@ -37,7 +41,14 @@ export interface TaskAssignee {
   created_at: string;
 }
 
-export function useTasks(filters?: { status?: string; assigneeUserId?: string }) {
+interface UseTasksFilters {
+  status?: string;
+  assigneeUserId?: string;
+  projectFilter?: "all" | "project" | "personal";
+  timeFilter?: "all" | "overdue" | "today" | "week";
+}
+
+export function useTasks(filters?: UseTasksFilters) {
   const { user } = useAuth();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
@@ -46,60 +57,79 @@ export function useTasks(filters?: { status?: string; assigneeUserId?: string })
     if (!user) return;
     setLoading(true);
 
-    let query = (supabase as any)
+    let query = supabase
       .from("tasks")
       .select("*")
       .order("created_at", { ascending: false })
       .limit(200);
 
-    if (filters?.status) query = query.eq("status", filters.status);
-
-    const { data } = await query;
-    let result = (data as Task[]) || [];
-
-    if (filters?.assigneeUserId) {
-      const { data: assignments } = await (supabase as any)
-        .from("task_assignees")
-        .select("task_id")
-        .eq("user_id", filters.assigneeUserId);
-      const assignedTaskIds = new Set((assignments || []).map((a: any) => a.task_id));
-      result = result.filter(t => assignedTaskIds.has(t.id));
+    if (filters?.status && filters.status !== "all") {
+      query = query.eq("status", filters.status);
+    } else {
+      // Exclude done/cancelled by default
+      query = query.not("status", "in", "(done,cancelled)");
     }
 
-    setTasks(result);
+    if (filters?.projectFilter === "project") {
+      query = query.not("linked_project_id", "is", null);
+    } else if (filters?.projectFilter === "personal") {
+      query = query.is("linked_project_id", null);
+    }
+
+    if (filters?.timeFilter === "overdue") {
+      query = query.lt("due_at", new Date().toISOString());
+    } else if (filters?.timeFilter === "today") {
+      const today = new Date();
+      const start = new Date(today.getFullYear(), today.getMonth(), today.getDate()).toISOString();
+      const end = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1).toISOString();
+      query = query.gte("due_at", start).lt("due_at", end);
+    } else if (filters?.timeFilter === "week") {
+      const today = new Date();
+      const end = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 7).toISOString();
+      query = query.lte("due_at", end);
+    }
+
+    const { data } = await query;
+    setTasks((data as Task[]) || []);
     setLoading(false);
-  }, [user, filters?.status, filters?.assigneeUserId]);
+  }, [user, filters?.status, filters?.projectFilter, filters?.timeFilter]);
 
   useEffect(() => { fetchTasks(); }, [fetchTasks]);
 
   const createTask = useCallback(async (
-    task: Omit<Task, "id" | "created_at" | "updated_at">,
-    assigneeIds: string[],
-    attachmentDocIds: string[]
+    task: Partial<Task> & { title: string; company_id: string },
+    assigneeIds?: string[],
+    attachmentDocIds?: string[]
   ) => {
-    const { data, error } = await (supabase as any)
+    const insertData = {
+      ...task,
+      created_by: user!.id,
+      owner_user_id: task.owner_user_id || user!.id,
+    };
+
+    const { data, error } = await supabase
       .from("tasks")
-      .insert(task)
+      .insert(insertData as any)
       .select("id")
       .single();
 
-    if (error || !data) throw error || new Error("Failed to create task");
+    if (error) throw error;
     const taskId = (data as any).id;
 
-    if (assigneeIds.length > 0) {
+    if (assigneeIds && assigneeIds.length > 0) {
       await (supabase as any).from("task_assignees").insert(
-        assigneeIds.map((uid, i) => ({ task_id: taskId, user_id: uid, role: i === 0 ? "owner" : "executor" }))
+        assigneeIds.map((uid: string, i: number) => ({ task_id: taskId, user_id: uid, role: i === 0 ? "owner" : "executor" }))
       );
 
-      const { data: taskData } = await (supabase as any).from("tasks").select("company_id, title").eq("id", taskId).single();
+      const { data: taskData } = await supabase.from("tasks").select("company_id, title").eq("id", taskId).single();
       if (taskData) {
         await (supabase as any).from("notifications").insert(
-          assigneeIds.map(uid => ({
+          assigneeIds.map((uid: string) => ({
             user_id: uid,
-            company_id: taskData.company_id,
+            company_id: (taskData as any).company_id,
             type: "task_assigned",
             title: "Ny oppgave tildelt",
-            message: taskData.title,
+            message: (taskData as any).title,
             link_url: `/tasks/${taskId}`,
             read: false,
           }))
@@ -107,41 +137,20 @@ export function useTasks(filters?: { status?: string; assigneeUserId?: string })
       }
     }
 
-    if (attachmentDocIds.length > 0) {
+    if (attachmentDocIds && attachmentDocIds.length > 0) {
       await (supabase as any).from("task_attachments").insert(
-        attachmentDocIds.map(docId => ({ task_id: taskId, document_id: docId }))
+        attachmentDocIds.map((docId: string) => ({ task_id: taskId, document_id: docId }))
       );
     }
 
     await fetchTasks();
     return taskId;
-  }, [fetchTasks]);
+  }, [user, fetchTasks]);
 
   const updateTask = useCallback(async (taskId: string, updates: Partial<Task>) => {
-    await (supabase as any).from("tasks").update(updates).eq("id", taskId);
+    await supabase.from("tasks").update(updates as any).eq("id", taskId);
 
     if (updates.planned_start_at || updates.planned_end_at) {
-      const { data: assignees } = await (supabase as any)
-        .from("task_assignees")
-        .select("user_id")
-        .eq("task_id", taskId);
-
-      const { data: taskData } = await (supabase as any).from("tasks").select("company_id, title").eq("id", taskId).single();
-
-      if (assignees && taskData) {
-        await (supabase as any).from("notifications").insert(
-          (assignees as any[]).map((a: any) => ({
-            user_id: a.user_id,
-            company_id: taskData.company_id,
-            type: "task_rescheduled",
-            title: "Oppgave omplanlagt",
-            message: taskData.title,
-            link_url: `/tasks/${taskId}`,
-            read: false,
-          }))
-        );
-      }
-
       try {
         await supabase.functions.invoke("sync-task-to-calendar", {
           body: { task_id: taskId },
@@ -154,5 +163,9 @@ export function useTasks(filters?: { status?: string; assigneeUserId?: string })
     await fetchTasks();
   }, [fetchTasks]);
 
-  return { tasks, loading, createTask, updateTask, refetch: fetchTasks };
+  const completeTask = useCallback(async (taskId: string) => {
+    await updateTask(taskId, { status: "done" });
+  }, [updateTask]);
+
+  return { tasks, loading, createTask, updateTask, completeTask, refetch: fetchTasks };
 }

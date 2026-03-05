@@ -5603,6 +5603,9 @@ export type Database = {
           ai_confidence: number | null
           ai_rationale: string | null
           ai_suggested: boolean
+          assigned_user_id: string | null
+          calendar_event_id: string | null
+          calendar_provider: string | null
           client_request_id: string | null
           company_id: string
           created_at: string
@@ -5615,6 +5618,7 @@ export type Database = {
           linked_offer_id: string | null
           linked_project_id: string | null
           linked_work_order_id: string | null
+          owner_user_id: string | null
           planned_end_at: string | null
           planned_start_at: string | null
           priority: string
@@ -5628,6 +5632,9 @@ export type Database = {
           ai_confidence?: number | null
           ai_rationale?: string | null
           ai_suggested?: boolean
+          assigned_user_id?: string | null
+          calendar_event_id?: string | null
+          calendar_provider?: string | null
           client_request_id?: string | null
           company_id: string
           created_at?: string
@@ -5640,6 +5647,7 @@ export type Database = {
           linked_offer_id?: string | null
           linked_project_id?: string | null
           linked_work_order_id?: string | null
+          owner_user_id?: string | null
           planned_end_at?: string | null
           planned_start_at?: string | null
           priority?: string
@@ -5653,6 +5661,9 @@ export type Database = {
           ai_confidence?: number | null
           ai_rationale?: string | null
           ai_suggested?: boolean
+          assigned_user_id?: string | null
+          calendar_event_id?: string | null
+          calendar_provider?: string | null
           client_request_id?: string | null
           company_id?: string
           created_at?: string
@@ -5665,6 +5676,7 @@ export type Database = {
           linked_offer_id?: string | null
           linked_project_id?: string | null
           linked_work_order_id?: string | null
+          owner_user_id?: string | null
           planned_end_at?: string | null
           planned_start_at?: string | null
           priority?: string
