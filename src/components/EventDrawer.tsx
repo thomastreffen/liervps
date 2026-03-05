@@ -602,15 +602,32 @@ export function EventDrawer({
                         return;
                       }
                     } else if (editEvent) {
-                      // Only soft-delete the event if there's no schedule block
-                      // (i.e. this is a standalone event, not a calendar block)
-                      const { error: delErr } = await supabase
-                        .from("events")
-                        .update({ deleted_at: new Date().toISOString() } as any)
-                        .eq("id", editEvent.id);
-                      if (delErr) {
-                        toast.error("Kunne ikke slette hendelsen", { description: delErr.message });
-                        return;
+                      // Safety check: if this event has ANY schedule blocks, only delete those, not the project
+                      const { data: linkedBlocks } = await supabase
+                        .from("schedule_blocks")
+                        .select("id")
+                        .eq("project_id", editEvent.id)
+                        .is("deleted_at", null)
+                        .limit(1);
+
+                      if (linkedBlocks && linkedBlocks.length > 0) {
+                        // Has schedule blocks but scheduleBlockId was null (e.g. query failed)
+                        // Delete the schedule blocks only, NOT the project
+                        for (const sb of linkedBlocks) {
+                          await supabase.functions.invoke("delete-schedule-block", {
+                            body: { schedule_block_id: sb.id },
+                          });
+                        }
+                      } else {
+                        // Truly standalone event with no schedule blocks – safe to soft-delete
+                        const { error: delErr } = await supabase
+                          .from("events")
+                          .update({ deleted_at: new Date().toISOString() } as any)
+                          .eq("id", editEvent.id);
+                        if (delErr) {
+                          toast.error("Kunne ikke slette hendelsen", { description: delErr.message });
+                          return;
+                        }
                       }
                     }
 

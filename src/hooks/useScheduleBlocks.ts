@@ -88,7 +88,7 @@ export function useScheduleBlocks(
         .select(`
           *,
           technicians!inner(name, color),
-          events(title)
+          events!schedule_blocks_project_id_fkey(title)
         `)
         .is("deleted_at", null)
         .lt("start_at", weekEnd.toISOString())
