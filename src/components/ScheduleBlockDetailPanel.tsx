@@ -237,42 +237,28 @@ export const ScheduleBlockDetailPanel = memo(function ScheduleBlockDetailPanel({
     }
   };
 
-  // Delete / Remove from plan
+  // Delete block – always via edge function
   const handleDelete = async () => {
     setActionLoading("delete");
     try {
-      if (isSystem) {
-        const { data, error } = await supabase.functions.invoke("delete-schedule-block", {
-          body: { schedule_block_id: block.id },
+      const { data, error } = await supabase.functions.invoke("delete-schedule-block", {
+        body: { schedule_block_id: block.id },
+      });
+
+      if (error) {
+        toast.error("Kunne ikke slette", { description: error.message });
+        return;
+      }
+
+      const result = data as any;
+      if (result?.status === "ok") {
+        toast.success("Slettet ✓", {
+          description: result.deleted_in_outlook
+            ? "Fjernet fra system og Outlook"
+            : isOutlook ? "Fjernet fra plan. Slett i Outlook for å fjerne den helt." : "Fjernet fra system",
         });
-
-        if (error) {
-          toast.error("Kunne ikke slette", { description: error.message });
-          return;
-        }
-
-        const result = data as any;
-        if (result?.status === "ok") {
-          toast.success("Slettet", {
-            description: result.deleted_in_outlook
-              ? "Fjernet fra system og Outlook"
-              : "Fjernet fra system",
-          });
-        } else {
-          toast.error("Feil ved sletting");
-        }
       } else {
-        const { error } = await supabase.from("schedule_blocks")
-          .update({ deleted_at: new Date().toISOString(), deleted_reason: "manual_delete" } as any)
-          .eq("id", block.id);
-
-        if (error) {
-          toast.error("Kunne ikke fjerne fra plan");
-          return;
-        }
-        toast.success("Fjernet fra plan", {
-          description: "Slett i Outlook for å fjerne den helt.",
-        });
+        toast.error("Feil ved sletting");
       }
 
       onConfirmed?.();
@@ -505,38 +491,27 @@ export const ScheduleBlockDetailPanel = memo(function ScheduleBlockDetailPanel({
           </a>
         )}
 
-        {/* ──── Delete / Remove from plan ──── */}
+        {/* ──── Delete block ──── */}
         <div className="border-t border-border/40 pt-2">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost" size="sm"
-                className="h-7 text-xs gap-1.5 rounded-lg w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10"
-                onClick={() => setShowDeleteConfirm(true)}
-                disabled={isLoading}
-              >
-                <Trash2 className="h-3 w-3" />
-                {isSystem ? "Slett" : "Fjern fra plan"}
-              </Button>
-            </TooltipTrigger>
-            {!isSystem && (
-              <TooltipContent side="bottom" className="text-xs max-w-[220px]">
-                Dette er en Outlook-avtale. Slett i Outlook for å fjerne den helt.
-              </TooltipContent>
-            )}
-          </Tooltip>
+          <Button
+            variant="ghost" size="sm"
+            className="h-7 text-xs gap-1.5 rounded-lg w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10"
+            onClick={() => setShowDeleteConfirm(true)}
+            disabled={isLoading}
+          >
+            {actionLoading === "delete" ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
+            🗑 Slett blokk
+          </Button>
         </div>
 
         {/* Delete confirmation dialog */}
         <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>
-                {isSystem ? "Slett hendelse?" : "Fjern fra plan?"}
-              </AlertDialogTitle>
+              <AlertDialogTitle>Slett blokk?</AlertDialogTitle>
               <AlertDialogDescription>
                 {isSystem
-                  ? "Dette sletter hendelsen fra systemet og fra Outlook-kalenderen. Handlingen kan ikke angres."
+                  ? "Dette sletter blokken fra systemet og fra Outlook-kalenderen. Handlingen kan ikke angres."
                   : "Blokken fjernes fra planoversikten. Outlook-avtalen beholdes – slett den i Outlook for å fjerne den helt."}
               </AlertDialogDescription>
             </AlertDialogHeader>
@@ -550,7 +525,7 @@ export const ScheduleBlockDetailPanel = memo(function ScheduleBlockDetailPanel({
                 {actionLoading === "delete" ? (
                   <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
                 ) : null}
-                {isSystem ? "Slett" : "Fjern"}
+                Slett
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

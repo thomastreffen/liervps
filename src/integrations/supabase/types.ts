@@ -4697,6 +4697,7 @@ export type Database = {
           description: string | null
           end_at: string
           id: string
+          job_id: string | null
           last_modified: string | null
           location: string | null
           match_confidence: number | null
@@ -4729,6 +4730,7 @@ export type Database = {
           description?: string | null
           end_at: string
           id?: string
+          job_id?: string | null
           last_modified?: string | null
           location?: string | null
           match_confidence?: number | null
@@ -4761,6 +4763,7 @@ export type Database = {
           description?: string | null
           end_at?: string
           id?: string
+          job_id?: string | null
           last_modified?: string | null
           location?: string | null
           match_confidence?: number | null
@@ -4787,6 +4790,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "internal_companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "schedule_blocks_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "events"
             referencedColumns: ["id"]
           },
           {
