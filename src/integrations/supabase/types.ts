@@ -1451,9 +1451,11 @@ export type Database = {
           from_email: string | null
           from_name: string | null
           id: string
+          is_pinned: boolean
           outlook_message_id: string | null
           outlook_weblink: string | null
           post_type: Database["public"]["Enums"]["conversation_post_type"]
+          reply_to_post_id: string | null
           sent_at: string | null
           subject: string | null
           thread_id: string
@@ -1472,9 +1474,11 @@ export type Database = {
           from_email?: string | null
           from_name?: string | null
           id?: string
+          is_pinned?: boolean
           outlook_message_id?: string | null
           outlook_weblink?: string | null
           post_type?: Database["public"]["Enums"]["conversation_post_type"]
+          reply_to_post_id?: string | null
           sent_at?: string | null
           subject?: string | null
           thread_id: string
@@ -1493,9 +1497,11 @@ export type Database = {
           from_email?: string | null
           from_name?: string | null
           id?: string
+          is_pinned?: boolean
           outlook_message_id?: string | null
           outlook_weblink?: string | null
           post_type?: Database["public"]["Enums"]["conversation_post_type"]
+          reply_to_post_id?: string | null
           sent_at?: string | null
           subject?: string | null
           thread_id?: string
@@ -1514,6 +1520,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "internal_companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversation_posts_reply_to_post_id_fkey"
+            columns: ["reply_to_post_id"]
+            isOneToOne: false
+            referencedRelation: "conversation_posts"
             referencedColumns: ["id"]
           },
           {
@@ -4065,6 +4078,45 @@ export type Database = {
           last_sync_error?: string | null
         }
         Relationships: []
+      }
+      message_reactions: {
+        Row: {
+          created_at: string
+          emoji: string
+          id: string
+          post_id: string
+          user_account_id: string
+        }
+        Insert: {
+          created_at?: string
+          emoji: string
+          id?: string
+          post_id: string
+          user_account_id: string
+        }
+        Update: {
+          created_at?: string
+          emoji?: string
+          id?: string
+          post_id?: string
+          user_account_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "message_reactions_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "conversation_posts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "message_reactions_user_account_id_fkey"
+            columns: ["user_account_id"]
+            isOneToOne: false
+            referencedRelation: "user_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       microsoft_tokens: {
         Row: {
