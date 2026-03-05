@@ -156,15 +156,17 @@ export const ScheduleBlockDetailPanel = memo(function ScheduleBlockDetailPanel({
     }
   };
 
-  // Unlink from project
+  // Unlink from project – restore original outlook title
   const handleUnlinkProject = async () => {
     setActionLoading("unlink");
     try {
+      const restoredTitle = block.outlook_subject || block.title || "Ekstern blokk";
       const { error } = await supabase.from("schedule_blocks").update({
         project_id: null,
         match_state: "external",
         match_reason: "Manuelt frakoblet fra sidepanel",
-      }).eq("id", block.id);
+        title: restoredTitle,
+      } as any).eq("id", block.id);
 
       if (error) {
         toast.error("Kunne ikke koble fra prosjekt");
