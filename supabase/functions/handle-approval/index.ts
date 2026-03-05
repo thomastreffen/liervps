@@ -359,40 +359,70 @@ Deno.serve(async (req) => {
     }
 
     // --- Outlook Calendar Cleanup on Reject ---
+    // Delete ALL outlook events for this job (from events table + all approvals)
     if (action === "reject" && tech?.email && tech?.user_id) {
       try {
-        const { data: job } = await supabaseAdmin
-          .from("events")
-          .select("microsoft_event_id")
-          .eq("id", approval.job_id)
-          .single();
+        const msToken = await ensureValidMsToken(supabaseAdmin, tech.user_id);
+        if (msToken) {
+          // Collect all unique outlook event IDs to delete
+          const outlookIdsToDelete = new Set<string>();
 
-        const outlookIdToDelete = job?.microsoft_event_id || approval.outlook_event_id;
+          // 1. From events table
+          const { data: job } = await supabaseAdmin
+            .from("events")
+            .select("microsoft_event_id")
+            .eq("id", approval.job_id)
+            .single();
+          if (job?.microsoft_event_id) outlookIdsToDelete.add(job.microsoft_event_id);
 
-        if (outlookIdToDelete) {
-          const msToken = await ensureValidMsToken(supabaseAdmin, tech.user_id);
-          if (msToken) {
-            const deleted = await deleteOutlookEvent(msToken, tech.email, outlookIdToDelete);
-            if (deleted) {
-              await supabaseAdmin
-                .from("events")
-                .update({
-                  microsoft_event_id: null,
-                  microsoft_etag: null,
-                  outlook_sync_status: "not_synced",
-                  outlook_last_synced_at: null,
-                })
-                .eq("id", approval.job_id);
+          // 2. From ALL approvals for this job (catches orphaned events from re-assignments)
+          const { data: allJobApprovals } = await supabaseAdmin
+            .from("job_approvals")
+            .select("outlook_event_id")
+            .eq("job_id", approval.job_id)
+            .not("outlook_event_id", "is", null);
 
-              console.log("[handle-approval] Outlook event deleted on rejection");
+          for (const a of allJobApprovals || []) {
+            if (a.outlook_event_id) outlookIdsToDelete.add(a.outlook_event_id);
+          }
 
-              await supabaseAdmin.from("event_logs").insert({
-                event_id: approval.job_id,
-                performed_by: approval.technician_user_id,
-                action_type: "calendar_deleted",
-                change_summary: `Kalenderavtale slettet etter avslag fra ${techName}`,
-              });
-            }
+          // 3. Current approval
+          if (approval.outlook_event_id) outlookIdsToDelete.add(approval.outlook_event_id);
+
+          console.log(`[handle-approval] Deleting ${outlookIdsToDelete.size} Outlook event(s) on rejection`);
+
+          let anyDeleted = false;
+          for (const oid of outlookIdsToDelete) {
+            const deleted = await deleteOutlookEvent(msToken, tech.email, oid);
+            if (deleted) anyDeleted = true;
+          }
+
+          if (anyDeleted) {
+            // Clear events table
+            await supabaseAdmin
+              .from("events")
+              .update({
+                microsoft_event_id: null,
+                microsoft_etag: null,
+                outlook_sync_status: "not_synced",
+                outlook_last_synced_at: null,
+              })
+              .eq("id", approval.job_id);
+
+            // Clear all approval outlook_event_ids for this job
+            await supabaseAdmin
+              .from("job_approvals")
+              .update({ outlook_event_id: null })
+              .eq("job_id", approval.job_id);
+
+            console.log("[handle-approval] All Outlook events deleted on rejection");
+
+            await supabaseAdmin.from("event_logs").insert({
+              event_id: approval.job_id,
+              performed_by: approval.technician_user_id,
+              action_type: "calendar_deleted",
+              change_summary: `${outlookIdsToDelete.size} kalenderavtale(r) slettet etter avslag fra ${techName}`,
+            });
           }
         }
       } catch (calErr) {
