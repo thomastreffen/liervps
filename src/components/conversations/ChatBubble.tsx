@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { type ConversationPost, type ConversationAttachment } from "@/hooks/useConversations";
 import { type ReactionSummary } from "@/hooks/useMessageReactions";
 import {
-  ChevronDown, ExternalLink, FileText, Paperclip,
+  ChevronDown, ExternalLink, FileText, Paperclip, Check, CheckCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { MessageActions } from "./MessageActions";
 import { ReplyPreview } from "./ReplyPreview";
 import { ImagePreviewModal } from "./ImagePreviewModal";
+import { VoicePlayer } from "./VoicePlayer";
 
 interface ChatBubbleProps {
   post: ConversationPost;
@@ -23,12 +24,13 @@ interface ChatBubbleProps {
   onPinToggle: (post: ConversationPost) => void;
   replyToPost?: ConversationPost | null;
   onScrollToPost?: (postId: string) => void;
+  readCount?: number;
 }
 
 export function ChatBubble({
   post, isOwn, isFirst, isLast,
   reactions, onToggleReaction, onReply, onCreateTask, onPinToggle,
-  replyToPost, onScrollToPost,
+  replyToPost, onScrollToPost, readCount = 0,
 }: ChatBubbleProps) {
   const [showRaw, setShowRaw] = useState(false);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
@@ -39,6 +41,9 @@ export function ChatBubble({
   const rawBody = (post as any).body_raw || post.body_html || "";
   const hasRawContent = isEmail && rawBody && rawBody !== cleanBody;
   const isPinned = (post as any).is_pinned === true;
+
+  // Check if this post has a voice attachment
+  const voiceAttachment = post.attachments?.find(a => a.mime_type?.startsWith("audio/"));
 
   // Render @mentions as highlighted spans
   const renderBody = (text: string) => {
@@ -93,6 +98,11 @@ export function ChatBubble({
           <p className="whitespace-pre-wrap break-words">{renderBody(cleanBody)}</p>
         )}
 
+        {/* Voice player inline */}
+        {voiceAttachment && (
+          <VoiceAttachmentPlayer attachment={voiceAttachment} isOwn={isOwn} />
+        )}
+
         {hasRawContent && (
           <div className="mt-1">
             <button
@@ -129,6 +139,23 @@ export function ChatBubble({
             Åpne i Outlook
           </a>
         )}
+
+        {/* Read status for own messages */}
+        {isOwn && isLast && (
+          <div className={cn(
+            "flex items-center gap-0.5 mt-1 justify-end",
+            "text-primary-foreground/50"
+          )}>
+            {readCount > 0 ? (
+              <>
+                <CheckCheck className="h-3 w-3" />
+                <span className="text-[9px]">Sett av {readCount}</span>
+              </>
+            ) : (
+              <Check className="h-3 w-3" />
+            )}
+          </div>
+        )}
       </div>
 
       {/* Hover actions */}
@@ -163,10 +190,10 @@ export function ChatBubble({
         </div>
       )}
 
-      {/* Attachments */}
-      {post.attachments && post.attachments.length > 0 && (
+      {/* Attachments (non-voice) */}
+      {post.attachments && post.attachments.filter(a => !a.mime_type?.startsWith("audio/")).length > 0 && (
         <div className={cn("flex flex-wrap gap-2 mt-1.5", isOwn ? "justify-end" : "justify-start")}>
-          {post.attachments.map(a => (
+          {post.attachments.filter(a => !a.mime_type?.startsWith("audio/")).map(a => (
             <AttachmentCard
               key={a.id}
               attachment={a}
@@ -179,6 +206,25 @@ export function ChatBubble({
       <ImagePreviewModal url={lightboxUrl} alt={lightboxAlt} onClose={() => setLightboxUrl(null)} />
     </div>
   );
+}
+
+/* ── Voice Attachment Player ── */
+function VoiceAttachmentPlayer({ attachment, isOwn }: { attachment: ConversationAttachment; isOwn: boolean }) {
+  const [url, setUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!attachment.storage_path) return;
+    (async () => {
+      const { data } = await supabase.storage
+        .from("conversation-files")
+        .createSignedUrl(attachment.storage_path!, 3600);
+      if (data?.signedUrl) setUrl(data.signedUrl);
+    })();
+  }, [attachment.storage_path]);
+
+  if (!url) return null;
+
+  return <VoicePlayer url={url} isOwn={isOwn} />;
 }
 
 /* ── Attachment Card ── */

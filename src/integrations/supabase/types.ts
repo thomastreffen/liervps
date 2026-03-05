@@ -4118,6 +4118,42 @@ export type Database = {
           },
         ]
       }
+      message_reads: {
+        Row: {
+          id: string
+          post_id: string
+          read_at: string
+          user_account_id: string
+        }
+        Insert: {
+          id?: string
+          post_id: string
+          read_at?: string
+          user_account_id: string
+        }
+        Update: {
+          id?: string
+          post_id?: string
+          read_at?: string
+          user_account_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "message_reads_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "conversation_posts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "message_reads_user_account_id_fkey"
+            columns: ["user_account_id"]
+            isOneToOne: false
+            referencedRelation: "user_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       microsoft_tokens: {
         Row: {
           access_token: string
