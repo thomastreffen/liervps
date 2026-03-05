@@ -263,7 +263,7 @@ export const ScheduleBlockDetailPanel = memo(function ScheduleBlockDetailPanel({
         }
       } else {
         const { error } = await supabase.from("schedule_blocks")
-          .update({ deleted_at: new Date().toISOString() })
+          .update({ deleted_at: new Date().toISOString(), deleted_reason: "manual_delete" } as any)
           .eq("id", block.id);
 
         if (error) {

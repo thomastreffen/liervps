@@ -143,3 +143,6 @@ verify_jwt = false
 
 [functions.create-job-from-schedule-block]
 verify_jwt = false
+
+[functions.schedule-sweep-orphans]
+verify_jwt = false
