@@ -30,7 +30,13 @@ import {
   Link2,
   Search,
   Plus,
+  Trash2,
 } from "lucide-react";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel,
+  AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
+  AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
 import type { CalendarEvent } from "@/hooks/useCalendarEvents";
@@ -67,6 +73,8 @@ interface EventDrawerProps {
   /** If creating from a project context */
   projectId?: string | null;
   projectTitle?: string | null;
+  /** If this event has a linked schedule_block */
+  scheduleBlockId?: string | null;
   /** Callbacks */
   onSaved?: (eventId?: string) => void;
 }
@@ -80,6 +88,7 @@ export function EventDrawer({
   preselectedTechId,
   projectId,
   projectTitle,
+  scheduleBlockId,
   onSaved,
 }: EventDrawerProps) {
   const navigate = useNavigate();
@@ -107,6 +116,10 @@ export function EventDrawer({
 
   // Conflicts
   const [conflicts, setConflicts] = useState<ConflictInfo[]>([]);
+
+  // Delete state
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   // Populate form from props
   useEffect(() => {
@@ -544,7 +557,62 @@ export function EventDrawer({
                conflicts.length > 0 ? "Lagre likevel" : "Opprett og planlegg"}
             </Button>
           </div>
+
+          {/* Delete schedule block button */}
+          {scheduleBlockId && (
+            <Button
+              variant="ghost" size="sm"
+              className="h-8 text-xs gap-1.5 w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10"
+              onClick={() => setShowDeleteConfirm(true)}
+              disabled={deleting}
+            >
+              {deleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+              🗑 Slett blokk
+            </Button>
+          )}
         </SheetFooter>
+
+        {/* Delete confirmation */}
+        <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Slett blokk?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Blokken fjernes fra planoversikten. Hvis den er koblet til Outlook, forsøkes sletting der også.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={deleting}>Avbryt</AlertDialogCancel>
+              <AlertDialogAction
+                disabled={deleting}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                onClick={async () => {
+                  setDeleting(true);
+                  try {
+                    const { data, error } = await supabase.functions.invoke("delete-schedule-block", {
+                      body: { schedule_block_id: scheduleBlockId },
+                    });
+                    if (error) {
+                      toast.error("Kunne ikke slette", { description: error.message });
+                    } else {
+                      toast.success("Slettet ✓");
+                      onOpenChange(false);
+                      onSaved?.();
+                    }
+                  } catch (err: any) {
+                    toast.error("Feil", { description: err?.message });
+                  } finally {
+                    setDeleting(false);
+                    setShowDeleteConfirm(false);
+                  }
+                }}
+              >
+                {deleting && <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />}
+                Slett
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </SheetContent>
     </Sheet>
   );
