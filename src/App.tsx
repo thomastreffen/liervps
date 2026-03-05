@@ -75,7 +75,7 @@ import ConfirmationsPage from "./pages/ConfirmationsPage";
 import AiMatcherReportPage from "./pages/AiMatcherReportPage";
 import ModuleManagementPage from "./pages/ModuleManagementPage";
 import { CompanyProvider } from "@/hooks/useCompanyContext";
-
+import TasksPage from "./pages/TasksPage";
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -110,6 +110,7 @@ const App = () => (
                 </ProtectedRoute>
               } />
               <Route path="/dashboard" element={<Navigate to="/overview" replace />} />
+              <Route path="/tasks" element={<TasksPage />} />
               <Route path="/projects" element={<JobsPage />} />
               <Route path="/projects/new" element={<ProjectNewPage />} />
               <Route path="/projects/:id" element={<JobDetail />} />
