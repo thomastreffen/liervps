@@ -430,6 +430,49 @@ Deno.serve(async (req) => {
       }
     }
 
+    // ──── POST-SYNC: VERIFY RECENT BLOCKS (catch missed deletes) ────
+    let verifiedDeleted = 0;
+    try {
+      // Get recent non-deleted blocks with outlook_event_id (last 7 days)
+      const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString();
+      const { data: recentBlocks } = await supabase
+        .from("schedule_blocks")
+        .select("id, calendar_id, outlook_event_id, project_id, outlook_subject, title")
+        .is("deleted_at", null)
+        .not("outlook_event_id", "is", null)
+        .gte("updated_at", sevenDaysAgo)
+        .limit(50);
+
+      for (const rb of recentBlocks || []) {
+        try {
+          const verifyRes = await fetch(
+            `https://graph.microsoft.com/v1.0/users/${rb.calendar_id}/events/${rb.outlook_event_id}?$select=id`,
+            { headers: { Authorization: `Bearer ${graphToken}` } }
+          );
+          if (verifyRes.status === 404) {
+            await supabase.from("schedule_blocks").update({
+              deleted_at: new Date().toISOString(),
+              deleted_reason: "outlook_deleted",
+            } as any).eq("id", rb.id);
+            verifiedDeleted++;
+
+            if (rb.project_id) {
+              await supabase.from("activity_log").insert({
+                entity_type: "event",
+                entity_id: rb.project_id,
+                action: "outlook_event_deleted",
+                type: "system",
+                description: `Outlook-avtale slettet (oppdaget ved verifikasjon): "${rb.outlook_subject || rb.title}"`,
+              });
+            }
+          }
+        } catch { /* skip individual verify errors */ }
+      }
+    } catch (verifyErr: any) {
+      errors.push(`Verify sweep: ${verifyErr.message}`);
+    }
+    totalDeleted += verifiedDeleted;
+
     // ──── POST-SYNC ORPHAN SWEEP ────
     let orphanResult: any = null;
     try {

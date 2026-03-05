@@ -466,6 +466,13 @@ export default function ResourcePlan() {
         preselectedStart={preselectedStart}
         preselectedEnd={preselectedEnd}
         preselectedTechId={selectedTechId}
+        scheduleBlockId={
+          editEvent
+            ? scheduleBlocks.find(
+                (sb) => sb.project_id === editEvent.id || sb.mcs_block_id === editEvent.id
+              )?.id ?? null
+            : null
+        }
         onSaved={(eventId) => {
           setRefreshKey((k) => k + 1);
           if (eventId) {
