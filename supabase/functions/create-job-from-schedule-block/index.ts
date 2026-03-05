@@ -90,6 +90,7 @@ Deno.serve(async (req) => {
         .from("schedule_blocks")
         .update({
           project_id: existing.id,
+          job_id: existing.id,
           match_state: "confirmed",
           match_reason: "Manuelt opprettet fra Outlook-blokk (idempotent)",
           title: jobTitle,
@@ -139,6 +140,7 @@ Deno.serve(async (req) => {
             .from("schedule_blocks")
             .update({
               project_id: raced.id,
+              job_id: raced.id,
               match_state: "confirmed",
               match_reason: "Manuelt opprettet fra Outlook-blokk (race recovered)",
               title: jobTitle,
@@ -160,11 +162,12 @@ Deno.serve(async (req) => {
       technician_id,
     });
 
-    // 4. Link schedule_block and update title to project title
+    // 4. Link schedule_block and update title to project title + set job_id
     await db
       .from("schedule_blocks")
       .update({
         project_id: created.id,
+        job_id: created.id,
         match_state: "confirmed",
         match_reason: "Manuelt opprettet fra Outlook-blokk",
         title: jobTitle,
