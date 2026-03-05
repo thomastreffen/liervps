@@ -159,49 +159,49 @@ export default function OverviewPage() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 sm:py-12 space-y-12">
-      {/* Greeting */}
-      <div className="text-center sm:text-left">
-        <h1 className="text-3xl sm:text-4xl font-bold text-foreground tracking-tight">
+    <div className="max-w-[1100px] mx-auto px-4 sm:px-8 py-10 sm:py-14">
+      {/* Greeting – centered like Basecamp */}
+      <div className="text-center mb-12">
+        <h1 className="text-3xl sm:text-[2.5rem] font-bold text-foreground tracking-tight leading-tight">
           {greeting()}, {firstName} 👋
         </h1>
-        <p className="text-sm text-muted-foreground mt-1.5">
+        <p className="text-sm text-muted-foreground mt-2">
           {format(new Date(), "EEEE d. MMMM yyyy", { locale: nb })} · Uke {format(new Date(), "w")}
         </p>
       </div>
 
-      {/* Project cards - desktop top */}
-      <div className="hidden sm:block">
-        <SectionHeader icon={<FolderKanban className="h-4 w-4 text-primary" />} title="Prosjekter" count={projects.length} />
+      {/* Project cards – desktop: top, mobile: after schedule */}
+      <div className="hidden sm:block mb-14">
+        <SectionHeader title="Prosjekter" count={projects.length} />
         <ProjectCards projects={projects} />
       </div>
 
       {/* Two columns */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 mb-14">
         <div>
-          <SectionHeader icon={<Clock className="h-4 w-4 text-primary" />} title="Din dag" count={dayBlocks.length} />
-          <div className="rounded-2xl border border-border/40 bg-card shadow-sm overflow-hidden">
+          <SectionHeader title="Din dag" />
+          <div className="rounded-2xl border-2 border-border/50 bg-card overflow-hidden">
             <YourDay blocks={dayBlocks} />
           </div>
         </div>
         <div>
-          <SectionHeader icon={<CheckCircle2 className="h-4 w-4 text-primary" />} title="Mine oppgaver" count={tasks.length} />
-          <div className="rounded-2xl border border-border/40 bg-card shadow-sm overflow-hidden">
+          <SectionHeader title="Mine oppgaver" />
+          <div className="rounded-2xl border-2 border-border/50 bg-card overflow-hidden">
             <MyTasks tasks={tasks} />
           </div>
         </div>
       </div>
 
       {/* Mobile projects */}
-      <div className="sm:hidden">
-        <SectionHeader icon={<FolderKanban className="h-4 w-4 text-primary" />} title="Prosjekter" count={projects.length} />
+      <div className="sm:hidden mb-14">
+        <SectionHeader title="Prosjekter" count={projects.length} />
         <ProjectCards projects={projects} />
       </div>
 
       {/* Activity */}
       <div>
-        <SectionHeader icon={<Activity className="h-4 w-4 text-primary" />} title="Aktivitet" count={activity.length} />
-        <div className="rounded-2xl border border-border/40 bg-card shadow-sm overflow-hidden">
+        <SectionHeader title="Aktivitet" />
+        <div className="rounded-2xl border-2 border-border/50 bg-card overflow-hidden">
           <ActivityFeed items={activity} />
         </div>
       </div>

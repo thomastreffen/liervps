@@ -19,7 +19,7 @@ export function ProjectCards({ projects }: { projects: ProjectCardData[] }) {
 
   if (projects.length === 0) {
     return (
-      <div className="text-center py-16 bg-card rounded-2xl border border-border/40 shadow-sm">
+      <div className="text-center py-16">
         <FolderKanban className="h-10 w-10 text-muted-foreground/20 mx-auto mb-3" />
         <p className="text-sm text-muted-foreground/50">Ingen aktive prosjekter</p>
       </div>
@@ -32,19 +32,16 @@ export function ProjectCards({ projects }: { projects: ProjectCardData[] }) {
         <button
           key={p.id}
           onClick={() => navigate(`/projects/${p.id}`)}
-          className="bg-card rounded-2xl border border-border/40 shadow-sm p-6 text-left
-            hover:shadow-md hover:border-primary/25 hover:-translate-y-0.5
-            transition-all duration-200 group relative overflow-hidden"
+          className="bg-card rounded-2xl border-2 border-border/60 p-6 text-left
+            hover:border-primary/40 hover:shadow-lg hover:-translate-y-1
+            transition-all duration-200 group relative"
         >
-          {/* Subtle top accent */}
-          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary/40 via-primary/20 to-transparent rounded-t-2xl" />
-
-          <div className="flex items-start gap-3 mb-4">
-            <div className="h-11 w-11 rounded-xl bg-primary/8 flex items-center justify-center shrink-0 shadow-inner">
-              <FolderKanban className="h-5 w-5 text-primary/70" />
+          <div className="flex items-start gap-3 mb-3">
+            <div className="h-11 w-11 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+              <FolderKanban className="h-5 w-5 text-primary" />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-[15px] font-semibold text-foreground truncate group-hover:text-primary transition-colors leading-tight">
+              <p className="text-[15px] font-bold text-foreground truncate group-hover:text-primary transition-colors leading-tight">
                 {p.title}
               </p>
               <p className="text-xs text-muted-foreground mt-1">
@@ -53,13 +50,12 @@ export function ProjectCards({ projects }: { projects: ProjectCardData[] }) {
                 {p.customer || "Ingen kunde"}
               </p>
             </div>
-            <ChevronRight className="h-4 w-4 text-muted-foreground/15 group-hover:text-primary/50 shrink-0 mt-1 transition-colors" />
           </div>
 
           {/* Next activity */}
           {p.nextActivity && (
-            <div className="flex items-center gap-2 text-xs bg-muted/40 rounded-xl px-3 py-2 mb-4 border border-border/30">
-              <CalendarCheck className="h-3.5 w-3.5 text-primary/60 shrink-0" />
+            <div className="flex items-center gap-2 text-xs bg-primary/5 rounded-xl px-3 py-2 mb-3 border border-primary/10">
+              <CalendarCheck className="h-3.5 w-3.5 text-primary shrink-0" />
               <span className="truncate text-foreground/80">{p.nextActivity.title}</span>
               <span className="shrink-0 ml-auto text-muted-foreground font-mono text-[11px]">
                 {format(new Date(p.nextActivity.scheduled_date), "d. MMM", { locale: nb })}
@@ -70,25 +66,22 @@ export function ProjectCards({ projects }: { projects: ProjectCardData[] }) {
           {/* Chips */}
           <div className="flex items-center gap-2 flex-wrap">
             {p.taskCount > 0 && (
-              <span className="inline-flex items-center gap-1.5 text-[11px] font-medium rounded-full px-2.5 py-1 bg-accent/8 text-accent-foreground border border-accent/15">
+              <span className="inline-flex items-center gap-1 text-[11px] font-semibold rounded-full px-2.5 py-1 bg-accent/10 text-accent border border-accent/20">
                 <ListChecks className="h-3 w-3" />
-                {p.taskCount} oppgaver
+                {p.taskCount}
               </span>
             )}
             {p.messageCount > 0 && (
-              <span className="inline-flex items-center gap-1.5 text-[11px] font-medium rounded-full px-2.5 py-1 bg-primary/8 text-primary border border-primary/15">
+              <span className="inline-flex items-center gap-1 text-[11px] font-semibold rounded-full px-2.5 py-1 bg-info/10 text-info border border-info/20">
                 <MessageSquare className="h-3 w-3" />
                 {p.messageCount}
               </span>
             )}
             {p.deviationCount > 0 && (
-              <span className="inline-flex items-center gap-1.5 text-[11px] font-medium rounded-full px-2.5 py-1 bg-destructive/8 text-destructive border border-destructive/15">
+              <span className="inline-flex items-center gap-1 text-[11px] font-semibold rounded-full px-2.5 py-1 bg-destructive/10 text-destructive border border-destructive/20">
                 <AlertTriangle className="h-3 w-3" />
                 {p.deviationCount}
               </span>
-            )}
-            {p.taskCount === 0 && p.messageCount === 0 && p.deviationCount === 0 && (
-              <span className="text-[11px] text-muted-foreground/40">Ingen aktivitet</span>
             )}
           </div>
         </button>

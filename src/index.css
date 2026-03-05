@@ -4,41 +4,45 @@
 
 @layer base {
   :root {
-    --background: 210 20% 98%;
-    --foreground: 220 20% 14%;
+    /* Basecamp-inspired warm palette */
+    --background: 40 20% 96%;
+    --foreground: 220 16% 16%;
 
     --card: 0 0% 100%;
-    --card-foreground: 220 20% 14%;
+    --card-foreground: 220 16% 16%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 220 20% 14%;
+    --popover-foreground: 220 16% 16%;
 
-    --primary: 220 65% 48%;
+    --primary: 156 40% 42%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 220 14% 96%;
-    --secondary-foreground: 220 20% 22%;
+    --secondary: 40 14% 93%;
+    --secondary-foreground: 220 16% 22%;
 
-    --muted: 220 14% 95%;
-    --muted-foreground: 220 10% 46%;
+    --muted: 40 12% 92%;
+    --muted-foreground: 220 8% 48%;
 
     --accent: 24 80% 52%;
     --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 68% 50%;
+    --destructive: 0 65% 52%;
     --destructive-foreground: 0 0% 100%;
 
-    --success: 152 56% 36%;
+    --success: 152 50% 38%;
     --success-foreground: 0 0% 100%;
 
     --info: 213 48% 52%;
     --info-foreground: 0 0% 100%;
 
-    --border: 220 16% 91%;
-    --input: 220 16% 89%;
-    --ring: 220 65% 48%;
+    --border: 40 14% 88%;
+    --input: 40 14% 86%;
+    --ring: 156 40% 42%;
 
     --radius: 0.75rem;
+
+    /* Section separator – Basecamp uses a warm ruled line */
+    --section-border: 40 16% 84%;
 
     /* Status colors */
     --status-requested: 28 76% 50%;
@@ -51,7 +55,7 @@
     --status-rejected-foreground: 0 0% 100%;
     --status-scheduled: 213 50% 52%;
     --status-scheduled-foreground: 0 0% 100%;
-    --status-in-progress: 220 65% 48%;
+    --status-in-progress: 156 40% 42%;
     --status-in-progress-foreground: 0 0% 100%;
     --status-completed: 152 60% 30%;
     --status-completed-foreground: 0 0% 100%;
@@ -60,49 +64,50 @@
     --status-invoiced: 220 12% 62%;
     --status-invoiced-foreground: 0 0% 100%;
 
-    /* Sidebar – light, calm, warm gray */
-    --sidebar-background: 220 16% 97%;
-    --sidebar-foreground: 220 20% 22%;
-    --sidebar-primary: 220 65% 48%;
+    /* Sidebar – warm cream */
+    --sidebar-background: 40 18% 95%;
+    --sidebar-foreground: 220 16% 22%;
+    --sidebar-primary: 156 40% 42%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 220 14% 93%;
-    --sidebar-accent-foreground: 220 20% 14%;
-    --sidebar-border: 220 16% 91%;
-    --sidebar-ring: 220 65% 48%;
+    --sidebar-accent: 40 14% 90%;
+    --sidebar-accent-foreground: 220 16% 14%;
+    --sidebar-border: 40 14% 88%;
+    --sidebar-ring: 156 40% 42%;
   }
 
   .dark {
-    --background: 222 24% 8%;
-    --foreground: 218 18% 94%;
-    --card: 222 22% 11%;
-    --card-foreground: 218 18% 94%;
-    --popover: 222 22% 11%;
-    --popover-foreground: 218 18% 94%;
-    --primary: 220 65% 52%;
+    --background: 220 18% 9%;
+    --foreground: 40 12% 92%;
+    --card: 220 16% 12%;
+    --card-foreground: 40 12% 92%;
+    --popover: 220 16% 12%;
+    --popover-foreground: 40 12% 92%;
+    --primary: 156 40% 48%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 222 18% 16%;
-    --secondary-foreground: 218 18% 88%;
-    --muted: 222 18% 16%;
-    --muted-foreground: 220 10% 56%;
+    --secondary: 220 14% 16%;
+    --secondary-foreground: 40 12% 88%;
+    --muted: 220 14% 16%;
+    --muted-foreground: 220 8% 56%;
     --accent: 28 66% 48%;
     --accent-foreground: 0 0% 100%;
-    --destructive: 0 58% 28%;
+    --destructive: 0 55% 30%;
     --destructive-foreground: 0 0% 100%;
     --success: 152 46% 32%;
     --success-foreground: 0 0% 100%;
     --info: 213 42% 48%;
     --info-foreground: 0 0% 100%;
-    --border: 222 18% 18%;
-    --input: 222 18% 18%;
-    --ring: 220 65% 52%;
+    --border: 220 14% 20%;
+    --input: 220 14% 20%;
+    --ring: 156 40% 48%;
+    --section-border: 220 14% 18%;
 
-    --sidebar-background: 222 22% 10%;
-    --sidebar-foreground: 218 18% 88%;
+    --sidebar-background: 220 16% 10%;
+    --sidebar-foreground: 40 12% 88%;
     --sidebar-primary: 0 0% 100%;
-    --sidebar-primary-foreground: 222 22% 10%;
-    --sidebar-accent: 222 18% 16%;
+    --sidebar-primary-foreground: 220 16% 10%;
+    --sidebar-accent: 220 14% 16%;
     --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 222 18% 18%;
+    --sidebar-border: 220 14% 18%;
     --sidebar-ring: 0 0% 100%;
   }
 }

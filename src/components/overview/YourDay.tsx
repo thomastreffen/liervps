@@ -18,9 +18,9 @@ export function YourDay({ blocks }: { blocks: DayBlock[] }) {
 
   if (blocks.length === 0) {
     return (
-      <div className="text-center py-14">
-        <div className="h-14 w-14 rounded-full bg-muted/40 flex items-center justify-center mx-auto mb-3">
-          <Clock className="h-7 w-7 text-muted-foreground/25" />
+      <div className="text-center py-16">
+        <div className="h-16 w-16 rounded-full bg-muted/50 flex items-center justify-center mx-auto mb-3 border-2 border-border/40">
+          <Clock className="h-7 w-7 text-muted-foreground/30" />
         </div>
         <p className="text-sm text-muted-foreground/50 font-medium">Du har ingen planlagte jobber i dag</p>
       </div>
@@ -28,26 +28,26 @@ export function YourDay({ blocks }: { blocks: DayBlock[] }) {
   }
 
   return (
-    <div className="divide-y divide-border/30">
-      {blocks.map((b, i) => (
+    <div className="p-2">
+      {blocks.map((b) => (
         <button
           key={b.id}
           onClick={() => b.project_id && navigate(`/projects/${b.project_id}`)}
           disabled={!b.project_id}
-          className="flex items-center gap-4 w-full px-5 py-4 text-left hover:bg-muted/30 transition-colors group disabled:opacity-60 disabled:cursor-default"
+          className="flex items-center gap-4 w-full rounded-xl px-4 py-3.5 text-left hover:bg-primary/5 transition-colors group disabled:opacity-60 disabled:cursor-default"
         >
-          {/* Time column */}
+          {/* Time */}
           <div className="flex flex-col items-center w-16 shrink-0">
-            <span className="text-sm font-semibold text-foreground">{format(new Date(b.start_at), "HH:mm")}</span>
-            <span className="text-[10px] text-muted-foreground/50">{format(new Date(b.end_at), "HH:mm")}</span>
+            <span className="text-sm font-bold text-foreground">{format(new Date(b.start_at), "HH:mm")}</span>
+            <span className="text-[10px] text-muted-foreground/50 leading-tight">{format(new Date(b.end_at), "HH:mm")}</span>
           </div>
 
-          {/* Colored bar */}
-          <div className="w-1 self-stretch rounded-full bg-primary/30 shrink-0" />
+          {/* Accent bar */}
+          <div className="w-1 self-stretch rounded-full bg-primary/40 shrink-0 min-h-[32px]" />
 
           {/* Content */}
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium text-foreground truncate group-hover:text-primary transition-colors">
+            <p className="text-sm font-semibold text-foreground truncate group-hover:text-primary transition-colors">
               {b.project_title || b.title}
             </p>
             <div className="flex items-center gap-3 mt-0.5">
@@ -63,7 +63,7 @@ export function YourDay({ blocks }: { blocks: DayBlock[] }) {
           </div>
 
           {b.project_id && (
-            <ChevronRight className="h-4 w-4 text-muted-foreground/15 group-hover:text-primary/40 shrink-0" />
+            <ChevronRight className="h-4 w-4 text-muted-foreground/20 group-hover:text-primary/50 shrink-0" />
           )}
         </button>
       ))}
