@@ -247,7 +247,7 @@ export default function OverviewPage() {
           <div>
             <SectionHeader title="Mine oppgaver" />
             <div className="rounded-2xl border-2 border-border/50 bg-card overflow-hidden">
-              <MyTasks tasks={tasks} />
+              <MyTasks tasks={tasks} onTaskCreated={() => fetchAll()} />
             </div>
           </div>
         )}
