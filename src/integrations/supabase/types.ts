@@ -1972,6 +1972,45 @@ export type Database = {
           },
         ]
       }
+      dashboard_module_configs: {
+        Row: {
+          column_placement: string
+          created_at: string
+          density: string
+          enabled: boolean
+          filter_config: Json | null
+          id: string
+          module_key: string
+          sort_order: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          column_placement?: string
+          created_at?: string
+          density?: string
+          enabled?: boolean
+          filter_config?: Json | null
+          id?: string
+          module_key: string
+          sort_order?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          column_placement?: string
+          created_at?: string
+          density?: string
+          enabled?: boolean
+          filter_config?: Json | null
+          id?: string
+          module_key?: string
+          sort_order?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       departments: {
         Row: {
           company_id: string
