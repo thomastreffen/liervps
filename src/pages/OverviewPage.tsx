@@ -33,7 +33,6 @@ export default function OverviewPage() {
     const dayEnd = endOfDay(now).toISOString();
     const activeStatuses: JobStatus[] = ["requested", "approved", "scheduled", "in_progress", "time_change_proposed"];
 
-    // Find technician id for current user
     const techPromise = supabase
       .from("technicians")
       .select("id")
@@ -55,8 +54,6 @@ export default function OverviewPage() {
     }>;
 
     const techId = techRes.data?.id;
-
-    // Parallel: tasks counts, messages counts, next activities, schedule blocks, user tasks, activity
     const projectIds = rawProjects.map((p) => p.id);
 
     const [taskCountsRes, nextActivitiesRes, blocksRes, userTasksRes, activityRes] = await Promise.all([
@@ -93,13 +90,12 @@ export default function OverviewPage() {
         .limit(10),
     ]);
 
-    // Build project cards with counts
+    // Build project cards
     const tasksByProject: Record<string, number> = {};
     (taskCountsRes.data || []).forEach((t: any) => {
       tasksByProject[t.job_id] = (tasksByProject[t.job_id] || 0) + 1;
     });
 
-    // Group next activities by project (take first per project)
     const nextByProject: Record<string, { title: string; scheduled_date: string }> = {};
     (nextActivitiesRes.data || []).forEach((t: any) => {
       if (!nextByProject[t.job_id] && t.scheduled_date) {
@@ -107,21 +103,18 @@ export default function OverviewPage() {
       }
     });
 
-    const projectCards: ProjectCardData[] = rawProjects.map((p) => ({
+    setProjects(rawProjects.map((p) => ({
       id: p.id,
       title: p.title,
       internal_number: p.internal_number,
       customer: p.customer,
       nextActivity: nextByProject[p.id] || null,
       taskCount: tasksByProject[p.id] || 0,
-      messageCount: 0, // would require comm_logs join
+      messageCount: 0,
       deviationCount: 0,
-    }));
+    })));
 
-    setProjects(projectCards);
-
-    // Day blocks
-    const mappedBlocks: DayBlock[] = (blocksRes.data || []).map((b: any) => ({
+    setDayBlocks((blocksRes.data || []).map((b: any) => ({
       id: b.id,
       start_at: b.start_at,
       end_at: b.end_at,
@@ -130,16 +123,10 @@ export default function OverviewPage() {
       project_title: b.events?.title ?? null,
       location: b.location,
       technician_name: b.technicians?.name ?? null,
-    }));
-    setDayBlocks(mappedBlocks);
+    })));
 
-    // Tasks - sort: overdue first, then nearest due
     const rawTasks = ((userTasksRes.data || []) as any[]).map((t) => ({
-      id: t.id,
-      title: t.title,
-      due_at: t.due_at,
-      linked_project_id: t.linked_project_id,
-      priority: t.priority,
+      id: t.id, title: t.title, due_at: t.due_at, linked_project_id: t.linked_project_id, priority: t.priority,
     }));
     rawTasks.sort((a, b) => {
       const aOverdue = a.due_at && isPast(new Date(a.due_at)) ? 0 : 1;
@@ -150,7 +137,6 @@ export default function OverviewPage() {
       return new Date(a.due_at).getTime() - new Date(b.due_at).getTime();
     });
     setTasks(rawTasks);
-
     setActivity((activityRes.data as ActivityItem[]) || []);
     setLoading(false);
   }
@@ -173,72 +159,49 @@ export default function OverviewPage() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 sm:py-12 space-y-10">
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 sm:py-12 space-y-12">
       {/* Greeting */}
-      <div>
+      <div className="text-center sm:text-left">
         <h1 className="text-3xl sm:text-4xl font-bold text-foreground tracking-tight">
-          {greeting()}, {firstName}
+          {greeting()}, {firstName} 👋
         </h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          {format(new Date(), "EEEE d. MMMM", { locale: nb })} · Uke {format(new Date(), "w")}
+        <p className="text-sm text-muted-foreground mt-1.5">
+          {format(new Date(), "EEEE d. MMMM yyyy", { locale: nb })} · Uke {format(new Date(), "w")}
         </p>
       </div>
 
-      {/* Project cards - desktop: top, mobile: after schedule & tasks */}
+      {/* Project cards - desktop top */}
       <div className="hidden sm:block">
-        <SectionHeader
-          icon={<FolderKanban className="h-4 w-4 text-primary" />}
-          title="Prosjekter"
-          count={projects.length}
-        />
+        <SectionHeader icon={<FolderKanban className="h-4 w-4 text-primary" />} title="Prosjekter" count={projects.length} />
         <ProjectCards projects={projects} />
       </div>
 
-      {/* Two columns on desktop */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
-        {/* Din dag */}
+      {/* Two columns */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <div>
-          <SectionHeader
-            icon={<Clock className="h-4 w-4 text-primary" />}
-            title="Din dag"
-            count={dayBlocks.length}
-          />
-          <div className="rounded-2xl border border-border/50 bg-card">
+          <SectionHeader icon={<Clock className="h-4 w-4 text-primary" />} title="Din dag" count={dayBlocks.length} />
+          <div className="rounded-2xl border border-border/40 bg-card shadow-sm overflow-hidden">
             <YourDay blocks={dayBlocks} />
           </div>
         </div>
-
-        {/* Mine oppgaver */}
         <div>
-          <SectionHeader
-            icon={<CheckCircle2 className="h-4 w-4 text-primary" />}
-            title="Mine oppgaver"
-            count={tasks.length}
-          />
-          <div className="rounded-2xl border border-border/50 bg-card">
+          <SectionHeader icon={<CheckCircle2 className="h-4 w-4 text-primary" />} title="Mine oppgaver" count={tasks.length} />
+          <div className="rounded-2xl border border-border/40 bg-card shadow-sm overflow-hidden">
             <MyTasks tasks={tasks} />
           </div>
         </div>
       </div>
 
-      {/* Project cards on mobile */}
+      {/* Mobile projects */}
       <div className="sm:hidden">
-        <SectionHeader
-          icon={<FolderKanban className="h-4 w-4 text-primary" />}
-          title="Prosjekter"
-          count={projects.length}
-        />
+        <SectionHeader icon={<FolderKanban className="h-4 w-4 text-primary" />} title="Prosjekter" count={projects.length} />
         <ProjectCards projects={projects} />
       </div>
 
-      {/* Activity feed */}
+      {/* Activity */}
       <div>
-        <SectionHeader
-          icon={<Activity className="h-4 w-4 text-primary" />}
-          title="Aktivitet"
-          count={activity.length}
-        />
-        <div className="rounded-2xl border border-border/50 bg-card">
+        <SectionHeader icon={<Activity className="h-4 w-4 text-primary" />} title="Aktivitet" count={activity.length} />
+        <div className="rounded-2xl border border-border/40 bg-card shadow-sm overflow-hidden">
           <ActivityFeed items={activity} />
         </div>
       </div>

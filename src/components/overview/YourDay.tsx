@@ -1,7 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { Clock, MapPin, ChevronRight } from "lucide-react";
 import { format } from "date-fns";
-import { nb } from "date-fns/locale";
 
 export interface DayBlock {
   id: string;
@@ -19,41 +18,52 @@ export function YourDay({ blocks }: { blocks: DayBlock[] }) {
 
   if (blocks.length === 0) {
     return (
-      <div className="text-center py-10">
-        <Clock className="h-7 w-7 text-muted-foreground/30 mx-auto mb-2" />
-        <p className="text-sm text-muted-foreground/60">Du har ingen planlagte jobber i dag</p>
+      <div className="text-center py-14">
+        <div className="h-14 w-14 rounded-full bg-muted/40 flex items-center justify-center mx-auto mb-3">
+          <Clock className="h-7 w-7 text-muted-foreground/25" />
+        </div>
+        <p className="text-sm text-muted-foreground/50 font-medium">Du har ingen planlagte jobber i dag</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-1">
-      {blocks.map((b) => (
+    <div className="divide-y divide-border/30">
+      {blocks.map((b, i) => (
         <button
           key={b.id}
           onClick={() => b.project_id && navigate(`/projects/${b.project_id}`)}
           disabled={!b.project_id}
-          className="flex items-center gap-3 w-full rounded-xl px-3.5 py-3 text-left hover:bg-muted/50 transition-colors group disabled:opacity-60 disabled:cursor-default"
+          className="flex items-center gap-4 w-full px-5 py-4 text-left hover:bg-muted/30 transition-colors group disabled:opacity-60 disabled:cursor-default"
         >
-          <div className="text-xs font-mono text-muted-foreground w-[72px] shrink-0 text-right">
-            {format(new Date(b.start_at), "HH:mm")} – {format(new Date(b.end_at), "HH:mm")}
+          {/* Time column */}
+          <div className="flex flex-col items-center w-16 shrink-0">
+            <span className="text-sm font-semibold text-foreground">{format(new Date(b.start_at), "HH:mm")}</span>
+            <span className="text-[10px] text-muted-foreground/50">{format(new Date(b.end_at), "HH:mm")}</span>
           </div>
-          <div className="h-8 w-0.5 rounded-full bg-primary/30 shrink-0" />
+
+          {/* Colored bar */}
+          <div className="w-1 self-stretch rounded-full bg-primary/30 shrink-0" />
+
+          {/* Content */}
           <div className="min-w-0 flex-1">
             <p className="text-sm font-medium text-foreground truncate group-hover:text-primary transition-colors">
               {b.project_title || b.title}
             </p>
-            <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+            <div className="flex items-center gap-3 mt-0.5">
               {b.location && (
-                <span className="flex items-center gap-0.5 truncate">
-                  <MapPin className="h-2.5 w-2.5" /> {b.location}
+                <span className="flex items-center gap-1 text-[11px] text-muted-foreground truncate">
+                  <MapPin className="h-2.5 w-2.5 shrink-0" /> {b.location}
                 </span>
               )}
-              {b.technician_name && <span>{b.technician_name}</span>}
+              {b.technician_name && (
+                <span className="text-[11px] text-muted-foreground">{b.technician_name}</span>
+              )}
             </div>
           </div>
+
           {b.project_id && (
-            <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/20 group-hover:text-primary/40 shrink-0" />
+            <ChevronRight className="h-4 w-4 text-muted-foreground/15 group-hover:text-primary/40 shrink-0" />
           )}
         </button>
       ))}
