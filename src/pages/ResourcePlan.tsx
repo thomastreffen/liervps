@@ -52,7 +52,7 @@ function getStoredView(): CalendarViewType {
 export default function ResourcePlan() {
   const isMobile = useIsMobile();
   const navigate = useNavigate();
-  const { isAdmin } = useAuth();
+  const { isAdmin, isSuperAdmin } = useAuth();
   const confirmationCount = useConfirmationCount();
   const syncHealth = useSyncHealth(isAdmin);
   const { technicians } = useTechnicians();
@@ -64,6 +64,7 @@ export default function ResourcePlan() {
   const { busySlots, getBusySlotsForDay, getExternalBusyMinutesForDay } = useExternalBusy(selectedTechId);
   const { syncUpdate, syncCreate, forceUpdate, acceptGraphVersion, conflict, dismissConflict } = useCalendarSync();
   const [selectedBlock, setSelectedBlock] = useState<ScheduleBlock | null>(null);
+  const [hideExternalEvents, setHideExternalEvents] = useState(false);
 
   // Persist view choice
   useEffect(() => {
@@ -337,6 +338,14 @@ export default function ResourcePlan() {
               <span className="whitespace-nowrap">Ekstern blokkerer</span>
             </div>
 
+            {/* Superadmin: toggle external event visibility */}
+            {isSuperAdmin && (
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Switch checked={hideExternalEvents} onCheckedChange={setHideExternalEvents} className="scale-75" />
+                <span className="whitespace-nowrap">Skjul eksterne</span>
+              </div>
+            )}
+
             {isAdmin && (
               <TooltipProvider delayDuration={200}>
                 <Tooltip>
@@ -456,6 +465,8 @@ export default function ResourcePlan() {
           onEventDrop={handleEventDrop}
           onEventResize={handleEventResize}
           isAdmin={isAdmin}
+          isSuperAdmin={isSuperAdmin}
+          hideExternalEvents={hideExternalEvents}
         />
       </div>
 

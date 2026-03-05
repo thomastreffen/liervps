@@ -34,6 +34,8 @@ interface ResourceCalendarProps {
   onEventDrop?: (eventId: string, newStart: Date, newEnd: Date) => void;
   onEventResize?: (eventId: string, newStart: Date, newEnd: Date) => void;
   isAdmin?: boolean;
+  isSuperAdmin?: boolean;
+  hideExternalEvents?: boolean;
 }
 
 /** Merge overlapping external slots into contiguous blocks */
@@ -102,6 +104,8 @@ export const ResourceCalendar = memo(function ResourceCalendar({
   onEventDrop,
   onEventResize,
   isAdmin = false,
+  isSuperAdmin = false,
+  hideExternalEvents = false,
 }: ResourceCalendarProps) {
   const calendarRef = useRef<FullCalendar>(null);
   const { events: calendarEvents } = useCalendarEvents(technicianId, referenceDate);
@@ -197,20 +201,24 @@ export const ResourceCalendar = memo(function ResourceCalendar({
               console.warn(`[ResourceCalendar] Busy slot missing technician name – techId=${techId}, slot=${slot.start.toISOString()}`);
             }
             const busyTechColor = techColorMap.get(techId) || GCAL_PALETTE[0];
+            // Privacy: non-superadmins see only "Opptatt" without names
+            const maskedTitle = isSuperAdmin ? `${displayName} – opptatt` : "Opptatt";
+            const BUSY_GRAY = "#9CA3AF";
             result.push({
               id: `busy-${techId}-${slot.start.getTime()}`,
-              title: `${displayName} – opptatt`,
+              title: maskedTitle,
               start: slot.start,
               end: slot.end,
-              backgroundColor: hexToRgba(busyTechColor, 0.25),
-              borderColor: hexToRgba(busyTechColor, 0.5),
-              textColor: busyTechColor,
+              backgroundColor: isSuperAdmin ? hexToRgba(busyTechColor, 0.25) : hexToRgba(BUSY_GRAY, 0.15),
+              borderColor: isSuperAdmin ? hexToRgba(busyTechColor, 0.5) : hexToRgba(BUSY_GRAY, 0.35),
+              textColor: isSuperAdmin ? busyTechColor : "#9CA3AF",
               editable: false,
               extendedProps: {
                 isBusy: true,
-                techName: displayName,
-                busyTechColor,
+                techName: isSuperAdmin ? displayName : undefined,
+                busyTechColor: isSuperAdmin ? busyTechColor : BUSY_GRAY,
                 busyTechId: techId,
+                isExternalMasked: !isSuperAdmin,
               },
             });
           }
@@ -224,47 +232,61 @@ export const ResourceCalendar = memo(function ResourceCalendar({
 
     // Schedule blocks (Outlook-synced)
     for (const block of scheduleBlocks) {
+      const isExternal = block.source === "outlook" && !block.project_id;
+
+      // If hideExternalEvents is on AND block is unlinked external → skip entirely
+      if (hideExternalEvents && isExternal) continue;
+
       const colors = matchStateColors[block.match_state] || matchStateColors.external;
       const techName = block.technician_name?.split(" ")[0] || "";
       const sourceLabel = block.source === "outlook" ? "Outlook" : "System";
       // Use outlook_subject for display title when available
       const displayTitle = block.outlook_subject || block.title || "Outlook-blokk";
+
+      // Privacy: non-superadmins see masked external blocks
+      const masked = isExternal && !isSuperAdmin;
+      const BUSY_GRAY = "#9CA3AF";
+
       result.push({
         id: `sb-${block.id}`,
-        title: displayTitle,
+        title: masked ? "Opptatt" : displayTitle,
         start: block.start_at,
         end: block.end_at,
-        backgroundColor: hexToRgba(colors.bg, 0.85),
-        borderColor: colors.border,
-        textColor: colors.text,
+        backgroundColor: masked ? hexToRgba(BUSY_GRAY, 0.15) : hexToRgba(colors.bg, 0.85),
+        borderColor: masked ? hexToRgba(BUSY_GRAY, 0.35) : colors.border,
+        textColor: masked ? "#9CA3AF" : colors.text,
         editable: false,
         extendedProps: {
           isScheduleBlock: true,
-          scheduleBlock: block,
+          scheduleBlock: masked ? null : block,
+          isExternalMasked: masked,
           matchState: block.match_state,
-          techName,
-          projectTitle: block.project_title,
+          techName: masked ? undefined : techName,
+          projectTitle: masked ? undefined : block.project_title,
           sourceLabel,
           blockSource: block.source,
-          matchConfidence: block.match_confidence,
-          matchReason: block.match_reason,
+          matchConfidence: masked ? undefined : block.match_confidence,
+          matchReason: masked ? undefined : block.match_reason,
           blockStartAt: block.start_at,
           blockEndAt: block.end_at,
-          outlookLocation: block.outlook_location,
-          aiConfidence: block.ai_confidence,
-          aiMatchReason: block.ai_match_reason,
+          outlookLocation: masked ? undefined : block.outlook_location,
+          aiConfidence: masked ? undefined : block.ai_confidence,
+          aiMatchReason: masked ? undefined : block.ai_match_reason,
         },
       });
     }
 
     return result;
-  }, [calendarEvents, getBusySlotsForDay, technicianMap, techColorMap, referenceDate, isAdmin, isMonthView, scheduleBlocks]);
+  }, [calendarEvents, getBusySlotsForDay, technicianMap, techColorMap, referenceDate, isAdmin, isSuperAdmin, hideExternalEvents, isMonthView, scheduleBlocks]);
 
   const handleEventClick = useCallback((info: EventClickArg) => {
     const props = info.event.extendedProps;
 
+    // Block clicks on masked external events for non-superadmins
+    if (props.isExternalMasked) return;
+
     // Schedule block click → always open side panel
-    if (props.isScheduleBlock) {
+    if (props.isScheduleBlock && props.scheduleBlock) {
       toast.info(`Clicked block: sb-${(props.scheduleBlock as ScheduleBlock).id.slice(0, 8)}`);
       onScheduleBlockClick?.(props.scheduleBlock as ScheduleBlock);
       return;
