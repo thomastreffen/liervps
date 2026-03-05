@@ -9,7 +9,7 @@ import { useCalendarEvents, type CalendarEvent } from "@/hooks/useCalendarEvents
 import type { ExternalBusySlot } from "@/hooks/useExternalBusy";
 import type { DayCapacity } from "@/hooks/useCapacity";
 import type { ScheduleBlock } from "@/hooks/useScheduleBlocks";
-import { Lock, CalendarCheck, AlertTriangle, Globe, Monitor } from "lucide-react";
+import { Lock, CalendarCheck, AlertTriangle, Globe, Monitor, MapPin } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { format } from "date-fns";
 import { nb } from "date-fns/locale";
@@ -391,9 +391,9 @@ export const ResourceCalendar = memo(function ResourceCalendar({
         select={handleDateSelect}
         eventDrop={handleEventDrop}
         eventResize={handleEventResize}
-        slotEventOverlap={false}
-        eventOverlap={false}
-        eventMaxStack={4}
+        slotEventOverlap={true}
+        eventOverlap={true}
+        eventMaxStack={3}
         eventMinHeight={36}
         eventContent={(arg) => {
           const props = arg.event.extendedProps;
@@ -490,42 +490,76 @@ export const ResourceCalendar = memo(function ResourceCalendar({
 
           // Day/Week view – detailed
           if (props.isBusy) {
-            return (
-              <div className="fc-event-external flex items-center gap-1.5 px-2 py-1.5 cursor-pointer select-none">
-                <Lock className="h-3 w-3 opacity-50 shrink-0" />
-                <div className="min-w-0 flex-1">
-                  {props.techName && (
-                    <p className="text-[11px] font-bold truncate">{props.techName}</p>
-                  )}
-                  <span className="text-[10px] font-medium truncate block">Opptatt – ekstern</span>
-                  <span className="text-[9px] opacity-70">{arg.timeText}</span>
-                </div>
+            const busyTooltip = (
+              <div className="space-y-1 text-xs max-w-[220px]">
+                <p className="font-semibold">{props.techName || "Ukjent montør"} – Opptatt</p>
+                <p className="text-muted-foreground">{arg.timeText}</p>
+                <p className="text-muted-foreground">Ekstern kalenderavtale</p>
               </div>
             );
+            return (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="fc-event-external flex items-center gap-1.5 px-2 py-1.5 cursor-pointer select-none h-full">
+                    <Lock className="h-3 w-3 opacity-50 shrink-0" />
+                    <div className="min-w-0 flex-1">
+                      {props.techName && (
+                        <p className="text-[11px] font-bold truncate">{props.techName}</p>
+                      )}
+                      <span className="text-[10px] font-medium truncate block">Opptatt</span>
+                      <span className="text-[9px] opacity-70">{arg.timeText}</span>
+                    </div>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="top">{busyTooltip}</TooltipContent>
+              </Tooltip>
+            );
           }
-          return (
-            <div
-              className="fc-event-internal px-2 py-1.5 overflow-hidden h-full cursor-grab active:cursor-grabbing select-none"
-            >
-              <div className="flex items-center gap-1.5">
-                {props.techNames && (
-                  <p className="text-[12px] font-bold leading-tight truncate text-white/90">
-                    {props.techNames}
-                  </p>
-                )}
-                <span
-                  className="h-1.5 w-1.5 rounded-full shrink-0 border border-white/30"
-                  style={{ backgroundColor: props.statusDot }}
-                />
-              </div>
-              <p className="text-[13px] font-semibold leading-tight truncate mt-0.5 text-white">
-                {arg.event.title}
-              </p>
-              {props.customer && (
-                <p className="text-[11px] text-white/75 truncate mt-0.5">{props.customer}</p>
+
+          // Regular event tooltip
+          const eventTooltip = (
+            <div className="space-y-1 text-xs max-w-[240px]">
+              <p className="font-semibold">{arg.event.title}</p>
+              {props.customer && <p className="text-muted-foreground">Kunde: {props.customer}</p>}
+              <p className="text-muted-foreground">{arg.timeText}</p>
+              {props.techNames && <p>Montører: {props.techNames}</p>}
+              {props.calendarEvent?.address && (
+                <p className="flex items-center gap-1">
+                  <MapPin className="h-3 w-3 shrink-0" />
+                  {props.calendarEvent.address}
+                </p>
               )}
-              <span className="text-[10px] text-white/60 mt-0.5 block">{arg.timeText}</span>
             </div>
+          );
+
+          return (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div
+                  className="fc-event-internal px-2 py-1.5 overflow-hidden h-full cursor-grab active:cursor-grabbing select-none"
+                >
+                  <div className="flex items-center gap-1.5">
+                    {props.techNames && (
+                      <p className="text-[12px] font-bold leading-tight truncate text-white/90">
+                        {props.techNames}
+                      </p>
+                    )}
+                    <span
+                      className="h-1.5 w-1.5 rounded-full shrink-0 border border-white/30"
+                      style={{ backgroundColor: props.statusDot }}
+                    />
+                  </div>
+                  <p className="text-[13px] font-semibold leading-tight truncate mt-0.5 text-white">
+                    {arg.event.title}
+                  </p>
+                  {props.customer && (
+                    <p className="text-[11px] text-white/75 truncate mt-0.5">{props.customer}</p>
+                  )}
+                  <span className="text-[10px] text-white/60 mt-0.5 block">{arg.timeText}</span>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="top">{eventTooltip}</TooltipContent>
+            </Tooltip>
           );
         }}
         dayHeaderContent={(arg) => {
