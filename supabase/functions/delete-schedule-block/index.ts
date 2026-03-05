@@ -42,7 +42,6 @@ Deno.serve(async (req) => {
     const isSystemBlock = block.source === "system" || block.source === "manual" || block.source === "linked_outlook";
     
     if (isSystemBlock && block.outlook_event_id && block.calendar_id) {
-      // Get Graph app token
       const tenantId = Deno.env.get("AZURE_TENANT_ID")!;
       const clientId = Deno.env.get("AZURE_CLIENT_ID")!;
       const clientSecret = Deno.env.get("AZURE_CLIENT_SECRET")!;
@@ -82,10 +81,14 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Soft delete the block
+    // Soft delete the block with reason
+    const deleteReason = isSystemBlock ? "manual_delete" : "manual_delete";
     const { error: updateErr } = await supabase
       .from("schedule_blocks")
-      .update({ deleted_at: new Date().toISOString() })
+      .update({
+        deleted_at: new Date().toISOString(),
+        deleted_reason: deleteReason,
+      } as any)
       .eq("id", schedule_block_id);
 
     if (updateErr) {

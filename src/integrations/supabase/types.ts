@@ -4693,6 +4693,7 @@ export type Database = {
           company_id: string
           created_at: string
           deleted_at: string | null
+          deleted_reason: string | null
           description: string | null
           end_at: string
           id: string
@@ -4724,6 +4725,7 @@ export type Database = {
           company_id: string
           created_at?: string
           deleted_at?: string | null
+          deleted_reason?: string | null
           description?: string | null
           end_at: string
           id?: string
@@ -4755,6 +4757,7 @@ export type Database = {
           company_id?: string
           created_at?: string
           deleted_at?: string | null
+          deleted_reason?: string | null
           description?: string | null
           end_at?: string
           id?: string
@@ -5936,6 +5939,7 @@ export type Database = {
         Args: { _auth_user_id: string; _project_id: string }
         Returns: boolean
       }
+      sweep_orphan_schedule_blocks: { Args: never; Returns: Json }
     }
     Enums: {
       app_role: "admin" | "montør" | "super_admin"

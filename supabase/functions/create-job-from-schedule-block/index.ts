@@ -23,7 +23,6 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-    // Auth client to get user
     const authClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
       global: { headers: { Authorization: authHeader } },
     });
@@ -57,7 +56,27 @@ Deno.serve(async (req) => {
       );
     }
 
-    // 1. Check if already processed (idempotency)
+    // 0. Check if schedule_block already has a project_id (idempotent on block level)
+    const { data: blockCheck } = await db
+      .from("schedule_blocks")
+      .select("project_id")
+      .eq("id", schedule_block_id)
+      .is("deleted_at", null)
+      .maybeSingle();
+
+    if (blockCheck?.project_id) {
+      // Block already linked to a project – return it
+      return new Response(
+        JSON.stringify({
+          status: "ok",
+          event_id: blockCheck.project_id,
+          idempotent: true,
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // 1. Check if already processed by client_request_id (idempotency)
     const { data: existing } = await db
       .from("events")
       .select("id")
@@ -66,13 +85,15 @@ Deno.serve(async (req) => {
 
     if (existing) {
       // Already created – ensure schedule_block is linked
+      const jobTitle = title || "Ny jobb";
       await db
         .from("schedule_blocks")
         .update({
           project_id: existing.id,
           match_state: "confirmed",
           match_reason: "Manuelt opprettet fra Outlook-blokk (idempotent)",
-        })
+          title: jobTitle,
+        } as any)
         .eq("id", schedule_block_id);
 
       return new Response(
@@ -86,10 +107,11 @@ Deno.serve(async (req) => {
     }
 
     // 2. Create event
+    const jobTitle = title || "Ny jobb";
     const { data: created, error: insertErr } = await db
       .from("events")
       .insert({
-        title: title || "Ny jobb",
+        title: jobTitle,
         address: address || null,
         description: description || null,
         start_time,
@@ -119,7 +141,8 @@ Deno.serve(async (req) => {
               project_id: raced.id,
               match_state: "confirmed",
               match_reason: "Manuelt opprettet fra Outlook-blokk (race recovered)",
-            })
+              title: jobTitle,
+            } as any)
             .eq("id", schedule_block_id);
 
           return new Response(
@@ -137,15 +160,15 @@ Deno.serve(async (req) => {
       technician_id,
     });
 
-    // 4. Link schedule_block and update title to reflect project
+    // 4. Link schedule_block and update title to project title
     await db
       .from("schedule_blocks")
       .update({
         project_id: created.id,
         match_state: "confirmed",
         match_reason: "Manuelt opprettet fra Outlook-blokk",
-        title: title || "Ny jobb",
-      })
+        title: jobTitle,
+      } as any)
       .eq("id", schedule_block_id);
 
     return new Response(

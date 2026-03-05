@@ -2,7 +2,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 interface GraphEvent {
@@ -17,9 +18,11 @@ interface GraphEvent {
   webLink?: string;
   organizer?: { emailAddress?: { name?: string; address?: string } };
   categories?: string[];
+  // Delta removal marker
+  "@removed"?: { reason: string };
 }
 
-const BATCH_SIZE = 10; // max technicians per run
+const BATCH_SIZE = 10;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -37,12 +40,7 @@ Deno.serve(async (req) => {
     }
 
     const runId = crypto.randomUUID();
-    
-    // Log run start
-    await supabase.from("schedule_sync_runs").insert({
-      run_id: runId,
-      status: "running",
-    });
+    await supabase.from("schedule_sync_runs").insert({ run_id: runId, status: "running" });
 
     // Get Graph app token
     const tenantId = Deno.env.get("AZURE_TENANT_ID")!;
@@ -93,12 +91,12 @@ Deno.serve(async (req) => {
 
     let totalEvents = 0;
     let totalUpserts = 0;
+    let totalDeleted = 0;
     let totalNeedsConfirmation = 0;
     const errors: string[] = [];
 
     for (const tech of techs) {
       try {
-        // Get user email
         const { data: ua } = await supabase
           .from("user_accounts")
           .select("id, auth_user_id, people(email)")
@@ -109,7 +107,6 @@ Deno.serve(async (req) => {
         const email = (ua as any)?.people?.email;
         if (!email) continue;
 
-        // Get company_id
         const { data: scope } = await supabase
           .from("user_scopes")
           .select("company_id")
@@ -133,10 +130,8 @@ Deno.serve(async (req) => {
         const fourWeeks = new Date(now.getTime() + 28 * 86400000);
 
         if (syncState?.delta_link) {
-          // Use deltaLink for efficient sync
           calUrl = syncState.delta_link;
         } else {
-          // Full sync - calendarView
           calUrl = `https://graph.microsoft.com/v1.0/users/${email}/calendarView/delta?startDateTime=${now.toISOString()}&endDateTime=${fourWeeks.toISOString()}&$select=id,subject,start,end,location,lastModifiedDateTime,body,bodyPreview,webLink,organizer,categories`;
         }
 
@@ -151,7 +146,6 @@ Deno.serve(async (req) => {
           });
 
           if (!calRes.ok) {
-            // If deltaLink is stale (410 Gone), reset and do full sync
             if (calRes.status === 410 && syncState?.delta_link) {
               const fullUrl = `https://graph.microsoft.com/v1.0/users/${email}/calendarView/delta?startDateTime=${now.toISOString()}&endDateTime=${fourWeeks.toISOString()}&$select=id,subject,start,end,location,lastModifiedDateTime,body,bodyPreview,webLink,organizer,categories`;
               const retryRes = await fetch(fullUrl, {
@@ -181,6 +175,42 @@ Deno.serve(async (req) => {
 
         // Process events
         for (const ev of events) {
+          // ──── HANDLE DELETED EVENTS ────
+          if (ev["@removed"]) {
+            // Delta signals this event was deleted in Outlook
+            const { data: deletedBlock } = await supabase
+              .from("schedule_blocks")
+              .select("id, project_id, outlook_subject, title")
+              .eq("calendar_id", email)
+              .eq("outlook_event_id", ev.id)
+              .is("deleted_at", null)
+              .maybeSingle();
+
+            if (deletedBlock) {
+              await supabase
+                .from("schedule_blocks")
+                .update({
+                  deleted_at: new Date().toISOString(),
+                  deleted_reason: "outlook_deleted",
+                } as any)
+                .eq("id", deletedBlock.id);
+
+              totalDeleted++;
+
+              // If block was linked to a project, log a system message
+              if (deletedBlock.project_id) {
+                await supabase.from("activity_log").insert({
+                  entity_type: "event",
+                  entity_id: deletedBlock.project_id,
+                  action: "outlook_event_deleted",
+                  type: "system",
+                  description: `Outlook-avtale slettet av montør: "${deletedBlock.outlook_subject || deletedBlock.title}" (${tech.name})`,
+                });
+              }
+            }
+            continue;
+          }
+
           if (ev.categories?.includes("MCS")) continue;
 
           const startAt = new Date(ev.start.dateTime + "Z");
@@ -190,123 +220,159 @@ Deno.serve(async (req) => {
           const mcsMatch = bodyContent.match(/MCS_BLOCK_ID:([a-f0-9-]+)/);
           const existingBlockId = mcsMatch?.[1] || null;
 
+          // Check if block already exists (for title rule)
+          const { data: existingBlock } = await supabase
+            .from("schedule_blocks")
+            .select("id, project_id, match_state")
+            .eq("calendar_id", email)
+            .eq("outlook_event_id", ev.id)
+            .is("deleted_at", null)
+            .maybeSingle();
+
           // Project matching
-          let projectId: string | null = null;
+          let projectId: string | null = existingBlock?.project_id || null;
           let matchConfidence = 0;
           let matchReason = "";
           let matchState: "auto" | "needs_confirmation" | "external" = "external";
 
-          // 1. MCS_BLOCK_ID link
-          if (existingBlockId) {
-            const { data: existingBlock } = await supabase
-              .from("schedule_blocks")
-              .select("project_id")
-              .eq("id", existingBlockId)
-              .single();
-            if (existingBlock?.project_id) {
-              projectId = existingBlock.project_id;
-              matchConfidence = 100;
-              matchReason = "MCS_BLOCK_ID link";
-              matchState = "auto";
+          // If block already has a confirmed project, keep it
+          if (existingBlock?.project_id && existingBlock.match_state === "confirmed") {
+            projectId = existingBlock.project_id;
+            matchConfidence = 100;
+            matchReason = "Previously confirmed";
+            matchState = "auto";
+          } else {
+            // 1. MCS_BLOCK_ID link
+            if (existingBlockId) {
+              const { data: linkedBlock } = await supabase
+                .from("schedule_blocks")
+                .select("project_id")
+                .eq("id", existingBlockId)
+                .single();
+              if (linkedBlock?.project_id) {
+                projectId = linkedBlock.project_id;
+                matchConfidence = 100;
+                matchReason = "MCS_BLOCK_ID link";
+                matchState = "auto";
+              }
             }
-          }
 
-           // 2. Fuzzy match on subject + aliases
-          if (!projectId && ev.subject) {
-            const words = ev.subject.split(/[\s–\-,]+/).filter((w: string) => w.length > 2);
-            const firstWord = words[0];
-            if (firstWord) {
-              // Search by title, customer, AND aliases
-              const { data: matchedProjects } = await supabase
-                .from("events")
-                .select("id, title, customer, address, project_aliases")
-                .or(`title.ilike.%${firstWord}%,customer.ilike.%${firstWord}%,project_aliases.cs.{${firstWord}}`)
-                .is("deleted_at", null)
-                .limit(10);
+            // 2. Fuzzy match on subject + aliases
+            if (!projectId && ev.subject) {
+              const words = ev.subject.split(/[\s–\-,]+/).filter((w: string) => w.length > 2);
+              const firstWord = words[0];
+              if (firstWord) {
+                const { data: matchedProjects } = await supabase
+                  .from("events")
+                  .select("id, title, customer, address, project_aliases")
+                  .or(`title.ilike.%${firstWord}%,customer.ilike.%${firstWord}%,project_aliases.cs.{${firstWord}}`)
+                  .is("deleted_at", null)
+                  .limit(10);
 
-              if (matchedProjects?.length) {
-                const subject = ev.subject.toLowerCase();
-                let bestMatch = matchedProjects[0];
-                let bestScore = 0;
+                if (matchedProjects?.length) {
+                  const subject = ev.subject.toLowerCase();
+                  let bestMatch = matchedProjects[0];
+                  let bestScore = 0;
 
-                for (const p of matchedProjects) {
-                  let score = 0;
-                  const title = (p.title || "").toLowerCase();
-                  const customer = (p.customer || "").toLowerCase();
-                  const aliases: string[] = ((p as any).project_aliases || []).map((a: string) => a.toLowerCase());
+                  for (const p of matchedProjects) {
+                    let score = 0;
+                    const title = (p.title || "").toLowerCase();
+                    const customer = (p.customer || "").toLowerCase();
+                    const aliases: string[] = ((p as any).project_aliases || []).map((a: string) => a.toLowerCase());
 
-                  // Alias match – strongest signal
-                  for (const alias of aliases) {
-                    if (subject.includes(alias) || alias.includes(subject.split(" ")[0])) {
-                      score += 60;
-                      break;
+                    for (const alias of aliases) {
+                      if (subject.includes(alias) || alias.includes(subject.split(" ")[0])) {
+                        score += 60;
+                        break;
+                      }
+                      for (const w of words) {
+                        if (alias === w.toLowerCase()) { score += 45; break; }
+                      }
                     }
-                    for (const w of words) {
-                      if (alias === w.toLowerCase()) { score += 45; break; }
+
+                    if (subject.includes(title) || title.includes(subject)) score += 50;
+                    else {
+                      for (const w of words) {
+                        if (title.includes(w.toLowerCase())) score += 15;
+                        if (customer.includes(w.toLowerCase())) score += 10;
+                      }
+                    }
+
+                    if (ev.location?.displayName && p.address) {
+                      const loc = ev.location.displayName.toLowerCase();
+                      const addr = p.address.toLowerCase();
+                      if (loc.includes(addr) || addr.includes(loc)) score += 25;
+                    }
+
+                    if (score > bestScore) {
+                      bestScore = score;
+                      bestMatch = p;
                     }
                   }
 
-                  if (subject.includes(title) || title.includes(subject)) score += 50;
-                  else {
-                    for (const w of words) {
-                      if (title.includes(w.toLowerCase())) score += 15;
-                      if (customer.includes(w.toLowerCase())) score += 10;
-                    }
+                  if (bestScore >= 80) {
+                    projectId = bestMatch.id;
+                    matchConfidence = Math.min(bestScore, 100);
+                    matchReason = `Subject/location match: ${bestMatch.title}`;
+                    matchState = "auto";
+                  } else if (bestScore >= 50) {
+                    projectId = bestMatch.id;
+                    matchConfidence = bestScore;
+                    matchReason = `Partial match: ${bestMatch.title}`;
+                    matchState = "needs_confirmation";
                   }
-
-                  if (ev.location?.displayName && p.address) {
-                    const loc = ev.location.displayName.toLowerCase();
-                    const addr = p.address.toLowerCase();
-                    if (loc.includes(addr) || addr.includes(loc)) score += 25;
-                  }
-
-                  if (score > bestScore) {
-                    bestScore = score;
-                    bestMatch = p;
-                  }
-                }
-
-                if (bestScore >= 80) {
-                  projectId = bestMatch.id;
-                  matchConfidence = Math.min(bestScore, 100);
-                  matchReason = `Subject/location match: ${bestMatch.title}`;
-                  matchState = "auto";
-                } else if (bestScore >= 50) {
-                  projectId = bestMatch.id;
-                  matchConfidence = bestScore;
-                  matchReason = `Partial match: ${bestMatch.title}`;
-                  matchState = "needs_confirmation";
                 }
               }
             }
-          }
 
-          // 3. Recent affinity
-          if (!projectId && matchConfidence < 50) {
-            const { data: recentBlocks } = await supabase
-              .from("schedule_blocks")
-              .select("project_id, events(title)")
-              .eq("technician_id", tech.id)
-              .not("project_id", "is", null)
-              .order("start_at", { ascending: false })
-              .limit(5);
+            // 3. Recent affinity
+            if (!projectId && matchConfidence < 50) {
+              const { data: recentBlocks } = await supabase
+                .from("schedule_blocks")
+                .select("project_id, events(title)")
+                .eq("technician_id", tech.id)
+                .not("project_id", "is", null)
+                .order("start_at", { ascending: false })
+                .limit(5);
 
-            if (recentBlocks?.length) {
-              const subject = ev.subject?.toLowerCase() || "";
-              for (const rb of recentBlocks) {
-                const projTitle = (rb as any).events?.title?.toLowerCase() || "";
-                if (projTitle && subject.includes(projTitle.split(" ")[0])) {
-                  projectId = rb.project_id;
-                  matchConfidence = 60;
-                  matchReason = `Recent affinity: ${(rb as any).events?.title}`;
-                  matchState = "needs_confirmation";
-                  break;
+              if (recentBlocks?.length) {
+                const subject = ev.subject?.toLowerCase() || "";
+                for (const rb of recentBlocks) {
+                  const projTitle = (rb as any).events?.title?.toLowerCase() || "";
+                  if (projTitle && subject.includes(projTitle.split(" ")[0])) {
+                    projectId = rb.project_id;
+                    matchConfidence = 60;
+                    matchReason = `Recent affinity: ${(rb as any).events?.title}`;
+                    matchState = "needs_confirmation";
+                    break;
+                  }
                 }
               }
             }
           }
 
           if (matchState === "needs_confirmation") totalNeedsConfirmation++;
+
+          // ──── TITLE RULE ────
+          // If project_id set and project exists (not deleted) → use project title
+          // Otherwise → use outlook_subject
+          let displayTitle = ev.subject || "Opptatt";
+          if (projectId) {
+            const { data: proj } = await supabase
+              .from("events")
+              .select("title")
+              .eq("id", projectId)
+              .is("deleted_at", null)
+              .maybeSingle();
+            if (proj?.title) {
+              displayTitle = proj.title;
+            } else {
+              // Project deleted – unlink
+              projectId = null;
+              matchState = "external";
+              matchReason = "Prosjekt slettet under sync";
+            }
+          }
 
           // Upsert schedule_block
           const { error: upsertError } = await supabase
@@ -321,14 +387,13 @@ Deno.serve(async (req) => {
                 source: "outlook",
                 start_at: startAt.toISOString(),
                 end_at: endAt.toISOString(),
-                title: ev.subject || "",
+                title: displayTitle,
                 location: ev.location?.displayName || null,
                 match_confidence: matchConfidence,
                 match_reason: matchReason || null,
                 match_state: matchState,
                 last_modified: ev.lastModifiedDateTime || null,
                 mcs_block_id: existingBlockId,
-                // Outlook detail fields
                 outlook_subject: ev.subject || null,
                 outlook_location: ev.location?.displayName || null,
                 outlook_preview: ev.bodyPreview || null,
@@ -365,7 +430,16 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Determine if there are more techs to process (continuation)
+    // ──── POST-SYNC ORPHAN SWEEP ────
+    let orphanResult: any = null;
+    try {
+      const { data } = await supabase.rpc("sweep_orphan_schedule_blocks");
+      orphanResult = data;
+    } catch (sweepErr: any) {
+      errors.push(`Orphan sweep: ${sweepErr.message}`);
+    }
+
+    // Continuation
     const lastTechName = techs[techs.length - 1]?.name;
     const continuationToken = techs.length >= BATCH_SIZE ? lastTechName : null;
 
@@ -404,7 +478,9 @@ Deno.serve(async (req) => {
         techs_processed: techs.length,
         events_fetched: totalEvents,
         upserts: totalUpserts,
+        deleted: totalDeleted,
         needs_confirmation: totalNeedsConfirmation,
+        orphan_sweep: orphanResult,
         continuation_token: continuationToken,
         errors: errors.length > 0 ? errors : undefined,
       }),
