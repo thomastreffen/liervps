@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { FolderKanban, ListChecks, MessageSquare, AlertTriangle, CalendarCheck, ChevronRight } from "lucide-react";
+import { FolderKanban, ListChecks, MessageSquare, AlertTriangle, CalendarCheck, Clock } from "lucide-react";
 import { format } from "date-fns";
 import { nb } from "date-fns/locale";
 
@@ -12,6 +12,7 @@ export interface ProjectCardData {
   taskCount: number;
   messageCount: number;
   deviationCount: number;
+  hasPlanned: boolean;
 }
 
 export function ProjectCards({ projects }: { projects: ProjectCardData[] }) {
@@ -32,19 +33,19 @@ export function ProjectCards({ projects }: { projects: ProjectCardData[] }) {
         <button
           key={p.id}
           onClick={() => navigate(`/projects/${p.id}`)}
-          className="bg-card rounded-2xl border-2 border-border/60 p-6 text-left
-            hover:border-primary/40 hover:shadow-lg hover:-translate-y-1
-            transition-all duration-200 group relative"
+          className="bg-card rounded-2xl border-2 border-border/60 p-5 text-left
+            hover:border-primary/40 hover:shadow-lg hover:bg-card/80 hover:-translate-y-1
+            transition-all duration-200 group relative cursor-pointer"
         >
-          <div className="flex items-start gap-3 mb-3">
-            <div className="h-11 w-11 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+          <div className="flex items-start gap-3 mb-2">
+            <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
               <FolderKanban className="h-5 w-5 text-primary" />
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-[15px] font-bold text-foreground truncate group-hover:text-primary transition-colors leading-tight">
                 {p.title}
               </p>
-              <p className="text-xs text-muted-foreground mt-1">
+              <p className="text-xs text-muted-foreground mt-0.5">
                 {p.internal_number && <span className="font-mono">#{p.internal_number}</span>}
                 {p.internal_number && p.customer && " · "}
                 {p.customer || "Ingen kunde"}
@@ -52,38 +53,44 @@ export function ProjectCards({ projects }: { projects: ProjectCardData[] }) {
             </div>
           </div>
 
+          {/* Status chips */}
+          <div className="flex items-center gap-1.5 flex-wrap mt-3">
+            {p.hasPlanned && (
+              <span className="inline-flex items-center gap-1 text-[10px] font-semibold rounded-full px-2 py-0.5 bg-primary/10 text-primary border border-primary/20">
+                <Clock className="h-2.5 w-2.5" />
+                Planlagt
+              </span>
+            )}
+            {p.taskCount > 0 && (
+              <span className="inline-flex items-center gap-1 text-[10px] font-semibold rounded-full px-2 py-0.5 bg-accent/10 text-accent border border-accent/20">
+                <ListChecks className="h-2.5 w-2.5" />
+                {p.taskCount} oppgaver
+              </span>
+            )}
+            {p.messageCount > 0 && (
+              <span className="inline-flex items-center gap-1 text-[10px] font-semibold rounded-full px-2 py-0.5 bg-info/10 text-info border border-info/20">
+                <MessageSquare className="h-2.5 w-2.5" />
+                {p.messageCount} meldinger
+              </span>
+            )}
+            {p.deviationCount > 0 && (
+              <span className="inline-flex items-center gap-1 text-[10px] font-semibold rounded-full px-2 py-0.5 bg-destructive/10 text-destructive border border-destructive/20">
+                <AlertTriangle className="h-2.5 w-2.5" />
+                {p.deviationCount} avvik
+              </span>
+            )}
+          </div>
+
           {/* Next activity */}
           {p.nextActivity && (
-            <div className="flex items-center gap-2 text-xs bg-primary/5 rounded-xl px-3 py-2 mb-3 border border-primary/10">
-              <CalendarCheck className="h-3.5 w-3.5 text-primary shrink-0" />
-              <span className="truncate text-foreground/80">{p.nextActivity.title}</span>
-              <span className="shrink-0 ml-auto text-muted-foreground font-mono text-[11px]">
+            <div className="flex items-center gap-2 text-xs bg-primary/5 rounded-lg px-3 py-1.5 mt-3 border border-primary/10">
+              <CalendarCheck className="h-3 w-3 text-primary shrink-0" />
+              <span className="truncate text-foreground/80 text-[11px]">{p.nextActivity.title}</span>
+              <span className="shrink-0 ml-auto text-muted-foreground font-mono text-[10px]">
                 {format(new Date(p.nextActivity.scheduled_date), "d. MMM", { locale: nb })}
               </span>
             </div>
           )}
-
-          {/* Chips */}
-          <div className="flex items-center gap-2 flex-wrap">
-            {p.taskCount > 0 && (
-              <span className="inline-flex items-center gap-1 text-[11px] font-semibold rounded-full px-2.5 py-1 bg-accent/10 text-accent border border-accent/20">
-                <ListChecks className="h-3 w-3" />
-                {p.taskCount}
-              </span>
-            )}
-            {p.messageCount > 0 && (
-              <span className="inline-flex items-center gap-1 text-[11px] font-semibold rounded-full px-2.5 py-1 bg-info/10 text-info border border-info/20">
-                <MessageSquare className="h-3 w-3" />
-                {p.messageCount}
-              </span>
-            )}
-            {p.deviationCount > 0 && (
-              <span className="inline-flex items-center gap-1 text-[11px] font-semibold rounded-full px-2.5 py-1 bg-destructive/10 text-destructive border border-destructive/20">
-                <AlertTriangle className="h-3 w-3" />
-                {p.deviationCount}
-              </span>
-            )}
-          </div>
         </button>
       ))}
     </div>

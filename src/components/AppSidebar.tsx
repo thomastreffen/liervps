@@ -1,4 +1,5 @@
 import { useLocation } from "react-router-dom";
+import { useEffect, useState } from "react";
 import {
   Home,
   FolderKanban,
@@ -14,6 +15,7 @@ import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/hooks/useAuth";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useModuleVisibility } from "@/hooks/useModuleVisibility";
+import { supabase } from "@/integrations/supabase/client";
 import {
   Sidebar,
   SidebarContent,
@@ -31,6 +33,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
 
 const mainNav = [
   { title: "Hjem", url: "/overview", icon: Home, moduleKey: "overview" },
@@ -55,10 +58,11 @@ const adminItems = [
   { title: "Papirkurv", url: "/admin/trash", moduleKey: "admin_trash" },
 ];
 
-function NavItem({ item, isActive, collapsed }: {
+function NavItem({ item, isActive, collapsed, badge }: {
   item: { title: string; url: string; icon?: React.ElementType };
   isActive: (url: string) => boolean;
   collapsed: boolean;
+  badge?: number;
 }) {
   const active = isActive(item.url);
   const Icon = item.icon;
@@ -78,7 +82,12 @@ function NavItem({ item, isActive, collapsed }: {
         <NavLink to={item.url} end={item.url === "/overview"}>
           {Icon && <Icon className="h-[18px] w-[18px]" />}
           {!Icon && <div className="h-[18px] w-[18px]" />}
-          <span className="text-[13px]">{item.title}</span>
+          <span className="text-[13px] flex-1">{item.title}</span>
+          {!collapsed && badge !== undefined && badge > 0 && (
+            <Badge variant="secondary" className="text-[10px] font-mono px-1.5 py-0 h-4 ml-auto bg-primary/10 text-primary border-0">
+              {badge}
+            </Badge>
+          )}
         </NavLink>
       </SidebarMenuButton>
     </SidebarMenuItem>
@@ -88,10 +97,29 @@ function NavItem({ item, isActive, collapsed }: {
 export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
-  const { isAdmin, isSuperAdmin } = useAuth();
+  const { isAdmin, isSuperAdmin, user } = useAuth();
   const { hasPermission } = usePermissions();
   const { isModuleVisible } = useModuleVisibility();
   const location = useLocation();
+
+  const [projectCount, setProjectCount] = useState<number>(0);
+  const [inboxCount, setInboxCount] = useState<number>(0);
+
+  useEffect(() => {
+    if (!user) return;
+    // Fetch active project count
+    supabase.from("events")
+      .select("id", { count: "exact", head: true })
+      .in("status", ["requested", "approved", "scheduled", "in_progress", "time_change_proposed"])
+      .is("deleted_at", null)
+      .then(({ count }) => setProjectCount(count || 0));
+
+    // Fetch unread inbox count
+    supabase.from("cases")
+      .select("id", { count: "exact", head: true })
+      .in("status", ["new", "triage"])
+      .then(({ count }) => setInboxCount(count || 0));
+  }, [user]);
 
   const isActive = (url: string) =>
     url === "/overview" ? location.pathname === "/overview" : location.pathname.startsWith(url);
@@ -99,19 +127,21 @@ export function AppSidebar() {
   const hasPostkontor = isAdmin || hasPermission("postkontor.view");
   const hasPostkontorAdmin = isAdmin || hasPermission("postkontor.admin");
 
-  // Filter main nav by module visibility
   const visibleMainNav = mainNav.filter((item) => isModuleVisible(item.moduleKey));
 
   const filteredAdmin = adminItems.filter((item) => {
-    // First check module visibility
     if (!isModuleVisible(item.moduleKey)) return false;
-    // Then check role requirements
     if ('requireSuperAdmin' in item && item.requireSuperAdmin) return isSuperAdmin;
     if ('requirePostkontorAdmin' in item && (item as any).requirePostkontorAdmin) return hasPostkontorAdmin;
     return true;
   });
 
   const adminActive = filteredAdmin.some((item) => isActive(item.url));
+
+  const getBadge = (url: string): number | undefined => {
+    if (url === "/projects") return projectCount > 0 ? projectCount : undefined;
+    return undefined;
+  };
 
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border">
@@ -129,15 +159,19 @@ export function AppSidebar() {
       </SidebarHeader>
 
       <SidebarContent className="px-2">
-        {/* Hovedmeny */}
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu className="space-y-0.5">
               {visibleMainNav.map((item) => (
-                <NavItem key={item.url} item={item} isActive={isActive} collapsed={collapsed} />
+                <NavItem key={item.url} item={item} isActive={isActive} collapsed={collapsed} badge={getBadge(item.url)} />
               ))}
               {hasPostkontor && isModuleVisible("inbox") && (
-                <NavItem item={{ title: "Postkontoret", url: "/inbox", icon: Inbox }} isActive={isActive} collapsed={collapsed} />
+                <NavItem
+                  item={{ title: "Postkontoret", url: "/inbox", icon: Inbox }}
+                  isActive={isActive}
+                  collapsed={collapsed}
+                  badge={inboxCount > 0 ? inboxCount : undefined}
+                />
               )}
               {isAdmin && isModuleVisible("sales") && (
                 <NavItem item={{ title: "Salg", url: "/sales", icon: TrendingUp }} isActive={isActive} collapsed={collapsed} />
@@ -149,7 +183,6 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* Admin – collapsible */}
         {isAdmin && (
           <SidebarGroup className="mt-4">
             <Collapsible defaultOpen={adminActive}>
@@ -166,7 +199,6 @@ export function AppSidebar() {
                     {filteredAdmin.map((item) => (
                       <NavItem key={item.url} item={item} isActive={isActive} collapsed={collapsed} />
                     ))}
-                    {/* Module management - superadmin only */}
                     {isSuperAdmin && (
                       <NavItem
                         item={{ title: "Moduler", url: "/admin/modules", icon: LayoutGrid }}
