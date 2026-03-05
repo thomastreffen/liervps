@@ -558,8 +558,8 @@ export function EventDrawer({
             </Button>
           </div>
 
-          {/* Delete schedule block button */}
-          {scheduleBlockId && (
+          {/* Delete button – works for both events and schedule blocks */}
+          {isEditing && editEvent && (
             <Button
               variant="ghost" size="sm"
               className="h-8 text-xs gap-1.5 w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10"
@@ -567,7 +567,7 @@ export function EventDrawer({
               disabled={deleting}
             >
               {deleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
-              🗑 Slett blokk
+              🗑 Slett
             </Button>
           )}
         </SheetFooter>
@@ -576,9 +576,11 @@ export function EventDrawer({
         <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Slett blokk?</AlertDialogTitle>
+              <AlertDialogTitle>Slett hendelse?</AlertDialogTitle>
               <AlertDialogDescription>
-                Blokken fjernes fra planoversikten. Hvis den er koblet til Outlook, forsøkes sletting der også.
+                {scheduleBlockId
+                  ? "Blokken fjernes fra planoversikten. Hvis den er koblet til Outlook, forsøkes sletting der også."
+                  : "Hendelsen slettes permanent fra systemet. Handlingen kan ikke angres."}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -589,16 +591,32 @@ export function EventDrawer({
                 onClick={async () => {
                   setDeleting(true);
                   try {
-                    const { data, error } = await supabase.functions.invoke("delete-schedule-block", {
-                      body: { schedule_block_id: scheduleBlockId },
-                    });
-                    if (error) {
-                      toast.error("Kunne ikke slette", { description: error.message });
-                    } else {
-                      toast.success("Slettet ✓");
-                      onOpenChange(false);
-                      onSaved?.();
+                    if (scheduleBlockId) {
+                      // Delete via edge function (handles Outlook cleanup)
+                      const { error } = await supabase.functions.invoke("delete-schedule-block", {
+                        body: { schedule_block_id: scheduleBlockId },
+                      });
+                      if (error) {
+                        toast.error("Kunne ikke slette", { description: error.message });
+                        return;
+                      }
                     }
+
+                    // Soft-delete the event itself
+                    if (editEvent) {
+                      const { error: delErr } = await supabase
+                        .from("events")
+                        .update({ deleted_at: new Date().toISOString() } as any)
+                        .eq("id", editEvent.id);
+                      if (delErr) {
+                        toast.error("Kunne ikke slette hendelsen", { description: delErr.message });
+                        return;
+                      }
+                    }
+
+                    toast.success("Slettet ✓");
+                    onOpenChange(false);
+                    onSaved?.();
                   } catch (err: any) {
                     toast.error("Feil", { description: err?.message });
                   } finally {
