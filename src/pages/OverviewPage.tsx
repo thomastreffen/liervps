@@ -1,48 +1,25 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { format, startOfWeek, endOfWeek, formatDistanceToNow } from "date-fns";
+import { format, startOfDay, endOfDay, isPast } from "date-fns";
 import { nb } from "date-fns/locale";
 import {
-  CheckCircle2, Calendar, MessageSquare, ChevronRight,
-  FolderKanban, Loader2,
+  FolderKanban, Clock, CheckCircle2, Activity, Loader2,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
-import { Badge } from "@/components/ui/badge";
+import { ProjectCards, type ProjectCardData } from "@/components/overview/ProjectCards";
+import { YourDay, type DayBlock } from "@/components/overview/YourDay";
+import { MyTasks, type OverviewTask } from "@/components/overview/MyTasks";
+import { ActivityFeed, type ActivityItem } from "@/components/overview/ActivityFeed";
+import { SectionHeader } from "@/components/overview/SectionHeader";
 import type { JobStatus } from "@/lib/job-status";
 
-interface MyTask {
-  id: string;
-  title: string;
-  status: string;
-  scheduled_date: string | null;
-  job_id: string;
-}
-
-interface MyProject {
-  id: string;
-  title: string;
-  customer: string;
-  status: JobStatus;
-  internal_number: string | null;
-}
-
-interface RecentMessage {
-  id: string;
-  subject: string;
-  created_at: string;
-  entity_id: string;
-  direction: string;
-}
-
 export default function OverviewPage() {
-  const navigate = useNavigate();
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
-  const [tasks, setTasks] = useState<MyTask[]>([]);
-  const [projects, setProjects] = useState<MyProject[]>([]);
-  const [weekEvents, setWeekEvents] = useState<{ id: string; title: string; scheduled_date: string | null; job_id: string }[]>([]);
-  const [messages, setMessages] = useState<RecentMessage[]>([]);
+  const [projects, setProjects] = useState<ProjectCardData[]>([]);
+  const [dayBlocks, setDayBlocks] = useState<DayBlock[]>([]);
+  const [tasks, setTasks] = useState<OverviewTask[]>([]);
+  const [activity, setActivity] = useState<ActivityItem[]>([]);
 
   useEffect(() => {
     if (!user) return;
@@ -52,36 +29,129 @@ export default function OverviewPage() {
   async function fetchAll() {
     setLoading(true);
     const now = new Date();
-    const wkStart = startOfWeek(now, { weekStartsOn: 1 });
-    const wkEnd = endOfWeek(now, { weekStartsOn: 1 });
+    const dayStart = startOfDay(now).toISOString();
+    const dayEnd = endOfDay(now).toISOString();
     const activeStatuses: JobStatus[] = ["requested", "approved", "scheduled", "in_progress", "time_change_proposed"];
 
-    const [tasksRes, projectsRes, eventsRes, msgsRes] = await Promise.all([
-      supabase.from("job_tasks").select("id, title, status, scheduled_date, job_id")
-        .neq("status", "completed")
-        .order("scheduled_date", { ascending: true })
-        .limit(10),
-      supabase.from("events").select("id, title, customer, status, internal_number")
+    // Find technician id for current user
+    const techPromise = supabase
+      .from("technicians")
+      .select("id")
+      .eq("user_id", user!.id)
+      .maybeSingle();
+
+    const [projectsRes, techRes] = await Promise.all([
+      supabase.from("events")
+        .select("id, title, customer, status, internal_number")
         .in("status", activeStatuses)
         .is("deleted_at", null)
         .order("updated_at", { ascending: false })
-        .limit(20),
-      supabase.from("job_tasks").select("id, title, scheduled_date, job_id")
-        .gte("scheduled_date", wkStart.toISOString().split("T")[0])
-        .lte("scheduled_date", wkEnd.toISOString().split("T")[0])
-        .neq("status", "completed")
-        .order("scheduled_date", { ascending: true })
-        .limit(8),
-      supabase.from("communication_logs").select("id, subject, created_at, entity_id, direction")
-        .eq("direction", "inbound")
-        .order("created_at", { ascending: false })
-        .limit(5),
+        .limit(12),
+      techPromise,
     ]);
 
-    setTasks((tasksRes.data as MyTask[]) || []);
-    setProjects((projectsRes.data as MyProject[]) || []);
-    setWeekEvents(eventsRes.data || []);
-    setMessages((msgsRes.data as RecentMessage[]) || []);
+    const rawProjects = (projectsRes.data || []) as Array<{
+      id: string; title: string; customer: string; status: JobStatus; internal_number: string | null;
+    }>;
+
+    const techId = techRes.data?.id;
+
+    // Parallel: tasks counts, messages counts, next activities, schedule blocks, user tasks, activity
+    const projectIds = rawProjects.map((p) => p.id);
+
+    const [taskCountsRes, nextActivitiesRes, blocksRes, userTasksRes, activityRes] = await Promise.all([
+      projectIds.length > 0
+        ? supabase.from("job_tasks").select("job_id, status").in("job_id", projectIds).neq("status", "completed")
+        : Promise.resolve({ data: [] }),
+      projectIds.length > 0
+        ? supabase.from("job_tasks")
+            .select("job_id, title, scheduled_date")
+            .in("job_id", projectIds)
+            .neq("status", "completed")
+            .gte("scheduled_date", now.toISOString().split("T")[0])
+            .order("scheduled_date", { ascending: true })
+        : Promise.resolve({ data: [] }),
+      techId
+        ? supabase.from("schedule_blocks")
+            .select("id, start_at, end_at, title, project_id, location, technicians!inner(name), events!schedule_blocks_project_id_fkey(title)")
+            .eq("technician_id", techId)
+            .is("deleted_at", null)
+            .gte("start_at", dayStart)
+            .lt("start_at", dayEnd)
+            .order("start_at", { ascending: true })
+            .limit(10)
+        : Promise.resolve({ data: [] }),
+      supabase.from("tasks" as any)
+        .select("id, title, due_at, linked_project_id, priority, status")
+        .neq("status", "done")
+        .neq("status", "cancelled")
+        .order("due_at", { ascending: true, nullsFirst: false })
+        .limit(10),
+      supabase.from("activity_log")
+        .select("id, type, action, title, description, entity_type, entity_id, created_at")
+        .order("created_at", { ascending: false })
+        .limit(10),
+    ]);
+
+    // Build project cards with counts
+    const tasksByProject: Record<string, number> = {};
+    (taskCountsRes.data || []).forEach((t: any) => {
+      tasksByProject[t.job_id] = (tasksByProject[t.job_id] || 0) + 1;
+    });
+
+    // Group next activities by project (take first per project)
+    const nextByProject: Record<string, { title: string; scheduled_date: string }> = {};
+    (nextActivitiesRes.data || []).forEach((t: any) => {
+      if (!nextByProject[t.job_id] && t.scheduled_date) {
+        nextByProject[t.job_id] = { title: t.title, scheduled_date: t.scheduled_date };
+      }
+    });
+
+    const projectCards: ProjectCardData[] = rawProjects.map((p) => ({
+      id: p.id,
+      title: p.title,
+      internal_number: p.internal_number,
+      customer: p.customer,
+      nextActivity: nextByProject[p.id] || null,
+      taskCount: tasksByProject[p.id] || 0,
+      messageCount: 0, // would require comm_logs join
+      deviationCount: 0,
+    }));
+
+    setProjects(projectCards);
+
+    // Day blocks
+    const mappedBlocks: DayBlock[] = (blocksRes.data || []).map((b: any) => ({
+      id: b.id,
+      start_at: b.start_at,
+      end_at: b.end_at,
+      title: b.title,
+      project_id: b.project_id,
+      project_title: b.events?.title ?? null,
+      location: b.location,
+      technician_name: b.technicians?.name ?? null,
+    }));
+    setDayBlocks(mappedBlocks);
+
+    // Tasks - sort: overdue first, then nearest due
+    const rawTasks = ((userTasksRes.data || []) as any[]).map((t) => ({
+      id: t.id,
+      title: t.title,
+      due_at: t.due_at,
+      linked_project_id: t.linked_project_id,
+      priority: t.priority,
+    }));
+    rawTasks.sort((a, b) => {
+      const aOverdue = a.due_at && isPast(new Date(a.due_at)) ? 0 : 1;
+      const bOverdue = b.due_at && isPast(new Date(b.due_at)) ? 0 : 1;
+      if (aOverdue !== bOverdue) return aOverdue - bOverdue;
+      if (!a.due_at) return 1;
+      if (!b.due_at) return -1;
+      return new Date(a.due_at).getTime() - new Date(b.due_at).getTime();
+    });
+    setTasks(rawTasks);
+
+    setActivity((activityRes.data as ActivityItem[]) || []);
     setLoading(false);
   }
 
@@ -103,7 +173,7 @@ export default function OverviewPage() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8 sm:py-12 space-y-10">
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 sm:py-12 space-y-10">
       {/* Greeting */}
       <div>
         <h1 className="text-3xl sm:text-4xl font-bold text-foreground tracking-tight">
@@ -114,104 +184,64 @@ export default function OverviewPage() {
         </p>
       </div>
 
-      {/* Mine oppgaver */}
-      <Section title="Mine åpne oppgaver" icon={<CheckCircle2 className="h-4 w-4 text-primary" />} count={tasks.length}>
-        {tasks.length === 0 ? (
-          <EmptyState text="Ingen åpne oppgaver. Alt i rute." />
-        ) : (
-          <div className="space-y-0.5">
-            {tasks.map(t => (
-              <button key={t.id} onClick={() => navigate(`/projects/${t.job_id}`)} className="flex items-center gap-3 w-full rounded-lg px-3 py-2.5 text-left hover:bg-muted/50 transition-colors group">
-                <div className="h-2 w-2 rounded-full bg-primary/40 shrink-0" />
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm text-foreground truncate group-hover:text-primary transition-colors">{t.title}</p>
-                  {t.scheduled_date && <p className="text-[11px] text-muted-foreground">{format(new Date(t.scheduled_date), "d. MMM", { locale: nb })}</p>}
-                </div>
-                <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/20 group-hover:text-primary/40 shrink-0" />
-              </button>
-            ))}
-          </div>
-        )}
-      </Section>
-
-      {/* Denne uken */}
-      <Section title="Denne uken" icon={<Calendar className="h-4 w-4 text-primary" />} count={weekEvents.length}>
-        {weekEvents.length === 0 ? (
-          <EmptyState text="Ingen planlagte aktiviteter denne uken." />
-        ) : (
-          <div className="space-y-0.5">
-            {weekEvents.map(e => (
-              <button key={e.id} onClick={() => navigate(`/projects/${e.job_id}`)} className="flex items-center gap-3 w-full rounded-lg px-3 py-2.5 text-left hover:bg-muted/50 transition-colors group">
-                <span className="text-xs text-muted-foreground font-mono w-12 shrink-0">{e.scheduled_date ? format(new Date(e.scheduled_date), "EEE", { locale: nb }) : "–"}</span>
-                <p className="text-sm text-foreground truncate group-hover:text-primary transition-colors">{e.title}</p>
-                <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/20 group-hover:text-primary/40 shrink-0 ml-auto" />
-              </button>
-            ))}
-          </div>
-        )}
-      </Section>
-
-      {/* Nye meldinger */}
-      <Section title="Nye meldinger" icon={<MessageSquare className="h-4 w-4 text-primary" />} count={messages.length}>
-        {messages.length === 0 ? (
-          <EmptyState text="Ingen nye meldinger." />
-        ) : (
-          <div className="space-y-0.5">
-            {messages.map(m => (
-              <button key={m.id} onClick={() => navigate(`/projects/${m.entity_id}`)} className="flex items-center gap-3 w-full rounded-lg px-3 py-2.5 text-left hover:bg-muted/50 transition-colors group">
-                <div className="h-2 w-2 rounded-full bg-accent/60 shrink-0" />
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm text-foreground truncate group-hover:text-primary transition-colors">{m.subject || "(Uten emne)"}</p>
-                </div>
-                <span className="text-[11px] text-muted-foreground/50 shrink-0">{formatDistanceToNow(new Date(m.created_at), { addSuffix: true, locale: nb })}</span>
-              </button>
-            ))}
-          </div>
-        )}
-      </Section>
-
-      {/* Aktive prosjekter */}
-      <Section title="Aktive prosjekter" icon={<FolderKanban className="h-4 w-4 text-primary" />} count={projects.length}>
-        {projects.length === 0 ? (
-          <EmptyState text="Ingen aktive prosjekter." />
-        ) : (
-          <div className="space-y-0.5">
-            {projects.map(p => (
-              <button key={p.id} onClick={() => navigate(`/projects/${p.id}`)} className="flex items-center gap-3 w-full rounded-lg px-3 py-2.5 text-left hover:bg-muted/50 transition-colors group">
-                <div className="h-8 w-8 rounded-lg bg-primary/8 flex items-center justify-center shrink-0">
-                  <FolderKanban className="h-4 w-4 text-primary/60" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-foreground truncate group-hover:text-primary transition-colors">
-                    {p.internal_number ? `${p.internal_number} – ` : ""}{p.title}
-                  </p>
-                  <p className="text-[11px] text-muted-foreground truncate">{p.customer || "Ingen kunde"}</p>
-                </div>
-                <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/20 group-hover:text-primary/40 shrink-0" />
-              </button>
-            ))}
-          </div>
-        )}
-      </Section>
-    </div>
-  );
-}
-
-function Section({ title, icon, count, children }: { title: string; icon: React.ReactNode; count?: number; children: React.ReactNode }) {
-  return (
-    <div>
-      <div className="flex items-center gap-2 mb-3">
-        {icon}
-        <h2 className="text-sm font-semibold text-foreground tracking-tight">{title}</h2>
-        {count !== undefined && count > 0 && (
-          <Badge variant="secondary" className="text-[10px] font-mono px-1.5 py-0">{count}</Badge>
-        )}
+      {/* Project cards - desktop: top, mobile: after schedule & tasks */}
+      <div className="hidden sm:block">
+        <SectionHeader
+          icon={<FolderKanban className="h-4 w-4 text-primary" />}
+          title="Prosjekter"
+          count={projects.length}
+        />
+        <ProjectCards projects={projects} />
       </div>
-      <div className="rounded-xl border border-border/50 bg-card">{children}</div>
+
+      {/* Two columns on desktop */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
+        {/* Din dag */}
+        <div>
+          <SectionHeader
+            icon={<Clock className="h-4 w-4 text-primary" />}
+            title="Din dag"
+            count={dayBlocks.length}
+          />
+          <div className="rounded-2xl border border-border/50 bg-card">
+            <YourDay blocks={dayBlocks} />
+          </div>
+        </div>
+
+        {/* Mine oppgaver */}
+        <div>
+          <SectionHeader
+            icon={<CheckCircle2 className="h-4 w-4 text-primary" />}
+            title="Mine oppgaver"
+            count={tasks.length}
+          />
+          <div className="rounded-2xl border border-border/50 bg-card">
+            <MyTasks tasks={tasks} />
+          </div>
+        </div>
+      </div>
+
+      {/* Project cards on mobile */}
+      <div className="sm:hidden">
+        <SectionHeader
+          icon={<FolderKanban className="h-4 w-4 text-primary" />}
+          title="Prosjekter"
+          count={projects.length}
+        />
+        <ProjectCards projects={projects} />
+      </div>
+
+      {/* Activity feed */}
+      <div>
+        <SectionHeader
+          icon={<Activity className="h-4 w-4 text-primary" />}
+          title="Aktivitet"
+          count={activity.length}
+        />
+        <div className="rounded-2xl border border-border/50 bg-card">
+          <ActivityFeed items={activity} />
+        </div>
+      </div>
     </div>
   );
-}
-
-function EmptyState({ text }: { text: string }) {
-  return <p className="text-sm text-muted-foreground/60 py-6 text-center">{text}</p>;
 }
