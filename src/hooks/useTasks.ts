@@ -167,5 +167,21 @@ export function useTasks(filters?: UseTasksFilters) {
     await updateTask(taskId, { status: "done" });
   }, [updateTask]);
 
-  return { tasks, loading, createTask, updateTask, completeTask, refetch: fetchTasks };
+  const deleteTask = useCallback(async (taskId: string) => {
+    await supabase.from("tasks").delete().eq("id", taskId);
+    await fetchTasks();
+  }, [fetchTasks]);
+
+  const fetchDoneTasks = useCallback(async () => {
+    if (!user) return [];
+    const { data } = await supabase
+      .from("tasks")
+      .select("*")
+      .eq("status", "done")
+      .order("updated_at", { ascending: false })
+      .limit(50);
+    return (data as Task[]) || [];
+  }, [user]);
+
+  return { tasks, loading, createTask, updateTask, completeTask, deleteTask, fetchDoneTasks, refetch: fetchTasks };
 }
