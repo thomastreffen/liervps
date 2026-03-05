@@ -65,6 +65,25 @@ async function ensureValidMsToken(
   return tokenData.access_token;
 }
 
+/* ── Strip UTC offset so Graph uses the explicit timeZone property ── */
+function toLocalDateTimeString(isoString: string): string {
+  // Convert "2026-03-06T07:00:00+00:00" (UTC) to "2026-03-06T08:00:00" (Europe/Oslo local)
+  const d = new Date(isoString);
+  // Format in Europe/Oslo timezone without offset
+  const parts = new Intl.DateTimeFormat("sv-SE", {
+    timeZone: "Europe/Oslo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  }).formatToParts(d);
+  const get = (t: string) => parts.find(p => p.type === t)?.value || "00";
+  return `${get("year")}-${get("month")}-${get("day")}T${get("hour")}:${get("minute")}:${get("second")}`;
+}
+
 /* ── Build Graph event body ── */
 function buildGraphBody(event: any) {
   const displayNumber = event.internal_number || event.job_number || "";
@@ -76,8 +95,8 @@ function buildGraphBody(event: any) {
       contentType: "HTML",
       content: `<b>Kunde:</b> ${event.customer || "Ikke angitt"}<br/><b>Adresse:</b> ${event.address || "Ikke angitt"}${event.description ? `<br/><b>Beskrivelse:</b> ${event.description}` : ""}`,
     },
-    start: { dateTime: event.start_time, timeZone: "Europe/Oslo" },
-    end: { dateTime: event.end_time, timeZone: "Europe/Oslo" },
+    start: { dateTime: toLocalDateTimeString(event.start_time), timeZone: "Europe/Oslo" },
+    end: { dateTime: toLocalDateTimeString(event.end_time), timeZone: "Europe/Oslo" },
   };
 
   if (event.address) {

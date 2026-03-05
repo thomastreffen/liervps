@@ -91,6 +91,19 @@ async function ensureValidMsToken(
   return tokenData.access_token;
 }
 
+/* ── Strip UTC offset so Graph uses the explicit timeZone property ── */
+function toLocalDateTimeString(isoString: string): string {
+  const d = new Date(isoString);
+  const parts = new Intl.DateTimeFormat("sv-SE", {
+    timeZone: "Europe/Oslo",
+    year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", second: "2-digit",
+    hour12: false,
+  }).formatToParts(d);
+  const get = (t: string) => parts.find(p => p.type === t)?.value || "00";
+  return `${get("year")}-${get("month")}-${get("day")}T${get("hour")}:${get("minute")}:${get("second")}`;
+}
+
 /**
  * Create an Outlook calendar event for the technician.
  */
@@ -109,11 +122,11 @@ async function createOutlookEvent(
       content: `<b>Kunde:</b> ${job.customer || "Ikke angitt"}<br/><b>Adresse:</b> ${job.address || "Ikke angitt"}${job.description ? `<br/><b>Beskrivelse:</b> ${job.description}` : ""}`,
     },
     start: {
-      dateTime: job.start_time,
+      dateTime: toLocalDateTimeString(job.start_time),
       timeZone: "Europe/Oslo",
     },
     end: {
-      dateTime: job.end_time,
+      dateTime: toLocalDateTimeString(job.end_time),
       timeZone: "Europe/Oslo",
     },
   };
@@ -139,6 +152,28 @@ async function createOutlookEvent(
 
   const eventData = await res.json();
   return eventData.id || null;
+}
+
+/**
+ * Delete an Outlook calendar event.
+ */
+async function deleteOutlookEvent(
+  accessToken: string,
+  techEmail: string,
+  outlookEventId: string
+): Promise<boolean> {
+  const res = await fetch(
+    `https://graph.microsoft.com/v1.0/users/${techEmail}/events/${outlookEventId}`,
+    {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${accessToken}` },
+    }
+  );
+  if (!res.ok && res.status !== 404) {
+    console.error("[handle-approval] Graph DELETE failed:", res.status);
+    return false;
+  }
+  return true;
 }
 
 Deno.serve(async (req) => {
@@ -267,45 +302,101 @@ Deno.serve(async (req) => {
           // Fetch job details
           const { data: job } = await supabaseAdmin
             .from("events")
-            .select("title, description, start_time, end_time, address, customer, internal_number, job_number")
+            .select("title, description, start_time, end_time, address, customer, internal_number, job_number, microsoft_event_id")
             .eq("id", approval.job_id)
             .single();
 
           if (job) {
-            const msToken = await ensureValidMsToken(supabaseAdmin, tech.user_id);
-
-            if (msToken) {
-              const outlookEventId = await createOutlookEvent(msToken, tech.email, job);
-
-              if (outlookEventId) {
-                // Save outlook_event_id on the approval row
-                await supabaseAdmin
-                  .from("job_approvals")
-                  .update({ outlook_event_id: outlookEventId })
-                  .eq("id", approval.id);
-
-                console.log("[handle-approval] Outlook event created:", outlookEventId);
-
-                // Log calendar creation
-                await supabaseAdmin.from("event_logs").insert({
-                  event_id: approval.job_id,
-                  performed_by: approval.technician_user_id,
-                  action_type: "calendar_synced",
-                  change_summary: `Kalenderavtale opprettet for ${techName}`,
-                });
-              } else {
-                calendarWarning = "Godkjenning registrert, men kalenderavtale kunne ikke opprettes.";
-                console.error("[handle-approval] Failed to create Outlook event");
-              }
+            // Skip if calendar-write-sync already created an Outlook event for this job
+            if (job.microsoft_event_id) {
+              console.log("[handle-approval] Outlook event already exists via calendar-write-sync, skipping");
             } else {
-              calendarWarning = "Godkjenning registrert, men Microsoft-token er ugyldig eller utløpt.";
-              console.error("[handle-approval] No valid MS token for calendar sync");
+              const msToken = await ensureValidMsToken(supabaseAdmin, tech.user_id);
+
+              if (msToken) {
+                const outlookEventId = await createOutlookEvent(msToken, tech.email, job);
+
+                if (outlookEventId) {
+                  // Save outlook_event_id on the approval row AND on the event
+                  await Promise.all([
+                    supabaseAdmin
+                      .from("job_approvals")
+                      .update({ outlook_event_id: outlookEventId })
+                      .eq("id", approval.id),
+                    supabaseAdmin
+                      .from("events")
+                      .update({
+                        microsoft_event_id: outlookEventId,
+                        outlook_sync_status: "synced",
+                        outlook_last_synced_at: new Date().toISOString(),
+                      })
+                      .eq("id", approval.job_id),
+                  ]);
+
+                  console.log("[handle-approval] Outlook event created:", outlookEventId);
+
+                  await supabaseAdmin.from("event_logs").insert({
+                    event_id: approval.job_id,
+                    performed_by: approval.technician_user_id,
+                    action_type: "calendar_synced",
+                    change_summary: `Kalenderavtale opprettet for ${techName}`,
+                  });
+                } else {
+                  calendarWarning = "Godkjenning registrert, men kalenderavtale kunne ikke opprettes.";
+                  console.error("[handle-approval] Failed to create Outlook event");
+                }
+              } else {
+                calendarWarning = "Godkjenning registrert, men Microsoft-token er ugyldig eller utløpt.";
+                console.error("[handle-approval] No valid MS token for calendar sync");
+              }
             }
           }
         } catch (calErr) {
           calendarWarning = "Godkjenning registrert, men kalendersynk feilet.";
           console.error("[handle-approval] Calendar sync exception:", calErr);
         }
+      }
+    }
+
+    // --- Outlook Calendar Cleanup on Reject ---
+    if (action === "reject" && tech?.email && tech?.user_id) {
+      try {
+        const { data: job } = await supabaseAdmin
+          .from("events")
+          .select("microsoft_event_id")
+          .eq("id", approval.job_id)
+          .single();
+
+        const outlookIdToDelete = job?.microsoft_event_id || approval.outlook_event_id;
+
+        if (outlookIdToDelete) {
+          const msToken = await ensureValidMsToken(supabaseAdmin, tech.user_id);
+          if (msToken) {
+            const deleted = await deleteOutlookEvent(msToken, tech.email, outlookIdToDelete);
+            if (deleted) {
+              await supabaseAdmin
+                .from("events")
+                .update({
+                  microsoft_event_id: null,
+                  microsoft_etag: null,
+                  outlook_sync_status: "not_synced",
+                  outlook_last_synced_at: null,
+                })
+                .eq("id", approval.job_id);
+
+              console.log("[handle-approval] Outlook event deleted on rejection");
+
+              await supabaseAdmin.from("event_logs").insert({
+                event_id: approval.job_id,
+                performed_by: approval.technician_user_id,
+                action_type: "calendar_deleted",
+                change_summary: `Kalenderavtale slettet etter avslag fra ${techName}`,
+              });
+            }
+          }
+        }
+      } catch (calErr) {
+        console.error("[handle-approval] Rejection calendar cleanup failed:", calErr);
       }
     }
 
