@@ -197,16 +197,14 @@ export const ResourceCalendar = memo(function ResourceCalendar({
               console.warn(`[ResourceCalendar] Busy slot missing technician name – techId=${techId}, slot=${slot.start.toISOString()}`);
             }
             const busyTechColor = techColorMap.get(techId) || GCAL_PALETTE[0];
-            // External busy slots: uniform neutral gray regardless of technician color
-            const BUSY_GRAY = "#9CA3AF";
             result.push({
               id: `busy-${techId}-${slot.start.getTime()}`,
               title: `${displayName} – opptatt`,
               start: slot.start,
               end: slot.end,
-              backgroundColor: hexToRgba(BUSY_GRAY, 0.22),
-              borderColor: hexToRgba(BUSY_GRAY, 0.45),
-              textColor: "#6B7280",
+              backgroundColor: hexToRgba(busyTechColor, 0.25),
+              borderColor: hexToRgba(busyTechColor, 0.5),
+              textColor: busyTechColor,
               editable: false,
               extendedProps: {
                 isBusy: true,
