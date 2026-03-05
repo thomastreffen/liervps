@@ -245,3 +245,21 @@
 .fc-wrapper .fc .fc-list-event td {
   border-color: hsl(220 14% 92%);
 }
+/* Overlapping events: ensure minimum width and better stacking */
+.fc-wrapper .fc .fc-timegrid-event {
+  min-width: 80px !important;
+}
+.fc-wrapper .fc .fc-timegrid-event-harness {
+  min-width: 80px;
+}
+/* When events overlap, add a subtle left shadow for depth */
+.fc-wrapper .fc .fc-timegrid-event-harness-inset .fc-timegrid-event {
+  box-shadow: -2px 0 6px rgba(0, 0, 0, 0.15);
+}
+/* Increase z-index on hover so the hovered event is fully visible */
+.fc-wrapper .fc .fc-timegrid-event:hover {
+  z-index: 999 !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2) !important;
+  transform: scale(1.02);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
