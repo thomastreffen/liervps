@@ -156,7 +156,7 @@ export function ActivityFeed({ items, maxItems = 8, userId, followedProjectIds }
             variant="ghost"
             size="sm"
             className="w-full text-xs text-muted-foreground hover:text-primary"
-            onClick={() => navigate("/admin/data-integrity")}
+            onClick={() => navigate("/projects")}
           >
             Se all aktivitet →
           </Button>
