@@ -1,324 +1,193 @@
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  CheckCircle2, ChevronRight, AlertCircle, Circle, Plus, Loader2,
-  CalendarIcon, Clock, Flag, Paperclip, X,
+  CheckCircle2, ChevronRight, AlertCircle, Circle, Plus,
+  CalendarDays, FolderKanban, User, ListChecks,
 } from "lucide-react";
-import { format, isPast } from "date-fns";
+import { format, isPast, isToday, isTomorrow, startOfDay, endOfDay, addDays } from "date-fns";
 import { nb } from "date-fns/locale";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
-import { useCompanyContext } from "@/hooks/useCompanyContext";
-import { toast } from "sonner";
 
-export interface OverviewTask {
+export interface OverviewEvent {
   id: string;
   title: string;
-  due_at: string | null;
-  linked_project_id: string | null;
-  priority: string;
+  start_time: string;
+  end_time: string;
+  project_type: string;
+  status: string;
+  customer: string | null;
+  description: string | null;
 }
 
 interface MyTasksProps {
-  tasks: OverviewTask[];
-  onTaskCreated?: () => void;
+  events: OverviewEvent[];
+  onNewTask?: () => void;
 }
 
-function InlineCreateForm({ onCreated, onCancel }: { onCreated: () => void; onCancel: () => void }) {
-  const { user } = useAuth();
-  const { activeCompanyId } = useCompanyContext();
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [priority, setPriority] = useState("normal");
-  const [dueDate, setDueDate] = useState<Date | undefined>();
-  const [plannedStart, setPlannedStart] = useState("");
-  const [plannedEnd, setPlannedEnd] = useState("");
-  const [files, setFiles] = useState<File[]>([]);
-  const [saving, setSaving] = useState(false);
-  const fileRef = useRef<HTMLInputElement>(null);
+type FilterType = "all" | "tasks" | "projects";
 
-  const handleSubmit = async () => {
-    if (!title.trim() || !user || saving) return;
-    setSaving(true);
-    try {
-      const hasPlannedTime = !!plannedStart || !!plannedEnd;
+function groupByDay(events: OverviewEvent[]): { label: string; events: OverviewEvent[] }[] {
+  const today = startOfDay(new Date());
+  const tomorrow = addDays(today, 1);
+  const groups: Record<string, OverviewEvent[]> = {};
 
-      const { data, error } = await supabase.from("tasks").insert({
-        title: title.trim(),
-        description: description.trim() || null,
-        company_id: activeCompanyId,
-        created_by: user.id,
-        owner_user_id: user.id,
-        status: "open",
-        priority,
-        due_at: dueDate ? dueDate.toISOString() : null,
-        planned_start_at: plannedStart ? new Date(plannedStart).toISOString() : null,
-        planned_end_at: plannedEnd ? new Date(plannedEnd).toISOString() : null,
-      } as any).select("id").single();
-      if (error) throw error;
-      const taskId = (data as any).id;
-
-      // Upload attachments
-      if (files.length > 0) {
-        for (const file of files) {
-          const path = `tasks/${taskId}/${Date.now()}-${file.name}`;
-          await supabase.storage.from("user-documents").upload(path, file);
-          await (supabase as any).from("task_attachments").insert({
-            task_id: taskId,
-            file_name: file.name,
-            file_path: path,
-            mime_type: file.type,
-            file_size: file.size,
-          });
-        }
-      }
-
-      // Auto-sync to Outlook calendar if planned time is set
-      if (hasPlannedTime) {
-        try {
-          await supabase.functions.invoke("sync-task-to-calendar", {
-            body: { task_id: taskId },
-          });
-        } catch (e) {
-          console.warn("Calendar sync failed:", e);
-        }
-      }
-
-      toast.success("Oppgave opprettet");
-      onCreated();
-    } catch {
-      toast.error("Kunne ikke opprette oppgave");
-    } finally {
-      setSaving(false);
+  for (const ev of events) {
+    const start = startOfDay(new Date(ev.start_time));
+    let label: string;
+    if (start.getTime() < today.getTime()) {
+      label = "Forfalt";
+    } else if (isToday(start)) {
+      label = "I dag";
+    } else if (isTomorrow(start)) {
+      label = "I morgen";
+    } else {
+      label = format(start, "EEEE d. MMM", { locale: nb });
     }
-  };
+    if (!groups[label]) groups[label] = [];
+    groups[label].push(ev);
+  }
 
-  return (
-    <div className="border-t border-border bg-muted/20 p-4 space-y-3 animate-in slide-in-from-bottom-2 duration-200">
-      {/* Title */}
-      <div className="space-y-1">
-        <Label className="text-xs font-medium text-muted-foreground">Tittel</Label>
-        <Input
-          autoFocus
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder="Hva skal gjøres?"
-          className="h-9"
-          onKeyDown={(e) => { if (e.key === "Escape") onCancel(); }}
-        />
-      </div>
-
-      {/* Description */}
-      <div className="space-y-1">
-        <Label className="text-xs font-medium text-muted-foreground">Beskrivelse</Label>
-        <Textarea
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          placeholder="Valgfri beskrivelse..."
-          className="min-h-[56px] text-sm resize-none"
-        />
-      </div>
-
-      {/* Priority + Due date row */}
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1">
-          <Label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
-            <Flag className="h-3 w-3" /> Prioritet
-          </Label>
-          <Select value={priority} onValueChange={setPriority}>
-            <SelectTrigger className="h-9 text-sm">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="low">Lav</SelectItem>
-              <SelectItem value="normal">Normal</SelectItem>
-              <SelectItem value="high">Høy</SelectItem>
-              <SelectItem value="critical">Kritisk</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-1">
-          <Label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
-            <CalendarIcon className="h-3 w-3" /> Frist
-          </Label>
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                className={cn(
-                  "w-full h-9 justify-start text-left text-sm font-normal",
-                  !dueDate && "text-muted-foreground"
-                )}
-              >
-                {dueDate ? format(dueDate, "d. MMM yyyy", { locale: nb }) : "Velg dato"}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar
-                mode="single"
-                selected={dueDate}
-                onSelect={setDueDate}
-                initialFocus
-                className={cn("p-3 pointer-events-auto")}
-              />
-            </PopoverContent>
-          </Popover>
-        </div>
-      </div>
-
-      {/* Planned start/end */}
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1">
-          <Label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
-            <Clock className="h-3 w-3" /> Planlagt start
-          </Label>
-          <Input
-            type="datetime-local"
-            value={plannedStart}
-            onChange={(e) => setPlannedStart(e.target.value)}
-            className="h-9 text-sm"
-          />
-        </div>
-        <div className="space-y-1">
-          <Label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
-            <Clock className="h-3 w-3" /> Planlagt slutt
-          </Label>
-          <Input
-            type="datetime-local"
-            value={plannedEnd}
-            onChange={(e) => setPlannedEnd(e.target.value)}
-            className="h-9 text-sm"
-          />
-        </div>
-      </div>
-
-      {/* Attachments */}
-      <div className="space-y-1">
-        <Label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
-          <Paperclip className="h-3 w-3" /> Vedlegg
-        </Label>
-        <input
-          ref={fileRef}
-          type="file"
-          multiple
-          className="hidden"
-          onChange={(e) => {
-            if (e.target.files) setFiles(prev => [...prev, ...Array.from(e.target.files!)]);
-          }}
-        />
-        <div className="flex items-center gap-2 flex-wrap">
-          <Button type="button" variant="outline" size="sm" className="h-8 text-xs gap-1" onClick={() => fileRef.current?.click()}>
-            <Plus className="h-3 w-3" /> Legg til fil
-          </Button>
-          {files.map((f, i) => (
-            <span key={i} className="inline-flex items-center gap-1 text-xs bg-muted rounded-md px-2 py-1">
-              {f.name}
-              <button onClick={() => setFiles(prev => prev.filter((_, j) => j !== i))} className="text-muted-foreground hover:text-destructive">
-                <X className="h-3 w-3" />
-              </button>
-            </span>
-          ))}
-        </div>
-      </div>
-
-      {/* Actions */}
-      <div className="flex items-center gap-2 pt-1">
-        <Button size="sm" onClick={handleSubmit} disabled={!title.trim() || saving} className="gap-1.5">
-          {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
-          Opprett oppgave
-        </Button>
-        <Button size="sm" variant="ghost" onClick={onCancel}>Avbryt</Button>
-      </div>
-    </div>
-  );
+  // Sort: Forfalt first, then I dag, I morgen, then chronological
+  const order = ["Forfalt", "I dag", "I morgen"];
+  return Object.entries(groups)
+    .sort(([a], [b]) => {
+      const ai = order.indexOf(a);
+      const bi = order.indexOf(b);
+      if (ai !== -1 && bi !== -1) return ai - bi;
+      if (ai !== -1) return -1;
+      if (bi !== -1) return 1;
+      return 0;
+    })
+    .map(([label, events]) => ({ label, events }));
 }
 
-export function MyTasks({ tasks, onTaskCreated }: MyTasksProps) {
+export function MyTasks({ events, onNewTask }: MyTasksProps) {
   const navigate = useNavigate();
-  const [showCreate, setShowCreate] = useState(false);
+  const [filter, setFilter] = useState<FilterType>("all");
 
-  const handleCreated = () => {
-    setShowCreate(false);
-    onTaskCreated?.();
-  };
+  const filtered = events.filter((ev) => {
+    if (filter === "tasks") return ev.project_type === "task";
+    if (filter === "projects") return ev.project_type !== "task";
+    return true;
+  });
 
-  if (tasks.length === 0 && !showCreate) {
+  const groups = groupByDay(filtered);
+  const taskCount = events.filter((e) => e.project_type === "task").length;
+  const projectCount = events.filter((e) => e.project_type !== "task").length;
+
+  if (events.length === 0) {
     return (
       <div className="text-center py-12">
         <div className="h-16 w-16 rounded-full bg-success/10 flex items-center justify-center mx-auto mb-3 border-2 border-success/20">
           <CheckCircle2 className="h-7 w-7 text-success/50" />
         </div>
-        <p className="text-sm text-muted-foreground/50 font-medium mb-4">Ingen åpne oppgaver – alt i rute!</p>
-        <button
-          onClick={() => setShowCreate(true)}
-          className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:text-primary/80 transition-colors"
-        >
-          <Plus className="h-3.5 w-3.5" />
-          Opprett ny oppgave
-        </button>
+        <p className="text-sm text-muted-foreground/50 font-medium mb-4">Ingen planlagte gjøremål – alt i rute!</p>
+        {onNewTask && (
+          <button
+            onClick={onNewTask}
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:text-primary/80 transition-colors"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Opprett ny oppgave
+          </button>
+        )}
       </div>
     );
   }
 
   return (
     <div>
-      {/* Task list */}
-      {tasks.length > 0 && (
-        <div className="p-2">
-          {tasks.map((t) => {
-            const overdue = t.due_at && isPast(new Date(t.due_at));
-            return (
-              <button
-                key={t.id}
-                onClick={() => navigate(t.linked_project_id ? `/projects/${t.linked_project_id}` : "/tasks")}
-                className="flex items-center gap-3 w-full rounded-xl px-4 py-3 text-left hover:bg-primary/5 transition-colors group"
-              >
-                <Circle className={`h-[18px] w-[18px] shrink-0 stroke-[2.5] ${overdue ? "text-destructive" : "text-border"}`} />
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm text-foreground truncate group-hover:text-primary transition-colors">{t.title}</p>
-                </div>
-                {t.due_at && (
-                  <span className={`text-[11px] shrink-0 flex items-center gap-1 font-medium ${overdue ? "text-destructive" : "text-muted-foreground/50"}`}>
-                    {overdue && <AlertCircle className="h-3 w-3" />}
-                    {format(new Date(t.due_at), "d. MMM", { locale: nb })}
-                  </span>
-                )}
-                <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/15 group-hover:text-primary/40 shrink-0" />
-              </button>
-            );
-          })}
+      {/* Filter pills */}
+      <div className="flex items-center gap-1 px-4 pt-3 pb-1">
+        <Button
+          variant={filter === "all" ? "default" : "ghost"}
+          size="sm" className="h-6 text-[10px] rounded-md px-2"
+          onClick={() => setFilter("all")}
+        >
+          Alle ({events.length})
+        </Button>
+        <Button
+          variant={filter === "tasks" ? "default" : "ghost"}
+          size="sm" className="h-6 text-[10px] rounded-md px-2 gap-1"
+          onClick={() => setFilter("tasks")}
+        >
+          <ListChecks className="h-2.5 w-2.5" /> Oppgaver ({taskCount})
+        </Button>
+        <Button
+          variant={filter === "projects" ? "default" : "ghost"}
+          size="sm" className="h-6 text-[10px] rounded-md px-2 gap-1"
+          onClick={() => setFilter("projects")}
+        >
+          <FolderKanban className="h-2.5 w-2.5" /> Prosjekter ({projectCount})
+        </Button>
+      </div>
 
-          {/* Add button in list */}
-          {!showCreate && (
-            <button
-              onClick={() => setShowCreate(true)}
-              className="flex items-center gap-3 w-full rounded-xl px-4 py-2.5 text-left hover:bg-primary/5 transition-colors text-muted-foreground/40 hover:text-primary"
-            >
-              <Plus className="h-[18px] w-[18px] shrink-0 stroke-[2]" />
-              <span className="text-sm font-medium">Legg til oppgave</span>
-            </button>
-          )}
-        </div>
-      )}
+      {/* Grouped list */}
+      <div className="p-2">
+        {groups.map((group) => (
+          <div key={group.label}>
+            <p className={cn(
+              "text-[10px] font-semibold uppercase tracking-wider px-4 pt-3 pb-1",
+              group.label === "Forfalt" ? "text-destructive" : "text-muted-foreground/60"
+            )}>
+              {group.label}
+            </p>
+            {group.events.map((ev) => {
+              const overdue = isPast(new Date(ev.end_time)) && ev.status !== "completed" && ev.status !== "done";
+              const isTask = ev.project_type === "task";
+              return (
+                <button
+                  key={ev.id}
+                  onClick={() => navigate(`/projects/${ev.id}`)}
+                  className="flex items-center gap-3 w-full rounded-xl px-4 py-3 text-left hover:bg-primary/5 transition-colors group"
+                >
+                  {isTask ? (
+                    <Circle className={`h-[18px] w-[18px] shrink-0 stroke-[2.5] ${overdue ? "text-destructive" : "text-border"}`} />
+                  ) : (
+                    <CalendarDays className="h-[18px] w-[18px] shrink-0 text-primary/40" />
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm text-foreground truncate group-hover:text-primary transition-colors">{ev.title}</p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className="text-[10px] text-muted-foreground/60">
+                        {format(new Date(ev.start_time), "HH:mm")}–{format(new Date(ev.end_time), "HH:mm")}
+                      </span>
+                      {isTask ? (
+                        <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
+                          <ListChecks className="h-2.5 w-2.5" /> Oppgave
+                        </span>
+                      ) : (
+                        <span className="text-[10px] text-primary/70 flex items-center gap-0.5">
+                          <FolderKanban className="h-2.5 w-2.5" /> Prosjekt
+                        </span>
+                      )}
+                      {ev.customer && (
+                        <span className="text-[10px] text-muted-foreground/50 flex items-center gap-0.5">
+                          <User className="h-2.5 w-2.5" /> {ev.customer}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  {overdue && <AlertCircle className="h-3.5 w-3.5 text-destructive shrink-0" />}
+                  <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/15 group-hover:text-primary/40 shrink-0" />
+                </button>
+              );
+            })}
+          </div>
+        ))}
 
-      {/* Empty + create form */}
-      {tasks.length === 0 && showCreate && (
-        <InlineCreateForm onCreated={handleCreated} onCancel={() => setShowCreate(false)} />
-      )}
-
-      {/* Create form below list */}
-      {tasks.length > 0 && showCreate && (
-        <InlineCreateForm onCreated={handleCreated} onCancel={() => setShowCreate(false)} />
-      )}
+        {/* Add task button */}
+        {onNewTask && (
+          <button
+            onClick={onNewTask}
+            className="flex items-center gap-3 w-full rounded-xl px-4 py-2.5 text-left hover:bg-primary/5 transition-colors text-muted-foreground/40 hover:text-primary"
+          >
+            <Plus className="h-[18px] w-[18px] shrink-0 stroke-[2]" />
+            <span className="text-sm font-medium">Legg til oppgave</span>
+          </button>
+        )}
+      </div>
     </div>
   );
 }
