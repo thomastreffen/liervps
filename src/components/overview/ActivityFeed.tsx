@@ -38,14 +38,14 @@ function getIcon(item: ActivityItem) {
 function getAccent(item: ActivityItem): string {
   const a = item.action.toLowerCase();
   const t = item.type.toLowerCase();
-  if (t === "message" || a.includes("message") || a.includes("melding")) return "bg-info/10 text-info";
-  if (a.includes("ai") || t === "ai_action") return "bg-accent/10 text-accent";
-  if (a.includes("task") || t === "task" || a.includes("oppgave")) return "bg-success/10 text-success";
+  if (t === "message" || a.includes("message") || a.includes("melding")) return "bg-info/12 text-info";
+  if (a.includes("ai") || t === "ai_action") return "bg-accent/12 text-accent";
+  if (a.includes("task") || t === "task" || a.includes("oppgave")) return "bg-success/12 text-success";
   if (a.includes("offer") || a.includes("tilbud")) return "bg-primary/10 text-primary";
-  if (a.includes("contact") || a.includes("kontakt")) return "bg-info/10 text-info";
-  if (a.includes("image") || a.includes("bilde")) return "bg-accent/10 text-accent";
+  if (a.includes("contact") || a.includes("kontakt")) return "bg-info/12 text-info";
+  if (a.includes("image") || a.includes("bilde")) return "bg-accent/12 text-accent";
   if (a.includes("case") || a.includes("henvendelse")) return "bg-destructive/10 text-destructive";
-  return "bg-muted/60 text-muted-foreground";
+  return "bg-muted text-muted-foreground";
 }
 
 function getRoute(item: ActivityItem): string | null {
@@ -92,16 +92,16 @@ export function ActivityFeed({ items, maxItems = 8, userId, followedProjectIds }
   return (
     <div>
       {/* Filter bar */}
-      <div className="flex items-center gap-1 px-4 pt-3 pb-1">
-        <Filter className="h-3 w-3 text-muted-foreground/40 mr-1" />
+      <div className="flex items-center gap-1.5 px-5 pt-4 pb-2">
+        <Filter className="h-3 w-3 text-muted-foreground/30 mr-1" />
         {filterButtons.map((fb) => (
           <button
             key={fb.key}
             onClick={() => setFilter(fb.key)}
-            className={`text-[11px] px-2.5 py-1 rounded-full font-medium transition-colors ${
+            className={`text-[11px] px-3 py-1.5 rounded-lg font-medium transition-all ${
               filter === fb.key
-                ? "bg-primary/10 text-primary"
-                : "text-muted-foreground/50 hover:text-muted-foreground hover:bg-muted/50"
+                ? "bg-primary/10 text-primary shadow-sm"
+                : "text-muted-foreground/50 hover:text-muted-foreground hover:bg-muted/60"
             }`}
           >
             {fb.label}
@@ -110,14 +110,14 @@ export function ActivityFeed({ items, maxItems = 8, userId, followedProjectIds }
       </div>
 
       {visible.length === 0 ? (
-        <div className="text-center py-12">
-          <div className="h-12 w-12 rounded-full bg-muted/50 flex items-center justify-center mx-auto mb-2 border-2 border-border/40">
-            <Activity className="h-5 w-5 text-muted-foreground/25" />
+        <div className="text-center py-14">
+          <div className="h-14 w-14 rounded-2xl bg-muted/60 flex items-center justify-center mx-auto mb-3">
+            <Activity className="h-6 w-6 text-muted-foreground/25" />
           </div>
-          <p className="text-sm text-muted-foreground/50 font-medium">Ingen aktivitet å vise</p>
+          <p className="text-sm text-muted-foreground font-medium">Ingen aktivitet å vise</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 p-4 pt-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-5 pt-2">
           {visible.map((item) => {
             const route = getRoute(item);
             return (
@@ -125,23 +125,24 @@ export function ActivityFeed({ items, maxItems = 8, userId, followedProjectIds }
                 key={item.id}
                 onClick={() => route && navigate(route)}
                 disabled={!route}
-                className="flex items-start gap-3 rounded-xl border border-border/40 bg-card px-4 py-3
-                  hover:border-primary/20 hover:bg-primary/[0.02] transition-all text-left group
+                className="flex items-start gap-3.5 rounded-xl border border-border/20 bg-card px-4 py-3.5
+                  hover:shadow-card-hover hover:-translate-y-0.5
+                  transition-all duration-200 text-left group
                   disabled:cursor-default cursor-pointer"
               >
-                <div className={`h-8 w-8 rounded-lg flex items-center justify-center shrink-0 ${getAccent(item)}`}>
+                <div className={`h-9 w-9 rounded-xl flex items-center justify-center shrink-0 ${getAccent(item)}`}>
                   {getIcon(item)}
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-[13px] text-foreground leading-snug line-clamp-2 font-medium group-hover:text-primary transition-colors">
                     {item.title || item.description || item.action}
                   </p>
-                  <p className="text-[11px] text-muted-foreground/50 mt-1">
+                  <p className="text-[11px] text-muted-foreground/40 mt-1.5">
                     {formatDistanceToNow(new Date(item.created_at), { addSuffix: true, locale: nb })}
                   </p>
                 </div>
                 {route && (
-                  <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/15 group-hover:text-primary/40 shrink-0 mt-1" />
+                  <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/10 group-hover:text-primary/40 shrink-0 mt-1.5" />
                 )}
               </button>
             );
@@ -150,7 +151,7 @@ export function ActivityFeed({ items, maxItems = 8, userId, followedProjectIds }
       )}
 
       {filtered.length > maxItems && (
-        <div className="px-4 pb-4 pt-1">
+        <div className="px-5 pb-5 pt-1">
           <Button
             variant="ghost"
             size="sm"

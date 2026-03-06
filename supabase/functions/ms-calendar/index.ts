@@ -8,6 +8,19 @@ const corsHeaders = {
 
 const GRAPH_BASE = "https://graph.microsoft.com/v1.0";
 
+/* ── Strip UTC offset so Graph uses the explicit timeZone property ── */
+function toLocalDateTimeString(isoString: string): string {
+  const d = new Date(isoString);
+  const parts = new Intl.DateTimeFormat("sv-SE", {
+    timeZone: "Europe/Oslo",
+    year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", second: "2-digit",
+    hour12: false,
+  }).formatToParts(d);
+  const get = (t: string) => parts.find((p) => p.type === t)?.value || "00";
+  return `${get("year")}-${get("month")}-${get("day")}T${get("hour")}:${get("minute")}:${get("second")}`;
+}
+
 // ── Structured error helpers ──
 
 interface StructuredError {
@@ -433,8 +446,8 @@ Deno.serve(async (req) => {
         const eventPayload = {
           subject,
           body: { contentType: "HTML", content: htmlBody },
-          start: { dateTime: job.start_time, timeZone: "Europe/Oslo" },
-          end: { dateTime: job.end_time, timeZone: "Europe/Oslo" },
+          start: { dateTime: toLocalDateTimeString(job.start_time), timeZone: "Europe/Oslo" },
+          end: { dateTime: toLocalDateTimeString(job.end_time), timeZone: "Europe/Oslo" },
           location: job.address ? { displayName: job.address } : undefined,
         };
 

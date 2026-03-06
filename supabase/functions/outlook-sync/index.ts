@@ -6,6 +6,19 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+/* ── Strip UTC offset so Graph uses the explicit timeZone property ── */
+function toLocalDateTimeString(isoString: string): string {
+  const d = new Date(isoString);
+  const parts = new Intl.DateTimeFormat("sv-SE", {
+    timeZone: "Europe/Oslo",
+    year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", second: "2-digit",
+    hour12: false,
+  }).formatToParts(d);
+  const get = (t: string) => parts.find((p) => p.type === t)?.value || "00";
+  return `${get("year")}-${get("month")}-${get("day")}T${get("hour")}:${get("minute")}:${get("second")}`;
+}
+
 /**
  * Ensure Microsoft access token is valid; refresh if expired.
  */
@@ -103,8 +116,8 @@ async function createOutlookEvent(
       contentType: "HTML",
       content: `<b>Kunde:</b> ${event.customer || "Ikke angitt"}<br/><b>Adresse:</b> ${event.address || "Ikke angitt"}${event.description ? `<br/><b>Beskrivelse:</b> ${event.description}` : ""}`,
     },
-    start: { dateTime: event.start_time, timeZone: "Europe/Oslo" },
-    end: { dateTime: event.end_time, timeZone: "Europe/Oslo" },
+    start: { dateTime: toLocalDateTimeString(event.start_time), timeZone: "Europe/Oslo" },
+    end: { dateTime: toLocalDateTimeString(event.end_time), timeZone: "Europe/Oslo" },
   };
 
   if (event.address) {
