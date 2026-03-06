@@ -10,7 +10,6 @@ import {
   ChevronDown,
   Settings,
   LayoutGrid,
-  ListChecks,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/hooks/useAuth";
@@ -39,7 +38,6 @@ import { Badge } from "@/components/ui/badge";
 const mainNav = [
   { title: "Hjem", url: "/overview", icon: Home, moduleKey: "overview" },
   { title: "Prosjekter", url: "/projects", icon: FolderKanban, moduleKey: "projects" },
-  { title: "Oppgaver", url: "/tasks", icon: ListChecks, moduleKey: "tasks" },
   { title: "Ressursplan", url: "/projects/plan", icon: CalendarDays, moduleKey: "resource_plan" },
 ];
 

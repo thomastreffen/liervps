@@ -31,6 +31,8 @@ import {
   Search,
   Plus,
   Trash2,
+  FolderKanban,
+  ListChecks,
 } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel,
@@ -96,6 +98,7 @@ export function EventDrawer({
 
   // Form state
   const [mode, setMode] = useState<"new" | "existing">("new");
+  const [eventType, setEventType] = useState<"project" | "task">("project");
   const [title, setTitle] = useState("");
   const [customer, setCustomer] = useState("");
   const [address, setAddress] = useState("");
@@ -155,6 +158,7 @@ export function EventDrawer({
       }
       setTechIds(preselectedTechId ? [preselectedTechId] : []);
       setMode(projectId ? "existing" : "new");
+      setEventType("project");
       setSelectedJobId(projectId || null);
     }
     setConflicts([]);
@@ -290,9 +294,10 @@ export function EventDrawer({
         toast.success("Montør(er) tildelt");
         onSaved?.(selectedJobId);
       } else {
-        // Create new event
-        if (!title.trim() || techIds.length === 0 || !date) {
-          toast.error("Fyll inn tittel, dato og minst én montør");
+        // Create new event (project or task)
+        const isTask = eventType === "task";
+        if (!title.trim() || (!isTask && techIds.length === 0) || !date) {
+          toast.error(isTask ? "Fyll inn tittel og dato" : "Fyll inn tittel, dato og minst én montør");
           setSaving(false);
           return;
         }
@@ -318,27 +323,32 @@ export function EventDrawer({
             description: description || null,
             start_time: startISO,
             end_time: endISO,
-            technician_id: techIds[0],
+            technician_id: techIds[0] || userId || "00000000-0000-0000-0000-000000000000",
             status: "requested" as any,
             created_by: userId || null,
             client_request_id: clientRequestId,
+            project_type: isTask ? "task" : "project",
           } as any).select("id").single();
 
           if (error || !created) {
-            toast.error("Kunne ikke opprette hendelse", { description: error?.message });
+            toast.error("Kunne ikke opprette", { description: error?.message });
             setSaving(false);
             return;
           }
           createdId = created.id;
 
-          await supabase.from("event_technicians").insert(
-            techIds.map((tid) => ({ event_id: createdId, technician_id: tid }))
-          );
-          await supabase.functions.invoke("create-approval", { body: { job_id: createdId } });
+          if (techIds.length > 0) {
+            await supabase.from("event_technicians").insert(
+              techIds.map((tid) => ({ event_id: createdId, technician_id: tid }))
+            );
+            await supabase.functions.invoke("create-approval", { body: { job_id: createdId } });
+          }
         }
 
-        toast.success("Hendelse opprettet og planlagt", {
-          description: `${title} er tildelt ${techIds.length} montør(er).`,
+        toast.success(isTask ? "Oppgave opprettet" : "Hendelse opprettet og planlagt", {
+          description: isTask
+            ? `${title} er lagt til som oppgave.`
+            : `${title} er tildelt ${techIds.length} montør(er).`,
         });
         setSubmitted(true);
         onSaved?.(createdId);
@@ -381,18 +391,46 @@ export function EventDrawer({
         </SheetHeader>
 
         <div className="flex-1 mt-4 space-y-5">
-          {/* Mode tabs (only for new, non-project) */}
+          {/* Type selector: Prosjekt vs Oppgave */}
           {!isEditing && !projectId && (
-            <Tabs value={mode} onValueChange={(v) => setMode(v as "new" | "existing")}>
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="new" className="gap-1.5 text-xs">
-                  <Plus className="h-3.5 w-3.5" />Ny hendelse
-                </TabsTrigger>
-                <TabsTrigger value="existing" className="gap-1.5 text-xs">
-                  <Link2 className="h-3.5 w-3.5" />Eksisterende prosjekt
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
+            <div className="space-y-3">
+              <div className="flex items-center gap-1 border border-border/40 rounded-lg p-0.5">
+                <Button
+                  type="button"
+                  variant={eventType === "project" ? "default" : "ghost"}
+                  size="sm"
+                  className="h-8 text-xs rounded-md flex-1 gap-1.5"
+                  onClick={() => { setEventType("project"); setMode("new"); }}
+                >
+                  <FolderKanban className="h-3.5 w-3.5" />
+                  Prosjekt
+                </Button>
+                <Button
+                  type="button"
+                  variant={eventType === "task" ? "default" : "ghost"}
+                  size="sm"
+                  className="h-8 text-xs rounded-md flex-1 gap-1.5"
+                  onClick={() => { setEventType("task"); setMode("new"); }}
+                >
+                  <ListChecks className="h-3.5 w-3.5" />
+                  Oppgave
+                </Button>
+              </div>
+
+              {/* Sub-tabs for project mode */}
+              {eventType === "project" && (
+                <Tabs value={mode} onValueChange={(v) => setMode(v as "new" | "existing")}>
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="new" className="gap-1.5 text-xs">
+                      <Plus className="h-3.5 w-3.5" />Nytt prosjekt
+                    </TabsTrigger>
+                    <TabsTrigger value="existing" className="gap-1.5 text-xs">
+                      <Link2 className="h-3.5 w-3.5" />Eksisterende prosjekt
+                    </TabsTrigger>
+                  </TabsList>
+                </Tabs>
+              )}
+            </div>
           )}
 
           {/* Existing job search */}
@@ -454,23 +492,27 @@ export function EventDrawer({
             </div>
           )}
 
-          {/* New event fields */}
+          {/* New event/task fields */}
           {mode === "new" && !isEditing && !projectId && (
             <div className="space-y-3">
               <div>
                 <Label className="text-xs">Tittel *</Label>
-                <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="F.eks. Kabellegging 3. etg" className="mt-1" />
+                <Input value={title} onChange={(e) => setTitle(e.target.value)}
+                  placeholder={eventType === "task" ? "F.eks. Bestille materialer" : "F.eks. Kabellegging 3. etg"}
+                  className="mt-1" />
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label className="text-xs">Kunde</Label>
-                  <Input value={customer} onChange={(e) => setCustomer(e.target.value)} placeholder="Kundenavn" className="mt-1" />
+              {eventType === "project" && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label className="text-xs">Kunde</Label>
+                    <Input value={customer} onChange={(e) => setCustomer(e.target.value)} placeholder="Kundenavn" className="mt-1" />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Adresse</Label>
+                    <Input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Adresse" className="mt-1" />
+                  </div>
                 </div>
-                <div>
-                  <Label className="text-xs">Adresse</Label>
-                  <Input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Adresse" className="mt-1" />
-                </div>
-              </div>
+              )}
               <div>
                 <Label className="text-xs">Beskrivelse</Label>
                 <Textarea value={description} onChange={(e) => setDescription(e.target.value)}
@@ -508,11 +550,19 @@ export function EventDrawer({
             </div>
           </div>
 
-          {/* Technicians */}
-          <div className="space-y-2">
-            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Ressurser</Label>
-            <TechnicianMultiSelect selectedIds={techIds} onChange={setTechIds} />
-          </div>
+          {/* Technicians (optional for tasks) */}
+          {(eventType === "project" || isEditing) && (
+            <div className="space-y-2">
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Ressurser</Label>
+              <TechnicianMultiSelect selectedIds={techIds} onChange={setTechIds} />
+            </div>
+          )}
+          {eventType === "task" && !isEditing && (
+            <div className="space-y-2">
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Tildel montør (valgfritt)</Label>
+              <TechnicianMultiSelect selectedIds={techIds} onChange={setTechIds} />
+            </div>
+          )}
 
           {/* Conflicts */}
           {conflicts.length > 0 && (
@@ -543,7 +593,7 @@ export function EventDrawer({
               </Button>
             )}
             <Button className="flex-1 gap-1.5" onClick={handleSave}
-              disabled={saving || submitted || (isEditing && !hasChanges) || techIds.length === 0}>
+              disabled={saving || submitted || (isEditing && !hasChanges) || (eventType === "project" && !isEditing && techIds.length === 0)}>
               {saving ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
               ) : submitted ? (
@@ -554,6 +604,7 @@ export function EventDrawer({
               {saving ? "Oppretter…" :
                submitted ? "Opprettet ✓" :
                isEditing ? (conflicts.length > 0 ? "Lagre likevel" : "Lagre endringer") :
+               eventType === "task" ? "Opprett oppgave" :
                conflicts.length > 0 ? "Lagre likevel" : "Opprett og planlegg"}
             </Button>
           </div>
