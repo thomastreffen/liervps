@@ -73,15 +73,15 @@ function NavItem({ item, isActive, collapsed, badge }: {
         isActive={active}
         tooltip={item.title}
         className={cn(
-          "rounded-lg h-9 transition-colors",
+          "rounded-xl h-10 transition-all duration-150",
           active
-            ? "bg-primary/10 text-primary font-medium"
-            : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent"
+            ? "bg-primary/10 text-primary font-semibold shadow-sm"
+            : "text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent"
         )}
       >
         <NavLink to={item.url} end={item.url === "/overview"}>
-          {Icon && <Icon className="h-[18px] w-[18px]" />}
-          {!Icon && <div className="h-[18px] w-[18px]" />}
+          {Icon && <Icon className="h-[19px] w-[19px]" />}
+          {!Icon && <div className="h-[19px] w-[19px]" />}
           <span className="text-[13px] flex-1">{item.title}</span>
           {!collapsed && badge !== undefined && badge > 0 && (
             <Badge variant="secondary" className="text-[10px] font-mono px-1.5 py-0 h-4 ml-auto bg-primary/10 text-primary border-0">
@@ -158,10 +158,10 @@ export function AppSidebar() {
         </div>
       </SidebarHeader>
 
-      <SidebarContent className="px-2">
+      <SidebarContent className="px-3">
         <SidebarGroup>
           <SidebarGroupContent>
-            <SidebarMenu className="space-y-0.5">
+            <SidebarMenu className="space-y-1">
               {visibleMainNav.map((item) => (
                 <NavItem key={item.url} item={item} isActive={isActive} collapsed={collapsed} badge={getBadge(item.url)} />
               ))}
@@ -184,7 +184,7 @@ export function AppSidebar() {
         </SidebarGroup>
 
         {isAdmin && (
-          <SidebarGroup className="mt-4">
+          <SidebarGroup className="mt-6 pt-4 border-t border-sidebar-border/60">
             <Collapsible defaultOpen={adminActive}>
               <CollapsibleTrigger className="flex w-full items-center justify-between px-3 py-1.5 text-[11px] font-medium uppercase tracking-wider text-sidebar-foreground/40 hover:text-sidebar-foreground/60 transition-colors">
                 <span className="flex items-center gap-1.5">
@@ -195,7 +195,7 @@ export function AppSidebar() {
               </CollapsibleTrigger>
               <CollapsibleContent>
                 <SidebarGroupContent>
-                  <SidebarMenu className="space-y-0.5 mt-1">
+                  <SidebarMenu className="space-y-1 mt-2">
                     {filteredAdmin.map((item) => (
                       <NavItem key={item.url} item={item} isActive={isActive} collapsed={collapsed} />
                     ))}

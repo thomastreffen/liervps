@@ -6,6 +6,19 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+/* ── Strip UTC offset so Graph uses the explicit timeZone property ── */
+function toLocalDateTimeString(isoString: string): string {
+  const d = new Date(isoString);
+  const parts = new Intl.DateTimeFormat("sv-SE", {
+    timeZone: "Europe/Oslo",
+    year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", second: "2-digit",
+    hour12: false,
+  }).formatToParts(d);
+  const get = (t: string) => parts.find((p) => p.type === t)?.value || "00";
+  return `${get("year")}-${get("month")}-${get("day")}T${get("hour")}:${get("minute")}:${get("second")}`;
+}
+
 async function ensureValidMsToken(
   supabaseAdmin: any,
   userId: string
@@ -142,8 +155,8 @@ Deno.serve(async (req) => {
           contentType: "HTML",
           content: `<p>Møte/befaring for lead: <strong>${lead.company_name}</strong></p><p>Ref: ${refCode}</p>`,
         },
-        start: { dateTime: start_time, timeZone: "Europe/Oslo" },
-        end: { dateTime: end_time, timeZone: "Europe/Oslo" },
+        start: { dateTime: toLocalDateTimeString(start_time), timeZone: "Europe/Oslo" },
+        end: { dateTime: toLocalDateTimeString(end_time), timeZone: "Europe/Oslo" },
         attendees,
       };
 
@@ -291,8 +304,8 @@ Deno.serve(async (req) => {
       // Update existing Outlook event
       const patchBody: any = {
         subject: link.event_subject,
-        start: { dateTime: link.event_start, timeZone: "Europe/Oslo" },
-        end: { dateTime: link.event_end, timeZone: "Europe/Oslo" },
+        start: { dateTime: toLocalDateTimeString(link.event_start), timeZone: "Europe/Oslo" },
+        end: { dateTime: toLocalDateTimeString(link.event_end), timeZone: "Europe/Oslo" },
       };
 
       if (link.event_location) {

@@ -21,8 +21,10 @@ export function ProjectCards({ projects }: { projects: ProjectCardData[] }) {
   if (projects.length === 0) {
     return (
       <div className="text-center py-16">
-        <FolderKanban className="h-10 w-10 text-muted-foreground/20 mx-auto mb-3" />
-        <p className="text-sm text-muted-foreground/50">Ingen aktive prosjekter</p>
+        <div className="h-14 w-14 rounded-2xl bg-muted/60 flex items-center justify-center mx-auto mb-3">
+          <FolderKanban className="h-6 w-6 text-muted-foreground/30" />
+        </div>
+        <p className="text-sm text-muted-foreground font-medium">Ingen aktive prosjekter</p>
       </div>
     );
   }
@@ -33,20 +35,20 @@ export function ProjectCards({ projects }: { projects: ProjectCardData[] }) {
         <button
           key={p.id}
           onClick={() => navigate(`/projects/${p.id}`)}
-          className="bg-card rounded-2xl border-2 border-border/60 p-5 text-left
-            hover:border-primary/40 hover:shadow-lg hover:bg-card/80 hover:-translate-y-1
+          className="bg-card rounded-2xl border border-border/30 p-6 text-left
+            shadow-card hover:shadow-card-hover hover:-translate-y-1
             transition-all duration-200 group relative cursor-pointer"
         >
-          <div className="flex items-start gap-3 mb-2">
-            <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+          <div className="flex items-start gap-3.5 mb-3">
+            <div className="h-10 w-10 rounded-xl bg-primary/8 flex items-center justify-center shrink-0 group-hover:bg-primary/12 transition-colors">
               <FolderKanban className="h-5 w-5 text-primary" />
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-[15px] font-bold text-foreground truncate group-hover:text-primary transition-colors leading-tight">
                 {p.title}
               </p>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                {p.internal_number && <span className="font-mono">#{p.internal_number}</span>}
+              <p className="text-xs text-muted-foreground mt-1">
+                {p.internal_number && <span className="font-mono text-muted-foreground/70">#{p.internal_number}</span>}
                 {p.internal_number && p.customer && " · "}
                 {p.customer || "Ingen kunde"}
               </p>
@@ -56,35 +58,35 @@ export function ProjectCards({ projects }: { projects: ProjectCardData[] }) {
           {/* Status chips */}
           <div className="flex items-center gap-1.5 flex-wrap mt-3">
             {p.hasPlanned && (
-              <span className="inline-flex items-center gap-1 text-[10px] font-semibold rounded-full px-2 py-0.5 bg-primary/10 text-primary border border-primary/20">
+              <span className="inline-flex items-center gap-1 text-[10px] font-semibold rounded-full px-2.5 py-0.5 bg-primary/8 text-primary">
                 <Clock className="h-2.5 w-2.5" />
                 Planlagt
               </span>
             )}
             {p.taskCount > 0 && (
-              <span className="inline-flex items-center gap-1 text-[10px] font-semibold rounded-full px-2 py-0.5 bg-accent/10 text-accent border border-accent/20">
+              <span className="inline-flex items-center gap-1 text-[10px] font-semibold rounded-full px-2.5 py-0.5 bg-accent/8 text-accent">
                 <ListChecks className="h-2.5 w-2.5" />
-                {p.taskCount} oppgaver
+                {p.taskCount}
               </span>
             )}
             {p.messageCount > 0 && (
-              <span className="inline-flex items-center gap-1 text-[10px] font-semibold rounded-full px-2 py-0.5 bg-info/10 text-info border border-info/20">
+              <span className="inline-flex items-center gap-1 text-[10px] font-semibold rounded-full px-2.5 py-0.5 bg-info/8 text-info">
                 <MessageSquare className="h-2.5 w-2.5" />
-                {p.messageCount} meldinger
+                {p.messageCount}
               </span>
             )}
             {p.deviationCount > 0 && (
-              <span className="inline-flex items-center gap-1 text-[10px] font-semibold rounded-full px-2 py-0.5 bg-destructive/10 text-destructive border border-destructive/20">
+              <span className="inline-flex items-center gap-1 text-[10px] font-semibold rounded-full px-2.5 py-0.5 bg-destructive/8 text-destructive">
                 <AlertTriangle className="h-2.5 w-2.5" />
-                {p.deviationCount} avvik
+                {p.deviationCount}
               </span>
             )}
           </div>
 
           {/* Next activity */}
           {p.nextActivity && (
-            <div className="flex items-center gap-2 text-xs bg-primary/5 rounded-lg px-3 py-1.5 mt-3 border border-primary/10">
-              <CalendarCheck className="h-3 w-3 text-primary shrink-0" />
+            <div className="flex items-center gap-2 text-xs bg-muted/40 rounded-xl px-3 py-2 mt-4 border border-border/20">
+              <CalendarCheck className="h-3.5 w-3.5 text-primary shrink-0" />
               <span className="truncate text-foreground/80 text-[11px]">{p.nextActivity.title}</span>
               <span className="shrink-0 ml-auto text-muted-foreground font-mono text-[10px]">
                 {format(new Date(p.nextActivity.scheduled_date), "d. MMM", { locale: nb })}

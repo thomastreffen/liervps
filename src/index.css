@@ -4,24 +4,24 @@
 
 @layer base {
   :root {
-    /* Basecamp-inspired warm palette */
-    --background: 40 20% 96%;
-    --foreground: 220 16% 16%;
+    /* Refined warm palette – premium field-ops tool */
+    --background: 40 18% 97%;
+    --foreground: 220 18% 13%;
 
     --card: 0 0% 100%;
-    --card-foreground: 220 16% 16%;
+    --card-foreground: 220 18% 13%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 220 16% 16%;
+    --popover-foreground: 220 18% 13%;
 
     --primary: 156 40% 42%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 40 14% 93%;
+    --secondary: 40 12% 94%;
     --secondary-foreground: 220 16% 22%;
 
-    --muted: 40 12% 92%;
-    --muted-foreground: 220 8% 48%;
+    --muted: 40 10% 93%;
+    --muted-foreground: 220 10% 46%;
 
     --accent: 24 80% 52%;
     --accent-foreground: 0 0% 100%;
@@ -32,17 +32,20 @@
     --success: 152 50% 38%;
     --success-foreground: 0 0% 100%;
 
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+
     --info: 213 48% 52%;
     --info-foreground: 0 0% 100%;
 
-    --border: 40 14% 88%;
-    --input: 40 14% 86%;
+    --border: 40 12% 89%;
+    --input: 40 12% 86%;
     --ring: 156 40% 42%;
 
     --radius: 0.75rem;
 
-    /* Section separator – Basecamp uses a warm ruled line */
-    --section-border: 40 16% 84%;
+    /* Section separator */
+    --section-border: 40 14% 85%;
 
     /* Status colors */
     --status-requested: 28 76% 50%;
@@ -64,14 +67,19 @@
     --status-invoiced: 220 12% 62%;
     --status-invoiced-foreground: 0 0% 100%;
 
+    /* Elevation shadows */
+    --shadow-card: 0 1px 3px 0 hsl(220 20% 20% / 0.04), 0 1px 2px -1px hsl(220 20% 20% / 0.04);
+    --shadow-card-hover: 0 8px 25px -5px hsl(220 20% 20% / 0.08), 0 4px 10px -3px hsl(220 20% 20% / 0.04);
+    --shadow-elevated: 0 4px 12px -2px hsl(220 20% 20% / 0.06), 0 2px 6px -1px hsl(220 20% 20% / 0.04);
+
     /* Sidebar – warm cream */
-    --sidebar-background: 40 18% 95%;
+    --sidebar-background: 40 16% 96%;
     --sidebar-foreground: 220 16% 22%;
     --sidebar-primary: 156 40% 42%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 40 14% 90%;
+    --sidebar-accent: 40 12% 91%;
     --sidebar-accent-foreground: 220 16% 14%;
-    --sidebar-border: 40 14% 88%;
+    --sidebar-border: 40 12% 89%;
     --sidebar-ring: 156 40% 42%;
   }
 
@@ -94,12 +102,18 @@
     --destructive-foreground: 0 0% 100%;
     --success: 152 46% 32%;
     --success-foreground: 0 0% 100%;
+    --warning: 38 80% 45%;
+    --warning-foreground: 0 0% 100%;
     --info: 213 42% 48%;
     --info-foreground: 0 0% 100%;
     --border: 220 14% 20%;
     --input: 220 14% 20%;
     --ring: 156 40% 48%;
     --section-border: 220 14% 18%;
+
+    --shadow-card: 0 1px 3px 0 hsl(0 0% 0% / 0.2);
+    --shadow-card-hover: 0 8px 25px -5px hsl(0 0% 0% / 0.3);
+    --shadow-elevated: 0 4px 12px -2px hsl(0 0% 0% / 0.25);
 
     --sidebar-background: 220 16% 10%;
     --sidebar-foreground: 40 12% 88%;

@@ -261,7 +261,7 @@ export default function OverviewPage() {
         return (
           <div key={key}>
             <SectionHeader title="Din dag" />
-            <div className="rounded-2xl border-2 border-border/50 bg-card overflow-hidden">
+            <div className="rounded-2xl border border-border/30 bg-card shadow-card overflow-hidden">
               <YourDay blocks={dayBlocks} />
             </div>
           </div>
@@ -270,7 +270,7 @@ export default function OverviewPage() {
         return (
           <div key={key}>
             <SectionHeader title="Mine gjøremål" />
-            <div className="rounded-2xl border-2 border-border/50 bg-card overflow-hidden">
+            <div className="rounded-2xl border border-border/30 bg-card shadow-card overflow-hidden">
               <MyTasks
                 events={myEvents}
                 onNewTask={() => setShowTaskDrawer(true)}
@@ -282,7 +282,7 @@ export default function OverviewPage() {
         return (
           <div key={key}>
             <SectionHeader title="Aktivitet" />
-            <div className="rounded-2xl border-2 border-border/50 bg-card overflow-hidden">
+            <div className="rounded-2xl border border-border/30 bg-card shadow-card overflow-hidden">
               <ActivityFeed
                 items={activity}
                 maxItems={8}
@@ -296,7 +296,7 @@ export default function OverviewPage() {
         return (
           <div key={key}>
             <SectionHeader title="Risiko" />
-            <div className="rounded-2xl border-2 border-border/50 bg-card overflow-hidden">
+            <div className="rounded-2xl border border-border/30 bg-card shadow-card overflow-hidden">
               <RiskWidget />
             </div>
           </div>
@@ -307,28 +307,29 @@ export default function OverviewPage() {
   };
 
   return (
-    <div className="max-w-[1100px] mx-auto px-4 sm:px-8 py-10 sm:py-14">
+    <div className="max-w-[1100px] mx-auto px-4 sm:px-8 py-12 sm:py-16">
       {/* Greeting */}
-      <div className="text-center mb-12">
-        <h1 className="text-3xl sm:text-[2.5rem] font-bold text-foreground tracking-tight leading-tight">
+      <div className="text-center mb-16">
+        <h1 className="text-3xl sm:text-[2.75rem] font-extrabold text-foreground tracking-tight leading-tight">
           {greeting()}, {firstName} 👋
         </h1>
-        <p className="text-sm text-muted-foreground mt-2">
+        <p className="text-sm text-muted-foreground mt-3">
           {format(new Date(), "EEEE d. MMMM yyyy", { locale: nb })} · Uke {format(new Date(), "w")}
         </p>
         <Button
           variant="ghost"
           size="sm"
-          className="mt-3 text-xs text-muted-foreground/50 hover:text-primary gap-1"
+          className="mt-4 text-xs text-muted-foreground/40 hover:text-primary gap-1.5"
           onClick={() => setShowModuleManager(true)}
         >
           <Settings2 className="h-3.5 w-3.5" />
           Tilpass dashboard
         </Button>
+        <div className="mt-8 h-px bg-gradient-to-r from-transparent via-border to-transparent" />
       </div>
 
       {/* Render modules */}
-      <div className="space-y-10">
+      <div className="space-y-14">
         {(() => {
           const rendered: React.ReactNode[] = [];
           let i = 0;

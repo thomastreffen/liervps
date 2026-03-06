@@ -4,7 +4,7 @@ import {
   CheckCircle2, ChevronRight, AlertCircle, Circle, Plus,
   CalendarDays, FolderKanban, User, ListChecks,
 } from "lucide-react";
-import { format, isPast, isToday, isTomorrow, startOfDay, endOfDay, addDays } from "date-fns";
+import { format, isPast, isToday, isTomorrow, startOfDay, addDays } from "date-fns";
 import { nb } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -29,7 +29,6 @@ type FilterType = "all" | "tasks" | "projects";
 
 function groupByDay(events: OverviewEvent[]): { label: string; events: OverviewEvent[] }[] {
   const today = startOfDay(new Date());
-  const tomorrow = addDays(today, 1);
   const groups: Record<string, OverviewEvent[]> = {};
 
   for (const ev of events) {
@@ -48,7 +47,6 @@ function groupByDay(events: OverviewEvent[]): { label: string; events: OverviewE
     groups[label].push(ev);
   }
 
-  // Sort: Forfalt first, then I dag, I morgen, then chronological
   const order = ["Forfalt", "I dag", "I morgen"];
   return Object.entries(groups)
     .sort(([a], [b]) => {
@@ -78,19 +76,22 @@ export function MyTasks({ events, onNewTask }: MyTasksProps) {
 
   if (events.length === 0) {
     return (
-      <div className="text-center py-12">
-        <div className="h-16 w-16 rounded-full bg-success/10 flex items-center justify-center mx-auto mb-3 border-2 border-success/20">
-          <CheckCircle2 className="h-7 w-7 text-success/50" />
+      <div className="text-center py-14">
+        <div className="h-14 w-14 rounded-2xl bg-success/10 flex items-center justify-center mx-auto mb-3">
+          <CheckCircle2 className="h-6 w-6 text-success/60" />
         </div>
-        <p className="text-sm text-muted-foreground/50 font-medium mb-4">Ingen planlagte gjøremål – alt i rute!</p>
+        <p className="text-sm text-muted-foreground font-medium mb-1">Ingen planlagte gjøremål</p>
+        <p className="text-xs text-muted-foreground/50 mb-5">Alt er i rute 🎉</p>
         {onNewTask && (
-          <button
+          <Button
+            variant="outline"
+            size="sm"
             onClick={onNewTask}
-            className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:text-primary/80 transition-colors"
+            className="gap-1.5"
           >
             <Plus className="h-3.5 w-3.5" />
             Opprett ny oppgave
-          </button>
+          </Button>
         )}
       </div>
     );
@@ -99,37 +100,37 @@ export function MyTasks({ events, onNewTask }: MyTasksProps) {
   return (
     <div>
       {/* Filter pills */}
-      <div className="flex items-center gap-1 px-4 pt-3 pb-1">
+      <div className="flex items-center gap-1.5 px-5 pt-4 pb-2">
         <Button
           variant={filter === "all" ? "default" : "ghost"}
-          size="sm" className="h-6 text-[10px] rounded-md px-2"
+          size="sm" className="h-7 text-[11px] rounded-lg px-3"
           onClick={() => setFilter("all")}
         >
           Alle ({events.length})
         </Button>
         <Button
           variant={filter === "tasks" ? "default" : "ghost"}
-          size="sm" className="h-6 text-[10px] rounded-md px-2 gap-1"
+          size="sm" className="h-7 text-[11px] rounded-lg px-3 gap-1"
           onClick={() => setFilter("tasks")}
         >
-          <ListChecks className="h-2.5 w-2.5" /> Oppgaver ({taskCount})
+          <ListChecks className="h-3 w-3" /> Oppgaver ({taskCount})
         </Button>
         <Button
           variant={filter === "projects" ? "default" : "ghost"}
-          size="sm" className="h-6 text-[10px] rounded-md px-2 gap-1"
+          size="sm" className="h-7 text-[11px] rounded-lg px-3 gap-1"
           onClick={() => setFilter("projects")}
         >
-          <FolderKanban className="h-2.5 w-2.5" /> Prosjekter ({projectCount})
+          <FolderKanban className="h-3 w-3" /> Prosjekter ({projectCount})
         </Button>
       </div>
 
       {/* Grouped list */}
-      <div className="p-2">
+      <div className="px-3 pb-3">
         {groups.map((group) => (
           <div key={group.label}>
             <p className={cn(
-              "text-[10px] font-semibold uppercase tracking-wider px-4 pt-3 pb-1",
-              group.label === "Forfalt" ? "text-destructive" : "text-muted-foreground/60"
+              "text-[10px] font-bold uppercase tracking-wider px-4 pt-4 pb-2",
+              group.label === "Forfalt" ? "text-destructive" : "text-muted-foreground/50"
             )}>
               {group.label}
             </p>
@@ -140,7 +141,8 @@ export function MyTasks({ events, onNewTask }: MyTasksProps) {
                 <button
                   key={ev.id}
                   onClick={() => navigate(`/projects/${ev.id}`)}
-                  className="flex items-center gap-3 w-full rounded-xl px-4 py-3 text-left hover:bg-primary/5 transition-colors group"
+                  className="flex items-center gap-3.5 w-full rounded-xl px-4 py-3.5 text-left
+                    hover:bg-primary/5 transition-all group"
                 >
                   {isTask ? (
                     <Circle className={`h-[18px] w-[18px] shrink-0 stroke-[2.5] ${overdue ? "text-destructive" : "text-border"}`} />
@@ -148,29 +150,29 @@ export function MyTasks({ events, onNewTask }: MyTasksProps) {
                     <CalendarDays className="h-[18px] w-[18px] shrink-0 text-primary/40" />
                   )}
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm text-foreground truncate group-hover:text-primary transition-colors">{ev.title}</p>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      <span className="text-[10px] text-muted-foreground/60">
+                    <p className="text-sm font-medium text-foreground truncate group-hover:text-primary transition-colors">{ev.title}</p>
+                    <div className="flex items-center gap-2.5 mt-1">
+                      <span className="text-[10px] text-muted-foreground/50 font-mono">
                         {format(new Date(ev.start_time), "HH:mm")}–{format(new Date(ev.end_time), "HH:mm")}
                       </span>
                       {isTask ? (
-                        <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
+                        <span className="text-[10px] text-muted-foreground/60 flex items-center gap-0.5">
                           <ListChecks className="h-2.5 w-2.5" /> Oppgave
                         </span>
                       ) : (
-                        <span className="text-[10px] text-primary/70 flex items-center gap-0.5">
+                        <span className="text-[10px] text-primary/60 flex items-center gap-0.5">
                           <FolderKanban className="h-2.5 w-2.5" /> Prosjekt
                         </span>
                       )}
                       {ev.customer && (
-                        <span className="text-[10px] text-muted-foreground/50 flex items-center gap-0.5">
+                        <span className="text-[10px] text-muted-foreground/40 flex items-center gap-0.5">
                           <User className="h-2.5 w-2.5" /> {ev.customer}
                         </span>
                       )}
                     </div>
                   </div>
                   {overdue && <AlertCircle className="h-3.5 w-3.5 text-destructive shrink-0" />}
-                  <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/15 group-hover:text-primary/40 shrink-0" />
+                  <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/10 group-hover:text-primary/40 shrink-0" />
                 </button>
               );
             })}
@@ -181,7 +183,8 @@ export function MyTasks({ events, onNewTask }: MyTasksProps) {
         {onNewTask && (
           <button
             onClick={onNewTask}
-            className="flex items-center gap-3 w-full rounded-xl px-4 py-2.5 text-left hover:bg-primary/5 transition-colors text-muted-foreground/40 hover:text-primary"
+            className="flex items-center gap-3.5 w-full rounded-xl px-4 py-3 text-left
+              hover:bg-primary/5 transition-colors text-muted-foreground/30 hover:text-primary mt-1"
           >
             <Plus className="h-[18px] w-[18px] shrink-0 stroke-[2]" />
             <span className="text-sm font-medium">Legg til oppgave</span>
