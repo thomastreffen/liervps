@@ -46,7 +46,7 @@ export default function OverviewPage() {
       supabase.from("events")
         .select("id, title, customer, status, internal_number")
         .in("status", activeStatuses)
-        .eq("project_type", "project")
+        .neq("project_type", "task")
         .is("deleted_at", null)
         .order("updated_at", { ascending: false })
         .limit(12),
