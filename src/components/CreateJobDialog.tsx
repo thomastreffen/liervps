@@ -1,12 +1,7 @@
 import { useState, useEffect, useCallback, Component, type ReactNode, type ErrorInfo } from "react";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from "@/components/ui/dialog";
-import { DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,7 +11,7 @@ import { FileUpload } from "./FileUpload";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, ChevronDown, ChevronUp } from "lucide-react";
 import { useCalendarSync } from "@/hooks/useCalendarSync";
 
 interface CreateJobDialogProps {
@@ -78,6 +73,7 @@ function CreateJobDialogInner({
   const [submitted, setSubmitted] = useState(false);
   const [clientRequestId, setClientRequestId] = useState(() => crypto.randomUUID());
   const [conflicts, setConflicts] = useState<ConflictInfo[]>([]);
+  const [showMore, setShowMore] = useState(false);
   const { syncCreate } = useCalendarSync();
 
   // DB-based conflict check
@@ -129,7 +125,6 @@ function CreateJobDialogInner({
     setSubmitting(true);
 
     try {
-      // 1. Insert event
       const startISO = new Date(`${startDate}T${startTime}`).toISOString();
       const endISO = new Date(`${endDate}T${endTime}`).toISOString();
 
@@ -141,8 +136,8 @@ function CreateJobDialogInner({
         .insert({
           title: `SERVICE – ${title}`,
           customer,
-          address,
-          description,
+          address: address || null,
+          description: description || null,
           job_number: jobNumber || null,
           start_time: startISO,
           end_time: endISO,
@@ -155,92 +150,50 @@ function CreateJobDialogInner({
         .single();
 
       if (eventError || !createdEvent) {
-        console.error("[CreateJob] Event insert failed:", eventError);
         toast.error("Kunne ikke opprette jobb", { description: eventError?.message });
         setSubmitting(false);
         return;
       }
 
-      console.log("[CreateJob] Event created:", createdEvent.id);
-
-      // 2. Upload files to storage and save attachment metadata
+      // Upload files
       if (files.length > 0) {
         const attachments: { name: string; url: string; size: number }[] = [];
-
         for (const file of files) {
           const filePath = `${createdEvent.id}/${Date.now()}-${file.name}`;
           const { error: uploadError } = await supabase.storage
             .from("job-attachments")
             .upload(filePath, file);
-
-          if (uploadError) {
-            console.error("[CreateJob] File upload failed:", file.name, uploadError);
-            toast.error(`Kunne ikke laste opp ${file.name}`);
-            continue;
-          }
-
-          const { data: urlData } = supabase.storage
-            .from("job-attachments")
-            .getPublicUrl(filePath);
-
-          attachments.push({
-            name: file.name,
-            url: urlData.publicUrl,
-            size: file.size,
-          });
-          console.log("[CreateJob] File uploaded:", file.name);
+          if (uploadError) { toast.error(`Kunne ikke laste opp ${file.name}`); continue; }
+          const { data: urlData } = supabase.storage.from("job-attachments").getPublicUrl(filePath);
+          attachments.push({ name: file.name, url: urlData.publicUrl, size: file.size });
         }
-
         if (attachments.length > 0) {
-          const { error: attError } = await supabase
-            .from("events")
-            .update({ attachments })
-            .eq("id", createdEvent.id);
-
-          if (attError) {
-            console.error("[CreateJob] Attachment metadata save failed:", attError);
-          }
+          await supabase.from("events").update({ attachments }).eq("id", createdEvent.id);
         }
       }
 
-      // 3. Insert event_technicians
+      // Insert event_technicians
       const techInserts = safeTechIds.map((techId) => ({
         event_id: createdEvent.id,
         technician_id: techId,
       }));
-
-      const { error: techError } = await supabase
-        .from("event_technicians")
-        .insert(techInserts);
-
+      const { error: techError } = await supabase.from("event_technicians").insert(techInserts);
       if (techError) {
-        console.error("[CreateJob] Technician assignment failed:", techError);
         toast.error("Jobb opprettet, men montørtilknytning feilet", { description: techError.message });
       }
 
-      // 4. Call create-approval
-      console.log("[CreateJob] Calling create-approval for job:", createdEvent.id);
+      // Create approval & sync to Outlook
       const { data: approvalData, error: approvalError } = await supabase.functions.invoke(
         "create-approval",
         { body: { job_id: createdEvent.id } }
       );
 
-      if (approvalError) {
-        console.error("[CreateJob] create-approval invocation failed:", approvalError);
-        toast.error("Jobb opprettet, men godkjenningsforespørsel feilet", {
-          description: approvalError.message,
-        });
-      } else if (approvalData?.error) {
-        console.error("[CreateJob] create-approval returned error:", approvalData.error);
-        toast.error("Jobb opprettet, men godkjenningsforespørsel feilet", {
-          description: approvalData.error,
-        });
+      if (approvalError || approvalData?.error) {
+        toast.error("Jobb opprettet, men godkjenning feilet");
       } else {
-        console.log("[CreateJob] create-approval success:", approvalData);
-        toast.success("Jobb opprettet og godkjenning sendt", {
-          description: `SERVICE – ${title} er sendt til ${safeTechIds.length} montør(er).`,
+        toast.success("Jobb opprettet og sendt til montør", {
+          description: `${title} – ${safeTechIds.length} montør(er)`,
         });
-        // Sync to Outlook
         syncCreate(createdEvent.id);
       }
 
@@ -249,7 +202,6 @@ function CreateJobDialogInner({
       resetForm();
       onJobCreated?.();
     } catch (err: any) {
-      console.error("[CreateJob] Unexpected error:", err);
       toast.error("Noe gikk galt", { description: err?.message || "Ukjent feil" });
     } finally {
       setSubmitting(false);
@@ -267,76 +219,51 @@ function CreateJobDialogInner({
     setTechIds(preselectedTechId ? [preselectedTechId] : []);
     setFiles([]);
     setSubmitted(false);
+    setShowMore(false);
     setClientRequestId(crypto.randomUUID());
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[720px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Ny jobb</DialogTitle>
-          <DialogDescription className="sr-only">Opprett en ny jobb for montører</DialogDescription>
+          <DialogDescription>Opprett en servicejobb og send til montør</DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="title">Tittel</Label>
-              <div className="flex items-center gap-2 mt-1">
-                <span className="text-sm text-muted-foreground whitespace-nowrap">
-                  SERVICE –
-                </span>
-                <Input
-                  id="title"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder="Beskrivelse av jobb"
-                  required
-                />
-              </div>
-            </div>
-            <div>
-              <Label htmlFor="jobNumber">Jobbnummer (valgfritt)</Label>
-              <Input
-                id="jobNumber"
-                value={jobNumber}
-                onChange={(e) => setJobNumber(e.target.value)}
-                placeholder="F.eks. P-12345"
-                className="mt-1"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="customer">Kunde</Label>
-              <Input
-                id="customer"
-                value={customer}
-                onChange={(e) => setCustomer(e.target.value)}
-                placeholder="Kundenavn"
-                required
-                className="mt-1"
-              />
-            </div>
-            <TechnicianMultiSelect selectedIds={techIds} onChange={setTechIds} />
-          </div>
-
-          <div>
-            <Label htmlFor="address">Adresse</Label>
+          {/* Essential fields */}
+          <div className="space-y-1.5">
+            <Label htmlFor="title">Hva skal gjøres? *</Label>
             <Input
-              id="address"
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              placeholder="Gateadresse, postnr, sted"
+              id="title"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="F.eks. Bytte varmepumpe"
               required
-              className="mt-1"
+              autoFocus
             />
           </div>
 
+          <div className="space-y-1.5">
+            <Label htmlFor="customer">Kunde *</Label>
+            <Input
+              id="customer"
+              value={customer}
+              onChange={(e) => setCustomer(e.target.value)}
+              placeholder="Kundenavn"
+              required
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>Montør *</Label>
+            <TechnicianMultiSelect selectedIds={techIds} onChange={setTechIds} />
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label>Start</Label>
-              <div className="flex gap-2 mt-1">
+            <div className="space-y-1.5">
+              <Label>Startdato *</Label>
+              <div className="flex gap-2">
                 <Input
                   type="date"
                   value={startDate}
@@ -351,26 +278,15 @@ function CreateJobDialogInner({
                   value={startTime}
                   onChange={(e) => setStartTime(e.target.value)}
                   required
-                  className="w-28"
+                  className="w-24"
                 />
               </div>
             </div>
-            <div>
-              <Label>Slutt</Label>
-              <div className="flex gap-2 mt-1">
-                <Input
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  required
-                />
-                <Input
-                  type="time"
-                  value={endTime}
-                  onChange={(e) => setEndTime(e.target.value)}
-                  required
-                  className="w-28"
-                />
+            <div className="space-y-1.5">
+              <Label>Sluttdato *</Label>
+              <div className="flex gap-2">
+                <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} required />
+                <Input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} required className="w-24" />
               </div>
             </div>
           </div>
@@ -393,26 +309,60 @@ function CreateJobDialogInner({
             </div>
           )}
 
-          <div>
-            <Label htmlFor="description">Beskrivelse</Label>
-            <Textarea
-              id="description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Kort beskrivelse av jobben..."
-              rows={3}
-              className="mt-1"
-            />
-          </div>
+          {/* Show more toggle */}
+          <Button
+            type="button"
+            variant="ghost"
+            className="w-full gap-1.5 text-xs text-muted-foreground h-8"
+            onClick={() => setShowMore(!showMore)}
+          >
+            {showMore ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+            {showMore ? "Skjul detaljer" : "Adresse, beskrivelse, vedlegg…"}
+          </Button>
 
-          <FileUpload files={files} onChange={setFiles} />
+          {showMore && (
+            <div className="space-y-4 pt-1 border-t border-border/50">
+              <div className="space-y-1.5">
+                <Label htmlFor="address">Adresse</Label>
+                <Input
+                  id="address"
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  placeholder="Gateadresse, sted"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="jobNumber">Jobbnummer</Label>
+                <Input
+                  id="jobNumber"
+                  value={jobNumber}
+                  onChange={(e) => setJobNumber(e.target.value)}
+                  placeholder="F.eks. P-12345"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="description">Beskrivelse</Label>
+                <Textarea
+                  id="description"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Kort beskrivelse til montøren..."
+                  rows={3}
+                />
+              </div>
+
+              <FileUpload files={files} onChange={setFiles} />
+            </div>
+          )}
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Avbryt
             </Button>
             <Button type="submit" disabled={safeTechIds.length === 0 || submitting || submitted}>
-              {submitting ? "Oppretter..." : submitted ? "Opprettet ✓" : "Opprett jobb"}
+              {submitting ? "Oppretter…" : "Opprett og send"}
             </Button>
           </DialogFooter>
         </form>
@@ -422,11 +372,8 @@ function CreateJobDialogInner({
 }
 
 export function CreateJobDialog(props: CreateJobDialogProps) {
-  const resetOnError = () => {
-    props.onOpenChange(false);
-  };
   return (
-    <CreateJobErrorBoundary onReset={resetOnError}>
+    <CreateJobErrorBoundary onReset={() => props.onOpenChange(false)}>
       <CreateJobDialogInner {...props} />
     </CreateJobErrorBoundary>
   );

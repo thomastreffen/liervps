@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { useCompanyContext } from "@/hooks/useCompanyContext";
 import { useTasks } from "@/hooks/useTasks";
 import { TechnicianMultiSelect } from "@/components/TechnicianMultiSelect";
 import { Button } from "@/components/ui/button";
@@ -12,8 +11,8 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
-  Sparkles, Loader2, ListTodo, Clock, AlertTriangle, X, CheckCircle2,
-  Paperclip, ExternalLink,
+  Sparkles, Loader2, ListTodo, X, CheckCircle2,
+  Paperclip, ExternalLink, ChevronDown, ChevronUp,
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -74,8 +73,9 @@ export function CreateTaskPanel({
   const [aiLoading, setAiLoading] = useState(false);
   const [aiSuggestion, setAiSuggestion] = useState<AISuggestion | null>(null);
   const [createdTaskId, setCreatedTaskId] = useState<string | null>(null);
+  const [showMore, setShowMore] = useState(false);
 
-  // If prefillAction provided, use it immediately; otherwise fetch AI suggestion
+  // If prefillAction provided, use it; otherwise fetch AI suggestion
   useEffect(() => {
     if (prefillAction) {
       setTitle(prefillAction.title || "");
@@ -91,13 +91,11 @@ export function CreateTaskPanel({
         suggested_assignee_ids: prefillAction.suggested_assignee_ids || [],
         ai_confidence: 0.7,
       });
-      // Pre-select suggested attachments
       if (prefillAction.suggested_attachment_document_ids?.length) {
         setSelectedDocIds(prefillAction.suggested_attachment_document_ids.filter(
           id => documents.some(d => d.id === id)
         ));
       }
-      // Resolve assignees
       if (prefillAction.suggested_assignee_ids?.length) {
         supabase
           .from("technicians")
@@ -121,13 +119,11 @@ export function CreateTaskPanel({
       if (error) throw error;
       if (data) {
         setAiSuggestion(data);
-        // Prefill
         setTitle(data.title || "");
         setPriority(data.priority || "normal");
         setDueAt(data.due_at ? format(new Date(data.due_at), "yyyy-MM-dd") : "");
         setEstimatedMinutes(data.estimated_minutes || 60);
         if (data.suggested_assignee_ids?.length) {
-          // Map user_ids to technician_ids for TechnicianMultiSelect
           const { data: techs } = await supabase
             .from("technicians")
             .select("id, user_id")
@@ -146,7 +142,6 @@ export function CreateTaskPanel({
     if (!title.trim() || !user || saving || submitted) return;
     setSaving(true);
     try {
-      // Resolve technician IDs to user IDs for assignees
       let userIds: string[] = [];
       if (assigneeIds.length > 0) {
         const { data: techs } = await supabase
@@ -186,7 +181,7 @@ export function CreateTaskPanel({
       setSubmitted(true);
       toast.success("Oppgave opprettet!", {
         action: {
-          label: "Åpne oppgave",
+          label: "Åpne",
           onClick: () => navigate(`/projects/plan`),
         },
       });
@@ -229,11 +224,11 @@ export function CreateTaskPanel({
       <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/30">
         <div className="flex items-center gap-2">
           <ListTodo className="h-4 w-4 text-primary" />
-          <h3 className="text-sm font-semibold">Opprett oppgave</h3>
+          <h3 className="text-sm font-semibold">Ny oppgave</h3>
           {aiSuggestion && (
             <Badge variant="outline" className="text-[10px] h-5 border-violet-200 text-violet-600 dark:border-violet-800 dark:text-violet-400">
               <Sparkles className="h-2.5 w-2.5 mr-0.5" />
-              AI-foreslått
+              AI-forslag
             </Badge>
           )}
         </div>
@@ -246,7 +241,7 @@ export function CreateTaskPanel({
         {aiLoading && (
           <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
             <Loader2 className="h-4 w-4 animate-spin" />
-            Analyserer e-post med AI...
+            Analyserer innhold…
           </div>
         )}
 
@@ -259,23 +254,12 @@ export function CreateTaskPanel({
 
         {/* Title */}
         <div className="space-y-1.5">
-          <Label>Tittel</Label>
-          <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Oppgavetittel..." />
+          <Label>Hva skal gjøres? *</Label>
+          <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Oppgavetittel" autoFocus />
         </div>
 
-        {/* Description */}
-        <div className="space-y-1.5">
-          <Label>Beskrivelse</Label>
-          <Textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="Valgfri beskrivelse..."
-            className="min-h-[60px]"
-          />
-        </div>
-
-        {/* Priority + Due date + Estimate */}
-        <div className="grid grid-cols-3 gap-3">
+        {/* Priority + Due date */}
+        <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
             <Label>Prioritet</Label>
             <Select value={priority} onValueChange={setPriority}>
@@ -294,50 +278,78 @@ export function CreateTaskPanel({
             <Label>Frist</Label>
             <Input type="date" value={dueAt} onChange={(e) => setDueAt(e.target.value)} className="h-9" />
           </div>
-          <div className="space-y-1.5">
-            <Label className="flex items-center gap-1">
-              <Clock className="h-3 w-3" />
-              Estimat (min)
-            </Label>
-            <Input
-              type="number"
-              value={estimatedMinutes}
-              onChange={(e) => setEstimatedMinutes(Number(e.target.value))}
-              className="h-9"
-              min={0}
-              step={15}
-            />
-          </div>
         </div>
 
         {/* Assignees */}
-        <TechnicianMultiSelect selectedIds={assigneeIds} onChange={setAssigneeIds} />
+        <div className="space-y-1.5">
+          <Label>Ansvarlig</Label>
+          <TechnicianMultiSelect selectedIds={assigneeIds} onChange={setAssigneeIds} />
+        </div>
 
-        {/* Document attachments */}
-        {documents.length > 0 && (
-          <div className="space-y-1.5">
-            <Label className="flex items-center gap-1">
-              <Paperclip className="h-3 w-3" />
-              Vedlegg fra e-post
-            </Label>
-            <div className="space-y-1 max-h-32 overflow-y-auto">
-              {documents.map((doc) => (
-                <label
-                  key={doc.id}
-                  className="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-muted/50 cursor-pointer"
-                >
-                  <Checkbox
-                    checked={selectedDocIds.includes(doc.id)}
-                    onCheckedChange={(checked) => {
-                      setSelectedDocIds((prev) =>
-                        checked ? [...prev, doc.id] : prev.filter((id) => id !== doc.id)
-                      );
-                    }}
-                  />
-                  <span className="text-sm truncate">{doc.file_name}</span>
-                </label>
-              ))}
+        {/* Show more */}
+        <Button
+          type="button"
+          variant="ghost"
+          className="w-full gap-1.5 text-xs text-muted-foreground h-7"
+          onClick={() => setShowMore(!showMore)}
+        >
+          {showMore ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+          {showMore ? "Skjul detaljer" : "Beskrivelse, estimat, vedlegg…"}
+        </Button>
+
+        {showMore && (
+          <div className="space-y-4 border-t border-border/50 pt-3">
+            {/* Description */}
+            <div className="space-y-1.5">
+              <Label>Beskrivelse</Label>
+              <Textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Valgfri beskrivelse…"
+                className="min-h-[60px]"
+              />
             </div>
+
+            {/* Estimate */}
+            <div className="space-y-1.5">
+              <Label>Estimert tid (minutter)</Label>
+              <Input
+                type="number"
+                value={estimatedMinutes}
+                onChange={(e) => setEstimatedMinutes(Number(e.target.value))}
+                className="h-9 w-32"
+                min={0}
+                step={15}
+              />
+            </div>
+
+            {/* Document attachments */}
+            {documents.length > 0 && (
+              <div className="space-y-1.5">
+                <Label className="flex items-center gap-1">
+                  <Paperclip className="h-3 w-3" />
+                  Vedlegg fra e-post
+                </Label>
+                <div className="space-y-1 max-h-32 overflow-y-auto">
+                  {documents.map((doc) => (
+                    <label
+                      key={doc.id}
+                      className="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-muted/50 cursor-pointer"
+                    >
+                      <Checkbox
+                        checked={selectedDocIds.includes(doc.id)}
+                        onCheckedChange={(checked) => {
+                          setSelectedDocIds((prev) =>
+                            checked ? [...prev, doc.id] : prev.filter((id) => id !== doc.id)
+                          );
+                        }}
+                      />
+                      <span className="text-sm truncate">{doc.file_name}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 

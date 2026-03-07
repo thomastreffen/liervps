@@ -1,11 +1,11 @@
 import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Hammer, Loader2 } from "lucide-react";
+import { Hammer, Loader2, ChevronDown, ChevronUp } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useTechnicians } from "@/hooks/useTechnicians";
@@ -21,13 +21,11 @@ interface PlanJobDialogProps {
 }
 
 const DURATION_OPTIONS = [
-  { value: "30", label: "30 min" },
   { value: "60", label: "1 time" },
-  { value: "90", label: "1,5 timer" },
   { value: "120", label: "2 timer" },
   { value: "180", label: "3 timer" },
   { value: "240", label: "4 timer" },
-  { value: "480", label: "Hel dag (8t)" },
+  { value: "480", label: "Hel dag" },
 ];
 
 export function PlanJobDialog({
@@ -48,12 +46,13 @@ export function PlanJobDialog({
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [showMore, setShowMore] = useState(false);
   const [clientRequestId, setClientRequestId] = useState(() => crypto.randomUUID());
 
   const handleSave = async () => {
     if (saving || submitted) return;
-    if (!techId || !date || !startTime) {
-      toast.error("Velg ressurs, dato og starttid");
+    if (!techId || !date) {
+      toast.error("Velg montør og dato");
       return;
     }
 
@@ -67,7 +66,6 @@ export function PlanJobDialog({
 
       let projectId = existingProjectId;
 
-      // Create project (event) if none exists
       if (!projectId) {
         const { data: proj, error: projErr } = await supabase
           .from("events")
@@ -90,14 +88,12 @@ export function PlanJobDialog({
         if (projErr) throw projErr;
         projectId = proj.id;
 
-        // Link technician
         await supabase.from("event_technicians").insert({
           event_id: projectId,
           technician_id: techId,
         } as any);
       }
 
-      // Create service_job
       const { data: sj, error: sjErr } = await supabase
         .from("service_jobs")
         .insert({
@@ -118,30 +114,28 @@ export function PlanJobDialog({
 
       if (sjErr) throw sjErr;
 
-      // Update case: set project_id, service_job_id, status = converted
       await supabase.from("cases").update({
         project_id: projectId,
         service_job_id: sj.id,
         status: "converted",
       } as any).eq("id", caseId);
 
-      // Add system log to case_items
       const techName = technicians.find((t) => t.id === techId)?.name || "montør";
       await supabase.from("case_items").insert({
         case_id: caseId,
         company_id: companyId,
         type: "system",
-        subject: "Servicearbeid opprettet",
-        body_preview: `Servicearbeid planlagt for ${techName} – ${date} kl. ${startTime} (${duration} min)${address ? `, sted: ${address}` : ""}`,
+        subject: "Planlagt",
+        body_preview: `${techName} – ${date} kl. ${startTime} (${duration} min)${address ? `, ${address}` : ""}`,
         created_by: userId,
       } as any);
 
-      toast.success("Servicearbeid opprettet!");
+      toast.success("Planlagt og sendt til montør!");
       setSubmitted(true);
       onPlanned(projectId!, sj.id);
       onOpenChange(false);
 
-      // Reset for next open
+      // Reset
       setTechId("");
       setDate("");
       setStartTime("08:00");
@@ -149,10 +143,11 @@ export function PlanJobDialog({
       setAddress("");
       setNote("");
       setSubmitted(false);
+      setShowMore(false);
       setClientRequestId(crypto.randomUUID());
     } catch (err: any) {
       console.error("PlanJob error:", err);
-      toast.error("Kunne ikke opprette servicearbeid: " + (err.message || "Ukjent feil"));
+      toast.error("Kunne ikke planlegge: " + (err.message || "Ukjent feil"));
     } finally {
       setSaving(false);
     }
@@ -164,20 +159,21 @@ export function PlanJobDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Hammer className="h-5 w-5 text-primary" />
-            Opprett servicearbeid
+            Planlegg arbeid
           </DialogTitle>
+          <DialogDescription>Velg montør og tidspunkt – resten er valgfritt</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
           <div>
-            <Label className="text-xs">Henvendelse</Label>
-            <p className="text-sm font-medium mt-1 truncate">{caseTitle}</p>
+            <Label className="text-xs text-muted-foreground">Henvendelse</Label>
+            <p className="text-sm font-medium mt-0.5 truncate">{caseTitle}</p>
           </div>
 
-          <div>
-            <Label className="text-xs">Ressurs / Montør</Label>
+          <div className="space-y-1.5">
+            <Label>Hvem skal utføre? *</Label>
             <Select value={techId} onValueChange={setTechId}>
-              <SelectTrigger className="mt-1">
+              <SelectTrigger>
                 <SelectValue placeholder="Velg montør" />
               </SelectTrigger>
               <SelectContent>
@@ -193,49 +189,62 @@ export function PlanJobDialog({
             </Select>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label className="text-xs">Dato</Label>
-              <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="mt-1" />
+          <div className="grid grid-cols-3 gap-3">
+            <div className="col-span-1 space-y-1.5">
+              <Label>Dato *</Label>
+              <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
             </div>
-            <div>
-              <Label className="text-xs">Starttid</Label>
-              <Input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} className="mt-1" />
+            <div className="space-y-1.5">
+              <Label>Klokkeslett</Label>
+              <Input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Varighet</Label>
+              <Select value={duration} onValueChange={setDuration}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {DURATION_OPTIONS.map((d) => (
+                    <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
-          <div>
-            <Label className="text-xs">Varighet</Label>
-            <Select value={duration} onValueChange={setDuration}>
-              <SelectTrigger className="mt-1">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {DURATION_OPTIONS.map((d) => (
-                  <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {/* Show more */}
+          <Button
+            type="button"
+            variant="ghost"
+            className="w-full gap-1.5 text-xs text-muted-foreground h-7"
+            onClick={() => setShowMore(!showMore)}
+          >
+            {showMore ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+            {showMore ? "Skjul detaljer" : "Adresse, notat…"}
+          </Button>
 
-          <div>
-            <Label className="text-xs">Sted / Adresse</Label>
-            <Input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="F.eks. Storgata 10, Oslo" className="mt-1" />
-          </div>
-
-          <div>
-            <Label className="text-xs">Notat (valgfritt)</Label>
-            <Textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="Beskrivelse, instrukser…" className="mt-1" rows={3} />
-          </div>
+          {showMore && (
+            <div className="space-y-3 border-t border-border/50 pt-3">
+              <div className="space-y-1.5">
+                <Label>Adresse</Label>
+                <Input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="F.eks. Storgata 10, Oslo" />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Notat til montør</Label>
+                <Textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="Instrukser, tilgang, kontaktperson…" rows={2} />
+              </div>
+            </div>
+          )}
         </div>
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
             Avbryt
           </Button>
-          <Button onClick={handleSave} disabled={saving || submitted} className="gap-1.5">
+          <Button onClick={handleSave} disabled={saving || submitted || !techId || !date} className="gap-1.5">
             {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-            {saving ? "Oppretter…" : submitted ? "Opprettet ✓" : "Opprett"}
+            {saving ? "Planlegger…" : "Planlegg"}
           </Button>
         </DialogFooter>
       </DialogContent>
