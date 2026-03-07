@@ -85,6 +85,11 @@ export function MobileTabBar() {
   const [fabOpen, setFabOpen] = useState(false);
 
   const jobsDot = actionRequiredCount > 0;
+  const isOnPlan = location.pathname === "/projects/plan";
+
+  const quickActions: QuickAction[] = isOnPlan
+    ? [planAction, ...baseQuickActions]
+    : baseQuickActions;
 
   const availableActions = quickActions.filter((action) => {
     if (!action.permission) return true;
