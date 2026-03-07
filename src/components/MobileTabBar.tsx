@@ -10,6 +10,7 @@ import {
   Users,
   FileText,
   ScrollText,
+  CalendarPlus,
 } from "lucide-react";
 import { useNotifications } from "@/hooks/useNotifications";
 import { useActionRequired } from "@/hooks/useActionRequired";
@@ -25,7 +26,16 @@ import {
   DrawerClose,
 } from "@/components/ui/drawer";
 
-const quickActions = [
+interface QuickAction {
+  label: string;
+  description: string;
+  icon: React.ComponentType<{ className?: string }>;
+  path?: string;
+  permission: string | null;
+  onAction?: () => void;
+}
+
+const baseQuickActions: QuickAction[] = [
   {
     label: "Nytt prosjekt",
     description: "Opprett et nytt prosjekt",
@@ -55,6 +65,14 @@ const quickActions = [
     permission: "contracts.create",
   },
 ];
+
+const planAction: QuickAction = {
+  label: "Ny aktivitet",
+  description: "Planlegg arbeid direkte i kalenderen",
+  icon: CalendarPlus,
+  permission: null,
+  onAction: () => window.dispatchEvent(new CustomEvent("resource-plan:new-activity")),
+};
 
 export function MobileTabBar() {
   const location = useLocation();
