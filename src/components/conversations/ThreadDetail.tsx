@@ -1046,6 +1046,38 @@ export function ThreadDetail({ threadId, threadTitle, threadType, projectId, com
           onCreated={refresh}
         />
       )}
+
+      {/* Delete confirmation dialog */}
+      <AlertDialog open={!!deleteConfirm} onOpenChange={(open) => { if (!open) setDeleteConfirm(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {deleteConfirm?.type === "thread" ? "Slett samtale" : deleteConfirm?.type === "multi" ? "Slett valgte meldinger" : "Slett melding"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteConfirm?.type === "thread"
+                ? "Hele samtalen vil bli arkivert og lukket. Denne handlingen logges."
+                : deleteConfirm?.type === "multi"
+                  ? `${selectedPostIds.size} meldinger vil bli slettet. Denne handlingen logges.`
+                  : "Meldingen vil bli slettet og erstattet med en systemmelding. Denne handlingen logges."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Avbryt</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (deleteConfirm?.type === "single" && deleteConfirm.postId) handleDeletePost(deleteConfirm.postId);
+                else if (deleteConfirm?.type === "multi") handleDeleteSelected();
+                else if (deleteConfirm?.type === "thread") handleDeleteThread();
+                setDeleteConfirm(null);
+              }}
+            >
+              Slett
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
