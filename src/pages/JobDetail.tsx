@@ -7,6 +7,7 @@ import { ProjectFeed } from "@/components/project/ProjectFeed";
 import { ThreadList } from "@/components/conversations/ThreadList";
 import { DocsFilesRoom } from "@/components/docs/DocsFilesRoom";
 import { ProjectPlanTab } from "@/components/ProjectPlanTab";
+import { ProjectScheduleSheet } from "@/components/project/ProjectScheduleSheet";
 import { Button } from "@/components/ui/button";
 import type { Job, Attachment } from "@/lib/mock-data";
 import {
@@ -36,6 +37,8 @@ export default function JobDetail() {
   const [activeRoom, setActiveRoom] = useState<string | null>(null);
   const [accessDrawerOpen, setAccessDrawerOpen] = useState(false);
   const [accessDrawerTab, setAccessDrawerTab] = useState<"members" | "spaces">("members");
+  const [scheduleSheetOpen, setScheduleSheetOpen] = useState(false);
+  const [scheduleRefreshKey, setScheduleRefreshKey] = useState(0);
 
   /* ── Fetch data ── */
   const fetchJob = useCallback(async () => {
