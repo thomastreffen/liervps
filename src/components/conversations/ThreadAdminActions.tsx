@@ -27,7 +27,7 @@ interface ThreadAdminActionsProps {
   onStartMultiSelect?: () => void;
 }
 
-export function ThreadAdminActions({ thread, isAdmin, onUpdate }: ThreadAdminActionsProps) {
+export function ThreadAdminActions({ thread, isAdmin, onUpdate, onDeleteThread, onStartMultiSelect }: ThreadAdminActionsProps) {
   const { user } = useAuth();
   const [decisionOpen, setDecisionOpen] = useState(false);
   const [decisionSummary, setDecisionSummary] = useState("");
