@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   FolderOpen,
   CalendarDays,
+  ClipboardList,
   Loader2,
   ExternalLink,
 } from "lucide-react";
@@ -173,6 +174,12 @@ export function ProjectRooms({ jobId, onOpenPlan, onOpenRoom, onOpenScheduleShee
               Åpne ressursplan
             </Button>
           }
+        />
+        <RoomCard
+          icon={<ClipboardList className="h-7 w-7" />}
+          title="Servicejournal"
+          subtitle="Samlet dokumentasjon"
+          onClick={() => onOpenRoom("servicejournal")}
         />
       </div>
     </div>

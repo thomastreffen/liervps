@@ -7,6 +7,7 @@ import { ProjectFeed } from "@/components/project/ProjectFeed";
 import { ThreadList } from "@/components/conversations/ThreadList";
 import { DocsFilesRoom } from "@/components/docs/DocsFilesRoom";
 import { ProjectPlanTab } from "@/components/ProjectPlanTab";
+import { ServiceJournal } from "@/components/project/ServiceJournal";
 import { ProjectScheduleSheet } from "@/components/project/ProjectScheduleSheet";
 import { Button } from "@/components/ui/button";
 import type { Job, Attachment } from "@/lib/mock-data";
@@ -204,6 +205,15 @@ export default function JobDetail() {
               )}
               {activeRoom === "dokumenter" && (
                 <DocsFilesRoom projectId={id!} jobId={id!} />
+              )}
+              {activeRoom === "servicejournal" && (
+                <ServiceJournal
+                  projectId={id!}
+                  projectTitle={job.title}
+                  customer={job.customer}
+                  address={job.address}
+                  technicianNames={technicianNames}
+                />
               )}
             </div>
           ) : (
