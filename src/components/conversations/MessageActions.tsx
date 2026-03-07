@@ -2,10 +2,12 @@ import { useState } from "react";
 import { type ConversationPost } from "@/hooks/useConversations";
 import {
   Reply, Smile, MoreHorizontal, Pin, ListTodo, X, AlertTriangle, FileText,
+  Trash2, CheckSquare,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 
 const REACTION_EMOJIS = ["👍", "✔️", "⚠️", "🔥", "👀"];
@@ -19,12 +21,34 @@ interface MessageActionsProps {
   onPinToggle: (post: ConversationPost) => void;
   onToggleReaction: (postId: string, emoji: string) => void;
   onAddDocument?: (post: ConversationPost) => void;
+  // Admin moderation
+  canModerate?: boolean;
+  onDeleteMessage?: (postId: string) => void;
+  adminSelectMode?: boolean;
+  isSelected?: boolean;
+  onToggleSelect?: (postId: string) => void;
 }
 
 export function MessageActions({
   post, isOwn, isPinned, onReply, onCreateTask, onPinToggle, onToggleReaction, onAddDocument,
+  canModerate, onDeleteMessage, adminSelectMode, isSelected, onToggleSelect,
 }: MessageActionsProps) {
   const [showReactionPicker, setShowReactionPicker] = useState(false);
+
+  // Multi-select mode: show checkbox only
+  if (adminSelectMode && onToggleSelect) {
+    return (
+      <button
+        onClick={() => onToggleSelect(post.id)}
+        className={cn(
+          "absolute -left-8 top-1/2 -translate-y-1/2 h-6 w-6 rounded-md flex items-center justify-center transition-colors cursor-pointer",
+          isSelected ? "bg-destructive text-destructive-foreground" : "border border-border bg-card hover:bg-muted"
+        )}
+      >
+        {isSelected && <CheckSquare className="h-3.5 w-3.5" />}
+      </button>
+    );
+  }
 
   return (
     <>
@@ -64,12 +88,23 @@ export function MessageActions({
             <DropdownMenuItem onClick={() => onPinToggle(post)} className="gap-2 text-xs">
               <Pin className="h-3.5 w-3.5" /> {isPinned ? "Løsne" : "Fest melding"}
             </DropdownMenuItem>
-            <DropdownMenuItem className="gap-2 text-xs text-amber-600">
+            <DropdownMenuItem className="gap-2 text-xs text-muted-foreground">
               <AlertTriangle className="h-3.5 w-3.5" /> Registrer avvik
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => onAddDocument?.(post)} className="gap-2 text-xs">
               <FileText className="h-3.5 w-3.5" /> Legg til dokument
             </DropdownMenuItem>
+            {canModerate && onDeleteMessage && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => onDeleteMessage(post.id)}
+                  className="gap-2 text-xs text-destructive focus:text-destructive"
+                >
+                  <Trash2 className="h-3.5 w-3.5" /> Slett melding
+                </DropdownMenuItem>
+              </>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
