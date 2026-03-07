@@ -7,6 +7,7 @@ import { ProjectFeed } from "@/components/project/ProjectFeed";
 import { ThreadList } from "@/components/conversations/ThreadList";
 import { DocsFilesRoom } from "@/components/docs/DocsFilesRoom";
 import { ProjectPlanTab } from "@/components/ProjectPlanTab";
+import { ProjectScheduleSheet } from "@/components/project/ProjectScheduleSheet";
 import { Button } from "@/components/ui/button";
 import type { Job, Attachment } from "@/lib/mock-data";
 import {
@@ -36,6 +37,8 @@ export default function JobDetail() {
   const [activeRoom, setActiveRoom] = useState<string | null>(null);
   const [accessDrawerOpen, setAccessDrawerOpen] = useState(false);
   const [accessDrawerTab, setAccessDrawerTab] = useState<"members" | "spaces">("members");
+  const [scheduleSheetOpen, setScheduleSheetOpen] = useState(false);
+  const [scheduleRefreshKey, setScheduleRefreshKey] = useState(0);
 
   /* ── Fetch data ── */
   const fetchJob = useCallback(async () => {
@@ -208,6 +211,8 @@ export default function JobDetail() {
               jobId={id!}
               onOpenPlan={() => setShowPlan(true)}
               onOpenRoom={(room) => setActiveRoom(room)}
+              onOpenScheduleSheet={() => setScheduleSheetOpen(true)}
+              key={scheduleRefreshKey}
             />
           )}
         </div>
@@ -243,6 +248,20 @@ export default function JobDetail() {
             />
           </div>
         </div>
+      )}
+
+      {/* Schedule sheet – inline from project page */}
+      {job && (
+        <ProjectScheduleSheet
+          open={scheduleSheetOpen}
+          onOpenChange={setScheduleSheetOpen}
+          projectId={job.id}
+          projectTitle={job.title}
+          customer={job.customer}
+          address={job.address}
+          suggestedDate={job.start}
+          onCreated={() => setScheduleRefreshKey((k) => k + 1)}
+        />
       )}
     </>
   );
