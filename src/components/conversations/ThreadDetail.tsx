@@ -752,6 +752,12 @@ export function ThreadDetail({ threadId, threadTitle, threadType, projectId, com
                               onFilterByDocType={(dt) => setChatFilter(f => ({ ...f, tags: [...(f.tags || []), dt] }))}
                               onFilterByObjectLabel={(label) => setChatFilter(f => ({ ...f, location: label }))}
                               onAnnotationSaved={mediaAnnotations.refresh}
+                              // Admin moderation
+                              canModerate={canModerate}
+                              onDeleteMessage={(postId) => setDeleteConfirm({ type: "single", postId })}
+                              adminSelectMode={adminSelectMode}
+                              isSelected={selectedPostIds.has(post.id)}
+                              onToggleSelect={togglePostSelection}
                             />
                           );
                         })}
