@@ -12,7 +12,7 @@ export function useUnplannedProjects() {
         .select("id", { count: "exact", head: true })
         .is("deleted_at", null)
         .is("archived_at", null)
-        .in("status", ["unconfirmed", "requested", "approved"])
+        .in("status", ["requested", "approved"])
         .is("microsoft_event_id", null);
 
       if (!error && total !== null) {
