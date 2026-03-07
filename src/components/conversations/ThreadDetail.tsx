@@ -164,6 +164,9 @@ export function ThreadDetail({ threadId, threadTitle, threadType, projectId, com
   const [mentionIndex, setMentionIndex] = useState(0);
   const [viewMode, setViewMode] = useState<"chat" | "inbox">("chat");
   const [chatFilter, setChatFilter] = useState<ChatFilter>({});
+  const [adminSelectMode, setAdminSelectMode] = useState(false);
+  const [selectedPostIds, setSelectedPostIds] = useState<Set<string>>(new Set());
+  const [deleteConfirm, setDeleteConfirm] = useState<{ type: "single" | "multi" | "thread"; postId?: string } | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
