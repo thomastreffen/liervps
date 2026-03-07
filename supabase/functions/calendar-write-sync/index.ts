@@ -303,7 +303,7 @@ Deno.serve(async (req) => {
 
     // ─── ACTION: create ───
     if (action === "create") {
-      const graphBody = buildGraphBody(event);
+      const graphBody = buildGraphBody(event, customer);
 
       const res = await fetch(
         `https://graph.microsoft.com/v1.0/users/${tokenUserEmail}/events`,
@@ -348,7 +348,7 @@ Deno.serve(async (req) => {
 
     // ─── ACTION: update ───
     if (action === "update") {
-      const graphBody = buildGraphBody(event);
+      const graphBody = buildGraphBody(event, customer);
 
       if (event.microsoft_event_id) {
         // PATCH existing
@@ -504,7 +504,7 @@ Deno.serve(async (req) => {
 
     // ─── ACTION: force_update (override conflict) ───
     if (action === "force_update") {
-      const graphBody = buildGraphBody(event);
+      const graphBody = buildGraphBody(event, customer);
 
       if (!event.microsoft_event_id) {
         return new Response(JSON.stringify({ status: "no_graph_event" }), {
