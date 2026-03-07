@@ -455,6 +455,79 @@ export function ThreadDetail({ threadId, threadTitle, threadType, projectId, com
     else if (type === "tag") setChatFilter(f => ({ ...f, tags: [...(f.tags || []), value] }));
   }, []);
 
+  // Admin message moderation
+  const canModerate = isAdmin;
+
+  const handleDeletePost = useCallback(async (postId: string) => {
+    const { error } = await (supabase as any)
+      .from("conversation_posts")
+      .update({ deleted_at: new Date().toISOString(), deleted_by: user?.id })
+      .eq("id", postId);
+    if (error) { toast.error("Kunne ikke slette melding"); return; }
+    // Insert system message
+    await (supabase as any).from("conversation_posts").insert({
+      thread_id: threadId, company_id: companyId, author_id: currentUaId,
+      post_type: "system", body_text: "Melding slettet av administrator",
+    });
+    // Log to activity_log
+    await supabase.from("activity_log").insert({
+      entity_id: threadId, entity_type: "conversation_thread",
+      action: "message_deleted", type: "note",
+      title: "Melding slettet", description: "En melding ble slettet av administrator",
+      performed_by: user?.id,
+    });
+    toast.success("Melding slettet");
+    refresh();
+  }, [threadId, companyId, currentUaId, user, refresh]);
+
+  const handleDeleteSelected = useCallback(async () => {
+    const ids = Array.from(selectedPostIds);
+    if (ids.length === 0) return;
+    const { error } = await (supabase as any)
+      .from("conversation_posts")
+      .update({ deleted_at: new Date().toISOString(), deleted_by: user?.id })
+      .in("id", ids);
+    if (error) { toast.error("Kunne ikke slette meldinger"); return; }
+    await (supabase as any).from("conversation_posts").insert({
+      thread_id: threadId, company_id: companyId, author_id: currentUaId,
+      post_type: "system", body_text: `${ids.length} meldinger slettet av administrator`,
+    });
+    await supabase.from("activity_log").insert({
+      entity_id: threadId, entity_type: "conversation_thread",
+      action: "messages_bulk_deleted", type: "note",
+      title: `${ids.length} meldinger slettet`,
+      performed_by: user?.id,
+    });
+    toast.success(`${ids.length} meldinger slettet`);
+    setSelectedPostIds(new Set());
+    setAdminSelectMode(false);
+    refresh();
+  }, [selectedPostIds, threadId, companyId, currentUaId, user, refresh]);
+
+  const handleDeleteThread = useCallback(async () => {
+    const { error } = await (supabase as any)
+      .from("conversation_threads")
+      .update({ is_archived: true, status: "closed", closed_at: new Date().toISOString(), closed_by: user?.id })
+      .eq("id", threadId);
+    if (error) { toast.error("Kunne ikke slette samtale"); return; }
+    await supabase.from("activity_log").insert({
+      entity_id: threadId, entity_type: "conversation_thread",
+      action: "thread_deleted", type: "note",
+      title: `Samtale "${threadTitle}" slettet`,
+      performed_by: user?.id,
+    });
+    toast.success("Samtale slettet");
+    refresh();
+  }, [threadId, threadTitle, user, refresh]);
+
+  const togglePostSelection = useCallback((postId: string) => {
+    setSelectedPostIds(prev => {
+      const next = new Set(prev);
+      if (next.has(postId)) next.delete(postId); else next.add(postId);
+      return next;
+    });
+  }, []);
+
   if (loading) {
     return (
       <div className="flex justify-center py-16">
