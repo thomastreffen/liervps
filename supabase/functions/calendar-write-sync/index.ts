@@ -84,23 +84,105 @@ function toLocalDateTimeString(isoString: string): string {
   return `${get("year")}-${get("month")}-${get("day")}T${get("hour")}:${get("minute")}:${get("second")}`;
 }
 
+/* ── Human-readable project type labels ── */
+const PROJECT_TYPE_LABELS: Record<string, string> = {
+  service: "Service",
+  inspection: "Befaring",
+  maintenance: "Vedlikehold",
+  fdv: "FDV",
+  installation: "Installasjon",
+  project: "Prosjekt",
+  repair: "Reparasjon",
+  consultation: "Rådgivning",
+  emergency: "Akutt",
+};
+
+/* ── Format time for display ── */
+function formatTimeRange(startIso: string, endIso: string): string {
+  const start = new Date(startIso);
+  const end = new Date(endIso);
+  const fmt = new Intl.DateTimeFormat("nb-NO", {
+    timeZone: "Europe/Oslo",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+  const dateFmt = new Intl.DateTimeFormat("nb-NO", {
+    timeZone: "Europe/Oslo",
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+  return `${dateFmt.format(start)}\n${fmt.format(start)} – ${fmt.format(end)}`;
+}
+
+/* ── Build Google Maps link ── */
+function mapsLink(address: string): string {
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
+}
+
 /* ── Build Graph event body ── */
-function buildGraphBody(event: any) {
-  const displayNumber = event.internal_number || event.job_number || "";
-  const subject = displayNumber ? `${displayNumber} - ${event.title}` : event.title;
+function buildGraphBody(event: any, customer?: any) {
+  // Subject: [KUNDE] – [TYPE] – [STED]  (human, no internal codes)
+  const typeLabel = PROJECT_TYPE_LABELS[event.project_type] || event.project_type || "Arbeid";
+  const customerName = event.customer || customer?.name || "";
+  const locationShort = event.address?.split(",")[0]?.trim() || "";
+
+  const subjectParts = [customerName, typeLabel, locationShort].filter(Boolean);
+  const subject = subjectParts.length >= 2
+    ? subjectParts.join(" – ")
+    : event.title || "Oppdrag";
+
+  // Structured body – scannable in 3 seconds
+  const timeDisplay = formatTimeRange(event.start_time, event.end_time);
+  const addressDisplay = event.address || "Ikke angitt";
+  const mapsUrl = event.address ? mapsLink(event.address) : "";
+
+  let html = `<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 14px; line-height: 1.6; color: #1a1a1a;">`;
+
+  // OPPDRAG
+  html += `<p style="margin: 0 0 4px; font-size: 13px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px;">Oppdrag</p>`;
+  html += `<p style="margin: 0 0 16px; font-size: 15px;">${event.title || typeLabel}${event.description ? `<br/><span style="color: #6b7280;">${event.description}</span>` : ""}</p>`;
+
+  // TID
+  html += `<p style="margin: 0 0 4px; font-size: 13px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px;">Tidspunkt</p>`;
+  html += `<p style="margin: 0 0 16px; font-size: 15px; white-space: pre-line;">${timeDisplay}</p>`;
+
+  // STED
+  html += `<p style="margin: 0 0 4px; font-size: 13px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px;">Sted</p>`;
+  html += `<p style="margin: 0 0 4px; font-size: 15px;">${addressDisplay}</p>`;
+  if (mapsUrl) {
+    html += `<p style="margin: 0 0 16px;"><a href="${mapsUrl}" style="color: #2563eb; text-decoration: none;">📍 Åpne i kart</a></p>`;
+  } else {
+    html += `<p style="margin: 0 0 16px;"></p>`;
+  }
+
+  // KONTAKT
+  if (customerName || customer?.main_phone || customer?.main_email) {
+    html += `<p style="margin: 0 0 4px; font-size: 13px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px;">Kontakt</p>`;
+    const contactParts: string[] = [];
+    if (customerName) contactParts.push(customerName);
+    if (customer?.main_phone) contactParts.push(`📞 <a href="tel:${customer.main_phone}" style="color: #2563eb; text-decoration: none;">${customer.main_phone}</a>`);
+    if (customer?.main_email) contactParts.push(`✉️ ${customer.main_email}`);
+    html += `<p style="margin: 0 0 16px; font-size: 15px;">${contactParts.join("<br/>")}</p>`;
+  }
+
+  html += `</div>`;
 
   const body: any = {
     subject,
-    body: {
-      contentType: "HTML",
-      content: `<b>Kunde:</b> ${event.customer || "Ikke angitt"}<br/><b>Adresse:</b> ${event.address || "Ikke angitt"}${event.description ? `<br/><b>Beskrivelse:</b> ${event.description}` : ""}`,
-    },
+    body: { contentType: "HTML", content: html },
     start: { dateTime: toLocalDateTimeString(event.start_time), timeZone: "Europe/Oslo" },
     end: { dateTime: toLocalDateTimeString(event.end_time), timeZone: "Europe/Oslo" },
+    categories: ["Arbeid"],
   };
 
   if (event.address) {
-    body.location = { displayName: event.address };
+    body.location = {
+      displayName: event.address,
+      address: { street: event.address },
+    };
   }
 
   return body;
@@ -147,7 +229,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Fetch event with technicians
+    // Fetch event with technicians + customer
     const { data: event, error: eventErr } = await supabaseAdmin
       .from("events")
       .select(`
@@ -155,7 +237,8 @@ Deno.serve(async (req) => {
         event_technicians (
           technician_id,
           technicians ( id, name, email, user_id )
-        )
+        ),
+        customers ( id, name, main_phone, main_email )
       `)
       .eq("id", event_id)
       .single();
@@ -166,6 +249,8 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    const customer = event.customers || null;
 
     // Find a technician with a valid MS token
     const techs = (event.event_technicians ?? [])
@@ -218,7 +303,7 @@ Deno.serve(async (req) => {
 
     // ─── ACTION: create ───
     if (action === "create") {
-      const graphBody = buildGraphBody(event);
+      const graphBody = buildGraphBody(event, customer);
 
       const res = await fetch(
         `https://graph.microsoft.com/v1.0/users/${tokenUserEmail}/events`,
@@ -263,7 +348,7 @@ Deno.serve(async (req) => {
 
     // ─── ACTION: update ───
     if (action === "update") {
-      const graphBody = buildGraphBody(event);
+      const graphBody = buildGraphBody(event, customer);
 
       if (event.microsoft_event_id) {
         // PATCH existing
@@ -419,7 +504,7 @@ Deno.serve(async (req) => {
 
     // ─── ACTION: force_update (override conflict) ───
     if (action === "force_update") {
-      const graphBody = buildGraphBody(event);
+      const graphBody = buildGraphBody(event, customer);
 
       if (!event.microsoft_event_id) {
         return new Response(JSON.stringify({ status: "no_graph_event" }), {

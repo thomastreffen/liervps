@@ -326,7 +326,7 @@ export function ResourceAssignDialog({
           <DialogDescription>
             {projectId
               ? `Tildel montører til ${projectTitle || "dette prosjektet"}`
-              : "Opprett ny hendelse eller tildel eksisterende prosjekt til montører"}
+              : "Opprett nytt oppdrag eller tildel eksisterende prosjekt til montører"}
           </DialogDescription>
         </DialogHeader>
 
@@ -335,7 +335,7 @@ export function ResourceAssignDialog({
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="new" className="gap-1.5">
                 <CalendarPlus className="h-3.5 w-3.5" />
-                Ny hendelse
+                Nytt oppdrag
               </TabsTrigger>
               <TabsTrigger value="existing" className="gap-1.5">
                 <Link2 className="h-3.5 w-3.5" />
