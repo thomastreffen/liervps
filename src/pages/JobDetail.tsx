@@ -7,6 +7,7 @@ import { ProjectFeed } from "@/components/project/ProjectFeed";
 import { ThreadList } from "@/components/conversations/ThreadList";
 import { DocsFilesRoom } from "@/components/docs/DocsFilesRoom";
 import { ProjectPlanTab } from "@/components/ProjectPlanTab";
+import { ServiceJournal } from "@/components/project/ServiceJournal";
 import { ProjectScheduleSheet } from "@/components/project/ProjectScheduleSheet";
 import { Button } from "@/components/ui/button";
 import type { Job, Attachment } from "@/lib/mock-data";

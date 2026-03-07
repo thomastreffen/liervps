@@ -175,6 +175,12 @@ export function ProjectRooms({ jobId, onOpenPlan, onOpenRoom, onOpenScheduleShee
             </Button>
           }
         />
+        <RoomCard
+          icon={<ClipboardList className="h-7 w-7" />}
+          title="Servicejournal"
+          subtitle="Samlet dokumentasjon"
+          onClick={() => onOpenRoom("servicejournal")}
+        />
       </div>
     </div>
   );
