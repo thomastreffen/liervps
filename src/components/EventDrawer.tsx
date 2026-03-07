@@ -376,9 +376,9 @@ export function EventDrawer({
         <SheetHeader className="space-y-2">
           <SheetTitle className="flex items-center gap-2">
             {isEditing ? (
-              <><Clock className="h-5 w-5 text-primary" />Rediger hendelse</>
+              <><Clock className="h-5 w-5 text-primary" />Rediger oppdrag</>
             ) : (
-              <><CalendarPlus className="h-5 w-5 text-primary" />{projectId ? "Planlegg ressurs" : "Ny hendelse"}</>
+              <><CalendarPlus className="h-5 w-5 text-primary" />{projectId ? "Planlegg arbeid" : "Nytt oppdrag"}</>
             )}
           </SheetTitle>
           <SheetDescription>
@@ -386,7 +386,7 @@ export function EventDrawer({
               ? "Endre tid, ressurser eller detaljer"
               : projectId
               ? `Tildel tid og montører til ${projectTitle || "prosjektet"}`
-              : "Opprett ny hendelse eller knytt til eksisterende prosjekt"}
+              : "Opprett nytt oppdrag eller knytt til eksisterende prosjekt"}
           </SheetDescription>
         </SheetHeader>
 
