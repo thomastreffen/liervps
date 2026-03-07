@@ -499,8 +499,8 @@ export const ScheduleBlockDetailPanel = memo(function ScheduleBlockDetailPanel({
               <AlertDialogTitle>Fjern fra plan?</AlertDialogTitle>
               <AlertDialogDescription>
                 {isSystem
-                  ? "Dette fjerner oppføringen fra planen og sletter Outlook-avtalen. Kan ikke angres."
-                  : "Oppføringen fjernes fra planoversikten. Outlook-avtalen beholdes – slett den i Outlook om du vil fjerne den helt."}
+                  ? "Dette fjerner oppdraget fra planen og sletter avtalen i Outlook. Kan ikke angres."
+                  : "Oppdraget fjernes fra planoversikten. Avtalen i Outlook beholdes – slett den i Outlook om du vil fjerne den helt."}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
