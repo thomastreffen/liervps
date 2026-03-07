@@ -917,25 +917,14 @@ export function ThreadDetail({ threadId, threadTitle, threadType, projectId, com
                   <DropdownMenuItem onClick={() => fileInputRef.current?.click()} className="gap-2 text-xs">
                     <Paperclip className="h-3.5 w-3.5" /> Vedlegg
                   </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => {
-                      // Trigger camera capture - the CameraCapture component handles its own UI
-                      const cameraBtn = document.querySelector('[data-camera-trigger]') as HTMLButtonElement;
-                      cameraBtn?.click();
-                    }}
-                    className="gap-2 text-xs"
-                  >
-                    <Camera className="h-3.5 w-3.5" /> Ta bilde
-                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
 
-              {/* Hidden camera capture trigger */}
-              <div className="hidden">
+              {/* Camera – desktop visible, mobile inside + menu is handled by the button above */}
+              <div className="hidden sm:block">
                 <CameraCapture
                   onCapture={(files) => setPendingFiles(prev => [...prev, ...files])}
                   disabled={sending}
-                  triggerAttr="data-camera-trigger"
                 />
               </div>
 
