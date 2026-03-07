@@ -11,7 +11,7 @@ type CalendarViewType = "timeGridDay" | "timeGridWeek" | "dayGridMonth" | "listW
 interface Technician {
   id: string;
   name: string;
-  color: string | null;
+  color?: string | null;
 }
 
 interface MobileResourceHeaderProps {
