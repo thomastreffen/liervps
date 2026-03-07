@@ -152,6 +152,13 @@ export default function ResourcePlan() {
     setDrawerOpen(true);
   }, []);
 
+  // Listen for global FAB "Ny aktivitet" from MobileTabBar
+  useEffect(() => {
+    const handler = () => handleNewEvent();
+    window.addEventListener("resource-plan:new-activity", handler);
+    return () => window.removeEventListener("resource-plan:new-activity", handler);
+  }, [handleNewEvent]);
+
   const handleEventDrop = useCallback(async (eventId: string, newStart: Date, newEnd: Date) => {
     const oldEvent = calEvents.find((e) => e.id === eventId);
     const { error } = await supabase.from("events")
