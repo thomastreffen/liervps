@@ -206,6 +206,15 @@ export default function JobDetail() {
               {activeRoom === "dokumenter" && (
                 <DocsFilesRoom projectId={id!} jobId={id!} />
               )}
+              {activeRoom === "servicejournal" && (
+                <ServiceJournal
+                  projectId={id!}
+                  projectTitle={job.title}
+                  customer={job.customer}
+                  address={job.address}
+                  technicianNames={technicianNames}
+                />
+              )}
             </div>
           ) : (
             <ProjectRooms
