@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   FolderOpen,
   CalendarDays,
+  ClipboardList,
   Loader2,
   ExternalLink,
 } from "lucide-react";
