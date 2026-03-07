@@ -157,6 +157,8 @@ export function TechnicianList({ selectedId, onSelect, allowDeselect, filterIds,
         const initial = tech.name.trim().charAt(0).toUpperCase();
         const nowStatus = nowStatusMap?.get(tech.id);
         const techColor = tech.color || "#039BE5";
+        const dayPercent = techDayPercents?.get(tech.id) ?? 0;
+        const isOverbooked = dayPercent > 100;
 
         return (
           <div key={tech.id} className="flex items-center gap-0">
@@ -204,7 +206,19 @@ export function TechnicianList({ selectedId, onSelect, allowDeselect, filterIds,
               </Popover>
 
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold truncate">{tech.name}</p>
+                <div className="flex items-center gap-1.5">
+                  <p className="text-sm font-bold truncate">{tech.name}</p>
+                  {isOverbooked && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <AlertTriangle className="h-3.5 w-3.5 text-destructive shrink-0" />
+                      </TooltipTrigger>
+                      <TooltipContent side="right" className="text-xs">
+                        Overbooket ({Math.round(dayPercent)}% kapasitet)
+                      </TooltipContent>
+                    </Tooltip>
+                  )}
+                </div>
                 {nowStatus && (
                   <div className="mt-0.5">
                     <NowBadge status={nowStatus} />
@@ -214,9 +228,9 @@ export function TechnicianList({ selectedId, onSelect, allowDeselect, filterIds,
                   <div
                     className="h-full rounded-full transition-all"
                     style={{
-                      width: "45%",
-                      backgroundColor: techColor,
-                      opacity: 0.7,
+                      width: `${Math.min(dayPercent, 100)}%`,
+                      backgroundColor: dayPercent > 100 ? "hsl(var(--destructive))" : dayPercent >= 90 ? "hsl(var(--destructive))" : dayPercent >= 50 ? "hsl(var(--warning))" : "hsl(var(--success))",
+                      opacity: 0.8,
                     }}
                   />
                 </div>
