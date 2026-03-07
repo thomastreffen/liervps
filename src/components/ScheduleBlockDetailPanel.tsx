@@ -2,7 +2,7 @@ import { memo, useState, useEffect, useCallback } from "react";
 import { format } from "date-fns";
 import { nb } from "date-fns/locale";
 import {
-  X, ExternalLink, Check, ArrowRight, MapPin, Info,
+  X, ExternalLink, Check, ArrowRight, MapPin,
   Calendar as CalendarIcon, User, FileText, Sparkles,
   Plus, Link2, Globe, Trash2, Loader2, Search, Unlink,
 } from "lucide-react";
@@ -27,12 +27,12 @@ interface Props {
 }
 
 const stateLabels: Record<string, { label: string; variant: "default" | "secondary" | "outline" | "destructive" }> = {
-  auto: { label: "Auto-koblet", variant: "default" },
+  auto: { label: "Automatisk koblet", variant: "default" },
   confirmed: { label: "Bekreftet", variant: "default" },
   needs_confirmation: { label: "Trenger bekreftelse", variant: "secondary" },
-  external: { label: "Ekstern", variant: "outline" },
-  external_confirmed: { label: "Ekstern (bekreftet)", variant: "outline" },
-  manual: { label: "Manuell", variant: "default" },
+  external: { label: "Privat / ekstern", variant: "outline" },
+  external_confirmed: { label: "Privat (bekreftet)", variant: "outline" },
+  manual: { label: "Manuelt koblet", variant: "default" },
 };
 
 interface ProjectOption {
@@ -49,14 +49,12 @@ export const ScheduleBlockDetailPanel = memo(function ScheduleBlockDetailPanel({
   const isSystem = block.source === "system" || block.source === "manual" || (block.source as string) === "linked_outlook";
   const hasProject = !!block.project_id;
 
-  // Action states
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [createdEventId, setCreatedEventId] = useState<string | null>(null);
   const [clientRequestId] = useState(() => crypto.randomUUID());
 
-  // Link to existing project
   const [showProjectSearch, setShowProjectSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<ProjectOption[]>([]);
@@ -83,7 +81,7 @@ export const ScheduleBlockDetailPanel = memo(function ScheduleBlockDetailPanel({
     return () => clearTimeout(timer);
   }, [searchQuery, showProjectSearch]);
 
-  // Create new job (idempotent)
+  // Create new job
   const handleCreateJob = async () => {
     if (actionLoading || submitted) return;
     setActionLoading("create");
@@ -109,7 +107,7 @@ export const ScheduleBlockDetailPanel = memo(function ScheduleBlockDetailPanel({
 
       setSubmitted(true);
       setCreatedEventId(data.event_id);
-      toast.success(data.idempotent ? "Jobb allerede opprettet ✓" : "Jobb opprettet og koblet ✓");
+      toast.success(data.idempotent ? "Allerede opprettet ✓" : "Jobb opprettet ✓");
       onConfirmed?.();
     } catch (err: any) {
       toast.error("Feil", { description: err?.message });
@@ -125,15 +123,11 @@ export const ScheduleBlockDetailPanel = memo(function ScheduleBlockDetailPanel({
       const { error } = await supabase.from("schedule_blocks").update({
         project_id: projectId,
         match_state: "confirmed",
-        match_reason: "Manuelt koblet fra sidepanel",
+        match_reason: "Manuelt koblet",
       }).eq("id", block.id);
 
-      if (error) {
-        toast.error("Kunne ikke koble");
-        return;
-      }
+      if (error) { toast.error("Kunne ikke koble"); return; }
 
-      // Log learning
       const subject = block.outlook_subject || block.title || "";
       const tokens = subject.split(/[\s–\-,.:;/()]+/).filter(w => w.length > 2).map(w => w.toLowerCase());
       try {
@@ -156,24 +150,21 @@ export const ScheduleBlockDetailPanel = memo(function ScheduleBlockDetailPanel({
     }
   };
 
-  // Unlink from project – restore original outlook title
+  // Unlink
   const handleUnlinkProject = async () => {
     setActionLoading("unlink");
     try {
-      const restoredTitle = block.outlook_subject || block.title || "Ekstern blokk";
+      const restoredTitle = block.outlook_subject || block.title || "Ekstern";
       const { error } = await supabase.from("schedule_blocks").update({
         project_id: null,
         match_state: "external",
-        match_reason: "Manuelt frakoblet fra sidepanel",
+        match_reason: "Manuelt frakoblet",
         title: restoredTitle,
       } as any).eq("id", block.id);
 
-      if (error) {
-        toast.error("Kunne ikke koble fra prosjekt");
-        return;
-      }
+      if (error) { toast.error("Kunne ikke koble fra"); return; }
 
-      toast.success("Frakoblet prosjekt ✓");
+      toast.success("Frakoblet ✓");
       onConfirmed?.();
       onClose();
     } catch (err: any) {
@@ -192,9 +183,9 @@ export const ScheduleBlockDetailPanel = memo(function ScheduleBlockDetailPanel({
         project_id: null,
       }).eq("id", block.id);
 
-      if (error) toast.error("Kunne ikke markere som ekstern");
+      if (error) toast.error("Feil ved markering");
       else {
-        toast.success("Markert som ekstern");
+        toast.success("Markert som privat");
         onConfirmed?.();
         onClose();
       }
@@ -237,7 +228,7 @@ export const ScheduleBlockDetailPanel = memo(function ScheduleBlockDetailPanel({
     }
   };
 
-  // Delete block – always via edge function
+  // Delete / remove from plan
   const handleDelete = async () => {
     setActionLoading("delete");
     try {
@@ -246,19 +237,19 @@ export const ScheduleBlockDetailPanel = memo(function ScheduleBlockDetailPanel({
       });
 
       if (error) {
-        toast.error("Kunne ikke slette", { description: error.message });
+        toast.error("Kunne ikke fjerne", { description: error.message });
         return;
       }
 
       const result = data as any;
       if (result?.status === "ok") {
-        toast.success("Slettet ✓", {
+        toast.success("Fjernet fra plan", {
           description: result.deleted_in_outlook
-            ? "Fjernet fra system og Outlook"
-            : isOutlook ? "Fjernet fra plan. Slett i Outlook for å fjerne den helt." : "Fjernet fra system",
+            ? "Fjernet fra plan og Outlook"
+            : isOutlook ? "Fjernet fra plan. Outlook-avtalen er beholdt." : "Fjernet",
         });
       } else {
-        toast.error("Feil ved sletting");
+        toast.error("Feil ved fjerning");
       }
 
       onConfirmed?.();
@@ -287,7 +278,7 @@ export const ScheduleBlockDetailPanel = memo(function ScheduleBlockDetailPanel({
             {isOutlook && (
               <div className="flex items-center gap-1.5 mb-1">
                 <CalendarIcon className="h-3.5 w-3.5 text-primary" />
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-primary">Outlook</span>
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-primary">Fra Outlook</span>
               </div>
             )}
             <p className="text-sm font-semibold truncate">{block.outlook_subject || block.title || "Uten tittel"}</p>
@@ -316,7 +307,7 @@ export const ScheduleBlockDetailPanel = memo(function ScheduleBlockDetailPanel({
           </div>
         )}
 
-        {/* Preview / description */}
+        {/* Preview */}
         {block.outlook_preview && (
           <div className="flex items-start gap-1.5 text-xs text-muted-foreground">
             <FileText className="h-3 w-3 shrink-0 mt-0.5" />
@@ -324,7 +315,7 @@ export const ScheduleBlockDetailPanel = memo(function ScheduleBlockDetailPanel({
           </div>
         )}
 
-        {/* State badge + AI chip */}
+        {/* State badge + AI */}
         <div className="flex items-center gap-1.5">
           <Badge variant={stateInfo.variant} className="text-xs">
             {stateInfo.label}
@@ -338,16 +329,15 @@ export const ScheduleBlockDetailPanel = memo(function ScheduleBlockDetailPanel({
                 </span>
               </TooltipTrigger>
               <TooltipContent side="top" className="text-xs max-w-[220px]">
-                {block.ai_match_reason || `AI confidence: ${block.ai_confidence}%`}
+                {block.ai_match_reason || `AI-sikkerhet: ${block.ai_confidence}%`}
               </TooltipContent>
             </Tooltip>
           )}
         </div>
 
-        {/* ──── ACTIONS: Block HAS project ──── */}
+        {/* ──── ACTIONS: Has project ──── */}
         {hasProject && !showProjectSearch && (
           <>
-            {/* Project link */}
             {block.project_title && (
               <button
                 onClick={() => navigate(`/projects/${block.project_id}`)}
@@ -358,7 +348,6 @@ export const ScheduleBlockDetailPanel = memo(function ScheduleBlockDetailPanel({
               </button>
             )}
 
-            {/* AI suggestion needing confirmation */}
             {block.match_state === "needs_confirmation" && (
               <div className="space-y-2">
                 {block.match_reason && (
@@ -375,7 +364,7 @@ export const ScheduleBlockDetailPanel = memo(function ScheduleBlockDetailPanel({
                 <div className="flex items-center gap-1.5">
                   <Button size="sm" className="h-7 text-xs gap-1 rounded-lg flex-1" onClick={handleConfirmSuggestion} disabled={isLoading}>
                     {actionLoading === "confirm" ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
-                    Godta
+                    Bekreft
                   </Button>
                   <Button variant="outline" size="sm" className="h-7 text-xs rounded-lg"
                     onClick={() => setShowProjectSearch(true)} disabled={isLoading}>
@@ -383,13 +372,12 @@ export const ScheduleBlockDetailPanel = memo(function ScheduleBlockDetailPanel({
                   </Button>
                   <Button variant="ghost" size="sm" className="h-7 text-xs rounded-lg text-muted-foreground"
                     onClick={handleMarkExternal} disabled={isLoading}>
-                    Ekstern
+                    Privat
                   </Button>
                 </div>
               </div>
             )}
 
-            {/* Unlink from project */}
             {block.match_state !== "needs_confirmation" && (
               <Button
                 variant="outline" size="sm" className="h-8 text-xs gap-1.5 rounded-lg w-full justify-start"
@@ -402,7 +390,7 @@ export const ScheduleBlockDetailPanel = memo(function ScheduleBlockDetailPanel({
           </>
         )}
 
-        {/* ──── ACTIONS: Block has NO project (external) ──── */}
+        {/* ──── ACTIONS: No project ──── */}
         {!hasProject && !showProjectSearch && !submitted && (
           <div className="space-y-1.5 pt-1">
             <Button
@@ -417,19 +405,19 @@ export const ScheduleBlockDetailPanel = memo(function ScheduleBlockDetailPanel({
               onClick={() => setShowProjectSearch(true)} disabled={isLoading}
             >
               <Link2 className="h-3 w-3" />
-              Knytt til eksisterende
+              Knytt til eksisterende prosjekt
             </Button>
             <Button
               variant="ghost" size="sm" className="h-8 text-xs gap-1.5 rounded-lg w-full justify-start text-muted-foreground"
               onClick={handleMarkExternal} disabled={isLoading}
             >
               {actionLoading === "external" ? <Loader2 className="h-3 w-3 animate-spin" /> : <Globe className="h-3 w-3" />}
-              Behold ekstern
+              Privat / ikke jobb
             </Button>
           </div>
         )}
 
-        {/* Project search inline */}
+        {/* Project search */}
         {showProjectSearch && (
           <div className="space-y-2 pt-1">
             <div className="relative">
@@ -437,7 +425,7 @@ export const ScheduleBlockDetailPanel = memo(function ScheduleBlockDetailPanel({
               <Input
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Søk prosjekt..."
+                placeholder="Søk prosjekt…"
                 className="pl-8 h-8 text-xs"
                 autoFocus
               />
@@ -467,7 +455,7 @@ export const ScheduleBlockDetailPanel = memo(function ScheduleBlockDetailPanel({
           </div>
         )}
 
-        {/* Success state after create */}
+        {/* Success state */}
         {submitted && createdEventId && (
           <div className="flex items-center gap-2 p-2 rounded-lg bg-green-500/10 border border-green-500/20">
             <Check className="h-4 w-4 text-green-600 shrink-0" />
@@ -476,7 +464,7 @@ export const ScheduleBlockDetailPanel = memo(function ScheduleBlockDetailPanel({
             </div>
             <Button variant="outline" size="sm" className="h-6 text-[10px] gap-1 shrink-0"
               onClick={() => navigate(`/projects/${createdEventId}`)}>
-              Åpne jobb <ArrowRight className="h-2.5 w-2.5" />
+              Åpne <ArrowRight className="h-2.5 w-2.5" />
             </Button>
           </div>
         )}
@@ -491,7 +479,7 @@ export const ScheduleBlockDetailPanel = memo(function ScheduleBlockDetailPanel({
           </a>
         )}
 
-        {/* ──── Delete block ──── */}
+        {/* Remove from plan */}
         <div className="border-t border-border/40 pt-2">
           <Button
             variant="ghost" size="sm"
@@ -500,19 +488,19 @@ export const ScheduleBlockDetailPanel = memo(function ScheduleBlockDetailPanel({
             disabled={isLoading}
           >
             {actionLoading === "delete" ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
-            🗑 Slett blokk
+            Fjern fra plan
           </Button>
         </div>
 
-        {/* Delete confirmation dialog */}
+        {/* Delete confirmation */}
         <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Slett blokk?</AlertDialogTitle>
+              <AlertDialogTitle>Fjern fra plan?</AlertDialogTitle>
               <AlertDialogDescription>
                 {isSystem
-                  ? "Dette sletter blokken fra systemet og fra Outlook-kalenderen. Handlingen kan ikke angres."
-                  : "Blokken fjernes fra planoversikten. Outlook-avtalen beholdes – slett den i Outlook for å fjerne den helt."}
+                  ? "Dette fjerner oppføringen fra planen og sletter Outlook-avtalen. Kan ikke angres."
+                  : "Oppføringen fjernes fra planoversikten. Outlook-avtalen beholdes – slett den i Outlook om du vil fjerne den helt."}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -525,7 +513,7 @@ export const ScheduleBlockDetailPanel = memo(function ScheduleBlockDetailPanel({
                 {actionLoading === "delete" ? (
                   <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
                 ) : null}
-                Slett
+                Fjern
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
