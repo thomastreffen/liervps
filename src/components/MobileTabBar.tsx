@@ -27,15 +27,15 @@ import {
 
 const quickActions = [
   {
-    label: "Ny jobb",
-    description: "Opprett en ny jobbordre",
+    label: "Nytt prosjekt",
+    description: "Opprett et nytt prosjekt",
     icon: Briefcase,
     path: "/projects/new",
     permission: null,
   },
   {
     label: "Ny lead",
-    description: "Registrer et nytt salgsmulighet",
+    description: "Registrer en ny salgsmulighet",
     icon: Users,
     path: "/leads?new=1",
     permission: "sales.create",

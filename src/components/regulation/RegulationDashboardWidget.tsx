@@ -23,7 +23,7 @@ const SCOPE_LABELS: Record<string, string> = {
   global: "Globalt",
   lead: "Lead",
   quote: "Tilbud",
-  job: "Jobb",
+  job: "Prosjekt",
 };
 
 interface DraftQuery {

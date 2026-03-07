@@ -162,7 +162,7 @@ const linkedEntityRoute = (c: Case): string | null => {
 };
 
 const linkedEntityLabel = (c: Case): string =>
-  c.linked_project_id ? "Prosjekt" : c.linked_work_order_id ? "Jobb" : c.linked_lead_id ? "Lead" : "Tilbud";
+  c.linked_project_id ? "Prosjekt" : c.linked_work_order_id ? "Prosjekt" : c.linked_lead_id ? "Lead" : "Tilbud";
 
 const FILTER_OPTIONS: { key: FilterType; label: string; icon: React.ElementType }[] = [
   { key: "mine", label: "Mine saker", icon: UserCheck },

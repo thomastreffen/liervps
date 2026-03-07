@@ -150,7 +150,7 @@ function CreateJobDialogInner({
         .single();
 
       if (eventError || !createdEvent) {
-        toast.error("Kunne ikke opprette jobb", { description: eventError?.message });
+        toast.error("Kunne ikke opprette prosjekt", { description: eventError?.message });
         setSubmitting(false);
         return;
       }
@@ -179,7 +179,7 @@ function CreateJobDialogInner({
       }));
       const { error: techError } = await supabase.from("event_technicians").insert(techInserts);
       if (techError) {
-        toast.error("Jobb opprettet, men montørtilknytning feilet", { description: techError.message });
+        toast.error("Prosjekt opprettet, men montørtilknytning feilet", { description: techError.message });
       }
 
       // Create approval & sync to Outlook
@@ -189,9 +189,9 @@ function CreateJobDialogInner({
       );
 
       if (approvalError || approvalData?.error) {
-        toast.error("Jobb opprettet, men godkjenning feilet");
+        toast.error("Prosjekt opprettet, men godkjenning feilet");
       } else {
-        toast.success("Jobb opprettet og sendt til montør", {
+        toast.success("Prosjekt opprettet og sendt til montør", {
           description: `${title} – ${safeTechIds.length} montør(er)`,
         });
         syncCreate(createdEvent.id);
@@ -227,8 +227,8 @@ function CreateJobDialogInner({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Ny jobb</DialogTitle>
-          <DialogDescription>Opprett en servicejobb og send til montør</DialogDescription>
+          <DialogTitle>Nytt prosjekt</DialogTitle>
+          <DialogDescription>Opprett et prosjekt og send til montør</DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Essential fields */}
@@ -296,7 +296,7 @@ function CreateJobDialogInner({
             <div className="rounded-lg border-2 border-destructive/30 bg-destructive/5 p-3 space-y-2">
               <div className="flex items-center gap-2 text-destructive">
                 <AlertTriangle className="h-4 w-4" />
-                <p className="text-sm font-medium">Overlappende jobber</p>
+                <p className="text-sm font-medium">Overlappende prosjekter</p>
               </div>
               <div className="space-y-1">
                 {conflicts.map((c, i) => (
@@ -333,7 +333,7 @@ function CreateJobDialogInner({
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor="jobNumber">Jobbnummer</Label>
+                <Label htmlFor="jobNumber">Prosjektnummer</Label>
                 <Input
                   id="jobNumber"
                   value={jobNumber}
@@ -348,7 +348,7 @@ function CreateJobDialogInner({
                   id="description"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Kort beskrivelse til montøren..."
+                  placeholder="Kort beskrivelse til montøren…"
                   rows={3}
                 />
               </div>

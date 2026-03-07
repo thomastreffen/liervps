@@ -29,7 +29,7 @@ interface SearchResult {
 }
 
 const TYPE_CONFIG: Record<LinkedType, { label: string; icon: React.ElementType; field: string; badgeClass: string }> = {
-  work_order: { label: "Jobb", icon: Wrench, field: "linked_work_order_id", badgeClass: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200" },
+  work_order: { label: "Prosjekt", icon: Wrench, field: "linked_work_order_id", badgeClass: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200" },
   project: { label: "Prosjekt", icon: FolderKanban, field: "linked_project_id", badgeClass: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200" },
   lead: { label: "Lead", icon: Users, field: "linked_lead_id", badgeClass: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200" },
   offer: { label: "Tilbud", icon: FileText, field: "linked_offer_id", badgeClass: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200" },
@@ -94,7 +94,7 @@ export function LinkToExistingDialog({ open, onOpenChange, caseId, companyId, on
       (jobsRes.data || []).forEach((e: any) => items.push({
         id: e.id,
         type: "work_order",
-        typeLabel: "Jobb",
+        typeLabel: "Prosjekt",
         displayNumber: e.internal_number || e.job_number || "",
         title: e.title || "",
         customer: e.customer || "",

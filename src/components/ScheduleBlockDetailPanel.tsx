@@ -90,7 +90,7 @@ export const ScheduleBlockDetailPanel = memo(function ScheduleBlockDetailPanel({
         body: {
           client_request_id: clientRequestId,
           schedule_block_id: block.id,
-          title: block.outlook_subject || block.title || "Ny jobb",
+          title: block.outlook_subject || block.title || "Nytt prosjekt",
           address: block.outlook_location || block.location || null,
           description: block.outlook_preview || block.description || null,
           start_time: block.start_at.toISOString(),
@@ -101,13 +101,13 @@ export const ScheduleBlockDetailPanel = memo(function ScheduleBlockDetailPanel({
       });
 
       if (error) {
-        toast.error("Kunne ikke opprette jobb", { description: error.message });
+        toast.error("Kunne ikke opprette prosjekt", { description: error.message });
         return;
       }
 
       setSubmitted(true);
       setCreatedEventId(data.event_id);
-      toast.success(data.idempotent ? "Allerede opprettet ✓" : "Jobb opprettet ✓");
+      toast.success(data.idempotent ? "Allerede opprettet ✓" : "Prosjekt opprettet ✓");
       onConfirmed?.();
     } catch (err: any) {
       toast.error("Feil", { description: err?.message });
@@ -398,7 +398,7 @@ export const ScheduleBlockDetailPanel = memo(function ScheduleBlockDetailPanel({
               onClick={handleCreateJob} disabled={isLoading || submitted}
             >
               {actionLoading === "create" ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}
-              Opprett ny jobb
+              Opprett nytt prosjekt
             </Button>
             <Button
               variant="outline" size="sm" className="h-8 text-xs gap-1.5 rounded-lg w-full justify-start"
@@ -412,7 +412,7 @@ export const ScheduleBlockDetailPanel = memo(function ScheduleBlockDetailPanel({
               onClick={handleMarkExternal} disabled={isLoading}
             >
               {actionLoading === "external" ? <Loader2 className="h-3 w-3 animate-spin" /> : <Globe className="h-3 w-3" />}
-              Privat / ikke jobb
+              Privat / ekstern
             </Button>
           </div>
         )}
@@ -460,7 +460,7 @@ export const ScheduleBlockDetailPanel = memo(function ScheduleBlockDetailPanel({
           <div className="flex items-center gap-2 p-2 rounded-lg bg-green-500/10 border border-green-500/20">
             <Check className="h-4 w-4 text-green-600 shrink-0" />
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-medium text-green-700 dark:text-green-400">Opprettet ✓</p>
+              <p className="text-xs font-medium text-green-700 dark:text-green-400">Prosjekt opprettet ✓</p>
             </div>
             <Button variant="outline" size="sm" className="h-6 text-[10px] gap-1 shrink-0"
               onClick={() => navigate(`/projects/${createdEventId}`)}>

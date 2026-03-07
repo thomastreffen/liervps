@@ -20,7 +20,7 @@ const SCOPE_LABELS: Record<string, string> = {
   global: "Globalt",
   lead: "Lead",
   quote: "Tilbud",
-  job: "Jobb",
+  job: "Prosjekt",
 };
 
 const REVIEW_CONFIG: Record<string, { label: string; className: string }> = {
