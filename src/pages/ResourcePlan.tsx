@@ -619,6 +619,15 @@ export default function ResourcePlan() {
           onConfirmed={() => refetchBlocks()}
         />
       )}
+
+      <DropConfirmPopover
+        payload={dropPayload}
+        onClose={() => setDropPayload(null)}
+        onCreated={() => {
+          setRefreshKey((k) => k + 1);
+          refetchBlocks();
+        }}
+      />
     </div>
   );
 }
