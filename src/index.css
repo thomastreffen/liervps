@@ -223,14 +223,15 @@
   padding: 0;
 }
 .fc-wrapper .fc .fc-timegrid-event {
-  border-radius: 8px;
+  border-radius: 10px;
   border-width: 0;
-  border-left-width: 0;
-  box-shadow: 0 1px 3px hsl(220 20% 20% / 0.10);
+  border-left-width: 3px;
+  border-left-style: solid;
+  box-shadow: 0 1px 4px hsl(220 20% 20% / 0.08);
   transition: box-shadow 0.15s ease, transform 0.1s ease;
   cursor: pointer;
   min-height: 28px;
-  margin: 1px 2px;
+  margin: 2px 3px;
   overflow: hidden;
 }
 .fc-wrapper .fc .fc-timegrid-event:hover {
@@ -246,7 +247,7 @@
   padding: 0;
 }
 .fc-wrapper .fc .fc-timegrid-event-harness {
-  margin-right: 2px;
+  margin-right: 3px;
 }
 .fc-wrapper .fc .fc-timegrid-event:has(.fc-event-external) {
   border-style: dashed;
@@ -286,13 +287,13 @@
   border-radius: 4px;
 }
 .fc-wrapper .fc .fc-daygrid-event {
-  border-radius: 4px;
+  border-radius: 6px;
   border-width: 0;
   border-left-width: 3px;
   border-left-style: solid;
   font-size: 11px;
   padding: 1px 4px;
-  margin-bottom: 1px;
+  margin-bottom: 2px;
 }
 .fc-wrapper .fc .fc-list-event td {
   border-color: hsl(220 14% 92%);
@@ -306,12 +307,38 @@
 }
 /* When events overlap, add a subtle left shadow for depth */
 .fc-wrapper .fc .fc-timegrid-event-harness-inset .fc-timegrid-event {
-  box-shadow: -2px 0 6px rgba(0, 0, 0, 0.15);
+  box-shadow: -2px 0 6px rgba(0, 0, 0, 0.12);
 }
 /* Increase z-index on hover so the hovered event is fully visible */
 .fc-wrapper .fc .fc-timegrid-event:hover {
   z-index: 999 !important;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2) !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18) !important;
   transform: scale(1.02);
   transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+/* Mobile calendar optimizations */
+@media (max-width: 768px) {
+  .fc-wrapper .fc .fc-timegrid-slot {
+    height: 2.5rem;
+  }
+  .fc-wrapper .fc .fc-timegrid-event {
+    border-radius: 8px;
+    margin: 1px 2px;
+    min-width: 60px !important;
+    border-left-width: 3px;
+  }
+  .fc-wrapper .fc .fc-timegrid-event-harness {
+    min-width: 60px;
+  }
+  .fc-wrapper .fc .fc-timegrid-slot-label {
+    font-size: 0.6rem;
+  }
+  .fc-wrapper .fc .fc-col-header-cell {
+    font-size: 0.7rem;
+    padding: 2px 0;
+  }
+  .fc-wrapper .fc .fc-scrollgrid-sync-table {
+    min-width: 0;
+  }
 }
