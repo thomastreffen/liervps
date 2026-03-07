@@ -498,6 +498,19 @@ export default function ResourcePlan() {
           </>
         )}
 
+        {/* Capacity status bar (desktop only) */}
+        {!isMobile && techCapacities.length > 0 && (
+          <CapacityStatusBar
+            techCapacities={techCapacities}
+            todayDayIndex={todayDayIndex}
+            onFilterClick={handleCapacityFilterClick}
+            activeFilter={capacityFilter}
+          />
+        )}
+
+        {/* Unplanned projects warning */}
+        {!isMobile && <UnplannedProjectsBanner count={unplannedCount} />}
+
         {/* Unscheduled tasks strip */}
         <TaskResourceStrip
           technicianUserId={null}
