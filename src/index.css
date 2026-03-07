@@ -150,6 +150,39 @@
   }
 }
 
+/* Mobile-optimized touch targets and spacing */
+@media (max-width: 767px) {
+  /* Ensure minimum touch targets */
+  button, a, [role="button"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Exception for inline/icon elements that don't need full target */
+  .inline-flex > button,
+  span > button,
+  .text-\[10px\],
+  .text-\[11px\] {
+    min-height: unset;
+    min-width: unset;
+  }
+
+  /* Shorter text line length on mobile */
+  p, .text-sm, .text-xs {
+    max-width: 42ch;
+  }
+
+  /* Sticky section titles */
+  [data-sticky-section] {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: hsl(var(--background));
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+  }
+}
+
 /* Success checkmark animation */
 @keyframes checkmark-draw {
   0% { stroke-dashoffset: 24; }

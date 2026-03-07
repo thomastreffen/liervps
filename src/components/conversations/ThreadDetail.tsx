@@ -481,8 +481,8 @@ export function ThreadDetail({ threadId, threadTitle, threadType, projectId, com
         </div>
       )}
 
-      {/* Mode toggle + filter bar */}
-      <div className="flex items-center justify-between px-4 py-1.5 border-b border-border/10 bg-card">
+      {/* Mode toggle + filter bar – compact on mobile */}
+      <div className="flex items-center justify-between px-3 sm:px-4 py-1 sm:py-1.5 border-b border-border/10 bg-card">
         <div className="flex items-center gap-1">
           <button
             onClick={() => setViewMode("chat")}
@@ -687,7 +687,7 @@ export function ThreadDetail({ threadId, threadTitle, threadType, projectId, com
         </div>
       )}
 
-      {/* Composer */}
+      {/* Composer – sticky to keyboard on mobile */}
       {isClosed ? (
         <div className="px-5 py-4 bg-muted/30 border-t border-border/20">
           <p className="text-xs text-muted-foreground text-center">
@@ -695,7 +695,7 @@ export function ThreadDetail({ threadId, threadTitle, threadType, projectId, com
           </p>
         </div>
       ) : viewMode === "chat" ? (
-        <div className="border-t border-border/20 bg-card">
+        <div className="border-t border-border/20 bg-card sticky bottom-0 z-20 safe-area-bottom">
           <div className="max-w-[900px] mx-auto p-3">
             {/* Reply preview */}
             {replyToPost && (

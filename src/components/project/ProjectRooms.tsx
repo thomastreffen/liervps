@@ -37,20 +37,21 @@ function RoomCard({ icon, title, subtitle, onClick, extra }: RoomCardProps) {
     <button
       onClick={onClick}
       className={cn(
-        "flex flex-col items-center justify-center gap-4 rounded-2xl",
+        "flex flex-col items-center justify-center gap-3 sm:gap-4 rounded-2xl",
         "border border-border/40 bg-card text-card-foreground",
-        "min-h-[320px] w-full p-10",
+        "min-h-[140px] sm:min-h-[320px] w-full p-5 sm:p-10",
         "shadow-sm transition-all duration-200",
         "hover:shadow-md hover:shadow-foreground/[0.04] hover:border-border/70 hover:scale-[1.01]",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        "min-h-[44px]",
       )}
     >
-      <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/8 text-primary">
+      <div className="flex h-11 w-11 sm:h-14 sm:w-14 items-center justify-center rounded-2xl bg-primary/8 text-primary">
         {icon}
       </div>
-      <div className="text-center space-y-1.5">
-        <h3 className="text-lg font-bold text-foreground">{title}</h3>
-        <p className="text-sm text-muted-foreground">{subtitle}</p>
+      <div className="text-center space-y-0.5 sm:space-y-1.5">
+        <h3 className="text-base sm:text-lg font-bold text-foreground">{title}</h3>
+        <p className="text-xs sm:text-sm text-muted-foreground">{subtitle}</p>
       </div>
       {extra}
     </button>
