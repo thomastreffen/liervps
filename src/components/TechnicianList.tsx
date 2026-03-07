@@ -1,8 +1,9 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
-import { Users, Loader2 } from "lucide-react";
+import { Users, Loader2, AlertTriangle } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { TechNowStatus } from "@/hooks/useTechnicianNowStatus";
 import { toast } from "sonner";
 
@@ -66,7 +67,7 @@ function ColorPicker({ currentColor, onPick }: { currentColor: string | null; on
   );
 }
 
-export function TechnicianList({ selectedId, onSelect, allowDeselect, filterIds, nowStatusMap, onColorChange }: TechnicianListProps) {
+export function TechnicianList({ selectedId, onSelect, allowDeselect, filterIds, nowStatusMap, onColorChange, techDayPercents }: TechnicianListProps) {
   const [technicians, setTechnicians] = useState<DBTechnician[]>([]);
   const [loading, setLoading] = useState(true);
   const [colorPickerOpen, setColorPickerOpen] = useState<string | null>(null);
