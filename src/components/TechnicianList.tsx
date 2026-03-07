@@ -21,6 +21,8 @@ interface TechnicianListProps {
   filterIds?: Set<string> | null;
   nowStatusMap?: Map<string, TechNowStatus>;
   onColorChange?: (techId: string, color: string) => void;
+  /** Per-tech capacity for today – used for overbooking indicators */
+  techDayPercents?: Map<string, number>;
 }
 
 const COLOR_PRESETS = [
