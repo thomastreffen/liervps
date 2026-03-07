@@ -168,7 +168,11 @@ export function MobileTabBar() {
                 <button
                   onClick={() => {
                     setFabOpen(false);
-                    navigate(action.path);
+                    if (action.onAction) {
+                      action.onAction();
+                    } else if (action.path) {
+                      navigate(action.path);
+                    }
                   }}
                   className="flex items-center gap-3 rounded-lg px-3 py-3 text-left transition-colors hover:bg-secondary active:bg-secondary/80"
                 >
