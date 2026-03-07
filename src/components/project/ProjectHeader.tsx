@@ -56,45 +56,45 @@ export function ProjectHeader({
 
   return (
     <div className="bg-card border-b border-border/30">
-      <div className="mx-auto max-w-5xl px-4 sm:px-6 py-8">
+      <div className="mx-auto max-w-5xl px-4 sm:px-6 py-3 sm:py-6">
         {/* Top row: back + menu */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-2 sm:mb-4">
           <button
             onClick={() => navigate("/projects")}
-            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors min-h-[44px] min-w-[44px]"
           >
-            <ArrowLeft className="h-3 w-3" />
+            <ArrowLeft className="h-3.5 w-3.5" />
             Prosjekter
           </button>
 
           {/* Three-dot menu */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8">
+              <Button variant="ghost" size="icon" className="h-10 w-10 sm:h-8 sm:w-8">
                 <MoreHorizontal className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-52">
               {onEdit && (
-                <DropdownMenuItem onClick={onEdit} className="gap-2.5">
+                <DropdownMenuItem onClick={onEdit} className="gap-2.5 min-h-[44px]">
                   <Pencil className="h-4 w-4 text-muted-foreground" />
                   Rediger prosjekt
                 </DropdownMenuItem>
               )}
               {onOpenAccess && (
-                <DropdownMenuItem onClick={onOpenAccess} className="gap-2.5">
+                <DropdownMenuItem onClick={onOpenAccess} className="gap-2.5 min-h-[44px]">
                   <Shield className="h-4 w-4 text-muted-foreground" />
                   Administrer tilgang
                 </DropdownMenuItem>
               )}
               {onOpenSpaces && (
-                <DropdownMenuItem onClick={onOpenSpaces} className="gap-2.5">
+                <DropdownMenuItem onClick={onOpenSpaces} className="gap-2.5 min-h-[44px]">
                   <Settings2 className="h-4 w-4 text-muted-foreground" />
                   Administrer rom
                 </DropdownMenuItem>
               )}
               <DropdownMenuSeparator />
-              <DropdownMenuItem className="gap-2.5 text-destructive focus:text-destructive">
+              <DropdownMenuItem className="gap-2.5 text-destructive focus:text-destructive min-h-[44px]">
                 <Trash2 className="h-4 w-4" />
                 Slett prosjekt
               </DropdownMenuItem>
@@ -102,28 +102,32 @@ export function ProjectHeader({
           </DropdownMenu>
         </div>
 
-        {/* Title — centered */}
+        {/* Title + meta — compact on mobile */}
         <div className="text-center">
-          <h1 className="text-3xl sm:text-4xl font-extrabold text-foreground tracking-tight">
+          <h1 className="text-xl sm:text-3xl font-extrabold text-foreground tracking-tight">
             {title}
           </h1>
 
-          {/* Meta row */}
-          <div className="flex items-center justify-center gap-3 mt-3 flex-wrap">
+          {/* Meta row – single line on mobile */}
+          <div className="flex items-center justify-center gap-2 sm:gap-3 mt-1.5 sm:mt-3 flex-wrap">
             <JobStatusBadge status={status} />
             {customer && (
-              <span className="text-sm text-muted-foreground">{customer}</span>
+              <span className="text-xs sm:text-sm text-muted-foreground">{customer}</span>
             )}
-            <span className="text-sm text-muted-foreground">{period}</span>
+            <span className="text-xs sm:text-sm text-muted-foreground">{period}</span>
+            {technicianNames.length > 0 && (
+              <span className="text-xs text-muted-foreground/70 hidden sm:inline">
+                <Users className="h-3 w-3 inline mr-1" />
+                {technicianNames.join(", ")}
+              </span>
+            )}
           </div>
 
-          {/* Participants */}
+          {/* Participants – mobile only, collapsed into meta */}
           {technicianNames.length > 0 && (
-            <div className="flex items-center justify-center gap-2 mt-4">
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <Users className="h-3.5 w-3.5" />
-                {technicianNames.join(", ")}
-              </div>
+            <div className="flex items-center justify-center gap-1.5 mt-1 sm:hidden">
+              <Users className="h-3 w-3 text-muted-foreground/60" />
+              <span className="text-[11px] text-muted-foreground/70">{technicianNames.join(", ")}</span>
             </div>
           )}
         </div>

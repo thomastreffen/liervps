@@ -30,14 +30,14 @@ export function ProjectCards({ projects }: { projects: ProjectCardData[] }) {
   }
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-5">
       {projects.map((p) => (
         <button
           key={p.id}
           onClick={() => navigate(`/projects/${p.id}`)}
-          className="bg-card rounded-2xl border border-border/30 p-6 text-left
+          className="bg-card rounded-2xl border border-border/30 p-4 sm:p-6 text-left
             shadow-card hover:shadow-card-hover hover:-translate-y-1
-            transition-all duration-200 group relative cursor-pointer"
+            transition-all duration-200 group relative cursor-pointer min-h-[44px]"
         >
           <div className="flex items-start gap-3.5 mb-3">
             <div className="h-10 w-10 rounded-xl bg-primary/8 flex items-center justify-center shrink-0 group-hover:bg-primary/12 transition-colors">
@@ -56,7 +56,13 @@ export function ProjectCards({ projects }: { projects: ProjectCardData[] }) {
           </div>
 
           {/* Status chips */}
-          <div className="flex items-center gap-1.5 flex-wrap mt-3">
+          <div className="flex items-center gap-1.5 flex-wrap mt-2 sm:mt-3">
+            {!p.hasPlanned && (
+              <span className="inline-flex items-center gap-1 text-[10px] font-semibold rounded-full px-2.5 py-0.5 bg-warning/10 text-warning">
+                <Clock className="h-2.5 w-2.5" />
+                Ikke planlagt
+              </span>
+            )}
             {p.hasPlanned && (
               <span className="inline-flex items-center gap-1 text-[10px] font-semibold rounded-full px-2.5 py-0.5 bg-primary/8 text-primary">
                 <Clock className="h-2.5 w-2.5" />

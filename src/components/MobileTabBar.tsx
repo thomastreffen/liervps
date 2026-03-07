@@ -81,7 +81,7 @@ export function MobileTabBar() {
 
   return (
     <>
-      <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-card lg:hidden safe-area-bottom">
+      <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border/60 bg-card lg:hidden safe-area-bottom shadow-[0_-2px_12px_-3px_hsl(220_20%_20%/0.08)]">
         <div className="flex items-stretch">
           {isModuleVisible("overview") && (
             <TabButton
@@ -186,12 +186,15 @@ function TabButton({
     <button
       onClick={onClick}
       className={cn(
-        "flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-medium transition-colors relative min-h-[48px] active:bg-secondary/50",
+        "flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-medium transition-colors relative min-h-[52px] active:bg-secondary/50",
         active ? "text-primary" : "text-muted-foreground"
       )}
     >
-      <div className="relative">
-        <Icon className="h-5 w-5" />
+      {active && (
+        <span className="absolute top-0 left-1/2 -translate-x-1/2 h-[2.5px] w-6 rounded-full bg-primary" />
+      )}
+      <div className="relative mt-0.5">
+        <Icon className="h-[22px] w-[22px]" />
         {(badge ?? 0) > 0 && (
           <span className="absolute -top-1 -right-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-0.5 text-[9px] font-bold text-destructive-foreground">
             {(badge ?? 0) > 9 ? "9+" : badge}
