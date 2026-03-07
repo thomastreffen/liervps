@@ -558,6 +558,7 @@ export default function ResourcePlan() {
           onDateSelect={handleDateSelect}
           onEventDrop={handleEventDrop}
           onEventResize={handleEventResize}
+          onExternalDrop={handleExternalDrop}
           isAdmin={isAdmin}
           isSuperAdmin={isSuperAdmin}
           hideExternalEvents={hideExternalEvents}
