@@ -31,6 +31,9 @@ import { ScheduleBlockDetailPanel } from "@/components/ScheduleBlockDetailPanel"
 import { useSyncHealth } from "@/hooks/useSyncHealth";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { MobileResourceHeader } from "@/components/resource-plan/MobileResourceHeader";
+import { CapacityStatusBar } from "@/components/resource-plan/CapacityStatusBar";
+import { UnplannedProjectsBanner } from "@/components/resource-plan/UnplannedProjectsBanner";
+import { useUnplannedProjects } from "@/hooks/useUnplannedProjects";
 
 type CalendarViewType = "timeGridDay" | "timeGridWeek" | "dayGridMonth" | "listWeek";
 
@@ -57,6 +60,7 @@ export default function ResourcePlan() {
   const confirmationCount = useConfirmationCount();
   const syncHealth = useSyncHealth(isAdmin);
   const { technicians } = useTechnicians();
+  const unplannedCount = useUnplannedProjects();
   const [selectedTechId, setSelectedTechId] = useState<string | null>(null);
   const [capacityFilter, setCapacityFilter] = useState<"all" | "available" | "partial">("all");
   const [externalBlocksCapacity, setExternalBlocksCapacity] = useState(true);
@@ -222,6 +226,35 @@ export default function ResourcePlan() {
     return diff >= 0 && diff < 7 ? diff : 0;
   }, [referenceDate]);
 
+  // Build per-tech day percent map for overbooking indicators
+  const techDayPercents = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const tc of techCapacities) {
+      map.set(tc.techId, tc.days[todayDayIndex]?.percent ?? 0);
+    }
+    return map;
+  }, [techCapacities, todayDayIndex]);
+
+  // Extended capacity filter supporting "full" and "overbooked"
+  const handleCapacityFilterClick = useCallback((filter: "all" | "available" | "partial" | "full" | "overbooked") => {
+    if (filter === "full" || filter === "overbooked") {
+      // Filter to techs matching this category
+      const matchIds = techCapacities
+        .filter((tc) => {
+          const p = tc.days[todayDayIndex]?.percent ?? 0;
+          if (filter === "overbooked") return p > 100;
+          return p >= 90 && p <= 100;
+        })
+        .map((tc) => tc.techId);
+      // Use the first matched tech to focus, or clear
+      if (matchIds.length === 1) setSelectedTechId(matchIds[0]);
+      else setSelectedTechId(null);
+      setCapacityFilter("all");
+      return;
+    }
+    setCapacityFilter(filter);
+  }, [techCapacities, todayDayIndex]);
+
   // Filter technicians: capacity + min free minutes
   const filteredTechForSidebar = useMemo(() => {
     let ids: string[] | null = null;
@@ -271,6 +304,7 @@ export default function ResourcePlan() {
             filterIds={filteredTechForSidebar}
             nowStatusMap={nowStatusMap}
             onColorChange={handleTechColorChange}
+            techDayPercents={techDayPercents}
           />
         </aside>
       )}
@@ -463,6 +497,19 @@ export default function ResourcePlan() {
             </div>
           </>
         )}
+
+        {/* Capacity status bar (desktop only) */}
+        {!isMobile && techCapacities.length > 0 && (
+          <CapacityStatusBar
+            techCapacities={techCapacities}
+            todayDayIndex={todayDayIndex}
+            onFilterClick={handleCapacityFilterClick}
+            activeFilter={capacityFilter}
+          />
+        )}
+
+        {/* Unplanned projects warning */}
+        {!isMobile && <UnplannedProjectsBanner count={unplannedCount} />}
 
         {/* Unscheduled tasks strip */}
         <TaskResourceStrip
