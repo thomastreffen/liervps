@@ -226,6 +226,35 @@ export default function ResourcePlan() {
     return diff >= 0 && diff < 7 ? diff : 0;
   }, [referenceDate]);
 
+  // Build per-tech day percent map for overbooking indicators
+  const techDayPercents = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const tc of techCapacities) {
+      map.set(tc.techId, tc.days[todayDayIndex]?.percent ?? 0);
+    }
+    return map;
+  }, [techCapacities, todayDayIndex]);
+
+  // Extended capacity filter supporting "full" and "overbooked"
+  const handleCapacityFilterClick = useCallback((filter: "all" | "available" | "partial" | "full" | "overbooked") => {
+    if (filter === "full" || filter === "overbooked") {
+      // Filter to techs matching this category
+      const matchIds = techCapacities
+        .filter((tc) => {
+          const p = tc.days[todayDayIndex]?.percent ?? 0;
+          if (filter === "overbooked") return p > 100;
+          return p >= 90 && p <= 100;
+        })
+        .map((tc) => tc.techId);
+      // Use the first matched tech to focus, or clear
+      if (matchIds.length === 1) setSelectedTechId(matchIds[0]);
+      else setSelectedTechId(null);
+      setCapacityFilter("all");
+      return;
+    }
+    setCapacityFilter(filter);
+  }, [techCapacities, todayDayIndex]);
+
   // Filter technicians: capacity + min free minutes
   const filteredTechForSidebar = useMemo(() => {
     let ids: string[] | null = null;
