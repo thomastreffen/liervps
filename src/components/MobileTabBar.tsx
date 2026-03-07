@@ -10,6 +10,7 @@ import {
   Users,
   FileText,
   ScrollText,
+  CalendarPlus,
 } from "lucide-react";
 import { useNotifications } from "@/hooks/useNotifications";
 import { useActionRequired } from "@/hooks/useActionRequired";
@@ -25,7 +26,16 @@ import {
   DrawerClose,
 } from "@/components/ui/drawer";
 
-const quickActions = [
+interface QuickAction {
+  label: string;
+  description: string;
+  icon: React.ComponentType<{ className?: string }>;
+  path?: string;
+  permission: string | null;
+  onAction?: () => void;
+}
+
+const baseQuickActions: QuickAction[] = [
   {
     label: "Nytt prosjekt",
     description: "Opprett et nytt prosjekt",
@@ -56,6 +66,14 @@ const quickActions = [
   },
 ];
 
+const planAction: QuickAction = {
+  label: "Ny aktivitet",
+  description: "Planlegg arbeid direkte i kalenderen",
+  icon: CalendarPlus,
+  permission: null,
+  onAction: () => window.dispatchEvent(new CustomEvent("resource-plan:new-activity")),
+};
+
 export function MobileTabBar() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -67,6 +85,11 @@ export function MobileTabBar() {
   const [fabOpen, setFabOpen] = useState(false);
 
   const jobsDot = actionRequiredCount > 0;
+  const isOnPlan = location.pathname === "/projects/plan";
+
+  const quickActions: QuickAction[] = isOnPlan
+    ? [planAction, ...baseQuickActions]
+    : baseQuickActions;
 
   const availableActions = quickActions.filter((action) => {
     if (!action.permission) return true;
@@ -145,7 +168,11 @@ export function MobileTabBar() {
                 <button
                   onClick={() => {
                     setFabOpen(false);
-                    navigate(action.path);
+                    if (action.onAction) {
+                      action.onAction();
+                    } else if (action.path) {
+                      navigate(action.path);
+                    }
                   }}
                   className="flex items-center gap-3 rounded-lg px-3 py-3 text-left transition-colors hover:bg-secondary active:bg-secondary/80"
                 >
