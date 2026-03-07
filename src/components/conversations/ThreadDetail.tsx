@@ -875,20 +875,69 @@ export function ThreadDetail({ threadId, threadTitle, threadType, projectId, com
               </div>
             )}
 
+            {/* Admin multi-select bar */}
+            {adminSelectMode && (
+              <div className="flex items-center gap-2 mb-2 px-2 py-2 rounded-xl bg-destructive/5 border border-destructive/20">
+                <Trash2 className="h-4 w-4 text-destructive shrink-0" />
+                <span className="text-xs font-medium text-destructive flex-1">
+                  {selectedPostIds.size} valgt
+                </span>
+                <Button
+                  variant="outline" size="sm"
+                  className="h-7 text-xs border-border"
+                  onClick={() => { setAdminSelectMode(false); setSelectedPostIds(new Set()); }}
+                >
+                  Avbryt
+                </Button>
+                <Button
+                  variant="destructive" size="sm"
+                  className="h-7 text-xs"
+                  disabled={selectedPostIds.size === 0}
+                  onClick={() => setDeleteConfirm({ type: "multi" })}
+                >
+                  Slett valgte
+                </Button>
+              </div>
+            )}
+
             <div className="flex items-end gap-1.5">
               <input ref={fileInputRef} type="file" multiple className="hidden" onChange={handleFileSelect} />
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="flex items-center justify-center h-9 w-9 text-muted-foreground hover:text-foreground transition-colors rounded-full hover:bg-muted/50 cursor-pointer shrink-0 mb-0.5"
-              >
-                <Paperclip className="h-4 w-4" />
-              </button>
 
-              <CameraCapture
-                onCapture={(files) => setPendingFiles(prev => [...prev, ...files])}
-                disabled={sending}
-              />
+              {/* Mobile: + menu for attachments & camera */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    className="flex items-center justify-center h-10 w-10 sm:h-9 sm:w-9 text-muted-foreground hover:text-foreground transition-colors rounded-full hover:bg-muted/50 cursor-pointer shrink-0"
+                  >
+                    <Plus className="h-5 w-5 sm:h-4 sm:w-4" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-44">
+                  <DropdownMenuItem onClick={() => fileInputRef.current?.click()} className="gap-2 text-xs">
+                    <Paperclip className="h-3.5 w-3.5" /> Vedlegg
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => {
+                      // Trigger camera capture - the CameraCapture component handles its own UI
+                      const cameraBtn = document.querySelector('[data-camera-trigger]') as HTMLButtonElement;
+                      cameraBtn?.click();
+                    }}
+                    className="gap-2 text-xs"
+                  >
+                    <Camera className="h-3.5 w-3.5" /> Ta bilde
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              {/* Hidden camera capture trigger */}
+              <div className="hidden">
+                <CameraCapture
+                  onCapture={(files) => setPendingFiles(prev => [...prev, ...files])}
+                  disabled={sending}
+                  triggerAttr="data-camera-trigger"
+                />
+              </div>
 
               <div className="flex-1 relative">
                 <textarea
@@ -896,18 +945,20 @@ export function ThreadDetail({ threadId, threadTitle, threadType, projectId, com
                   value={replyText}
                   onChange={(e) => handleTextChange(e.target.value)}
                   onPaste={handlePaste}
-                  placeholder="Skriv melding... (@ for å nevne)"
+                  placeholder="Skriv melding..."
                   rows={1}
                   className={cn(
-                    "w-full resize-none rounded-2xl border border-border/40 bg-muted/30 px-4 py-2.5 text-sm",
+                    "w-full resize-none rounded-2xl border border-border/40 bg-muted/30",
+                    "px-4 py-3 sm:py-2.5 text-[15px] sm:text-sm leading-relaxed",
                     "placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/30",
-                    "max-h-32 overflow-y-auto"
+                    "max-h-36 overflow-y-auto"
                   )}
-                  style={{ minHeight: "40px" }}
+                  style={{ minHeight: "56px" }}
                   onInput={(e) => {
                     const el = e.currentTarget;
-                    el.style.height = "40px";
-                    el.style.height = Math.min(el.scrollHeight, 128) + "px";
+                    el.style.height = "56px";
+                    const maxH = 5 * 24 + 24; // ~5 lines + padding
+                    el.style.height = Math.min(el.scrollHeight, maxH) + "px";
                   }}
                   onKeyDown={(e) => {
                     if (mentionQuery !== null && filteredMentions.length > 0) {
@@ -952,7 +1003,7 @@ export function ThreadDetail({ threadId, threadTitle, threadType, projectId, com
                 onClick={handleReply}
                 disabled={(!replyText.trim() && pendingFiles.length === 0) || sending || uploading}
                 className={cn(
-                  "flex items-center justify-center h-9 w-9 rounded-full shrink-0 mb-0.5 transition-colors",
+                  "flex items-center justify-center h-10 w-10 sm:h-9 sm:w-9 rounded-full shrink-0 transition-colors",
                   (!replyText.trim() && pendingFiles.length === 0) || sending || uploading
                     ? "text-muted-foreground/30 cursor-not-allowed"
                     : "bg-primary text-primary-foreground hover:bg-primary/90 cursor-pointer"
