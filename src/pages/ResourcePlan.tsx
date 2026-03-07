@@ -219,6 +219,27 @@ export default function ResourcePlan() {
     calEvents, busySlots, referenceDate, techIds
   );
 
+  // Handle external drop from TaskResourceStrip
+  const handleExternalDrop = useCallback((info: { taskId: string; title: string; start: Date; end: Date; estimatedMinutes: number; priority: string; dropType: string }) => {
+    // Determine technician: use selected tech or first available
+    const techId = selectedTechId || (technicians.length > 0 ? technicians[0].id : null);
+    if (!techId) {
+      toast.error("Velg en montør først");
+      return;
+    }
+    const tech = technicians.find((t) => t.id === techId);
+    setDropPayload({
+      taskId: info.taskId,
+      taskTitle: info.title,
+      estimatedMinutes: info.estimatedMinutes,
+      priority: info.priority,
+      type: info.dropType as "task" | "project",
+      technicianId: techId,
+      technicianName: tech?.name,
+      dropTime: info.start,
+    });
+  }, [selectedTechId, technicians]);
+
   const nowStatusMap = useTechnicianNowStatus(calEvents, busySlots, techIds, externalBlocksCapacity);
 
   const todayDayIndex = useMemo(() => {
