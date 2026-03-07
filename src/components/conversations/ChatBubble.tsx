@@ -47,6 +47,12 @@ interface ChatBubbleProps {
   onFilterByDocType?: (docType: string) => void;
   onFilterByObjectLabel?: (label: string) => void;
   onAnnotationSaved?: () => void;
+  // Admin moderation
+  canModerate?: boolean;
+  onDeleteMessage?: (postId: string) => void;
+  adminSelectMode?: boolean;
+  isSelected?: boolean;
+  onToggleSelect?: (postId: string) => void;
 }
 
 export function ChatBubble({
