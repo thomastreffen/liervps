@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { nb } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
+import { ProjectScheduleBlocks } from "@/components/project/ProjectScheduleBlocks";
 
 /* ── Types ── */
 
@@ -26,8 +27,13 @@ interface RoomCardProps {
 
 interface ProjectRoomsProps {
   jobId: string;
+  projectTitle?: string;
+  customer?: string;
+  address?: string;
+  suggestedDate?: Date;
   onOpenPlan: () => void;
   onOpenRoom: (room: string) => void;
+  onOpenScheduleSheet?: () => void;
 }
 
 /* ── Room Card ── */
@@ -60,7 +66,7 @@ function RoomCard({ icon, title, subtitle, onClick, extra }: RoomCardProps) {
 
 /* ── Main Component ── */
 
-export function ProjectRooms({ jobId, onOpenPlan, onOpenRoom }: ProjectRoomsProps) {
+export function ProjectRooms({ jobId, onOpenPlan, onOpenRoom, onOpenScheduleSheet }: ProjectRoomsProps) {
   const navigate = useNavigate();
   const [counts, setCounts] = useState({ conversations: 0, tasks: 0, docs: 0, schedule: 0 });
   const [nextBlock, setNextBlock] = useState<string | null>(null);
@@ -120,50 +126,55 @@ export function ProjectRooms({ jobId, onOpenPlan, onOpenRoom }: ProjectRoomsProp
     );
   }
 
-  const scheduleSubtitle = counts.schedule === 0
-    ? "Ingen planlagte aktiviteter"
-    : `${counts.schedule} planlagte ${counts.schedule === 1 ? "aktivitet" : "aktiviteter"}${nextBlock ? ` · Neste: ${nextBlock}` : ""}`;
-
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 max-w-4xl mx-auto">
-      <RoomCard
-        icon={<MessagesSquare className="h-7 w-7" />}
-        title="Samtaler"
-        subtitle={counts.conversations === 0 ? "Ingen samtaler ennå" : `${counts.conversations} ${counts.conversations === 1 ? "oppdatering" : "oppdateringer"}`}
-        onClick={() => onOpenRoom("samtaler")}
+    <div className="space-y-8 max-w-4xl mx-auto">
+      {/* Schedule blocks section */}
+      <ProjectScheduleBlocks
+        projectId={jobId}
+        onPlanNew={() => onOpenScheduleSheet?.()}
       />
-      <RoomCard
-        icon={<CheckCircle2 className="h-7 w-7" />}
-        title="Oppgaver"
-        subtitle={counts.tasks === 0 ? "Ingen åpne oppgaver" : `${counts.tasks} åpne ${counts.tasks === 1 ? "oppgave" : "oppgaver"}`}
-        onClick={() => onOpenRoom("oppgaver")}
-      />
-      <RoomCard
-        icon={<FolderOpen className="h-7 w-7" />}
-        title="Dokumenter"
-        subtitle={counts.docs === 0 ? "Ingen filer ennå" : `${counts.docs} ${counts.docs === 1 ? "fil" : "filer"}`}
-        onClick={() => onOpenRoom("dokumenter")}
-      />
-      <RoomCard
-        icon={<CalendarDays className="h-7 w-7" />}
-        title="Plan"
-        subtitle={scheduleSubtitle}
-        onClick={onOpenPlan}
-        extra={
-          <Button
-            variant="ghost"
-            size="sm"
-            className="gap-1.5 text-xs text-muted-foreground hover:text-foreground mt-1"
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate(`/projects/plan?project=${jobId}`);
-            }}
-          >
-            <ExternalLink className="h-3 w-3" />
-            Åpne ressursplan
-          </Button>
-        }
-      />
+
+      {/* Room cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+        <RoomCard
+          icon={<MessagesSquare className="h-7 w-7" />}
+          title="Samtaler"
+          subtitle={counts.conversations === 0 ? "Ingen samtaler ennå" : `${counts.conversations} ${counts.conversations === 1 ? "oppdatering" : "oppdateringer"}`}
+          onClick={() => onOpenRoom("samtaler")}
+        />
+        <RoomCard
+          icon={<CheckCircle2 className="h-7 w-7" />}
+          title="Oppgaver"
+          subtitle={counts.tasks === 0 ? "Ingen åpne oppgaver" : `${counts.tasks} åpne ${counts.tasks === 1 ? "oppgave" : "oppgaver"}`}
+          onClick={() => onOpenRoom("oppgaver")}
+        />
+        <RoomCard
+          icon={<FolderOpen className="h-7 w-7" />}
+          title="Dokumenter"
+          subtitle={counts.docs === 0 ? "Ingen filer ennå" : `${counts.docs} ${counts.docs === 1 ? "fil" : "filer"}`}
+          onClick={() => onOpenRoom("dokumenter")}
+        />
+        <RoomCard
+          icon={<CalendarDays className="h-7 w-7" />}
+          title="Plan"
+          subtitle={counts.schedule === 0 ? "Ingen planlagte aktiviteter" : `${counts.schedule} planlagte`}
+          onClick={onOpenPlan}
+          extra={
+            <Button
+              variant="ghost"
+              size="sm"
+              className="gap-1.5 text-xs text-muted-foreground hover:text-foreground mt-1"
+              onClick={(e) => {
+                e.stopPropagation();
+                navigate(`/projects/plan?project=${jobId}`);
+              }}
+            >
+              <ExternalLink className="h-3 w-3" />
+              Åpne ressursplan
+            </Button>
+          }
+        />
+      </div>
     </div>
   );
 }
