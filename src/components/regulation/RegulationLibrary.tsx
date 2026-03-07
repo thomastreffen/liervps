@@ -88,7 +88,7 @@ export function RegulationLibrary({ queries, onPrefillNew }: Props) {
     if (!scopeDialog || !selectedTarget) return;
     try {
       await copyToScope(scopeDialog.query, scopeDialog.type, selectedTarget);
-      toast.success("Kopiert til " + (scopeDialog.type === "job" ? "jobb" : "tilbud"));
+      toast.success("Kopiert til " + (scopeDialog.type === "job" ? "prosjekt" : "tilbud"));
       setScopeDialog(null);
     } catch {
       toast.error("Kunne ikke kopiere");
@@ -222,12 +222,12 @@ export function RegulationLibrary({ queries, onPrefillNew }: Props) {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>
-              Bruk i {scopeDialog?.type === "job" ? "jobb" : "tilbud"}
+              Bruk i {scopeDialog?.type === "job" ? "prosjekt" : "tilbud"}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">
-              Velg {scopeDialog?.type === "job" ? "jobb" : "tilbud"} å kopiere fagforespørselen til:
+              Velg {scopeDialog?.type === "job" ? "prosjekt" : "tilbud"} å kopiere fagforespørselen til:
             </p>
             {loadingTargets ? (
               <p className="text-xs text-muted-foreground text-center py-4">Laster…</p>

@@ -127,7 +127,7 @@ export default function JobDetail() {
           <div className="mx-auto max-w-7xl px-4 sm:px-6 py-3 flex items-center justify-between">
             <div>
               <h2 className="text-lg font-semibold text-foreground">{job.title} – Plan</h2>
-              <p className="text-xs text-muted-foreground">{technicianNames.join(", ") || "Ingen montører"}</p>
+              <p className="text-xs text-muted-foreground">{technicianNames.join(", ") || "Ingen montører tildelt"}</p>
             </div>
             <Button variant="ghost" size="icon" className="rounded-lg" onClick={() => setShowPlan(false)}>
               <X className="h-5 w-5" />

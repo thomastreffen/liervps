@@ -64,7 +64,7 @@ export default function Dashboard() {
           <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h2 className="text-lg sm:text-xl font-semibold">
-                {selectedTechId ? "Kalender" : "Alle jobber"}
+                {selectedTechId ? "Kalender" : "Alle prosjekter"}
               </h2>
               <p className="text-sm text-muted-foreground">
                 Uke {format(new Date(), "w", { locale: nb })} ·{" "}

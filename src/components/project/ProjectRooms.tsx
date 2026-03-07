@@ -121,8 +121,8 @@ export function ProjectRooms({ jobId, onOpenPlan, onOpenRoom }: ProjectRoomsProp
   }
 
   const scheduleSubtitle = counts.schedule === 0
-    ? "Ingen planlagte hendelser"
-    : `${counts.schedule} planlagte ${counts.schedule === 1 ? "hendelse" : "hendelser"}${nextBlock ? ` · Neste: ${nextBlock}` : ""}`;
+    ? "Ingen planlagte aktiviteter"
+    : `${counts.schedule} planlagte ${counts.schedule === 1 ? "aktivitet" : "aktiviteter"}${nextBlock ? ` · Neste: ${nextBlock}` : ""}`;
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 max-w-4xl mx-auto">
@@ -146,7 +146,7 @@ export function ProjectRooms({ jobId, onOpenPlan, onOpenRoom }: ProjectRoomsProp
       />
       <RoomCard
         icon={<CalendarDays className="h-7 w-7" />}
-        title="Tidsplan"
+        title="Plan"
         subtitle={scheduleSubtitle}
         onClick={onOpenPlan}
         extra={

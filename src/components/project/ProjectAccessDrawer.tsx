@@ -44,7 +44,7 @@ const SPACE_LABELS: Record<string, string> = {
   samtaler: "Samtaler",
   oppgaver: "Oppgaver",
   dokumenter: "Dokumenter",
-  tidsplan: "Tidsplan",
+  tidsplan: "Plan",
 };
 
 /* ── Main Drawer Content ── */
