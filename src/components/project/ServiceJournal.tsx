@@ -85,8 +85,8 @@ export function ServiceJournal({
         .is("deleted_at", null)
         .order("start_at", { ascending: true })
         .limit(50),
-      // Deviations (job_tasks with type=deviation or category containing avvik)
-      supabase
+      // Deviations
+      (supabase as any)
         .from("job_tasks")
         .select("id, title, status, created_at, priority")
         .eq("job_id", projectId)
