@@ -1,10 +1,11 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { ListTodo, GripVertical, Clock, AlertTriangle, User } from "lucide-react";
 import { format } from "date-fns";
 import { nb } from "date-fns/locale";
 import type { Task, TaskAssignee } from "@/hooks/useTasks";
+import { Draggable } from "@fullcalendar/interaction";
 
 interface TaskWithAssignees extends Task {
   assignees: TaskAssignee[];
@@ -27,6 +28,8 @@ const PRIORITY_COLORS: Record<string, string> = {
 export function TaskResourceStrip({ technicianUserId, referenceDate, onScheduleTask }: TaskResourceStripProps) {
   const [tasks, setTasks] = useState<TaskWithAssignees[]>([]);
   const [loading, setLoading] = useState(true);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const draggableRef = useRef<Draggable | null>(null);
 
   const fetchTasks = useCallback(async () => {
     setLoading(true);
@@ -87,6 +90,44 @@ export function TaskResourceStrip({ technicianUserId, referenceDate, onScheduleT
 
   useEffect(() => { fetchTasks(); }, [fetchTasks]);
 
+  // Initialize FullCalendar Draggable on the container
+  useEffect(() => {
+    if (!containerRef.current) return;
+    // Destroy previous instance
+    if (draggableRef.current) {
+      draggableRef.current.destroy();
+    }
+    draggableRef.current = new Draggable(containerRef.current, {
+      itemSelector: "[data-fc-draggable]",
+      eventData: (el) => {
+        const taskId = el.getAttribute("data-task-id") || "";
+        const title = el.getAttribute("data-task-title") || "Oppgave";
+        const minutes = parseInt(el.getAttribute("data-task-minutes") || "60", 10);
+        const priority = el.getAttribute("data-task-priority") || "normal";
+        const type = el.getAttribute("data-task-type") || "task";
+        return {
+          title,
+          duration: { minutes },
+          extendedProps: {
+            isExternalDrop: true,
+            taskId,
+            taskTitle: title,
+            estimatedMinutes: minutes,
+            priority,
+            dropType: type,
+          },
+          create: false, // Don't permanently add to calendar
+        };
+      },
+    });
+    return () => {
+      if (draggableRef.current) {
+        draggableRef.current.destroy();
+        draggableRef.current = null;
+      }
+    };
+  }, [tasks]); // Re-init when tasks change
+
   if (loading || tasks.length === 0) return null;
 
   return (
@@ -95,18 +136,19 @@ export function TaskResourceStrip({ technicianUserId, referenceDate, onScheduleT
         <ListTodo className="h-4 w-4 text-primary" />
         <span className="text-sm font-semibold">Uplanlagte oppgaver</span>
         <Badge variant="secondary" className="text-[10px] h-5">{tasks.length}</Badge>
+        <span className="text-[10px] text-muted-foreground ml-auto">Dra til kalender for å planlegge</span>
       </div>
-      <div className="flex gap-2 p-3 overflow-x-auto">
+      <div ref={containerRef} className="flex gap-2 p-3 overflow-x-auto">
         {tasks.map(task => (
           <div
             key={task.id}
-            draggable
-            onDragStart={(e) => {
-              e.dataTransfer.setData("application/task-id", task.id);
-              e.dataTransfer.setData("text/plain", task.title);
-              e.dataTransfer.effectAllowed = "move";
-            }}
-            className={`shrink-0 w-56 rounded-lg border p-3 cursor-grab active:cursor-grabbing transition-shadow hover:shadow-md ${PRIORITY_COLORS[task.priority] || PRIORITY_COLORS.normal}`}
+            data-fc-draggable
+            data-task-id={task.id}
+            data-task-title={task.title}
+            data-task-minutes={task.estimated_minutes || 60}
+            data-task-priority={task.priority}
+            data-task-type="task"
+            className={`shrink-0 w-56 rounded-lg border p-3 cursor-grab active:cursor-grabbing transition-shadow hover:shadow-md select-none ${PRIORITY_COLORS[task.priority] || PRIORITY_COLORS.normal}`}
           >
             <div className="flex items-start gap-1.5">
               <GripVertical className="h-4 w-4 opacity-40 mt-0.5 shrink-0" />
