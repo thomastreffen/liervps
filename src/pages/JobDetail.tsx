@@ -249,6 +249,20 @@ export default function JobDetail() {
           </div>
         </div>
       )}
+
+      {/* Schedule sheet – inline from project page */}
+      {job && (
+        <ProjectScheduleSheet
+          open={scheduleSheetOpen}
+          onOpenChange={setScheduleSheetOpen}
+          projectId={job.id}
+          projectTitle={job.title}
+          customer={job.customer}
+          address={job.address}
+          suggestedDate={job.start}
+          onCreated={() => setScheduleRefreshKey((k) => k + 1)}
+        />
+      )}
     </>
   );
 }
