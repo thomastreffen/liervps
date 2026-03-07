@@ -211,6 +211,8 @@ export default function JobDetail() {
               jobId={id!}
               onOpenPlan={() => setShowPlan(true)}
               onOpenRoom={(room) => setActiveRoom(room)}
+              onOpenScheduleSheet={() => setScheduleSheetOpen(true)}
+              key={scheduleRefreshKey}
             />
           )}
         </div>
