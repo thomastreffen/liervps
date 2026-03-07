@@ -290,7 +290,7 @@ export function ServiceJournal({
                     >
                       <div className="text-center p-2">
                         <ImageIcon className="h-5 w-5 text-muted-foreground mx-auto" />
-                        <p className="text-[9px] text-muted-foreground mt-1 truncate max-w-[80px]">{img.file_name}</p>
+                        <p className="text-[9px] text-muted-foreground mt-1 truncate max-w-[80px]">{img.title}</p>
                       </div>
                     </div>
                   ))}
@@ -311,7 +311,7 @@ export function ServiceJournal({
                   {otherDocs.map(doc => (
                     <div key={doc.id} className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm border border-border/30 bg-card">
                       <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                      <span className="truncate flex-1">{doc.file_name}</span>
+                      <span className="truncate flex-1">{doc.title}</span>
                       <span className="text-[10px] text-muted-foreground shrink-0">
                         {format(new Date(doc.created_at), "d. MMM", { locale: nb })}
                       </span>
