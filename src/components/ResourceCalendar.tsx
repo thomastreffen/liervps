@@ -33,6 +33,7 @@ interface ResourceCalendarProps {
   onDateSelect?: (start: Date, end: Date) => void;
   onEventDrop?: (eventId: string, newStart: Date, newEnd: Date) => void;
   onEventResize?: (eventId: string, newStart: Date, newEnd: Date) => void;
+  onExternalDrop?: (info: { taskId: string; title: string; start: Date; end: Date; estimatedMinutes: number; priority: string; dropType: string }) => void;
   isAdmin?: boolean;
   isSuperAdmin?: boolean;
   hideExternalEvents?: boolean;
@@ -103,6 +104,7 @@ export const ResourceCalendar = memo(function ResourceCalendar({
   onDateSelect,
   onEventDrop,
   onEventResize,
+  onExternalDrop,
   isAdmin = false,
   isSuperAdmin = false,
   hideExternalEvents = false,
@@ -382,6 +384,18 @@ export const ResourceCalendar = memo(function ResourceCalendar({
     onEventResize?.(info.event.id, info.event.start!, info.event.end!);
   }, [onEventResize]);
 
+  const handleExternalDrop = useCallback((info: any) => {
+    const props = info.draggedEl?.dataset || {};
+    const taskId = props.taskId || "";
+    const title = props.taskTitle || "Oppgave";
+    const minutes = parseInt(props.taskMinutes || "60", 10);
+    const priority = props.taskPriority || "normal";
+    const dropType = props.taskType || "task";
+    const start = info.date as Date;
+    const end = new Date(start.getTime() + minutes * 60000);
+    onExternalDrop?.({ taskId, title, start, end, estimatedMinutes: minutes, priority, dropType });
+  }, [onExternalDrop]);
+
   return (
     <TooltipProvider delayDuration={300}>
     <div className="fc-wrapper rounded-2xl border border-border/30 bg-card shadow-card overflow-hidden">
@@ -408,6 +422,8 @@ export const ResourceCalendar = memo(function ResourceCalendar({
         eventDurationEditable={isAdmin}
         eventStartEditable={isAdmin}
         snapDuration="00:15:00"
+        droppable={true}
+        drop={handleExternalDrop}
         events={fcEvents}
         eventClick={handleEventClick}
         select={handleDateSelect}

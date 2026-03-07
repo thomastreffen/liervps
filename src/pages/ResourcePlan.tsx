@@ -34,6 +34,7 @@ import { MobileResourceHeader } from "@/components/resource-plan/MobileResourceH
 import { CapacityStatusBar } from "@/components/resource-plan/CapacityStatusBar";
 import { UnplannedProjectsBanner } from "@/components/resource-plan/UnplannedProjectsBanner";
 import { useUnplannedProjects } from "@/hooks/useUnplannedProjects";
+import { DropConfirmPopover, type DropPayload } from "@/components/resource-plan/DropConfirmPopover";
 
 type CalendarViewType = "timeGridDay" | "timeGridWeek" | "dayGridMonth" | "listWeek";
 
@@ -70,6 +71,7 @@ export default function ResourcePlan() {
   const { syncUpdate, syncCreate, forceUpdate, acceptGraphVersion, conflict, dismissConflict } = useCalendarSync();
   const [selectedBlock, setSelectedBlock] = useState<ScheduleBlock | null>(null);
   const [hideExternalEvents, setHideExternalEvents] = useState(false);
+  const [dropPayload, setDropPayload] = useState<DropPayload | null>(null);
 
   // Persist view choice
   useEffect(() => {
@@ -216,6 +218,27 @@ export default function ResourcePlan() {
   const { aggregatedDays, techCapacities, availableTechIds, partialTechIds } = useCapacity(
     calEvents, busySlots, referenceDate, techIds
   );
+
+  // Handle external drop from TaskResourceStrip
+  const handleExternalDrop = useCallback((info: { taskId: string; title: string; start: Date; end: Date; estimatedMinutes: number; priority: string; dropType: string }) => {
+    // Determine technician: use selected tech or first available
+    const techId = selectedTechId || (technicians.length > 0 ? technicians[0].id : null);
+    if (!techId) {
+      toast.error("Velg en montør først");
+      return;
+    }
+    const tech = technicians.find((t) => t.id === techId);
+    setDropPayload({
+      taskId: info.taskId,
+      taskTitle: info.title,
+      estimatedMinutes: info.estimatedMinutes,
+      priority: info.priority,
+      type: info.dropType as "task" | "project",
+      technicianId: techId,
+      technicianName: tech?.name,
+      dropTime: info.start,
+    });
+  }, [selectedTechId, technicians]);
 
   const nowStatusMap = useTechnicianNowStatus(calEvents, busySlots, techIds, externalBlocksCapacity);
 
@@ -535,6 +558,7 @@ export default function ResourcePlan() {
           onDateSelect={handleDateSelect}
           onEventDrop={handleEventDrop}
           onEventResize={handleEventResize}
+          onExternalDrop={handleExternalDrop}
           isAdmin={isAdmin}
           isSuperAdmin={isSuperAdmin}
           hideExternalEvents={hideExternalEvents}
@@ -595,6 +619,15 @@ export default function ResourcePlan() {
           onConfirmed={() => refetchBlocks()}
         />
       )}
+
+      <DropConfirmPopover
+        payload={dropPayload}
+        onClose={() => setDropPayload(null)}
+        onCreated={() => {
+          setRefreshKey((k) => k + 1);
+          refetchBlocks();
+        }}
+      />
     </div>
   );
 }
