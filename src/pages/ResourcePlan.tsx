@@ -304,6 +304,7 @@ export default function ResourcePlan() {
             filterIds={filteredTechForSidebar}
             nowStatusMap={nowStatusMap}
             onColorChange={handleTechColorChange}
+            techDayPercents={techDayPercents}
           />
         </aside>
       )}
