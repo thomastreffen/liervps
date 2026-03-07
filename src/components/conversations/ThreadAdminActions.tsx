@@ -23,6 +23,8 @@ interface ThreadAdminActionsProps {
   thread: any;
   isAdmin: boolean;
   onUpdate: (patch: Record<string, any>) => void;
+  onDeleteThread?: () => void;
+  onStartMultiSelect?: () => void;
 }
 
 export function ThreadAdminActions({ thread, isAdmin, onUpdate }: ThreadAdminActionsProps) {
