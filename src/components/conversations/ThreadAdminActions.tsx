@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import {
   Lock, Unlock, Gavel, AlertTriangle, Repeat, MessageSquare,
-  Link2, FileDown, Loader2, ListTodo, Search,
+  Link2, FileDown, Loader2, ListTodo, Search, Trash2, CheckSquare,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -23,9 +23,11 @@ interface ThreadAdminActionsProps {
   thread: any;
   isAdmin: boolean;
   onUpdate: (patch: Record<string, any>) => void;
+  onDeleteThread?: () => void;
+  onStartMultiSelect?: () => void;
 }
 
-export function ThreadAdminActions({ thread, isAdmin, onUpdate }: ThreadAdminActionsProps) {
+export function ThreadAdminActions({ thread, isAdmin, onUpdate, onDeleteThread, onStartMultiSelect }: ThreadAdminActionsProps) {
   const { user } = useAuth();
   const [decisionOpen, setDecisionOpen] = useState(false);
   const [decisionSummary, setDecisionSummary] = useState("");
@@ -302,6 +304,21 @@ export function ThreadAdminActions({ thread, isAdmin, onUpdate }: ThreadAdminAct
             <FileDown className="h-3.5 w-3.5" />
             {exporting ? "Eksporterer…" : "Eksporter PDF"}
           </DropdownMenuItem>
+
+          <DropdownMenuSeparator />
+          <DropdownMenuLabel className="text-[10px] text-muted-foreground uppercase tracking-wider">
+            Moderering
+          </DropdownMenuLabel>
+          {onStartMultiSelect && (
+            <DropdownMenuItem onClick={onStartMultiSelect} className="gap-2 text-xs">
+              <CheckSquare className="h-3.5 w-3.5" /> Velg meldinger
+            </DropdownMenuItem>
+          )}
+          {onDeleteThread && (
+            <DropdownMenuItem onClick={onDeleteThread} className="gap-2 text-xs text-destructive focus:text-destructive">
+              <Trash2 className="h-3.5 w-3.5" /> Slett samtale
+            </DropdownMenuItem>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
 

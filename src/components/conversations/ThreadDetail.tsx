@@ -14,10 +14,17 @@ import { format, isSameDay, differenceInMinutes } from "date-fns";
 import { nb } from "date-fns/locale";
 import {
   Send, Loader2, Paperclip, AlertTriangle, RotateCw, X,
-  Reply, Pin, Inbox,
+  Reply, Pin, Inbox, Plus, Camera, Mic, Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { ChatBubble } from "./ChatBubble";
@@ -141,7 +148,7 @@ function groupPosts(posts: ConversationPost[], currentUserAccountId: string | nu
 
 export function ThreadDetail({ threadId, threadTitle, threadType, projectId, companyId, isClosed = false, emailEnabled = true }: ThreadDetailProps) {
   const { posts, loading, refresh } = useConversationPosts(threadId);
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const [replyText, setReplyText] = useState("");
   const [sending, setSending] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -157,6 +164,9 @@ export function ThreadDetail({ threadId, threadTitle, threadType, projectId, com
   const [mentionIndex, setMentionIndex] = useState(0);
   const [viewMode, setViewMode] = useState<"chat" | "inbox">("chat");
   const [chatFilter, setChatFilter] = useState<ChatFilter>({});
+  const [adminSelectMode, setAdminSelectMode] = useState(false);
+  const [selectedPostIds, setSelectedPostIds] = useState<Set<string>>(new Set());
+  const [deleteConfirm, setDeleteConfirm] = useState<{ type: "single" | "multi" | "thread"; postId?: string } | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -445,6 +455,79 @@ export function ThreadDetail({ threadId, threadTitle, threadType, projectId, com
     else if (type === "tag") setChatFilter(f => ({ ...f, tags: [...(f.tags || []), value] }));
   }, []);
 
+  // Admin message moderation
+  const canModerate = isAdmin;
+
+  const handleDeletePost = useCallback(async (postId: string) => {
+    const { error } = await (supabase as any)
+      .from("conversation_posts")
+      .update({ deleted_at: new Date().toISOString(), deleted_by: user?.id })
+      .eq("id", postId);
+    if (error) { toast.error("Kunne ikke slette melding"); return; }
+    // Insert system message
+    await (supabase as any).from("conversation_posts").insert({
+      thread_id: threadId, company_id: companyId, author_id: currentUaId,
+      post_type: "system", body_text: "Melding slettet av administrator",
+    });
+    // Log to activity_log
+    await supabase.from("activity_log").insert({
+      entity_id: threadId, entity_type: "conversation_thread",
+      action: "message_deleted", type: "note",
+      title: "Melding slettet", description: "En melding ble slettet av administrator",
+      performed_by: user?.id,
+    });
+    toast.success("Melding slettet");
+    refresh();
+  }, [threadId, companyId, currentUaId, user, refresh]);
+
+  const handleDeleteSelected = useCallback(async () => {
+    const ids = Array.from(selectedPostIds);
+    if (ids.length === 0) return;
+    const { error } = await (supabase as any)
+      .from("conversation_posts")
+      .update({ deleted_at: new Date().toISOString(), deleted_by: user?.id })
+      .in("id", ids);
+    if (error) { toast.error("Kunne ikke slette meldinger"); return; }
+    await (supabase as any).from("conversation_posts").insert({
+      thread_id: threadId, company_id: companyId, author_id: currentUaId,
+      post_type: "system", body_text: `${ids.length} meldinger slettet av administrator`,
+    });
+    await supabase.from("activity_log").insert({
+      entity_id: threadId, entity_type: "conversation_thread",
+      action: "messages_bulk_deleted", type: "note",
+      title: `${ids.length} meldinger slettet`,
+      performed_by: user?.id,
+    });
+    toast.success(`${ids.length} meldinger slettet`);
+    setSelectedPostIds(new Set());
+    setAdminSelectMode(false);
+    refresh();
+  }, [selectedPostIds, threadId, companyId, currentUaId, user, refresh]);
+
+  const handleDeleteThread = useCallback(async () => {
+    const { error } = await (supabase as any)
+      .from("conversation_threads")
+      .update({ is_archived: true, status: "closed", closed_at: new Date().toISOString(), closed_by: user?.id })
+      .eq("id", threadId);
+    if (error) { toast.error("Kunne ikke slette samtale"); return; }
+    await supabase.from("activity_log").insert({
+      entity_id: threadId, entity_type: "conversation_thread",
+      action: "thread_deleted", type: "note",
+      title: `Samtale "${threadTitle}" slettet`,
+      performed_by: user?.id,
+    });
+    toast.success("Samtale slettet");
+    refresh();
+  }, [threadId, threadTitle, user, refresh]);
+
+  const togglePostSelection = useCallback((postId: string) => {
+    setSelectedPostIds(prev => {
+      const next = new Set(prev);
+      if (next.has(postId)) next.delete(postId); else next.add(postId);
+      return next;
+    });
+  }, []);
+
   if (loading) {
     return (
       <div className="flex justify-center py-16">
@@ -669,6 +752,12 @@ export function ThreadDetail({ threadId, threadTitle, threadType, projectId, com
                               onFilterByDocType={(dt) => setChatFilter(f => ({ ...f, tags: [...(f.tags || []), dt] }))}
                               onFilterByObjectLabel={(label) => setChatFilter(f => ({ ...f, location: label }))}
                               onAnnotationSaved={mediaAnnotations.refresh}
+                              // Admin moderation
+                              canModerate={canModerate}
+                              onDeleteMessage={(postId) => setDeleteConfirm({ type: "single", postId })}
+                              adminSelectMode={adminSelectMode}
+                              isSelected={selectedPostIds.has(post.id)}
+                              onToggleSelect={togglePostSelection}
                             />
                           );
                         })}
@@ -792,20 +881,58 @@ export function ThreadDetail({ threadId, threadTitle, threadType, projectId, com
               </div>
             )}
 
+            {/* Admin multi-select bar */}
+            {adminSelectMode && (
+              <div className="flex items-center gap-2 mb-2 px-2 py-2 rounded-xl bg-destructive/5 border border-destructive/20">
+                <Trash2 className="h-4 w-4 text-destructive shrink-0" />
+                <span className="text-xs font-medium text-destructive flex-1">
+                  {selectedPostIds.size} valgt
+                </span>
+                <Button
+                  variant="outline" size="sm"
+                  className="h-7 text-xs border-border"
+                  onClick={() => { setAdminSelectMode(false); setSelectedPostIds(new Set()); }}
+                >
+                  Avbryt
+                </Button>
+                <Button
+                  variant="destructive" size="sm"
+                  className="h-7 text-xs"
+                  disabled={selectedPostIds.size === 0}
+                  onClick={() => setDeleteConfirm({ type: "multi" })}
+                >
+                  Slett valgte
+                </Button>
+              </div>
+            )}
+
             <div className="flex items-end gap-1.5">
               <input ref={fileInputRef} type="file" multiple className="hidden" onChange={handleFileSelect} />
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="flex items-center justify-center h-9 w-9 text-muted-foreground hover:text-foreground transition-colors rounded-full hover:bg-muted/50 cursor-pointer shrink-0 mb-0.5"
-              >
-                <Paperclip className="h-4 w-4" />
-              </button>
 
-              <CameraCapture
-                onCapture={(files) => setPendingFiles(prev => [...prev, ...files])}
-                disabled={sending}
-              />
+              {/* Mobile: + menu for attachments & camera */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    className="flex items-center justify-center h-10 w-10 sm:h-9 sm:w-9 text-muted-foreground hover:text-foreground transition-colors rounded-full hover:bg-muted/50 cursor-pointer shrink-0"
+                  >
+                    <Plus className="h-5 w-5 sm:h-4 sm:w-4" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-44">
+                  <DropdownMenuItem onClick={() => fileInputRef.current?.click()} className="gap-2 text-xs">
+                    <Paperclip className="h-3.5 w-3.5" /> Vedlegg
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              {/* Camera – desktop visible, mobile inside + menu is handled by the button above */}
+              <div className="hidden sm:block">
+                <CameraCapture
+                  onCapture={(files) => setPendingFiles(prev => [...prev, ...files])}
+                  disabled={sending}
+                />
+              </div>
 
               <div className="flex-1 relative">
                 <textarea
@@ -813,18 +940,20 @@ export function ThreadDetail({ threadId, threadTitle, threadType, projectId, com
                   value={replyText}
                   onChange={(e) => handleTextChange(e.target.value)}
                   onPaste={handlePaste}
-                  placeholder="Skriv melding... (@ for å nevne)"
+                  placeholder="Skriv melding..."
                   rows={1}
                   className={cn(
-                    "w-full resize-none rounded-2xl border border-border/40 bg-muted/30 px-4 py-2.5 text-sm",
+                    "w-full resize-none rounded-2xl border border-border/40 bg-muted/30",
+                    "px-4 py-3 sm:py-2.5 text-[15px] sm:text-sm leading-relaxed",
                     "placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/30",
-                    "max-h-32 overflow-y-auto"
+                    "max-h-36 overflow-y-auto"
                   )}
-                  style={{ minHeight: "40px" }}
+                  style={{ minHeight: "56px" }}
                   onInput={(e) => {
                     const el = e.currentTarget;
-                    el.style.height = "40px";
-                    el.style.height = Math.min(el.scrollHeight, 128) + "px";
+                    el.style.height = "56px";
+                    const maxH = 5 * 24 + 24; // ~5 lines + padding
+                    el.style.height = Math.min(el.scrollHeight, maxH) + "px";
                   }}
                   onKeyDown={(e) => {
                     if (mentionQuery !== null && filteredMentions.length > 0) {
@@ -869,7 +998,7 @@ export function ThreadDetail({ threadId, threadTitle, threadType, projectId, com
                 onClick={handleReply}
                 disabled={(!replyText.trim() && pendingFiles.length === 0) || sending || uploading}
                 className={cn(
-                  "flex items-center justify-center h-9 w-9 rounded-full shrink-0 mb-0.5 transition-colors",
+                  "flex items-center justify-center h-10 w-10 sm:h-9 sm:w-9 rounded-full shrink-0 transition-colors",
                   (!replyText.trim() && pendingFiles.length === 0) || sending || uploading
                     ? "text-muted-foreground/30 cursor-not-allowed"
                     : "bg-primary text-primary-foreground hover:bg-primary/90 cursor-pointer"
@@ -923,6 +1052,38 @@ export function ThreadDetail({ threadId, threadTitle, threadType, projectId, com
           onCreated={refresh}
         />
       )}
+
+      {/* Delete confirmation dialog */}
+      <AlertDialog open={!!deleteConfirm} onOpenChange={(open) => { if (!open) setDeleteConfirm(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {deleteConfirm?.type === "thread" ? "Slett samtale" : deleteConfirm?.type === "multi" ? "Slett valgte meldinger" : "Slett melding"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteConfirm?.type === "thread"
+                ? "Hele samtalen vil bli arkivert og lukket. Denne handlingen logges."
+                : deleteConfirm?.type === "multi"
+                  ? `${selectedPostIds.size} meldinger vil bli slettet. Denne handlingen logges.`
+                  : "Meldingen vil bli slettet og erstattet med en systemmelding. Denne handlingen logges."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Avbryt</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (deleteConfirm?.type === "single" && deleteConfirm.postId) handleDeletePost(deleteConfirm.postId);
+                else if (deleteConfirm?.type === "multi") handleDeleteSelected();
+                else if (deleteConfirm?.type === "thread") handleDeleteThread();
+                setDeleteConfirm(null);
+              }}
+            >
+              Slett
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

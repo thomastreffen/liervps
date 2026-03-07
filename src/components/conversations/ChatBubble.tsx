@@ -47,6 +47,12 @@ interface ChatBubbleProps {
   onFilterByDocType?: (docType: string) => void;
   onFilterByObjectLabel?: (label: string) => void;
   onAnnotationSaved?: () => void;
+  // Admin moderation
+  canModerate?: boolean;
+  onDeleteMessage?: (postId: string) => void;
+  adminSelectMode?: boolean;
+  isSelected?: boolean;
+  onToggleSelect?: (postId: string) => void;
 }
 
 export function ChatBubble({
@@ -57,6 +63,7 @@ export function ChatBubble({
   aiSuggestions, aiDismissed, onDismissAI, onClickAIAction,
   annotations, hasBeforeAfterPair, projectId, companyId,
   onFilterByDocType, onFilterByObjectLabel, onAnnotationSaved,
+  canModerate, onDeleteMessage, adminSelectMode, isSelected, onToggleSelect,
 }: ChatBubbleProps) {
   const [showRaw, setShowRaw] = useState(false);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
@@ -222,6 +229,11 @@ export function ChatBubble({
         onCreateTask={onCreateTask}
         onPinToggle={onPinToggle}
         onToggleReaction={onToggleReaction}
+        canModerate={canModerate}
+        onDeleteMessage={onDeleteMessage}
+        adminSelectMode={adminSelectMode}
+        isSelected={isSelected}
+        onToggleSelect={onToggleSelect}
       />
 
       {/* Reactions display */}
