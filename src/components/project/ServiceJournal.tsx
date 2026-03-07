@@ -32,10 +32,9 @@ interface Deviation {
 
 interface DocFile {
   id: string;
-  file_name: string;
+  title: string;
   mime_type: string | null;
   created_at: string;
-  storage_path: string | null;
 }
 
 interface ActivityEntry {
@@ -97,10 +96,10 @@ export function ServiceJournal({
       // Docs & images
       supabase
         .from("docs_files")
-        .select("id, file_name, mime_type, created_at, storage_path")
+        .select("id, title, mime_type, created_at")
         .eq("project_id", projectId)
         .order("created_at", { ascending: false })
-        .limit(30),
+        .limit(30) as any,
       // Activity log
       supabase
         .from("activity_log")
