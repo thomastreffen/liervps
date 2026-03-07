@@ -71,6 +71,7 @@ export default function ResourcePlan() {
   const { syncUpdate, syncCreate, forceUpdate, acceptGraphVersion, conflict, dismissConflict } = useCalendarSync();
   const [selectedBlock, setSelectedBlock] = useState<ScheduleBlock | null>(null);
   const [hideExternalEvents, setHideExternalEvents] = useState(false);
+  const [dropPayload, setDropPayload] = useState<DropPayload | null>(null);
 
   // Persist view choice
   useEffect(() => {
