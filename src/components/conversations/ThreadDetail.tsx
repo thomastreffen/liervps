@@ -148,7 +148,7 @@ function groupPosts(posts: ConversationPost[], currentUserAccountId: string | nu
 
 export function ThreadDetail({ threadId, threadTitle, threadType, projectId, companyId, isClosed = false, emailEnabled = true }: ThreadDetailProps) {
   const { posts, loading, refresh } = useConversationPosts(threadId);
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const [replyText, setReplyText] = useState("");
   const [sending, setSending] = useState(false);
   const [uploading, setUploading] = useState(false);
