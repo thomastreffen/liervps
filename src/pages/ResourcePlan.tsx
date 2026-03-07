@@ -31,6 +31,9 @@ import { ScheduleBlockDetailPanel } from "@/components/ScheduleBlockDetailPanel"
 import { useSyncHealth } from "@/hooks/useSyncHealth";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { MobileResourceHeader } from "@/components/resource-plan/MobileResourceHeader";
+import { CapacityStatusBar } from "@/components/resource-plan/CapacityStatusBar";
+import { UnplannedProjectsBanner } from "@/components/resource-plan/UnplannedProjectsBanner";
+import { useUnplannedProjects } from "@/hooks/useUnplannedProjects";
 
 type CalendarViewType = "timeGridDay" | "timeGridWeek" | "dayGridMonth" | "listWeek";
 
