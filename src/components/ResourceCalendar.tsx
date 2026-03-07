@@ -33,6 +33,7 @@ interface ResourceCalendarProps {
   onDateSelect?: (start: Date, end: Date) => void;
   onEventDrop?: (eventId: string, newStart: Date, newEnd: Date) => void;
   onEventResize?: (eventId: string, newStart: Date, newEnd: Date) => void;
+  onExternalDrop?: (info: { taskId: string; title: string; start: Date; end: Date; estimatedMinutes: number; priority: string; dropType: string }) => void;
   isAdmin?: boolean;
   isSuperAdmin?: boolean;
   hideExternalEvents?: boolean;
@@ -103,6 +104,7 @@ export const ResourceCalendar = memo(function ResourceCalendar({
   onDateSelect,
   onEventDrop,
   onEventResize,
+  onExternalDrop,
   isAdmin = false,
   isSuperAdmin = false,
   hideExternalEvents = false,
