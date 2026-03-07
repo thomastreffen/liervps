@@ -34,6 +34,7 @@ import { MobileResourceHeader } from "@/components/resource-plan/MobileResourceH
 import { CapacityStatusBar } from "@/components/resource-plan/CapacityStatusBar";
 import { UnplannedProjectsBanner } from "@/components/resource-plan/UnplannedProjectsBanner";
 import { useUnplannedProjects } from "@/hooks/useUnplannedProjects";
+import { DropConfirmPopover, type DropPayload } from "@/components/resource-plan/DropConfirmPopover";
 
 type CalendarViewType = "timeGridDay" | "timeGridWeek" | "dayGridMonth" | "listWeek";
 
