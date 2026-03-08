@@ -14,6 +14,7 @@ import { format } from "date-fns";
 import { nb } from "date-fns/locale";
 import { toast } from "sonner";
 import { checkRequiredForms } from "@/components/forms/ProjectFormsSection";
+import { cn } from "@/lib/utils";
 
 interface InvoiceBasisRow {
   id: string;
