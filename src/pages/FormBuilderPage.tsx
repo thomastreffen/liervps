@@ -31,7 +31,20 @@ interface Template {
   description: string | null;
   active_version_id: string | null;
   created_at: string;
+  form_type?: string;
+  is_active?: boolean;
+  available_in_projects?: boolean;
+  available_in_my_day?: boolean;
+  available_in_customer_portal?: boolean;
 }
+
+const FORM_TYPE_LABELS: Record<string, string> = {
+  checklist: "Sjekkliste",
+  control: "Kontroll",
+  signature: "Signering",
+  hms: "HMS",
+  handover: "Overlevering",
+};
 
 export default function FormBuilderPage() {
   const navigate = useNavigate();
