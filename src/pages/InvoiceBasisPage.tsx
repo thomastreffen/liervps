@@ -3,8 +3,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import {
   FileText, CheckCircle, Clock, Users, AlertTriangle,
-  Send, Receipt, ArrowRight, Loader2, Filter, ClipboardCheck
+  Send, Receipt, ArrowRight, Loader2, Filter, ClipboardCheck, Package
 } from "lucide-react";
+import { WP_TYPE_CONFIG, type WorkPackageType } from "@/lib/work-package-types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -47,6 +48,7 @@ const statusConfig: Record<string, { label: string; variant: "default" | "second
 export default function InvoiceBasisPage() {
   const { user } = useAuth();
   const [rows, setRows] = useState<InvoiceBasisRow[]>([]);
+  const [wpRows, setWpRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
   const [missingBillingForms, setMissingBillingForms] = useState<Record<string, string[]>>({});
