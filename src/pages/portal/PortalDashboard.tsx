@@ -1,209 +1,217 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, FolderOpen, FileText, MessageSquare, LogOut, Wrench } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { usePortal } from "@/hooks/usePortal";
+import {
+  FolderOpen, FileText, Clock, CheckCircle, AlertTriangle, ArrowRight
+} from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { format } from "date-fns";
+import { nb } from "date-fns/locale";
 
-interface PortalProject {
-  project_id: string;
-  project: {
-    id: string;
-    title: string;
-    status: string;
-    address: string | null;
-    start_time: string | null;
-    end_time: string | null;
-  } | null;
+interface ProjectSummary {
+  id: string;
+  title: string;
+  status: string;
+  address: string | null;
+  start_time: string | null;
 }
 
 export default function PortalDashboard() {
-  const navigate = useNavigate();
-  const [projects, setProjects] = useState<PortalProject[]>([]);
+  const { user } = usePortal();
+  const [projects, setProjects] = useState<ProjectSummary[]>([]);
+  const [journals, setJournals] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [userName, setUserName] = useState("");
 
   useEffect(() => {
+    if (!user) return;
     const load = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        navigate("/portal/login", { replace: true });
-        return;
-      }
+      // Get project IDs accessible to this user (direct + account-level)
+      const { data: accessRows } = await supabase
+        .from("customer_portal_project_access")
+        .select("project_id")
+        .or(`portal_user_id.eq.${user.id}${user.accountId ? `,account_id.eq.${user.accountId}` : ""}`);
 
-      const user = session.user;
-      setUserName(
-        user.user_metadata?.full_name || user.email?.split("@")[0] || "Kunde"
-      );
+      const projectIds = [...new Set((accessRows || []).map((r) => r.project_id))];
 
-      // Update last login
-      await supabase
-        .from("customer_portal_users")
-        .update({ last_login_at: new Date().toISOString() })
-        .eq("auth_user_id", user.id);
+      if (projectIds.length > 0) {
+        const { data: projectData } = await supabase
+          .from("events")
+          .select("id, title, status, address, start_time")
+          .in("id", projectIds)
+          .is("deleted_at", null)
+          .order("start_time", { ascending: false });
 
-      // Fetch accessible projects
-      const { data: portalUser } = await supabase
-        .from("customer_portal_users")
-        .select("id")
-        .eq("auth_user_id", user.id)
-        .maybeSingle();
+        setProjects(projectData || []);
 
-      if (portalUser) {
-        const { data: accessRows } = await supabase
-          .from("customer_portal_project_access")
-          .select("project_id")
-          .eq("portal_user_id", portalUser.id);
+        // Fetch recent journals across accessible projects
+        const { data: sjData } = await supabase
+          .from("service_journals")
+          .select("id, project_id, version, status, updated_at")
+          .in("project_id", projectIds)
+          .order("updated_at", { ascending: false })
+          .limit(5);
 
-        if (accessRows && accessRows.length > 0) {
-          const projectIds = accessRows.map((r) => r.project_id);
-          const { data: projectData } = await supabase
-            .from("events")
-            .select("id, title, status, address, start_time, end_time")
-            .in("id", projectIds)
-            .is("deleted_at", null);
-
-          const mapped = (projectData || []).map((p) => ({
-            project_id: p.id,
-            project: p,
-          }));
-          setProjects(mapped);
-        }
+        setJournals(sjData || []);
       }
 
       setLoading(false);
     };
-
     load();
-  }, [navigate]);
+  }, [user]);
 
-  const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    navigate("/portal/login", { replace: true });
-  };
+  const activeProjects = projects.filter((p) => ["active", "in_progress"].includes(p.status));
+  const pendingApprovals = journals.filter((j) => j.status === "review");
+  const nextScheduled = projects.find((p) => p.status === "planned" && p.start_time);
 
-  const statusLabel = (status: string) => {
-    switch (status) {
+  const statusLabel = (s: string) => {
+    switch (s) {
       case "planned": return "Planlagt";
       case "active": case "in_progress": return "Pågår";
       case "completed": return "Ferdig";
-      default: return status;
-    }
-  };
-
-  const statusVariant = (status: string) => {
-    switch (status) {
-      case "planned": return "secondary" as const;
-      case "active": case "in_progress": return "default" as const;
-      case "completed": return "outline" as const;
-      default: return "secondary" as const;
+      default: return s;
     }
   };
 
   if (loading) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
+    return <div className="animate-pulse space-y-4">
+      {[1, 2, 3].map(i => <div key={i} className="h-24 rounded-xl bg-muted" />)}
+    </div>;
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b bg-card">
-        <div className="mx-auto flex max-w-4xl items-center justify-between px-4 py-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-              <Wrench className="h-5 w-5" />
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-2xl font-semibold text-foreground">
+          Hei, {user?.fullName}!
+        </h2>
+        {user?.accountName && (
+          <p className="text-muted-foreground">{user.accountName}</p>
+        )}
+      </div>
+
+      {/* Summary cards */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardContent className="flex items-center gap-3 pt-6">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+              <FolderOpen className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <h1 className="text-base font-semibold text-card-foreground">
-                Kundeportal
-              </h1>
-              <p className="text-xs text-muted-foreground">MCS Service</p>
+              <p className="text-2xl font-bold text-card-foreground">{activeProjects.length}</p>
+              <p className="text-xs text-muted-foreground">Aktive prosjekter</p>
             </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="text-sm text-muted-foreground">{userName}</span>
-            <Button variant="ghost" size="sm" onClick={handleSignOut}>
-              <LogOut className="mr-1 h-4 w-4" />
-              Logg ut
-            </Button>
-          </div>
-        </div>
-      </header>
+          </CardContent>
+        </Card>
 
-      {/* Content */}
-      <main className="mx-auto max-w-4xl px-4 py-8">
-        <div className="mb-6">
-          <h2 className="text-2xl font-semibold text-foreground">
-            Hei, {userName}!
-          </h2>
-          <p className="text-muted-foreground">
-            Her finner du oversikt over dine prosjekter og leveranser.
-          </p>
-        </div>
+        <Card>
+          <CardContent className="flex items-center gap-3 pt-6">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-accent/10">
+              <Clock className="h-5 w-5 text-accent" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-card-foreground">
+                {nextScheduled
+                  ? format(new Date(nextScheduled.start_time!), "d. MMM", { locale: nb })
+                  : "—"
+                }
+              </p>
+              <p className="text-xs text-muted-foreground">Neste arbeid</p>
+            </div>
+          </CardContent>
+        </Card>
 
-        {projects.length === 0 ? (
-          <Card>
-            <CardContent className="flex flex-col items-center gap-4 py-12">
-              <FolderOpen className="h-12 w-12 text-muted-foreground/50" />
-              <div className="text-center">
-                <p className="font-medium text-card-foreground">
-                  Ingen prosjekter ennå
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  Du vil få tilgang til prosjekter når de deles med deg.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="grid gap-4 sm:grid-cols-2">
-            {projects.map(({ project }) =>
-              project ? (
+        <Card>
+          <CardContent className="flex items-center gap-3 pt-6">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+              <FileText className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-card-foreground">{journals.length}</p>
+              <p className="text-xs text-muted-foreground">Leveranser</p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="flex items-center gap-3 pt-6">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-warning/10">
+              <AlertTriangle className="h-5 w-5 text-warning" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-card-foreground">{pendingApprovals.length}</p>
+              <p className="text-xs text-muted-foreground">Venter godkjenning</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Active projects */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between pb-3">
+          <CardTitle className="text-base">Aktive prosjekter</CardTitle>
+          <Link to="/portal/projects" className="text-xs text-primary hover:underline flex items-center gap-1">
+            Se alle <ArrowRight className="h-3 w-3" />
+          </Link>
+        </CardHeader>
+        <CardContent>
+          {activeProjects.length === 0 ? (
+            <p className="py-6 text-center text-sm text-muted-foreground">
+              Ingen aktive prosjekter akkurat nå.
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {activeProjects.slice(0, 4).map((p) => (
                 <Link
-                  key={project.id}
-                  to={`/portal/projects/${project.id}`}
-                  className="block"
+                  key={p.id}
+                  to={`/portal/projects/${p.id}`}
+                  className="flex items-center justify-between rounded-lg border p-3 transition-colors hover:bg-muted/50"
                 >
-                  <Card className="transition-shadow hover:shadow-md">
-                    <CardHeader className="pb-3">
-                      <div className="flex items-start justify-between">
-                        <CardTitle className="text-base">
-                          {project.title}
-                        </CardTitle>
-                        <Badge variant={statusVariant(project.status)}>
-                          {statusLabel(project.status)}
-                        </Badge>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      {project.address && (
-                        <p className="text-sm text-muted-foreground">
-                          {project.address}
-                        </p>
-                      )}
-                      <div className="mt-4 flex gap-4 text-xs text-muted-foreground">
-                        <span className="flex items-center gap-1">
-                          <FileText className="h-3.5 w-3.5" />
-                          Dokumenter
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <MessageSquare className="h-3.5 w-3.5" />
-                          Meldinger
-                        </span>
-                      </div>
-                    </CardContent>
-                  </Card>
+                  <div>
+                    <p className="text-sm font-medium text-card-foreground">{p.title}</p>
+                    {p.address && <p className="text-xs text-muted-foreground">{p.address}</p>}
+                  </div>
+                  <Badge variant="default" className="text-xs">{statusLabel(p.status)}</Badge>
                 </Link>
-              ) : null
-            )}
-          </div>
-        )}
-      </main>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Pending approvals */}
+      {pendingApprovals.length > 0 && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <CheckCircle className="h-4 w-4 text-warning" />
+              Ventende godkjenninger
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {pendingApprovals.map((j) => (
+                <Link
+                  key={j.id}
+                  to={`/portal/projects/${j.project_id}`}
+                  className="flex items-center justify-between rounded-lg border p-3 transition-colors hover:bg-muted/50"
+                >
+                  <div>
+                    <p className="text-sm font-medium text-card-foreground">
+                      Servicejournal v{j.version}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {j.updated_at && format(new Date(j.updated_at), "d. MMM yyyy", { locale: nb })}
+                    </p>
+                  </div>
+                  <Badge variant="outline" className="text-xs">Til gjennomgang</Badge>
+                </Link>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
