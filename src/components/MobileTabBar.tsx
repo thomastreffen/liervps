@@ -11,6 +11,7 @@ import {
   FileText,
   ScrollText,
   CalendarPlus,
+  Sun,
 } from "lucide-react";
 import { useNotifications } from "@/hooks/useNotifications";
 import { useActionRequired } from "@/hooks/useActionRequired";
@@ -80,6 +81,7 @@ export function MobileTabBar() {
   const { user } = useAuth();
   const { hasPermission } = usePermissions();
   const { isModuleVisible } = useModuleVisibility();
+  const isMontør = user?.role === "montør";
   const { unreadCount } = useNotifications();
   const actionRequiredCount = useActionRequired();
   const [fabOpen, setFabOpen] = useState(false);
@@ -106,7 +108,17 @@ export function MobileTabBar() {
     <>
       <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border/60 bg-card lg:hidden safe-area-bottom shadow-[0_-2px_12px_-3px_hsl(220_20%_20%/0.08)]">
         <div className="flex items-stretch">
-          {isModuleVisible("overview") && (
+          {/* Min dag – for montører */}
+          {isMontør && (
+            <TabButton
+              label="Min dag"
+              icon={Sun}
+              active={isActive("/my-day")}
+              onClick={() => navigate("/my-day")}
+            />
+          )}
+
+          {isModuleVisible("overview") && !isMontør && (
             <TabButton
               label="Oversikt"
               icon={LayoutDashboard}

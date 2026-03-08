@@ -76,6 +76,7 @@ import AiMatcherReportPage from "./pages/AiMatcherReportPage";
 import InvoiceBasisPage from "./pages/InvoiceBasisPage";
 import ModuleManagementPage from "./pages/ModuleManagementPage";
 import ManagementPage from "./pages/ManagementPage";
+import MyDayPage from "./pages/MyDayPage";
 import { CompanyProvider } from "@/hooks/useCompanyContext";
 import PortalLogin from "./pages/portal/PortalLogin";
 import PortalActivate from "./pages/portal/PortalActivate";
@@ -132,6 +133,7 @@ const App = () => (
             >
               <Route path="/" element={<Navigate to="/overview" replace />} />
               <Route path="/overview" element={<OverviewPage />} />
+              <Route path="/my-day" element={<MyDayPage />} />
               <Route path="/inbox" element={
                 <ProtectedRoute requiredPermission="postkontor.view">
                   <InboxPage />
