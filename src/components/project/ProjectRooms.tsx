@@ -16,6 +16,7 @@ import { nb } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
 import { ProjectScheduleBlocks } from "@/components/project/ProjectScheduleBlocks";
 import { ProjectFormsSection } from "@/components/forms/ProjectFormsSection";
+import { WorkPackageList } from "@/components/work-packages/WorkPackageList";
 
 /* ── Types ── */
 
@@ -130,6 +131,9 @@ export function ProjectRooms({ jobId, onOpenPlan, onOpenRoom, onOpenScheduleShee
 
   return (
     <div className="space-y-8 max-w-4xl mx-auto">
+      {/* Work packages */}
+      <WorkPackageList projectId={jobId} isAdmin />
+
       {/* Schedule blocks section */}
       <ProjectScheduleBlocks
         projectId={jobId}
