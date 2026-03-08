@@ -81,8 +81,8 @@ export function useManagementData() {
         .lte("start_at", `${todayStr}T23:59:59`) as any);
 
       // 2. Fetch all schedulable people
-      const techQuery: any = supabase
-        .from("employment_profiles")
+      const techQuery = supabase
+        .from("employment_profiles" as any)
         .select("id, person_id, people(display_name)")
         .eq("is_schedulable", true);
       const { data: techs } = await techQuery;
@@ -136,8 +136,8 @@ export function useManagementData() {
         .eq("status", "review");
 
       // 5. Ready for invoice
-      const invoiceQuery: any = supabase
-        .from("invoice_basis")
+      const invoiceQuery = supabase
+        .from("invoice_basis" as any)
         .select("*")
         .eq("billing_status", "ready")
         .order("approved_at", { ascending: false })
@@ -162,8 +162,8 @@ export function useManagementData() {
         .eq("billing_status", "ready");
 
       // 6. Open deviations
-      const devQuery: any = supabase
-        .from("job_tasks")
+      const devQuery = supabase
+        .from("job_tasks" as any)
         .select("id", { count: "exact", head: true })
         .eq("type", "deviation")
         .in("status", ["open", "new"]);
