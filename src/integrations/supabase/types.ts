@@ -3329,39 +3329,84 @@ export type Database = {
       form_templates: {
         Row: {
           active_version_id: string | null
+          allowed_roles: string[]
+          archived_at: string | null
+          available_in_customer_portal: boolean
+          available_in_documents: boolean
+          available_in_my_day: boolean
+          available_in_projects: boolean
           category: string | null
           company_id: string | null
           created_at: string
           created_by: string
           deleted_at: string | null
           description: string | null
+          form_type: string
           id: string
+          internal_only: boolean
+          is_active: boolean
+          is_required: boolean
+          required_before_billing: boolean
+          required_before_completion: boolean
+          required_for_job_types: string[]
+          shareable_via_link: boolean
           title: string
           updated_at: string
+          version: number
         }
         Insert: {
           active_version_id?: string | null
+          allowed_roles?: string[]
+          archived_at?: string | null
+          available_in_customer_portal?: boolean
+          available_in_documents?: boolean
+          available_in_my_day?: boolean
+          available_in_projects?: boolean
           category?: string | null
           company_id?: string | null
           created_at?: string
           created_by: string
           deleted_at?: string | null
           description?: string | null
+          form_type?: string
           id?: string
+          internal_only?: boolean
+          is_active?: boolean
+          is_required?: boolean
+          required_before_billing?: boolean
+          required_before_completion?: boolean
+          required_for_job_types?: string[]
+          shareable_via_link?: boolean
           title: string
           updated_at?: string
+          version?: number
         }
         Update: {
           active_version_id?: string | null
+          allowed_roles?: string[]
+          archived_at?: string | null
+          available_in_customer_portal?: boolean
+          available_in_documents?: boolean
+          available_in_my_day?: boolean
+          available_in_projects?: boolean
           category?: string | null
           company_id?: string | null
           created_at?: string
           created_by?: string
           deleted_at?: string | null
           description?: string | null
+          form_type?: string
           id?: string
+          internal_only?: boolean
+          is_active?: boolean
+          is_required?: boolean
+          required_before_billing?: boolean
+          required_before_completion?: boolean
+          required_for_job_types?: string[]
+          shareable_via_link?: boolean
           title?: string
           updated_at?: string
+          version?: number
         }
         Relationships: [
           {
