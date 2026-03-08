@@ -1,6 +1,7 @@
 import { Outlet, Link, useLocation, Navigate } from "react-router-dom";
 import { usePortal } from "@/hooks/usePortal";
-import { Loader2, Wrench, LayoutDashboard, FolderOpen, FileText, MessageSquare, LogOut, Users, Bell, Phone } from "lucide-react";
+import { usePortalNotifications } from "@/hooks/usePortalNotifications";
+import { Loader2, Wrench, LayoutDashboard, FolderOpen, FileText, MessageSquare, LogOut, Users, Phone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -10,6 +11,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { NotificationBell } from "@/components/portal/NotificationBell";
 
 const navItems = [
   { path: "/portal", label: "Oversikt", icon: LayoutDashboard, end: true },
@@ -21,6 +23,7 @@ const navItems = [
 export default function PortalLayout() {
   const { user, loading, isCustomerAdmin, signOut } = usePortal();
   const location = useLocation();
+  const { notifications, unreadCount, markAsRead, markAllAsRead } = usePortalNotifications();
 
   if (loading) {
     return (
@@ -88,11 +91,12 @@ export default function PortalLayout() {
                   </Link>
                 </Button>
               )}
-              <Button variant="ghost" size="icon" asChild>
-                <Link to="/portal/settings">
-                  <Bell className="h-4 w-4" />
-                </Link>
-              </Button>
+              <NotificationBell
+                notifications={notifications}
+                unreadCount={unreadCount}
+                onMarkAsRead={markAsRead}
+                onMarkAllAsRead={markAllAsRead}
+              />
               <Button variant="ghost" size="sm" onClick={signOut}>
                 <LogOut className="mr-1 h-4 w-4" />
                 <span className="hidden sm:inline">Logg ut</span>
