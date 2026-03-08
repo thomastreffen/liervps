@@ -455,7 +455,7 @@ export default function FormBuilderPage() {
         </div>
       </div>
 
-      {/* Two-panel layout */}
+      {/* Three-panel layout */}
       <div className="flex-1 flex overflow-hidden">
         {/* Left: Field palette */}
         <div className="w-64 shrink-0 border-r border-border bg-background overflow-y-auto p-3">
@@ -463,10 +463,9 @@ export default function FormBuilderPage() {
           <FormFieldPalette onAddField={addField} />
         </div>
 
-        {/* Right: Canvas */}
+        {/* Center: Canvas */}
         <div className="flex-1 overflow-y-auto bg-background p-6">
           <div className="max-w-2xl mx-auto space-y-4">
-            {/* Description */}
             <Textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
@@ -474,8 +473,6 @@ export default function FormBuilderPage() {
               rows={2}
               placeholder="Beskrivelse av skjemaet (valgfri)..."
             />
-
-            {/* Canvas */}
             <FormCanvas
               fields={fields}
               rules={rules}
@@ -485,6 +482,17 @@ export default function FormBuilderPage() {
             />
           </div>
         </div>
+
+        {/* Right: Settings panel */}
+        {showSettings && editingTemplate && (
+          <div className="w-72 shrink-0 border-l border-border bg-background overflow-y-auto p-4">
+            <FormTemplateSettingsPanel
+              templateId={editingTemplate}
+              settings={templateSettings}
+              onSettingsChange={setTemplateSettings}
+            />
+          </div>
+        )}
       </div>
     </div>
   );
