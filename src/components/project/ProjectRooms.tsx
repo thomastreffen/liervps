@@ -15,6 +15,7 @@ import { format } from "date-fns";
 import { nb } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
 import { ProjectScheduleBlocks } from "@/components/project/ProjectScheduleBlocks";
+import { ProjectFormsSection } from "@/components/forms/ProjectFormsSection";
 
 /* ── Types ── */
 
@@ -134,6 +135,9 @@ export function ProjectRooms({ jobId, onOpenPlan, onOpenRoom, onOpenScheduleShee
         projectId={jobId}
         onPlanNew={() => onOpenScheduleSheet?.()}
       />
+
+      {/* Forms & checklists */}
+      <ProjectFormsSection projectId={jobId} />
 
       {/* Room cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
