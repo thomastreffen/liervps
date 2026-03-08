@@ -113,7 +113,7 @@ export function MyTasks({ events, onNewTask }: MyTasksProps) {
           size="sm" className="h-7 text-[11px] rounded-lg px-3 gap-1"
           onClick={() => setFilter("tasks")}
         >
-          <ListChecks className="h-3 w-3" /> Oppgaver ({taskCount})
+          <ListChecks className="h-3 w-3" /> Arbeidspakker ({taskCount})
         </Button>
         <Button
           variant={filter === "projects" ? "default" : "ghost"}
