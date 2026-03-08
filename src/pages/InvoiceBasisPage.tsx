@@ -89,6 +89,22 @@ export default function InvoiceBasisPage() {
         setMissingBillingForms(billingChecks);
       }
       setLoading(false);
+
+      // Fetch approved work packages for billing
+      const { data: wpData } = await (supabase as any)
+        .from("events")
+        .select("id, title, work_package_type, customer_approval_status, customer_approved_by, customer_approved_at, parent_project_id, status")
+        .in("customer_approval_status", ["approved", "ready_for_billing"])
+        .not("work_package_type", "is", null)
+        .is("deleted_at", null)
+        .order("customer_approved_at", { ascending: false });
+
+      if (wpData && wpData.length > 0) {
+        const wpProjectIds = [...new Set(wpData.map((w: any) => w.parent_project_id))];
+        const { data: wpProjects } = await supabase.from("events").select("id, title, customer, address").in("id", wpProjectIds);
+        const wpProjMap = new Map((wpProjects || []).map((p: any) => [p.id, p]));
+        setWpRows(wpData.map((w: any) => ({ ...w, project: wpProjMap.get(w.parent_project_id) })));
+      }
     };
     load();
   }, []);
