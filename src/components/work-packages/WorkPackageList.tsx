@@ -52,7 +52,7 @@ export function WorkPackageList({ projectId, isAdmin }: Props) {
       .from("events")
       .select(`
         id, title, status, work_package_type, customer_visible,
-        documentation_status, created_at,
+        documentation_status, customer_approval_status, customer_approved_by, customer_approved_at, created_at,
         event_technicians ( technician_id, technicians ( name ) )
       `)
       .eq("parent_project_id", projectId)
@@ -68,6 +68,9 @@ export function WorkPackageList({ projectId, isAdmin }: Props) {
         work_package_type: d.work_package_type,
         customer_visible: d.customer_visible ?? false,
         documentation_status: d.documentation_status ?? "pending",
+        customer_approval_status: d.customer_approval_status ?? null,
+        customer_approved_by: d.customer_approved_by ?? null,
+        customer_approved_at: d.customer_approved_at ?? null,
         created_at: d.created_at,
         assigned_techs: (d.event_technicians || [])
           .filter((et: any) => et.technicians)
