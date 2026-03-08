@@ -13,6 +13,8 @@ import {
   FileText,
   Trash2,
   Archive,
+  Settings2,
+  ChevronRight,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
@@ -20,6 +22,8 @@ import type { FormField, FormFieldType, FormRule } from "@/lib/form-types";
 import { FIELD_TYPE_LABELS, fieldSupportsComment } from "@/lib/form-types";
 import { FormFieldPalette } from "@/components/forms/FormFieldPalette";
 import { FormCanvas } from "@/components/forms/FormCanvas";
+import { FormTemplateSettingsPanel, type FormTemplateSettings } from "@/components/forms/FormTemplateSettingsPanel";
+import { cn } from "@/lib/utils";
 
 interface Template {
   id: string;
