@@ -36,6 +36,7 @@ interface ScheduleBlock {
 }
 interface Deviation { id: string; title: string; status: string; created_at: string; severity?: string; }
 interface DocFile { id: string; title: string; mime_type: string | null; created_at: string; source_meta?: Record<string, any>; source_type?: string; }
+interface WorkPkg { id: string; title: string; work_package_type: string; status: string; customer_visible: boolean; documentation_status: string; assigned_techs: string[]; }
 
 interface ServiceJournalProps {
   projectId: string; projectTitle: string; customer: string;
@@ -43,7 +44,7 @@ interface ServiceJournalProps {
   internalNumber?: string; companyLogoUrl?: string; companyName?: string;
 }
 
-type SectionKey = "oppdrag" | "utfort" | "arbeidsokter" | "sjekklister" | "dokumentasjon" | "merknader" | "signatur";
+type SectionKey = "oppdrag" | "utfort" | "arbeidsokter" | "arbeidspakker" | "sjekklister" | "dokumentasjon" | "merknader" | "signatur";
 type SectionVisibility = Record<SectionKey, boolean>;
 type JournalStatus = "draft" | "review" | "approved" | "sent";
 
@@ -56,7 +57,8 @@ const STATUS_CONFIG: Record<JournalStatus, { label: string; color: string; icon:
 
 const SECTION_META: { key: SectionKey; label: string }[] = [
   { key: "oppdrag", label: "Oppdrag" }, { key: "utfort", label: "Utført arbeid" },
-  { key: "arbeidsokter", label: "Arbeidsøkter" }, { key: "sjekklister", label: "Sjekklister" },
+  { key: "arbeidsokter", label: "Arbeidsøkter" }, { key: "arbeidspakker", label: "Arbeidspakker" },
+  { key: "sjekklister", label: "Sjekklister" },
   { key: "dokumentasjon", label: "Dokumentasjon" },
   { key: "merknader", label: "Merknader" }, { key: "signatur", label: "Signatur" },
 ];
