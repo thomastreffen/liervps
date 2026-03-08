@@ -82,9 +82,9 @@ export default function FormBuilderPage() {
   const [templateSettings, setTemplateSettings] = useState<FormTemplateSettings>(defaultSettings);
 
   const fetchTemplates = async () => {
-    const { data } = await supabase
+    const { data } = await (supabase as any)
       .from("form_templates")
-      .select("id, title, description, active_version_id, created_at")
+      .select("id, title, description, active_version_id, created_at, form_type, is_active, available_in_projects, available_in_my_day, available_in_customer_portal")
       .is("deleted_at", null)
       .order("created_at", { ascending: false });
     if (data) {
