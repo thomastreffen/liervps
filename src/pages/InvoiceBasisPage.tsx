@@ -219,6 +219,14 @@ export default function InvoiceBasisPage() {
           </div>
         )}
 
+        {/* Missing billing forms warning */}
+        {missingBillingForms[row.project_id] && (
+          <div className="flex items-center gap-2 rounded-xl border border-warning/30 bg-warning/5 p-2.5 mb-3 text-xs text-warning">
+            <ClipboardCheck className="h-3.5 w-3.5 shrink-0" />
+            <span>Obligatoriske skjema mangler: {missingBillingForms[row.project_id].join(", ")}</span>
+          </div>
+        )}
+
         {row.status === "ready" && (
           <div className="flex gap-2 pt-2 border-t">
             <Button
