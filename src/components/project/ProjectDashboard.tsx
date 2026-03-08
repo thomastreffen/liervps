@@ -146,9 +146,9 @@ export function ProjectDashboard({
         <SummaryCard
           icon={<ListChecks className="h-4 w-4 text-primary" />}
           iconBg={openTasks > 0 ? "bg-accent/10" : "bg-success/10"}
-          label="Åpne oppgaver"
+          label="Åpne arbeidspakker"
           onClick={() => onNavigateTab("plan")}
-          cta="Se oppgaver"
+          cta="Se arbeidspakker"
         >
           <p className="text-2xl font-bold leading-tight">{openTasks}</p>
           {overdueTasks > 0 && (

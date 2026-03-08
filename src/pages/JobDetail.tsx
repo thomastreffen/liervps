@@ -194,16 +194,7 @@ export default function JobDetail() {
               {activeRoom === "samtaler" && (
                 <ThreadList projectId={id!} />
               )}
-              {activeRoom === "oppgaver" && (
-                <ProjectFeed
-                  jobId={id!}
-                  jobTitle={job.title}
-                  customer={job.customer}
-                  internalNumber={job.internalNumber || null}
-                  filter="tasks"
-                />
-              )}
-              {activeRoom === "arbeidspakker" && (
+              {(activeRoom === "oppgaver" || activeRoom === "arbeidspakker") && (
                 <ProjectFeed
                   jobId={id!}
                   jobTitle={job.title}

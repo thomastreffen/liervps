@@ -160,8 +160,8 @@ export function ProjectToolCards({ jobId, technicianNames, start, end, onNavigat
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         <ToolCard
           icon={<ListChecks className="h-5 w-5" />}
-          title="Oppgaver & Plan"
-          description="Aktiviteter, ressurser og tidsplan"
+          title="Arbeidspakker & Plan"
+          description="Arbeidspakker, ressurser og tidsplan"
           badge={openTasks > 0 ? `${openTasks} åpne` : undefined}
           badgeVariant={overdueTasks > 0 ? "danger" : "warning"}
           onClick={() => onNavigateTool("plan")}
