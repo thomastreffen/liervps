@@ -11,6 +11,7 @@ import {
   Settings,
   LayoutGrid,
   Receipt,
+  Gauge,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/hooks/useAuth";
@@ -175,10 +176,13 @@ export function AppSidebar() {
                   badge={inboxCount > 0 ? inboxCount : undefined}
                 />
               )}
-              {isAdmin && isModuleVisible("sales") && (
-                <NavItem item={{ title: "Salg", url: "/sales", icon: TrendingUp }} isActive={isActive} collapsed={collapsed} />
-              )}
-              {isModuleVisible("customers") && (
+               {isAdmin && isModuleVisible("sales") && (
+                 <NavItem item={{ title: "Salg", url: "/sales", icon: TrendingUp }} isActive={isActive} collapsed={collapsed} />
+               )}
+               {isAdmin && (
+                 <NavItem item={{ title: "Lederoversikt", url: "/management", icon: Gauge }} isActive={isActive} collapsed={collapsed} />
+               )}
+               {isModuleVisible("customers") && (
                 <NavItem item={{ title: "Kunder", url: "/customers", icon: Users }} isActive={isActive} collapsed={collapsed} />
               )}
             </SidebarMenu>
