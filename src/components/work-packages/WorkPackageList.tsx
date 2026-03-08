@@ -6,13 +6,16 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  Plus, ChevronRight, User, Eye, EyeOff, Package, RefreshCw, Info,
+  Plus, ChevronRight, User, Eye, EyeOff, Package, RefreshCw, Info, Filter, X,
 } from "lucide-react";
 import { format } from "date-fns";
 import { nb } from "date-fns/locale";
 import { cn } from "@/lib/utils";
-import { WP_TYPE_CONFIG, DOC_STATUS_CONFIG, type WorkPackageType } from "@/lib/work-package-types";
+import { WP_TYPE_CONFIG, DOC_STATUS_CONFIG, ALL_WP_TYPES, type WorkPackageType } from "@/lib/work-package-types";
 import { CreateWorkPackageDialog } from "./CreateWorkPackageDialog";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 
 interface WorkPackage {
   id: string;
@@ -35,6 +38,11 @@ export function WorkPackageList({ projectId, isAdmin }: Props) {
   const [packages, setPackages] = useState<WorkPackage[]>([]);
   const [loading, setLoading] = useState(true);
   const [createOpen, setCreateOpen] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
+  const [filterType, setFilterType] = useState<string>("all");
+  const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [filterVisible, setFilterVisible] = useState<string>("all");
+  const [filterDoc, setFilterDoc] = useState<string>("all");
 
   const fetchPackages = useCallback(async () => {
     const { data, error } = await supabase
@@ -82,6 +90,21 @@ export function WorkPackageList({ projectId, isAdmin }: Props) {
     return "bg-info/10 text-info";
   };
 
+  const filtered = packages.filter(wp => {
+    if (filterType !== "all" && wp.work_package_type !== filterType) return false;
+    if (filterStatus !== "all") {
+      const group = wp.status === "completed" || wp.status === "ready_for_invoicing" ? "done" : wp.status === "in_progress" ? "active" : "planned";
+      if (filterStatus !== group) return false;
+    }
+    if (filterVisible === "yes" && !wp.customer_visible) return false;
+    if (filterVisible === "no" && wp.customer_visible) return false;
+    if (filterDoc !== "all" && wp.documentation_status !== filterDoc) return false;
+    return true;
+  });
+
+  const hasActiveFilters = filterType !== "all" || filterStatus !== "all" || filterVisible !== "all" || filterDoc !== "all";
+  const clearFilters = () => { setFilterType("all"); setFilterStatus("all"); setFilterVisible("all"); setFilterDoc("all"); };
+
   return (
     <section className="space-y-3">
       <div className="flex items-center justify-between px-1">
@@ -89,15 +112,61 @@ export function WorkPackageList({ projectId, isAdmin }: Props) {
           <Package className="h-4 w-4 text-primary" />
           <h2 className="text-sm font-semibold text-foreground">Arbeidspakker</h2>
           {packages.length > 0 && (
-            <span className="text-[10px] text-muted-foreground">({packages.length})</span>
+            <span className="text-[10px] text-muted-foreground">({filtered.length}/{packages.length})</span>
           )}
         </div>
-        {isAdmin && (
-          <Button size="sm" variant="outline" className="gap-1.5 text-xs rounded-xl" onClick={() => setCreateOpen(true)}>
-            <Plus className="h-3.5 w-3.5" /> Ny arbeidspakke
-          </Button>
-        )}
+        <div className="flex items-center gap-1.5">
+          {packages.length > 0 && (
+            <Button size="sm" variant={hasActiveFilters ? "default" : "ghost"} className="gap-1 text-xs rounded-xl h-7 px-2" onClick={() => setShowFilters(!showFilters)}>
+              <Filter className="h-3 w-3" />
+              {hasActiveFilters && <X className="h-3 w-3" onClick={(e) => { e.stopPropagation(); clearFilters(); }} />}
+            </Button>
+          )}
+          {isAdmin && (
+            <Button size="sm" variant="outline" className="gap-1.5 text-xs rounded-xl" onClick={() => setCreateOpen(true)}>
+              <Plus className="h-3.5 w-3.5" /> Ny arbeidspakke
+            </Button>
+          )}
+        </div>
       </div>
+
+      {showFilters && packages.length > 0 && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 px-1">
+          <Select value={filterType} onValueChange={setFilterType}>
+            <SelectTrigger className="h-8 text-xs rounded-xl"><SelectValue placeholder="Type" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Alle typer</SelectItem>
+              {ALL_WP_TYPES.map(t => <SelectItem key={t} value={t}>{WP_TYPE_CONFIG[t].label}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Select value={filterStatus} onValueChange={setFilterStatus}>
+            <SelectTrigger className="h-8 text-xs rounded-xl"><SelectValue placeholder="Status" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Alle statuser</SelectItem>
+              <SelectItem value="planned">Planlagt</SelectItem>
+              <SelectItem value="active">Pågår</SelectItem>
+              <SelectItem value="done">Ferdig</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={filterVisible} onValueChange={setFilterVisible}>
+            <SelectTrigger className="h-8 text-xs rounded-xl"><SelectValue placeholder="Synlighet" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Alle</SelectItem>
+              <SelectItem value="yes">Kundesynlig</SelectItem>
+              <SelectItem value="no">Kun intern</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={filterDoc} onValueChange={setFilterDoc}>
+            <SelectTrigger className="h-8 text-xs rounded-xl"><SelectValue placeholder="Dokumentasjon" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Alle</SelectItem>
+              <SelectItem value="pending">Mangler</SelectItem>
+              <SelectItem value="partial">Delvis</SelectItem>
+              <SelectItem value="complete">Ferdig</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      )}
 
       {loading ? (
         <div className="space-y-2">
@@ -120,7 +189,9 @@ export function WorkPackageList({ projectId, isAdmin }: Props) {
         </Card>
       ) : (
         <div className="space-y-2">
-          {packages.map((wp) => {
+          {filtered.length === 0 ? (
+            <p className="text-xs text-muted-foreground text-center py-4">Ingen arbeidspakker matcher filteret.</p>
+          ) : filtered.map((wp) => {
             const typeConfig = WP_TYPE_CONFIG[wp.work_package_type];
             const docConfig = DOC_STATUS_CONFIG[wp.documentation_status] || DOC_STATUS_CONFIG.pending;
             const TypeIcon = typeConfig.icon;

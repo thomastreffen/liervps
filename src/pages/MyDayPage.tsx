@@ -38,6 +38,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { MyDayChecklists } from "@/components/forms/MyDayChecklists";
+import { WP_TYPE_CONFIG, type WorkPackageType } from "@/lib/work-package-types";
 
 /* ─── Status helpers ─── */
 
@@ -110,17 +111,33 @@ function BlockCard({ block, onOpen }: { block: MyDayBlock; onOpen: (b: MyDayBloc
   const st = block.project_status ? statusConfig[block.project_status] : null;
   const phase = getPhase(block.project_status);
   const cta = getPrimaryCTA(phase);
+  const isWorkPackage = block.project_type === "work_package" && block.work_package_type;
+  const wpConfig = isWorkPackage ? WP_TYPE_CONFIG[block.work_package_type as WorkPackageType] : null;
+  const WpIcon = wpConfig?.icon;
 
   return (
     <Card className="active:scale-[0.99] transition-transform" onClick={() => onOpen(block)}>
       <CardContent className="p-4 flex gap-3">
         <div className="flex flex-col items-center shrink-0 w-14 pt-0.5">
-          <span className="text-sm font-bold tabular-nums">{startTime}</span>
-          <div className="w-px flex-1 bg-border my-1" />
-          <span className="text-xs text-muted-foreground tabular-nums">{endTime}</span>
+          {isWorkPackage && WpIcon ? (
+            <div className={cn("h-8 w-8 rounded-lg flex items-center justify-center mb-1", wpConfig!.bgColor)}>
+              <WpIcon className={cn("h-4 w-4", wpConfig!.color)} />
+            </div>
+          ) : (
+            <>
+              <span className="text-sm font-bold tabular-nums">{startTime}</span>
+              <div className="w-px flex-1 bg-border my-1" />
+              <span className="text-xs text-muted-foreground tabular-nums">{endTime}</span>
+            </>
+          )}
         </div>
         <div className="flex-1 min-w-0">
           <h3 className="text-sm font-semibold truncate">{block.project_title || block.outlook_subject || block.title}</h3>
+          {isWorkPackage && wpConfig && (
+            <Badge variant="outline" className={cn("text-[9px] px-1.5 py-0 border-0 rounded-md mt-0.5", wpConfig.bgColor, wpConfig.color)}>
+              {wpConfig.label}
+            </Badge>
+          )}
           {block.customer && <p className="text-xs text-muted-foreground truncate mt-0.5">{block.customer}</p>}
           {block.address && (
             <p className="text-xs text-muted-foreground truncate flex items-center gap-1 mt-0.5">
@@ -131,6 +148,9 @@ function BlockCard({ block, onOpen }: { block: MyDayBlock; onOpen: (b: MyDayBloc
             <p className="text-xs text-muted-foreground/60 italic mt-0.5">Ekstern hendelse</p>
           )}
           <div className="flex items-center gap-2 mt-2.5">
+            {isWorkPackage && (
+              <span className="text-[10px] text-muted-foreground tabular-nums">{startTime}–{endTime}</span>
+            )}
             {st && (
               <Badge variant="outline" className={cn("text-[10px] px-2 py-0 border-0 rounded-md", st.color)}>
                 {st.label}

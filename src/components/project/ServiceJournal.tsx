@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { WP_TYPE_CONFIG, DOC_STATUS_CONFIG, type WorkPackageType } from "@/lib/work-package-types";
 
 /* ── Types ── */
 
@@ -36,6 +37,7 @@ interface ScheduleBlock {
 }
 interface Deviation { id: string; title: string; status: string; created_at: string; severity?: string; }
 interface DocFile { id: string; title: string; mime_type: string | null; created_at: string; source_meta?: Record<string, any>; source_type?: string; }
+interface WorkPkg { id: string; title: string; work_package_type: string; status: string; customer_visible: boolean; documentation_status: string; assigned_techs: string[]; }
 
 interface ServiceJournalProps {
   projectId: string; projectTitle: string; customer: string;
@@ -43,7 +45,7 @@ interface ServiceJournalProps {
   internalNumber?: string; companyLogoUrl?: string; companyName?: string;
 }
 
-type SectionKey = "oppdrag" | "utfort" | "arbeidsokter" | "sjekklister" | "dokumentasjon" | "merknader" | "signatur";
+type SectionKey = "oppdrag" | "utfort" | "arbeidsokter" | "arbeidspakker" | "sjekklister" | "dokumentasjon" | "merknader" | "signatur";
 type SectionVisibility = Record<SectionKey, boolean>;
 type JournalStatus = "draft" | "review" | "approved" | "sent";
 
@@ -56,7 +58,8 @@ const STATUS_CONFIG: Record<JournalStatus, { label: string; color: string; icon:
 
 const SECTION_META: { key: SectionKey; label: string }[] = [
   { key: "oppdrag", label: "Oppdrag" }, { key: "utfort", label: "Utført arbeid" },
-  { key: "arbeidsokter", label: "Arbeidsøkter" }, { key: "sjekklister", label: "Sjekklister" },
+  { key: "arbeidsokter", label: "Arbeidsøkter" }, { key: "arbeidspakker", label: "Arbeidspakker" },
+  { key: "sjekklister", label: "Sjekklister" },
   { key: "dokumentasjon", label: "Dokumentasjon" },
   { key: "merknader", label: "Merknader" }, { key: "signatur", label: "Signatur" },
 ];
@@ -76,6 +79,7 @@ export function ServiceJournal({
   const [blocks, setBlocks] = useState<ScheduleBlock[]>([]);
   const [deviations, setDeviations] = useState<Deviation[]>([]);
   const [docs, setDocs] = useState<DocFile[]>([]);
+  const [workPackages, setWorkPackages] = useState<WorkPkg[]>([]);
   const [formResults, setFormResults] = useState<{ id: string; title: string; form_type: string; status: string; filled_by: string | null; updated_at: string; has_signature: boolean; key_answers: string[] }[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -90,7 +94,7 @@ export function ServiceJournal({
   const [viewMode, setViewMode] = useState<"internal" | "customer">("internal");
   const [isPreview, setIsPreview] = useState(false);
   const [sections, setSections] = useState<SectionVisibility>({
-    oppdrag: true, utfort: true, arbeidsokter: true, sjekklister: true, dokumentasjon: true, merknader: true, signatur: true,
+    oppdrag: true, utfort: true, arbeidsokter: true, arbeidspakker: true, sjekklister: true, dokumentasjon: true, merknader: true, signatur: true,
   });
   const [showControls, setShowControls] = useState(false);
 
@@ -152,6 +156,24 @@ export function ServiceJournal({
       source_meta: r.source_meta, source_type: r.source_type,
     })));
     if (companyRes.data) setCompanyInfo(companyRes.data);
+
+    // Fetch work packages for this project
+    try {
+      const { data: wpData } = await supabase
+        .from("events")
+        .select(`id, title, status, work_package_type, customer_visible, documentation_status,
+          event_technicians ( technician_id, technicians ( name ) )`)
+        .eq("parent_project_id", projectId)
+        .not("work_package_type", "is", null)
+        .is("deleted_at", null)
+        .order("created_at", { ascending: false }) as any;
+      setWorkPackages((wpData || []).map((d: any) => ({
+        id: d.id, title: d.title, work_package_type: d.work_package_type,
+        status: d.status, customer_visible: d.customer_visible ?? false,
+        documentation_status: d.documentation_status ?? "pending",
+        assigned_techs: (d.event_technicians || []).filter((et: any) => et.technicians).map((et: any) => et.technicians.name),
+      })));
+    } catch { setWorkPackages([]); }
 
     // Fetch form instances for this project
     try {
@@ -733,6 +755,58 @@ export function ServiceJournal({
                   })}
                 </div>
               )}
+            </Section>
+          )}
+
+          {/* 4b. Arbeidspakker */}
+          {sections.arbeidspakker && (
+            <Section title="Arbeidspakker" icon={<ClipboardList className="h-4 w-4" />} count={(isCustomer ? workPackages.filter(w => w.customer_visible) : workPackages).length}>
+              {(() => {
+                const visibleWps = isCustomer ? workPackages.filter(w => w.customer_visible && w.documentation_status === "complete") : workPackages;
+                if (visibleWps.length === 0) return <EmptyState text="Ingen arbeidspakker" />;
+                return (
+                  <div className="space-y-2">
+                    {visibleWps.map(wp => {
+                      const cfg = WP_TYPE_CONFIG[wp.work_package_type as WorkPackageType];
+                      const docCfg = DOC_STATUS_CONFIG[wp.documentation_status] || DOC_STATUS_CONFIG.pending;
+                      if (!cfg) return null;
+                      const WpIcon = cfg.icon;
+                      const isDone = wp.status === "completed" || wp.status === "ready_for_invoicing";
+                      return (
+                        <div key={wp.id} className="rounded-xl border border-border/40 bg-card p-3">
+                          <div className="flex items-center gap-2.5">
+                            <div className={cn("h-7 w-7 rounded-lg flex items-center justify-center shrink-0", cfg.bgColor)}>
+                              <WpIcon className={cn("h-3.5 w-3.5", cfg.color)} />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-semibold truncate">{wp.title}</p>
+                              <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                                <Badge variant="outline" className={cn("text-[9px] px-1.5 py-0 border-0 rounded-md", cfg.bgColor, cfg.color)}>
+                                  {isCustomer ? cfg.portalLabel : cfg.label}
+                                </Badge>
+                                <Badge variant="outline" className={cn("text-[9px] px-1.5 py-0 border-0 rounded-md", isDone ? "bg-success/10 text-success" : "bg-info/10 text-info")}>
+                                  {isDone ? "Ferdig" : "Pågår"}
+                                </Badge>
+                                {!isCustomer && (
+                                  <Badge variant="outline" className={cn("text-[9px] px-1.5 py-0 border-0 rounded-md", docCfg.color)}>
+                                    {docCfg.label}
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+                            {!isCustomer && wp.customer_visible && <Eye className="h-3 w-3 text-primary shrink-0" />}
+                          </div>
+                          {wp.assigned_techs.length > 0 && (
+                            <p className="text-[10px] text-muted-foreground flex items-center gap-1 mt-1.5 ml-9">
+                              <User className="h-2.5 w-2.5" /> {wp.assigned_techs.join(", ")}
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
             </Section>
           )}
 
