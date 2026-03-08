@@ -153,9 +153,9 @@ export function ProjectRooms({ jobId, onOpenPlan, onOpenRoom, onOpenScheduleShee
         />
         <RoomCard
           icon={<CheckCircle2 className="h-7 w-7" />}
-          title="Oppgaver"
+          title="Arbeidspakker"
           subtitle={counts.tasks === 0 ? "Ingen åpne oppgaver" : `${counts.tasks} åpne ${counts.tasks === 1 ? "oppgave" : "oppgaver"}`}
-          onClick={() => onOpenRoom("oppgaver")}
+          onClick={() => onOpenRoom("arbeidspakker")}
         />
         <RoomCard
           icon={<FolderOpen className="h-7 w-7" />}
