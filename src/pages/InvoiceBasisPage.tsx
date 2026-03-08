@@ -3,8 +3,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import {
   FileText, CheckCircle, Clock, Users, AlertTriangle,
-  Send, Receipt, ArrowRight, Loader2, Filter, ClipboardCheck
+  Send, Receipt, ArrowRight, Loader2, Filter, ClipboardCheck, Package
 } from "lucide-react";
+import { WP_TYPE_CONFIG, type WorkPackageType } from "@/lib/work-package-types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -13,6 +14,7 @@ import { format } from "date-fns";
 import { nb } from "date-fns/locale";
 import { toast } from "sonner";
 import { checkRequiredForms } from "@/components/forms/ProjectFormsSection";
+import { cn } from "@/lib/utils";
 
 interface InvoiceBasisRow {
   id: string;
@@ -47,6 +49,7 @@ const statusConfig: Record<string, { label: string; variant: "default" | "second
 export default function InvoiceBasisPage() {
   const { user } = useAuth();
   const [rows, setRows] = useState<InvoiceBasisRow[]>([]);
+  const [wpRows, setWpRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
   const [missingBillingForms, setMissingBillingForms] = useState<Record<string, string[]>>({});
@@ -87,6 +90,22 @@ export default function InvoiceBasisPage() {
         setMissingBillingForms(billingChecks);
       }
       setLoading(false);
+
+      // Fetch approved work packages for billing
+      const { data: wpData } = await (supabase as any)
+        .from("events")
+        .select("id, title, work_package_type, customer_approval_status, customer_approved_by, customer_approved_at, parent_project_id, status")
+        .in("customer_approval_status", ["approved", "ready_for_billing"])
+        .not("work_package_type", "is", null)
+        .is("deleted_at", null)
+        .order("customer_approved_at", { ascending: false });
+
+      if (wpData && wpData.length > 0) {
+        const wpProjectIds = [...new Set(wpData.map((w: any) => w.parent_project_id))] as string[];
+        const { data: wpProjects } = await supabase.from("events").select("id, title, customer, address").in("id", wpProjectIds);
+        const wpProjMap = new Map((wpProjects || []).map((p: any) => [p.id, p]));
+        setWpRows(wpData.map((w: any) => ({ ...w, project: wpProjMap.get(w.parent_project_id) })));
+      }
     };
     load();
   }, []);
@@ -326,6 +345,7 @@ export default function InvoiceBasisPage() {
       <Tabs defaultValue="ready">
         <TabsList>
           <TabsTrigger value="ready">Klare ({ready.length})</TabsTrigger>
+          <TabsTrigger value="wp">Arbeidspakker ({wpRows.length})</TabsTrigger>
           <TabsTrigger value="sent">Sendt ({sent.length})</TabsTrigger>
           <TabsTrigger value="billed">Fakturert ({billed.length})</TabsTrigger>
           <TabsTrigger value="all">Alle ({rows.length})</TabsTrigger>
@@ -338,6 +358,53 @@ export default function InvoiceBasisPage() {
               <p className="text-xs text-muted-foreground/70">Grunnlag opprettes automatisk ved kundegodkjenning.</p>
             </div>
           ) : ready.map(renderRow)}
+        </TabsContent>
+        <TabsContent value="wp" className="mt-4 space-y-3">
+          {wpRows.length === 0 ? (
+            <div className="flex flex-col items-center gap-2 py-12">
+              <Package className="h-10 w-10 text-muted-foreground/30" />
+              <p className="text-sm text-muted-foreground">Ingen godkjente arbeidspakker.</p>
+              <p className="text-xs text-muted-foreground/70">Arbeidspakker godkjent av kunde vises her som faktureringsgrunnlag.</p>
+            </div>
+          ) : wpRows.map((wp: any) => {
+            const cfg = WP_TYPE_CONFIG[wp.work_package_type as WorkPackageType];
+            if (!cfg) return null;
+            const WpIcon = cfg.icon;
+            return (
+              <Card key={wp.id}>
+                <CardContent className="p-5">
+                  <div className="flex items-start justify-between gap-3 mb-3">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className={cn("h-8 w-8 rounded-lg flex items-center justify-center shrink-0", cfg.bgColor)}>
+                        <WpIcon className={cn("h-4 w-4", cfg.color)} />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-bold truncate">{wp.title}</p>
+                        <p className="text-xs text-muted-foreground truncate">{wp.project?.title || "Ukjent prosjekt"}</p>
+                      </div>
+                    </div>
+                    <Badge className={cn("text-[10px] shrink-0 border-0", wp.customer_approval_status === "ready_for_billing" ? "bg-primary/10 text-primary" : "bg-success/10 text-success")}>
+                      {wp.customer_approval_status === "ready_for_billing" ? "Klar for faktura" : "Kunde godkjent"}
+                    </Badge>
+                  </div>
+                  <div className="grid grid-cols-3 gap-3 text-xs">
+                    <div>
+                      <p className="text-muted-foreground">Type</p>
+                      <p className="font-medium">{cfg.label}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Godkjent av</p>
+                      <p className="font-medium">{wp.customer_approved_by || "—"}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Dato</p>
+                      <p className="font-medium">{wp.customer_approved_at ? format(new Date(wp.customer_approved_at), "d. MMM yyyy", { locale: nb }) : "—"}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
         </TabsContent>
         <TabsContent value="sent" className="mt-4 space-y-3">
           {sent.length === 0 ? (

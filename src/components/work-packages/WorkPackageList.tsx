@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Plus, ChevronRight, User, Eye, EyeOff, Package, RefreshCw, Info, Filter, X,
+  ShieldCheck, Clock, Send, ThumbsDown,
 } from "lucide-react";
 import { format } from "date-fns";
 import { nb } from "date-fns/locale";
@@ -16,6 +17,7 @@ import { CreateWorkPackageDialog } from "./CreateWorkPackageDialog";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import { toast } from "sonner";
 
 interface WorkPackage {
   id: string;
@@ -24,6 +26,9 @@ interface WorkPackage {
   work_package_type: WorkPackageType;
   customer_visible: boolean;
   documentation_status: string;
+  customer_approval_status: string | null;
+  customer_approved_by: string | null;
+  customer_approved_at: string | null;
   created_at: string;
   assigned_techs: string[];
 }
@@ -49,7 +54,7 @@ export function WorkPackageList({ projectId, isAdmin }: Props) {
       .from("events")
       .select(`
         id, title, status, work_package_type, customer_visible,
-        documentation_status, created_at,
+        documentation_status, customer_approval_status, customer_approved_by, customer_approved_at, created_at,
         event_technicians ( technician_id, technicians ( name ) )
       `)
       .eq("parent_project_id", projectId)
@@ -65,6 +70,9 @@ export function WorkPackageList({ projectId, isAdmin }: Props) {
         work_package_type: d.work_package_type,
         customer_visible: d.customer_visible ?? false,
         documentation_status: d.documentation_status ?? "pending",
+        customer_approval_status: d.customer_approval_status ?? null,
+        customer_approved_by: d.customer_approved_by ?? null,
+        customer_approved_at: d.customer_approved_at ?? null,
         created_at: d.created_at,
         assigned_techs: (d.event_technicians || [])
           .filter((et: any) => et.technicians)
@@ -88,6 +96,34 @@ export function WorkPackageList({ projectId, isAdmin }: Props) {
     if (s === "completed" || s === "ready_for_invoicing") return "bg-success/10 text-success";
     if (s === "in_progress") return "bg-warning/10 text-warning";
     return "bg-info/10 text-info";
+  };
+
+  const approvalLabel = (s: string | null) => {
+    const map: Record<string, { label: string; color: string }> = {
+      awaiting_customer_approval: { label: "Venter kunde", color: "bg-warning/10 text-warning" },
+      approved: { label: "Kunde godkjent", color: "bg-success/10 text-success" },
+      ready_for_billing: { label: "Klar for faktura", color: "bg-primary/10 text-primary" },
+      rejected: { label: "Kunde avvist", color: "bg-destructive/10 text-destructive" },
+    };
+    return s ? map[s] : null;
+  };
+
+  const sendToApproval = async (wpId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    await supabase.from("events").update({
+      customer_approval_status: "awaiting_customer_approval",
+    } as any).eq("id", wpId);
+    await supabase.from("activity_log").insert({
+      entity_type: "job",
+      entity_id: projectId,
+      action: "work_package_sent_for_approval",
+      type: "status_change",
+      title: "Arbeidspakke sendt til kundegodkjenning",
+      visibility: "shared",
+      metadata: { work_package_id: wpId },
+    });
+    toast.success("Sendt til kundegodkjenning");
+    fetchPackages();
   };
 
   const filtered = packages.filter(wp => {
@@ -195,6 +231,8 @@ export function WorkPackageList({ projectId, isAdmin }: Props) {
             const typeConfig = WP_TYPE_CONFIG[wp.work_package_type];
             const docConfig = DOC_STATUS_CONFIG[wp.documentation_status] || DOC_STATUS_CONFIG.pending;
             const TypeIcon = typeConfig.icon;
+            const approval = approvalLabel(wp.customer_approval_status);
+            const canSendToApproval = isAdmin && wp.customer_visible && wp.documentation_status === "complete" && !wp.customer_approval_status;
 
             return (
               <Card
@@ -225,12 +263,26 @@ export function WorkPackageList({ projectId, isAdmin }: Props) {
                       <Badge variant="outline" className={cn("text-[9px] px-1.5 py-0 border-0 rounded-md", docConfig.color)}>
                         {docConfig.label}
                       </Badge>
+                      {approval && (
+                        <Badge variant="outline" className={cn("text-[9px] px-1.5 py-0 border-0 rounded-md", approval.color)}>
+                          {approval.label}
+                        </Badge>
+                      )}
                       {wp.assigned_techs.length > 0 && (
                         <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
                           <User className="h-2.5 w-2.5" /> {wp.assigned_techs.join(", ")}
                         </span>
                       )}
                     </div>
+                    {canSendToApproval && (
+                      <Button
+                        size="sm" variant="outline"
+                        className="gap-1 text-[10px] h-6 rounded-lg mt-1.5 px-2"
+                        onClick={(e) => sendToApproval(wp.id, e)}
+                      >
+                        <Send className="h-2.5 w-2.5" /> Send til kundegodkjenning
+                      </Button>
+                    )}
                   </div>
                   <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
                 </CardContent>
