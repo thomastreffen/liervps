@@ -52,7 +52,7 @@ export function CreateWorkPackageDialog({ open, onOpenChange, projectId, onCreat
         parent_project_id: projectId,
         work_package_type: wpType,
         customer_visible: customerVisible,
-        project_type: "task",
+        project_type: "work_package",
         status: "requested",
         documentation_status: "pending",
         customer: parent?.customer || "",
