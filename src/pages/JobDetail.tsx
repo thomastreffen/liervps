@@ -203,6 +203,15 @@ export default function JobDetail() {
                   filter="tasks"
                 />
               )}
+              {activeRoom === "arbeidspakker" && (
+                <ProjectFeed
+                  jobId={id!}
+                  jobTitle={job.title}
+                  customer={job.customer}
+                  internalNumber={job.internalNumber || null}
+                  filter="tasks"
+                />
+              )}
               {activeRoom === "dokumenter" && (
                 <DocsFilesRoom projectId={id!} jobId={id!} />
               )}

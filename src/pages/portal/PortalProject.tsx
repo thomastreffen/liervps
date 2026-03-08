@@ -169,6 +169,9 @@ export default function PortalProject() {
         </CardContent>
       </Card>
 
+      {/* Work packages */}
+      <PortalWorkPackages projectId={id!} />
+
       {/* Rapporter */}
       <Card>
         <CardHeader>
