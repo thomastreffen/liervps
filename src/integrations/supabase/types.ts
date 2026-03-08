@@ -2739,6 +2739,9 @@ export type Database = {
           created_at: string
           created_by: string | null
           customer: string | null
+          customer_approval_status: string | null
+          customer_approved_at: string | null
+          customer_approved_by: string | null
           customer_id: string | null
           customer_visible: boolean
           delete_reason: string | null
@@ -2805,6 +2808,9 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           customer?: string | null
+          customer_approval_status?: string | null
+          customer_approved_at?: string | null
+          customer_approved_by?: string | null
           customer_id?: string | null
           customer_visible?: boolean
           delete_reason?: string | null
@@ -2871,6 +2877,9 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           customer?: string | null
+          customer_approval_status?: string | null
+          customer_approved_at?: string | null
+          customer_approved_by?: string | null
           customer_id?: string | null
           customer_visible?: boolean
           delete_reason?: string | null
