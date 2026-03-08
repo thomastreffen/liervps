@@ -689,7 +689,54 @@ export function ServiceJournal({
             </Section>
           )}
 
-          {/* 4. Dokumentasjon */}
+          {/* 4. Sjekklister og kontrollskjema */}
+          {sections.sjekklister && (
+            <Section title="Sjekklister og kontrollskjema" icon={<ClipboardList className="h-4 w-4" />} count={formResults.length}>
+              {formResults.length === 0 ? <EmptyState text="Ingen utfylte skjema" /> : (
+                <div className="space-y-2">
+                  {formResults.map(form => {
+                    const typeLabel: Record<string, string> = { checklist: "Sjekkliste", control: "Kontroll", signature: "Signering", hms: "HMS", handover: "Overlevering" };
+                    const isDone = form.status === "completed" || form.status === "signed";
+                    return (
+                      <div key={form.id} className="rounded-xl border border-border/40 bg-card p-3 space-y-1.5">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="text-sm font-semibold truncate">{form.title}</span>
+                            <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-0 bg-muted text-muted-foreground shrink-0">
+                              {typeLabel[form.form_type] || form.form_type}
+                            </Badge>
+                          </div>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {form.has_signature && (
+                              <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-primary/20 text-primary gap-0.5">
+                                <PenLine className="h-2.5 w-2.5" /> Signert
+                              </Badge>
+                            )}
+                            <Badge variant={isDone ? "default" : "secondary"} className="text-[10px] h-5">
+                              {form.status === "signed" ? "Signert" : isDone ? "Fullført" : "Pågår"}
+                            </Badge>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                          {form.filled_by && <span className="flex items-center gap-1"><User className="h-3 w-3" />{form.filled_by}</span>}
+                          <span>{format(new Date(form.updated_at), "d. MMM yyyy", { locale: nb })}</span>
+                        </div>
+                        {!isCustomer && form.key_answers.length > 0 && (
+                          <div className="mt-1 text-xs text-muted-foreground/80 space-y-0.5">
+                            {form.key_answers.map((a, i) => (
+                              <p key={i} className="truncate">• {a}</p>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </Section>
+          )}
+
+          {/* 5. Dokumentasjon */}
           {sections.dokumentasjon && (
             <Section title="Dokumentasjon" icon={<FileImage className="h-4 w-4" />}
               count={imageDocs.length + otherDocs.length}
