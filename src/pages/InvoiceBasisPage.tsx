@@ -100,7 +100,7 @@ export default function InvoiceBasisPage() {
         .order("customer_approved_at", { ascending: false });
 
       if (wpData && wpData.length > 0) {
-        const wpProjectIds = [...new Set(wpData.map((w: any) => w.parent_project_id))];
+        const wpProjectIds = [...new Set(wpData.map((w: any) => w.parent_project_id))] as string[];
         const { data: wpProjects } = await supabase.from("events").select("id, title, customer, address").in("id", wpProjectIds);
         const wpProjMap = new Map((wpProjects || []).map((p: any) => [p.id, p]));
         setWpRows(wpData.map((w: any) => ({ ...w, project: wpProjMap.get(w.parent_project_id) })));
