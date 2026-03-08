@@ -95,6 +95,7 @@ export default function InvoiceBasisPage() {
     }
 
     setUpdating(id);
+    const { error } = await supabase
       .from("invoice_basis")
       .update({
         status: "sent_to_billing",
