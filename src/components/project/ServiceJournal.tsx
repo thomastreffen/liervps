@@ -183,10 +183,9 @@ export function ServiceJournal({
         }
 
         setFormResults((instances as any[]).map((inst: any) => {
-          const tpl = tplMap.get(inst.template_id);
+          const tpl: any = tplMap.get(inst.template_id);
           const answers = inst.answers || {};
           const keyAnswers: string[] = [];
-          // Extract up to 3 key answers for summary
           const answerEntries = Object.entries(answers);
           for (const [, val] of answerEntries.slice(0, 3)) {
             if (typeof val === "string" && val.length > 0) keyAnswers.push(val.slice(0, 60));
