@@ -10,6 +10,7 @@ import {
   ChevronDown,
   Settings,
   LayoutGrid,
+  Receipt,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/hooks/useAuth";
@@ -39,6 +40,7 @@ const mainNav = [
   { title: "Hjem", url: "/overview", icon: Home, moduleKey: "overview" },
   { title: "Prosjekter", url: "/projects", icon: FolderKanban, moduleKey: "projects" },
   { title: "Ressursplan", url: "/projects/plan", icon: CalendarDays, moduleKey: "resource_plan" },
+  { title: "Fakturagrunnlag", url: "/invoice-basis", icon: Receipt, moduleKey: "invoice_basis" },
 ];
 
 const adminItems = [
