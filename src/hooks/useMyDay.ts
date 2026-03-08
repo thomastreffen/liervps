@@ -24,6 +24,9 @@ export interface MyDayBlock {
   project_description: string | null;
   contact_person: string | null;
   contact_phone: string | null;
+  // Work package data
+  project_type: string | null;
+  work_package_type: string | null;
 }
 
 export function useMyDay() {
@@ -95,7 +98,7 @@ export function useMyDay() {
       if (projectIds.length > 0) {
         const { data: projects } = await sb
           .from("events")
-          .select("id, title, customer, address, status, description")
+          .select("id, title, customer, address, status, description, project_type, work_package_type")
           .in("id", projectIds);
         for (const p of projects || []) {
           projectMap[p.id] = p;
@@ -113,6 +116,8 @@ export function useMyDay() {
           project_description: proj?.description || null,
           contact_person: null,
           contact_phone: null,
+          project_type: proj?.project_type || null,
+          work_package_type: proj?.work_package_type || null,
         };
       };
 
