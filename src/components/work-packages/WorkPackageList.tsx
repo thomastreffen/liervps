@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Plus, ChevronRight, User, Eye, EyeOff, Package, RefreshCw, Info, Filter, X,
+  ShieldCheck, Clock, Send, ThumbsDown,
 } from "lucide-react";
 import { format } from "date-fns";
 import { nb } from "date-fns/locale";
@@ -16,6 +17,7 @@ import { CreateWorkPackageDialog } from "./CreateWorkPackageDialog";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import { toast } from "sonner";
 
 interface WorkPackage {
   id: string;
