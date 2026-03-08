@@ -263,7 +263,7 @@ function JobDetailView({
       const ext = file.name.split(".").pop() || "jpg";
       const path = `project-photos/${block.project_id}/${Date.now()}-${Math.random().toString(36).slice(2, 6)}.${ext}`;
 
-      const { error } = await supabase.storage.from("attachments").upload(path, file, {
+      const { error } = await supabase.storage.from("job-attachments").upload(path, file, {
         contentType: file.type,
         upsert: false,
       });
