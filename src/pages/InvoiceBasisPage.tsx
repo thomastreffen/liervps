@@ -344,6 +344,7 @@ export default function InvoiceBasisPage() {
       <Tabs defaultValue="ready">
         <TabsList>
           <TabsTrigger value="ready">Klare ({ready.length})</TabsTrigger>
+          <TabsTrigger value="wp">Arbeidspakker ({wpRows.length})</TabsTrigger>
           <TabsTrigger value="sent">Sendt ({sent.length})</TabsTrigger>
           <TabsTrigger value="billed">Fakturert ({billed.length})</TabsTrigger>
           <TabsTrigger value="all">Alle ({rows.length})</TabsTrigger>
