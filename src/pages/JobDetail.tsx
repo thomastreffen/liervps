@@ -213,6 +213,7 @@ export default function JobDetail() {
                   customer={job.customer}
                   address={job.address}
                   technicianNames={technicianNames}
+                  internalNumber={job.internalNumber || undefined}
                 />
               )}
             </div>
