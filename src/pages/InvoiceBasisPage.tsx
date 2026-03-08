@@ -49,6 +49,7 @@ export default function InvoiceBasisPage() {
   const [rows, setRows] = useState<InvoiceBasisRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
+  const [missingBillingForms, setMissingBillingForms] = useState<Record<string, string[]>>({});
 
   useEffect(() => {
     const load = async () => {
