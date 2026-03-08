@@ -42,7 +42,7 @@ const ROLE_ICONS: Record<string, React.ReactNode> = {
 
 const SPACE_LABELS: Record<string, string> = {
   samtaler: "Samtaler",
-  oppgaver: "Oppgaver",
+  oppgaver: "Arbeidspakker",
   dokumenter: "Dokumenter",
   tidsplan: "Plan",
 };

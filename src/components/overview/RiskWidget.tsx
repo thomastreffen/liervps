@@ -76,7 +76,7 @@ export function RiskWidget() {
       },
       {
         icon: <Clock className="h-5 w-5" />,
-        label: "Forfalte oppgaver",
+        label: "Forfalte arbeidspakker",
         count: (overdueTasksRes.data || []).length,
         accent: "text-destructive",
         iconBg: "bg-destructive/10",
