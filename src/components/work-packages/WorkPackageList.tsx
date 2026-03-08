@@ -231,6 +231,8 @@ export function WorkPackageList({ projectId, isAdmin }: Props) {
             const typeConfig = WP_TYPE_CONFIG[wp.work_package_type];
             const docConfig = DOC_STATUS_CONFIG[wp.documentation_status] || DOC_STATUS_CONFIG.pending;
             const TypeIcon = typeConfig.icon;
+            const approval = approvalLabel(wp.customer_approval_status);
+            const canSendToApproval = isAdmin && wp.customer_visible && wp.documentation_status === "complete" && !wp.customer_approval_status;
 
             return (
               <Card
@@ -261,12 +263,26 @@ export function WorkPackageList({ projectId, isAdmin }: Props) {
                       <Badge variant="outline" className={cn("text-[9px] px-1.5 py-0 border-0 rounded-md", docConfig.color)}>
                         {docConfig.label}
                       </Badge>
+                      {approval && (
+                        <Badge variant="outline" className={cn("text-[9px] px-1.5 py-0 border-0 rounded-md", approval.color)}>
+                          {approval.label}
+                        </Badge>
+                      )}
                       {wp.assigned_techs.length > 0 && (
                         <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
                           <User className="h-2.5 w-2.5" /> {wp.assigned_techs.join(", ")}
                         </span>
                       )}
                     </div>
+                    {canSendToApproval && (
+                      <Button
+                        size="sm" variant="outline"
+                        className="gap-1 text-[10px] h-6 rounded-lg mt-1.5 px-2"
+                        onClick={(e) => sendToApproval(wp.id, e)}
+                      >
+                        <Send className="h-2.5 w-2.5" /> Send til kundegodkjenning
+                      </Button>
+                    )}
                   </div>
                   <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
                 </CardContent>
