@@ -438,6 +438,16 @@ export default function FormBuilderPage() {
             </div>
           )}
 
+          <Button
+            variant={showSettings ? "secondary" : "ghost"}
+            size="sm"
+            className="rounded-xl gap-1.5 text-xs"
+            onClick={() => setShowSettings(!showSettings)}
+          >
+            <Settings2 className="h-3.5 w-3.5" />
+            Innstillinger
+          </Button>
+
           <Button size="sm" className="rounded-xl gap-1.5" onClick={() => saveVersion(true)} disabled={saving}>
             {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
             Lagre & publiser
