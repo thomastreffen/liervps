@@ -16,7 +16,6 @@ Deno.serve(async (req) => {
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-    // Validate caller is admin
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
@@ -36,21 +35,11 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Check admin role
-    const { data: roleData } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", caller.id)
-      .maybeSingle();
-
-    if (!roleData || !["admin", "super_admin"].includes(roleData.role)) {
-      return new Response(JSON.stringify({ error: "Admin required" }), {
-        status: 403,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const { email, full_name, company_id, customer_id, project_ids } = await req.json();
+    const body = await req.json();
+    const {
+      email, full_name, company_id, customer_id, project_ids,
+      account_id, portal_role, invited_by_portal_user,
+    } = body;
 
     if (!email) {
       return new Response(JSON.stringify({ error: "Email is required" }), {
@@ -59,7 +48,44 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Check if portal user already exists
+    let inviterAccountId = account_id || null;
+    let inviterIsAdmin = false;
+
+    if (invited_by_portal_user) {
+      // Caller is a customer_admin inviting a team member
+      const { data: portalCaller } = await supabase
+        .from("customer_portal_users")
+        .select("id, account_id, portal_role")
+        .eq("auth_user_id", caller.id)
+        .eq("status", "active")
+        .maybeSingle();
+
+      if (!portalCaller || portalCaller.portal_role !== "customer_admin") {
+        return new Response(JSON.stringify({ error: "Kun administrator kan invitere" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      inviterAccountId = portalCaller.account_id;
+      inviterIsAdmin = false; // portal admin, not system admin
+    } else {
+      // System admin check
+      const { data: roleData } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", caller.id)
+        .maybeSingle();
+
+      if (!roleData || !["admin", "super_admin"].includes(roleData.role)) {
+        return new Response(JSON.stringify({ error: "Admin required" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      inviterIsAdmin = true;
+    }
+
+    // Check existing portal user
     const { data: existing } = await supabase
       .from("customer_portal_users")
       .select("id, status, auth_user_id")
@@ -73,22 +99,26 @@ Deno.serve(async (req) => {
       portalUserId = existing.id;
       authUserId = existing.auth_user_id;
 
-      // Re-activate if disabled
       if (existing.status === "disabled") {
         await supabase
           .from("customer_portal_users")
-          .update({ status: "pending", updated_at: new Date().toISOString() })
+          .update({
+            status: "pending",
+            account_id: inviterAccountId,
+            updated_at: new Date().toISOString(),
+          })
           .eq("id", portalUserId);
       }
     } else {
-      // Create portal user record (pending until they click the link)
-      const { data: newPortalUser, error: insertErr } = await supabase
+      const { data: newUser, error: insertErr } = await supabase
         .from("customer_portal_users")
         .insert({
           email: email.toLowerCase(),
           full_name: full_name || null,
           company_id: company_id || null,
           customer_id: customer_id || null,
+          account_id: inviterAccountId,
+          portal_role: portal_role || "customer_user",
           invited_by: caller.id,
           status: "pending",
         })
@@ -96,10 +126,10 @@ Deno.serve(async (req) => {
         .single();
 
       if (insertErr) throw insertErr;
-      portalUserId = newPortalUser.id;
+      portalUserId = newUser.id;
     }
 
-    // Grant project access
+    // Grant project access (for system admin invites)
     if (project_ids && Array.isArray(project_ids)) {
       for (const pid of project_ids) {
         await supabase
@@ -107,13 +137,23 @@ Deno.serve(async (req) => {
           .upsert({
             portal_user_id: portalUserId,
             project_id: pid,
+            account_id: inviterAccountId,
             granted_by: caller.id,
           }, { onConflict: "portal_user_id,project_id" });
       }
     }
 
-    // Use Supabase magic link to invite
-    // This creates the auth user if they don't exist and sends the magic link
+    // If account_id is set, also grant account-level project access
+    if (inviterAccountId) {
+      const { data: accountProjects } = await supabase
+        .from("customer_portal_project_access")
+        .select("project_id")
+        .eq("account_id", inviterAccountId);
+
+      // New user inherits account's projects automatically via account_id in RLS
+    }
+
+    // Generate magic link
     const redirectUrl = `${req.headers.get("origin") || supabaseUrl.replace(".supabase.co", ".lovable.app")}/portal/activate`;
 
     const { data: magicData, error: magicErr } = await supabase.auth.admin.generateLink({
@@ -131,14 +171,12 @@ Deno.serve(async (req) => {
 
     if (magicErr) throw magicErr;
 
-    // Update portal user with auth_user_id if we didn't have it
     if (!authUserId && magicData?.user?.id) {
       await supabase
         .from("customer_portal_users")
         .update({ auth_user_id: magicData.user.id })
         .eq("id", portalUserId);
 
-      // Add customer_user role
       await supabase
         .from("user_roles")
         .upsert({
@@ -147,27 +185,15 @@ Deno.serve(async (req) => {
         }, { onConflict: "user_id,role" });
     }
 
-    // Send the magic link email via Supabase's built-in magic link
-    const { error: otpErr } = await supabase.auth.admin.generateLink({
-      type: "magiclink",
-      email: email.toLowerCase(),
-      options: {
-        redirectTo: redirectUrl,
-      },
-    });
-
-    // Actually send the invite using signInWithOtp on behalf
-    // The generateLink gives us the link but doesn't send email
-    // We need to use inviteUserByEmail or signInWithOtp
     const actionLink = magicData?.properties?.action_link;
 
-    // Log the invitation
+    // Log
     await supabase.from("activity_log").insert({
       entity_type: "customer_portal",
       entity_id: portalUserId,
       action: "invitation_sent",
       performed_by: caller.id,
-      description: `Invitasjon sendt til ${email}`,
+      description: `Invitasjon sendt til ${email}${inviterAccountId ? " (kontoinvitasjon)" : ""}`,
       type: "system",
       visibility: "internal",
     });
@@ -177,7 +203,6 @@ Deno.serve(async (req) => {
         success: true,
         portal_user_id: portalUserId,
         action_link: actionLink,
-        message: "Invitation created successfully",
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
@@ -185,10 +210,7 @@ Deno.serve(async (req) => {
     console.error("Error:", err);
     return new Response(
       JSON.stringify({ error: err.message || "Internal error" }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });

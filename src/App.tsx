@@ -77,8 +77,14 @@ import ModuleManagementPage from "./pages/ModuleManagementPage";
 import { CompanyProvider } from "@/hooks/useCompanyContext";
 import PortalLogin from "./pages/portal/PortalLogin";
 import PortalActivate from "./pages/portal/PortalActivate";
+import PortalLayout from "./pages/portal/PortalLayout";
 import PortalDashboard from "./pages/portal/PortalDashboard";
+import PortalProjects from "./pages/portal/PortalProjects";
 import PortalProject from "./pages/portal/PortalProject";
+import PortalDeliveries from "./pages/portal/PortalDeliveries";
+import PortalMessages from "./pages/portal/PortalMessages";
+import PortalTeam from "./pages/portal/PortalTeam";
+import { PortalProvider } from "@/hooks/usePortal";
 
 const queryClient = new QueryClient();
 
@@ -101,8 +107,14 @@ const App = () => (
             {/* Customer Portal */}
             <Route path="/portal/login" element={<PortalLogin />} />
             <Route path="/portal/activate" element={<PortalActivate />} />
-            <Route path="/portal" element={<PortalDashboard />} />
-            <Route path="/portal/projects/:id" element={<PortalProject />} />
+            <Route element={<PortalProvider><PortalLayout /></PortalProvider>}>
+              <Route path="/portal" element={<PortalDashboard />} />
+              <Route path="/portal/projects" element={<PortalProjects />} />
+              <Route path="/portal/projects/:id" element={<PortalProject />} />
+              <Route path="/portal/deliveries" element={<PortalDeliveries />} />
+              <Route path="/portal/messages" element={<PortalMessages />} />
+              <Route path="/portal/team" element={<PortalTeam />} />
+            </Route>
 
             {/* App layout with sidebar */}
             <Route
