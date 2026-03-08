@@ -5,8 +5,8 @@ import { usePortal } from "@/hooks/usePortal";
 import { FileText, CheckCircle, Sparkles, Bell } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { isAfter, subDays, format } from "date-fns";
-import { nb } from "date-fns/locale";
+import { isAfter, subDays } from "date-fns";
+import { TimeAgo } from "@/components/portal/TimeAgo";
 
 function DeliveryBadge({ status, createdAt }: { status: string; createdAt: string | null }) {
   const isNew = createdAt && isAfter(new Date(createdAt), subDays(new Date(), 3));
@@ -86,9 +86,10 @@ export default function PortalDeliveries() {
 
       {journals.length === 0 ? (
         <Card>
-          <CardContent className="flex flex-col items-center gap-3 py-14">
+          <CardContent className="flex flex-col items-center gap-2 py-14">
             <FileText className="h-10 w-10 text-muted-foreground/40" />
-            <p className="text-sm text-muted-foreground">Ingen rapporter tilgjengelig ennå.</p>
+            <p className="text-sm text-muted-foreground">Ingen rapporter ennå.</p>
+            <p className="text-xs text-muted-foreground/70">Du får varsel når nye rapporter er klare.</p>
           </CardContent>
         </Card>
       ) : (
@@ -110,10 +111,12 @@ export default function PortalDeliveries() {
                           <p className="text-sm font-semibold text-card-foreground">
                             Rapport v{j.version}
                           </p>
-                          <p className="text-xs text-muted-foreground">
-                            {projectMap[j.project_id] || "Oppdrag"} •{" "}
-                            {j.updated_at && format(new Date(j.updated_at), "d. MMM yyyy", { locale: nb })}
-                          </p>
+                          <div className="flex items-center gap-2">
+                            <p className="text-xs text-muted-foreground">
+                              {projectMap[j.project_id] || "Oppdrag"}
+                            </p>
+                            <TimeAgo date={j.updated_at} className="text-[10px] text-muted-foreground/70" />
+                          </div>
                         </div>
                       </div>
                       <DeliveryBadge status={j.status} createdAt={j.created_at} />
@@ -143,10 +146,12 @@ export default function PortalDeliveries() {
                           <p className="text-sm font-semibold text-card-foreground">
                             Rapport v{j.version}
                           </p>
-                          <p className="text-xs text-muted-foreground">
-                            {projectMap[j.project_id] || "Oppdrag"} •{" "}
-                            {j.updated_at && format(new Date(j.updated_at), "d. MMM yyyy", { locale: nb })}
-                          </p>
+                          <div className="flex items-center gap-2">
+                            <p className="text-xs text-muted-foreground">
+                              {projectMap[j.project_id] || "Oppdrag"}
+                            </p>
+                            <TimeAgo date={j.updated_at} className="text-[10px] text-muted-foreground/70" />
+                          </div>
                         </div>
                       </div>
                       <DeliveryBadge status={j.status} createdAt={j.created_at} />

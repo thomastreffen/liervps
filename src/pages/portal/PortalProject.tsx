@@ -9,9 +9,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import { format } from "date-fns";
 import { nb } from "date-fns/locale";
+import { TimeAgo } from "@/components/portal/TimeAgo";
+import { StatusProgression } from "@/components/portal/StatusProgression";
 
 export default function PortalProject() {
   const { id } = useParams();
@@ -38,7 +39,7 @@ export default function PortalProject() {
 
       const { data: proj } = await supabase
         .from("events")
-        .select("id, title, status, address, description, start_time, end_time, customer_name")
+        .select("id, title, status, address, description, start_time, end_time, customer_name, updated_at")
         .eq("id", id!)
         .maybeSingle();
 
@@ -65,15 +66,6 @@ export default function PortalProject() {
     }
   };
 
-  const progressValue = (s: string) => {
-    switch (s) {
-      case "planned": return 15;
-      case "active": case "in_progress": return 55;
-      case "completed": return 100;
-      default: return 0;
-    }
-  };
-
   if (loading) {
     return <div className="animate-pulse space-y-4">
       {[1, 2, 3].map(i => <div key={i} className="h-28 rounded-2xl bg-muted" />)}
@@ -84,6 +76,9 @@ export default function PortalProject() {
     return <p className="py-12 text-center text-muted-foreground">Oppdrag ikke funnet</p>;
   }
 
+  const hasReport = journals.length > 0;
+  const hasApprovedReport = journals.some(j => j.status === "approved" || j.status === "sent");
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
@@ -92,20 +87,34 @@ export default function PortalProject() {
             <ArrowLeft className="h-5 w-5" />
           </Link>
         </Button>
-        <div>
-          <h2 className="text-xl font-bold text-foreground">{project.title}</h2>
-          <p className="text-sm text-muted-foreground">Oppdragsdetaljer</p>
+        <div className="min-w-0">
+          <h2 className="text-xl font-bold text-foreground truncate">{project.title}</h2>
+          <div className="flex items-center gap-2">
+            <p className="text-sm text-muted-foreground">Oppdragsdetaljer</p>
+            <TimeAgo date={project.updated_at} className="text-[10px] text-muted-foreground/70" />
+          </div>
         </div>
       </div>
 
-      {/* Status */}
+      {/* Status progression */}
       <Card>
-        <CardContent className="space-y-4 p-6">
+        <CardContent className="p-6 space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="font-bold text-card-foreground">Status</h3>
+            <h3 className="font-bold text-card-foreground">Fremdrift</h3>
             <Badge>{statusLabel(project.status)}</Badge>
           </div>
-          <Progress value={progressValue(project.status)} className="h-2.5" />
+          <StatusProgression
+            projectStatus={project.status}
+            hasReport={hasReport}
+            hasApprovedReport={hasApprovedReport}
+          />
+        </CardContent>
+      </Card>
+
+      {/* Details */}
+      <Card>
+        <CardContent className="space-y-4 p-6">
+          <h3 className="font-bold text-card-foreground">Detaljer</h3>
           <div className="grid grid-cols-2 gap-4 text-sm">
             {project.address && (
               <div className="flex items-start gap-2">
@@ -144,9 +153,11 @@ export default function PortalProject() {
         </CardHeader>
         <CardContent>
           {journals.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-6 text-center">
-              Ingen rapporter tilgjengelig ennå.
-            </p>
+            <div className="flex flex-col items-center gap-2 py-8">
+              <FileText className="h-10 w-10 text-muted-foreground/40" />
+              <p className="text-sm text-muted-foreground">Ingen rapporter ennå.</p>
+              <p className="text-xs text-muted-foreground/70">Du får varsel når nye rapporter er klare.</p>
+            </div>
           ) : (
             <div className="space-y-3">
               {journals.map((j) => (
@@ -155,12 +166,14 @@ export default function PortalProject() {
                     <p className="text-sm font-semibold text-card-foreground">
                       Rapport v{j.version}
                     </p>
-                    <p className="text-xs text-muted-foreground">
-                      {j.status === "approved" ? "Godkjent" :
-                       j.status === "sent" ? "Sendt" :
-                       j.status === "review" ? "Venter på godkjenning" : "Utkast"}
-                      {j.updated_at && ` • ${format(new Date(j.updated_at), "d. MMM yyyy", { locale: nb })}`}
-                    </p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <p className="text-xs text-muted-foreground">
+                        {j.status === "approved" ? "Godkjent" :
+                         j.status === "sent" ? "Sendt" :
+                         j.status === "review" ? "Venter på godkjenning" : "Utkast"}
+                      </p>
+                      <TimeAgo date={j.updated_at} className="text-[10px] text-muted-foreground/70" />
+                    </div>
                   </div>
                   <div className="flex gap-2">
                     {j.status === "review" && (
@@ -190,9 +203,11 @@ export default function PortalProject() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground py-6 text-center">
-            Dokumenter og bilder deles her når de er klare.
-          </p>
+          <div className="flex flex-col items-center gap-2 py-8">
+            <ImageIcon className="h-10 w-10 text-muted-foreground/40" />
+            <p className="text-sm text-muted-foreground">Ingen dokumenter ennå.</p>
+            <p className="text-xs text-muted-foreground/70">Dokumenter og bilder deles her når de er klare.</p>
+          </div>
         </CardContent>
       </Card>
     </div>
