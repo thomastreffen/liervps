@@ -337,17 +337,29 @@ export default function FormBuilderPage() {
                   onClick={() => loadTemplate(tpl.id)}
                 >
                   <div className="min-w-0 flex-1">
-                    <p className="font-medium text-sm">{tpl.title}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium text-sm">{tpl.title}</p>
+                      {tpl.form_type && (
+                        <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-0 bg-muted text-muted-foreground">
+                          {FORM_TYPE_LABELS[tpl.form_type] || tpl.form_type}
+                        </Badge>
+                      )}
+                    </div>
                     {tpl.description && (
                       <p className="text-xs text-muted-foreground mt-0.5 truncate">{tpl.description}</p>
                     )}
-                    {count > 0 && (
-                      <p className="text-[10px] text-muted-foreground/60 mt-0.5">Brukt i {count} prosjekt{count > 1 ? "er" : ""}</p>
-                    )}
+                    <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                      {count > 0 && (
+                        <span className="text-[10px] text-muted-foreground/60">Brukt i {count} prosjekt{count > 1 ? "er" : ""}</span>
+                      )}
+                      {tpl.available_in_projects && <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 border-primary/20 text-primary/70">Prosjekt</Badge>}
+                      {tpl.available_in_my_day && <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 border-warning/20 text-warning">Min dag</Badge>}
+                      {tpl.available_in_customer_portal && <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 border-info/20 text-info">Portal</Badge>}
+                    </div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    <Badge variant={tpl.active_version_id ? "default" : "secondary"} className="text-[10px]">
-                      {tpl.active_version_id ? "Aktiv" : "Ingen versjon"}
+                    <Badge variant={tpl.is_active !== false && tpl.active_version_id ? "default" : "secondary"} className="text-[10px]">
+                      {tpl.is_active === false ? "Inaktiv" : tpl.active_version_id ? "Aktiv" : "Ingen versjon"}
                     </Badge>
                     <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-1" onClick={(e) => e.stopPropagation()}>
                       {count > 0 ? (
