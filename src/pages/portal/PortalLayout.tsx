@@ -1,0 +1,109 @@
+import { Outlet, Link, useLocation, Navigate } from "react-router-dom";
+import { usePortal } from "@/hooks/usePortal";
+import { Loader2, Wrench, LayoutDashboard, FolderOpen, FileText, MessageSquare, LogOut, Users, Settings } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
+
+const navItems = [
+  { path: "/portal", label: "Oversikt", icon: LayoutDashboard, end: true },
+  { path: "/portal/projects", label: "Prosjekter", icon: FolderOpen },
+  { path: "/portal/deliveries", label: "Leveranser", icon: FileText },
+  { path: "/portal/messages", label: "Meldinger", icon: MessageSquare },
+];
+
+export default function PortalLayout() {
+  const { user, loading, isCustomerAdmin, signOut } = usePortal();
+  const location = useLocation();
+
+  if (loading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Navigate to="/portal/login" replace />;
+  }
+
+  const roleLabel = (r: string) => {
+    switch (r) {
+      case "customer_admin": return "Administrator";
+      case "customer_finance": return "Økonomi";
+      default: return "Bruker";
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-background">
+      {/* Header */}
+      <header className="sticky top-0 z-20 border-b bg-card">
+        <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+              <Wrench className="h-5 w-5" />
+            </div>
+            <div>
+              <h1 className="text-sm font-semibold text-card-foreground">
+                {user.accountName || "Kundeportal"}
+              </h1>
+              <p className="text-xs text-muted-foreground">MCS Service</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="hidden sm:flex flex-col items-end">
+              <span className="text-sm text-card-foreground">{user.fullName}</span>
+              <Badge variant="secondary" className="text-[10px]">
+                {roleLabel(user.portalRole)}
+              </Badge>
+            </div>
+            {isCustomerAdmin && (
+              <Button variant="ghost" size="icon" asChild>
+                <Link to="/portal/team">
+                  <Users className="h-4 w-4" />
+                </Link>
+              </Button>
+            )}
+            <Button variant="ghost" size="sm" onClick={signOut}>
+              <LogOut className="mr-1 h-4 w-4" />
+              <span className="hidden sm:inline">Logg ut</span>
+            </Button>
+          </div>
+        </div>
+
+        {/* Nav */}
+        <div className="mx-auto max-w-5xl px-4">
+          <nav className="flex gap-1 -mb-px overflow-x-auto">
+            {navItems.map((item) => {
+              const active = item.end
+                ? location.pathname === item.path
+                : location.pathname.startsWith(item.path);
+              return (
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  className={cn(
+                    "flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap",
+                    active
+                      ? "border-primary text-primary"
+                      : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
+                  )}
+                >
+                  <item.icon className="h-4 w-4" />
+                  {item.label}
+                </Link>
+              );
+            })}
+          </nav>
+        </div>
+      </header>
+
+      {/* Content */}
+      <main className="mx-auto max-w-5xl px-4 py-6">
+        <Outlet />
+      </main>
+    </div>
+  );
+}

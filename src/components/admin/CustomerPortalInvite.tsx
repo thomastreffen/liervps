@@ -4,13 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-  DialogDescription,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from "@/components/ui/dialog";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 import { Loader2, Send, CheckCircle, Copy } from "lucide-react";
 import { toast } from "sonner";
 
@@ -21,18 +19,16 @@ interface Props {
   defaultCustomerId?: string;
   defaultProjectIds?: string[];
   defaultEmail?: string;
+  defaultAccountId?: string;
 }
 
 export function CustomerPortalInvite({
-  open,
-  onOpenChange,
-  defaultCompanyId,
-  defaultCustomerId,
-  defaultProjectIds,
-  defaultEmail,
+  open, onOpenChange, defaultCompanyId, defaultCustomerId,
+  defaultProjectIds, defaultEmail, defaultAccountId,
 }: Props) {
   const [email, setEmail] = useState(defaultEmail || "");
   const [fullName, setFullName] = useState("");
+  const [portalRole, setPortalRole] = useState("customer_user");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ success: boolean; link?: string } | null>(null);
 
@@ -49,6 +45,8 @@ export function CustomerPortalInvite({
           company_id: defaultCompanyId || null,
           customer_id: defaultCustomerId || null,
           project_ids: defaultProjectIds || [],
+          account_id: defaultAccountId || null,
+          portal_role: portalRole,
         },
       });
 
@@ -58,7 +56,6 @@ export function CustomerPortalInvite({
       setResult({ success: true, link: data.action_link });
       toast.success("Invitasjon opprettet");
     } catch (err: any) {
-      console.error("Invite error:", err);
       toast.error(err.message || "Kunne ikke sende invitasjon");
     } finally {
       setLoading(false);
@@ -75,6 +72,7 @@ export function CustomerPortalInvite({
   const handleClose = () => {
     setEmail(defaultEmail || "");
     setFullName("");
+    setPortalRole("customer_user");
     setResult(null);
     onOpenChange(false);
   };
@@ -100,10 +98,9 @@ export function CustomerPortalInvite({
                 Kunden kan nå logge inn via kundeportalen med sin e-postadresse.
               </p>
             </div>
-
             {result.link && (
               <div className="space-y-2">
-                <Label>Aktiveringslenke (kan deles manuelt)</Label>
+                <Label>Aktiveringslenke</Label>
                 <div className="flex gap-2">
                   <Input value={result.link} readOnly className="text-xs" />
                   <Button variant="outline" size="icon" onClick={copyLink}>
@@ -116,9 +113,8 @@ export function CustomerPortalInvite({
         ) : (
           <div className="space-y-4 py-2">
             <div className="space-y-2">
-              <Label htmlFor="invite-email">E-post *</Label>
+              <Label>E-post *</Label>
               <Input
-                id="invite-email"
                 type="email"
                 placeholder="kunde@firma.no"
                 value={email}
@@ -127,14 +123,26 @@ export function CustomerPortalInvite({
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="invite-name">Navn</Label>
+              <Label>Navn</Label>
               <Input
-                id="invite-name"
                 placeholder="Ola Nordmann"
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 disabled={loading}
               />
+            </div>
+            <div className="space-y-2">
+              <Label>Rolle</Label>
+              <Select value={portalRole} onValueChange={setPortalRole}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="customer_user">Bruker</SelectItem>
+                  <SelectItem value="customer_admin">Administrator</SelectItem>
+                  <SelectItem value="customer_finance">Økonomi</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
         )}
@@ -144,11 +152,7 @@ export function CustomerPortalInvite({
             <Button onClick={handleClose}>Lukk</Button>
           ) : (
             <Button onClick={handleInvite} disabled={loading || !email.trim()}>
-              {loading ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Send className="mr-2 h-4 w-4" />
-              )}
+              {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
               Send invitasjon
             </Button>
           )}

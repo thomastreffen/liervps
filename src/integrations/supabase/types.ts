@@ -1878,6 +1878,51 @@ export type Database = {
           },
         ]
       }
+      customer_accounts: {
+        Row: {
+          company_id: string | null
+          created_at: string
+          customer_id: string | null
+          id: string
+          name: string
+          org_number: string | null
+          updated_at: string
+        }
+        Insert: {
+          company_id?: string | null
+          created_at?: string
+          customer_id?: string | null
+          id?: string
+          name: string
+          org_number?: string | null
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string | null
+          created_at?: string
+          customer_id?: string | null
+          id?: string
+          name?: string
+          org_number?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_accounts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "internal_companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_accounts_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customer_contacts: {
         Row: {
           created_at: string
@@ -1918,6 +1963,7 @@ export type Database = {
       }
       customer_portal_project_access: {
         Row: {
+          account_id: string | null
           granted_at: string
           granted_by: string | null
           id: string
@@ -1925,6 +1971,7 @@ export type Database = {
           project_id: string
         }
         Insert: {
+          account_id?: string | null
           granted_at?: string
           granted_by?: string | null
           id?: string
@@ -1932,6 +1979,7 @@ export type Database = {
           project_id: string
         }
         Update: {
+          account_id?: string | null
           granted_at?: string
           granted_by?: string | null
           id?: string
@@ -1939,6 +1987,13 @@ export type Database = {
           project_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "customer_portal_project_access_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "customer_accounts"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "customer_portal_project_access_portal_user_id_fkey"
             columns: ["portal_user_id"]
@@ -1957,6 +2012,7 @@ export type Database = {
       }
       customer_portal_users: {
         Row: {
+          account_id: string | null
           activated_at: string | null
           auth_user_id: string | null
           company_id: string | null
@@ -1969,10 +2025,12 @@ export type Database = {
           invited_by: string | null
           last_login_at: string | null
           phone: string | null
+          portal_role: string
           status: string
           updated_at: string
         }
         Insert: {
+          account_id?: string | null
           activated_at?: string | null
           auth_user_id?: string | null
           company_id?: string | null
@@ -1985,10 +2043,12 @@ export type Database = {
           invited_by?: string | null
           last_login_at?: string | null
           phone?: string | null
+          portal_role?: string
           status?: string
           updated_at?: string
         }
         Update: {
+          account_id?: string | null
           activated_at?: string | null
           auth_user_id?: string | null
           company_id?: string | null
@@ -2001,10 +2061,18 @@ export type Database = {
           invited_by?: string | null
           last_login_at?: string | null
           phone?: string | null
+          portal_role?: string
           status?: string
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "customer_portal_users_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "customer_accounts"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "customer_portal_users_company_id_fkey"
             columns: ["company_id"]
