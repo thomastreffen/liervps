@@ -43,7 +43,7 @@ interface ServiceJournalProps {
   internalNumber?: string; companyLogoUrl?: string; companyName?: string;
 }
 
-type SectionKey = "oppdrag" | "utfort" | "arbeidsokter" | "dokumentasjon" | "merknader" | "signatur";
+type SectionKey = "oppdrag" | "utfort" | "arbeidsokter" | "sjekklister" | "dokumentasjon" | "merknader" | "signatur";
 type SectionVisibility = Record<SectionKey, boolean>;
 type JournalStatus = "draft" | "review" | "approved" | "sent";
 
@@ -56,7 +56,8 @@ const STATUS_CONFIG: Record<JournalStatus, { label: string; color: string; icon:
 
 const SECTION_META: { key: SectionKey; label: string }[] = [
   { key: "oppdrag", label: "Oppdrag" }, { key: "utfort", label: "Utført arbeid" },
-  { key: "arbeidsokter", label: "Arbeidsøkter" }, { key: "dokumentasjon", label: "Dokumentasjon" },
+  { key: "arbeidsokter", label: "Arbeidsøkter" }, { key: "sjekklister", label: "Sjekklister" },
+  { key: "dokumentasjon", label: "Dokumentasjon" },
   { key: "merknader", label: "Merknader" }, { key: "signatur", label: "Signatur" },
 ];
 
@@ -88,7 +89,7 @@ export function ServiceJournal({
   const [viewMode, setViewMode] = useState<"internal" | "customer">("internal");
   const [isPreview, setIsPreview] = useState(false);
   const [sections, setSections] = useState<SectionVisibility>({
-    oppdrag: true, utfort: true, arbeidsokter: true, dokumentasjon: true, merknader: true, signatur: true,
+    oppdrag: true, utfort: true, arbeidsokter: true, sjekklister: true, dokumentasjon: true, merknader: true, signatur: true,
   });
   const [showControls, setShowControls] = useState(false);
 
