@@ -3531,6 +3531,117 @@ export type Database = {
         }
         Relationships: []
       }
+      invoice_basis: {
+        Row: {
+          approved_at: string
+          approved_by_name: string | null
+          approved_by_portal_user_id: string | null
+          approved_version: number | null
+          company_id: string
+          created_at: string
+          customer_id: string | null
+          customer_name: string
+          deviation_count: number | null
+          deviation_notes: string | null
+          id: string
+          notes: string | null
+          project_id: string
+          report_count: number | null
+          sent_to_billing_at: string | null
+          sent_to_billing_by: string | null
+          service_journal_id: string | null
+          status: string
+          technician_count: number | null
+          technician_names: string[] | null
+          total_hours: number | null
+          updated_at: string
+        }
+        Insert: {
+          approved_at: string
+          approved_by_name?: string | null
+          approved_by_portal_user_id?: string | null
+          approved_version?: number | null
+          company_id: string
+          created_at?: string
+          customer_id?: string | null
+          customer_name: string
+          deviation_count?: number | null
+          deviation_notes?: string | null
+          id?: string
+          notes?: string | null
+          project_id: string
+          report_count?: number | null
+          sent_to_billing_at?: string | null
+          sent_to_billing_by?: string | null
+          service_journal_id?: string | null
+          status?: string
+          technician_count?: number | null
+          technician_names?: string[] | null
+          total_hours?: number | null
+          updated_at?: string
+        }
+        Update: {
+          approved_at?: string
+          approved_by_name?: string | null
+          approved_by_portal_user_id?: string | null
+          approved_version?: number | null
+          company_id?: string
+          created_at?: string
+          customer_id?: string | null
+          customer_name?: string
+          deviation_count?: number | null
+          deviation_notes?: string | null
+          id?: string
+          notes?: string | null
+          project_id?: string
+          report_count?: number | null
+          sent_to_billing_at?: string | null
+          sent_to_billing_by?: string | null
+          service_journal_id?: string | null
+          status?: string
+          technician_count?: number | null
+          technician_names?: string[] | null
+          total_hours?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_basis_approved_by_portal_user_id_fkey"
+            columns: ["approved_by_portal_user_id"]
+            isOneToOne: false
+            referencedRelation: "customer_portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_basis_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "internal_companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_basis_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_basis_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_basis_service_journal_id_fkey"
+            columns: ["service_journal_id"]
+            isOneToOne: true
+            referencedRelation: "service_journals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       job_approvals: {
         Row: {
           comment: string | null
@@ -5771,11 +5882,15 @@ export type Database = {
         Row: {
           approved_at: string | null
           approved_by: string | null
+          approved_by_portal_user_id: string | null
+          approved_version: number | null
+          billing_status: string
           company_id: string | null
           content: Json
           created_at: string
           created_by: string | null
           id: string
+          locked_at: string | null
           pdf_storage_path: string | null
           project_id: string
           report_type: string
@@ -5790,11 +5905,15 @@ export type Database = {
         Insert: {
           approved_at?: string | null
           approved_by?: string | null
+          approved_by_portal_user_id?: string | null
+          approved_version?: number | null
+          billing_status?: string
           company_id?: string | null
           content?: Json
           created_at?: string
           created_by?: string | null
           id?: string
+          locked_at?: string | null
           pdf_storage_path?: string | null
           project_id: string
           report_type?: string
@@ -5809,11 +5928,15 @@ export type Database = {
         Update: {
           approved_at?: string | null
           approved_by?: string | null
+          approved_by_portal_user_id?: string | null
+          approved_version?: number | null
+          billing_status?: string
           company_id?: string | null
           content?: Json
           created_at?: string
           created_by?: string | null
           id?: string
+          locked_at?: string | null
           pdf_storage_path?: string | null
           project_id?: string
           report_type?: string
@@ -5831,6 +5954,13 @@ export type Database = {
             columns: ["approved_by"]
             isOneToOne: false
             referencedRelation: "user_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_journals_approved_by_portal_user_id_fkey"
+            columns: ["approved_by_portal_user_id"]
+            isOneToOne: false
+            referencedRelation: "customer_portal_users"
             referencedColumns: ["id"]
           },
           {
