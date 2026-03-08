@@ -50,6 +50,23 @@ export default function FormBuilderPage() {
   const [activeVersionId, setActiveVersionId] = useState<string | null>(null);
   const [instanceCounts, setInstanceCounts] = useState<Record<string, number>>({});
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [showSettings, setShowSettings] = useState(false);
+  const defaultSettings: FormTemplateSettings = {
+    available_in_projects: false,
+    available_in_documents: false,
+    available_in_my_day: false,
+    available_in_customer_portal: false,
+    shareable_via_link: false,
+    internal_only: true,
+    allowed_roles: ["admin"],
+    is_required: false,
+    required_before_completion: false,
+    required_before_billing: false,
+    required_for_job_types: [],
+    form_type: "checklist",
+    is_active: true,
+  };
+  const [templateSettings, setTemplateSettings] = useState<FormTemplateSettings>(defaultSettings);
 
   const fetchTemplates = async () => {
     const { data } = await supabase
