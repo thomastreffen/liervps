@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useState, useCallback, type React
 import { supabase } from "@/integrations/supabase/client";
 import type { Session, User } from "@supabase/supabase-js";
 
-export type AppRole = "super_admin" | "admin" | "montør";
+export type AppRole = "super_admin" | "admin" | "montør" | "customer_user";
 
 const AZURE_TENANT_ID = "e1b96c2a-c273-40b9-bb46-a2a7b570e133";
 

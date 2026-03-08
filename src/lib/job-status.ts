@@ -103,7 +103,7 @@ export const SYSTEM_STATUSES: JobStatus[] = ["requested", "approved"];
 
 /** Check if a role can transition to a given status */
 export function canSetStatus(
-  role: "super_admin" | "admin" | "montør",
+  role: "super_admin" | "admin" | "montør" | "customer_user" | string,
   targetStatus: JobStatus
 ): boolean {
   if (role === "super_admin" || role === "admin") return true;
