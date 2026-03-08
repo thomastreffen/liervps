@@ -92,7 +92,7 @@ export function ServiceJournal({
   const [viewMode, setViewMode] = useState<"internal" | "customer">("internal");
   const [isPreview, setIsPreview] = useState(false);
   const [sections, setSections] = useState<SectionVisibility>({
-    oppdrag: true, utfort: true, arbeidsokter: true, sjekklister: true, dokumentasjon: true, merknader: true, signatur: true,
+    oppdrag: true, utfort: true, arbeidsokter: true, arbeidspakker: true, sjekklister: true, dokumentasjon: true, merknader: true, signatur: true,
   });
   const [showControls, setShowControls] = useState(false);
 
