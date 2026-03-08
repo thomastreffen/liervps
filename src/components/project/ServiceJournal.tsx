@@ -248,9 +248,10 @@ export function ServiceJournal({
     try {
       // Save first to ensure latest content
       await saveJournal();
-      const currentId = journalId || (await supabase.from("service_journals" as any)
+      const jRes = await (supabase.from("service_journals" as any)
         .select("id").eq("project_id", projectId)
-        .order("version", { ascending: false }).limit(1).single()).data?.id;
+        .order("version", { ascending: false }).limit(1).single() as any);
+      const currentId = journalId || jRes.data?.id;
 
       if (!currentId) throw new Error("Ingen journal funnet");
 
@@ -304,9 +305,10 @@ export function ServiceJournal({
     setCreatingShare(true);
     try {
       await saveJournal();
-      const currentId = journalId || (await supabase.from("service_journals" as any)
+      const jRes2 = await (supabase.from("service_journals" as any)
         .select("id").eq("project_id", projectId)
-        .order("version", { ascending: false }).limit(1).single()).data?.id;
+        .order("version", { ascending: false }).limit(1).single() as any);
+      const currentId = journalId || jRes2.data?.id;
 
       if (!currentId) throw new Error("Lagre journalen først");
 
