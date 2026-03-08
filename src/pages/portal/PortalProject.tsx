@@ -18,6 +18,7 @@ import { nb } from "date-fns/locale";
 import { TimeAgo } from "@/components/portal/TimeAgo";
 import { StatusProgression } from "@/components/portal/StatusProgression";
 import { PortalFormResults } from "@/components/portal/PortalFormResults";
+import { PortalWorkPackages } from "@/components/work-packages/PortalWorkPackages";
 import { toast } from "sonner";
 
 export default function PortalProject() {
@@ -167,6 +168,9 @@ export default function PortalProject() {
           )}
         </CardContent>
       </Card>
+
+      {/* Work packages */}
+      <PortalWorkPackages projectId={id!} />
 
       {/* Rapporter */}
       <Card>

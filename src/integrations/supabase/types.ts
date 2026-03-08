@@ -2740,11 +2740,13 @@ export type Database = {
           created_by: string | null
           customer: string | null
           customer_id: string | null
+          customer_visible: boolean
           delete_reason: string | null
           deleted_at: string | null
           deleted_by: string | null
           department_id: string | null
           description: string | null
+          documentation_status: string
           editing_by: string | null
           editing_started_at: string | null
           end_time: string
@@ -2782,6 +2784,9 @@ export type Database = {
           updated_at: string
           updated_by: string | null
           visibility_type: string
+          work_package_type:
+            | Database["public"]["Enums"]["work_package_type"]
+            | null
         }
         Insert: {
           address?: string | null
@@ -2801,11 +2806,13 @@ export type Database = {
           created_by?: string | null
           customer?: string | null
           customer_id?: string | null
+          customer_visible?: boolean
           delete_reason?: string | null
           deleted_at?: string | null
           deleted_by?: string | null
           department_id?: string | null
           description?: string | null
+          documentation_status?: string
           editing_by?: string | null
           editing_started_at?: string | null
           end_time: string
@@ -2843,6 +2850,9 @@ export type Database = {
           updated_at?: string
           updated_by?: string | null
           visibility_type?: string
+          work_package_type?:
+            | Database["public"]["Enums"]["work_package_type"]
+            | null
         }
         Update: {
           address?: string | null
@@ -2862,11 +2872,13 @@ export type Database = {
           created_by?: string | null
           customer?: string | null
           customer_id?: string | null
+          customer_visible?: boolean
           delete_reason?: string | null
           deleted_at?: string | null
           deleted_by?: string | null
           department_id?: string | null
           description?: string | null
+          documentation_status?: string
           editing_by?: string | null
           editing_started_at?: string | null
           end_time?: string
@@ -2904,6 +2916,9 @@ export type Database = {
           updated_at?: string
           updated_by?: string | null
           visibility_type?: string
+          work_package_type?:
+            | Database["public"]["Enums"]["work_package_type"]
+            | null
         }
         Relationships: [
           {
@@ -7098,6 +7113,11 @@ export type Database = {
         | "archived"
       regulation_scope_type: "global" | "lead" | "quote" | "job"
       regulation_topic: "NEK" | "FEL" | "FSE" | "FSL" | "Annet"
+      work_package_type:
+        | "deviation"
+        | "additional_work"
+        | "change"
+        | "internal_task"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -7312,6 +7332,12 @@ export const Constants = {
       ],
       regulation_scope_type: ["global", "lead", "quote", "job"],
       regulation_topic: ["NEK", "FEL", "FSE", "FSL", "Annet"],
+      work_package_type: [
+        "deviation",
+        "additional_work",
+        "change",
+        "internal_task",
+      ],
     },
   },
 } as const

@@ -16,6 +16,7 @@ import { nb } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
 import { ProjectScheduleBlocks } from "@/components/project/ProjectScheduleBlocks";
 import { ProjectFormsSection } from "@/components/forms/ProjectFormsSection";
+import { WorkPackageList } from "@/components/work-packages/WorkPackageList";
 
 /* ── Types ── */
 
@@ -130,6 +131,9 @@ export function ProjectRooms({ jobId, onOpenPlan, onOpenRoom, onOpenScheduleShee
 
   return (
     <div className="space-y-8 max-w-4xl mx-auto">
+      {/* Work packages */}
+      <WorkPackageList projectId={jobId} isAdmin />
+
       {/* Schedule blocks section */}
       <ProjectScheduleBlocks
         projectId={jobId}
@@ -149,9 +153,9 @@ export function ProjectRooms({ jobId, onOpenPlan, onOpenRoom, onOpenScheduleShee
         />
         <RoomCard
           icon={<CheckCircle2 className="h-7 w-7" />}
-          title="Oppgaver"
+          title="Arbeidspakker"
           subtitle={counts.tasks === 0 ? "Ingen åpne oppgaver" : `${counts.tasks} åpne ${counts.tasks === 1 ? "oppgave" : "oppgaver"}`}
-          onClick={() => onOpenRoom("oppgaver")}
+          onClick={() => onOpenRoom("arbeidspakker")}
         />
         <RoomCard
           icon={<FolderOpen className="h-7 w-7" />}
