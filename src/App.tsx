@@ -77,6 +77,7 @@ import InvoiceBasisPage from "./pages/InvoiceBasisPage";
 import ModuleManagementPage from "./pages/ModuleManagementPage";
 import ManagementPage from "./pages/ManagementPage";
 import MyDayPage from "./pages/MyDayPage";
+import HelpCenterPage from "./pages/HelpCenterPage";
 import { CompanyProvider } from "@/hooks/useCompanyContext";
 import PortalLogin from "./pages/portal/PortalLogin";
 import PortalActivate from "./pages/portal/PortalActivate";
@@ -175,6 +176,7 @@ const App = () => (
               <Route path="/sales/dashboard" element={<Navigate to="/sales" replace />} />
               <Route path="/notifications" element={<NotificationsPage />} />
               <Route path="/fag" element={<RegulationPage />} />
+              <Route path="/help" element={<HelpCenterPage />} />
               <Route path="/forms/:id" element={<FormFillPage />} />
               <Route
                 path="/admin/forms"
