@@ -358,6 +358,53 @@ export default function InvoiceBasisPage() {
             </div>
           ) : ready.map(renderRow)}
         </TabsContent>
+        <TabsContent value="wp" className="mt-4 space-y-3">
+          {wpRows.length === 0 ? (
+            <div className="flex flex-col items-center gap-2 py-12">
+              <Package className="h-10 w-10 text-muted-foreground/30" />
+              <p className="text-sm text-muted-foreground">Ingen godkjente arbeidspakker.</p>
+              <p className="text-xs text-muted-foreground/70">Arbeidspakker godkjent av kunde vises her som faktureringsgrunnlag.</p>
+            </div>
+          ) : wpRows.map((wp: any) => {
+            const cfg = WP_TYPE_CONFIG[wp.work_package_type as WorkPackageType];
+            if (!cfg) return null;
+            const WpIcon = cfg.icon;
+            return (
+              <Card key={wp.id}>
+                <CardContent className="p-5">
+                  <div className="flex items-start justify-between gap-3 mb-3">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className={cn("h-8 w-8 rounded-lg flex items-center justify-center shrink-0", cfg.bgColor)}>
+                        <WpIcon className={cn("h-4 w-4", cfg.color)} />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-bold truncate">{wp.title}</p>
+                        <p className="text-xs text-muted-foreground truncate">{wp.project?.title || "Ukjent prosjekt"}</p>
+                      </div>
+                    </div>
+                    <Badge className={cn("text-[10px] shrink-0 border-0", wp.customer_approval_status === "ready_for_billing" ? "bg-primary/10 text-primary" : "bg-success/10 text-success")}>
+                      {wp.customer_approval_status === "ready_for_billing" ? "Klar for faktura" : "Kunde godkjent"}
+                    </Badge>
+                  </div>
+                  <div className="grid grid-cols-3 gap-3 text-xs">
+                    <div>
+                      <p className="text-muted-foreground">Type</p>
+                      <p className="font-medium">{cfg.label}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Godkjent av</p>
+                      <p className="font-medium">{wp.customer_approved_by || "—"}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Dato</p>
+                      <p className="font-medium">{wp.customer_approved_at ? format(new Date(wp.customer_approved_at), "d. MMM yyyy", { locale: nb }) : "—"}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </TabsContent>
         <TabsContent value="sent" className="mt-4 space-y-3">
           {sent.length === 0 ? (
             <div className="flex flex-col items-center gap-2 py-12">
