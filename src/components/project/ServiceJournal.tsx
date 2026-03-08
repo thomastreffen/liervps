@@ -157,6 +157,24 @@ export function ServiceJournal({
     })));
     if (companyRes.data) setCompanyInfo(companyRes.data);
 
+    // Fetch work packages for this project
+    try {
+      const { data: wpData } = await supabase
+        .from("events")
+        .select(`id, title, status, work_package_type, customer_visible, documentation_status,
+          event_technicians ( technician_id, technicians ( name ) )`)
+        .eq("parent_project_id", projectId)
+        .not("work_package_type", "is", null)
+        .is("deleted_at", null)
+        .order("created_at", { ascending: false }) as any;
+      setWorkPackages((wpData || []).map((d: any) => ({
+        id: d.id, title: d.title, work_package_type: d.work_package_type,
+        status: d.status, customer_visible: d.customer_visible ?? false,
+        documentation_status: d.documentation_status ?? "pending",
+        assigned_techs: (d.event_technicians || []).filter((et: any) => et.technicians).map((et: any) => et.technicians.name),
+      })));
+    } catch { setWorkPackages([]); }
+
     // Fetch form instances for this project
     try {
       const { data: instances } = await supabase
