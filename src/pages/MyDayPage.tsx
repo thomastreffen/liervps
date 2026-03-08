@@ -32,6 +32,7 @@ import { useMyDay, type MyDayBlock } from "@/hooks/useMyDay";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { MyDayChecklists } from "@/components/forms/MyDayChecklists";
 
 /* ─── Status helpers ─── */
 
@@ -376,6 +377,11 @@ function JobDetailView({
                 <p className="text-sm text-foreground whitespace-pre-line">{block.project_description}</p>
               </CardContent>
             </Card>
+          )}
+
+          {/* Checklists */}
+          {block.project_id && (
+            <MyDayChecklists projectId={block.project_id} />
           )}
 
           {/* Outlook link */}
