@@ -75,6 +75,7 @@ import ConfirmationsPage from "./pages/ConfirmationsPage";
 import AiMatcherReportPage from "./pages/AiMatcherReportPage";
 import InvoiceBasisPage from "./pages/InvoiceBasisPage";
 import ModuleManagementPage from "./pages/ModuleManagementPage";
+import ManagementPage from "./pages/ManagementPage";
 import { CompanyProvider } from "@/hooks/useCompanyContext";
 import PortalLogin from "./pages/portal/PortalLogin";
 import PortalActivate from "./pages/portal/PortalActivate";
@@ -154,6 +155,11 @@ const App = () => (
               <Route path="/projects/contracts" element={<ContractsPage />} />
               <Route path="/projects/contracts/:id" element={<ContractDetail />} />
               <Route path="/invoice-basis" element={<InvoiceBasisPage />} />
+              <Route path="/management" element={
+                <ProtectedRoute requiredRoles={["admin", "super_admin"]}>
+                  <ManagementPage />
+                </ProtectedRoute>
+              } />
               <Route path="/customers" element={<CustomersPage />} />
               <Route path="/customers/new" element={<CustomerNewPage />} />
               <Route path="/customers/import" element={<CustomerImportPage />} />
