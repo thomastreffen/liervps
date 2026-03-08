@@ -20,10 +20,9 @@ function DeliveryBadge({ status, createdAt }: { status: string; createdAt: strin
   }
   if (status === "approved" || status === "sent") {
     return (
-      <Badge variant="default" className="text-xs">
-        <CheckCircle className="mr-1 h-3 w-3" />
-        Godkjent
-      </Badge>
+      <span className="inline-flex items-center gap-1 rounded-full border border-success/20 bg-success/10 px-2 py-0.5 text-[10px] font-semibold text-success">
+        <CheckCircle className="h-2.5 w-2.5" /> Godkjent
+      </span>
     );
   }
   if (isNew) {
@@ -72,18 +71,9 @@ export default function PortalDeliveries() {
     load();
   }, [user]);
 
-  const statusLabel = (s: string) => {
-    switch (s) {
-      case "approved": return "Godkjent";
-      case "sent": return "Sendt";
-      case "review": return "Til gjennomgang";
-      default: return "Utkast";
-    }
-  };
-
   if (loading) {
     return <div className="animate-pulse space-y-4">
-      {[1, 2].map(i => <div key={i} className="h-20 rounded-xl bg-muted" />)}
+      {[1, 2].map(i => <div key={i} className="h-20 rounded-2xl bg-muted" />)}
     </div>;
   }
 
@@ -92,36 +82,36 @@ export default function PortalDeliveries() {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-xl font-semibold text-foreground">Leveranser</h2>
+      <h2 className="text-xl font-bold text-foreground">Rapporter og dokumentasjon</h2>
 
       {journals.length === 0 ? (
         <Card>
-          <CardContent className="flex flex-col items-center gap-3 py-12">
+          <CardContent className="flex flex-col items-center gap-3 py-14">
             <FileText className="h-10 w-10 text-muted-foreground/40" />
-            <p className="text-sm text-muted-foreground">Ingen leveranser tilgjengelig ennå.</p>
+            <p className="text-sm text-muted-foreground">Ingen rapporter tilgjengelig ennå.</p>
           </CardContent>
         </Card>
       ) : (
         <>
           {pendingReview.length > 0 && (
             <div className="space-y-2">
-              <p className="text-xs font-semibold uppercase tracking-wider text-warning">
+              <p className="text-xs font-bold uppercase tracking-wider text-warning">
                 Venter på din godkjenning ({pendingReview.length})
               </p>
               {pendingReview.map((j) => (
                 <Link key={j.id} to={`/portal/projects/${j.project_id}`}>
-                  <Card className="border-warning/30 transition-shadow hover:shadow-md">
-                    <CardContent className="flex items-center justify-between py-4">
+                  <Card className="border-warning/30 transition-all hover:shadow-md">
+                    <CardContent className="flex items-center justify-between p-5">
                       <div className="flex items-center gap-3">
-                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-warning/10">
-                          <FileText className="h-4 w-4 text-warning" />
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-warning/10">
+                          <FileText className="h-5 w-5 text-warning" />
                         </div>
                         <div>
-                          <p className="text-sm font-medium text-card-foreground">
-                            Servicejournal v{j.version}
+                          <p className="text-sm font-semibold text-card-foreground">
+                            Rapport v{j.version}
                           </p>
                           <p className="text-xs text-muted-foreground">
-                            {projectMap[j.project_id] || "Prosjekt"} •{" "}
+                            {projectMap[j.project_id] || "Oppdrag"} •{" "}
                             {j.updated_at && format(new Date(j.updated_at), "d. MMM yyyy", { locale: nb })}
                           </p>
                         </div>
@@ -137,24 +127,24 @@ export default function PortalDeliveries() {
           {otherJournals.length > 0 && (
             <div className="space-y-2">
               {pendingReview.length > 0 && (
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Alle leveranser
+                <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  Alle rapporter
                 </p>
               )}
               {otherJournals.map((j) => (
                 <Link key={j.id} to={`/portal/projects/${j.project_id}`}>
-                  <Card className="transition-shadow hover:shadow-md">
-                    <CardContent className="flex items-center justify-between py-4">
+                  <Card className="transition-all hover:shadow-md">
+                    <CardContent className="flex items-center justify-between p-5">
                       <div className="flex items-center gap-3">
-                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-                          <FileText className="h-4 w-4 text-primary" />
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+                          <FileText className="h-5 w-5 text-primary" />
                         </div>
                         <div>
-                          <p className="text-sm font-medium text-card-foreground">
-                            Servicejournal v{j.version}
+                          <p className="text-sm font-semibold text-card-foreground">
+                            Rapport v{j.version}
                           </p>
                           <p className="text-xs text-muted-foreground">
-                            {projectMap[j.project_id] || "Prosjekt"} •{" "}
+                            {projectMap[j.project_id] || "Oppdrag"} •{" "}
                             {j.updated_at && format(new Date(j.updated_at), "d. MMM yyyy", { locale: nb })}
                           </p>
                         </div>

@@ -20,7 +20,7 @@ interface ProjectSummary {
   updated_at: string | null;
 }
 
-function PortalActivityBadge({ label, variant }: { label: string; variant: "new" | "updated" | "waiting" | "done" }) {
+function ActivityBadge({ label, variant }: { label: string; variant: "new" | "updated" | "waiting" | "done" }) {
   const styles = {
     new: "bg-primary/10 text-primary border-primary/20",
     updated: "bg-info/10 text-info border-info/20",
@@ -97,7 +97,7 @@ export default function PortalDashboard() {
 
   if (loading) {
     return <div className="animate-pulse space-y-4">
-      {[1, 2, 3].map(i => <div key={i} className="h-24 rounded-xl bg-muted" />)}
+      {[1, 2, 3].map(i => <div key={i} className="h-28 rounded-2xl bg-muted" />)}
     </div>;
   }
 
@@ -106,102 +106,35 @@ export default function PortalDashboard() {
       {/* Welcome hero */}
       <div className="rounded-2xl border bg-card p-6 sm:p-8">
         <div className="flex items-start gap-4">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-            <Wrench className="h-6 w-6" />
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-sm">
+            <Wrench className="h-7 w-7" />
           </div>
-          <div className="space-y-1">
-            <h2 className="text-2xl font-semibold text-card-foreground">
-              Velkommen til kundeportalen{user?.fullName ? `, ${user.fullName.split(" ")[0]}` : ""}
+          <div className="space-y-1.5">
+            <h2 className="text-2xl font-bold tracking-tight text-card-foreground">
+              Hei, {user?.fullName?.split(" ")[0] || "velkommen"}!
             </h2>
-            <p className="text-sm text-muted-foreground leading-relaxed max-w-lg">
-              Her finner du prosjekter, leveranser og dokumentasjon knyttet til samarbeidet vårt.
+            <p className="text-sm text-muted-foreground leading-relaxed max-w-md">
+              {user?.accountName
+                ? `Her finner du oppdrag, rapporter og dokumentasjon fra samarbeidet med ${user.accountName}.`
+                : "Her finner du oppdrag, rapporter og dokumentasjon knyttet til vårt samarbeid."}
             </p>
-            {user?.accountName && (
-              <Badge variant="secondary" className="mt-2 text-xs">{user.accountName}</Badge>
-            )}
           </div>
         </div>
       </div>
 
-      {/* Activity indicators */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card className="relative overflow-hidden">
-          <CardContent className="flex items-center gap-3 pt-6">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-              <FolderOpen className="h-5 w-5 text-primary" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-card-foreground">{activeProjects.length}</p>
-              <p className="text-xs text-muted-foreground">Aktive prosjekter</p>
-            </div>
-          </CardContent>
-          {recentlyUpdatedProjects.length > 0 && (
-            <div className="absolute right-3 top-3">
-              <PortalActivityBadge label={`${recentlyUpdatedProjects.length} oppdatert`} variant="updated" />
-            </div>
-          )}
-        </Card>
-
-        <Card className="relative overflow-hidden">
-          <CardContent className="flex items-center gap-3 pt-6">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-accent/10">
-              <Clock className="h-5 w-5 text-accent" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-card-foreground">
-                {nextScheduled
-                  ? format(new Date(nextScheduled.start_time!), "d. MMM", { locale: nb })
-                  : "—"
-                }
-              </p>
-              <p className="text-xs text-muted-foreground">Neste arbeid</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="relative overflow-hidden">
-          <CardContent className="flex items-center gap-3 pt-6">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-              <FileText className="h-5 w-5 text-primary" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-card-foreground">{journals.length}</p>
-              <p className="text-xs text-muted-foreground">Leveranser</p>
-            </div>
-          </CardContent>
-          {recentJournals.length > 0 && (
-            <div className="absolute right-3 top-3">
-              <PortalActivityBadge label={`${recentJournals.length} ny`} variant="new" />
-            </div>
-          )}
-        </Card>
-
-        <Card className="relative overflow-hidden">
-          <CardContent className="flex items-center gap-3 pt-6">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-warning/10">
-              <AlertTriangle className="h-5 w-5 text-warning" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-card-foreground">{pendingApprovals.length}</p>
-              <p className="text-xs text-muted-foreground">Venter godkjenning</p>
-            </div>
-          </CardContent>
-          {pendingApprovals.length > 0 && (
-            <div className="absolute right-3 top-3">
-              <PortalActivityBadge label="Venter på deg" variant="waiting" />
-            </div>
-          )}
-        </Card>
-      </div>
-
-      {/* Pending approvals - prominent */}
+      {/* 1. Pending approvals – top priority */}
       {pendingApprovals.length > 0 && (
         <Card className="border-warning/30 bg-warning/5">
           <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
+            <CardTitle className="text-base font-bold flex items-center gap-2">
               <Bell className="h-4 w-4 text-warning" />
-              Venter på din godkjenning
+              Godkjenn arbeid
             </CardTitle>
+            <p className="text-xs text-muted-foreground">
+              {pendingApprovals.length === 1
+                ? "Du har 1 rapport som venter på din godkjenning"
+                : `Du har ${pendingApprovals.length} rapporter som venter på din godkjenning`}
+            </p>
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
@@ -209,17 +142,22 @@ export default function PortalDashboard() {
                 <Link
                   key={j.id}
                   to={`/portal/projects/${j.project_id}`}
-                  className="flex items-center justify-between rounded-lg border border-warning/20 bg-card p-3 transition-colors hover:bg-muted/50"
+                  className="flex items-center justify-between rounded-xl border border-warning/20 bg-card p-4 transition-all hover:shadow-md"
                 >
-                  <div>
-                    <p className="text-sm font-medium text-card-foreground">
-                      Servicejournal v{j.version}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {j.updated_at && format(new Date(j.updated_at), "d. MMM yyyy", { locale: nb })}
-                    </p>
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-warning/10">
+                      <FileText className="h-5 w-5 text-warning" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-card-foreground">
+                        Rapport v{j.version}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {j.updated_at && format(new Date(j.updated_at), "d. MMM yyyy", { locale: nb })}
+                      </p>
+                    </div>
                   </div>
-                  <PortalActivityBadge label="Venter på deg" variant="waiting" />
+                  <ActivityBadge label="Venter på deg" variant="waiting" />
                 </Link>
               ))}
             </div>
@@ -227,54 +165,18 @@ export default function PortalDashboard() {
         </Card>
       )}
 
-      {/* Active projects */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between pb-3">
-          <CardTitle className="text-base">Aktive prosjekter</CardTitle>
-          <Link to="/portal/projects" className="text-xs text-primary hover:underline flex items-center gap-1">
-            Se alle <ArrowRight className="h-3 w-3" />
-          </Link>
-        </CardHeader>
-        <CardContent>
-          {activeProjects.length === 0 ? (
-            <p className="py-6 text-center text-sm text-muted-foreground">
-              Ingen aktive prosjekter akkurat nå.
-            </p>
-          ) : (
-            <div className="space-y-2">
-              {activeProjects.slice(0, 4).map((p) => {
-                const isRecent = p.updated_at && isAfter(new Date(p.updated_at), recentCutoff);
-                return (
-                  <Link
-                    key={p.id}
-                    to={`/portal/projects/${p.id}`}
-                    className="flex items-center justify-between rounded-lg border p-3 transition-colors hover:bg-muted/50"
-                  >
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <p className="text-sm font-medium text-card-foreground">{p.title}</p>
-                        {isRecent && <PortalActivityBadge label="Oppdatert" variant="updated" />}
-                      </div>
-                      {p.address && <p className="text-xs text-muted-foreground">{p.address}</p>}
-                    </div>
-                    <Badge variant="default" className="text-xs">{statusLabel(p.status)}</Badge>
-                  </Link>
-                );
-              })}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Recent deliveries */}
+      {/* 2. New reports & documentation */}
       {recentJournals.length > 0 && (
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Sparkles className="h-4 w-4 text-primary" />
-              Nye leveranser
-            </CardTitle>
-            <Link to="/portal/deliveries" className="text-xs text-primary hover:underline flex items-center gap-1">
+            <div>
+              <CardTitle className="text-base font-bold flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-primary" />
+                Nye rapporter
+              </CardTitle>
+              <p className="text-xs text-muted-foreground mt-0.5">Siste 3 dager</p>
+            </div>
+            <Link to="/portal/deliveries" className="text-xs font-medium text-primary hover:underline flex items-center gap-1">
               Se alle <ArrowRight className="h-3 w-3" />
             </Link>
           </CardHeader>
@@ -284,23 +186,132 @@ export default function PortalDashboard() {
                 <Link
                   key={j.id}
                   to={`/portal/projects/${j.project_id}`}
-                  className="flex items-center justify-between rounded-lg border p-3 transition-colors hover:bg-muted/50"
+                  className="flex items-center justify-between rounded-xl border p-4 transition-all hover:shadow-md"
                 >
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm font-medium text-card-foreground">
-                      Servicejournal v{j.version}
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+                      <FileText className="h-5 w-5 text-primary" />
+                    </div>
+                    <p className="text-sm font-semibold text-card-foreground">
+                      Rapport v{j.version}
                     </p>
-                    <PortalActivityBadge label="Ny" variant="new" />
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    {j.created_at && format(new Date(j.created_at), "d. MMM", { locale: nb })}
-                  </p>
+                  <div className="flex items-center gap-2">
+                    <ActivityBadge label="Ny" variant="new" />
+                    <p className="text-xs text-muted-foreground">
+                      {j.created_at && format(new Date(j.created_at), "d. MMM", { locale: nb })}
+                    </p>
+                  </div>
                 </Link>
               ))}
             </div>
           </CardContent>
         </Card>
       )}
+
+      {/* 3. Summary strip */}
+      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+        <Card className="relative overflow-hidden">
+          <CardContent className="flex items-center gap-3 p-5">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+              <FolderOpen className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-card-foreground">{activeProjects.length}</p>
+              <p className="text-[11px] text-muted-foreground leading-tight">Aktive oppdrag</p>
+            </div>
+          </CardContent>
+          {recentlyUpdatedProjects.length > 0 && (
+            <div className="absolute right-2.5 top-2.5">
+              <ActivityBadge label="Oppdatert" variant="updated" />
+            </div>
+          )}
+        </Card>
+
+        <Card>
+          <CardContent className="flex items-center gap-3 p-5">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-accent/10">
+              <Clock className="h-5 w-5 text-accent" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-card-foreground">
+                {nextScheduled
+                  ? format(new Date(nextScheduled.start_time!), "d. MMM", { locale: nb })
+                  : "—"}
+              </p>
+              <p className="text-[11px] text-muted-foreground leading-tight">Neste arbeid</p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="flex items-center gap-3 p-5">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+              <FileText className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-card-foreground">{journals.length}</p>
+              <p className="text-[11px] text-muted-foreground leading-tight">Rapporter</p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="relative overflow-hidden">
+          <CardContent className="flex items-center gap-3 p-5">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-warning/10">
+              <AlertTriangle className="h-5 w-5 text-warning" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-card-foreground">{pendingApprovals.length}</p>
+              <p className="text-[11px] text-muted-foreground leading-tight">Godkjenn arbeid</p>
+            </div>
+          </CardContent>
+          {pendingApprovals.length > 0 && (
+            <div className="absolute right-2.5 top-2.5">
+              <ActivityBadge label="Venter på deg" variant="waiting" />
+            </div>
+          )}
+        </Card>
+      </div>
+
+      {/* 4. Active projects */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between pb-3">
+          <CardTitle className="text-base font-bold">Aktive oppdrag</CardTitle>
+          <Link to="/portal/projects" className="text-xs font-medium text-primary hover:underline flex items-center gap-1">
+            Se alle <ArrowRight className="h-3 w-3" />
+          </Link>
+        </CardHeader>
+        <CardContent>
+          {activeProjects.length === 0 ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">
+              Ingen aktive oppdrag akkurat nå.
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {activeProjects.slice(0, 4).map((p) => {
+                const isRecent = p.updated_at && isAfter(new Date(p.updated_at), recentCutoff);
+                return (
+                  <Link
+                    key={p.id}
+                    to={`/portal/projects/${p.id}`}
+                    className="flex items-center justify-between rounded-xl border p-4 transition-all hover:shadow-md"
+                  >
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-semibold text-card-foreground">{p.title}</p>
+                        {isRecent && <ActivityBadge label="Oppdatert" variant="updated" />}
+                      </div>
+                      {p.address && <p className="text-xs text-muted-foreground mt-0.5">{p.address}</p>}
+                    </div>
+                    <Badge variant="default" className="text-xs shrink-0">{statusLabel(p.status)}</Badge>
+                  </Link>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
