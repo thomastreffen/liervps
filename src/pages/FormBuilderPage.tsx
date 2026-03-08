@@ -293,8 +293,8 @@ export default function FormBuilderPage() {
               <ArrowLeft className="h-4 w-4" />
             </Button>
             <div>
-              <h1 className="text-lg font-bold">Skjemamaler</h1>
-              <p className="text-xs text-muted-foreground">Bygg og administrer skjemamaler</p>
+              <h1 className="text-lg font-bold">Skjema & maler</h1>
+              <p className="text-xs text-muted-foreground">Sentral styring av skjemaer, sjekklister og maler</p>
             </div>
           </div>
           <Button size="sm" className="rounded-xl gap-1.5" onClick={createNewTemplate}>
