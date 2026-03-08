@@ -75,6 +75,10 @@ import ConfirmationsPage from "./pages/ConfirmationsPage";
 import AiMatcherReportPage from "./pages/AiMatcherReportPage";
 import ModuleManagementPage from "./pages/ModuleManagementPage";
 import { CompanyProvider } from "@/hooks/useCompanyContext";
+import PortalLogin from "./pages/portal/PortalLogin";
+import PortalActivate from "./pages/portal/PortalActivate";
+import PortalDashboard from "./pages/portal/PortalDashboard";
+import PortalProject from "./pages/portal/PortalProject";
 
 const queryClient = new QueryClient();
 
@@ -93,6 +97,12 @@ const App = () => (
             <Route path="/offer/accept/:token" element={<OfferAcceptPage />} />
             <Route path="/approve-change-order" element={<ApproveChangeOrderPage />} />
             <Route path="/invite/thread/:token" element={<ThreadInviteAcceptPage />} />
+
+            {/* Customer Portal */}
+            <Route path="/portal/login" element={<PortalLogin />} />
+            <Route path="/portal/activate" element={<PortalActivate />} />
+            <Route path="/portal" element={<PortalDashboard />} />
+            <Route path="/portal/projects/:id" element={<PortalProject />} />
 
             {/* App layout with sidebar */}
             <Route
