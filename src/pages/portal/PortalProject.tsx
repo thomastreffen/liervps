@@ -3,8 +3,8 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { usePortal } from "@/hooks/usePortal";
 import {
-  Loader2, ArrowLeft, FileText, Clock, User, MapPin,
-  CheckCircle, Image as ImageIcon
+  ArrowLeft, FileText, Clock, User, MapPin,
+  CheckCircle, Image as ImageIcon, Bell
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,7 +24,6 @@ export default function PortalProject() {
   useEffect(() => {
     if (!user) return;
     const load = async () => {
-      // Verify access
       const { data: access } = await supabase
         .from("customer_portal_project_access")
         .select("project_id")
@@ -77,12 +76,12 @@ export default function PortalProject() {
 
   if (loading) {
     return <div className="animate-pulse space-y-4">
-      {[1, 2, 3].map(i => <div key={i} className="h-24 rounded-xl bg-muted" />)}
+      {[1, 2, 3].map(i => <div key={i} className="h-28 rounded-2xl bg-muted" />)}
     </div>;
   }
 
   if (!project) {
-    return <p className="py-12 text-center text-muted-foreground">Prosjekt ikke funnet</p>;
+    return <p className="py-12 text-center text-muted-foreground">Oppdrag ikke funnet</p>;
   }
 
   return (
@@ -94,19 +93,19 @@ export default function PortalProject() {
           </Link>
         </Button>
         <div>
-          <h2 className="text-xl font-semibold text-foreground">{project.title}</h2>
-          <p className="text-sm text-muted-foreground">Prosjektdetaljer</p>
+          <h2 className="text-xl font-bold text-foreground">{project.title}</h2>
+          <p className="text-sm text-muted-foreground">Oppdragsdetaljer</p>
         </div>
       </div>
 
       {/* Status */}
       <Card>
-        <CardContent className="space-y-4 pt-6">
+        <CardContent className="space-y-4 p-6">
           <div className="flex items-center justify-between">
-            <h3 className="font-semibold text-card-foreground">Status</h3>
+            <h3 className="font-bold text-card-foreground">Status</h3>
             <Badge>{statusLabel(project.status)}</Badge>
           </div>
-          <Progress value={progressValue(project.status)} className="h-2" />
+          <Progress value={progressValue(project.status)} className="h-2.5" />
           <div className="grid grid-cols-2 gap-4 text-sm">
             {project.address && (
               <div className="flex items-start gap-2">
@@ -135,43 +134,44 @@ export default function PortalProject() {
         </CardContent>
       </Card>
 
-      {/* Leveranser */}
+      {/* Rapporter */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
+          <CardTitle className="flex items-center gap-2 text-base font-bold">
             <FileText className="h-4 w-4" />
-            Leveranser
+            Rapporter og dokumentasjon
           </CardTitle>
         </CardHeader>
         <CardContent>
           {journals.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-4 text-center">
-              Ingen leveranser tilgjengelig ennå.
+            <p className="text-sm text-muted-foreground py-6 text-center">
+              Ingen rapporter tilgjengelig ennå.
             </p>
           ) : (
             <div className="space-y-3">
               {journals.map((j) => (
-                <div key={j.id} className="flex items-center justify-between rounded-lg border p-3">
+                <div key={j.id} className="flex items-center justify-between rounded-xl border p-4">
                   <div>
-                    <p className="text-sm font-medium text-card-foreground">
-                      Servicejournal v{j.version}
+                    <p className="text-sm font-semibold text-card-foreground">
+                      Rapport v{j.version}
                     </p>
                     <p className="text-xs text-muted-foreground">
                       {j.status === "approved" ? "Godkjent" :
                        j.status === "sent" ? "Sendt" :
-                       j.status === "review" ? "Til gjennomgang" : "Utkast"}
+                       j.status === "review" ? "Venter på godkjenning" : "Utkast"}
                       {j.updated_at && ` • ${format(new Date(j.updated_at), "d. MMM yyyy", { locale: nb })}`}
                     </p>
                   </div>
                   <div className="flex gap-2">
                     {j.status === "review" && (
-                      <Badge variant="outline" className="text-xs">Venter godkjenning</Badge>
+                      <span className="inline-flex items-center gap-1 rounded-full border border-warning/20 bg-warning/10 px-2 py-0.5 text-[10px] font-semibold text-warning">
+                        <Bell className="h-2.5 w-2.5" /> Venter på deg
+                      </span>
                     )}
                     {(j.status === "approved" || j.status === "sent") && (
-                      <Badge variant="default" className="text-xs">
-                        <CheckCircle className="mr-1 h-3 w-3" />
-                        Godkjent
-                      </Badge>
+                      <span className="inline-flex items-center gap-1 rounded-full border border-success/20 bg-success/10 px-2 py-0.5 text-[10px] font-semibold text-success">
+                        <CheckCircle className="h-2.5 w-2.5" /> Godkjent
+                      </span>
                     )}
                   </div>
                 </div>
@@ -184,13 +184,13 @@ export default function PortalProject() {
       {/* Dokumentasjon */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
+          <CardTitle className="flex items-center gap-2 text-base font-bold">
             <ImageIcon className="h-4 w-4" />
-            Dokumentasjon
+            Bilder og filer
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground py-4 text-center">
+          <p className="text-sm text-muted-foreground py-6 text-center">
             Dokumenter og bilder deles her når de er klare.
           </p>
         </CardContent>

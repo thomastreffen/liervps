@@ -1,14 +1,14 @@
 import { Outlet, Link, useLocation, Navigate } from "react-router-dom";
 import { usePortal } from "@/hooks/usePortal";
-import { Loader2, Wrench, LayoutDashboard, FolderOpen, FileText, MessageSquare, LogOut, Users, Settings } from "lucide-react";
+import { Loader2, Wrench, LayoutDashboard, FolderOpen, FileText, MessageSquare, LogOut, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
 const navItems = [
   { path: "/portal", label: "Oversikt", icon: LayoutDashboard, end: true },
-  { path: "/portal/projects", label: "Prosjekter", icon: FolderOpen },
-  { path: "/portal/deliveries", label: "Leveranser", icon: FileText },
+  { path: "/portal/projects", label: "Oppdrag", icon: FolderOpen },
+  { path: "/portal/deliveries", label: "Rapporter", icon: FileText },
   { path: "/portal/messages", label: "Meldinger", icon: MessageSquare },
 ];
 
@@ -32,7 +32,7 @@ export default function PortalLayout() {
     switch (r) {
       case "customer_admin": return "Administrator";
       case "customer_finance": return "Økonomi";
-      default: return "Bruker";
+      default: return "Kontakt";
     }
   };
 
@@ -42,19 +42,21 @@ export default function PortalLayout() {
       <header className="sticky top-0 z-20 border-b bg-card">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
               <Wrench className="h-5 w-5" />
             </div>
             <div>
-              <h1 className="text-sm font-semibold text-card-foreground">
-                {user.accountName || "Kundeportal"}
+              <h1 className="text-sm font-bold text-card-foreground tracking-tight">
+                Kundeportal
               </h1>
-              <p className="text-xs text-muted-foreground">MCS Service</p>
+              <p className="text-xs text-muted-foreground">
+                {user.accountName ? `Samarbeid med ${user.accountName}` : "MCS Service"}
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-3">
             <div className="hidden sm:flex flex-col items-end">
-              <span className="text-sm text-card-foreground">{user.fullName}</span>
+              <span className="text-sm font-medium text-card-foreground">{user.fullName}</span>
               <Badge variant="secondary" className="text-[10px]">
                 {roleLabel(user.portalRole)}
               </Badge>
