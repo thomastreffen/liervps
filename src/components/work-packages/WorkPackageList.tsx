@@ -98,6 +98,34 @@ export function WorkPackageList({ projectId, isAdmin }: Props) {
     return "bg-info/10 text-info";
   };
 
+  const approvalLabel = (s: string | null) => {
+    const map: Record<string, { label: string; color: string }> = {
+      awaiting_customer_approval: { label: "Venter kunde", color: "bg-warning/10 text-warning" },
+      approved: { label: "Kunde godkjent", color: "bg-success/10 text-success" },
+      ready_for_billing: { label: "Klar for faktura", color: "bg-primary/10 text-primary" },
+      rejected: { label: "Kunde avvist", color: "bg-destructive/10 text-destructive" },
+    };
+    return s ? map[s] : null;
+  };
+
+  const sendToApproval = async (wpId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    await supabase.from("events").update({
+      customer_approval_status: "awaiting_customer_approval",
+    } as any).eq("id", wpId);
+    await supabase.from("activity_log").insert({
+      entity_type: "job",
+      entity_id: projectId,
+      action: "work_package_sent_for_approval",
+      type: "status_change",
+      title: "Arbeidspakke sendt til kundegodkjenning",
+      visibility: "shared",
+      metadata: { work_package_id: wpId },
+    });
+    toast.success("Sendt til kundegodkjenning");
+    fetchPackages();
+  };
+
   const filtered = packages.filter(wp => {
     if (filterType !== "all" && wp.work_package_type !== filterType) return false;
     if (filterStatus !== "all") {
