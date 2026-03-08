@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from "react";
+import { checkRequiredForms } from "@/components/forms/ProjectFormsSection";
 import { useNavigate } from "react-router-dom";
 import { format, isTomorrow } from "date-fns";
 import { nb } from "date-fns/locale";
@@ -32,6 +33,7 @@ import { useMyDay, type MyDayBlock } from "@/hooks/useMyDay";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { MyDayChecklists } from "@/components/forms/MyDayChecklists";
 
 /* ─── Status helpers ─── */
 
@@ -222,6 +224,18 @@ function JobDetailView({
   const handleComplete = async () => {
     if (!block.project_id) return;
     setSubmitting(true);
+
+    // Check required forms
+    const { canComplete, missingForms } = await checkRequiredForms(block.project_id, "required_before_completion");
+    if (!canComplete) {
+      toast.error("Obligatoriske skjema mangler", {
+        description: `Fullfør: ${missingForms.join(", ")}`,
+        duration: 5000,
+      });
+      setSubmitting(false);
+      return;
+    }
+
     try {
       await supabase.from("events").update({ status: "completed" as any }).eq("id", block.project_id);
       await (supabase as any).from("activity_log").insert({
@@ -376,6 +390,11 @@ function JobDetailView({
                 <p className="text-sm text-foreground whitespace-pre-line">{block.project_description}</p>
               </CardContent>
             </Card>
+          )}
+
+          {/* Checklists */}
+          {block.project_id && (
+            <MyDayChecklists projectId={block.project_id} />
           )}
 
           {/* Outlook link */}
