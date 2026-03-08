@@ -84,7 +84,7 @@ export function useManagementData() {
       const { data: techs } = await supabase
         .from("employment_profiles")
         .select("id, person_id, people(display_name)")
-        .eq("is_schedulable", true) as { data: any[] | null };
+        .eq("is_schedulable", true) as any;
 
       // Build tech status map
       const techMap: Record<string, { name: string; minutes: number; blockCount: number }> = {};
@@ -135,12 +135,12 @@ export function useManagementData() {
         .eq("status", "review");
 
       // 5. Ready for invoice
-      const { data: invoiceData } = await supabase
+      const { data: invoiceData } = await (supabase
         .from("invoice_basis")
         .select("*")
         .eq("billing_status", "ready")
         .order("approved_at", { ascending: false })
-        .limit(10);
+        .limit(10) as any);
 
       setInvoiceItems(
         (invoiceData || []).map((r: any) => ({
@@ -160,11 +160,11 @@ export function useManagementData() {
         .eq("billing_status", "ready");
 
       // 6. Open deviations
-      const { count: deviations } = await supabase
+      const { count: deviations } = await (supabase
         .from("job_tasks")
         .select("id", { count: "exact", head: true })
         .eq("type", "deviation")
-        .in("status", ["open", "new"]);
+        .in("status", ["open", "new"]) as any);
 
       setKpis({
         availableTechs: availCount,
