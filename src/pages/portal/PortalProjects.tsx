@@ -3,11 +3,12 @@ import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { usePortal } from "@/hooks/usePortal";
 import { FolderOpen, Sparkles } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { isAfter, subDays, format } from "date-fns";
 import { nb } from "date-fns/locale";
+import { TimeAgo } from "@/components/portal/TimeAgo";
 
 interface Project {
   id: string;
@@ -71,11 +72,12 @@ export default function PortalProjects() {
   const planned = projects.filter((p) => p.status === "planned");
   const completed = projects.filter((p) => p.status === "completed");
 
-  const renderList = (list: Project[], emptyMsg: string) => (
+  const renderList = (list: Project[], emptyMsg: string, emptyHint: string) => (
     list.length === 0 ? (
       <div className="py-10 text-center">
         <FolderOpen className="mx-auto h-10 w-10 text-muted-foreground/40" />
         <p className="mt-2 text-sm text-muted-foreground">{emptyMsg}</p>
+        <p className="mt-0.5 text-xs text-muted-foreground/70">{emptyHint}</p>
       </div>
     ) : (
       <div className="grid gap-3 sm:grid-cols-2">
@@ -104,6 +106,7 @@ export default function PortalProjects() {
                       </span>
                     )}
                   </div>
+                  <TimeAgo date={p.updated_at} className="text-[10px] text-muted-foreground/70 mt-1 block" />
                 </CardContent>
               </Card>
             </Link>
@@ -129,10 +132,18 @@ export default function PortalProjects() {
           <TabsTrigger value="completed">Fullførte ({completed.length})</TabsTrigger>
           <TabsTrigger value="all">Alle ({projects.length})</TabsTrigger>
         </TabsList>
-        <TabsContent value="active" className="mt-4">{renderList(active, "Ingen pågående oppdrag.")}</TabsContent>
-        <TabsContent value="planned" className="mt-4">{renderList(planned, "Ingen planlagte oppdrag.")}</TabsContent>
-        <TabsContent value="completed" className="mt-4">{renderList(completed, "Ingen fullførte oppdrag ennå.")}</TabsContent>
-        <TabsContent value="all" className="mt-4">{renderList(projects, "Ingen oppdrag tilgjengelig.")}</TabsContent>
+        <TabsContent value="active" className="mt-4">
+          {renderList(active, "Ingen pågående oppdrag.", "Du får varsel når nye oppdrag starter.")}
+        </TabsContent>
+        <TabsContent value="planned" className="mt-4">
+          {renderList(planned, "Ingen planlagte oppdrag.", "Planlagte oppdrag vises her.")}
+        </TabsContent>
+        <TabsContent value="completed" className="mt-4">
+          {renderList(completed, "Ingen fullførte oppdrag ennå.", "Fullførte oppdrag samles her.")}
+        </TabsContent>
+        <TabsContent value="all" className="mt-4">
+          {renderList(projects, "Ingen oppdrag tilgjengelig.", "Oppdrag vises her når de er opprettet.")}
+        </TabsContent>
       </Tabs>
     </div>
   );

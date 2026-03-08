@@ -4,12 +4,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { usePortal } from "@/hooks/usePortal";
 import {
   FolderOpen, FileText, Clock, CheckCircle, AlertTriangle, ArrowRight,
-  Wrench, Sparkles, Bell
+  Wrench, Sparkles, Bell, Info
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { format, isAfter, subDays } from "date-fns";
 import { nb } from "date-fns/locale";
+import { TimeAgo } from "@/components/portal/TimeAgo";
 
 interface ProjectSummary {
   id: string;
@@ -122,6 +123,19 @@ export default function PortalDashboard() {
         </div>
       </div>
 
+      {/* First-time welcome tip */}
+      {projects.length === 0 && journals.length === 0 && (
+        <div className="flex items-start gap-3 rounded-xl border border-primary/20 bg-primary/5 p-4">
+          <Info className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-semibold text-card-foreground">Velkommen til kundeportalen!</p>
+            <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+              Her kan du følge oppdrag, se rapporter og godkjenne arbeid. Du får varsel når det er noe nytt.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* 1. Pending approvals – top priority */}
       {pendingApprovals.length > 0 && (
         <Card className="border-warning/30 bg-warning/5">
@@ -152,9 +166,7 @@ export default function PortalDashboard() {
                       <p className="text-sm font-semibold text-card-foreground">
                         Rapport v{j.version}
                       </p>
-                      <p className="text-xs text-muted-foreground">
-                        {j.updated_at && format(new Date(j.updated_at), "d. MMM yyyy", { locale: nb })}
-                      </p>
+                      <TimeAgo date={j.updated_at} />
                     </div>
                   </div>
                   <ActivityBadge label="Venter på deg" variant="waiting" />
@@ -192,16 +204,14 @@ export default function PortalDashboard() {
                     <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10">
                       <FileText className="h-5 w-5 text-primary" />
                     </div>
-                    <p className="text-sm font-semibold text-card-foreground">
-                      Rapport v{j.version}
-                    </p>
+                    <div>
+                      <p className="text-sm font-semibold text-card-foreground">
+                        Rapport v{j.version}
+                      </p>
+                      <TimeAgo date={j.created_at} />
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <ActivityBadge label="Ny" variant="new" />
-                    <p className="text-xs text-muted-foreground">
-                      {j.created_at && format(new Date(j.created_at), "d. MMM", { locale: nb })}
-                    </p>
-                  </div>
+                  <ActivityBadge label="Ny" variant="new" />
                 </Link>
               ))}
             </div>
@@ -284,9 +294,11 @@ export default function PortalDashboard() {
         </CardHeader>
         <CardContent>
           {activeProjects.length === 0 ? (
-            <p className="py-8 text-center text-sm text-muted-foreground">
-              Ingen aktive oppdrag akkurat nå.
-            </p>
+            <div className="flex flex-col items-center gap-2 py-10">
+              <FolderOpen className="h-10 w-10 text-muted-foreground/40" />
+              <p className="text-sm text-muted-foreground">Ingen aktive oppdrag akkurat nå.</p>
+              <p className="text-xs text-muted-foreground/70">Du får varsel når nye oppdrag starter.</p>
+            </div>
           ) : (
             <div className="space-y-2">
               {activeProjects.slice(0, 4).map((p) => {
@@ -297,14 +309,17 @@ export default function PortalDashboard() {
                     to={`/portal/projects/${p.id}`}
                     className="flex items-center justify-between rounded-xl border p-4 transition-all hover:shadow-md"
                   >
-                    <div>
+                    <div className="min-w-0">
                       <div className="flex items-center gap-2">
-                        <p className="text-sm font-semibold text-card-foreground">{p.title}</p>
+                        <p className="text-sm font-semibold text-card-foreground truncate">{p.title}</p>
                         {isRecent && <ActivityBadge label="Oppdatert" variant="updated" />}
                       </div>
-                      {p.address && <p className="text-xs text-muted-foreground mt-0.5">{p.address}</p>}
+                      <div className="flex items-center gap-2 mt-0.5">
+                        {p.address && <p className="text-xs text-muted-foreground truncate">{p.address}</p>}
+                        <TimeAgo date={p.updated_at} className="text-[10px] text-muted-foreground/70 shrink-0" />
+                      </div>
                     </div>
-                    <Badge variant="default" className="text-xs shrink-0">{statusLabel(p.status)}</Badge>
+                    <Badge variant="default" className="text-xs shrink-0 ml-2">{statusLabel(p.status)}</Badge>
                   </Link>
                 );
               })}
