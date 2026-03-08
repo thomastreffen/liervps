@@ -5093,6 +5093,7 @@ export type Database = {
           notification_type: string
           portal_link: string | null
           portal_user_id: string
+          read_at: string | null
           status: string
           subject: string
         }
@@ -5107,6 +5108,7 @@ export type Database = {
           notification_type: string
           portal_link?: string | null
           portal_user_id: string
+          read_at?: string | null
           status?: string
           subject: string
         }
@@ -5121,6 +5123,7 @@ export type Database = {
           notification_type?: string
           portal_link?: string | null
           portal_user_id?: string
+          read_at?: string | null
           status?: string
           subject?: string
         }
