@@ -76,20 +76,20 @@ export function useManagementData() {
       // 1. Fetch today's schedule blocks to compute tech statuses
       const { data: blocks } = await supabase
         .from("schedule_blocks")
-        .select("id, technician_id, technician_name, start_at, end_at")
+        .select("id, technician_id, title, start_at, end_at")
         .gte("start_at", `${todayStr}T00:00:00`)
-        .lte("start_at", `${todayStr}T23:59:59`);
+        .lte("start_at", `${todayStr}T23:59:59`) as { data: any[] | null };
 
       // 2. Fetch all schedulable people
       const { data: techs } = await supabase
         .from("employment_profiles")
         .select("id, person_id, people(display_name)")
-        .eq("is_schedulable", true);
+        .eq("is_schedulable", true) as { data: any[] | null };
 
       // Build tech status map
       const techMap: Record<string, { name: string; minutes: number; blockCount: number }> = {};
       for (const t of techs || []) {
-        const name = (t as any).people?.display_name || "Ukjent";
+        const name = t.people?.display_name || "Ukjent";
         techMap[t.person_id] = { name, minutes: 0, blockCount: 0 };
       }
 
@@ -97,7 +97,7 @@ export function useManagementData() {
         const tid = b.technician_id;
         if (!tid) continue;
         if (!techMap[tid]) {
-          techMap[tid] = { name: b.technician_name || "Ukjent", minutes: 0, blockCount: 0 };
+          techMap[tid] = { name: b.title || "Ukjent", minutes: 0, blockCount: 0 };
         }
         const dur = (new Date(b.end_at).getTime() - new Date(b.start_at).getTime()) / 60000;
         techMap[tid].minutes += dur;
