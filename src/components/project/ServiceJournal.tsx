@@ -758,6 +758,58 @@ export function ServiceJournal({
             </Section>
           )}
 
+          {/* 4b. Arbeidspakker */}
+          {sections.arbeidspakker && (
+            <Section title="Arbeidspakker" icon={<ClipboardList className="h-4 w-4" />} count={(isCustomer ? workPackages.filter(w => w.customer_visible) : workPackages).length}>
+              {(() => {
+                const visibleWps = isCustomer ? workPackages.filter(w => w.customer_visible && w.documentation_status === "complete") : workPackages;
+                if (visibleWps.length === 0) return <EmptyState text="Ingen arbeidspakker" />;
+                return (
+                  <div className="space-y-2">
+                    {visibleWps.map(wp => {
+                      const cfg = WP_TYPE_CONFIG[wp.work_package_type as WorkPackageType];
+                      const docCfg = DOC_STATUS_CONFIG[wp.documentation_status] || DOC_STATUS_CONFIG.pending;
+                      if (!cfg) return null;
+                      const WpIcon = cfg.icon;
+                      const isDone = wp.status === "completed" || wp.status === "ready_for_invoicing";
+                      return (
+                        <div key={wp.id} className="rounded-xl border border-border/40 bg-card p-3">
+                          <div className="flex items-center gap-2.5">
+                            <div className={cn("h-7 w-7 rounded-lg flex items-center justify-center shrink-0", cfg.bgColor)}>
+                              <WpIcon className={cn("h-3.5 w-3.5", cfg.color)} />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-semibold truncate">{wp.title}</p>
+                              <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                                <Badge variant="outline" className={cn("text-[9px] px-1.5 py-0 border-0 rounded-md", cfg.bgColor, cfg.color)}>
+                                  {isCustomer ? cfg.portalLabel : cfg.label}
+                                </Badge>
+                                <Badge variant="outline" className={cn("text-[9px] px-1.5 py-0 border-0 rounded-md", isDone ? "bg-success/10 text-success" : "bg-info/10 text-info")}>
+                                  {isDone ? "Ferdig" : "Pågår"}
+                                </Badge>
+                                {!isCustomer && (
+                                  <Badge variant="outline" className={cn("text-[9px] px-1.5 py-0 border-0 rounded-md", docCfg.color)}>
+                                    {docCfg.label}
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+                            {!isCustomer && wp.customer_visible && <Eye className="h-3 w-3 text-primary shrink-0" />}
+                          </div>
+                          {wp.assigned_techs.length > 0 && (
+                            <p className="text-[10px] text-muted-foreground flex items-center gap-1 mt-1.5 ml-9">
+                              <User className="h-2.5 w-2.5" /> {wp.assigned_techs.join(", ")}
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+            </Section>
+          )}
+
           {/* 5. Dokumentasjon */}
           {sections.dokumentasjon && (
             <Section title="Dokumentasjon" icon={<FileImage className="h-4 w-4" />}
