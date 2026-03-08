@@ -153,6 +153,61 @@ export function ServiceJournal({
     })));
     if (companyRes.data) setCompanyInfo(companyRes.data);
 
+    // Fetch form instances for this project
+    try {
+      const { data: instances } = await supabase
+        .from("form_instances")
+        .select("id, template_id, status, created_by, updated_at, answers")
+        .eq("project_id", projectId)
+        .in("status", ["completed", "signed", "in_progress"]);
+
+      if (instances && instances.length > 0) {
+        const tplIds = [...new Set((instances as any[]).map((i: any) => i.template_id))];
+        const { data: tpls } = await (supabase as any)
+          .from("form_templates")
+          .select("id, title, form_type")
+          .in("id", tplIds);
+        const tplMap = new Map((tpls || []).map((t: any) => [t.id, t]));
+
+        // Get user names for created_by
+        const userIds = [...new Set((instances as any[]).filter((i: any) => i.created_by).map((i: any) => i.created_by))];
+        let userMap = new Map<string, string>();
+        if (userIds.length > 0) {
+          const { data: accounts } = await supabase
+            .from("user_accounts")
+            .select("auth_user_id, people!inner(full_name)")
+            .in("auth_user_id", userIds) as any;
+          for (const a of accounts || []) {
+            userMap.set(a.auth_user_id, a.people?.full_name || "Ukjent");
+          }
+        }
+
+        setFormResults((instances as any[]).map((inst: any) => {
+          const tpl = tplMap.get(inst.template_id);
+          const answers = inst.answers || {};
+          const keyAnswers: string[] = [];
+          // Extract up to 3 key answers for summary
+          const answerEntries = Object.entries(answers);
+          for (const [, val] of answerEntries.slice(0, 3)) {
+            if (typeof val === "string" && val.length > 0) keyAnswers.push(val.slice(0, 60));
+            else if (typeof val === "object" && val !== null && (val as any).status) keyAnswers.push(`${(val as any).status}`);
+          }
+          return {
+            id: inst.id,
+            title: tpl?.title || "Ukjent skjema",
+            form_type: tpl?.form_type || "checklist",
+            status: inst.status,
+            filled_by: userMap.get(inst.created_by) || null,
+            updated_at: inst.updated_at,
+            has_signature: answerEntries.some(([, v]) => typeof v === "string" && (v as string).startsWith("data:image")),
+            key_answers: keyAnswers,
+          };
+        }));
+      } else {
+        setFormResults([]);
+      }
+    } catch { setFormResults([]); }
+
     // Load saved journal
     if (journalRes.data && !journalRes.error) {
       const j = journalRes.data as any;
