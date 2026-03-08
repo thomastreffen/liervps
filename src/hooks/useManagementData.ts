@@ -74,17 +74,17 @@ export function useManagementData() {
 
     try {
       // 1. Fetch today's schedule blocks to compute tech statuses
-      const { data: blocks } = await supabase
+      const { data: blocks } = await (supabase
         .from("schedule_blocks")
         .select("id, technician_id, title, start_at, end_at")
         .gte("start_at", `${todayStr}T00:00:00`)
-        .lte("start_at", `${todayStr}T23:59:59`) as { data: any[] | null };
+        .lte("start_at", `${todayStr}T23:59:59`) as any);
 
       // 2. Fetch all schedulable people
-      const { data: techs } = await supabase
+      const { data: techs } = await (supabase
         .from("employment_profiles")
         .select("id, person_id, people(display_name)")
-        .eq("is_schedulable", true) as any;
+        .eq("is_schedulable", true) as any);
 
       // Build tech status map
       const techMap: Record<string, { name: string; minutes: number; blockCount: number }> = {};
