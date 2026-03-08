@@ -84,6 +84,7 @@ import PortalProject from "./pages/portal/PortalProject";
 import PortalDeliveries from "./pages/portal/PortalDeliveries";
 import PortalMessages from "./pages/portal/PortalMessages";
 import PortalTeam from "./pages/portal/PortalTeam";
+import PortalNotificationSettings from "./pages/portal/PortalNotificationSettings";
 import { PortalProvider } from "@/hooks/usePortal";
 
 const queryClient = new QueryClient();
@@ -114,6 +115,7 @@ const App = () => (
               <Route path="/portal/deliveries" element={<PortalDeliveries />} />
               <Route path="/portal/messages" element={<PortalMessages />} />
               <Route path="/portal/team" element={<PortalTeam />} />
+              <Route path="/portal/settings" element={<PortalNotificationSettings />} />
             </Route>
 
             {/* App layout with sidebar */}
