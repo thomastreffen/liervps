@@ -4,15 +4,20 @@ import { supabase } from "@/integrations/supabase/client";
 import { usePortal } from "@/hooks/usePortal";
 import {
   ArrowLeft, FileText, Clock, User, MapPin,
-  CheckCircle, Image as ImageIcon, Bell
+  CheckCircle, Image as ImageIcon, Bell, Lock, ShieldCheck, Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { format } from "date-fns";
 import { nb } from "date-fns/locale";
 import { TimeAgo } from "@/components/portal/TimeAgo";
 import { StatusProgression } from "@/components/portal/StatusProgression";
+import { toast } from "sonner";
 
 export default function PortalProject() {
   const { id } = useParams();
@@ -21,41 +26,60 @@ export default function PortalProject() {
   const [project, setProject] = useState<any>(null);
   const [journals, setJournals] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [approving, setApproving] = useState<string | null>(null);
+
+  const load = async () => {
+    if (!user) return;
+    const { data: access } = await supabase
+      .from("customer_portal_project_access")
+      .select("project_id")
+      .or(`portal_user_id.eq.${user.id}${user.accountId ? `,account_id.eq.${user.accountId}` : ""}`)
+      .eq("project_id", id!)
+      .maybeSingle();
+
+    if (!access) {
+      navigate("/portal/projects", { replace: true });
+      return;
+    }
+
+    const { data: proj } = await supabase
+      .from("events")
+      .select("id, title, status, address, description, start_time, end_time, customer_name, updated_at")
+      .eq("id", id!)
+      .maybeSingle();
+
+    setProject(proj);
+
+    const { data: sj } = await supabase
+      .from("service_journals")
+      .select("*")
+      .eq("project_id", id!)
+      .order("version", { ascending: false });
+
+    setJournals(sj || []);
+    setLoading(false);
+  };
 
   useEffect(() => {
-    if (!user) return;
-    const load = async () => {
-      const { data: access } = await supabase
-        .from("customer_portal_project_access")
-        .select("project_id")
-        .or(`portal_user_id.eq.${user.id}${user.accountId ? `,account_id.eq.${user.accountId}` : ""}`)
-        .eq("project_id", id!)
-        .maybeSingle();
-
-      if (!access) {
-        navigate("/portal/projects", { replace: true });
-        return;
-      }
-
-      const { data: proj } = await supabase
-        .from("events")
-        .select("id, title, status, address, description, start_time, end_time, customer_name, updated_at")
-        .eq("id", id!)
-        .maybeSingle();
-
-      setProject(proj);
-
-      const { data: sj } = await supabase
-        .from("service_journals")
-        .select("*")
-        .eq("project_id", id!)
-        .order("version", { ascending: false });
-
-      setJournals(sj || []);
-      setLoading(false);
-    };
     load();
   }, [id, user, navigate]);
+
+  const handleApprove = async (journalId: string) => {
+    setApproving(journalId);
+    try {
+      const { data, error } = await supabase.functions.invoke("portal-approve-journal", {
+        body: { journal_id: journalId },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast.success("Rapport godkjent! Takk for bekreftelsen.");
+      await load();
+    } catch (err: any) {
+      toast.error(err.message || "Kunne ikke godkjenne rapporten");
+    } finally {
+      setApproving(null);
+    }
+  };
 
   const statusLabel = (s: string) => {
     switch (s) {
@@ -160,35 +184,87 @@ export default function PortalProject() {
             </div>
           ) : (
             <div className="space-y-3">
-              {journals.map((j) => (
-                <div key={j.id} className="flex items-center justify-between rounded-xl border p-4">
-                  <div>
-                    <p className="text-sm font-semibold text-card-foreground">
-                      Rapport v{j.version}
-                    </p>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      <p className="text-xs text-muted-foreground">
-                        {j.status === "approved" ? "Godkjent" :
-                         j.status === "sent" ? "Sendt" :
-                         j.status === "review" ? "Venter på godkjenning" : "Utkast"}
-                      </p>
-                      <TimeAgo date={j.updated_at} className="text-[10px] text-muted-foreground/70" />
+              {journals.map((j) => {
+                const isLocked = !!j.locked_at;
+                const isReview = j.status === "review";
+                const isApproved = j.status === "approved" || j.status === "sent";
+
+                return (
+                  <div key={j.id} className={`rounded-xl border p-4 ${isReview ? "border-warning/30 bg-warning/[0.02]" : ""}`}>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-semibold text-card-foreground">
+                            Rapport v{j.version}
+                          </p>
+                          {isLocked && (
+                            <span className="inline-flex items-center gap-0.5 text-[10px] text-muted-foreground">
+                              <Lock className="h-2.5 w-2.5" /> Låst
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <p className="text-xs text-muted-foreground">
+                            {isApproved ? "Godkjent" :
+                             j.status === "review" ? "Venter på godkjenning" : "Utkast"}
+                          </p>
+                          <TimeAgo date={j.updated_at} className="text-[10px] text-muted-foreground/70" />
+                        </div>
+                        {j.approved_at && (
+                          <p className="text-[10px] text-muted-foreground/70 mt-1">
+                            Godkjent {format(new Date(j.approved_at), "d. MMM yyyy 'kl.' HH:mm", { locale: nb })}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {isReview && (
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                size="sm"
+                                className="gap-1.5"
+                                disabled={approving === j.id}
+                              >
+                                {approving === j.id ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                  <ShieldCheck className="h-3.5 w-3.5" />
+                                )}
+                                Godkjenn
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Godkjenn rapport v{j.version}?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Ved å godkjenne bekrefter du at arbeidet er utført som beskrevet.
+                                  Rapporten låses og kan ikke endres uten å opprette en ny versjon.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Avbryt</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => handleApprove(j.id)}>
+                                  Godkjenn arbeid
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        )}
+                        {isReview && (
+                          <span className="inline-flex items-center gap-1 rounded-full border border-warning/20 bg-warning/10 px-2 py-0.5 text-[10px] font-semibold text-warning">
+                            <Bell className="h-2.5 w-2.5" /> Venter på deg
+                          </span>
+                        )}
+                        {isApproved && (
+                          <span className="inline-flex items-center gap-1 rounded-full border border-success/20 bg-success/10 px-2 py-0.5 text-[10px] font-semibold text-success">
+                            <CheckCircle className="h-2.5 w-2.5" /> Godkjent
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
-                  <div className="flex gap-2">
-                    {j.status === "review" && (
-                      <span className="inline-flex items-center gap-1 rounded-full border border-warning/20 bg-warning/10 px-2 py-0.5 text-[10px] font-semibold text-warning">
-                        <Bell className="h-2.5 w-2.5" /> Venter på deg
-                      </span>
-                    )}
-                    {(j.status === "approved" || j.status === "sent") && (
-                      <span className="inline-flex items-center gap-1 rounded-full border border-success/20 bg-success/10 px-2 py-0.5 text-[10px] font-semibold text-success">
-                        <CheckCircle className="h-2.5 w-2.5" /> Godkjent
-                      </span>
-                    )}
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </CardContent>
