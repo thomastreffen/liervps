@@ -78,6 +78,7 @@ export function ServiceJournal({
   const [blocks, setBlocks] = useState<ScheduleBlock[]>([]);
   const [deviations, setDeviations] = useState<Deviation[]>([]);
   const [docs, setDocs] = useState<DocFile[]>([]);
+  const [workPackages, setWorkPackages] = useState<WorkPkg[]>([]);
   const [formResults, setFormResults] = useState<{ id: string; title: string; form_type: string; status: string; filled_by: string | null; updated_at: string; has_signature: boolean; key_answers: string[] }[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
