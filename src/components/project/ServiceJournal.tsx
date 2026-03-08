@@ -43,7 +43,7 @@ interface ServiceJournalProps {
   internalNumber?: string; companyLogoUrl?: string; companyName?: string;
 }
 
-type SectionKey = "oppdrag" | "utfort" | "arbeidsokter" | "dokumentasjon" | "merknader" | "signatur";
+type SectionKey = "oppdrag" | "utfort" | "arbeidsokter" | "sjekklister" | "dokumentasjon" | "merknader" | "signatur";
 type SectionVisibility = Record<SectionKey, boolean>;
 type JournalStatus = "draft" | "review" | "approved" | "sent";
 
@@ -56,7 +56,8 @@ const STATUS_CONFIG: Record<JournalStatus, { label: string; color: string; icon:
 
 const SECTION_META: { key: SectionKey; label: string }[] = [
   { key: "oppdrag", label: "Oppdrag" }, { key: "utfort", label: "Utført arbeid" },
-  { key: "arbeidsokter", label: "Arbeidsøkter" }, { key: "dokumentasjon", label: "Dokumentasjon" },
+  { key: "arbeidsokter", label: "Arbeidsøkter" }, { key: "sjekklister", label: "Sjekklister" },
+  { key: "dokumentasjon", label: "Dokumentasjon" },
   { key: "merknader", label: "Merknader" }, { key: "signatur", label: "Signatur" },
 ];
 
@@ -75,6 +76,7 @@ export function ServiceJournal({
   const [blocks, setBlocks] = useState<ScheduleBlock[]>([]);
   const [deviations, setDeviations] = useState<Deviation[]>([]);
   const [docs, setDocs] = useState<DocFile[]>([]);
+  const [formResults, setFormResults] = useState<{ id: string; title: string; form_type: string; status: string; filled_by: string | null; updated_at: string; has_signature: boolean; key_answers: string[] }[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -88,7 +90,7 @@ export function ServiceJournal({
   const [viewMode, setViewMode] = useState<"internal" | "customer">("internal");
   const [isPreview, setIsPreview] = useState(false);
   const [sections, setSections] = useState<SectionVisibility>({
-    oppdrag: true, utfort: true, arbeidsokter: true, dokumentasjon: true, merknader: true, signatur: true,
+    oppdrag: true, utfort: true, arbeidsokter: true, sjekklister: true, dokumentasjon: true, merknader: true, signatur: true,
   });
   const [showControls, setShowControls] = useState(false);
 
@@ -150,6 +152,60 @@ export function ServiceJournal({
       source_meta: r.source_meta, source_type: r.source_type,
     })));
     if (companyRes.data) setCompanyInfo(companyRes.data);
+
+    // Fetch form instances for this project
+    try {
+      const { data: instances } = await supabase
+        .from("form_instances")
+        .select("id, template_id, status, created_by, updated_at, answers")
+        .eq("project_id", projectId)
+        .in("status", ["completed", "signed", "in_progress"]);
+
+      if (instances && instances.length > 0) {
+        const tplIds = [...new Set((instances as any[]).map((i: any) => i.template_id))];
+        const { data: tpls } = await (supabase as any)
+          .from("form_templates")
+          .select("id, title, form_type")
+          .in("id", tplIds);
+        const tplMap = new Map((tpls || []).map((t: any) => [t.id, t]));
+
+        // Get user names for created_by
+        const userIds = [...new Set((instances as any[]).filter((i: any) => i.created_by).map((i: any) => i.created_by))];
+        let userMap = new Map<string, string>();
+        if (userIds.length > 0) {
+          const { data: accounts } = await supabase
+            .from("user_accounts")
+            .select("auth_user_id, people!inner(full_name)")
+            .in("auth_user_id", userIds) as any;
+          for (const a of accounts || []) {
+            userMap.set(a.auth_user_id, a.people?.full_name || "Ukjent");
+          }
+        }
+
+        setFormResults((instances as any[]).map((inst: any) => {
+          const tpl: any = tplMap.get(inst.template_id);
+          const answers = inst.answers || {};
+          const keyAnswers: string[] = [];
+          const answerEntries = Object.entries(answers);
+          for (const [, val] of answerEntries.slice(0, 3)) {
+            if (typeof val === "string" && val.length > 0) keyAnswers.push(val.slice(0, 60));
+            else if (typeof val === "object" && val !== null && (val as any).status) keyAnswers.push(`${(val as any).status}`);
+          }
+          return {
+            id: inst.id,
+            title: tpl?.title || "Ukjent skjema",
+            form_type: tpl?.form_type || "checklist",
+            status: inst.status,
+            filled_by: userMap.get(inst.created_by) || null,
+            updated_at: inst.updated_at,
+            has_signature: answerEntries.some(([, v]) => typeof v === "string" && (v as string).startsWith("data:image")),
+            key_answers: keyAnswers,
+          };
+        }));
+      } else {
+        setFormResults([]);
+      }
+    } catch { setFormResults([]); }
 
     // Load saved journal
     if (journalRes.data && !journalRes.error) {
@@ -633,7 +689,54 @@ export function ServiceJournal({
             </Section>
           )}
 
-          {/* 4. Dokumentasjon */}
+          {/* 4. Sjekklister og kontrollskjema */}
+          {sections.sjekklister && (
+            <Section title="Sjekklister og kontrollskjema" icon={<ClipboardList className="h-4 w-4" />} count={formResults.length}>
+              {formResults.length === 0 ? <EmptyState text="Ingen utfylte skjema" /> : (
+                <div className="space-y-2">
+                  {formResults.map(form => {
+                    const typeLabel: Record<string, string> = { checklist: "Sjekkliste", control: "Kontroll", signature: "Signering", hms: "HMS", handover: "Overlevering" };
+                    const isDone = form.status === "completed" || form.status === "signed";
+                    return (
+                      <div key={form.id} className="rounded-xl border border-border/40 bg-card p-3 space-y-1.5">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="text-sm font-semibold truncate">{form.title}</span>
+                            <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-0 bg-muted text-muted-foreground shrink-0">
+                              {typeLabel[form.form_type] || form.form_type}
+                            </Badge>
+                          </div>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {form.has_signature && (
+                              <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-primary/20 text-primary gap-0.5">
+                                <PenLine className="h-2.5 w-2.5" /> Signert
+                              </Badge>
+                            )}
+                            <Badge variant={isDone ? "default" : "secondary"} className="text-[10px] h-5">
+                              {form.status === "signed" ? "Signert" : isDone ? "Fullført" : "Pågår"}
+                            </Badge>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                          {form.filled_by && <span className="flex items-center gap-1"><User className="h-3 w-3" />{form.filled_by}</span>}
+                          <span>{format(new Date(form.updated_at), "d. MMM yyyy", { locale: nb })}</span>
+                        </div>
+                        {!isCustomer && form.key_answers.length > 0 && (
+                          <div className="mt-1 text-xs text-muted-foreground/80 space-y-0.5">
+                            {form.key_answers.map((a, i) => (
+                              <p key={i} className="truncate">• {a}</p>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </Section>
+          )}
+
+          {/* 5. Dokumentasjon */}
           {sections.dokumentasjon && (
             <Section title="Dokumentasjon" icon={<FileImage className="h-4 w-4" />}
               count={imageDocs.length + otherDocs.length}

@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import {
   FileText, CheckCircle, Clock, Users, AlertTriangle,
-  Send, Receipt, ArrowRight, Loader2, Filter
+  Send, Receipt, ArrowRight, Loader2, Filter, ClipboardCheck
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format } from "date-fns";
 import { nb } from "date-fns/locale";
 import { toast } from "sonner";
+import { checkRequiredForms } from "@/components/forms/ProjectFormsSection";
 
 interface InvoiceBasisRow {
   id: string;
@@ -48,6 +49,7 @@ export default function InvoiceBasisPage() {
   const [rows, setRows] = useState<InvoiceBasisRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
+  const [missingBillingForms, setMissingBillingForms] = useState<Record<string, string[]>>({});
 
   useEffect(() => {
     const load = async () => {
@@ -73,6 +75,16 @@ export default function InvoiceBasisPage() {
         }));
 
         setRows(enriched);
+
+        // Check billing form requirements per project
+        const billingChecks: Record<string, string[]> = {};
+        await Promise.all(
+          projectIds.map(async (pid: string) => {
+            const { canComplete, missingForms } = await checkRequiredForms(pid, "required_before_billing");
+            if (!canComplete) billingChecks[pid] = missingForms;
+          })
+        );
+        setMissingBillingForms(billingChecks);
       }
       setLoading(false);
     };
@@ -80,6 +92,19 @@ export default function InvoiceBasisPage() {
   }, []);
 
   const markAsSent = async (id: string) => {
+    const row = rows.find((r) => r.id === id);
+    if (!row) return;
+
+    // Check required-before-billing forms
+    const { canComplete, missingForms } = await checkRequiredForms(row.project_id, "required_before_billing");
+    if (!canComplete) {
+      toast.error("Obligatoriske skjema mangler", {
+        description: `Fullfør: ${missingForms.join(", ")}`,
+        duration: 5000,
+      });
+      return;
+    }
+
     setUpdating(id);
     const { error } = await supabase
       .from("invoice_basis")
@@ -191,6 +216,14 @@ export default function InvoiceBasisPage() {
             {row.technician_names.map((name, i) => (
               <Badge key={i} variant="secondary" className="text-[10px]">{name}</Badge>
             ))}
+          </div>
+        )}
+
+        {/* Missing billing forms warning */}
+        {missingBillingForms[row.project_id] && (
+          <div className="flex items-center gap-2 rounded-xl border border-warning/30 bg-warning/5 p-2.5 mb-3 text-xs text-warning">
+            <ClipboardCheck className="h-3.5 w-3.5 shrink-0" />
+            <span>Obligatoriske skjema mangler: {missingBillingForms[row.project_id].join(", ")}</span>
           </div>
         )}
 
