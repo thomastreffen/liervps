@@ -13,6 +13,8 @@ import {
   FileText,
   Trash2,
   Archive,
+  Settings2,
+  ChevronRight,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
@@ -20,6 +22,8 @@ import type { FormField, FormFieldType, FormRule } from "@/lib/form-types";
 import { FIELD_TYPE_LABELS, fieldSupportsComment } from "@/lib/form-types";
 import { FormFieldPalette } from "@/components/forms/FormFieldPalette";
 import { FormCanvas } from "@/components/forms/FormCanvas";
+import { FormTemplateSettingsPanel, type FormTemplateSettings } from "@/components/forms/FormTemplateSettingsPanel";
+import { cn } from "@/lib/utils";
 
 interface Template {
   id: string;
@@ -27,7 +31,20 @@ interface Template {
   description: string | null;
   active_version_id: string | null;
   created_at: string;
+  form_type?: string;
+  is_active?: boolean;
+  available_in_projects?: boolean;
+  available_in_my_day?: boolean;
+  available_in_customer_portal?: boolean;
 }
+
+const FORM_TYPE_LABELS: Record<string, string> = {
+  checklist: "Sjekkliste",
+  control: "Kontroll",
+  signature: "Signering",
+  hms: "HMS",
+  handover: "Overlevering",
+};
 
 export default function FormBuilderPage() {
   const navigate = useNavigate();
@@ -46,11 +63,28 @@ export default function FormBuilderPage() {
   const [activeVersionId, setActiveVersionId] = useState<string | null>(null);
   const [instanceCounts, setInstanceCounts] = useState<Record<string, number>>({});
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [showSettings, setShowSettings] = useState(false);
+  const defaultSettings: FormTemplateSettings = {
+    available_in_projects: false,
+    available_in_documents: false,
+    available_in_my_day: false,
+    available_in_customer_portal: false,
+    shareable_via_link: false,
+    internal_only: true,
+    allowed_roles: ["admin"],
+    is_required: false,
+    required_before_completion: false,
+    required_before_billing: false,
+    required_for_job_types: [],
+    form_type: "checklist",
+    is_active: true,
+  };
+  const [templateSettings, setTemplateSettings] = useState<FormTemplateSettings>(defaultSettings);
 
   const fetchTemplates = async () => {
-    const { data } = await supabase
+    const { data } = await (supabase as any)
       .from("form_templates")
-      .select("id, title, description, active_version_id, created_at")
+      .select("id, title, description, active_version_id, created_at, form_type, is_active, available_in_projects, available_in_my_day, available_in_customer_portal")
       .is("deleted_at", null)
       .order("created_at", { ascending: false });
     if (data) {
@@ -88,9 +122,25 @@ export default function FormBuilderPage() {
       .single();
 
     if (tpl) {
-      setTitle((tpl as any).title);
-      setDescription((tpl as any).description || "");
-      setActiveVersionId((tpl as any).active_version_id);
+      const t = tpl as any;
+      setTitle(t.title);
+      setDescription(t.description || "");
+      setActiveVersionId(t.active_version_id);
+      setTemplateSettings({
+        available_in_projects: t.available_in_projects ?? false,
+        available_in_documents: t.available_in_documents ?? false,
+        available_in_my_day: t.available_in_my_day ?? false,
+        available_in_customer_portal: t.available_in_customer_portal ?? false,
+        shareable_via_link: t.shareable_via_link ?? false,
+        internal_only: t.internal_only ?? true,
+        allowed_roles: t.allowed_roles ?? ["admin"],
+        is_required: t.is_required ?? false,
+        required_before_completion: t.required_before_completion ?? false,
+        required_before_billing: t.required_before_billing ?? false,
+        required_for_job_types: t.required_for_job_types ?? [],
+        form_type: t.form_type ?? "checklist",
+        is_active: t.is_active ?? true,
+      });
     }
 
     const { data: vers } = await supabase
@@ -256,8 +306,8 @@ export default function FormBuilderPage() {
               <ArrowLeft className="h-4 w-4" />
             </Button>
             <div>
-              <h1 className="text-lg font-bold">Skjemamaler</h1>
-              <p className="text-xs text-muted-foreground">Bygg og administrer skjemamaler</p>
+              <h1 className="text-lg font-bold">Skjema & maler</h1>
+              <p className="text-xs text-muted-foreground">Sentral styring av skjemaer, sjekklister og maler</p>
             </div>
           </div>
           <Button size="sm" className="rounded-xl gap-1.5" onClick={createNewTemplate}>
@@ -287,17 +337,29 @@ export default function FormBuilderPage() {
                   onClick={() => loadTemplate(tpl.id)}
                 >
                   <div className="min-w-0 flex-1">
-                    <p className="font-medium text-sm">{tpl.title}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium text-sm">{tpl.title}</p>
+                      {tpl.form_type && (
+                        <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-0 bg-muted text-muted-foreground">
+                          {FORM_TYPE_LABELS[tpl.form_type] || tpl.form_type}
+                        </Badge>
+                      )}
+                    </div>
                     {tpl.description && (
                       <p className="text-xs text-muted-foreground mt-0.5 truncate">{tpl.description}</p>
                     )}
-                    {count > 0 && (
-                      <p className="text-[10px] text-muted-foreground/60 mt-0.5">Brukt i {count} prosjekt{count > 1 ? "er" : ""}</p>
-                    )}
+                    <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                      {count > 0 && (
+                        <span className="text-[10px] text-muted-foreground/60">Brukt i {count} prosjekt{count > 1 ? "er" : ""}</span>
+                      )}
+                      {tpl.available_in_projects && <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 border-primary/20 text-primary/70">Prosjekt</Badge>}
+                      {tpl.available_in_my_day && <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 border-warning/20 text-warning">Min dag</Badge>}
+                      {tpl.available_in_customer_portal && <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 border-info/20 text-info">Portal</Badge>}
+                    </div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    <Badge variant={tpl.active_version_id ? "default" : "secondary"} className="text-[10px]">
-                      {tpl.active_version_id ? "Aktiv" : "Ingen versjon"}
+                    <Badge variant={tpl.is_active !== false && tpl.active_version_id ? "default" : "secondary"} className="text-[10px]">
+                      {tpl.is_active === false ? "Inaktiv" : tpl.active_version_id ? "Aktiv" : "Ingen versjon"}
                     </Badge>
                     <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-1" onClick={(e) => e.stopPropagation()}>
                       {count > 0 ? (
@@ -401,6 +463,16 @@ export default function FormBuilderPage() {
             </div>
           )}
 
+          <Button
+            variant={showSettings ? "secondary" : "ghost"}
+            size="sm"
+            className="rounded-xl gap-1.5 text-xs"
+            onClick={() => setShowSettings(!showSettings)}
+          >
+            <Settings2 className="h-3.5 w-3.5" />
+            Innstillinger
+          </Button>
+
           <Button size="sm" className="rounded-xl gap-1.5" onClick={() => saveVersion(true)} disabled={saving}>
             {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
             Lagre & publiser
@@ -408,7 +480,7 @@ export default function FormBuilderPage() {
         </div>
       </div>
 
-      {/* Two-panel layout */}
+      {/* Three-panel layout */}
       <div className="flex-1 flex overflow-hidden">
         {/* Left: Field palette */}
         <div className="w-64 shrink-0 border-r border-border bg-background overflow-y-auto p-3">
@@ -416,10 +488,9 @@ export default function FormBuilderPage() {
           <FormFieldPalette onAddField={addField} />
         </div>
 
-        {/* Right: Canvas */}
+        {/* Center: Canvas */}
         <div className="flex-1 overflow-y-auto bg-background p-6">
           <div className="max-w-2xl mx-auto space-y-4">
-            {/* Description */}
             <Textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
@@ -427,8 +498,6 @@ export default function FormBuilderPage() {
               rows={2}
               placeholder="Beskrivelse av skjemaet (valgfri)..."
             />
-
-            {/* Canvas */}
             <FormCanvas
               fields={fields}
               rules={rules}
@@ -438,6 +507,17 @@ export default function FormBuilderPage() {
             />
           </div>
         </div>
+
+        {/* Right: Settings panel */}
+        {showSettings && editingTemplate && (
+          <div className="w-72 shrink-0 border-l border-border bg-background overflow-y-auto p-4">
+            <FormTemplateSettingsPanel
+              templateId={editingTemplate}
+              settings={templateSettings}
+              onSettingsChange={setTemplateSettings}
+            />
+          </div>
+        )}
       </div>
     </div>
   );
