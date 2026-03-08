@@ -1,6 +1,6 @@
 import { Outlet, Link, useLocation, Navigate } from "react-router-dom";
 import { usePortal } from "@/hooks/usePortal";
-import { Loader2, Wrench, LayoutDashboard, FolderOpen, FileText, MessageSquare, LogOut, Users } from "lucide-react";
+import { Loader2, Wrench, LayoutDashboard, FolderOpen, FileText, MessageSquare, LogOut, Users, Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -68,6 +68,11 @@ export default function PortalLayout() {
                 </Link>
               </Button>
             )}
+            <Button variant="ghost" size="icon" asChild>
+              <Link to="/portal/settings">
+                <Bell className="h-4 w-4" />
+              </Link>
+            </Button>
             <Button variant="ghost" size="sm" onClick={signOut}>
               <LogOut className="mr-1 h-4 w-4" />
               <span className="hidden sm:inline">Logg ut</span>
