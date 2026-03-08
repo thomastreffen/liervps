@@ -5434,6 +5434,143 @@ export type Database = {
           },
         ]
       }
+      service_journal_shares: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          expires_at: string | null
+          id: string
+          journal_id: string
+          pin_hash: string | null
+          token: string
+          view_count: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          journal_id: string
+          pin_hash?: string | null
+          token?: string
+          view_count?: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          journal_id?: string
+          pin_hash?: string | null
+          token?: string
+          view_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_journal_shares_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "user_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_journal_shares_journal_id_fkey"
+            columns: ["journal_id"]
+            isOneToOne: false
+            referencedRelation: "service_journals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      service_journals: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          company_id: string | null
+          content: Json
+          created_at: string
+          created_by: string | null
+          id: string
+          pdf_storage_path: string | null
+          project_id: string
+          report_type: string
+          section_visibility: Json | null
+          sent_at: string | null
+          sent_to_email: string | null
+          signatures: Json | null
+          status: string
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          company_id?: string | null
+          content?: Json
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          pdf_storage_path?: string | null
+          project_id: string
+          report_type?: string
+          section_visibility?: Json | null
+          sent_at?: string | null
+          sent_to_email?: string | null
+          signatures?: Json | null
+          status?: string
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          company_id?: string | null
+          content?: Json
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          pdf_storage_path?: string | null
+          project_id?: string
+          report_type?: string
+          section_visibility?: Json | null
+          sent_at?: string | null
+          sent_to_email?: string | null
+          signatures?: Json | null
+          status?: string
+          updated_at?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_journals_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "user_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_journals_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "internal_companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_journals_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "user_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_journals_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       settings: {
         Row: {
           id: string
