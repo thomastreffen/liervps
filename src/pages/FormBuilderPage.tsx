@@ -109,9 +109,25 @@ export default function FormBuilderPage() {
       .single();
 
     if (tpl) {
-      setTitle((tpl as any).title);
-      setDescription((tpl as any).description || "");
-      setActiveVersionId((tpl as any).active_version_id);
+      const t = tpl as any;
+      setTitle(t.title);
+      setDescription(t.description || "");
+      setActiveVersionId(t.active_version_id);
+      setTemplateSettings({
+        available_in_projects: t.available_in_projects ?? false,
+        available_in_documents: t.available_in_documents ?? false,
+        available_in_my_day: t.available_in_my_day ?? false,
+        available_in_customer_portal: t.available_in_customer_portal ?? false,
+        shareable_via_link: t.shareable_via_link ?? false,
+        internal_only: t.internal_only ?? true,
+        allowed_roles: t.allowed_roles ?? ["admin"],
+        is_required: t.is_required ?? false,
+        required_before_completion: t.required_before_completion ?? false,
+        required_before_billing: t.required_before_billing ?? false,
+        required_for_job_types: t.required_for_job_types ?? [],
+        form_type: t.form_type ?? "checklist",
+        is_active: t.is_active ?? true,
+      });
     }
 
     const { data: vers } = await supabase
