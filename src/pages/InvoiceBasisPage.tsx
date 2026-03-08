@@ -81,8 +81,20 @@ export default function InvoiceBasisPage() {
   }, []);
 
   const markAsSent = async (id: string) => {
+    const row = rows.find((r) => r.id === id);
+    if (!row) return;
+
+    // Check required-before-billing forms
+    const { canComplete, missingForms } = await checkRequiredForms(row.project_id, "required_before_billing");
+    if (!canComplete) {
+      toast.error("Obligatoriske skjema mangler", {
+        description: `Fullfør: ${missingForms.join(", ")}`,
+        duration: 5000,
+      });
+      return;
+    }
+
     setUpdating(id);
-    const { error } = await supabase
       .from("invoice_basis")
       .update({
         status: "sent_to_billing",
