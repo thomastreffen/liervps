@@ -23,6 +23,10 @@ import {
   MapPinOff,
   Loader2,
   FileImage,
+  RefreshCw,
+  Clock,
+  WifiOff,
+  Info,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -123,6 +127,9 @@ function BlockCard({ block, onOpen }: { block: MyDayBlock; onOpen: (b: MyDayBloc
               <MapPin className="h-3 w-3 shrink-0" /> {block.address}
             </p>
           )}
+          {!block.project_id && !block.customer && (
+            <p className="text-xs text-muted-foreground/60 italic mt-0.5">Ekstern hendelse</p>
+          )}
           <div className="flex items-center gap-2 mt-2.5">
             {st && (
               <Badge variant="outline" className={cn("text-[10px] px-2 py-0 border-0 rounded-md", st.color)}>
@@ -159,6 +166,7 @@ function JobDetailView({
   const [submitting, setSubmitting] = useState(false);
   const [gpsState, setGpsState] = useState<"idle" | "checking" | "on_site" | "off_site" | "error">("idle");
   const [photoCount, setPhotoCount] = useState(0);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
   const startTime = format(new Date(block.start_at), "HH:mm");
   const endTime = format(new Date(block.end_at), "HH:mm");
@@ -195,16 +203,19 @@ function JobDetailView({
             }
           }
         } else {
-          setGpsState("idle"); // can't geocode, just proceed
+          setGpsState("idle");
         }
       } catch {
-        setGpsState("idle"); // GPS unavailable, just proceed
+        setGpsState("idle");
+        // GPS unavailable - proceed silently
       }
     }
 
     // Do the start
     try {
-      await supabase.from("events").update({ status: "in_progress" as any }).eq("id", block.project_id);
+      const { error: updateError } = await supabase.from("events").update({ status: "in_progress" as any }).eq("id", block.project_id);
+      if (updateError) throw updateError;
+
       await (supabase as any).from("activity_log").insert({
         entity_type: "event",
         entity_id: block.project_id,
@@ -212,10 +223,13 @@ function JobDetailView({
         type: "status_change",
         description: gpsState === "on_site" ? "Montør sjekket inn på stedet og startet arbeid" : "Montør startet arbeid",
       });
-      toast.success("Arbeid startet");
+      toast.success("Arbeid startet ✓", { description: "Husk å dokumentere arbeidet underveis" });
       onRefetch();
-    } catch {
-      toast.error("Kunne ikke starte");
+    } catch (err: any) {
+      toast.error("Kunne ikke starte arbeid", {
+        description: err?.message || "Sjekk nettverksforbindelsen og prøv igjen",
+        action: { label: "Prøv igjen", onClick: () => checkGpsAndStart() },
+      });
     } finally {
       setSubmitting(false);
     }
@@ -226,18 +240,28 @@ function JobDetailView({
     setSubmitting(true);
 
     // Check required forms
-    const { canComplete, missingForms } = await checkRequiredForms(block.project_id, "required_before_completion");
-    if (!canComplete) {
-      toast.error("Obligatoriske skjema mangler", {
-        description: `Fullfør: ${missingForms.join(", ")}`,
-        duration: 5000,
+    try {
+      const { canComplete, missingForms } = await checkRequiredForms(block.project_id, "required_before_completion");
+      if (!canComplete) {
+        toast.error("Obligatoriske skjema mangler", {
+          description: `Fullfør disse først: ${missingForms.join(", ")}`,
+          duration: 6000,
+        });
+        setSubmitting(false);
+        return;
+      }
+    } catch {
+      toast.error("Kunne ikke sjekke skjemakrav", {
+        description: "Sjekk nettverksforbindelsen og prøv igjen",
       });
       setSubmitting(false);
       return;
     }
 
     try {
-      await supabase.from("events").update({ status: "completed" as any }).eq("id", block.project_id);
+      const { error: updateError } = await supabase.from("events").update({ status: "completed" as any }).eq("id", block.project_id);
+      if (updateError) throw updateError;
+
       await (supabase as any).from("activity_log").insert({
         entity_type: "event",
         entity_id: block.project_id,
@@ -245,11 +269,14 @@ function JobDetailView({
         type: "status_change",
         description: completionNote || "Montør markerte ferdig",
       });
-      toast.success("Oppdrag ferdigstilt");
+      toast.success("Oppdrag ferdigstilt ✓", { description: "Servicejournal oppdateres automatisk" });
       setShowCompleteForm(false);
       onRefetch();
-    } catch {
-      toast.error("Kunne ikke fullføre");
+    } catch (err: any) {
+      toast.error("Kunne ikke fullføre oppdrag", {
+        description: err?.message || "Sjekk nettverksforbindelsen og prøv igjen",
+        action: { label: "Prøv igjen", onClick: () => handleComplete() },
+      });
     } finally {
       setSubmitting(false);
     }
@@ -258,8 +285,19 @@ function JobDetailView({
   const handleCameraCapture = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0 || !block.project_id) return;
+    setUploadingPhoto(true);
+
+    let successCount = 0;
+    let failCount = 0;
 
     for (const file of Array.from(files)) {
+      // Check file size (max 20MB)
+      if (file.size > 20 * 1024 * 1024) {
+        toast.error(`Filen "${file.name}" er for stor`, { description: "Maks 20 MB per bilde" });
+        failCount++;
+        continue;
+      }
+
       const ext = file.name.split(".").pop() || "jpg";
       const path = `project-photos/${block.project_id}/${Date.now()}-${Math.random().toString(36).slice(2, 6)}.${ext}`;
 
@@ -270,10 +308,10 @@ function JobDetailView({
 
       if (error) {
         console.error("[Photo upload]", error);
-        toast.error("Kunne ikke laste opp bilde");
+        failCount++;
       } else {
+        successCount++;
         setPhotoCount((c) => c + 1);
-        toast.success("Bilde lagret ✓");
 
         // Log the photo
         await (supabase as any).from("activity_log").insert({
@@ -285,6 +323,17 @@ function JobDetailView({
         });
       }
     }
+
+    if (successCount > 0) {
+      toast.success(`${successCount} bilde${successCount > 1 ? "r" : ""} lagret ✓`);
+    }
+    if (failCount > 0) {
+      toast.error(`${failCount} bilde${failCount > 1 ? "r" : ""} feilet`, {
+        description: "Sjekk nettverksforbindelsen og prøv igjen",
+      });
+    }
+
+    setUploadingPhoto(false);
     // Reset input
     if (fileInputRef.current) fileInputRef.current.value = "";
   }, [block.project_id]);
@@ -350,9 +399,26 @@ function JobDetailView({
         </div>
       )}
 
+      {/* Upload in progress */}
+      {uploadingPhoto && (
+        <div className="flex items-center gap-2 px-4 py-1.5 bg-info/5 text-info text-xs font-medium">
+          <Loader2 className="h-3.5 w-3.5 animate-spin" /> Laster opp bilde…
+        </div>
+      )}
+
       {/* Scrollable content */}
       <div className="flex-1 overflow-y-auto">
         <div className="p-4 space-y-4">
+          {/* First-time help for technicians */}
+          {phase === "planned" && (
+            <div className="flex items-start gap-2.5 rounded-xl border border-primary/20 bg-primary/5 p-3">
+              <Info className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Trykk <strong>Start arbeid</strong> når du er klar. Systemet sjekker posisjonen din automatisk. Husk å ta bilder og fylle ut sjekklister underveis.
+              </p>
+            </div>
+          )}
+
           {/* Customer & location */}
           <Card>
             <CardContent className="p-4 space-y-3">
@@ -370,6 +436,9 @@ function JobDetailView({
                     <Navigation className="h-3.5 w-3.5" /> Start navigasjon
                   </Button>
                 </div>
+              )}
+              {!block.address && !block.customer && (
+                <p className="text-xs text-muted-foreground italic">Ingen kunde- eller adresseinformasjon tilgjengelig.</p>
               )}
               {block.contact_phone && (
                 <div className="flex items-center gap-2">
@@ -409,6 +478,7 @@ function JobDetailView({
             <Card className="border-success/30 bg-success/5">
               <CardContent className="p-4 space-y-3">
                 <p className="text-sm font-semibold">Ferdigstill oppdrag</p>
+                <p className="text-xs text-muted-foreground">Sjekk at alle sjekklister er fullført og dokumentasjon er på plass.</p>
                 <Textarea
                   placeholder="Kort oppsummering av utført arbeid (valgfritt)"
                   value={completionNote}
@@ -421,7 +491,8 @@ function JobDetailView({
                 </Button>
                 <div className="flex gap-2">
                   <Button className="flex-1 gap-2" onClick={handleComplete} disabled={submitting}>
-                    <CheckCircle2 className="h-4 w-4" /> Marker ferdig
+                    {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+                    Marker ferdig
                   </Button>
                   <Button variant="outline" onClick={() => setShowCompleteForm(false)}>Avbryt</Button>
                 </div>
@@ -444,8 +515,9 @@ function JobDetailView({
           {phase === "in_progress" && !showCompleteForm && (
             <>
               {/* Primary: Document */}
-              <Button className="w-full h-14 text-sm gap-2 font-semibold rounded-xl" onClick={openCamera}>
-                <Camera className="h-5 w-5" /> Dokumenter arbeid
+              <Button className="w-full h-14 text-sm gap-2 font-semibold rounded-xl" onClick={openCamera} disabled={uploadingPhoto}>
+                {uploadingPhoto ? <Loader2 className="h-5 w-5 animate-spin" /> : <Camera className="h-5 w-5" />}
+                Dokumenter arbeid
               </Button>
               {/* Secondary actions */}
               <div className="grid grid-cols-3 gap-2">
@@ -473,6 +545,15 @@ function JobDetailView({
               <FileText className="h-5 w-5" /> Se rapport
             </Button>
           )}
+        </div>
+      )}
+
+      {/* Non-project block: no actions, just info */}
+      {!block.project_id && (
+        <div className="shrink-0 border-t border-border/60 bg-card p-4 safe-area-bottom">
+          <p className="text-xs text-muted-foreground text-center">
+            Denne hendelsen er ikke knyttet til et oppdrag. Åpne i Outlook for detaljer.
+          </p>
         </div>
       )}
     </div>
@@ -511,8 +592,15 @@ function DayGroup({ label, blocks, onOpen }: { label: string; blocks: MyDayBlock
 /* ─── Main Page ─── */
 
 export default function MyDayPage() {
-  const { todayBlocks, upcomingBlocks, loading, refetch } = useMyDay();
+  const { todayBlocks, upcomingBlocks, loading, error, lastUpdated, refetch } = useMyDay();
   const [selectedBlock, setSelectedBlock] = useState<MyDayBlock | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await refetch();
+    setRefreshing(false);
+  };
 
   if (selectedBlock) {
     return (
@@ -537,14 +625,32 @@ export default function MyDayPage() {
   return (
     <div className="min-h-screen bg-background pb-24">
       <div className="bg-primary/5 px-5 pt-6 pb-5 safe-area-top">
-        <div className="flex items-center gap-3 mb-1">
-          <Sun className="h-5 w-5 text-warning" />
-          <h1 className="text-lg font-bold text-foreground">{greeting}</h1>
+        <div className="flex items-center justify-between mb-1">
+          <div className="flex items-center gap-3">
+            <Sun className="h-5 w-5 text-warning" />
+            <h1 className="text-lg font-bold text-foreground">{greeting}</h1>
+          </div>
+          <button
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className="p-2 rounded-lg hover:bg-muted/60 active:bg-muted/80 transition-colors"
+            title="Oppdater"
+          >
+            <RefreshCw className={cn("h-4 w-4 text-muted-foreground", refreshing && "animate-spin")} />
+          </button>
         </div>
-        <p className="text-sm text-muted-foreground">
-          {format(now, "EEEE d. MMMM", { locale: nb })} ·{" "}
-          {todayBlocks.length === 0 ? "Ingen oppdrag i dag" : `${todayBlocks.length} oppdrag i dag`}
-        </p>
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-muted-foreground">
+            {format(now, "EEEE d. MMMM", { locale: nb })} ·{" "}
+            {todayBlocks.length === 0 ? "Ingen oppdrag i dag" : `${todayBlocks.length} oppdrag i dag`}
+          </p>
+          {lastUpdated && (
+            <p className="text-[10px] text-muted-foreground/60 flex items-center gap-1">
+              <Clock className="h-2.5 w-2.5" />
+              {format(lastUpdated, "HH:mm")}
+            </p>
+          )}
+        </div>
       </div>
 
       <div className="px-4 pt-4 space-y-6">
@@ -552,6 +658,27 @@ export default function MyDayPage() {
           <div className="space-y-3">
             {[1, 2, 3].map((i) => <Skeleton key={i} className="h-24 rounded-2xl" />)}
           </div>
+        ) : error === "no_profile" ? (
+          <Card>
+            <CardContent className="p-8 text-center">
+              <Info className="h-10 w-10 text-muted-foreground/40 mx-auto mb-3" />
+              <p className="text-sm font-medium text-foreground">Brukerprofil ikke satt opp</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Kontakt administrator for å koble brukeren din til en personprofil.
+              </p>
+            </CardContent>
+          </Card>
+        ) : error ? (
+          <Card>
+            <CardContent className="p-8 text-center">
+              <WifiOff className="h-10 w-10 text-destructive/40 mx-auto mb-3" />
+              <p className="text-sm font-medium text-foreground">Kunne ikke laste oppdrag</p>
+              <p className="text-xs text-muted-foreground mt-1">{error}</p>
+              <Button variant="outline" size="sm" className="mt-4 gap-2" onClick={handleRefresh} disabled={refreshing}>
+                <RefreshCw className={cn("h-3.5 w-3.5", refreshing && "animate-spin")} /> Prøv igjen
+              </Button>
+            </CardContent>
+          </Card>
         ) : (
           <>
             {todayBlocks.length > 0 ? (
@@ -562,6 +689,9 @@ export default function MyDayPage() {
                   <CalendarDays className="h-10 w-10 text-muted-foreground/40 mx-auto mb-3" />
                   <p className="text-sm text-muted-foreground">Ingen planlagte oppdrag i dag.</p>
                   <p className="text-xs text-muted-foreground mt-1">Sjekk Outlook-kalenderen for eventuelle endringer.</p>
+                  <Button variant="ghost" size="sm" className="mt-3 gap-1.5 text-xs" onClick={handleRefresh} disabled={refreshing}>
+                    <RefreshCw className={cn("h-3 w-3", refreshing && "animate-spin")} /> Oppdater
+                  </Button>
                 </CardContent>
               </Card>
             )}
@@ -580,6 +710,7 @@ export default function MyDayPage() {
             {todayBlocks.length === 0 && upcomingBlocks.length === 0 && (
               <div className="text-center py-8">
                 <p className="text-sm text-muted-foreground">Ingen kommende oppdrag denne uken.</p>
+                <p className="text-xs text-muted-foreground/60 mt-1">Nye oppdrag dukker opp automatisk fra Outlook-kalenderen.</p>
               </div>
             )}
           </>
