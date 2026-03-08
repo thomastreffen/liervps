@@ -134,7 +134,7 @@ export function TaskResourceStrip({ technicianUserId, referenceDate, onScheduleT
     <div className="mb-4 border border-border/40 rounded-xl bg-card/80 backdrop-blur-sm overflow-hidden">
       <div className="flex items-center gap-2 px-4 py-2.5 border-b border-border/30 bg-muted/30">
         <ListTodo className="h-4 w-4 text-primary" />
-        <span className="text-sm font-semibold">Uplanlagte oppgaver</span>
+        <span className="text-sm font-semibold">Uplanlagte arbeidspakker</span>
         <Badge variant="secondary" className="text-[10px] h-5">{tasks.length}</Badge>
         <span className="text-[10px] text-muted-foreground ml-auto">Dra til kalender for å planlegge</span>
       </div>

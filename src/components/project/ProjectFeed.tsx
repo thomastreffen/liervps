@@ -191,7 +191,7 @@ export function ProjectFeed({ jobId, jobTitle, customer, internalNumber, filter 
   const emptyMessage = filter === "conversations"
     ? "Ingen samtaler ennå. Skriv en melding for å komme i gang."
     : filter === "tasks"
-      ? "Ingen oppgaver ennå. Opprett en oppgave for å komme i gang."
+      ? "Ingen arbeidspakker ennå. Opprett en arbeidspakke for å komme i gang."
       : filter === "documents"
         ? "Ingen dokumenter lastet opp ennå."
         : "Ingen aktivitet ennå. Skriv en melding for å komme i gang.";
