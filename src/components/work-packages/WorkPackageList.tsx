@@ -24,6 +24,9 @@ interface WorkPackage {
   work_package_type: WorkPackageType;
   customer_visible: boolean;
   documentation_status: string;
+  customer_approval_status: string | null;
+  customer_approved_by: string | null;
+  customer_approved_at: string | null;
   created_at: string;
   assigned_techs: string[];
 }
