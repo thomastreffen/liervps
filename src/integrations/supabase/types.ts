@@ -1916,6 +1916,111 @@ export type Database = {
           },
         ]
       }
+      customer_portal_project_access: {
+        Row: {
+          granted_at: string
+          granted_by: string | null
+          id: string
+          portal_user_id: string
+          project_id: string
+        }
+        Insert: {
+          granted_at?: string
+          granted_by?: string | null
+          id?: string
+          portal_user_id: string
+          project_id: string
+        }
+        Update: {
+          granted_at?: string
+          granted_by?: string | null
+          id?: string
+          portal_user_id?: string
+          project_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_portal_project_access_portal_user_id_fkey"
+            columns: ["portal_user_id"]
+            isOneToOne: false
+            referencedRelation: "customer_portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_portal_project_access_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      customer_portal_users: {
+        Row: {
+          activated_at: string | null
+          auth_user_id: string | null
+          company_id: string | null
+          created_at: string
+          customer_id: string | null
+          email: string
+          full_name: string | null
+          id: string
+          invited_at: string | null
+          invited_by: string | null
+          last_login_at: string | null
+          phone: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          activated_at?: string | null
+          auth_user_id?: string | null
+          company_id?: string | null
+          created_at?: string
+          customer_id?: string | null
+          email: string
+          full_name?: string | null
+          id?: string
+          invited_at?: string | null
+          invited_by?: string | null
+          last_login_at?: string | null
+          phone?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          activated_at?: string | null
+          auth_user_id?: string | null
+          company_id?: string | null
+          created_at?: string
+          customer_id?: string | null
+          email?: string
+          full_name?: string | null
+          id?: string
+          invited_at?: string | null
+          invited_by?: string | null
+          last_login_at?: string | null
+          phone?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_portal_users_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "internal_companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_portal_users_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customers: {
         Row: {
           billing_address: string | null
@@ -6559,7 +6664,7 @@ export type Database = {
       sweep_orphan_schedule_blocks: { Args: never; Returns: Json }
     }
     Enums: {
-      app_role: "admin" | "montør" | "super_admin"
+      app_role: "admin" | "montør" | "super_admin" | "customer_user"
       calculation_item_type: "material" | "labor"
       calculation_status:
         | "draft"
@@ -6765,7 +6870,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "montør", "super_admin"],
+      app_role: ["admin", "montør", "super_admin", "customer_user"],
       calculation_item_type: ["material", "labor"],
       calculation_status: [
         "draft",
