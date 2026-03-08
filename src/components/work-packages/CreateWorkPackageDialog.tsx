@@ -108,10 +108,13 @@ export function CreateWorkPackageDialog({ open, onOpenChange, projectId, onCreat
                         : "border-border/40 hover:border-border/70"
                     )}
                   >
-                    <div className={cn("h-7 w-7 rounded-lg flex items-center justify-center", cfg.bgColor)}>
+                    <div className={cn("h-7 w-7 rounded-lg flex items-center justify-center shrink-0", cfg.bgColor)}>
                       <Icon className={cn("h-3.5 w-3.5", cfg.color)} />
                     </div>
-                    <span className="text-xs font-medium">{cfg.label}</span>
+                    <div className="min-w-0">
+                      <span className="text-xs font-medium block">{cfg.label}</span>
+                      <span className="text-[10px] text-muted-foreground block leading-tight">{cfg.description}</span>
+                    </div>
                   </button>
                 );
               })}
@@ -142,7 +145,7 @@ export function CreateWorkPackageDialog({ open, onOpenChange, projectId, onCreat
           <div className="flex items-center justify-between rounded-xl border border-border/40 p-3">
             <div>
               <p className="text-xs font-medium">Synlig for kunde</p>
-              <p className="text-[10px] text-muted-foreground">Vises i kundeportalen når ferdig dokumentert</p>
+              <p className="text-[10px] text-muted-foreground">Kunden ser arbeidspakken når den er ferdig dokumentert</p>
             </div>
             <Switch checked={customerVisible} onCheckedChange={setCustomerVisible} />
           </div>
@@ -152,7 +155,7 @@ export function CreateWorkPackageDialog({ open, onOpenChange, projectId, onCreat
           <Button variant="outline" onClick={() => onOpenChange(false)}>Avbryt</Button>
           <Button onClick={handleSave} disabled={!title.trim() || saving} className="gap-1.5">
             {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-            Opprett
+            Opprett arbeidspakke
           </Button>
         </DialogFooter>
       </DialogContent>

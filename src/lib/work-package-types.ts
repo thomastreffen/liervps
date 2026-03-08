@@ -4,6 +4,7 @@ export type WorkPackageType = "deviation" | "additional_work" | "change" | "inte
 
 export const WP_TYPE_CONFIG: Record<WorkPackageType, {
   label: string;
+  description: string;
   icon: typeof AlertTriangle;
   color: string;
   bgColor: string;
@@ -11,6 +12,7 @@ export const WP_TYPE_CONFIG: Record<WorkPackageType, {
 }> = {
   deviation: {
     label: "Avvik",
+    description: "Noe som ikke er iht. plan",
     icon: AlertTriangle,
     color: "text-destructive",
     bgColor: "bg-destructive/10",
@@ -18,6 +20,7 @@ export const WP_TYPE_CONFIG: Record<WorkPackageType, {
   },
   additional_work: {
     label: "Tilleggsarbeid",
+    description: "Ekstra arbeid utenfor avtale",
     icon: PlusCircle,
     color: "text-warning",
     bgColor: "bg-warning/10",
@@ -25,6 +28,7 @@ export const WP_TYPE_CONFIG: Record<WorkPackageType, {
   },
   change: {
     label: "Endring",
+    description: "Endring i løsning eller omfang",
     icon: RefreshCw,
     color: "text-info",
     bgColor: "bg-info/10",
@@ -32,6 +36,7 @@ export const WP_TYPE_CONFIG: Record<WorkPackageType, {
   },
   internal_task: {
     label: "Intern oppgave",
+    description: "Kun synlig internt",
     icon: Clipboard,
     color: "text-muted-foreground",
     bgColor: "bg-muted",

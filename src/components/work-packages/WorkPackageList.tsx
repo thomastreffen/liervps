@@ -141,14 +141,26 @@ export function WorkPackageList({ projectId, isAdmin }: Props) {
   const hasActiveFilters = filterType !== "all" || filterStatus !== "all" || filterVisible !== "all" || filterDoc !== "all";
   const clearFilters = () => { setFilterType("all"); setFilterStatus("all"); setFilterVisible("all"); setFilterDoc("all"); };
 
+  const activeCount = packages.filter(wp => wp.status !== "completed" && wp.status !== "ready_for_invoicing").length;
+  const doneCount = packages.filter(wp => wp.status === "completed" || wp.status === "ready_for_invoicing").length;
+  const pendingDocCount = packages.filter(wp => wp.documentation_status === "pending").length;
+
+  const headerCount = packages.length === 0
+    ? "(0)"
+    : activeCount > 0
+      ? `(${activeCount} aktive)`
+      : `(${packages.length})`;
+
   return (
     <section className="space-y-3">
       <div className="flex items-center justify-between px-1">
-        <div className="flex items-center gap-2">
-          <Package className="h-4 w-4 text-primary" />
-          <h2 className="text-sm font-semibold text-foreground">Arbeidspakker</h2>
+        <div>
+          <div className="flex items-center gap-2">
+            <Package className="h-4 w-4 text-primary" />
+            <h2 className="text-sm font-semibold text-foreground">Arbeidspakker {headerCount}</h2>
+          </div>
           {packages.length > 0 && (
-            <span className="text-[10px] text-muted-foreground">({filtered.length}/{packages.length})</span>
+            <p className="text-[10px] text-muted-foreground mt-0.5 ml-6">Hva som skal gjøres i prosjektet</p>
           )}
         </div>
         <div className="flex items-center gap-1.5">
@@ -165,6 +177,12 @@ export function WorkPackageList({ projectId, isAdmin }: Props) {
           )}
         </div>
       </div>
+
+      {packages.length > 0 && (
+        <p className="text-[10px] text-muted-foreground px-1">
+          {activeCount} aktive • {doneCount} ferdig{pendingDocCount > 0 ? ` • ${pendingDocCount} venter dokumentasjon` : ""}
+        </p>
+      )}
 
       {showFilters && packages.length > 0 && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 px-1">
@@ -210,15 +228,15 @@ export function WorkPackageList({ projectId, isAdmin }: Props) {
         </div>
       ) : packages.length === 0 ? (
         <Card>
-          <CardContent className="p-6 text-center">
-            <Package className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
-            <p className="text-sm text-muted-foreground">Ingen arbeidspakker ennå.</p>
-            <p className="text-xs text-muted-foreground/60 mt-1">
-              Arbeidspakker brukes til avvik, tilleggsarbeid og endringer.
+          <CardContent className="p-4 sm:p-6 text-center">
+            <Package className="h-7 w-7 text-muted-foreground/30 mx-auto mb-1.5" />
+            <p className="text-sm text-muted-foreground">Ingen arbeidspakker ennå</p>
+            <p className="text-xs text-muted-foreground/60 mt-0.5">
+              Del opp prosjektet i avvik, tilleggsarbeid og endringer.
             </p>
             {isAdmin && (
               <Button size="sm" variant="outline" className="mt-3 gap-1.5 text-xs" onClick={() => setCreateOpen(true)}>
-                <Plus className="h-3 w-3" /> Opprett første
+                <Plus className="h-3 w-3" /> Opprett første arbeidspakke
               </Button>
             )}
           </CardContent>
