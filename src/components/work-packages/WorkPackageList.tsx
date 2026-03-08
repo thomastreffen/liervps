@@ -236,7 +236,7 @@ export function WorkPackageList({ projectId, isAdmin }: Props) {
                 </CardContent>
               </Card>
             );
-          })}</
+          })}
         </div>
       )}
 
