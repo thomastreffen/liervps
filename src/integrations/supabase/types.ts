@@ -5025,6 +5025,115 @@ export type Database = {
         }
         Relationships: []
       }
+      portal_notification_preferences: {
+        Row: {
+          channel_email: boolean
+          channel_portal: boolean
+          channel_sms: boolean
+          created_at: string
+          id: string
+          notify_new_document: boolean
+          notify_new_message: boolean
+          notify_new_report: boolean
+          notify_pending_approval: boolean
+          notify_project_update: boolean
+          notify_weekly_summary: boolean
+          portal_user_id: string
+          updated_at: string
+        }
+        Insert: {
+          channel_email?: boolean
+          channel_portal?: boolean
+          channel_sms?: boolean
+          created_at?: string
+          id?: string
+          notify_new_document?: boolean
+          notify_new_message?: boolean
+          notify_new_report?: boolean
+          notify_pending_approval?: boolean
+          notify_project_update?: boolean
+          notify_weekly_summary?: boolean
+          portal_user_id: string
+          updated_at?: string
+        }
+        Update: {
+          channel_email?: boolean
+          channel_portal?: boolean
+          channel_sms?: boolean
+          created_at?: string
+          id?: string
+          notify_new_document?: boolean
+          notify_new_message?: boolean
+          notify_new_report?: boolean
+          notify_pending_approval?: boolean
+          notify_project_update?: boolean
+          notify_weekly_summary?: boolean
+          portal_user_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "portal_notification_preferences_portal_user_id_fkey"
+            columns: ["portal_user_id"]
+            isOneToOne: true
+            referencedRelation: "customer_portal_users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      portal_notifications: {
+        Row: {
+          body_preview: string | null
+          channel: string
+          created_at: string
+          entity_id: string
+          entity_type: string
+          error_message: string | null
+          id: string
+          notification_type: string
+          portal_link: string | null
+          portal_user_id: string
+          status: string
+          subject: string
+        }
+        Insert: {
+          body_preview?: string | null
+          channel?: string
+          created_at?: string
+          entity_id: string
+          entity_type?: string
+          error_message?: string | null
+          id?: string
+          notification_type: string
+          portal_link?: string | null
+          portal_user_id: string
+          status?: string
+          subject: string
+        }
+        Update: {
+          body_preview?: string | null
+          channel?: string
+          created_at?: string
+          entity_id?: string
+          entity_type?: string
+          error_message?: string | null
+          id?: string
+          notification_type?: string
+          portal_link?: string | null
+          portal_user_id?: string
+          status?: string
+          subject?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "portal_notifications_portal_user_id_fkey"
+            columns: ["portal_user_id"]
+            isOneToOne: false
+            referencedRelation: "customer_portal_users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_members: {
         Row: {
           created_at: string
