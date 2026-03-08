@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ClipboardCheck, CheckCircle, PenLine, User } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { ClipboardCheck, CheckCircle, PenLine, User, RefreshCw, Info } from "lucide-react";
 import { format } from "date-fns";
 import { nb } from "date-fns/locale";
 
@@ -31,15 +32,19 @@ interface FormResult {
 export function PortalFormResults({ projectId }: Props) {
   const [results, setResults] = useState<FormResult[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  useEffect(() => {
-    const load = async () => {
+  const load = async () => {
+    setError(false);
+    try {
       // Get completed instances for this project
-      const { data: instances } = await supabase
+      const { data: instances, error: instErr } = await supabase
         .from("form_instances")
         .select("id, template_id, status, created_by, updated_at, answers")
         .eq("project_id", projectId)
         .in("status", ["completed", "signed"]);
+
+      if (instErr) throw instErr;
 
       if (!instances || instances.length === 0) {
         setLoading(false);
@@ -48,12 +53,14 @@ export function PortalFormResults({ projectId }: Props) {
 
       // Get templates that are portal-visible
       const tplIds = [...new Set((instances as any[]).map((i: any) => i.template_id))];
-      const { data: tpls } = await (supabase as any)
+      const { data: tpls, error: tplErr } = await (supabase as any)
         .from("form_templates")
         .select("id, title, form_type, available_in_customer_portal")
         .in("id", tplIds)
         .eq("available_in_customer_portal", true)
         .eq("is_active", true);
+
+      if (tplErr) throw tplErr;
 
       if (!tpls || tpls.length === 0) {
         setLoading(false);
@@ -90,12 +97,31 @@ export function PortalFormResults({ projectId }: Props) {
           has_signature: hasSignature,
         };
       }));
+    } catch {
+      setError(true);
+    } finally {
       setLoading(false);
-    };
-    load();
-  }, [projectId]);
+    }
+  };
 
-  if (loading || results.length === 0) return null;
+  useEffect(() => { load(); }, [projectId]);
+
+  if (loading) return null;
+
+  if (error) {
+    return (
+      <Card>
+        <CardContent className="p-6 text-center space-y-2">
+          <p className="text-xs text-muted-foreground">Kunne ikke laste kontrollskjema</p>
+          <Button variant="ghost" size="sm" className="gap-1.5 text-xs" onClick={() => { setLoading(true); load(); }}>
+            <RefreshCw className="h-3 w-3" /> Prøv igjen
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (results.length === 0) return null;
 
   return (
     <Card>
@@ -104,6 +130,9 @@ export function PortalFormResults({ projectId }: Props) {
           <ClipboardCheck className="h-4 w-4" />
           Kontroller og sjekklister
         </CardTitle>
+        <p className="text-xs text-muted-foreground mt-0.5">
+          Dokumentasjon fra utført arbeid på dette oppdraget.
+        </p>
       </CardHeader>
       <CardContent className="space-y-2">
         {results.map((form) => (

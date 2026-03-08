@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { startOfDay, endOfDay, addDays, format } from "date-fns";
+import { toast } from "sonner";
 
 export interface MyDayBlock {
   id: string;
@@ -30,10 +31,13 @@ export function useMyDay() {
   const [todayBlocks, setTodayBlocks] = useState<MyDayBlock[]>([]);
   const [upcomingBlocks, setUpcomingBlocks] = useState<MyDayBlock[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   const fetchBlocks = useCallback(async () => {
     if (!user) return;
     setLoading(true);
+    setError(null);
 
     const sb = supabase as any;
     const now = new Date();
@@ -43,20 +47,23 @@ export function useMyDay() {
 
     try {
       // Get person_id for this user
-      const { data: account } = await sb
+      const { data: account, error: accountError } = await sb
         .from("user_accounts")
         .select("person_id")
         .eq("auth_user_id", user.id)
         .maybeSingle();
 
+      if (accountError) throw new Error("Kunne ikke hente brukerprofil");
+
       const personId = account?.person_id;
       if (!personId) {
         setLoading(false);
+        setError("no_profile");
         return;
       }
 
       // Today's blocks
-      const { data: today } = await sb
+      const { data: today, error: todayError } = await sb
         .from("schedule_blocks")
         .select("id, title, start_at, end_at, project_id, job_id, location, description, outlook_subject, outlook_weblink, source")
         .eq("technician_id", personId)
@@ -65,9 +72,11 @@ export function useMyDay() {
         .lte("start_at", todayEnd)
         .order("start_at", { ascending: true });
 
+      if (todayError) throw todayError;
+
       // Upcoming blocks (next 7 days, excluding today)
       const tomorrowStart = startOfDay(addDays(now, 1)).toISOString();
-      const { data: upcoming } = await sb
+      const { data: upcoming, error: upcomingError } = await sb
         .from("schedule_blocks")
         .select("id, title, start_at, end_at, project_id, job_id, location, description, outlook_subject, outlook_weblink, source")
         .eq("technician_id", personId)
@@ -75,6 +84,8 @@ export function useMyDay() {
         .gte("start_at", tomorrowStart)
         .lte("start_at", weekEnd)
         .order("start_at", { ascending: true });
+
+      if (upcomingError) throw upcomingError;
 
       // Get project details for blocks that have project_id
       const allBlocks = [...(today || []), ...(upcoming || [])];
@@ -107,8 +118,14 @@ export function useMyDay() {
 
       setTodayBlocks((today || []).map(mapBlock));
       setUpcomingBlocks((upcoming || []).map(mapBlock));
-    } catch (err) {
+      setLastUpdated(new Date());
+    } catch (err: any) {
       console.error("[MyDay]", err);
+      setError(err?.message || "Kunne ikke laste oppdrag. Sjekk nettverksforbindelsen.");
+      toast.error("Kunne ikke laste oppdrag", {
+        description: "Prøv å laste på nytt",
+        action: { label: "Prøv igjen", onClick: () => fetchBlocks() },
+      });
     } finally {
       setLoading(false);
     }
@@ -118,5 +135,5 @@ export function useMyDay() {
     fetchBlocks();
   }, [fetchBlocks]);
 
-  return { todayBlocks, upcomingBlocks, loading, refetch: fetchBlocks };
+  return { todayBlocks, upcomingBlocks, loading, error, lastUpdated, refetch: fetchBlocks };
 }

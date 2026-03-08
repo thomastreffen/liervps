@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ClipboardCheck, Loader2, AlertTriangle, ChevronRight, Users } from "lucide-react";
+import { ClipboardCheck, Loader2, AlertTriangle, ChevronRight, Users, RefreshCw, Info } from "lucide-react";
 import { FORM_STATUS_CONFIG, type FormInstanceStatus } from "@/lib/form-types";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -50,56 +50,95 @@ export function ProjectFormsSection({ projectId }: Props) {
   const [templates, setTemplates] = useState<FormTemplate[]>([]);
   const [instances, setInstances] = useState<FormInstance[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [creating, setCreating] = useState<string | null>(null);
 
-  const fetch = useCallback(async () => {
-    const [tplRes, instRes] = await Promise.all([
-      (supabase as any)
-        .from("form_templates")
-        .select("id, title, form_type, allowed_roles, required_before_completion, required_before_billing, active_version_id")
-        .eq("available_in_projects", true)
-        .eq("is_active", true)
-        .is("deleted_at", null),
-      supabase
-        .from("form_instances")
-        .select("id, template_id, status, assigned_to")
-        .eq("project_id", projectId),
-    ]);
-    if (tplRes.data) setTemplates(tplRes.data);
-    if (instRes.data) setInstances(instRes.data as any);
-    setLoading(false);
+  const fetchData = useCallback(async () => {
+    setError(false);
+    try {
+      const [tplRes, instRes] = await Promise.all([
+        (supabase as any)
+          .from("form_templates")
+          .select("id, title, form_type, allowed_roles, required_before_completion, required_before_billing, active_version_id")
+          .eq("available_in_projects", true)
+          .eq("is_active", true)
+          .is("deleted_at", null),
+        supabase
+          .from("form_instances")
+          .select("id, template_id, status, assigned_to")
+          .eq("project_id", projectId),
+      ]);
+      if (tplRes.error) throw tplRes.error;
+      if (tplRes.data) setTemplates(tplRes.data);
+      if (instRes.data) setInstances(instRes.data as any);
+    } catch {
+      setError(true);
+    } finally {
+      setLoading(false);
+    }
   }, [projectId]);
 
-  useEffect(() => { fetch(); }, [fetch]);
+  useEffect(() => { fetchData(); }, [fetchData]);
 
   const handleStart = async (tpl: FormTemplate) => {
     if (!tpl.active_version_id) {
-      toast.error("Malen har ingen aktiv versjon");
+      toast.error("Malen har ingen aktiv versjon", {
+        description: "Be administrator om å publisere en versjon av dette skjemaet.",
+      });
       return;
     }
     setCreating(tpl.id);
-    const { data: userData } = await supabase.auth.getUser();
-    const { data, error } = await supabase
-      .from("form_instances")
-      .insert({
-        template_id: tpl.id,
-        version_id: tpl.active_version_id,
-        project_id: projectId,
-        created_by: userData.user!.id,
-        status: "not_started",
-      })
-      .select("id")
-      .single();
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      if (!userData.user) throw new Error("Ikke innlogget");
 
-    if (error) {
-      toast.error("Kunne ikke opprette skjema");
-    } else if (data) {
-      navigate(`/forms/${(data as any).id}`);
+      const { data, error } = await supabase
+        .from("form_instances")
+        .insert({
+          template_id: tpl.id,
+          version_id: tpl.active_version_id,
+          project_id: projectId,
+          created_by: userData.user.id,
+          status: "not_started",
+        })
+        .select("id")
+        .single();
+
+      if (error) throw error;
+      if (data) {
+        toast.success("Skjema opprettet");
+        navigate(`/forms/${(data as any).id}`);
+      }
+    } catch (err: any) {
+      toast.error("Kunne ikke opprette skjema", {
+        description: err?.message || "Sjekk nettverksforbindelsen og prøv igjen",
+      });
+    } finally {
+      setCreating(null);
     }
-    setCreating(null);
   };
 
   if (loading) return null;
+
+  if (error) {
+    return (
+      <section className="space-y-3">
+        <div className="flex items-center gap-2 px-1">
+          <ClipboardCheck className="h-4 w-4 text-primary" />
+          <h2 className="text-sm font-semibold text-foreground">Skjema & sjekklister</h2>
+        </div>
+        <Card>
+          <CardContent className="p-4 text-center space-y-2">
+            <p className="text-xs text-muted-foreground">Kunne ikke laste skjema</p>
+            <Button variant="ghost" size="sm" className="gap-1.5 text-xs" onClick={() => { setLoading(true); fetchData(); }}>
+              <RefreshCw className="h-3 w-3" /> Prøv igjen
+            </Button>
+          </CardContent>
+        </Card>
+      </section>
+    );
+  }
+
   if (templates.length === 0 && instances.length === 0) return null;
 
   // Map instances by template
@@ -110,12 +149,35 @@ export function ProjectFormsSection({ projectId }: Props) {
     instanceMap.set(inst.template_id, arr);
   }
 
+  const requiredTemplates = templates.filter(t => t.required_before_completion || t.required_before_billing);
+  const completedRequired = requiredTemplates.filter(t => {
+    const insts = instanceMap.get(t.id) || [];
+    return insts.some(i => i.status === "completed" || i.status === "signed");
+  });
+
   return (
     <section className="space-y-3">
-      <div className="flex items-center gap-2 px-1">
-        <ClipboardCheck className="h-4 w-4 text-primary" />
-        <h2 className="text-sm font-semibold text-foreground">Skjema & sjekklister</h2>
+      <div className="flex items-center justify-between px-1">
+        <div className="flex items-center gap-2">
+          <ClipboardCheck className="h-4 w-4 text-primary" />
+          <h2 className="text-sm font-semibold text-foreground">Skjema & sjekklister</h2>
+        </div>
+        {requiredTemplates.length > 0 && (
+          <span className="text-[10px] text-muted-foreground">
+            {completedRequired.length}/{requiredTemplates.length} obligatoriske
+          </span>
+        )}
       </div>
+
+      {/* Admin help text */}
+      {templates.length > 0 && requiredTemplates.length > 0 && completedRequired.length < requiredTemplates.length && (
+        <div className="flex items-start gap-2 rounded-xl border border-warning/20 bg-warning/5 p-3 mx-1">
+          <Info className="h-3.5 w-3.5 text-warning shrink-0 mt-0.5" />
+          <p className="text-[11px] text-muted-foreground leading-relaxed">
+            {requiredTemplates.length - completedRequired.length} obligatorisk{requiredTemplates.length - completedRequired.length > 1 ? "e" : ""} skjema gjenstår. Disse må fullføres før oppdrag kan ferdigmeldes eller faktureres.
+          </p>
+        </div>
+      )}
 
       <div className="space-y-2">
         {templates.map((tpl) => {
@@ -131,7 +193,8 @@ export function ProjectFormsSection({ projectId }: Props) {
               key={tpl.id}
               className={cn(
                 "transition-all",
-                isRequired && !isCompleted && "border-warning/40 bg-warning/5"
+                isRequired && !isCompleted && "border-warning/40 bg-warning/5",
+                isCompleted && "border-success/20 bg-success/5"
               )}
             >
               <CardContent className="p-4 flex items-center gap-3">
@@ -195,27 +258,36 @@ export function ProjectFormsSection({ projectId }: Props) {
  * Returns { canComplete, missingForms } 
  */
 export async function checkRequiredForms(projectId: string, rule: "required_before_completion" | "required_before_billing") {
-  const { data: tpls } = await (supabase as any)
-    .from("form_templates")
-    .select("id, title")
-    .eq("available_in_projects", true)
-    .eq("is_active", true)
-    .eq(rule, true)
-    .is("deleted_at", null);
+  try {
+    const { data: tpls, error: tplError } = await (supabase as any)
+      .from("form_templates")
+      .select("id, title")
+      .eq("available_in_projects", true)
+      .eq("is_active", true)
+      .eq(rule, true)
+      .is("deleted_at", null);
 
-  if (!tpls || tpls.length === 0) return { canComplete: true, missingForms: [] };
+    if (tplError) throw tplError;
+    if (!tpls || tpls.length === 0) return { canComplete: true, missingForms: [] };
 
-  const { data: instances } = await supabase
-    .from("form_instances")
-    .select("template_id, status")
-    .eq("project_id", projectId)
-    .in("status", ["completed", "signed"]);
+    const { data: instances, error: instError } = await supabase
+      .from("form_instances")
+      .select("template_id, status")
+      .eq("project_id", projectId)
+      .in("status", ["completed", "signed"]);
 
-  const completedTemplates = new Set((instances || []).map((i: any) => i.template_id));
-  const missing = tpls.filter((t: any) => !completedTemplates.has(t.id));
+    if (instError) throw instError;
 
-  return {
-    canComplete: missing.length === 0,
-    missingForms: missing.map((t: any) => t.title as string),
-  };
+    const completedTemplates = new Set((instances || []).map((i: any) => i.template_id));
+    const missing = tpls.filter((t: any) => !completedTemplates.has(t.id));
+
+    return {
+      canComplete: missing.length === 0,
+      missingForms: missing.map((t: any) => t.title as string),
+    };
+  } catch (err) {
+    console.error("[checkRequiredForms]", err);
+    // On network error, allow completion but warn
+    return { canComplete: true, missingForms: [] };
+  }
 }
