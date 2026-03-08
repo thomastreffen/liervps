@@ -27,7 +27,7 @@ export function PortalWorkPackages({ projectId }: Props) {
 
   useEffect(() => {
     (async () => {
-      const { data } = await supabase
+      const { data } = await (supabase as any)
         .from("events")
         .select("id, title, status, work_package_type, documentation_status, updated_at")
         .eq("parent_project_id", projectId)

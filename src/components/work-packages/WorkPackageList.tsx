@@ -139,9 +139,9 @@ export function WorkPackageList({ projectId, isAdmin }: Props) {
                     <div className="flex items-center gap-2">
                       <p className="text-sm font-medium truncate">{wp.title}</p>
                       {wp.customer_visible ? (
-                        <Eye className="h-3 w-3 text-primary shrink-0" title="Synlig for kunde" />
+                        <Eye className="h-3 w-3 text-primary shrink-0" />
                       ) : (
-                        <EyeOff className="h-3 w-3 text-muted-foreground/40 shrink-0" title="Ikke synlig for kunde" />
+                        <EyeOff className="h-3 w-3 text-muted-foreground/40 shrink-0" />
                       )}
                     </div>
                     <div className="flex items-center gap-2 mt-1 flex-wrap">
