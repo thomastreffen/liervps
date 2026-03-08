@@ -74,6 +74,16 @@ export default function InvoiceBasisPage() {
         }));
 
         setRows(enriched);
+
+        // Check billing form requirements per project
+        const billingChecks: Record<string, string[]> = {};
+        await Promise.all(
+          projectIds.map(async (pid: string) => {
+            const { canComplete, missingForms } = await checkRequiredForms(pid, "required_before_billing");
+            if (!canComplete) billingChecks[pid] = missingForms;
+          })
+        );
+        setMissingBillingForms(billingChecks);
       }
       setLoading(false);
     };
