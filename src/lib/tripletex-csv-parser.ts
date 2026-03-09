@@ -1,6 +1,7 @@
 /**
  * Tripletex CSV parser with Norwegian format support.
  * Handles: comma as decimal, Norwegian dates, empty fields, BOM, semicolon delimiter.
+ * Encoding: tries UTF-8 first, falls back to Windows-1252 / Latin-1.
  */
 
 export interface ParsedCSV {
@@ -36,6 +37,29 @@ export function detectFileType(headers: string[]): DetectedFileType {
   if (projectHits >= 3 && projectHits > offerHits) return "project";
   if (offerHits >= 3) return "quote";
   return "unknown";
+}
+
+/** Detect if text has encoding issues (replacement chars or garbled Norwegian) */
+function hasEncodingIssues(text: string): boolean {
+  // Check for replacement character
+  if (text.includes('\uFFFD')) return true;
+  // Common garbled patterns for æøå in Windows-1252 read as UTF-8
+  const garbled = ['Ã¦', 'Ã¸', 'Ã¥', 'Ã†', 'Ã˜', 'Ã…', 'Ã¶', 'Ã¤', 'Ã¼', 'Â'];
+  return garbled.some(g => text.includes(g));
+}
+
+/** Read file with encoding detection: UTF-8 first, fallback to Windows-1252 */
+export async function readFileWithEncoding(file: File): Promise<string> {
+  // Try UTF-8 first
+  const utf8Text = await file.text();
+  if (!hasEncodingIssues(utf8Text)) {
+    return utf8Text;
+  }
+
+  // Fallback to Windows-1252 (Latin-1 superset, standard for Norwegian Windows exports)
+  const buffer = await file.arrayBuffer();
+  const decoder = new TextDecoder('windows-1252');
+  return decoder.decode(buffer);
 }
 
 export function parseCSV(text: string): ParsedCSV {
@@ -130,6 +154,28 @@ export function getCol(row: Record<string, string>, ...candidates: string[]): st
     if (key && row[key]) return row[key];
   }
   return "";
+}
+
+/** Simple string similarity (Dice coefficient) for fuzzy matching */
+export function stringSimilarity(a: string, b: string): number {
+  if (!a || !b) return 0;
+  const sa = a.toLowerCase().trim();
+  const sb = b.toLowerCase().trim();
+  if (sa === sb) return 1;
+  if (sa.length < 2 || sb.length < 2) return 0;
+  
+  const bigramsA = new Set<string>();
+  for (let i = 0; i < sa.length - 1; i++) bigramsA.add(sa.substring(i, i + 2));
+  
+  const bigramsB = new Set<string>();
+  for (let i = 0; i < sb.length - 1; i++) bigramsB.add(sb.substring(i, i + 2));
+  
+  let intersection = 0;
+  for (const bg of bigramsA) {
+    if (bigramsB.has(bg)) intersection++;
+  }
+  
+  return (2 * intersection) / (bigramsA.size + bigramsB.size);
 }
 
 export interface GroupedOffer {

@@ -9,13 +9,15 @@ import {
   parseNorwegianDate,
   parseNorwegianDecimal,
   groupOfferRows,
+  readFileWithEncoding,
+  stringSimilarity,
   type ParsedCSV,
   type DetectedFileType,
   type GroupedOffer,
 } from "@/lib/tripletex-csv-parser";
 
-export type MatchStatus = "match" | "new" | "needs_review" | "ignored" | "error" | "imported";
-export type ImportAction = "create" | "update" | "ignore";
+export type MatchStatus = "match" | "new" | "needs_review" | "ignored" | "error" | "imported" | "possible_duplicate";
+export type ImportAction = "create" | "update" | "ignore" | "link";
 
 export interface ProjectRow {
   idx: number;
@@ -32,6 +34,8 @@ export interface ProjectRow {
   matchStatus: MatchStatus;
   matchedEntityId?: string;
   matchedEntityTitle?: string;
+  /** Fuzzy match candidates for manual linking */
+  candidates?: { id: string; title: string; customer: string | null; score: number }[];
   action: ImportAction;
   error?: string;
   raw: Record<string, string>;
@@ -76,7 +80,8 @@ export function useTripletexImport() {
   }, []);
 
   const handleFile = useCallback(async (file: File) => {
-    const text = await file.text();
+    // Use encoding-aware reader (UTF-8 first, fallback Windows-1252)
+    const text = await readFileWithEncoding(file);
     const parsed = parseCSV(text);
     const type = detectFileType(parsed.headers);
     setParsedData(parsed);
@@ -96,13 +101,18 @@ export function useTripletexImport() {
     // Fetch existing projects for matching
     const { data: existing } = await supabase
       .from("events")
-      .select("id, title, project_number, external_tripletex_id, customer")
+      .select("id, title, project_number, external_tripletex_id, customer, project_type")
       .is("deleted_at", null);
 
-    const existingMap = new Map<string, { id: string; title: string }>();
-    (existing || []).forEach(e => {
-      if (e.project_number) existingMap.set(e.project_number.toLowerCase(), { id: e.id, title: e.title });
-      if ((e as any).external_tripletex_id) existingMap.set((e as any).external_tripletex_id.toLowerCase(), { id: e.id, title: e.title });
+    const allProjects = (existing || []);
+
+    // Build exact-match maps
+    const byProjectNumber = new Map<string, { id: string; title: string; customer: string | null }>();
+    const byTripletexId = new Map<string, { id: string; title: string; customer: string | null }>();
+
+    allProjects.forEach(e => {
+      if (e.project_number) byProjectNumber.set(e.project_number.toLowerCase(), { id: e.id, title: e.title, customer: e.customer });
+      if ((e as any).external_tripletex_id) byTripletexId.set(((e as any).external_tripletex_id as string).toLowerCase(), { id: e.id, title: e.title, customer: e.customer });
     });
 
     const rows: ProjectRow[] = parsed.rows.map((row, idx) => {
@@ -116,6 +126,7 @@ export function useTripletexImport() {
       let matchStatus: MatchStatus = "new";
       let matchedEntityId: string | undefined;
       let matchedEntityTitle: string | undefined;
+      let candidates: ProjectRow["candidates"] = undefined;
       let error: string | undefined;
       let action: ImportAction = "create";
 
@@ -124,12 +135,43 @@ export function useTripletexImport() {
         error = "Mangler prosjektnummer";
         action = "ignore";
       } else {
-        const match = existingMap.get(projectNumber.toLowerCase());
-        if (match) {
+        // 1. Exact match on tripletex ID
+        const tripletexMatch = byTripletexId.get(projectNumber.toLowerCase());
+        if (tripletexMatch) {
           matchStatus = "match";
-          matchedEntityId = match.id;
-          matchedEntityTitle = match.title;
+          matchedEntityId = tripletexMatch.id;
+          matchedEntityTitle = tripletexMatch.title;
           action = "update";
+        } else {
+          // 2. Exact match on project number
+          const numMatch = byProjectNumber.get(projectNumber.toLowerCase());
+          if (numMatch) {
+            matchStatus = "match";
+            matchedEntityId = numMatch.id;
+            matchedEntityTitle = numMatch.title;
+            action = "update";
+          } else {
+            // 3. Fuzzy matching on name + customer
+            const fuzzyMatches = allProjects
+              .map(e => {
+                const nameScore = stringSimilarity(projectName, e.title);
+                const customerScore = stringSimilarity(customerName, e.customer || "");
+                // Combined score: name is more important
+                const combined = nameScore * 0.6 + customerScore * 0.4;
+                return { id: e.id, title: e.title, customer: e.customer, score: combined };
+              })
+              .filter(m => m.score > 0.5)
+              .sort((a, b) => b.score - a.score)
+              .slice(0, 3);
+
+            if (fuzzyMatches.length > 0) {
+              matchStatus = "possible_duplicate";
+              candidates = fuzzyMatches;
+              matchedEntityId = fuzzyMatches[0].id;
+              matchedEntityTitle = fuzzyMatches[0].title;
+              action = "create"; // Default to create, admin decides
+            }
+          }
         }
       }
 
@@ -157,6 +199,7 @@ export function useTripletexImport() {
         matchStatus,
         matchedEntityId,
         matchedEntityTitle,
+        candidates,
         action,
         error,
         raw: row,
@@ -233,8 +276,20 @@ export function useTripletexImport() {
     setOfferRows(rows);
   };
 
-  const updateProjectAction = (idx: number, action: ImportAction) => {
-    setProjectRows(prev => prev.map(r => r.idx === idx ? { ...r, action, matchStatus: action === "ignore" ? "ignored" : r.matchStatus } : r));
+  const updateProjectAction = (idx: number, action: ImportAction, linkedEntityId?: string) => {
+    setProjectRows(prev => prev.map(r => {
+      if (r.idx !== idx) return r;
+      const newRow = { ...r, action };
+      if (action === "ignore") {
+        newRow.matchStatus = "ignored";
+      } else if (action === "link" && linkedEntityId) {
+        newRow.matchedEntityId = linkedEntityId;
+        const candidate = r.candidates?.find(c => c.id === linkedEntityId);
+        newRow.matchedEntityTitle = candidate?.title || r.matchedEntityTitle;
+        newRow.matchStatus = "match";
+      }
+      return newRow;
+    }));
   };
 
   const updateOfferAction = (number: string, action: ImportAction) => {
@@ -243,7 +298,9 @@ export function useTripletexImport() {
 
   const canConfirm = () => {
     if (detectedType === "project") {
-      return !projectRows.some(r => r.matchStatus === "needs_review" && r.action !== "ignore");
+      return !projectRows.some(r =>
+        (r.matchStatus === "needs_review" || r.matchStatus === "possible_duplicate") && r.action !== "ignore" && r.action !== "link" && r.action !== "create"
+      );
     }
     if (detectedType === "quote") {
       return !offerRows.some(r => r.matchStatus === "needs_review" && r.action !== "ignore");
@@ -278,22 +335,39 @@ export function useTripletexImport() {
             continue;
           }
           try {
-            if (row.action === "create") {
-              const { data } = await supabase.from("events").insert({
+            if (row.action === "link" && row.matchedEntityId) {
+              // Link to existing project: store tripletex ID on it
+              await supabase.from("events").update({
+                external_tripletex_id: row.projectNumber,
+                customer: row.customerName || undefined,
+              } as any).eq("id", row.matchedEntityId);
+              updated++;
+              await insertResult(logId, row.projectNumber, "project", "linked", "Koblet til eksisterende", row.raw, row.matchedEntityId);
+            } else if (row.action === "create") {
+              // Create as a real MCS project in the events table
+              const { data, error: insertError } = await supabase.from("events").insert({
                 title: row.projectName || row.projectNumber,
                 project_number: row.projectNumber,
                 customer: row.customerName,
                 description: row.description,
-                start_time: row.startDate || new Date().toISOString(),
-                end_time: row.endDate || new Date(Date.now() + 86400000 * 30).toISOString(),
-                status: "requested" as any,
+                start_time: row.startDate ? `${row.startDate}T08:00:00` : new Date().toISOString(),
+                end_time: row.endDate ? `${row.endDate}T16:00:00` : new Date(Date.now() + 86400000 * 90).toISOString(),
+                status: "approved" as any,
+                project_type: "project",
                 technician_id: user.id,
                 company_id: companyId,
                 external_tripletex_id: row.projectNumber,
                 created_by: user.id,
               } as any).select("id").single();
-              created++;
-              await insertResult(logId, row.projectNumber, "project", "created", "Opprettet", row.raw, data?.id);
+
+              if (insertError) {
+                console.error("Project insert error:", insertError);
+                failed++;
+                await insertResult(logId, row.projectNumber, "project", "failed", insertError.message, row.raw);
+              } else {
+                created++;
+                await insertResult(logId, row.projectNumber, "project", "created", "Opprettet", row.raw, data?.id);
+              }
             } else if (row.action === "update" && row.matchedEntityId) {
               await supabase.from("events").update({
                 title: row.projectName || undefined,
@@ -304,9 +378,9 @@ export function useTripletexImport() {
               updated++;
               await insertResult(logId, row.projectNumber, "project", "updated", "Oppdatert", row.raw, row.matchedEntityId);
             }
-          } catch {
+          } catch (e: any) {
             failed++;
-            await insertResult(logId, row.projectNumber, "project", "failed", "Feil ved import", row.raw);
+            await insertResult(logId, row.projectNumber, "project", "failed", e?.message || "Feil ved import", row.raw);
           }
         }
       } else if (detectedType === "quote") {
@@ -318,7 +392,6 @@ export function useTripletexImport() {
           }
           try {
             if (row.action === "create") {
-              // Create calculation first
               const totalAmount = parseNorwegianDecimal(row.offer.orderAmount) || 
                 row.offer.lines.reduce((s, l) => s + (l.amount || 0), 0);
 
@@ -334,7 +407,6 @@ export function useTripletexImport() {
               } as any).select("id").single();
 
               if (calc) {
-                // Create calculation items for each line
                 const items = row.offer.lines.filter(l => l.description).map(l => ({
                   calculation_id: calc.id,
                   title: l.description,
@@ -348,7 +420,6 @@ export function useTripletexImport() {
                   await supabase.from("calculation_items").insert(items);
                 }
 
-                // Create offer
                 await supabase.from("offers").insert({
                   calculation_id: calc.id,
                   offer_number: `TX-${row.offer.number}`,

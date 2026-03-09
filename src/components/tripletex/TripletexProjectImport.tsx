@@ -6,7 +6,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { TripletexUploadZone } from "./TripletexUploadZone";
 import { ImportStatusBadge } from "./ImportStatusBadge";
 import { useTripletexImport, type ImportAction } from "@/hooks/useTripletexImport";
-import { CheckCircle2, AlertTriangle, XCircle, FileText, ArrowLeft, ArrowRight, Loader2, RotateCcw } from "lucide-react";
+import { CheckCircle2, AlertTriangle, XCircle, FileText, ArrowLeft, ArrowRight, Loader2, RotateCcw, Link2 } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 export function TripletexProjectImport() {
   const {
@@ -61,6 +62,7 @@ export function TripletexProjectImport() {
   const summary = {
     match: projectRows.filter(r => r.matchStatus === "match").length,
     new: projectRows.filter(r => r.matchStatus === "new").length,
+    possible_duplicate: projectRows.filter(r => r.matchStatus === "possible_duplicate").length,
     needs_review: projectRows.filter(r => r.matchStatus === "needs_review").length,
     error: projectRows.filter(r => r.matchStatus === "error").length,
     ignored: projectRows.filter(r => r.action === "ignore").length,
@@ -86,6 +88,9 @@ export function TripletexProjectImport() {
       <div className="flex flex-wrap gap-2">
         <Badge variant="default">{summary.match} matcher</Badge>
         <Badge variant="secondary">{summary.new} nye</Badge>
+        {summary.possible_duplicate > 0 && (
+          <Badge variant="outline" className="border-orange-500 text-orange-700">{summary.possible_duplicate} mulig eksisterende</Badge>
+        )}
         {summary.needs_review > 0 && <Badge variant="outline" className="border-yellow-500 text-yellow-700">{summary.needs_review} trenger avklaring</Badge>}
         {summary.error > 0 && <Badge variant="destructive">{summary.error} feil</Badge>}
         {summary.ignored > 0 && <Badge variant="outline">{summary.ignored} ignoreres</Badge>}
@@ -104,22 +109,32 @@ export function TripletexProjectImport() {
                   <TableHead>Kunde</TableHead>
                   <TableHead>Start</TableHead>
                   <TableHead>Slutt</TableHead>
-                  <TableHead>Match</TableHead>
+                  <TableHead>Match / Forslag</TableHead>
                   <TableHead>Handling</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {projectRows.map(row => (
-                  <TableRow key={row.idx} className={row.matchStatus === "error" ? "bg-destructive/5" : ""}>
-                    <TableCell><ImportStatusBadge status={row.action === "ignore" ? "ignored" : row.matchStatus} /></TableCell>
+                  <TableRow key={row.idx} className={row.matchStatus === "error" ? "bg-destructive/5" : row.matchStatus === "possible_duplicate" ? "bg-orange-50 dark:bg-orange-950/20" : ""}>
+                    <TableCell><ImportStatusBadge status={row.action === "ignore" ? "ignored" : row.action === "link" ? "match" : row.matchStatus} /></TableCell>
                     <TableCell className="font-mono text-xs">{row.projectNumber || "—"}</TableCell>
                     <TableCell className="max-w-[200px] truncate">{row.projectName}</TableCell>
                     <TableCell className="text-xs">{row.customerName}</TableCell>
                     <TableCell className="text-xs">{row.startDate || "—"}</TableCell>
                     <TableCell className="text-xs">{row.endDate || "—"}</TableCell>
                     <TableCell className="text-xs text-muted-foreground">
-                      {row.matchedEntityTitle ? (
+                      {row.matchedEntityTitle && row.action === "link" ? (
+                        <span className="text-primary flex items-center gap-1">
+                          <Link2 className="h-3 w-3" />
+                          {row.matchedEntityTitle}
+                        </span>
+                      ) : row.matchedEntityTitle && row.matchStatus === "match" ? (
                         <span className="text-primary">{row.matchedEntityTitle}</span>
+                      ) : row.candidates && row.candidates.length > 0 && row.matchStatus === "possible_duplicate" ? (
+                        <CandidateSelector
+                          candidates={row.candidates}
+                          onSelect={(id) => updateProjectAction(row.idx, "link", id)}
+                        />
                       ) : row.error ? (
                         <span className="text-destructive">{row.error}</span>
                       ) : "—"}
@@ -130,12 +145,15 @@ export function TripletexProjectImport() {
                           value={row.action}
                           onValueChange={(v) => updateProjectAction(row.idx, v as ImportAction)}
                         >
-                          <SelectTrigger className="h-7 text-xs w-[120px]">
+                          <SelectTrigger className="h-7 text-xs w-[140px]">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="create">Opprett ny</SelectItem>
-                            <SelectItem value="update" disabled={!row.matchedEntityId}>Oppdater</SelectItem>
+                            <SelectItem value="update" disabled={!row.matchedEntityId || row.matchStatus === "possible_duplicate"}>Oppdater</SelectItem>
+                            {row.candidates && row.candidates.length > 0 && (
+                              <SelectItem value="link" disabled={!row.matchedEntityId}>Koble til eksisterende</SelectItem>
+                            )}
                             <SelectItem value="ignore">Ignorer</SelectItem>
                           </SelectContent>
                         </Select>
@@ -156,7 +174,7 @@ export function TripletexProjectImport() {
         </Button>
         <div className="flex items-center gap-2">
           {!canConfirm() && (
-            <p className="text-xs text-yellow-600">Det finnes poster som trenger avklaring</p>
+            <p className="text-xs text-yellow-600">Det finnes poster som trenger avklaring – velg handling for alle</p>
           )}
           <Button
             onClick={() => step === "preview" ? setStep("confirm") : executeImport()}
@@ -180,7 +198,7 @@ export function TripletexProjectImport() {
             <p className="text-sm font-medium">Bekreft import</p>
             <p className="text-xs text-muted-foreground">
               {projectRows.filter(r => r.action === "create").length} prosjekter opprettes,{" "}
-              {projectRows.filter(r => r.action === "update").length} oppdateres,{" "}
+              {projectRows.filter(r => r.action === "update" || r.action === "link").length} oppdateres/kobles,{" "}
               {projectRows.filter(r => r.action === "ignore").length + projectRows.filter(r => r.matchStatus === "error").length} ignoreres.
             </p>
             <div className="flex gap-2">
@@ -194,6 +212,37 @@ export function TripletexProjectImport() {
         </Card>
       )}
     </div>
+  );
+}
+
+function CandidateSelector({ candidates, onSelect }: {
+  candidates: { id: string; title: string; customer: string | null; score: number }[];
+  onSelect: (id: string) => void;
+}) {
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button variant="outline" size="sm" className="h-6 text-[10px] gap-1 text-orange-700 border-orange-300">
+          <AlertTriangle className="h-3 w-3" />
+          {candidates.length} mulig{candidates.length > 1 ? "e" : ""} treff
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-72 p-2" align="start">
+        <p className="text-xs font-medium mb-2">Mulig eksisterende prosjekt:</p>
+        <div className="space-y-1">
+          {candidates.map(c => (
+            <button
+              key={c.id}
+              onClick={() => onSelect(c.id)}
+              className="w-full text-left rounded-md p-2 hover:bg-accent text-xs transition-colors"
+            >
+              <p className="font-medium truncate">{c.title}</p>
+              <p className="text-muted-foreground truncate">{c.customer || "Ingen kunde"} · {Math.round(c.score * 100)}% likhet</p>
+            </button>
+          ))}
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }
 
