@@ -43,6 +43,7 @@ import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
 import type { CalendarEvent } from "@/hooks/useCalendarEvents";
 import type { JobStatus } from "@/lib/job-status";
+import { useCalendarSync } from "@/hooks/useCalendarSync";
 
 /* ── Types ── */
 interface ExistingJob {
