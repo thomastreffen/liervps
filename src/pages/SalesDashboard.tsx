@@ -9,7 +9,7 @@ import { SalesHeader } from "@/components/dashboard/SalesHeader";
 import { SalesActionRequired, buildActionItems, type ActionItem } from "@/components/dashboard/SalesActionRequired";
 import { SalesRecommendations, buildRecommendations, type Recommendation } from "@/components/dashboard/SalesRecommendations";
 import { RecentOffersList, RecentLeadsList, type RecentOffer, type RecentLead } from "@/components/dashboard/SalesRecentLists";
-import { OfferSummaryCard } from "@/components/dashboard/OfferSummaryCard";
+import { OfferSummaryCard, STATUS_WEIGHTS } from "@/components/dashboard/OfferSummaryCard";
 
 export default function SalesDashboard() {
   const nav = useNavigate();
@@ -18,7 +18,14 @@ export default function SalesDashboard() {
   const [actions, setActions] = useState<ActionItem[]>([]);
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [loading, setLoading] = useState(true);
-  const [offerStats, setOfferStats] = useState({ totalActive: 0, readyToSend: 0, totalValue: 0 });
+  const [offerStats, setOfferStats] = useState({
+    totalActive: 0,
+    readyToSend: 0,
+    openPipeline: 0,
+    weightedPipeline: 0,
+    biggestOffer: null as { id: string; customer: string; amount: number } | null,
+    needsFollowup: 0,
+  });
 
   useEffect(() => {
     (async () => {
