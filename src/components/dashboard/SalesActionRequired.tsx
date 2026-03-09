@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { AlertCircle, ArrowRight, CheckCircle2, Clock, Send, CalendarX, ListX } from "lucide-react";
+import { AlertCircle, ArrowRight, CheckCircle2, Clock, Send, CalendarX, ListX, Sparkles } from "lucide-react";
 
 export interface ActionItem {
   key: string;
