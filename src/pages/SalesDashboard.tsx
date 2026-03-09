@@ -132,6 +132,7 @@ export default function SalesDashboard() {
         leadsWithoutNextStep,
         calcsWithoutOffer: leadsWithCalcNoOffer,
         befaringWithoutFollowup,
+        acceptedOffers: acceptedCalcs.length,
       }));
 
       // Build recommendations
