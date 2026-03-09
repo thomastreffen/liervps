@@ -111,21 +111,26 @@ export function AppSidebar() {
 
   const [projectCount, setProjectCount] = useState<number>(0);
   const [inboxCount, setInboxCount] = useState<number>(0);
+  const [offerCount, setOfferCount] = useState<number>(0);
 
   useEffect(() => {
     if (!user) return;
-    // Fetch active project count
     supabase.from("events")
       .select("id", { count: "exact", head: true })
       .in("status", ["requested", "approved", "scheduled", "in_progress", "time_change_proposed"])
       .is("deleted_at", null)
       .then(({ count }) => setProjectCount(count || 0));
 
-    // Fetch unread inbox count
     supabase.from("cases")
       .select("id", { count: "exact", head: true })
       .in("status", ["new", "triage"])
       .then(({ count }) => setInboxCount(count || 0));
+
+    supabase.from("calculations")
+      .select("id", { count: "exact", head: true })
+      .is("deleted_at", null)
+      .in("status", ["draft", "completed"])
+      .then(({ count }) => setOfferCount(count || 0));
   }, [user]);
 
   const isActive = (url: string) =>
