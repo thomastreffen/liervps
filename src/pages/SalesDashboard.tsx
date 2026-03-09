@@ -145,7 +145,10 @@ export default function SalesDashboard() {
         <OfferSummaryCard
           totalActive={offerStats.totalActive}
           readyToSend={offerStats.readyToSend}
-          totalValue={offerStats.totalValue}
+          openPipeline={offerStats.openPipeline}
+          weightedPipeline={offerStats.weightedPipeline}
+          biggestOffer={offerStats.biggestOffer}
+          needsFollowup={offerStats.needsFollowup}
           loading={loading}
         />
         <div className="lg:col-span-3">
