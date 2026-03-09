@@ -119,13 +119,14 @@ export function useConversationPosts(threadId: string | null) {
     if (!threadId) { setPosts([]); setLoading(false); return; }
     setLoading(true);
 
-    const { data } = await supabase
+    const { data } = await (supabase as any)
       .from("conversation_posts")
       .select(`
         *,
         conversation_attachments (*)
       `)
       .eq("thread_id", threadId)
+      .is("deleted_at", null)
       .order("created_at", { ascending: true });
 
     const enriched: ConversationPost[] = ((data as any[]) ?? []).map((p) => ({
