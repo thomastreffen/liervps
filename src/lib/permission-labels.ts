@@ -69,6 +69,7 @@ export const PERMISSION_LABELS: Record<string, PermissionMeta> = {
 
   // Calendar
   "calendar.read_busy": { label: "Se opptatt/ledig i kalender", category: "Kalender" },
+  "calendar.view_external": { label: "Se detaljer i eksterne kalenderavtaler", description: "Kan se titler, lokasjoner og annen metadata på eksterne Outlook-hendelser i ressursplanen. Uten denne rettigheten vises kun anonymiserte 'Opptatt'-blokker.", category: "Kalender" },
   "calendar.write_events": { label: "Opprette og endre kalenderavtaler", category: "Kalender" },
   "calendar.delete_events": { label: "Slette kalenderavtaler", category: "Kalender" },
 
@@ -142,7 +143,7 @@ export const PERMISSION_CATEGORIES: { category: string; description: string; key
   {
     category: "Kalender",
     description: "Tilgang til kalender og avtaler.",
-    keys: ["calendar.read_busy", "calendar.write_events", "calendar.delete_events"],
+    keys: ["calendar.read_busy", "calendar.view_external", "calendar.write_events", "calendar.delete_events"],
   },
   {
     category: "Administrasjon",
