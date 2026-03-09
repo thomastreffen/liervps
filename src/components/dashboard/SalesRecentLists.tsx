@@ -2,7 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { formatDistanceToNow } from "date-fns";
 import { nb } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
-import { ArrowRight, Phone, Mail, Calendar } from "lucide-react";
+import { ArrowRight, Phone, Mail } from "lucide-react";
 import { OFFER_STATUS_CONFIG, type OfferStatus } from "@/lib/offer-status";
 import { PIPELINE_STAGES, LEAD_STATUS_CONFIG, type LeadStatus } from "@/lib/lead-status";
 
@@ -37,21 +37,23 @@ export function RecentOffersList({ offers, loading }: OffersProps) {
   const nav = useNavigate();
 
   return (
-    <div className="relative rounded-2xl bg-card border border-border/40 shadow-sm overflow-hidden">
+    <div
+      className="relative rounded-2xl bg-card border border-border/40 shadow-sm overflow-hidden group/card cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
+      onClick={() => nav("/sales/offers")}
+    >
       <div className="h-1 bg-gradient-to-r from-primary to-info" />
       <div className="p-5">
         <div className="flex items-center justify-between mb-4">
           <h4 className="text-xs font-semibold text-foreground uppercase tracking-wider">Siste tilbud</h4>
-          <button
-            onClick={() => nav("/sales/offers")}
+          <span
             className="inline-flex items-center gap-1.5 text-xs font-medium
                        text-muted-foreground px-3 py-1.5 rounded-xl
                        border border-border/30
-                       hover:bg-secondary/50 hover:text-foreground
-                       active:scale-[0.97] transition-all duration-150 cursor-pointer"
+                       group-hover/card:bg-secondary/50 group-hover/card:text-foreground
+                       transition-all duration-150"
           >
-            Se alle <ArrowRight className="h-3 w-3" />
-          </button>
+            Åpne tilbudsoversikt <ArrowRight className="h-3 w-3" />
+          </span>
         </div>
         {loading ? (
           <div className="space-y-2 animate-pulse">
@@ -61,7 +63,7 @@ export function RecentOffersList({ offers, loading }: OffersProps) {
           <div className="flex flex-col items-center py-8 gap-3">
             <p className="text-sm text-muted-foreground/60">Ingen tilbud ennå</p>
             <button
-              onClick={() => nav("/sales/offers")}
+              onClick={(e) => { e.stopPropagation(); nav("/sales/offers/new"); }}
               className="inline-flex items-center gap-1.5 text-xs font-medium text-primary
                          px-4 py-2.5 rounded-xl border border-primary/20
                          hover:bg-primary/10 active:scale-[0.97] transition-all cursor-pointer"
@@ -74,7 +76,7 @@ export function RecentOffersList({ offers, loading }: OffersProps) {
             {offers.map(offer => (
               <button
                 key={offer.id}
-                onClick={() => nav(`/sales/offers/${offer.id}`)}
+                onClick={(e) => { e.stopPropagation(); nav(`/sales/offers/${offer.id}`); }}
                 className="flex items-center gap-3 py-3 px-3 w-full text-left
                            rounded-xl hover:bg-secondary/40 active:scale-[0.99]
                            transition-all duration-150 cursor-pointer group"
@@ -89,14 +91,6 @@ export function RecentOffersList({ offers, loading }: OffersProps) {
                 <Badge className={OFFER_STATUS_CONFIG[offer.status]?.className + " text-[9px] shrink-0"}>
                   {OFFER_STATUS_CONFIG[offer.status]?.label}
                 </Badge>
-                {/* Quick action: mail */}
-                <span
-                  onClick={e => { e.stopPropagation(); nav(`/sales/offers/${offer.id}`); }}
-                  className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
-                  title="Følg opp"
-                >
-                  <Mail className="h-3.5 w-3.5 text-muted-foreground/40 hover:text-primary" />
-                </span>
                 <ArrowRight className="h-3 w-3 text-muted-foreground/0 group-hover:text-primary/50 transition-all shrink-0" />
               </button>
             ))}

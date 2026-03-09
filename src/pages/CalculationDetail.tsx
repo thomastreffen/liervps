@@ -414,9 +414,14 @@ export default function CalculationDetail() {
   if (loading) return <div className="flex items-center justify-center p-12"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
   if (!calc) return (
     <div className="flex items-center justify-center p-12">
-      <div className="text-center space-y-2">
+      <div className="text-center space-y-4">
+        <FileText className="h-12 w-12 mx-auto text-muted-foreground/30" />
         <p className="text-lg font-medium">Tilbud ikke funnet</p>
-        <Button variant="outline" onClick={() => navigate("/sales/offers")}>Tilbake</Button>
+        <p className="text-sm text-muted-foreground/60">Tilbudet kan være slettet eller du har ikke tilgang.</p>
+        <div className="flex items-center gap-2 justify-center">
+          <Button onClick={() => navigate("/sales/offers")}>Gå til tilbudsoversikt</Button>
+          <Button variant="outline" onClick={() => navigate("/sales")}>Til salgsoversikt</Button>
+        </div>
       </div>
     </div>
   );
@@ -444,7 +449,7 @@ export default function CalculationDetail() {
       {/* ── Navigation row ── */}
       <div className="flex items-center gap-2">
         <Button variant="ghost" size="sm" onClick={() => navigate("/sales/offers")} className="gap-1.5 -ml-2">
-          <ArrowLeft className="h-4 w-4" /> Tilbake
+          <ArrowLeft className="h-4 w-4" /> Tilbake til tilbudsoversikt
         </Button>
         {calc.lead_id && (
           <Button variant="link" size="sm" onClick={() => navigate(`/sales/leads/${calc.lead_id}`)} className="text-xs text-muted-foreground gap-1 px-1">

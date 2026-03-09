@@ -9,6 +9,7 @@ import { SalesHeader } from "@/components/dashboard/SalesHeader";
 import { SalesActionRequired, buildActionItems, type ActionItem } from "@/components/dashboard/SalesActionRequired";
 import { SalesRecommendations, buildRecommendations, type Recommendation } from "@/components/dashboard/SalesRecommendations";
 import { RecentOffersList, RecentLeadsList, type RecentOffer, type RecentLead } from "@/components/dashboard/SalesRecentLists";
+import { OfferSummaryCard } from "@/components/dashboard/OfferSummaryCard";
 
 export default function SalesDashboard() {
   const nav = useNavigate();
@@ -17,6 +18,7 @@ export default function SalesDashboard() {
   const [actions, setActions] = useState<ActionItem[]>([]);
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [loading, setLoading] = useState(true);
+  const [offerStats, setOfferStats] = useState({ totalActive: 0, readyToSend: 0, totalValue: 0 });
 
   useEffect(() => {
     (async () => {
@@ -48,6 +50,12 @@ export default function SalesDashboard() {
           created_at: o.created_at,
         }))
       );
+
+      // Offer summary stats
+      const activeOffers = offers.filter((o: any) => !["accepted", "rejected", "expired"].includes(o.status));
+      const readyToSend = offers.filter((o: any) => o.status === "draft").length;
+      const totalValue = activeOffers.reduce((s: number, o: any) => s + Number(o.total_inc_vat || 0), 0);
+      setOfferStats({ totalActive: activeOffers.length, readyToSend, totalValue });
 
       // Recent leads
       setRecentLeads(
@@ -103,20 +111,27 @@ export default function SalesDashboard() {
 
   return (
     <div className="space-y-4 max-w-7xl mx-auto pb-8">
-      {/* Header with title + primary actions */}
+      {/* Header with title + segmented tabs */}
       <SalesHeader />
 
-      {/* KPI Gauges (existing SalesPulse) */}
-      <SalesPulse />
+      {/* Offer summary card + KPI Gauges */}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 px-4 sm:px-6">
+        <OfferSummaryCard
+          totalActive={offerStats.totalActive}
+          readyToSend={offerStats.readyToSend}
+          totalValue={offerStats.totalValue}
+          loading={loading}
+        />
+        <div className="lg:col-span-3">
+          <SalesPulse />
+        </div>
+      </div>
 
       {/* Action-driven sections */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 px-4 sm:px-6">
-        {/* Left: Recommendations + Pipeline (3 cols) */}
         <div className="lg:col-span-3 space-y-4">
           <SalesRecommendations recommendations={recommendations} loading={loading} />
         </div>
-
-        {/* Right: Action required (2 cols) */}
         <div className="lg:col-span-2">
           <SalesActionRequired actions={actions} loading={loading} />
         </div>

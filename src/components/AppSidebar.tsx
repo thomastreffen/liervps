@@ -111,21 +111,26 @@ export function AppSidebar() {
 
   const [projectCount, setProjectCount] = useState<number>(0);
   const [inboxCount, setInboxCount] = useState<number>(0);
+  const [offerCount, setOfferCount] = useState<number>(0);
 
   useEffect(() => {
     if (!user) return;
-    // Fetch active project count
     supabase.from("events")
       .select("id", { count: "exact", head: true })
       .in("status", ["requested", "approved", "scheduled", "in_progress", "time_change_proposed"])
       .is("deleted_at", null)
       .then(({ count }) => setProjectCount(count || 0));
 
-    // Fetch unread inbox count
     supabase.from("cases")
       .select("id", { count: "exact", head: true })
       .in("status", ["new", "triage"])
       .then(({ count }) => setInboxCount(count || 0));
+
+    supabase.from("calculations")
+      .select("id", { count: "exact", head: true })
+      .is("deleted_at", null)
+      .in("status", ["draft", "generated", "sent"] as any)
+      .then(({ count }) => setOfferCount(count || 0));
   }, [user]);
 
   const isActive = (url: string) =>
@@ -203,7 +208,7 @@ export function AppSidebar() {
                          <SidebarMenu className="ml-5 mt-1 space-y-0.5 border-l border-sidebar-border/40 pl-2">
                            <NavItem item={{ title: "Oversikt", url: "/sales", icon: BarChart3 }} isActive={(url) => location.pathname === "/sales"} collapsed={collapsed} />
                            <NavItem item={{ title: "Leads", url: "/sales/leads", icon: Target }} isActive={isActive} collapsed={collapsed} />
-                           <NavItem item={{ title: "Tilbud", url: "/sales/offers", icon: FileText }} isActive={isActive} collapsed={collapsed} />
+                           <NavItem item={{ title: "Tilbud", url: "/sales/offers", icon: FileText }} isActive={isActive} collapsed={collapsed} badge={offerCount > 0 ? offerCount : undefined} />
                          </SidebarMenu>
                        </CollapsibleContent>
                      </Collapsible>
