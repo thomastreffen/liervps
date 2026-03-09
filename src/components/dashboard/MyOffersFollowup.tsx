@@ -135,6 +135,7 @@ export function MyOffersFollowup() {
             urgency,
             customerActive,
             customerViewCount: act?.viewCount || 0,
+            hasFollowupTask: followupOfferIds.has(c.id),
           });
         }
       }
