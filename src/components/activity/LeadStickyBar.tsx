@@ -12,6 +12,7 @@ export function LeadStickyBar({ onAction }: LeadStickyBarProps) {
   const actions: { tab: ActionPanelTab; label: string; icon: React.ReactNode }[] = [
     { tab: "note", label: "Aktivitet", icon: <StickyNote className="h-3.5 w-3.5" /> },
     { tab: "meeting", label: "Møte", icon: <CalendarPlus className="h-3.5 w-3.5" /> },
+    { tab: "teams", label: "Teams", icon: <Video className="h-3.5 w-3.5" /> },
     { tab: "task", label: "Oppgave", icon: <CheckCircle2 className="h-3.5 w-3.5" /> },
     { tab: "email", label: "E-post", icon: <Mail className="h-3.5 w-3.5" /> },
   ];
