@@ -168,8 +168,9 @@ export default function SalesDashboard() {
       </div>
 
       {/* Personal follow-up */}
-      <div className="px-4 sm:px-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 px-4 sm:px-6">
         <MyOffersFollowup />
+        <DashboardFollowupTasks />
       </div>
 
       {/* Action-driven sections */}
