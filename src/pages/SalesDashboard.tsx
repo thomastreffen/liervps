@@ -176,6 +176,13 @@ export default function SalesDashboard() {
         <DashboardFollowupTasks />
       </div>
 
+      {/* Team overview — admin/leader only */}
+      {isAdmin && (
+        <div className="px-4 sm:px-6">
+          <SalesTeamOverview />
+        </div>
+      )}
+
       {/* Action-driven sections */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 px-4 sm:px-6">
         <div className="lg:col-span-3 space-y-4">
