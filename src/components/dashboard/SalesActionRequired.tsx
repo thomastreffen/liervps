@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { AlertCircle, ArrowRight, CheckCircle2, Clock, Send, CalendarX, ListX } from "lucide-react";
+import { AlertCircle, ArrowRight, CheckCircle2, Clock, Send, CalendarX, ListX, Sparkles } from "lucide-react";
 
 export interface ActionItem {
   key: string;
@@ -102,8 +102,20 @@ export function buildActionItems(data: {
   leadsWithoutNextStep: number;
   calcsWithoutOffer: number;
   befaringWithoutFollowup: number;
+  acceptedOffers?: number;
 }): ActionItem[] {
   const items: ActionItem[] = [];
+
+  // Accepted offers — highest priority
+  if (data.acceptedOffers && data.acceptedOffers > 0)
+    items.push({
+      key: "accepted_offers",
+      label: "Tilbud akseptert — klar for konvertering",
+      count: data.acceptedOffers,
+      severity: "high",
+      href: "/sales/offers?status=accepted",
+      icon: <Sparkles className="h-3.5 w-3.5" />,
+    });
 
   if (data.inactiveLeads > 0)
     items.push({

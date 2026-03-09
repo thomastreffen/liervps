@@ -31,6 +31,7 @@ export default function SalesDashboard() {
     biggestOffer: null as { id: string; customer: string; amount: number } | null,
     needsFollowup: 0,
     activeCustomers24h: 0,
+    acceptedCount: 0,
   });
 
   useEffect(() => {
@@ -67,6 +68,7 @@ export default function SalesDashboard() {
       // Offer summary stats
       const activeCalcs = calcs.filter((c: any) => !["accepted", "rejected", "converted"].includes(c.status));
       const readyToSend = calcs.filter((c: any) => c.status === "draft").length;
+      const acceptedCalcs = calcs.filter((c: any) => c.status === "accepted");
       const openPipeline = activeCalcs.reduce((s: number, c: any) => s + Number(c.total_price || 0), 0);
       const weightedPipeline = activeCalcs.reduce((s: number, c: any) => {
         const w = STATUS_WEIGHTS[c.status as string] ?? 0.1;
@@ -95,7 +97,7 @@ export default function SalesDashboard() {
         .in("actor_type", ["customer"])
         .gte("event_at", d24h);
 
-      setOfferStats({ totalActive: activeCalcs.length, readyToSend, openPipeline, weightedPipeline, biggestOffer, needsFollowup, activeCustomers24h: activeCount || 0 });
+      setOfferStats({ totalActive: activeCalcs.length, readyToSend, openPipeline, weightedPipeline, biggestOffer, needsFollowup, activeCustomers24h: activeCount || 0, acceptedCount: acceptedCalcs.length });
 
       // Recent leads
       setRecentLeads(
@@ -130,6 +132,7 @@ export default function SalesDashboard() {
         leadsWithoutNextStep,
         calcsWithoutOffer: leadsWithCalcNoOffer,
         befaringWithoutFollowup,
+        acceptedOffers: acceptedCalcs.length,
       }));
 
       // Build recommendations
