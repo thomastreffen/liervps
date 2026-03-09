@@ -226,7 +226,40 @@ Deno.serve(async (req) => {
     const results: any[] = [];
 
     for (const tech of technicians) {
-      // Create approval record
+      const isSelf = tech.user_id === callerUserId;
+
+      if (isSelf) {
+        // Auto-approve when assigning to yourself – no email needed
+        const { data: approval, error: approvalErr } = await supabaseAdmin
+          .from("job_approvals")
+          .insert({
+            job_id: job_id,
+            technician_user_id: tech.user_id,
+            status: "approved",
+            responded_at: new Date().toISOString(),
+          })
+          .select("token")
+          .single();
+
+        if (approvalErr) {
+          console.error("[create-approval] Self-approve insert error:", tech.id, approvalErr);
+          results.push({ techId: tech.id, error: approvalErr.message });
+          continue;
+        }
+
+        results.push({ techId: tech.id, token: approval?.token, emailSent: false, autoApproved: true });
+
+        await supabaseAdmin.from("event_logs").insert({
+          event_id: job_id,
+          performed_by: callerUserId,
+          action_type: "created",
+          change_summary: `${tech.name} automatisk godkjent (tildelt seg selv)`,
+        });
+
+        continue;
+      }
+
+      // Create approval record for other technicians
       const { data: approval, error: approvalErr } = await supabaseAdmin
         .from("job_approvals")
         .insert({
