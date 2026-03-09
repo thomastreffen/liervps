@@ -111,6 +111,29 @@ export default function LeadsPage() {
 
   useEffect(() => { fetchLeads(); }, [viewMode]);
 
+  // Fetch offer counts per lead
+  useEffect(() => {
+    supabase.from("calculations")
+      .select("lead_id, status")
+      .not("lead_id", "is", null)
+      .is("deleted_at", null)
+      .then(({ data }) => {
+        if (!data) return;
+        const counts: Record<string, { count: number; latestStatus: string }> = {};
+        data.forEach((c: any) => {
+          if (!c.lead_id) return;
+          if (!counts[c.lead_id]) counts[c.lead_id] = { count: 0, latestStatus: c.status };
+          counts[c.lead_id].count++;
+          // Priority: sent > generated > draft
+          const priority: Record<string, number> = { converted: 5, accepted: 4, sent: 3, generated: 2, draft: 1, rejected: 0 };
+          if ((priority[c.status] || 0) > (priority[counts[c.lead_id].latestStatus] || 0)) {
+            counts[c.lead_id].latestStatus = c.status;
+          }
+        });
+        setOfferCounts(counts);
+      });
+  }, [leads]);
+
   const resetForm = () => {
     setCompanyName(""); setContactName(""); setEmail(""); setPhone("");
     setSource(""); setEstimatedValue("");
