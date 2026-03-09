@@ -69,12 +69,13 @@ export function useConversationThreads(projectId: string, filter: ThreadFilter =
 
   const fetchThreads = useCallback(async () => {
     setLoading(true);
-    const baseQuery = supabase
+    const baseQuery = (supabase as any)
       .from("conversation_threads")
       .select("*")
       .eq("project_id", projectId)
       .eq("is_archived", false)
-      .order("last_activity_at", { ascending: false }) as any;
+      .is("deleted_at", null)
+      .order("last_activity_at", { ascending: false });
 
     let query = baseQuery;
     if (filter === "risk") {

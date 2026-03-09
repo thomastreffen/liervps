@@ -1,15 +1,22 @@
 import { useState } from "react";
 import { useConversationThreads, type ConversationThread, type ThreadFilter } from "@/hooks/useConversations";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
 import { nb } from "date-fns/locale";
 import {
   MessageSquare, Mail, Loader2, Plus, Lock,
-  AlertTriangle, Repeat, Gavel, XCircle,
+  AlertTriangle, Repeat, Gavel, XCircle, Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 interface ThreadListProps {
   projectId: string;
