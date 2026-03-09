@@ -43,6 +43,7 @@ import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
 import type { CalendarEvent } from "@/hooks/useCalendarEvents";
 import type { JobStatus } from "@/lib/job-status";
+import { useCalendarSync } from "@/hooks/useCalendarSync";
 
 /* ── Types ── */
 interface ExistingJob {
@@ -94,6 +95,7 @@ export function EventDrawer({
   onSaved,
 }: EventDrawerProps) {
   const navigate = useNavigate();
+  const { syncDelete } = useCalendarSync();
   const isEditing = !!editEvent;
 
   // Form state
@@ -652,6 +654,9 @@ export function EventDrawer({
                         return;
                       }
                     } else if (editEvent) {
+                      // Delete Outlook calendar event linked to this job (microsoft_event_id)
+                      await syncDelete(editEvent.id);
+
                       // Delete any linked schedule blocks first
                       const { data: linkedBlocks } = await supabase
                         .from("schedule_blocks")
