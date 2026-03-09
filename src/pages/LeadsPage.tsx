@@ -87,6 +87,9 @@ export default function LeadsPage() {
   const [quickActionTab, setQuickActionTab] = useState<ActionPanelTab>("note");
   const [quickActionOpen, setQuickActionOpen] = useState(false);
 
+  // Offer counts per lead
+  const [offerCounts, setOfferCounts] = useState<Record<string, { count: number; latestStatus: string }>>({});
+
   const [companyName, setCompanyName] = useState("");
   const [contactName, setContactName] = useState("");
   const [email, setEmail] = useState("");
