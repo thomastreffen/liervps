@@ -385,6 +385,20 @@ export default function LeadsPage() {
                                 </TooltipTrigger>
                                 <TooltipContent>Send e-post</TooltipContent>
                               </Tooltip>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => {
+                                    if (offerCounts[lead.id]) {
+                                      navigate(`/sales/leads/${lead.id}`);
+                                    } else {
+                                      navigate(`/sales/offers/new?lead_id=${lead.id}`);
+                                    }
+                                  }}>
+                                    <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>{offerCounts[lead.id] ? "Se tilbud" : "Opprett tilbud"}</TooltipContent>
+                              </Tooltip>
                             </div>
                           </TableCell>
                         )}
