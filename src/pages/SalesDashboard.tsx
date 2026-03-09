@@ -74,15 +74,14 @@ export default function SalesDashboard() {
       // Build action items
       const activeLeads = leads.filter((l: any) => !["won", "lost"].includes(l.status));
       const inactiveLeads = activeLeads.filter((l: any) => !l.updated_at || new Date(l.updated_at) < new Date(d7)).length;
-      const sentOffers = offers.filter((o: any) => o.status === "sent");
-      const offersWithoutFollowup = sentOffers.filter((o: any) => (now.getTime() - new Date(o.created_at).getTime()) / 86400000 > 5).length;
+      const sentCalcs = calcs.filter((c: any) => c.status === "sent");
+      const offersWithoutFollowup = sentCalcs.filter((c: any) => (now.getTime() - new Date(c.created_at).getTime()) / 86400000 > 5).length;
       const leadsWithoutNextStep = activeLeads.filter((l: any) => !l.next_action_type && !l.next_action_date).length;
       const befaringLeads = activeLeads.filter((l: any) => l.status === "befaring");
       const befaringWithoutFollowup = befaringLeads.filter((l: any) => !l.updated_at || new Date(l.updated_at) < new Date(d7)).length;
       const leadsWithCalcNoOffer = leads.filter((l: any) => {
-        const hasCalc = calcs.some((c: any) => c.lead_id === l.id && c.status === "completed");
-        const hasOffer = offers.some((o: any) => o.lead_id === l.id);
-        return hasCalc && !hasOffer;
+        const hasCalc = calcs.some((c: any) => c.lead_id === l.id && ["generated", "sent"].includes(c.status));
+        return hasCalc;
       }).length;
 
       setActions(buildActionItems({
