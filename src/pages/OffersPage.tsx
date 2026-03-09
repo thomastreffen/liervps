@@ -4,6 +4,8 @@ import { format } from "date-fns";
 import { nb } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useOfferActivitySummary } from "@/hooks/useOfferActivity";
+import { OfferActivityBadge } from "@/components/offer/OfferActivityTimeline";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -51,6 +53,9 @@ export default function OffersPage() {
   };
 
   useEffect(() => { fetchCalcs(); }, []);
+
+  const offerIds = useMemo(() => calcs.map(c => c.id), [calcs]);
+  const { summaries: activitySummaries } = useOfferActivitySummary(offerIds);
 
   const filtered = useMemo(() => {
     let result = [...calcs];
@@ -124,14 +129,15 @@ export default function OffersPage() {
                   <TableHead className="text-xs font-semibold uppercase tracking-wider">Prosjekt</TableHead>
                   <TableHead className="text-xs font-semibold uppercase tracking-wider">Kunde</TableHead>
                   <TableHead className="hidden md:table-cell text-xs font-semibold uppercase tracking-wider">Dato</TableHead>
-                  <TableHead className="text-xs font-semibold uppercase tracking-wider">Status</TableHead>
-                  <TableHead className="text-right text-xs font-semibold uppercase tracking-wider">Totalpris</TableHead>
+                   <TableHead className="text-xs font-semibold uppercase tracking-wider">Status</TableHead>
+                   <TableHead className="hidden lg:table-cell text-xs font-semibold uppercase tracking-wider">Aktivitet</TableHead>
+                   <TableHead className="text-right text-xs font-semibold uppercase tracking-wider">Totalpris</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {paged.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center text-muted-foreground py-12">
+                     <TableCell colSpan={6} className="text-center text-muted-foreground py-12">
                       <ReceiptText className="h-8 w-8 mx-auto mb-2 opacity-30" />
                       Ingen tilbud funnet.
                     </TableCell>
@@ -159,7 +165,14 @@ export default function OffersPage() {
                         <Badge className={CALCULATION_STATUS_CONFIG[calc.status]?.className + " rounded-lg"}>
                           {CALCULATION_STATUS_CONFIG[calc.status]?.label || calc.status}
                         </Badge>
-                      </TableCell>
+                       </TableCell>
+                       <TableCell className="hidden lg:table-cell">
+                         <OfferActivityBadge
+                           lastEvent={activitySummaries[calc.id]?.lastEvent || null}
+                           viewCount={activitySummaries[calc.id]?.customerViewCount || 0}
+                           isActiveNow={activitySummaries[calc.id]?.isActiveNow || false}
+                         />
+                       </TableCell>
                       <TableCell className="text-right font-mono text-sm">
                         {Number(calc.total_price) > 0
                           ? `kr ${Number(calc.total_price).toLocaleString("nb-NO", { minimumFractionDigits: 0 })}`

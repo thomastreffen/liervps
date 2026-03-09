@@ -26,6 +26,7 @@ export default function SalesDashboard() {
     weightedPipeline: 0,
     biggestOffer: null as { id: string; customer: string; amount: number } | null,
     needsFollowup: 0,
+    activeCustomers24h: 0,
   });
 
   useEffect(() => {
@@ -82,7 +83,15 @@ export default function SalesDashboard() {
         return age > 5;
       }).length;
 
-      setOfferStats({ totalActive: activeCalcs.length, readyToSend, openPipeline, weightedPipeline, biggestOffer, needsFollowup });
+      // Count active customers in last 24h
+      const d24h = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
+      const { count: activeCount } = await supabase
+        .from("offer_activity_events" as any)
+        .select("offer_id", { count: "exact", head: true })
+        .in("actor_type", ["customer"])
+        .gte("event_at", d24h);
+
+      setOfferStats({ totalActive: activeCalcs.length, readyToSend, openPipeline, weightedPipeline, biggestOffer, needsFollowup, activeCustomers24h: activeCount || 0 });
 
       // Recent leads
       setRecentLeads(
@@ -149,6 +158,7 @@ export default function SalesDashboard() {
           weightedPipeline={offerStats.weightedPipeline}
           biggestOffer={offerStats.biggestOffer}
           needsFollowup={offerStats.needsFollowup}
+          activeCustomers24h={offerStats.activeCustomers24h}
           loading={loading}
         />
         <div className="lg:col-span-3">

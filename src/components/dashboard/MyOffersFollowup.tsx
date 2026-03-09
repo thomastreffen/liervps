@@ -16,6 +16,7 @@ import {
   ArrowRight,
   Clock,
   AlertCircle,
+  Eye,
 } from "lucide-react";
 
 interface FollowupOffer {
@@ -25,10 +26,13 @@ interface FollowupOffer {
   total_price: number;
   status: CalculationStatus;
   updated_at: string;
-  urgency: "overdue" | "soon" | "stale";
+  urgency: "overdue" | "soon" | "stale" | "hot";
+  customerActive?: boolean;
+  customerViewCount?: number;
 }
 
 const URGENCY_CONFIG = {
+  hot: { label: "Kunde viser interesse", className: "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300", icon: "🟢" },
   overdue: { label: "Forfalt", className: "bg-destructive/15 text-destructive", icon: "🔴" },
   soon: { label: "Snart utløper", className: "bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300", icon: "🟡" },
   stale: { label: "Ingen aktivitet", className: "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300", icon: "🟡" },
@@ -64,12 +68,43 @@ export function MyOffersFollowup() {
       const now = Date.now();
       const items: FollowupOffer[] = [];
 
+      // Fetch customer activity for these offers
+      const offerIds = data.map((c: any) => c.id);
+      const { data: activityData } = await supabase
+        .from("offer_activity_events" as any)
+        .select("offer_id, event_type, event_at")
+        .in("offer_id", offerIds)
+        .in("actor_type", ["customer"])
+        .order("event_at", { ascending: false })
+        .limit(500);
+
+      const activities = (activityData as any[]) || [];
+      const activityByOffer: Record<string, { viewCount: number; lastAt: number; isRecent: boolean }> = {};
+      for (const a of activities) {
+        if (!activityByOffer[a.offer_id]) {
+          activityByOffer[a.offer_id] = { viewCount: 0, lastAt: 0, isRecent: false };
+        }
+        const entry = activityByOffer[a.offer_id];
+        if (a.event_type === "offer_viewed") entry.viewCount++;
+        const at = new Date(a.event_at).getTime();
+        if (at > entry.lastAt) entry.lastAt = at;
+        if (now - at < 24 * 60 * 60 * 1000) entry.isRecent = true;
+      }
+
       for (const c of data) {
         const daysSinceUpdate = (now - new Date(c.updated_at).getTime()) / 86400000;
+        const act = activityByOffer[c.id];
 
         let urgency: FollowupOffer["urgency"] | null = null;
+        let customerActive = false;
+        let customerViewCount = 0;
 
-        if (c.status === "sent" && daysSinceUpdate > 14) {
+        // Hot: customer viewed 2+ times or viewed in last 24h AND not contacted
+        if (act && (act.viewCount >= 2 || act.isRecent)) {
+          urgency = "hot";
+          customerActive = true;
+          customerViewCount = act.viewCount;
+        } else if (c.status === "sent" && daysSinceUpdate > 14) {
           urgency = "overdue";
         } else if (c.status === "sent" && daysSinceUpdate > STALE_DAYS) {
           urgency = "soon";
@@ -88,12 +123,14 @@ export function MyOffersFollowup() {
             status: c.status as CalculationStatus,
             updated_at: c.updated_at,
             urgency,
+            customerActive,
+            customerViewCount: act?.viewCount || 0,
           });
         }
       }
 
-      // Sort: overdue first, then soon, then stale
-      const urgencyOrder = { overdue: 0, soon: 1, stale: 2 };
+      // Sort: hot first, then overdue, soon, stale
+      const urgencyOrder = { hot: -1, overdue: 0, soon: 1, stale: 2 };
       items.sort((a, b) => urgencyOrder[a.urgency] - urgencyOrder[b.urgency]);
 
       setOffers(items.slice(0, MAX_ITEMS));
@@ -174,7 +211,16 @@ export function MyOffersFollowup() {
                   <span className="flex items-center gap-0.5">
                     <Clock className="h-3 w-3" />
                     {daysSince(offer.updated_at)}
-                  </span>
+                   </span>
+                  {offer.customerActive && (
+                    <>
+                      <span>·</span>
+                      <span className="flex items-center gap-0.5 text-green-600 font-medium">
+                        <Eye className="h-3 w-3" />
+                        {offer.customerViewCount}× åpnet
+                      </span>
+                    </>
+                  )}
                 </div>
               </div>
 

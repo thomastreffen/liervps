@@ -20,6 +20,7 @@ import {
 import { OFFER_STATUS_CONFIG, ALL_OFFER_STATUSES, type OfferStatus } from "@/lib/offer-status";
 import { AI_MODE_CONFIG, ALL_AI_MODES, detectAiMode, type AiMode } from "@/lib/ai-mode";
 import { ExecutiveSummary } from "@/components/offer/ExecutiveSummary";
+import { OfferActivityTimeline } from "@/components/offer/OfferActivityTimeline";
 import { ConvertToJobDialog } from "@/components/ConvertToJobDialog";
 import {
   ArrowLeft, Loader2, Sparkles, FileDown, ArrowRightLeft, Plus, Trash2, Save,
@@ -630,6 +631,7 @@ export default function CalculationDetail() {
           <TabsTrigger value="versions" className="gap-1.5 rounded-lg"><ReceiptText className="h-3.5 w-3.5" />Versjoner ({offers.length})</TabsTrigger>
           <TabsTrigger value="attachments" className="gap-1.5 rounded-lg"><Paperclip className="h-3.5 w-3.5" />Vedlegg {attachments.length > 0 && `(${attachments.length})`}</TabsTrigger>
           <TabsTrigger value="history" className="gap-1.5 rounded-lg"><History className="h-3.5 w-3.5" />Historikk</TabsTrigger>
+          <TabsTrigger value="activity" className="gap-1.5 rounded-lg"><Eye className="h-3.5 w-3.5" />Aktivitet</TabsTrigger>
         </TabsList>
 
         {/* ===== Overview Tab ===== */}
@@ -1013,6 +1015,11 @@ export default function CalculationDetail() {
               </div>
             </div>
           </div>
+        </TabsContent>
+
+        {/* ===== Activity Tab ===== */}
+        <TabsContent value="activity" className="space-y-4 pt-4">
+          <OfferActivityTimeline offerId={calc.id} />
         </TabsContent>
       </Tabs>
 

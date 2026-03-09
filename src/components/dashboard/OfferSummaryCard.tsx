@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { FileText, ArrowRight, Send, TrendingUp, AlertTriangle } from "lucide-react";
+import { FileText, ArrowRight, Send, TrendingUp, AlertTriangle, Activity } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface BiggestOffer {
@@ -16,6 +16,7 @@ interface OfferSummaryProps {
   biggestOffer: BiggestOffer | null;
   needsFollowup: number;
   loading: boolean;
+  activeCustomers24h?: number;
 }
 
 const STATUS_WEIGHTS: Record<string, number> = {
@@ -37,6 +38,7 @@ export function OfferSummaryCard({
   biggestOffer,
   needsFollowup,
   loading,
+  activeCustomers24h = 0,
 }: OfferSummaryProps) {
   const nav = useNavigate();
 
@@ -118,6 +120,22 @@ export function OfferSummaryCard({
                 <p className="font-medium text-foreground truncate">
                   {biggestOffer.customer} — <span className="font-mono">kr {fmt(biggestOffer.amount)}</span>
                 </p>
+              </div>
+            )}
+
+            {/* Live customer activity indicator */}
+            {activeCustomers24h > 0 && (
+              <div
+                className="rounded-xl bg-green-50 dark:bg-green-900/20 px-3 py-2 text-xs cursor-pointer hover:bg-green-100 dark:hover:bg-green-900/30 transition-colors flex items-center gap-2"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  nav("/sales/offers?activity=recent");
+                }}
+              >
+                <span className="h-2 w-2 rounded-full bg-green-500 animate-pulse shrink-0" />
+                <span className="text-green-700 dark:text-green-300 font-medium">
+                  {activeCustomers24h} {activeCustomers24h === 1 ? "kunde" : "kunder"} aktive siste 24t
+                </span>
               </div>
             )}
 
