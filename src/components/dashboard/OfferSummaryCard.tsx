@@ -38,6 +38,7 @@ export function OfferSummaryCard({
   biggestOffer,
   needsFollowup,
   loading,
+  activeCustomers24h = 0,
 }: OfferSummaryProps) {
   const nav = useNavigate();
 
