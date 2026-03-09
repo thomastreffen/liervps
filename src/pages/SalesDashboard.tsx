@@ -31,6 +31,7 @@ export default function SalesDashboard() {
     biggestOffer: null as { id: string; customer: string; amount: number } | null,
     needsFollowup: 0,
     activeCustomers24h: 0,
+    acceptedCount: 0,
   });
 
   useEffect(() => {
