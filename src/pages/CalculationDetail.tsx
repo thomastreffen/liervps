@@ -1020,6 +1020,7 @@ export default function CalculationDetail() {
 
         {/* ===== Activity Tab ===== */}
         <TabsContent value="activity" className="space-y-4 pt-4">
+          <OfferFollowupSection offerId={calc.id} />
           <OfferActivityTimeline offerId={calc.id} />
         </TabsContent>
       </Tabs>
