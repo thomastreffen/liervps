@@ -36,26 +36,26 @@ export default function SalesDashboard() {
       ]);
 
       const leads = leadsRes.data || [];
-      const offers = offersRes.data || [];
       const calcs = calcsRes.data || [];
 
-      // Recent offers
+      // Recent offers (from calculations table — matches /sales/offers/:id route)
+      const recentCalcs = calcs.slice(0, 6);
       setRecentOffers(
-        (offers).map((o: any) => ({
-          id: o.id,
-          offer_number: o.offer_number,
-          status: o.status as OfferStatus,
-          total_inc_vat: Number(o.total_inc_vat),
-          customer: o.calculations?.customer_name || "",
-          created_at: o.created_at,
+        recentCalcs.map((c: any) => ({
+          id: c.id,
+          offer_number: c.project_title || "Uten tittel",
+          status: (c.status || "draft") as OfferStatus,
+          total_inc_vat: Number(c.total_price || 0),
+          customer: c.customer_name || "",
+          created_at: c.created_at,
         }))
       );
 
       // Offer summary stats
-      const activeOffers = offers.filter((o: any) => !["accepted", "rejected", "expired"].includes(o.status));
-      const readyToSend = offers.filter((o: any) => o.status === "draft").length;
-      const totalValue = activeOffers.reduce((s: number, o: any) => s + Number(o.total_inc_vat || 0), 0);
-      setOfferStats({ totalActive: activeOffers.length, readyToSend, totalValue });
+      const activeCalcs = calcs.filter((c: any) => !["accepted", "rejected", "converted"].includes(c.status));
+      const readyToSend = calcs.filter((c: any) => c.status === "draft").length;
+      const totalValue = activeCalcs.reduce((s: number, c: any) => s + Number(c.total_price || 0), 0);
+      setOfferStats({ totalActive: activeCalcs.length, readyToSend, totalValue });
 
       // Recent leads
       setRecentLeads(
