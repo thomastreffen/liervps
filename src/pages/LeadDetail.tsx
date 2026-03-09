@@ -191,8 +191,12 @@ function LeadDetailInner() {
   const fetchOffers = useCallback(async () => {
     if (!id) return;
     try {
-      const { data } = await supabase.from("offers").select("id, offer_number, status, version, total_ex_vat, total_inc_vat, created_at").eq("lead_id", id).order("created_at", { ascending: false });
-      setOffers((data || []) as any as Offer[]);
+      const { data } = await supabase.from("calculations")
+        .select("id, project_title, status, total_price, created_at")
+        .eq("lead_id", id)
+        .is("deleted_at", null)
+        .order("created_at", { ascending: false });
+      setOffers((data || []) as any as LeadCalc[]);
     } catch (err) { console.warn("[LeadDetail] Offers fetch error:", err); }
   }, [id]);
 
