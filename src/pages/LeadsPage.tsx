@@ -198,7 +198,7 @@ export default function LeadsPage() {
   });
 
   return (
-    <div className="mx-auto max-w-6xl p-4 sm:p-6 lg:p-8 space-y-5">
+    <div className="mx-auto max-w-[1920px] p-4 sm:p-6 lg:p-8 space-y-5">
       <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
         {/* View mode toggle */}
         <div className="flex items-center gap-1 rounded-xl border border-border/40 p-0.5 bg-secondary/20">

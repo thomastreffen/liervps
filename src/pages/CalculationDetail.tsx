@@ -447,7 +447,7 @@ export default function CalculationDetail() {
   const latestAcceptedOffer = offers.find((o) => o.status === "accepted");
 
   return (
-    <div className="mx-auto max-w-5xl p-4 sm:p-6 pb-24 space-y-6">
+    <div className="mx-auto max-w-[1920px] p-4 sm:p-6 pb-24 space-y-6">
       {/* ── Navigation row ── */}
       <div className="flex items-center gap-2">
         <Button variant="ghost" size="sm" onClick={() => navigate("/sales/offers")} className="gap-1.5 -ml-2">
