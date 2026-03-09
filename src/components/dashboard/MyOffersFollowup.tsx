@@ -211,7 +211,16 @@ export function MyOffersFollowup() {
                   <span className="flex items-center gap-0.5">
                     <Clock className="h-3 w-3" />
                     {daysSince(offer.updated_at)}
-                  </span>
+                   </span>
+                  {offer.customerActive && (
+                    <>
+                      <span>·</span>
+                      <span className="flex items-center gap-0.5 text-green-600 font-medium">
+                        <Eye className="h-3 w-3" />
+                        {offer.customerViewCount}× åpnet
+                      </span>
+                    </>
+                  )}
                 </div>
               </div>
 
