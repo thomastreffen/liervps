@@ -26,15 +26,31 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
 export default function NewCalculation() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
   const [calcId, setCalcId] = useState<string | null>(null);
 
+  const leadId = searchParams.get("lead_id");
+
   // Step 1
   const [customerName, setCustomerName] = useState("");
   const [customerEmail, setCustomerEmail] = useState("");
   const [projectTitle, setProjectTitle] = useState("");
+
+  // Prefill from lead
+  useEffect(() => {
+    if (!leadId) return;
+    supabase.from("leads").select("company_name, email, contact_name").eq("id", leadId).single()
+      .then(({ data }) => {
+        if (data) {
+          setCustomerName(data.company_name || "");
+          setCustomerEmail(data.email || "");
+          setProjectTitle(data.company_name ? `Tilbud - ${data.company_name}` : "");
+        }
+      });
+  }, [leadId]);
 
   // Step 2
   const [description, setDescription] = useState("");
