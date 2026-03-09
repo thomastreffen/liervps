@@ -333,7 +333,7 @@ function LeadDetailInner() {
   const handleUpdateNextStep = async (data: { type: string; date: string; note: string }) => {
     if (!lead) return;
     await supabase.from("leads").update({
-      next_action_type: data.type || null,
+      next_action_type: (data.type || null) as any,
       next_action_date: data.date || null,
       next_action_note: data.note || null,
     }).eq("id", lead.id);
