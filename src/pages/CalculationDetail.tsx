@@ -631,6 +631,7 @@ export default function CalculationDetail() {
           <TabsTrigger value="versions" className="gap-1.5 rounded-lg"><ReceiptText className="h-3.5 w-3.5" />Versjoner ({offers.length})</TabsTrigger>
           <TabsTrigger value="attachments" className="gap-1.5 rounded-lg"><Paperclip className="h-3.5 w-3.5" />Vedlegg {attachments.length > 0 && `(${attachments.length})`}</TabsTrigger>
           <TabsTrigger value="history" className="gap-1.5 rounded-lg"><History className="h-3.5 w-3.5" />Historikk</TabsTrigger>
+          <TabsTrigger value="activity" className="gap-1.5 rounded-lg"><Eye className="h-3.5 w-3.5" />Aktivitet</TabsTrigger>
         </TabsList>
 
         {/* ===== Overview Tab ===== */}
