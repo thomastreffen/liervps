@@ -75,6 +75,7 @@ import ConfirmationsPage from "./pages/ConfirmationsPage";
 import AiMatcherReportPage from "./pages/AiMatcherReportPage";
 import InvoiceBasisPage from "./pages/InvoiceBasisPage";
 import ModuleManagementPage from "./pages/ModuleManagementPage";
+import TripletexImportPage from "./pages/TripletexImportPage";
 import ManagementPage from "./pages/ManagementPage";
 import MyDayPage from "./pages/MyDayPage";
 import HelpCenterPage from "./pages/HelpCenterPage";
@@ -373,6 +374,14 @@ const App = () => (
                 element={
                   <ProtectedRoute requiredRoles={["super_admin"]}>
                     <ModuleManagementPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/tripletex"
+                element={
+                  <ProtectedRoute requiredRoles={["admin", "super_admin"]}>
+                    <TripletexImportPage />
                   </ProtectedRoute>
                 }
               />

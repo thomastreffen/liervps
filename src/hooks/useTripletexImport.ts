@@ -52,7 +52,7 @@ export interface OfferRow {
 
 export function useTripletexImport() {
   const { user } = useAuth();
-  const { companyId } = useCompanyContext();
+  const { activeCompanyId: companyId } = useCompanyContext();
 
   const [parsedData, setParsedData] = useState<ParsedCSV | null>(null);
   const [detectedType, setDetectedType] = useState<DetectedFileType>("unknown");
@@ -259,15 +259,15 @@ export function useTripletexImport() {
     const totalRows = detectedType === "project" ? projectRows.length : offerRows.length;
 
     // Create import log
-    const { data: logData } = await supabase.from("import_logs" as any).insert({
+    const { data: logData } = await (supabase.from("import_logs" as any) as any).insert({
       import_type: detectedType,
       file_name: fileName,
       imported_by: user.id,
       total_rows: totalRows,
       status: "pending",
-    } as any).select("id").single();
+    }).select("id").single();
 
-    const logId = logData?.id || "";
+    const logId = (logData as any)?.id || "";
 
     try {
       if (detectedType === "project") {
