@@ -79,6 +79,15 @@ export function MyOffersFollowup() {
         .order("event_at", { ascending: false })
         .limit(500);
 
+      // Fetch open followup tasks for these offers
+      const { data: followupData } = await supabase
+        .from("offer_followup_tasks" as any)
+        .select("offer_id")
+        .in("offer_id", offerIds)
+        .in("status", ["open"]);
+
+      const followupOfferIds = new Set((followupData as any[] || []).map((f: any) => f.offer_id));
+
       const activities = (activityData as any[]) || [];
       const activityByOffer: Record<string, { viewCount: number; lastAt: number; isRecent: boolean }> = {};
       for (const a of activities) {
