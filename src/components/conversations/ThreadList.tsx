@@ -50,8 +50,28 @@ function initials(name: string): string {
 
 export function ThreadList({ projectId }: ThreadListProps) {
   const [filter, setFilter] = useState<ThreadFilter>("all");
-  const { threads, loading } = useConversationThreads(projectId, filter);
+  const { threads, loading, refresh } = useConversationThreads(projectId, filter);
+  const { user, isAdmin } = useAuth();
   const navigate = useNavigate();
+  const [deleteTarget, setDeleteTarget] = useState<ConversationThread | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    const { error } = await (supabase as any)
+      .from("conversation_threads")
+      .update({ deleted_at: new Date().toISOString(), deleted_by: user?.id })
+      .eq("id", deleteTarget.id);
+    if (error) {
+      toast.error("Kunne ikke slette samtalen");
+    } else {
+      toast.success("Samtale flyttet til papirkurv");
+      refresh();
+    }
+    setDeleting(false);
+    setDeleteTarget(null);
+  };
 
   if (loading) {
     return (
@@ -106,10 +126,35 @@ export function ThreadList({ projectId }: ThreadListProps) {
               key={thread.id}
               thread={thread}
               onClick={() => navigate(`/projects/${projectId}/conversations/${thread.id}`)}
+              canDelete={isAdmin}
+              onDelete={() => setDeleteTarget(thread)}
             />
           ))}
         </div>
       )}
+
+      {/* Delete confirmation */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Flytt samtale til papirkurv?</AlertDialogTitle>
+            <AlertDialogDescription>
+              «{deleteTarget?.title}» flyttes til papirkurv og kan gjenopprettes derfra.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Avbryt</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90 gap-1.5"
+            >
+              {deleting && <Loader2 className="h-4 w-4 animate-spin" />}
+              Flytt til papirkurv
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
