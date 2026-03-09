@@ -24,7 +24,7 @@ import { LEAD_STATUS_CONFIG, ALL_LEAD_STATUSES, NEXT_ACTION_TYPES, type LeadStat
 import {
   User, Loader2, Save, Clock, ArrowLeft, Copy,
   AlertTriangle, Plus, Trash2, FileText, ArrowRightLeft, ShieldAlert,
-  Mail, CalendarPlus, RefreshCw, Calendar as CalendarIcon, CheckCircle2, ExternalLink, Link2
+  Mail, CalendarPlus, RefreshCw, Calendar as CalendarIcon, CheckCircle2, ExternalLink, Link2, ArrowRight
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -82,13 +82,11 @@ interface Participant {
   user_email?: string;
 }
 
-interface Offer {
+interface LeadCalc {
   id: string;
-  offer_number: string;
+  project_title: string;
   status: string;
-  version: number;
-  total_ex_vat: number;
-  total_inc_vat: number;
+  total_price: number | null;
   created_at: string;
 }
 
@@ -116,7 +114,7 @@ function LeadDetailInner() {
   const [notFound, setNotFound] = useState(false);
   const [saving, setSaving] = useState(false);
   const [participants, setParticipants] = useState<Participant[]>([]);
-  const [offers, setOffers] = useState<Offer[]>([]);
+  const [offers, setOffers] = useState<LeadCalc[]>([]);
   const [calendarLinks, setCalendarLinks] = useState<CalendarLink[]>([]);
   const [companyUsers, setCompanyUsers] = useState<{ id: string; name: string; email: string }[]>([]);
 
@@ -193,8 +191,12 @@ function LeadDetailInner() {
   const fetchOffers = useCallback(async () => {
     if (!id) return;
     try {
-      const { data } = await supabase.from("offers").select("id, offer_number, status, version, total_ex_vat, total_inc_vat, created_at").eq("lead_id", id).order("created_at", { ascending: false });
-      setOffers((data || []) as any as Offer[]);
+      const { data } = await supabase.from("calculations")
+        .select("id, project_title, status, total_price, created_at")
+        .eq("lead_id", id)
+        .is("deleted_at", null)
+        .order("created_at", { ascending: false });
+      setOffers((data || []) as any as LeadCalc[]);
     } catch (err) { console.warn("[LeadDetail] Offers fetch error:", err); }
   }, [id]);
 
@@ -470,7 +472,7 @@ function LeadDetailInner() {
               estimated_value: lead.estimated_value,
             }}
             participants={participants}
-            offers={offers}
+            offers={offers.map(o => ({ id: o.id, offer_number: o.project_title, status: o.status }))}
             onConverted={() => setShowConvertPanel(false)}
             onCancel={() => setShowConvertPanel(false)}
             logActivity={logActivity}
@@ -654,25 +656,20 @@ function LeadDetailInner() {
                 ) : (
                   <div className="space-y-2">
                     {offers.map(offer => (
-                      <div key={offer.id} className="flex items-center gap-3 py-2 border-b border-border/20 last:border-0 group">
+                      <div
+                        key={offer.id}
+                        className="flex items-center gap-3 py-2.5 px-2 border-b border-border/20 last:border-0 group rounded-lg hover:bg-secondary/40 cursor-pointer transition-colors"
+                        onClick={() => navigate(`/sales/offers/${offer.id}`)}
+                      >
                         <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium">{offer.offer_number} (v{offer.version})</p>
+                          <p className="text-sm font-medium truncate">{offer.project_title}</p>
                           <p className="text-xs text-muted-foreground">
-                            {format(new Date(offer.created_at), "d. MMM yyyy", { locale: nb })} · kr {Number(offer.total_ex_vat).toLocaleString("nb-NO")} eks. mva
+                            {format(new Date(offer.created_at), "d. MMM yyyy", { locale: nb })} · kr {Number(offer.total_price || 0).toLocaleString("nb-NO")} eks. mva
                           </p>
                         </div>
                         <Badge variant="outline" className="text-[10px] capitalize">{offer.status}</Badge>
-                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => navigate(`/sales/offers/${offer.id}`)} title="Åpne">
-                            <ExternalLink className="h-3.5 w-3.5 text-muted-foreground" />
-                          </Button>
-                          {(offer.status === "accepted" || offer.status === "signed") && (
-                            <Button size="sm" variant="outline" className="gap-1 text-xs h-7" onClick={() => setShowConvertPanel(true)}>
-                              <ArrowRightLeft className="h-3 w-3" /> Konverter
-                            </Button>
-                          )}
-                        </div>
+                        <ArrowRight className="h-3 w-3 text-muted-foreground/0 group-hover:text-primary/50 transition-all shrink-0" />
                       </div>
                     ))}
                   </div>

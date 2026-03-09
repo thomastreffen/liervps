@@ -87,6 +87,9 @@ export default function LeadsPage() {
   const [quickActionTab, setQuickActionTab] = useState<ActionPanelTab>("note");
   const [quickActionOpen, setQuickActionOpen] = useState(false);
 
+  // Offer counts per lead
+  const [offerCounts, setOfferCounts] = useState<Record<string, { count: number; latestStatus: string }>>({});
+
   const [companyName, setCompanyName] = useState("");
   const [contactName, setContactName] = useState("");
   const [email, setEmail] = useState("");
@@ -107,6 +110,29 @@ export default function LeadsPage() {
   };
 
   useEffect(() => { fetchLeads(); }, [viewMode]);
+
+  // Fetch offer counts per lead
+  useEffect(() => {
+    supabase.from("calculations")
+      .select("lead_id, status")
+      .not("lead_id", "is", null)
+      .is("deleted_at", null)
+      .then(({ data }) => {
+        if (!data) return;
+        const counts: Record<string, { count: number; latestStatus: string }> = {};
+        data.forEach((c: any) => {
+          if (!c.lead_id) return;
+          if (!counts[c.lead_id]) counts[c.lead_id] = { count: 0, latestStatus: c.status };
+          counts[c.lead_id].count++;
+          // Priority: sent > generated > draft
+          const priority: Record<string, number> = { converted: 5, accepted: 4, sent: 3, generated: 2, draft: 1, rejected: 0 };
+          if ((priority[c.status] || 0) > (priority[counts[c.lead_id].latestStatus] || 0)) {
+            counts[c.lead_id].latestStatus = c.status;
+          }
+        });
+        setOfferCounts(counts);
+      });
+  }, [leads]);
 
   const resetForm = () => {
     setCompanyName(""); setContactName(""); setEmail(""); setPhone("");
@@ -304,9 +330,17 @@ export default function LeadsPage() {
                           </div>
                         </TableCell>
                         <TableCell>
-                          <Badge className={LEAD_STATUS_CONFIG[lead.status]?.className + " text-[10px] rounded-lg"}>
-                            {LEAD_STATUS_CONFIG[lead.status]?.label}
-                          </Badge>
+                          <div className="flex items-center gap-1.5">
+                            <Badge className={LEAD_STATUS_CONFIG[lead.status]?.className + " text-[10px] rounded-lg"}>
+                              {LEAD_STATUS_CONFIG[lead.status]?.label}
+                            </Badge>
+                            {offerCounts[lead.id] && (
+                              <Badge variant="outline" className="text-[9px] rounded-lg gap-0.5 border-primary/30 text-primary">
+                                <FileText className="h-2.5 w-2.5" />
+                                {offerCounts[lead.id].count}
+                              </Badge>
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell className="hidden md:table-cell">
                           <span className="text-xs text-muted-foreground/60">
@@ -350,6 +384,20 @@ export default function LeadsPage() {
                                   </Button>
                                 </TooltipTrigger>
                                 <TooltipContent>Send e-post</TooltipContent>
+                              </Tooltip>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => {
+                                    if (offerCounts[lead.id]) {
+                                      navigate(`/sales/leads/${lead.id}`);
+                                    } else {
+                                      navigate(`/sales/offers/new?lead_id=${lead.id}`);
+                                    }
+                                  }}>
+                                    <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>{offerCounts[lead.id] ? "Se tilbud" : "Opprett tilbud"}</TooltipContent>
                               </Tooltip>
                             </div>
                           </TableCell>
