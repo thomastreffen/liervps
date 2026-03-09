@@ -1513,6 +1513,8 @@ export type Database = {
           context_object_type: string | null
           context_tags: string[] | null
           created_at: string
+          deleted_at: string | null
+          deleted_by: string | null
           direction: string | null
           from_email: string | null
           from_name: string | null
@@ -1540,6 +1542,8 @@ export type Database = {
           context_object_type?: string | null
           context_tags?: string[] | null
           created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
           direction?: string | null
           from_email?: string | null
           from_name?: string | null
@@ -1567,6 +1571,8 @@ export type Database = {
           context_object_type?: string | null
           context_tags?: string[] | null
           created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
           direction?: string | null
           from_email?: string | null
           from_name?: string | null
