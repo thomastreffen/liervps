@@ -75,7 +75,6 @@ export default function SalesDashboard() {
         : null;
 
       // Needs follow-up: sent > 5 days ago
-      const now = new Date();
       const needsFollowup = calcs.filter((c: any) => {
         if (c.status !== "sent") return false;
         const age = (now.getTime() - new Date(c.created_at).getTime()) / 86400000;
