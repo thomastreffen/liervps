@@ -1037,6 +1037,8 @@ export default function CalculationDetail() {
         defaultTitle={calc.project_title}
         defaultCustomer={calc.customer_name}
         defaultDescription={calc.description || undefined}
+        totalPrice={Number(calc.total_price) || 0}
+        offerNumber={calc.project_title}
       />
       <NewRegulationQueryDialog
         open={regulationOpen}
