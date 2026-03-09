@@ -11,6 +11,7 @@ import { SalesRecommendations, buildRecommendations, type Recommendation } from 
 import { RecentOffersList, RecentLeadsList, type RecentOffer, type RecentLead } from "@/components/dashboard/SalesRecentLists";
 import { OfferSummaryCard, STATUS_WEIGHTS } from "@/components/dashboard/OfferSummaryCard";
 import { MyOffersFollowup } from "@/components/dashboard/MyOffersFollowup";
+import { DashboardFollowupTasks } from "@/components/dashboard/DashboardFollowupTasks";
 
 export default function SalesDashboard() {
   const nav = useNavigate();
