@@ -129,8 +129,9 @@ export default function OffersPage() {
                   <TableHead className="text-xs font-semibold uppercase tracking-wider">Prosjekt</TableHead>
                   <TableHead className="text-xs font-semibold uppercase tracking-wider">Kunde</TableHead>
                   <TableHead className="hidden md:table-cell text-xs font-semibold uppercase tracking-wider">Dato</TableHead>
-                  <TableHead className="text-xs font-semibold uppercase tracking-wider">Status</TableHead>
-                  <TableHead className="text-right text-xs font-semibold uppercase tracking-wider">Totalpris</TableHead>
+                   <TableHead className="text-xs font-semibold uppercase tracking-wider">Status</TableHead>
+                   <TableHead className="hidden lg:table-cell text-xs font-semibold uppercase tracking-wider">Aktivitet</TableHead>
+                   <TableHead className="text-right text-xs font-semibold uppercase tracking-wider">Totalpris</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
