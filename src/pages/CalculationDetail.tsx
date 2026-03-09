@@ -449,7 +449,7 @@ export default function CalculationDetail() {
       {/* ── Navigation row ── */}
       <div className="flex items-center gap-2">
         <Button variant="ghost" size="sm" onClick={() => navigate("/sales/offers")} className="gap-1.5 -ml-2">
-          <ArrowLeft className="h-4 w-4" /> Tilbake
+          <ArrowLeft className="h-4 w-4" /> Tilbake til tilbudsoversikt
         </Button>
         {calc.lead_id && (
           <Button variant="link" size="sm" onClick={() => navigate(`/sales/leads/${calc.lead_id}`)} className="text-xs text-muted-foreground gap-1 px-1">
