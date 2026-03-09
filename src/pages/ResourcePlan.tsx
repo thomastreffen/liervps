@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/hooks/useAuth";
+import { usePermissions } from "@/hooks/usePermissions";
 import { useTechnicians } from "@/hooks/useTechnicians";
 import { useExternalBusy } from "@/hooks/useExternalBusy";
 import { useCalendarEvents, type CalendarEvent } from "@/hooks/useCalendarEvents";
@@ -58,6 +59,8 @@ export default function ResourcePlan() {
   const isMobile = useIsMobile();
   const navigate = useNavigate();
   const { isAdmin, isSuperAdmin } = useAuth();
+  const { hasPermission } = usePermissions();
+  const canViewExternal = isSuperAdmin || hasPermission("calendar.view_external");
   const confirmationCount = useConfirmationCount();
   const syncHealth = useSyncHealth(isAdmin);
   const { technicians } = useTechnicians();
@@ -359,7 +362,7 @@ export default function ResourcePlan() {
             onExternalBlocksCapacityChange={setExternalBlocksCapacity}
             hideExternalEvents={hideExternalEvents}
             onHideExternalEventsChange={setHideExternalEvents}
-            isSuperAdmin={isSuperAdmin}
+            isSuperAdmin={canViewExternal}
             minFreeMinutes={minFreeMinutes}
             onMinFreeMinutesChange={setMinFreeMinutes}
           />
@@ -425,7 +428,7 @@ export default function ResourcePlan() {
                 </div>
 
                 {/* Superadmin: toggle external event visibility */}
-                {isSuperAdmin && (
+                {canViewExternal && (
                   <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                     <Switch checked={hideExternalEvents} onCheckedChange={setHideExternalEvents} className="scale-75" />
                     <span className="whitespace-nowrap">Skjul eksterne</span>
@@ -567,7 +570,7 @@ export default function ResourcePlan() {
           onEventResize={handleEventResize}
           onExternalDrop={handleExternalDrop}
           isAdmin={isAdmin}
-          isSuperAdmin={isSuperAdmin}
+          isSuperAdmin={canViewExternal}
           hideExternalEvents={hideExternalEvents}
         />
         </div>
