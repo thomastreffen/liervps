@@ -343,7 +343,14 @@ export function EventDrawer({
             await supabase.from("event_technicians").insert(
               techIds.map((tid) => ({ event_id: createdId, technician_id: tid }))
             );
-            await supabase.functions.invoke("create-approval", { body: { job_id: createdId } });
+
+            if (isTask) {
+              // Tasks: auto-schedule without approval flow
+              await supabase.from("events").update({ status: "scheduled" } as any).eq("id", createdId);
+            } else {
+              // Projects: normal approval flow
+              await supabase.functions.invoke("create-approval", { body: { job_id: createdId } });
+            }
           }
         }
 
