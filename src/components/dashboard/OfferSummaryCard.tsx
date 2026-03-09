@@ -123,6 +123,22 @@ export function OfferSummaryCard({
               </div>
             )}
 
+            {/* Live customer activity indicator */}
+            {activeCustomers24h > 0 && (
+              <div
+                className="rounded-xl bg-green-50 dark:bg-green-900/20 px-3 py-2 text-xs cursor-pointer hover:bg-green-100 dark:hover:bg-green-900/30 transition-colors flex items-center gap-2"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  nav("/sales/offers?activity=recent");
+                }}
+              >
+                <span className="h-2 w-2 rounded-full bg-green-500 animate-pulse shrink-0" />
+                <span className="text-green-700 dark:text-green-300 font-medium">
+                  {activeCustomers24h} {activeCustomers24h === 1 ? "kunde" : "kunder"} aktive siste 24t
+                </span>
+              </div>
+            )}
+
             {/* Action buttons */}
             <div className="space-y-1.5">
               <Button
