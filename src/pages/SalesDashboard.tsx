@@ -26,6 +26,7 @@ export default function SalesDashboard() {
     weightedPipeline: 0,
     biggestOffer: null as { id: string; customer: string; amount: number } | null,
     needsFollowup: 0,
+    activeCustomers24h: 0,
   });
 
   useEffect(() => {
