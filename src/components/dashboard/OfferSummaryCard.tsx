@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { FileText, ArrowRight, Send, TrendingUp, AlertTriangle } from "lucide-react";
+import { FileText, ArrowRight, Send, TrendingUp, AlertTriangle, Activity } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface BiggestOffer {
@@ -16,6 +16,7 @@ interface OfferSummaryProps {
   biggestOffer: BiggestOffer | null;
   needsFollowup: number;
   loading: boolean;
+  activeCustomers24h?: number;
 }
 
 const STATUS_WEIGHTS: Record<string, number> = {
