@@ -97,7 +97,7 @@ export default function SalesDashboard() {
         .in("actor_type", ["customer"])
         .gte("event_at", d24h);
 
-      setOfferStats({ totalActive: activeCalcs.length, readyToSend, openPipeline, weightedPipeline, biggestOffer, needsFollowup, activeCustomers24h: activeCount || 0 });
+      setOfferStats({ totalActive: activeCalcs.length, readyToSend, openPipeline, weightedPipeline, biggestOffer, needsFollowup, activeCustomers24h: activeCount || 0, acceptedCount: acceptedCalcs.length });
 
       // Recent leads
       setRecentLeads(
