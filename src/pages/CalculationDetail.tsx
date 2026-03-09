@@ -559,7 +559,7 @@ export default function CalculationDetail() {
 
             {/* Accepted actions */}
             {calc.status === "accepted" && (
-              <Button onClick={() => setConvertOpen(true)} size="sm" className="gap-1.5 rounded-lg">
+              <Button onClick={() => setConvertOpen(true)} size="sm" className="gap-1.5 rounded-lg bg-primary hover:bg-primary/90">
                 <ArrowRightLeft className="h-3.5 w-3.5" /> Konverter til prosjekt
               </Button>
             )}
@@ -1037,6 +1037,8 @@ export default function CalculationDetail() {
         defaultTitle={calc.project_title}
         defaultCustomer={calc.customer_name}
         defaultDescription={calc.description || undefined}
+        totalPrice={Number(calc.total_price) || 0}
+        offerNumber={calc.project_title}
       />
       <NewRegulationQueryDialog
         open={regulationOpen}
