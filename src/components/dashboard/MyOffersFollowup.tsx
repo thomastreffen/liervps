@@ -16,6 +16,7 @@ import {
   ArrowRight,
   Clock,
   AlertCircle,
+  Eye,
 } from "lucide-react";
 
 interface FollowupOffer {
