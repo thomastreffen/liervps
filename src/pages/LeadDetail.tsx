@@ -82,13 +82,11 @@ interface Participant {
   user_email?: string;
 }
 
-interface Offer {
+interface LeadCalc {
   id: string;
-  offer_number: string;
+  project_title: string;
   status: string;
-  version: number;
-  total_ex_vat: number;
-  total_inc_vat: number;
+  total_price: number | null;
   created_at: string;
 }
 
