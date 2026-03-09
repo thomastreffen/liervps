@@ -26,36 +26,36 @@ export default function SalesDashboard() {
       const d7 = new Date(now.getTime() - 7 * 86400000).toISOString();
 
       const leadsRes = await fetchActiveLeads("id, company_name, status, lead_ref_code, updated_at, next_action_date, next_action_type");
-      const [offersRes, calcsRes] = await Promise.all([
+      const [calcsRes] = await Promise.all([
         supabase
-          .from("offers")
-          .select("id, offer_number, status, total_inc_vat, created_at, lead_id, calculations(customer_name)")
+          .from("calculations")
+          .select("id, project_title, customer_name, status, total_price, created_at, lead_id")
+          .is("deleted_at", null)
           .order("created_at", { ascending: false })
-          .limit(6),
-        supabase.from("calculations").select("id, lead_id, status").is("deleted_at", null),
+          .limit(20),
       ]);
 
       const leads = leadsRes.data || [];
-      const offers = offersRes.data || [];
       const calcs = calcsRes.data || [];
 
-      // Recent offers
+      // Recent offers (from calculations table — matches /sales/offers/:id route)
+      const recentCalcs = calcs.slice(0, 6);
       setRecentOffers(
-        (offers).map((o: any) => ({
-          id: o.id,
-          offer_number: o.offer_number,
-          status: o.status as OfferStatus,
-          total_inc_vat: Number(o.total_inc_vat),
-          customer: o.calculations?.customer_name || "",
-          created_at: o.created_at,
+        recentCalcs.map((c: any) => ({
+          id: c.id,
+          offer_number: c.project_title || "Uten tittel",
+          status: (c.status || "draft") as OfferStatus,
+          total_inc_vat: Number(c.total_price || 0),
+          customer: c.customer_name || "",
+          created_at: c.created_at,
         }))
       );
 
       // Offer summary stats
-      const activeOffers = offers.filter((o: any) => !["accepted", "rejected", "expired"].includes(o.status));
-      const readyToSend = offers.filter((o: any) => o.status === "draft").length;
-      const totalValue = activeOffers.reduce((s: number, o: any) => s + Number(o.total_inc_vat || 0), 0);
-      setOfferStats({ totalActive: activeOffers.length, readyToSend, totalValue });
+      const activeCalcs = calcs.filter((c: any) => !["accepted", "rejected", "converted"].includes(c.status));
+      const readyToSend = calcs.filter((c: any) => c.status === "draft").length;
+      const totalValue = activeCalcs.reduce((s: number, c: any) => s + Number(c.total_price || 0), 0);
+      setOfferStats({ totalActive: activeCalcs.length, readyToSend, totalValue });
 
       // Recent leads
       setRecentLeads(
@@ -74,15 +74,14 @@ export default function SalesDashboard() {
       // Build action items
       const activeLeads = leads.filter((l: any) => !["won", "lost"].includes(l.status));
       const inactiveLeads = activeLeads.filter((l: any) => !l.updated_at || new Date(l.updated_at) < new Date(d7)).length;
-      const sentOffers = offers.filter((o: any) => o.status === "sent");
-      const offersWithoutFollowup = sentOffers.filter((o: any) => (now.getTime() - new Date(o.created_at).getTime()) / 86400000 > 5).length;
+      const sentCalcs = calcs.filter((c: any) => c.status === "sent");
+      const offersWithoutFollowup = sentCalcs.filter((c: any) => (now.getTime() - new Date(c.created_at).getTime()) / 86400000 > 5).length;
       const leadsWithoutNextStep = activeLeads.filter((l: any) => !l.next_action_type && !l.next_action_date).length;
       const befaringLeads = activeLeads.filter((l: any) => l.status === "befaring");
       const befaringWithoutFollowup = befaringLeads.filter((l: any) => !l.updated_at || new Date(l.updated_at) < new Date(d7)).length;
       const leadsWithCalcNoOffer = leads.filter((l: any) => {
-        const hasCalc = calcs.some((c: any) => c.lead_id === l.id && c.status === "completed");
-        const hasOffer = offers.some((o: any) => o.lead_id === l.id);
-        return hasCalc && !hasOffer;
+        const hasCalc = calcs.some((c: any) => c.lead_id === l.id && ["generated", "sent"].includes(c.status));
+        return hasCalc;
       }).length;
 
       setActions(buildActionItems({
