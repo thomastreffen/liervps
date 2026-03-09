@@ -2,7 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { formatDistanceToNow } from "date-fns";
 import { nb } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
-import { ArrowRight, Phone, Mail, Calendar } from "lucide-react";
+import { ArrowRight, Phone, Mail } from "lucide-react";
 import { OFFER_STATUS_CONFIG, type OfferStatus } from "@/lib/offer-status";
 import { PIPELINE_STAGES, LEAD_STATUS_CONFIG, type LeadStatus } from "@/lib/lead-status";
 
