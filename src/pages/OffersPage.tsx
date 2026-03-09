@@ -54,6 +54,9 @@ export default function OffersPage() {
 
   useEffect(() => { fetchCalcs(); }, []);
 
+  const offerIds = useMemo(() => calcs.map(c => c.id), [calcs]);
+  const { summaries: activitySummaries } = useOfferActivitySummary(offerIds);
+
   const filtered = useMemo(() => {
     let result = [...calcs];
     if (statusFilter !== "all") result = result.filter((c) => c.status === statusFilter);
