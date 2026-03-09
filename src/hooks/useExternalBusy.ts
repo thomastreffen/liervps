@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { startOfWeek, endOfWeek, format } from "date-fns";
+import { parseUtc } from "@/lib/parse-utc";
 
 export interface ExternalBusySlot {
   technicianId: string;
@@ -85,8 +86,8 @@ export function useExternalBusy(technicianId: string | null) {
           matchedSlots++;
           slots.push({
             technicianId: techId,
-            start: new Date(slot.start),
-            end: new Date(slot.end),
+            start: parseUtc(slot.start),
+            end: parseUtc(slot.end),
           });
         }
       }
