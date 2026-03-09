@@ -61,8 +61,28 @@ export default function SalesDashboard() {
       // Offer summary stats
       const activeCalcs = calcs.filter((c: any) => !["accepted", "rejected", "converted"].includes(c.status));
       const readyToSend = calcs.filter((c: any) => c.status === "draft").length;
-      const totalValue = activeCalcs.reduce((s: number, c: any) => s + Number(c.total_price || 0), 0);
-      setOfferStats({ totalActive: activeCalcs.length, readyToSend, totalValue });
+      const openPipeline = activeCalcs.reduce((s: number, c: any) => s + Number(c.total_price || 0), 0);
+      const weightedPipeline = activeCalcs.reduce((s: number, c: any) => {
+        const w = STATUS_WEIGHTS[c.status as string] ?? 0.1;
+        return s + Number(c.total_price || 0) * w;
+      }, 0);
+
+      // Biggest open offer
+      const sorted = [...activeCalcs].sort((a: any, b: any) => Number(b.total_price || 0) - Number(a.total_price || 0));
+      const biggest = sorted[0];
+      const biggestOffer = biggest && Number(biggest.total_price || 0) > 0
+        ? { id: biggest.id, customer: biggest.customer_name || "Ukjent", amount: Number(biggest.total_price) }
+        : null;
+
+      // Needs follow-up: sent > 5 days ago
+      const now = new Date();
+      const needsFollowup = calcs.filter((c: any) => {
+        if (c.status !== "sent") return false;
+        const age = (now.getTime() - new Date(c.created_at).getTime()) / 86400000;
+        return age > 5;
+      }).length;
+
+      setOfferStats({ totalActive: activeCalcs.length, readyToSend, openPipeline, weightedPipeline, biggestOffer, needsFollowup });
 
       // Recent leads
       setRecentLeads(
