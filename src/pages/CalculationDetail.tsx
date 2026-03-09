@@ -20,6 +20,7 @@ import {
 import { OFFER_STATUS_CONFIG, ALL_OFFER_STATUSES, type OfferStatus } from "@/lib/offer-status";
 import { AI_MODE_CONFIG, ALL_AI_MODES, detectAiMode, type AiMode } from "@/lib/ai-mode";
 import { ExecutiveSummary } from "@/components/offer/ExecutiveSummary";
+import { OfferActivityTimeline } from "@/components/offer/OfferActivityTimeline";
 import { ConvertToJobDialog } from "@/components/ConvertToJobDialog";
 import {
   ArrowLeft, Loader2, Sparkles, FileDown, ArrowRightLeft, Plus, Trash2, Save,
