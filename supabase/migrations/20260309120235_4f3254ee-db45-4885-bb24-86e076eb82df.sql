@@ -1,0 +1,1 @@
+ALTER TABLE events ALTER COLUMN technician_id DROP NOT NULL;
