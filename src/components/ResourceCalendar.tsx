@@ -170,8 +170,17 @@ export const ResourceCalendar = memo(function ResourceCalendar({
     });
 
     // External busy slots – merged and solid
+    // Skip entirely if hideExternalEvents is on
     let missingNameCount = 0;
-    if (getBusySlotsForDay) {
+    if (getBusySlotsForDay && !hideExternalEvents) {
+      // Build a set of schedule_block time ranges per technician to deduplicate
+      const sbRangesByTech = new Map<string, Array<{ start: number; end: number }>>();
+      for (const block of scheduleBlocks) {
+        const ranges = sbRangesByTech.get(block.technician_id) || [];
+        ranges.push({ start: block.start_at.getTime(), end: block.end_at.getTime() });
+        sbRangesByTech.set(block.technician_id, ranges);
+      }
+
       const weekStart = new Date(referenceDate);
       weekStart.setDate(weekStart.getDate() - weekStart.getDay() + 1);
       const daysToRender = isMonthView ? 42 : 7;
@@ -193,7 +202,17 @@ export const ResourceCalendar = memo(function ResourceCalendar({
             continue;
           }
           const merged = mergeExternalSlots(techSlots);
+          const techSbRanges = sbRangesByTech.get(techId) || [];
+
           for (const slot of merged) {
+            // Deduplicate: skip busy slot if a schedule_block already covers this time range
+            const slotStart = slot.start.getTime();
+            const slotEnd = slot.end.getTime();
+            const coveredBySb = techSbRanges.some(
+              (r) => r.start <= slotStart + 60000 && r.end >= slotEnd - 60000
+            );
+            if (coveredBySb) continue;
+
             const techName = tech?.name?.trim();
             const displayName = techName
               ? techName.split(" ")[0]
