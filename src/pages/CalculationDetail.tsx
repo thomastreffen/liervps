@@ -73,6 +73,13 @@ interface Offer {
   sent_at: string | null;
   sent_to_email: string | null;
   created_at: string;
+  public_token: string | null;
+  accepted_at: string | null;
+  accepted_name: string | null;
+  accepted_email: string | null;
+  accepted_comment: string | null;
+  rejected_at: string | null;
+  rejected_comment: string | null;
 }
 
 // ── Status badge icons ──
