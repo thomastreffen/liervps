@@ -26,13 +26,13 @@ export default function SalesDashboard() {
       const d7 = new Date(now.getTime() - 7 * 86400000).toISOString();
 
       const leadsRes = await fetchActiveLeads("id, company_name, status, lead_ref_code, updated_at, next_action_date, next_action_type");
-      const [offersRes, calcsRes] = await Promise.all([
+      const [calcsRes] = await Promise.all([
         supabase
-          .from("offers")
-          .select("id, offer_number, status, total_inc_vat, created_at, lead_id, calculations(customer_name)")
+          .from("calculations")
+          .select("id, project_title, customer_name, status, total_price, created_at, lead_id")
+          .is("deleted_at", null)
           .order("created_at", { ascending: false })
-          .limit(6),
-        supabase.from("calculations").select("id, lead_id, status").is("deleted_at", null),
+          .limit(20),
       ]);
 
       const leads = leadsRes.data || [];
