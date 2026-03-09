@@ -13,9 +13,15 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { BulkDeleteBar } from "@/components/BulkDeleteBar";
+import { LeadActionPanel, type ActionPanelTab } from "@/components/activity/LeadActionPanel";
 import { LEAD_STATUS_CONFIG, ALL_LEAD_STATUSES, PIPELINE_STAGES, type LeadStatus } from "@/lib/lead-status";
-import { Search, Plus, Loader2, ArrowRight, RotateCcw, Archive, Trash2, Users, Phone, CalendarDays, Mail, FileText, Clock, Send, MessageSquare } from "lucide-react";
+import {
+  Search, Plus, Loader2, ArrowRight, RotateCcw, Archive, Trash2,
+  Users, Phone, CalendarDays, Mail, FileText, Clock, Send, MessageSquare,
+  StickyNote, CalendarPlus, CheckCircle2,
+} from "lucide-react";
 import { toast } from "sonner";
 
 type ViewMode = "active" | "archived" | "trash";
@@ -76,6 +82,11 @@ export default function LeadsPage() {
   const [saving, setSaving] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
+  // Quick action panel
+  const [quickActionLead, setQuickActionLead] = useState<Lead | null>(null);
+  const [quickActionTab, setQuickActionTab] = useState<ActionPanelTab>("note");
+  const [quickActionOpen, setQuickActionOpen] = useState(false);
+
   const [companyName, setCompanyName] = useState("");
   const [contactName, setContactName] = useState("");
   const [email, setEmail] = useState("");
@@ -86,13 +97,9 @@ export default function LeadsPage() {
   const fetchLeads = async () => {
     setLoading(true);
     let result;
-    if (viewMode === "trash") {
-      result = await fetchDeletedLeads();
-    } else if (viewMode === "archived") {
-      result = await fetchArchivedLeads();
-    } else {
-      result = await fetchActiveLeads();
-    }
+    if (viewMode === "trash") result = await fetchDeletedLeads();
+    else if (viewMode === "archived") result = await fetchArchivedLeads();
+    else result = await fetchActiveLeads();
     const sorted = (result.data || []).sort((a: any, b: any) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
     setLeads(sorted as any as Lead[]);
     setSelectedIds([]);
@@ -143,6 +150,13 @@ export default function LeadsPage() {
     }
     toast.success("Lead gjenopprettet");
     fetchLeads();
+  };
+
+  const openQuickAction = (lead: Lead, tab: ActionPanelTab, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setQuickActionLead(lead);
+    setQuickActionTab(tab);
+    setQuickActionOpen(true);
   };
 
   const filtered = leads.filter((l) => {
@@ -259,6 +273,7 @@ export default function LeadsPage() {
                     <TableHead className="hidden md:table-cell text-xs font-semibold uppercase tracking-wider">Sist aktivitet</TableHead>
                     {viewMode === "active" && <TableHead className="hidden md:table-cell text-xs font-semibold uppercase tracking-wider">Neste steg</TableHead>}
                     <TableHead className="text-right text-xs font-semibold uppercase tracking-wider">Est. verdi</TableHead>
+                    {viewMode === "active" && <TableHead className="w-32 text-xs font-semibold uppercase tracking-wider text-right">Handlinger</TableHead>}
                     {viewMode !== "active" && <TableHead className="w-20" />}
                   </TableRow>
                 </TableHeader>
@@ -268,7 +283,7 @@ export default function LeadsPage() {
                     return (
                       <TableRow
                         key={lead.id}
-                        className="cursor-pointer hover:bg-secondary/40 transition-colors"
+                        className="cursor-pointer hover:bg-secondary/40 transition-colors group"
                         onClick={() => viewMode === "active" ? navigate(`/sales/leads/${lead.id}`) : undefined}
                       >
                         {isAdmin && viewMode === "active" && (
@@ -309,6 +324,36 @@ export default function LeadsPage() {
                         <TableCell className="text-right font-mono text-sm">
                           {lead.estimated_value > 0 ? `kr ${Number(lead.estimated_value).toLocaleString("nb-NO")}` : "—"}
                         </TableCell>
+                        {viewMode === "active" && (
+                          <TableCell className="text-right" onClick={e => e.stopPropagation()}>
+                            <div className="flex items-center justify-end gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={e => openQuickAction(lead, "note", e)}>
+                                    <StickyNote className="h-3.5 w-3.5 text-muted-foreground" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Logg aktivitet</TooltipContent>
+                              </Tooltip>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={e => openQuickAction(lead, "meeting", e)}>
+                                    <CalendarPlus className="h-3.5 w-3.5 text-muted-foreground" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Opprett møte</TooltipContent>
+                              </Tooltip>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={e => openQuickAction(lead, "email", e)}>
+                                    <Mail className="h-3.5 w-3.5 text-muted-foreground" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Send e-post</TooltipContent>
+                              </Tooltip>
+                            </div>
+                          </TableCell>
+                        )}
                         {viewMode !== "active" && (
                           <TableCell onClick={(e) => e.stopPropagation()}>
                             <Button variant="ghost" size="sm" onClick={() => handleRestore(lead.id)} className="gap-1 text-xs h-7">
@@ -326,7 +371,23 @@ export default function LeadsPage() {
         </>
       )}
 
-      {/* Create Dialog */}
+      {/* Quick action panel for list rows */}
+      {quickActionLead && (
+        <LeadActionPanel
+          open={quickActionOpen}
+          onOpenChange={setQuickActionOpen}
+          defaultTab={quickActionTab}
+          lead={{
+            id: quickActionLead.id,
+            company_name: quickActionLead.company_name,
+            email: quickActionLead.email,
+            lead_ref_code: quickActionLead.lead_ref_code,
+          }}
+          onActivityCreated={fetchLeads}
+        />
+      )}
+
+      {/* Create Dialog — stays as modal (simple creation) */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-lg rounded-2xl">
           <DialogHeader>
@@ -353,7 +414,7 @@ export default function LeadsPage() {
                 <Input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="epost@firma.no" type="email" className="rounded-xl" />
               </div>
               <div className="space-y-1.5">
-              <Label>Kilde</Label>
+                <Label>Kilde</Label>
                 <Input value={source} onChange={(e) => setSource(e.target.value)} placeholder="Messe, anbud, eksisterende kunde..." className="rounded-xl" />
               </div>
             </div>
