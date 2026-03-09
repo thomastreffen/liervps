@@ -354,7 +354,6 @@ export function useTripletexImport() {
                 end_time: row.endDate ? `${row.endDate}T16:00:00` : new Date(Date.now() + 86400000 * 90).toISOString(),
                 status: "approved" as any,
                 project_type: "project",
-                technician_id: user.id,
                 company_id: companyId,
                 external_tripletex_id: row.projectNumber,
                 created_by: user.id,
