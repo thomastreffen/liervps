@@ -330,9 +330,17 @@ export default function LeadsPage() {
                           </div>
                         </TableCell>
                         <TableCell>
-                          <Badge className={LEAD_STATUS_CONFIG[lead.status]?.className + " text-[10px] rounded-lg"}>
-                            {LEAD_STATUS_CONFIG[lead.status]?.label}
-                          </Badge>
+                          <div className="flex items-center gap-1.5">
+                            <Badge className={LEAD_STATUS_CONFIG[lead.status]?.className + " text-[10px] rounded-lg"}>
+                              {LEAD_STATUS_CONFIG[lead.status]?.label}
+                            </Badge>
+                            {offerCounts[lead.id] && (
+                              <Badge variant="outline" className="text-[9px] rounded-lg gap-0.5 border-primary/30 text-primary">
+                                <FileText className="h-2.5 w-2.5" />
+                                {offerCounts[lead.id].count}
+                              </Badge>
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell className="hidden md:table-cell">
                           <span className="text-xs text-muted-foreground/60">
