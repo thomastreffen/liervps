@@ -654,6 +654,9 @@ export function EventDrawer({
                         return;
                       }
                     } else if (editEvent) {
+                      // Delete Outlook calendar event linked to this job (microsoft_event_id)
+                      await syncDelete(editEvent.id);
+
                       // Delete any linked schedule blocks first
                       const { data: linkedBlocks } = await supabase
                         .from("schedule_blocks")
