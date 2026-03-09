@@ -4,6 +4,14 @@ import { startOfWeek, endOfWeek, differenceInMinutes } from "date-fns";
 import type { JobStatus } from "@/lib/job-status";
 import type { Job } from "@/lib/mock-data";
 
+/** Ensure a DB timestamp string is parsed as UTC */
+function parseUtc(val: string): Date {
+  if (val.endsWith("Z") || /[+-]\d{2}(:\d{2})?$/.test(val)) {
+    return new Date(val);
+  }
+  return new Date(val + "Z");
+}
+
 export interface TechnicianInfo {
   id: string;
   name: string;
@@ -108,15 +116,15 @@ export function useCalendarEvents(technicianId: string | null, referenceDate?: D
           customer: e.customer ?? "",
           address: e.address ?? "",
           description: e.description ?? "",
-          start: new Date(e.start_time),
-          end: new Date(e.end_time),
+          start: parseUtc(e.start_time),
+          end: parseUtc(e.end_time),
           status: e.status as JobStatus,
           jobNumber: e.job_number,
           internalNumber: e.internal_number,
-          proposedStart: e.proposed_start ? new Date(e.proposed_start) : undefined,
-          proposedEnd: e.proposed_end ? new Date(e.proposed_end) : undefined,
-          createdAt: e.created_at ? new Date(e.created_at) : undefined,
-          updatedAt: e.updated_at ? new Date(e.updated_at) : undefined,
+          proposedStart: e.proposed_start ? parseUtc(e.proposed_start) : undefined,
+          proposedEnd: e.proposed_end ? parseUtc(e.proposed_end) : undefined,
+          createdAt: e.created_at ? parseUtc(e.created_at) : undefined,
+          updatedAt: e.updated_at ? parseUtc(e.updated_at) : undefined,
           attachments: e.attachments ?? [],
           technicians,
         };
