@@ -15,7 +15,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
-import { Trash2, RotateCcw, Loader2, FolderKanban, Calculator, ReceiptText, Archive, UserPlus, FileSignature } from "lucide-react";
+import { Trash2, RotateCcw, Loader2, FolderKanban, Calculator, ReceiptText, Archive, UserPlus, FileSignature, MessageSquare } from "lucide-react";
 import { toast } from "sonner";
 
 interface DeletedItem {
@@ -23,7 +23,7 @@ interface DeletedItem {
   title: string;
   subtitle?: string;
   deleted_at: string;
-  type: "job" | "calculation" | "offer" | "lead" | "contract";
+  type: "job" | "calculation" | "offer" | "lead" | "contract" | "conversation";
 }
 
 export default function TrashPage() {
@@ -36,12 +36,13 @@ export default function TrashPage() {
 
   const fetchDeleted = async () => {
     setLoading(true);
-    const [jobsRes, calcsRes, offersRes, leadsRes, contractsRes] = await Promise.all([
+    const [jobsRes, calcsRes, offersRes, leadsRes, contractsRes, convsRes] = await Promise.all([
       supabase.from("events").select("id, title, customer, deleted_at").not("deleted_at", "is", null).order("deleted_at", { ascending: false }),
       supabase.from("calculations").select("id, project_title, customer_name, deleted_at").not("deleted_at", "is", null).order("deleted_at", { ascending: false }),
       supabase.from("offers").select("id, offer_number, deleted_at, calculations(customer_name)").not("deleted_at", "is", null).order("deleted_at", { ascending: false }),
       supabase.from("leads").select("id, company_name, contact_name, deleted_at").not("deleted_at", "is", null).order("deleted_at", { ascending: false }),
       supabase.from("contracts").select("id, title, counterparty_name, deleted_at").not("deleted_at", "is", null).order("deleted_at", { ascending: false }),
+      (supabase as any).from("conversation_threads").select("id, title, deleted_at").not("deleted_at", "is", null).order("deleted_at", { ascending: false }),
     ]);
 
     const all: DeletedItem[] = [];
@@ -60,6 +61,9 @@ export default function TrashPage() {
     (contractsRes.data || []).forEach((c: any) => all.push({
       id: c.id, title: c.title, subtitle: c.counterparty_name, deleted_at: c.deleted_at, type: "contract",
     }));
+    (convsRes.data || []).forEach((c: any) => all.push({
+      id: c.id, title: c.title, subtitle: "Samtale", deleted_at: c.deleted_at, type: "conversation",
+    }));
     all.sort((a, b) => new Date(b.deleted_at).getTime() - new Date(a.deleted_at).getTime());
     setItems(all);
     setLoading(false);
@@ -69,8 +73,8 @@ export default function TrashPage() {
 
   const restore = async (item: DeletedItem) => {
     setOperating(item.id);
-    const table = item.type === "job" ? "events" : item.type === "calculation" ? "calculations" : item.type === "lead" ? "leads" : item.type === "contract" ? "contracts" : "offers";
-    await supabase.from(table).update({ deleted_at: null, deleted_by: null } as any).eq("id", item.id);
+    const table = item.type === "job" ? "events" : item.type === "calculation" ? "calculations" : item.type === "lead" ? "leads" : item.type === "contract" ? "contracts" : item.type === "conversation" ? "conversation_threads" : "offers";
+    await (supabase as any).from(table).update({ deleted_at: null, deleted_by: null }).eq("id", item.id);
     toast.success("Gjenopprettet", { description: item.title });
     setItems(prev => prev.filter(i => i.id !== item.id));
     setOperating(null);
@@ -78,8 +82,8 @@ export default function TrashPage() {
 
   const permanentDelete = async (item: DeletedItem) => {
     setOperating(item.id);
-    const table = item.type === "job" ? "events" : item.type === "calculation" ? "calculations" : item.type === "lead" ? "leads" : item.type === "contract" ? "contracts" : "offers";
-    await supabase.from(table).delete().eq("id", item.id);
+    const table = item.type === "job" ? "events" : item.type === "calculation" ? "calculations" : item.type === "lead" ? "leads" : item.type === "contract" ? "contracts" : item.type === "conversation" ? "conversation_threads" : "offers";
+    await (supabase as any).from(table).delete().eq("id", item.id);
     toast.success("Permanent slettet", { description: item.title });
     setItems(prev => prev.filter(i => i.id !== item.id));
     setOperating(null);
@@ -93,6 +97,7 @@ export default function TrashPage() {
     if (type === "calculation") return <Calculator className="h-3.5 w-3.5" />;
     if (type === "lead") return <UserPlus className="h-3.5 w-3.5" />;
     if (type === "contract") return <FileSignature className="h-3.5 w-3.5" />;
+    if (type === "conversation") return <MessageSquare className="h-3.5 w-3.5" />;
     return <ReceiptText className="h-3.5 w-3.5" />;
   };
 
@@ -101,6 +106,7 @@ export default function TrashPage() {
     if (type === "calculation") return "Kalkulasjon";
     if (type === "lead") return "Lead";
     if (type === "contract") return "Kontrakt";
+    if (type === "conversation") return "Samtale";
     return "Tilbud";
   };
 
@@ -125,6 +131,7 @@ export default function TrashPage() {
           <TabsTrigger value="contract" className="gap-1"><FileSignature className="h-3 w-3" />Kontrakter ({countByType("contract")})</TabsTrigger>
           <TabsTrigger value="calculation" className="gap-1"><Calculator className="h-3 w-3" />Kalkulasjoner ({countByType("calculation")})</TabsTrigger>
           <TabsTrigger value="offer" className="gap-1"><ReceiptText className="h-3 w-3" />Tilbud ({countByType("offer")})</TabsTrigger>
+          <TabsTrigger value="conversation" className="gap-1"><MessageSquare className="h-3 w-3" />Samtaler ({countByType("conversation")})</TabsTrigger>
         </TabsList>
       </Tabs>
 

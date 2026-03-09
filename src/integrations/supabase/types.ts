@@ -1777,6 +1777,8 @@ export type Database = {
           decision_marked_at: string | null
           decision_marked_by: string | null
           decision_summary: string | null
+          deleted_at: string | null
+          deleted_by: string | null
           email_enabled: boolean
           email_subject: string | null
           email_thread_id: string | null
@@ -1808,6 +1810,8 @@ export type Database = {
           decision_marked_at?: string | null
           decision_marked_by?: string | null
           decision_summary?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
           email_enabled?: boolean
           email_subject?: string | null
           email_thread_id?: string | null
@@ -1839,6 +1843,8 @@ export type Database = {
           decision_marked_at?: string | null
           decision_marked_by?: string | null
           decision_summary?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
           email_enabled?: boolean
           email_subject?: string | null
           email_thread_id?: string | null
