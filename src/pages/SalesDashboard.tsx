@@ -9,7 +9,7 @@ import { SalesHeader } from "@/components/dashboard/SalesHeader";
 import { SalesActionRequired, buildActionItems, type ActionItem } from "@/components/dashboard/SalesActionRequired";
 import { SalesRecommendations, buildRecommendations, type Recommendation } from "@/components/dashboard/SalesRecommendations";
 import { RecentOffersList, RecentLeadsList, type RecentOffer, type RecentLead } from "@/components/dashboard/SalesRecentLists";
-import { OfferSummaryCard } from "@/components/dashboard/OfferSummaryCard";
+import { OfferSummaryCard, STATUS_WEIGHTS } from "@/components/dashboard/OfferSummaryCard";
 
 export default function SalesDashboard() {
   const nav = useNavigate();
@@ -18,7 +18,14 @@ export default function SalesDashboard() {
   const [actions, setActions] = useState<ActionItem[]>([]);
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [loading, setLoading] = useState(true);
-  const [offerStats, setOfferStats] = useState({ totalActive: 0, readyToSend: 0, totalValue: 0 });
+  const [offerStats, setOfferStats] = useState({
+    totalActive: 0,
+    readyToSend: 0,
+    openPipeline: 0,
+    weightedPipeline: 0,
+    biggestOffer: null as { id: string; customer: string; amount: number } | null,
+    needsFollowup: 0,
+  });
 
   useEffect(() => {
     (async () => {
@@ -54,8 +61,27 @@ export default function SalesDashboard() {
       // Offer summary stats
       const activeCalcs = calcs.filter((c: any) => !["accepted", "rejected", "converted"].includes(c.status));
       const readyToSend = calcs.filter((c: any) => c.status === "draft").length;
-      const totalValue = activeCalcs.reduce((s: number, c: any) => s + Number(c.total_price || 0), 0);
-      setOfferStats({ totalActive: activeCalcs.length, readyToSend, totalValue });
+      const openPipeline = activeCalcs.reduce((s: number, c: any) => s + Number(c.total_price || 0), 0);
+      const weightedPipeline = activeCalcs.reduce((s: number, c: any) => {
+        const w = STATUS_WEIGHTS[c.status as string] ?? 0.1;
+        return s + Number(c.total_price || 0) * w;
+      }, 0);
+
+      // Biggest open offer
+      const sorted = [...activeCalcs].sort((a: any, b: any) => Number(b.total_price || 0) - Number(a.total_price || 0));
+      const biggest = sorted[0];
+      const biggestOffer = biggest && Number(biggest.total_price || 0) > 0
+        ? { id: biggest.id, customer: biggest.customer_name || "Ukjent", amount: Number(biggest.total_price) }
+        : null;
+
+      // Needs follow-up: sent > 5 days ago
+      const needsFollowup = calcs.filter((c: any) => {
+        if (c.status !== "sent") return false;
+        const age = (now.getTime() - new Date(c.created_at).getTime()) / 86400000;
+        return age > 5;
+      }).length;
+
+      setOfferStats({ totalActive: activeCalcs.length, readyToSend, openPipeline, weightedPipeline, biggestOffer, needsFollowup });
 
       // Recent leads
       setRecentLeads(
@@ -118,7 +144,10 @@ export default function SalesDashboard() {
         <OfferSummaryCard
           totalActive={offerStats.totalActive}
           readyToSend={offerStats.readyToSend}
-          totalValue={offerStats.totalValue}
+          openPipeline={offerStats.openPipeline}
+          weightedPipeline={offerStats.weightedPipeline}
+          biggestOffer={offerStats.biggestOffer}
+          needsFollowup={offerStats.needsFollowup}
           loading={loading}
         />
         <div className="lg:col-span-3">
