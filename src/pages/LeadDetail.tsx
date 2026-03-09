@@ -13,18 +13,18 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { EntityView, type EntityTab, type EntityAction } from "@/components/entity/EntityView";
-import { ActivityTimeline } from "@/components/entity/ActivityTimeline";
 import { LeadPipelineBar } from "@/components/LeadPipelineBar";
+import { ActivityFeedList } from "@/components/activity/ActivityFeedList";
+import { LeadActionPanel, type ActionPanelTab } from "@/components/activity/LeadActionPanel";
+import { LeadStickyBar } from "@/components/activity/LeadStickyBar";
+import { ContractListSection } from "@/components/contracts/ContractListSection";
 import { LEAD_STATUS_CONFIG, ALL_LEAD_STATUSES, NEXT_ACTION_TYPES, type LeadStatus } from "@/lib/lead-status";
 import {
-  User, Loader2, Save, Clock,
+  User, Loader2, Save, Clock, ArrowLeft, Copy,
   AlertTriangle, Plus, Trash2, FileText, ArrowRightLeft, ShieldAlert,
   Mail, CalendarPlus, RefreshCw, Calendar as CalendarIcon, CheckCircle2
 } from "lucide-react";
 import { toast } from "sonner";
-import { EmailComposer } from "@/components/EmailComposer";
-import { ContractListSection } from "@/components/contracts/ContractListSection";
 
 // ─── Error Boundary ───
 class LeadDetailErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
@@ -39,9 +39,7 @@ class LeadDetailErrorBoundary extends Component<{ children: ReactNode }, { hasEr
         <div className="mx-auto max-w-md p-8 text-center space-y-4">
           <ShieldAlert className="h-12 w-12 mx-auto text-destructive opacity-60" />
           <h2 className="text-lg font-semibold">Kunne ikke laste lead-detaljer</h2>
-          <p className="text-sm text-muted-foreground">
-            Prøv å oppdatere siden. Hvis problemet vedvarer, kontakt admin.
-          </p>
+          <p className="text-sm text-muted-foreground">Prøv å oppdatere siden.</p>
           <Button variant="outline" onClick={() => window.location.reload()}>Oppdater siden</Button>
         </div>
       );
@@ -134,34 +132,29 @@ function LeadDetailInner() {
   const [nextActionDate, setNextActionDate] = useState("");
   const [nextActionNote, setNextActionNote] = useState("");
 
-  // Dialogs
+  // Dialogs — only confirmations now
   const [addParticipantOpen, setAddParticipantOpen] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState("");
   const [convertDialogOpen, setConvertDialogOpen] = useState(false);
   const [convertingOfferId, setConvertingOfferId] = useState<string | null>(null);
 
-  // Meeting dialog
-  const [meetingDialogOpen, setMeetingDialogOpen] = useState(false);
-  const [meetingStart, setMeetingStart] = useState("");
-  const [meetingDuration, setMeetingDuration] = useState("60");
-  const [meetingLocation, setMeetingLocation] = useState("");
-  const [meetingSubject, setMeetingSubject] = useState("Befaring");
-  const [meetingAttendees, setMeetingAttendees] = useState<string[]>([]);
-  const [creatingMeeting, setCreatingMeeting] = useState(false);
+  // Side panel
+  const [actionPanelOpen, setActionPanelOpen] = useState(false);
+  const [actionPanelTab, setActionPanelTab] = useState<ActionPanelTab>("note");
 
-  // Email draft
-  const [creatingDraft, setCreatingDraft] = useState(false);
   const [msReauthNeeded, setMsReauthNeeded] = useState(false);
 
+  const openActionPanel = (tab: ActionPanelTab) => {
+    setActionPanelTab(tab);
+    setActionPanelOpen(true);
+  };
+
+  // ─── Fetches ───
   const fetchLead = useCallback(async () => {
     if (!id) return;
     try {
       const { data, error } = await supabase.from("leads").select("*").eq("id", id).single();
-      if (error || !data) {
-        setNotFound(true);
-        setLoading(false);
-        return;
-      }
+      if (error || !data) { setNotFound(true); setLoading(false); return; }
       const l = data as any as Lead;
       if (!LEAD_STATUS_CONFIG[l.status]) l.status = "new";
       setLead(l);
@@ -197,9 +190,7 @@ function LeadDetailInner() {
         user_name: techMap.get(p.user_id)?.name || "Ukjent bruker",
         user_email: techMap.get(p.user_id)?.email || "",
       })));
-    } catch (err) {
-      console.warn("[LeadDetail] Participants fetch error:", err);
-    }
+    } catch (err) { console.warn("[LeadDetail] Participants fetch error:", err); }
   }, [id]);
 
   const fetchOffers = useCallback(async () => {
@@ -207,9 +198,7 @@ function LeadDetailInner() {
     try {
       const { data } = await supabase.from("offers").select("id, offer_number, status, version, total_ex_vat, total_inc_vat, created_at").eq("lead_id", id).order("created_at", { ascending: false });
       setOffers((data || []) as any as Offer[]);
-    } catch (err) {
-      console.warn("[LeadDetail] Offers fetch error:", err);
-    }
+    } catch (err) { console.warn("[LeadDetail] Offers fetch error:", err); }
   }, [id]);
 
   const fetchCalendarLinks = useCallback(async () => {
@@ -217,18 +206,14 @@ function LeadDetailInner() {
     try {
       const { data } = await supabase.from("lead_calendar_links").select("*").eq("lead_id", id).order("event_start", { ascending: false });
       setCalendarLinks((data || []) as any as CalendarLink[]);
-    } catch (err) {
-      console.warn("[LeadDetail] Calendar links fetch error:", err);
-    }
+    } catch (err) { console.warn("[LeadDetail] Calendar links fetch error:", err); }
   }, [id]);
 
   const fetchCompanyUsers = useCallback(async () => {
     try {
       const { data } = await supabase.from("technicians").select("user_id, name, email");
       setCompanyUsers((data || []).filter((t: any) => t.user_id && t.name).map((t: any) => ({ id: t.user_id, name: t.name, email: t.email })));
-    } catch (err) {
-      console.warn("[LeadDetail] Company users fetch error:", err);
-    }
+    } catch (err) { console.warn("[LeadDetail] Company users fetch error:", err); }
   }, []);
 
   useEffect(() => {
@@ -239,6 +224,11 @@ function LeadDetailInner() {
     fetchCalendarLinks();
     fetchCompanyUsers();
   }, [fetchLead, fetchParticipants, fetchActivities, fetchOffers, fetchCalendarLinks, fetchCompanyUsers]);
+
+  const refreshAll = () => {
+    fetchActivities();
+    fetchCalendarLinks();
+  };
 
   const notifyParticipants = async (title: string, message: string) => {
     const toNotify = participants.filter(p => p.notify_enabled && p.user_id !== user?.id);
@@ -274,8 +264,7 @@ function LeadDetailInner() {
   };
 
   const handleStatusChange = async (newStatus: LeadStatus) => {
-    if (!lead) return;
-    if (lead.status === newStatus) return;
+    if (!lead || lead.status === newStatus) return;
     const oldLabel = LEAD_STATUS_CONFIG[lead.status]?.label || lead.status;
     const newLabel = LEAD_STATUS_CONFIG[newStatus]?.label || newStatus;
     await supabase.from("leads").update({ status: newStatus }).eq("id", lead.id);
@@ -308,9 +297,8 @@ function LeadDetailInner() {
     const { error } = await supabase.from("lead_participants").insert({ lead_id: lead.id, user_id: selectedUserId, role: "contributor" });
     if (error) { toast.error("Kunne ikke legge til deltaker"); return; }
     const userName = companyUsers.find(u => u.id === selectedUserId)?.name || "Ukjent";
-    const desc = `${userName} lagt til som deltaker`;
-    await logActivity({ action: "participant_added", description: desc, type: "note", performedBy: user?.id });
-    await supabase.from("lead_history").insert({ lead_id: lead.id, action: "participant_added", description: desc, performed_by: user?.id, metadata: {} });
+    await logActivity({ action: "participant_added", description: `${userName} lagt til som deltaker`, type: "note", performedBy: user?.id });
+    await supabase.from("lead_history").insert({ lead_id: lead.id, action: "participant_added", description: `${userName} lagt til som deltaker`, performed_by: user?.id, metadata: {} });
     toast.success("Deltaker lagt til");
     setAddParticipantOpen(false);
     setSelectedUserId("");
@@ -321,9 +309,8 @@ function LeadDetailInner() {
   const removeParticipant = async (p: Participant) => {
     if (p.role === "owner") { toast.error("Kan ikke fjerne eier"); return; }
     await supabase.from("lead_participants").delete().eq("id", p.id);
-    const desc = `${p.user_name} fjernet som deltaker`;
-    await logActivity({ action: "participant_removed", description: desc, type: "note", performedBy: user?.id });
-    await supabase.from("lead_history").insert({ lead_id: lead!.id, action: "participant_removed", description: desc, performed_by: user?.id, metadata: {} });
+    await logActivity({ action: "participant_removed", description: `${p.user_name} fjernet som deltaker`, type: "note", performedBy: user?.id });
+    await supabase.from("lead_history").insert({ lead_id: lead!.id, action: "participant_removed", description: `${p.user_name} fjernet som deltaker`, performed_by: user?.id, metadata: {} });
     toast.success("Deltaker fjernet");
     fetchParticipants();
     fetchActivities();
@@ -333,10 +320,8 @@ function LeadDetailInner() {
     if (!lead || !convertingOfferId) return;
     const offer = offers.find(o => o.id === convertingOfferId);
     if (!offer) return;
-
     const techRes = await supabase.from("technicians").select("id").eq("user_id", user!.id).single();
     if (!techRes.data?.id) { toast.error("Finner ikke montørprofil for innlogget bruker"); return; }
-
     const { data, error } = await supabase.from("events").insert({
       title: `Prosjekt - ${lead.company_name}`,
       customer: lead.company_name,
@@ -349,89 +334,32 @@ function LeadDetailInner() {
       created_by: user!.id,
       status: "scheduled",
     } as any).select("id").single();
-
     if (error) { toast.error("Feil ved konvertering", { description: error.message }); return; }
-
     for (const p of participants) {
       await supabase.from("job_participants").insert({ job_id: data!.id, user_id: p.user_id, role_label: p.role });
     }
-
     await supabase.from("leads").update({ status: "won" as LeadStatus }).eq("id", lead.id);
     const desc = "Konvertert til prosjekt";
     await logActivity({ action: "converted_to_project", description: desc, type: "status_change", title: desc, performedBy: user?.id, metadata: { job_id: data!.id, offer_id: convertingOfferId } });
     await supabase.from("lead_history").insert({ lead_id: lead.id, action: "converted_to_project", description: desc, performed_by: user?.id, metadata: { job_id: data!.id, offer_id: convertingOfferId } });
     await notifyParticipants("Lead konvertert", `Lead "${lead.company_name}" er konvertert til prosjekt.`);
-
     toast.success("Lead konvertert til prosjekt");
     setConvertDialogOpen(false);
     navigate(`/projects/${data!.id}`);
   };
 
-  const handleMsReauth = () => {
-    const AZURE_CLIENT_ID = "f5605c08-b986-4626-9dec-e1446fd13702";
-    const AZURE_TENANT_ID = "e1b96c2a-c273-40b9-bb46-a2a7b570e133";
-    const redirectUri = `${window.location.origin}/auth/callback`;
-    const scope = encodeURIComponent("openid profile email User.Read Calendars.ReadWrite User.Read.All Mail.ReadWrite offline_access");
-    window.location.href = `https://login.microsoftonline.com/${AZURE_TENANT_ID}/oauth2/v2.0/authorize?client_id=${AZURE_CLIENT_ID}&response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${scope}&response_mode=query&prompt=consent`;
-  };
-
-  const handleCreateEmailDraft = async () => {
+  const handleMarkNextActionDone = async () => {
     if (!lead) return;
-    if (!lead.email) { toast.error("Lead har ingen e-postadresse"); return; }
-    setCreatingDraft(true);
-    try {
-      const { data, error } = await supabase.functions.invoke("create-lead-email-draft", {
-        body: { lead_id: lead.id },
-      });
-      if (error) throw error;
-      if (data?.ms_reauth) { setMsReauthNeeded(true); toast.error(data.error || "Microsoft-tilkobling må fornyes"); return; }
-      if (data?.error) { toast.error(data.error); return; }
-      setMsReauthNeeded(false);
-      toast.success("E-postutkast opprettet i Outlook");
-      if (data?.web_link) window.open(data.web_link, "_blank");
-      await logActivity({ action: "email_draft_created", description: `E-postutkast opprettet til ${lead.email}`, type: "email", title: "E-postutkast", performedBy: user?.id, microsoftMessageId: data?.message_id });
-      fetchActivities();
-    } catch (err: any) {
-      console.error("[LeadDetail] Email draft error:", err);
-      toast.error("Kunne ikke opprette e-postutkast");
-    } finally {
-      setCreatingDraft(false);
-    }
-  };
-
-  const handleCreateMeeting = async () => {
-    if (!lead || !meetingStart) { toast.error("Velg dato og tid"); return; }
-    setCreatingMeeting(true);
-    try {
-      const durationMs = Number(meetingDuration) * 60 * 1000;
-      const startDate = new Date(meetingStart);
-      const endDate = new Date(startDate.getTime() + durationMs);
-
-      const { data, error } = await supabase.functions.invoke("lead-calendar-event", {
-        body: {
-          action: "create",
-          lead_id: lead.id,
-          start_time: startDate.toISOString(),
-          end_time: endDate.toISOString(),
-          location: meetingLocation || null,
-          attendee_emails: meetingAttendees,
-          subject_suffix: meetingSubject || "Befaring",
-        },
-      });
-      if (error) throw error;
-      if (data?.error) { toast.error(data.error); return; }
-      toast.success("Møte opprettet i Outlook");
-      if (data?.web_link) window.open(data.web_link, "_blank");
-      await logActivity({ action: "meeting_created", description: `${meetingSubject} opprettet`, type: "meeting", title: meetingSubject, performedBy: user?.id, microsoftEventId: data?.outlook_event_id });
-      setMeetingDialogOpen(false);
-      fetchCalendarLinks();
-      fetchActivities();
-    } catch (err: any) {
-      console.error("[LeadDetail] Create meeting error:", err);
-      toast.error("Kunne ikke opprette møte");
-    } finally {
-      setCreatingMeeting(false);
-    }
+    const actionLabel = NEXT_ACTION_TYPES.find(t => t.key === lead.next_action_type)?.label || lead.next_action_type || "Aksjon";
+    await supabase.from("leads").update({ next_action_type: null, next_action_date: null, next_action_note: null }).eq("id", lead.id);
+    await logActivity({ action: "next_action_completed", description: `${actionLabel} markert som utført`, type: "note", performedBy: user?.id });
+    await supabase.from("lead_history").insert({ lead_id: id!, action: "next_action_completed", description: `${actionLabel} markert som utført`, performed_by: user?.id, metadata: {} });
+    toast.success("Aksjon markert som utført");
+    setNextActionType("");
+    setNextActionDate("");
+    setNextActionNote("");
+    setLead({ ...lead, next_action_type: null, next_action_date: null, next_action_note: null });
+    fetchActivities();
   };
 
   const handleDeleteCalendarLink = async (linkId: string) => {
@@ -462,445 +390,388 @@ function LeadDetailInner() {
     }
   };
 
-  const handleMarkNextActionDone = async () => {
-    if (!lead) return;
-    const actionLabel = NEXT_ACTION_TYPES.find(t => t.key === lead.next_action_type)?.label || lead.next_action_type || "Aksjon";
-    await supabase.from("leads").update({ next_action_type: null, next_action_date: null, next_action_note: null }).eq("id", lead.id);
-    await logActivity({ action: "next_action_completed", description: `${actionLabel} markert som utført`, type: "note", performedBy: user?.id });
-    await supabase.from("lead_history").insert({ lead_id: id!, action: "next_action_completed", description: `${actionLabel} markert som utført`, performed_by: user?.id, metadata: {} });
-    toast.success("Aksjon markert som utført");
-    setNextActionType("");
-    setNextActionDate("");
-    setNextActionNote("");
-    setLead({ ...lead, next_action_type: null, next_action_date: null, next_action_note: null });
-    fetchActivities();
-  };
-
   // ─── Derived values ───
   const safeStatus = lead && LEAD_STATUS_CONFIG[lead.status] ? lead.status : "new";
   const isOverdue = lead?.next_action_date && isPast(new Date(lead.next_action_date)) && !isToday(new Date(lead.next_action_date));
   const ownerSelectValue = lead?.assigned_owner_user_id && companyUsers.some(u => u.id === lead.assigned_owner_user_id)
     ? lead.assigned_owner_user_id : "__unset__";
 
-  // ─── EntityView config ───
-  const entityActions: EntityAction[] = [
-    {
-      label: "Opprett møte",
-      mobileLabel: "Møte",
-      icon: <CalendarPlus className="h-4 w-4" />,
-      onClick: () => {
-        setMeetingStart("");
-        setMeetingDuration("60");
-        setMeetingLocation("");
-        setMeetingSubject("Befaring");
-        setMeetingAttendees(participants.filter(p => p.user_email).map(p => p.user_email!));
-        setMeetingDialogOpen(true);
-      },
-    },
-    {
-      label: "Send e-post",
-      mobileLabel: "E-post",
-      icon: <Mail className="h-4 w-4" />,
-      onClick: handleCreateEmailDraft,
-      disabled: creatingDraft || !lead?.email,
-      loading: creatingDraft,
-    },
-  ];
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
-  // ─── Banner: Pipeline bar + Neste aksjon ───
-  const banner = lead ? (
-    <div className="space-y-3">
-      {msReauthNeeded && (
-        <div className="flex items-center gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-4">
-          <AlertTriangle className="h-5 w-5 text-destructive shrink-0" />
-          <div className="flex-1">
-            <p className="text-sm font-medium">Microsoft-tilkobling må fornyes</p>
-            <p className="text-xs text-muted-foreground">Manglende rettigheter (Mail.ReadWrite). Logg inn på nytt for å gi tilgang.</p>
-          </div>
-          <Button size="sm" variant="destructive" onClick={handleMsReauth}>Koble til Microsoft på nytt</Button>
-        </div>
-      )}
+  if (notFound || !lead) {
+    return (
+      <div className="mx-auto max-w-md p-8 text-center space-y-4">
+        <ShieldAlert className="h-12 w-12 mx-auto text-muted-foreground opacity-60" />
+        <h2 className="text-lg font-semibold">Lead ikke funnet</h2>
+        <Button variant="outline" onClick={() => navigate("/sales/leads")}>
+          <ArrowLeft className="h-4 w-4 mr-2" /> Tilbake
+        </Button>
+      </div>
+    );
+  }
 
-      {/* Pipeline bar */}
-      <Card className="rounded-2xl shadow-sm">
-        <CardContent className="py-4">
-          <LeadPipelineBar currentStatus={safeStatus} onStatusChange={handleStatusChange} />
-        </CardContent>
-      </Card>
-
-      {/* Neste aksjon - prominent placement */}
-      {lead.next_action_date ? (
-        <Card className={`rounded-2xl shadow-sm ${isOverdue ? "border-destructive/40 bg-destructive/[0.03]" : "border-primary/20 bg-primary/[0.02]"}`}>
-          <CardContent className="flex items-center gap-3 py-3.5">
-            {isOverdue
-              ? <AlertTriangle className="h-5 w-5 text-destructive shrink-0" />
-              : <Clock className="h-5 w-5 text-primary shrink-0" />
-            }
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium">
-                {isOverdue ? "Forfalt: " : "Neste aksjon: "}
-                <span className="font-semibold">
-                  {NEXT_ACTION_TYPES.find(t => t.key === lead.next_action_type)?.label || lead.next_action_type || "Ukjent"}
-                </span>
-                {" — "}
-                {format(new Date(lead.next_action_date), "d. MMM yyyy HH:mm", { locale: nb })}
-              </p>
-              {lead.next_action_note && <p className="text-xs text-muted-foreground mt-0.5">{lead.next_action_note}</p>}
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-1.5 shrink-0 rounded-xl"
-              onClick={handleMarkNextActionDone}
-            >
-              <CheckCircle2 className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Marker utført</span>
-            </Button>
-          </CardContent>
-        </Card>
-      ) : null}
-    </div>
-  ) : undefined;
-
-  // ─── Tabs ───
-  const tabs: EntityTab[] = [
-    {
-      value: "contact",
-      label: "Kunde & anlegg",
-      content: lead ? (
-        <div className="space-y-4">
-          <Card className="rounded-2xl shadow-sm">
-            <CardHeader className="pb-3"><CardTitle className="text-base">Kundeinformasjon</CardTitle></CardHeader>
-            <CardContent className="space-y-3">
-              <div className="space-y-1.5">
-                <Label>Installatør / kunde *</Label>
-                <Input value={companyName} onChange={e => setCompanyName(e.target.value)} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Kontaktperson</Label>
-                <Input value={contactName} onChange={e => setContactName(e.target.value)} />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label>E-post</Label>
-                  <Input value={email} onChange={e => setEmail(e.target.value)} type="email" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Telefon</Label>
-                  <Input value={phone} onChange={e => setPhone(e.target.value)} />
-                </div>
-              </div>
-              <div className="space-y-1.5">
-                <Label>Kilde</Label>
-                <Input value={source} onChange={e => setSource(e.target.value)} />
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Deltakere inline */}
-          <Card className="rounded-2xl shadow-sm">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-base">Deltakere</CardTitle>
-                <Button size="sm" variant="ghost" className="gap-1 h-7 text-xs" onClick={() => setAddParticipantOpen(true)}>
-                  <Plus className="h-3 w-3" /> Legg til
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {participants.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-2">Ingen deltakere</p>
-              ) : (
-                <div className="space-y-2">
-                  {participants.map(p => (
-                    <div key={p.id} className="flex items-center gap-3 py-1.5">
-                      <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center">
-                        <User className="h-3.5 w-3.5 text-primary" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{p.user_name}</p>
-                        <p className="text-[10px] text-muted-foreground">{p.user_email}</p>
-                      </div>
-                      <Badge variant="outline" className="text-[10px] capitalize">{p.role === "owner" ? "Eier" : "Bidragsyter"}</Badge>
-                      {p.role !== "owner" && (
-                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => removeParticipant(p)}>
-                          <Trash2 className="h-3 w-3 text-muted-foreground" />
-                        </Button>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          <div className="flex justify-end">
-            <Button onClick={handleSave} disabled={saving} className="gap-1.5 rounded-xl">
-              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-              Lagre endringer
-            </Button>
-          </div>
-        </div>
-      ) : null,
-    },
-    {
-      value: "deal",
-      label: "Jobb-estimat",
-      content: lead ? (
-        <div className="space-y-4">
-          {/* Value highlight */}
-          <Card className="rounded-2xl shadow-sm">
-            <CardContent className="pt-5">
-              <div className="rounded-xl bg-gradient-to-r from-primary/[0.06] to-transparent p-4">
-                <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium mb-1">Estimert ordreverdi</p>
-                <p className="text-2xl font-bold text-foreground">
-                  kr {Number(estimatedValue || 0).toLocaleString("nb-NO")}
-                </p>
-                <div className="flex items-center gap-2 mt-2">
-                  <p className="text-xs text-muted-foreground">Ordresannsynlighet:</p>
-                  <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold leading-none ${
-                    Number(probability) >= 70
-                      ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300"
-                      : Number(probability) >= 40
-                      ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
-                      : "bg-muted text-muted-foreground"
-                  }`}>
-                    {probability}%
-                  </span>
-                  <p className="text-xs text-muted-foreground ml-auto">
-                    Vektet: <span className="font-medium text-foreground">kr {Math.round(Number(estimatedValue || 0) * Number(probability || 50) / 100).toLocaleString("nb-NO")}</span>
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="rounded-2xl shadow-sm">
-            <CardHeader className="pb-3"><CardTitle className="text-base">Ordredetaljer</CardTitle></CardHeader>
-            <CardContent className="space-y-3">
-              <div className="space-y-1.5">
-                <Label>Ansvarlig selger</Label>
-                <Select value={ownerSelectValue} onValueChange={handleOwnerChange}>
-                  <SelectTrigger><SelectValue placeholder="Velg eier" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__unset__">Ikke satt</SelectItem>
-                    {companyUsers.map(u => (
-                      <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label>Estimert ordreverdi (kr)</Label>
-                  <Input value={estimatedValue} onChange={e => setEstimatedValue(e.target.value)} type="number" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Ordresannsynlighet (%)</Label>
-                  <Input value={probability} onChange={e => setProbability(e.target.value)} type="number" min="0" max="100" />
-                </div>
-              </div>
-              <div className="space-y-1.5">
-                <Label>Forventet leveringsdato</Label>
-                <Input value={expectedCloseDate} onChange={e => setExpectedCloseDate(e.target.value)} type="date" />
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Neste aksjon editor */}
-          <Card className="rounded-2xl shadow-sm">
-            <CardHeader className="pb-3"><CardTitle className="text-base">Neste aksjon</CardTitle></CardHeader>
-            <CardContent className="space-y-3">
-              <div className="grid sm:grid-cols-3 gap-3">
-                <div className="space-y-1.5">
-                  <Label>Type</Label>
-                  <Select value={nextActionType || "__none__"} onValueChange={v => setNextActionType(v === "__none__" ? "" : v)}>
-                    <SelectTrigger><SelectValue placeholder="Velg type" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none__">Ingen</SelectItem>
-                      {NEXT_ACTION_TYPES.map(t => (
-                        <SelectItem key={t.key} value={t.key}>{t.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Dato og tid</Label>
-                  <Input value={nextActionDate} onChange={e => setNextActionDate(e.target.value)} type="datetime-local" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Notat</Label>
-                  <Input value={nextActionNote} onChange={e => setNextActionNote(e.target.value)} placeholder="Kort beskrivelse..." />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Notater */}
-          <Card className="rounded-2xl shadow-sm">
-            <CardHeader className="pb-3"><CardTitle className="text-base">Notater</CardTitle></CardHeader>
-            <CardContent>
-              <Textarea value={notes} onChange={e => setNotes(e.target.value)} rows={4} placeholder="Interne notater..." />
-            </CardContent>
-          </Card>
-
-          {/* Tilbud */}
-          <Card className="rounded-2xl shadow-sm">
-            <CardHeader className="pb-3"><CardTitle className="text-base">Tilbud</CardTitle></CardHeader>
-            <CardContent>
-              {offers.length === 0 ? (
-                <div className="text-center py-4 text-muted-foreground">
-                  <FileText className="h-6 w-6 mx-auto mb-1.5 opacity-40" />
-                  <p className="text-sm">Ingen tilbud ennå</p>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {offers.map(offer => (
-                    <div key={offer.id} className="flex items-center gap-3 py-2 border-b border-border/20 last:border-0">
-                      <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium">{offer.offer_number} (v{offer.version})</p>
-                        <p className="text-xs text-muted-foreground">
-                          {format(new Date(offer.created_at), "d. MMM yyyy", { locale: nb })}
-                          {" · kr "}
-                          {Number(offer.total_ex_vat).toLocaleString("nb-NO")} eks. mva
-                        </p>
-                      </div>
-                      <Badge variant="outline" className="text-[10px] capitalize">{offer.status}</Badge>
-                      {offer.status === "accepted" && (
-                        <Button size="sm" variant="outline" className="gap-1 text-xs h-7" onClick={() => {
-                          setConvertingOfferId(offer.id);
-                          setConvertDialogOpen(true);
-                        }}>
-                          <ArrowRightLeft className="h-3 w-3" /> Konverter
-                        </Button>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          <div className="flex justify-end">
-            <Button onClick={handleSave} disabled={saving} className="gap-1.5 rounded-xl">
-              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-              Lagre endringer
-            </Button>
-          </div>
-        </div>
-      ) : null,
-    },
-    {
-      value: "activity",
-      label: "Aktivitet & dok.",
-      content: lead ? (
-        <div className="space-y-5">
-          {/* E-post */}
-          <Card className="rounded-2xl shadow-sm">
-            <CardHeader className="pb-3"><CardTitle className="text-base">E-post</CardTitle></CardHeader>
-            <CardContent>
-              <EmailComposer
-                entityType="lead"
-                entityId={lead.id}
-                defaultTo={lead.email || undefined}
-                defaultSubject={lead.company_name}
-                refCode={lead.lead_ref_code || undefined}
-                onSent={() => fetchActivities()}
-              />
-            </CardContent>
-          </Card>
-
-          {/* Møter */}
-          <Card className="rounded-2xl shadow-sm">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-base">Befaringer & møter</CardTitle>
-                <Button size="sm" variant="ghost" className="gap-1 h-7 text-xs" onClick={() => {
-                  setMeetingStart("");
-                  setMeetingDuration("60");
-                  setMeetingLocation("");
-                  setMeetingSubject("Befaring");
-                  setMeetingAttendees(participants.filter(p => p.user_email).map(p => p.user_email!));
-                  setMeetingDialogOpen(true);
-                }}>
-                  <CalendarPlus className="h-3 w-3" /> Ny befaring
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {calendarLinks.length === 0 ? (
-                <div className="text-center py-4 text-muted-foreground">
-                  <CalendarIcon className="h-6 w-6 mx-auto mb-1.5 opacity-40" />
-                  <p className="text-sm">Ingen befaringer eller møter planlagt</p>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {calendarLinks.map(link => (
-                    <div key={link.id} className="flex items-center gap-3 py-2 border-b border-border/20 last:border-0">
-                      <CalendarIcon className="h-4 w-4 text-muted-foreground shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{link.event_subject || "Ukjent møte"}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {link.event_start ? format(new Date(link.event_start), "d. MMM yyyy HH:mm", { locale: nb }) : "—"}
-                          {link.event_end ? ` – ${format(new Date(link.event_end), "HH:mm", { locale: nb })}` : ""}
-                          {link.event_location ? ` · ${link.event_location}` : ""}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleResyncCalendarLink(link.id)} title="Resynkroniser">
-                          <RefreshCw className="h-3.5 w-3.5 text-muted-foreground" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDeleteCalendarLink(link.id)} title="Slett fra Outlook">
-                          <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Kontrakter */}
-          {id && (
-            <Card className="rounded-2xl shadow-sm">
-              <CardHeader className="pb-3"><CardTitle className="text-base">Kontrakter</CardTitle></CardHeader>
-              <CardContent>
-                <ContractListSection entityType="lead" entityId={id} />
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Historikk */}
-          <Card className="rounded-2xl shadow-sm">
-            <CardHeader className="pb-3"><CardTitle className="text-base">Aktivitetslogg</CardTitle></CardHeader>
-            <CardContent>
-              <ActivityTimeline activities={activities} emptyMessage="Ingen hendelser loggført" />
-            </CardContent>
-          </Card>
-        </div>
-      ) : null,
-    },
-  ];
+  const copyRefCode = () => {
+    if (lead.lead_ref_code) {
+      navigator.clipboard.writeText(lead.lead_ref_code);
+      toast.success("Referansekode kopiert");
+    }
+  };
 
   return (
     <>
-      <EntityView
-        name={lead?.company_name || ""}
-        refCode={lead?.lead_ref_code}
-        subtitle={lead ? `Opprettet ${format(new Date(lead.created_at), "d. MMM yyyy", { locale: nb })}` : undefined}
-        actions={entityActions}
-        banner={banner}
-        tabs={tabs}
-        defaultTab="contact"
-        onBack={() => navigate("/sales/leads")}
-        loading={loading}
-        notFound={notFound || !lead}
-        notFoundMessage="Lead ikke funnet"
+      {/* ── Sticky action bar ── */}
+      <LeadStickyBar onAction={openActionPanel} />
+
+      <div className="mx-auto max-w-5xl p-4 sm:p-6 space-y-5">
+        {/* ── MS re-auth banner ── */}
+        {msReauthNeeded && (
+          <div className="flex items-center gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-4">
+            <AlertTriangle className="h-5 w-5 text-destructive shrink-0" />
+            <div className="flex-1">
+              <p className="text-sm font-medium">Microsoft-tilkobling må fornyes</p>
+              <p className="text-xs text-muted-foreground">Manglende rettigheter. Logg inn på nytt.</p>
+            </div>
+          </div>
+        )}
+
+        {/* ── Header ── */}
+        <div className="flex items-start gap-3 rounded-2xl bg-gradient-to-r from-primary/[0.04] to-transparent p-4 -mx-1">
+          <Button variant="ghost" size="icon" onClick={() => navigate("/sales/leads")} className="mt-1 rounded-xl">
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-xl sm:text-2xl font-bold text-foreground">{lead.company_name}</h1>
+            <div className="flex items-center gap-2 flex-wrap mt-1">
+              {lead.lead_ref_code && (
+                <button onClick={copyRefCode} className="inline-flex items-center gap-1 text-xs font-mono bg-card border border-border/60 px-2 py-0.5 rounded-lg hover:bg-accent/50 transition-colors shadow-sm" title="Klikk for å kopiere">
+                  {lead.lead_ref_code}
+                  <Copy className="h-3 w-3 text-muted-foreground" />
+                </button>
+              )}
+              <span className="text-sm text-muted-foreground">Opprettet {format(new Date(lead.created_at), "d. MMM yyyy", { locale: nb })}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Pipeline bar ── */}
+        <Card className="rounded-2xl shadow-sm">
+          <CardContent className="py-4">
+            <LeadPipelineBar currentStatus={safeStatus} onStatusChange={handleStatusChange} />
+          </CardContent>
+        </Card>
+
+        {/* ── Neste aksjon ── */}
+        {lead.next_action_date && (
+          <Card className={`rounded-2xl shadow-sm ${isOverdue ? "border-destructive/40 bg-destructive/[0.03]" : "border-primary/20 bg-primary/[0.02]"}`}>
+            <CardContent className="flex items-center gap-3 py-3.5">
+              {isOverdue ? <AlertTriangle className="h-5 w-5 text-destructive shrink-0" /> : <Clock className="h-5 w-5 text-primary shrink-0" />}
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium">
+                  {isOverdue ? "Forfalt: " : "Neste aksjon: "}
+                  <span className="font-semibold">{NEXT_ACTION_TYPES.find(t => t.key === lead.next_action_type)?.label || lead.next_action_type || "Ukjent"}</span>
+                  {" — "}
+                  {format(new Date(lead.next_action_date), "d. MMM yyyy HH:mm", { locale: nb })}
+                </p>
+                {lead.next_action_note && <p className="text-xs text-muted-foreground mt-0.5">{lead.next_action_note}</p>}
+              </div>
+              <Button variant="outline" size="sm" className="gap-1.5 shrink-0 rounded-xl" onClick={handleMarkNextActionDone}>
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Marker utført</span>
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* ── Activity Feed (prominent) ── */}
+        <Card className="rounded-2xl shadow-sm">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Aktivitet</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ActivityFeedList
+              activities={activities}
+              maxItems={10}
+              showSections
+              emptyMessage="Ingen aktivitet ennå. Bruk handlingsknappene over for å komme i gang."
+            />
+          </CardContent>
+        </Card>
+
+        {/* ── Two-column layout ── */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          {/* Left: Customer & participants */}
+          <div className="space-y-5">
+            <Card className="rounded-2xl shadow-sm">
+              <CardHeader className="pb-3"><CardTitle className="text-base">Kundeinformasjon</CardTitle></CardHeader>
+              <CardContent className="space-y-3">
+                <div className="space-y-1.5">
+                  <Label>Installatør / kunde *</Label>
+                  <Input value={companyName} onChange={e => setCompanyName(e.target.value)} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Kontaktperson</Label>
+                  <Input value={contactName} onChange={e => setContactName(e.target.value)} />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label>E-post</Label>
+                    <Input value={email} onChange={e => setEmail(e.target.value)} type="email" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Telefon</Label>
+                    <Input value={phone} onChange={e => setPhone(e.target.value)} />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Kilde</Label>
+                  <Input value={source} onChange={e => setSource(e.target.value)} />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="rounded-2xl shadow-sm">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base">Deltakere</CardTitle>
+                  <Button size="sm" variant="ghost" className="gap-1 h-7 text-xs" onClick={() => setAddParticipantOpen(true)}>
+                    <Plus className="h-3 w-3" /> Legg til
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {participants.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-2">Ingen deltakere</p>
+                ) : (
+                  <div className="space-y-2">
+                    {participants.map(p => (
+                      <div key={p.id} className="flex items-center gap-3 py-1.5">
+                        <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center">
+                          <User className="h-3.5 w-3.5 text-primary" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{p.user_name}</p>
+                          <p className="text-[10px] text-muted-foreground">{p.user_email}</p>
+                        </div>
+                        <Badge variant="outline" className="text-[10px] capitalize">{p.role === "owner" ? "Eier" : "Bidragsyter"}</Badge>
+                        {p.role !== "owner" && (
+                          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => removeParticipant(p)}>
+                            <Trash2 className="h-3 w-3 text-muted-foreground" />
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Right: Deal info, next action, offers, meetings */}
+          <div className="space-y-5">
+            {/* Value highlight */}
+            <Card className="rounded-2xl shadow-sm">
+              <CardContent className="pt-5">
+                <div className="rounded-xl bg-gradient-to-r from-primary/[0.06] to-transparent p-4">
+                  <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium mb-1">Estimert ordreverdi</p>
+                  <p className="text-2xl font-bold text-foreground">kr {Number(estimatedValue || 0).toLocaleString("nb-NO")}</p>
+                  <div className="flex items-center gap-2 mt-2">
+                    <p className="text-xs text-muted-foreground">Ordresannsynlighet:</p>
+                    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold leading-none ${Number(probability) >= 70 ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300" : Number(probability) >= 40 ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300" : "bg-muted text-muted-foreground"}`}>
+                      {probability}%
+                    </span>
+                    <p className="text-xs text-muted-foreground ml-auto">
+                      Vektet: <span className="font-medium text-foreground">kr {Math.round(Number(estimatedValue || 0) * Number(probability || 50) / 100).toLocaleString("nb-NO")}</span>
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="rounded-2xl shadow-sm">
+              <CardHeader className="pb-3"><CardTitle className="text-base">Ordredetaljer</CardTitle></CardHeader>
+              <CardContent className="space-y-3">
+                <div className="space-y-1.5">
+                  <Label>Ansvarlig selger</Label>
+                  <Select value={ownerSelectValue} onValueChange={handleOwnerChange}>
+                    <SelectTrigger><SelectValue placeholder="Velg eier" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__unset__">Ikke satt</SelectItem>
+                      {companyUsers.map(u => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label>Estimert ordreverdi (kr)</Label>
+                    <Input value={estimatedValue} onChange={e => setEstimatedValue(e.target.value)} type="number" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Ordresannsynlighet (%)</Label>
+                    <Input value={probability} onChange={e => setProbability(e.target.value)} type="number" min="0" max="100" />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Forventet leveringsdato</Label>
+                  <Input value={expectedCloseDate} onChange={e => setExpectedCloseDate(e.target.value)} type="date" />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Neste aksjon editor */}
+            <Card className="rounded-2xl shadow-sm">
+              <CardHeader className="pb-3"><CardTitle className="text-base">Neste aksjon</CardTitle></CardHeader>
+              <CardContent className="space-y-3">
+                <div className="grid sm:grid-cols-3 gap-3">
+                  <div className="space-y-1.5">
+                    <Label>Type</Label>
+                    <Select value={nextActionType || "__none__"} onValueChange={v => setNextActionType(v === "__none__" ? "" : v)}>
+                      <SelectTrigger><SelectValue placeholder="Velg type" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">Ingen</SelectItem>
+                        {NEXT_ACTION_TYPES.map(t => <SelectItem key={t.key} value={t.key}>{t.label}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Dato og tid</Label>
+                    <Input value={nextActionDate} onChange={e => setNextActionDate(e.target.value)} type="datetime-local" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Notat</Label>
+                    <Input value={nextActionNote} onChange={e => setNextActionNote(e.target.value)} placeholder="Kort beskrivelse..." />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Notater */}
+            <Card className="rounded-2xl shadow-sm">
+              <CardHeader className="pb-3"><CardTitle className="text-base">Notater</CardTitle></CardHeader>
+              <CardContent>
+                <Textarea value={notes} onChange={e => setNotes(e.target.value)} rows={4} placeholder="Interne notater..." />
+              </CardContent>
+            </Card>
+
+            {/* Tilbud */}
+            <Card className="rounded-2xl shadow-sm">
+              <CardHeader className="pb-3"><CardTitle className="text-base">Tilbud</CardTitle></CardHeader>
+              <CardContent>
+                {offers.length === 0 ? (
+                  <div className="text-center py-4 text-muted-foreground">
+                    <FileText className="h-6 w-6 mx-auto mb-1.5 opacity-40" />
+                    <p className="text-sm">Ingen tilbud ennå</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {offers.map(offer => (
+                      <div key={offer.id} className="flex items-center gap-3 py-2 border-b border-border/20 last:border-0">
+                        <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium">{offer.offer_number} (v{offer.version})</p>
+                          <p className="text-xs text-muted-foreground">
+                            {format(new Date(offer.created_at), "d. MMM yyyy", { locale: nb })} · kr {Number(offer.total_ex_vat).toLocaleString("nb-NO")} eks. mva
+                          </p>
+                        </div>
+                        <Badge variant="outline" className="text-[10px] capitalize">{offer.status}</Badge>
+                        {offer.status === "accepted" && (
+                          <Button size="sm" variant="outline" className="gap-1 text-xs h-7" onClick={() => { setConvertingOfferId(offer.id); setConvertDialogOpen(true); }}>
+                            <ArrowRightLeft className="h-3 w-3" /> Konverter
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Befaringer & møter */}
+            <Card className="rounded-2xl shadow-sm">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base">Befaringer & møter</CardTitle>
+                  <Button size="sm" variant="ghost" className="gap-1 h-7 text-xs" onClick={() => openActionPanel("meeting")}>
+                    <CalendarPlus className="h-3 w-3" /> Ny befaring
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {calendarLinks.length === 0 ? (
+                  <div className="text-center py-4 text-muted-foreground">
+                    <CalendarIcon className="h-6 w-6 mx-auto mb-1.5 opacity-40" />
+                    <p className="text-sm">Ingen befaringer eller møter planlagt</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {calendarLinks.map(link => (
+                      <div key={link.id} className="flex items-center gap-3 py-2 border-b border-border/20 last:border-0">
+                        <CalendarIcon className="h-4 w-4 text-muted-foreground shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{link.event_subject || "Ukjent møte"}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {link.event_start ? format(new Date(link.event_start), "d. MMM yyyy HH:mm", { locale: nb }) : "—"}
+                            {link.event_end ? ` – ${format(new Date(link.event_end), "HH:mm", { locale: nb })}` : ""}
+                            {link.event_location ? ` · ${link.event_location}` : ""}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleResyncCalendarLink(link.id)} title="Resynkroniser">
+                            <RefreshCw className="h-3.5 w-3.5 text-muted-foreground" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDeleteCalendarLink(link.id)} title="Slett fra Outlook">
+                            <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Kontrakter */}
+            {id && (
+              <Card className="rounded-2xl shadow-sm">
+                <CardHeader className="pb-3"><CardTitle className="text-base">Kontrakter</CardTitle></CardHeader>
+                <CardContent>
+                  <ContractListSection entityType="lead" entityId={id} />
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        </div>
+
+        {/* Save button */}
+        <div className="flex justify-end pb-6">
+          <Button onClick={handleSave} disabled={saving} className="gap-1.5 rounded-xl">
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+            Lagre endringer
+          </Button>
+        </div>
+      </div>
+
+      {/* ── Action Side Panel (replaces all modals for actions) ── */}
+      <LeadActionPanel
+        open={actionPanelOpen}
+        onOpenChange={setActionPanelOpen}
+        defaultTab={actionPanelTab}
+        lead={{
+          id: lead.id,
+          company_name: lead.company_name,
+          email: lead.email,
+          lead_ref_code: lead.lead_ref_code,
+        }}
+        participantEmails={participants.filter(p => p.user_email).map(p => p.user_email!)}
+        onActivityCreated={refreshAll}
       />
 
-      {/* Add Participant Dialog */}
+      {/* ── Only confirmation dialogs remain ── */}
       <Dialog open={addParticipantOpen} onOpenChange={setAddParticipantOpen}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
@@ -914,9 +785,7 @@ function LeadDetailInner() {
                 <SelectTrigger><SelectValue placeholder="Velg bruker" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__pick__">Velg bruker...</SelectItem>
-                  {companyUsers
-                    .filter(u => !participants.some(p => p.user_id === u.id))
-                    .map(u => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}
+                  {companyUsers.filter(u => !participants.some(p => p.user_id === u.id)).map(u => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}
                 </SelectContent>
               </Select>
             ) : (
@@ -930,102 +799,18 @@ function LeadDetailInner() {
         </DialogContent>
       </Dialog>
 
-      {/* Convert to Project Dialog */}
       <Dialog open={convertDialogOpen} onOpenChange={setConvertDialogOpen}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle>Konverter til prosjekt</DialogTitle>
             <DialogDescription>
-              Dette oppretter et nytt prosjekt fra lead &quot;{lead?.company_name}&quot; med det aksepterte tilbudet.
-              Deltakere kopieres til prosjektet.
+              Dette oppretter et nytt prosjekt fra lead &quot;{lead.company_name}&quot; med det aksepterte tilbudet. Deltakere kopieres til prosjektet.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setConvertDialogOpen(false)}>Avbryt</Button>
             <Button onClick={handleConvertToProject} className="gap-1.5">
               <ArrowRightLeft className="h-4 w-4" /> Konverter
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Create Meeting Dialog */}
-      <Dialog open={meetingDialogOpen} onOpenChange={setMeetingDialogOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Opprett befaring / møte</DialogTitle>
-            <DialogDescription>
-              Oppretter en Outlook-kalenderinvitasjon med lead-referansen {lead?.lead_ref_code || ""}.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3">
-            <div className="space-y-1.5">
-              <Label>Type / tittel</Label>
-              <Select value={meetingSubject || "__befaring__"} onValueChange={v => setMeetingSubject(v === "__befaring__" ? "Befaring" : v)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Befaring">Befaring</SelectItem>
-                  <SelectItem value="Møte">Møte</SelectItem>
-                  <SelectItem value="Oppfølging">Oppfølging</SelectItem>
-                  <SelectItem value="Presentasjon">Presentasjon</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label>Dato og tid *</Label>
-                <Input type="datetime-local" value={meetingStart} onChange={e => setMeetingStart(e.target.value)} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Varighet (min)</Label>
-                <Select value={meetingDuration} onValueChange={setMeetingDuration}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="30">30 min</SelectItem>
-                    <SelectItem value="60">1 time</SelectItem>
-                    <SelectItem value="90">1,5 timer</SelectItem>
-                    <SelectItem value="120">2 timer</SelectItem>
-                    <SelectItem value="180">3 timer</SelectItem>
-                    <SelectItem value="240">4 timer</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Sted</Label>
-              <Input value={meetingLocation} onChange={e => setMeetingLocation(e.target.value)} placeholder="Adresse eller lokasjon..." />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Deltakere (e-post)</Label>
-              <div className="space-y-1.5">
-                {meetingAttendees.map((emailAddr, idx) => (
-                  <div key={idx} className="flex items-center gap-2">
-                    <Input
-                      value={emailAddr}
-                      onChange={e => {
-                        const updated = [...meetingAttendees];
-                        updated[idx] = e.target.value;
-                        setMeetingAttendees(updated);
-                      }}
-                      placeholder="e-post@example.com"
-                      className="flex-1"
-                    />
-                    <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => setMeetingAttendees(meetingAttendees.filter((_, i) => i !== idx))}>
-                      <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
-                    </Button>
-                  </div>
-                ))}
-                <Button variant="outline" size="sm" className="gap-1 text-xs" onClick={() => setMeetingAttendees([...meetingAttendees, ""])}>
-                  <Plus className="h-3 w-3" /> Legg til deltaker
-                </Button>
-              </div>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setMeetingDialogOpen(false)}>Avbryt</Button>
-            <Button onClick={handleCreateMeeting} disabled={creatingMeeting || !meetingStart} className="gap-1.5">
-              {creatingMeeting ? <Loader2 className="h-4 w-4 animate-spin" /> : <CalendarPlus className="h-4 w-4" />}
-              Opprett møte
             </Button>
           </DialogFooter>
         </DialogContent>
