@@ -5269,7 +5269,10 @@ export type Database = {
       offers: {
         Row: {
           accepted_at: string | null
+          accepted_comment: string | null
+          accepted_email: string | null
           accepted_ip: string | null
+          accepted_name: string | null
           archived_at: string | null
           archived_by: string | null
           calculation_id: string
@@ -5288,6 +5291,8 @@ export type Database = {
           lead_id: string | null
           offer_number: string
           public_token: string | null
+          rejected_at: string | null
+          rejected_comment: string | null
           sent_at: string | null
           sent_to_email: string | null
           source_case_id: string | null
@@ -5300,7 +5305,10 @@ export type Database = {
         }
         Insert: {
           accepted_at?: string | null
+          accepted_comment?: string | null
+          accepted_email?: string | null
           accepted_ip?: string | null
+          accepted_name?: string | null
           archived_at?: string | null
           archived_by?: string | null
           calculation_id: string
@@ -5319,6 +5327,8 @@ export type Database = {
           lead_id?: string | null
           offer_number: string
           public_token?: string | null
+          rejected_at?: string | null
+          rejected_comment?: string | null
           sent_at?: string | null
           sent_to_email?: string | null
           source_case_id?: string | null
@@ -5331,7 +5341,10 @@ export type Database = {
         }
         Update: {
           accepted_at?: string | null
+          accepted_comment?: string | null
+          accepted_email?: string | null
           accepted_ip?: string | null
+          accepted_name?: string | null
           archived_at?: string | null
           archived_by?: string | null
           calculation_id?: string
@@ -5350,6 +5363,8 @@ export type Database = {
           lead_id?: string | null
           offer_number?: string
           public_token?: string | null
+          rejected_at?: string | null
+          rejected_comment?: string | null
           sent_at?: string | null
           sent_to_email?: string | null
           source_case_id?: string | null
