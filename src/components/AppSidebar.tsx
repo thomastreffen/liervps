@@ -181,7 +181,34 @@ export function AppSidebar() {
                 />
               )}
                {isAdmin && isModuleVisible("sales") && (
-                 <NavItem item={{ title: "Salg", url: "/sales", icon: TrendingUp }} isActive={isActive} collapsed={collapsed} />
+                 <>
+                   <SidebarMenuItem>
+                     <Collapsible defaultOpen={isActive("/sales")}>
+                       <CollapsibleTrigger asChild>
+                         <SidebarMenuButton
+                           tooltip="Salg"
+                           className={cn(
+                             "rounded-xl h-10 transition-all duration-150",
+                             isActive("/sales")
+                               ? "bg-primary/10 text-primary font-semibold shadow-sm"
+                               : "text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent"
+                           )}
+                         >
+                           <TrendingUp className="h-[19px] w-[19px]" />
+                           <span className="text-[13px] flex-1">Salg</span>
+                           {!collapsed && <ChevronDown className="h-3 w-3 transition-transform duration-200 [[data-state=open]>&]:rotate-180" />}
+                         </SidebarMenuButton>
+                       </CollapsibleTrigger>
+                       <CollapsibleContent>
+                         <SidebarMenu className="ml-5 mt-1 space-y-0.5 border-l border-sidebar-border/40 pl-2">
+                           <NavItem item={{ title: "Oversikt", url: "/sales", icon: BarChart3 }} isActive={(url) => location.pathname === "/sales"} collapsed={collapsed} />
+                           <NavItem item={{ title: "Leads", url: "/sales/leads", icon: Target }} isActive={isActive} collapsed={collapsed} />
+                           <NavItem item={{ title: "Tilbud", url: "/sales/offers", icon: FileText }} isActive={isActive} collapsed={collapsed} />
+                         </SidebarMenu>
+                       </CollapsibleContent>
+                     </Collapsible>
+                   </SidebarMenuItem>
+                 </>
                )}
                {isAdmin && (
                  <NavItem item={{ title: "Lederoversikt", url: "/management", icon: Gauge }} isActive={isActive} collapsed={collapsed} />
