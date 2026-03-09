@@ -26,7 +26,9 @@ interface FollowupOffer {
   total_price: number;
   status: CalculationStatus;
   updated_at: string;
-  urgency: "overdue" | "soon" | "stale";
+  urgency: "overdue" | "soon" | "stale" | "hot";
+  customerActive?: boolean;
+  customerViewCount?: number;
 }
 
 const URGENCY_CONFIG = {
