@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { startOfWeek, endOfWeek } from "date-fns";
+import { parseUtc } from "@/lib/parse-utc";
 
 export interface ScheduleBlock {
   id: string;
@@ -34,16 +35,6 @@ export interface ScheduleBlock {
   technician_name?: string;
   technician_color?: string | null;
   project_title?: string | null;
-}
-
-/** Ensure a DB timestamp string is parsed as UTC */
-function parseUtc(val: string): Date {
-  // If the string already has a timezone indicator, parse as-is
-  if (val.endsWith("Z") || /[+-]\d{2}:\d{2}$/.test(val) || /[+-]\d{2}$/.test(val)) {
-    return new Date(val);
-  }
-  // Otherwise treat as UTC by appending Z
-  return new Date(val + "Z");
 }
 
 function mapRow(row: any): ScheduleBlock {

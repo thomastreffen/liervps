@@ -3,14 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { startOfWeek, endOfWeek, differenceInMinutes } from "date-fns";
 import type { JobStatus } from "@/lib/job-status";
 import type { Job } from "@/lib/mock-data";
-
-/** Ensure a DB timestamp string is parsed as UTC */
-function parseUtc(val: string): Date {
-  if (val.endsWith("Z") || /[+-]\d{2}(:\d{2})?$/.test(val)) {
-    return new Date(val);
-  }
-  return new Date(val + "Z");
-}
+import { parseUtc } from "@/lib/parse-utc";
 
 export interface TechnicianInfo {
   id: string;
