@@ -146,7 +146,7 @@ export default function SalesDashboard() {
   }, []);
 
   return (
-    <div className="space-y-4 max-w-7xl mx-auto pb-8">
+    <div className="space-y-4 max-w-[1920px] mx-auto pb-8">
       {/* Header with title + segmented tabs */}
       <SalesHeader />
 

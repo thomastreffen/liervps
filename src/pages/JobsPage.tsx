@@ -196,7 +196,7 @@ export default function JobsPage() {
   };
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 space-y-5 max-w-7xl mx-auto">
+    <div className="p-4 sm:p-6 lg:p-8 space-y-5 max-w-[1920px] mx-auto">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
