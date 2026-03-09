@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import {
   CalendarPlus, Mail, CheckCircle2, StickyNote,
-  Loader2, Plus, Trash2, X, Video,
+  Loader2, Plus, Trash2, Video,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,7 +16,7 @@ import { EmailComposer } from "@/components/EmailComposer";
 import { ActivityComposer } from "@/components/activity/ActivityComposer";
 import { toast } from "sonner";
 
-export type ActionPanelTab = "meeting" | "task" | "email" | "note";
+export type ActionPanelTab = "meeting" | "teams" | "task" | "email" | "note";
 
 interface LeadActionPanelProps {
   open: boolean;
@@ -50,6 +50,14 @@ export function LeadActionPanel({
   const [meetingAttendees, setMeetingAttendees] = useState<string[]>(participantEmails);
   const [teamsToggle, setTeamsToggle] = useState(false);
   const [creatingMeeting, setCreatingMeeting] = useState(false);
+
+  // Teams state
+  const [teamsMode, setTeamsMode] = useState<"meeting" | "chat">("meeting");
+  const [teamsAgenda, setTeamsAgenda] = useState("");
+  const [teamsAttendees, setTeamsAttendees] = useState<string[]>(participantEmails);
+  const [teamsScheduled, setTeamsScheduled] = useState(false);
+  const [teamsStart, setTeamsStart] = useState("");
+  const [creatingTeams, setCreatingTeams] = useState(false);
 
   const resetMeeting = () => {
     setMeetingSubject("Befaring");
@@ -107,6 +115,58 @@ export function LeadActionPanel({
     }
   };
 
+  const handleCreateTeamsMeeting = async () => {
+    setCreatingTeams(true);
+    try {
+      const body: any = {
+        action: "create",
+        lead_id: lead.id,
+        attendee_emails: teamsAttendees.filter(Boolean),
+        subject_suffix: `Teams – ${lead.company_name}`,
+        teams_meeting: true,
+      };
+
+      if (teamsScheduled && teamsStart) {
+        const startDate = new Date(teamsStart);
+        body.start_time = startDate.toISOString();
+        body.end_time = new Date(startDate.getTime() + 3600000).toISOString();
+      } else {
+        body.start_time = new Date().toISOString();
+        body.end_time = new Date(Date.now() + 3600000).toISOString();
+      }
+
+      const { data, error } = await supabase.functions.invoke("lead-calendar-event", { body });
+      if (error) throw error;
+      if (data?.error) { toast.error(data.error); return; }
+
+      await supabase.from("activity_log").insert({
+        entity_id: lead.id,
+        entity_type: "lead",
+        action: "teams_meeting_created",
+        type: "meeting",
+        title: `Teams-møte – ${lead.company_name}`,
+        description: teamsAgenda || "Teams-møte opprettet",
+        performed_by: user?.id,
+        microsoft_event_id: data?.outlook_event_id,
+      });
+
+      toast.success("Teams-møte opprettet");
+      if (data?.web_link) window.open(data.web_link, "_blank");
+
+      setTeamsAgenda("");
+      setTeamsAttendees(participantEmails);
+      setTeamsScheduled(false);
+      setTeamsStart("");
+      onActivityCreated?.();
+      onOpenChange(false);
+    } catch (err: any) {
+      console.error("[LeadActionPanel] Teams error:", err);
+      toast.error("Kunne ikke opprette Teams-møte");
+    } finally {
+      setCreatingTeams(false);
+    }
+  };
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-full sm:max-w-md p-0 flex flex-col" side="right">
@@ -120,6 +180,9 @@ export function LeadActionPanel({
           <TabsList className="mx-5 mt-3 flex-wrap">
             <TabsTrigger value="meeting" className="gap-1.5 text-xs">
               <CalendarPlus className="h-3.5 w-3.5" /> Møte
+            </TabsTrigger>
+            <TabsTrigger value="teams" className="gap-1.5 text-xs">
+              <Video className="h-3.5 w-3.5" /> Teams
             </TabsTrigger>
             <TabsTrigger value="task" className="gap-1.5 text-xs">
               <CheckCircle2 className="h-3.5 w-3.5" /> Oppgave
@@ -170,8 +233,6 @@ export function LeadActionPanel({
               <Label>Sted</Label>
               <Input value={meetingLocation} onChange={e => setMeetingLocation(e.target.value)} placeholder="Adresse eller lokasjon…" />
             </div>
-
-            {/* Teams toggle */}
             <button
               onClick={() => setTeamsToggle(!teamsToggle)}
               className={`flex items-center gap-2 text-xs rounded-lg px-3 py-2 w-full border transition-colors ${
@@ -183,8 +244,6 @@ export function LeadActionPanel({
               <Video className="h-3.5 w-3.5" />
               {teamsToggle ? "Teams-møte aktivert" : "Legg til Teams-link"}
             </button>
-
-            {/* Attendees */}
             <div className="space-y-1.5">
               <Label>Deltakere (e-post)</Label>
               <div className="space-y-1.5">
@@ -210,11 +269,108 @@ export function LeadActionPanel({
                 </Button>
               </div>
             </div>
-
             <div className="pt-2">
               <Button onClick={handleCreateMeeting} disabled={creatingMeeting || !meetingStart} className="w-full gap-1.5 rounded-xl">
                 {creatingMeeting ? <Loader2 className="h-4 w-4 animate-spin" /> : <CalendarPlus className="h-4 w-4" />}
                 Opprett møte
+              </Button>
+            </div>
+          </TabsContent>
+
+          {/* ── Teams ── */}
+          <TabsContent value="teams" className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+            <div className="flex gap-1 p-1 bg-muted/30 rounded-lg">
+              <button
+                onClick={() => setTeamsMode("meeting")}
+                className={`flex-1 text-xs font-medium py-1.5 rounded-md transition-colors ${
+                  teamsMode === "meeting" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                Teams-møte
+              </button>
+              <button
+                onClick={() => setTeamsMode("chat")}
+                className={`flex-1 text-xs font-medium py-1.5 rounded-md transition-colors ${
+                  teamsMode === "chat" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                Teams-samtale
+              </button>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>Deltakere (e-post)</Label>
+              <div className="space-y-1.5">
+                {teamsAttendees.map((emailAddr, idx) => (
+                  <div key={idx} className="flex items-center gap-2">
+                    <Input
+                      value={emailAddr}
+                      onChange={e => {
+                        const updated = [...teamsAttendees];
+                        updated[idx] = e.target.value;
+                        setTeamsAttendees(updated);
+                      }}
+                      placeholder="e-post@example.com"
+                      className="flex-1 h-8 text-xs"
+                    />
+                    <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => setTeamsAttendees(teamsAttendees.filter((_, i) => i !== idx))}>
+                      <Trash2 className="h-3 w-3 text-muted-foreground" />
+                    </Button>
+                  </div>
+                ))}
+                <Button variant="outline" size="sm" className="gap-1 text-xs h-7" onClick={() => setTeamsAttendees([...teamsAttendees, ""])}>
+                  <Plus className="h-3 w-3" /> Legg til
+                </Button>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>Agenda / tema</Label>
+              <Textarea
+                value={teamsAgenda}
+                onChange={e => setTeamsAgenda(e.target.value)}
+                placeholder="Hva skal diskuteres?"
+                className="min-h-[60px] text-sm"
+              />
+            </div>
+
+            {teamsMode === "meeting" && (
+              <>
+                <button
+                  onClick={() => setTeamsScheduled(!teamsScheduled)}
+                  className={`flex items-center gap-2 text-xs rounded-lg px-3 py-2 w-full border transition-colors ${
+                    teamsScheduled
+                      ? "bg-primary/10 text-primary border-primary/30"
+                      : "bg-muted/30 text-muted-foreground border-border/40 hover:bg-muted/50"
+                  }`}
+                >
+                  <CalendarPlus className="h-3.5 w-3.5" />
+                  {teamsScheduled ? "Planlagt tidspunkt" : "Start nå (klikk for å planlegge)"}
+                </button>
+                {teamsScheduled && (
+                  <div className="space-y-1.5">
+                    <Label>Tidspunkt</Label>
+                    <Input type="datetime-local" value={teamsStart} onChange={e => setTeamsStart(e.target.value)} />
+                  </div>
+                )}
+              </>
+            )}
+
+            <div className="pt-2">
+              <Button
+                onClick={handleCreateTeamsMeeting}
+                disabled={creatingTeams || teamsAttendees.filter(Boolean).length === 0}
+                className="w-full gap-1.5 rounded-xl"
+              >
+                {creatingTeams ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Video className="h-4 w-4" />
+                )}
+                {teamsMode === "meeting"
+                  ? teamsScheduled ? "Planlegg Teams-møte" : "Start Teams-møte nå"
+                  : "Start Teams-samtale"
+                }
               </Button>
             </div>
           </TabsContent>
