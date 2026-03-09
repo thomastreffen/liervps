@@ -114,7 +114,7 @@ function LeadDetailInner() {
   const [notFound, setNotFound] = useState(false);
   const [saving, setSaving] = useState(false);
   const [participants, setParticipants] = useState<Participant[]>([]);
-  const [offers, setOffers] = useState<Offer[]>([]);
+  const [offers, setOffers] = useState<LeadCalc[]>([]);
   const [calendarLinks, setCalendarLinks] = useState<CalendarLink[]>([]);
   const [companyUsers, setCompanyUsers] = useState<{ id: string; name: string; email: string }[]>([]);
 
