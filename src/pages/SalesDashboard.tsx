@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { fetchActiveLeads } from "@/lib/lead-queries";
 import { type OfferStatus } from "@/lib/offer-status";
 import { type LeadStatus } from "@/lib/lead-status";
+import { useAuth } from "@/hooks/useAuth";
 import { SalesPulse } from "@/components/dashboard/SalesPulse";
 import { SalesHeader } from "@/components/dashboard/SalesHeader";
 import { SalesActionRequired, buildActionItems, type ActionItem } from "@/components/dashboard/SalesActionRequired";
@@ -12,9 +13,11 @@ import { RecentOffersList, RecentLeadsList, type RecentOffer, type RecentLead } 
 import { OfferSummaryCard, STATUS_WEIGHTS } from "@/components/dashboard/OfferSummaryCard";
 import { MyOffersFollowup } from "@/components/dashboard/MyOffersFollowup";
 import { DashboardFollowupTasks } from "@/components/dashboard/DashboardFollowupTasks";
+import { SalesTeamOverview } from "@/components/dashboard/SalesTeamOverview";
 
 export default function SalesDashboard() {
   const nav = useNavigate();
+  const { isAdmin } = useAuth();
   const [recentOffers, setRecentOffers] = useState<RecentOffer[]>([]);
   const [recentLeads, setRecentLeads] = useState<RecentLead[]>([]);
   const [actions, setActions] = useState<ActionItem[]>([]);
@@ -172,6 +175,13 @@ export default function SalesDashboard() {
         <MyOffersFollowup />
         <DashboardFollowupTasks />
       </div>
+
+      {/* Team overview — admin/leader only */}
+      {isAdmin && (
+        <div className="px-4 sm:px-6">
+          <SalesTeamOverview />
+        </div>
+      )}
 
       {/* Action-driven sections */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 px-4 sm:px-6">
