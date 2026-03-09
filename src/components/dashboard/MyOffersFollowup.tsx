@@ -29,6 +29,7 @@ interface FollowupOffer {
   urgency: "overdue" | "soon" | "stale" | "hot";
   customerActive?: boolean;
   customerViewCount?: number;
+  hasFollowupTask?: boolean;
 }
 
 const URGENCY_CONFIG = {
@@ -78,6 +79,15 @@ export function MyOffersFollowup() {
         .order("event_at", { ascending: false })
         .limit(500);
 
+      // Fetch open followup tasks for these offers
+      const { data: followupData } = await supabase
+        .from("offer_followup_tasks" as any)
+        .select("offer_id")
+        .in("offer_id", offerIds)
+        .in("status", ["open"]);
+
+      const followupOfferIds = new Set((followupData as any[] || []).map((f: any) => f.offer_id));
+
       const activities = (activityData as any[]) || [];
       const activityByOffer: Record<string, { viewCount: number; lastAt: number; isRecent: boolean }> = {};
       for (const a of activities) {
@@ -125,6 +135,7 @@ export function MyOffersFollowup() {
             urgency,
             customerActive,
             customerViewCount: act?.viewCount || 0,
+            hasFollowupTask: followupOfferIds.has(c.id),
           });
         }
       }
@@ -193,9 +204,14 @@ export function MyOffersFollowup() {
                   <Badge className={statusCfg.className + " rounded-lg text-[10px] px-1.5 py-0"}>
                     {statusCfg.label}
                   </Badge>
-                  <span className={`inline-flex items-center gap-0.5 text-[10px] font-medium px-1.5 py-0 rounded-lg ${urg.className}`}>
+                   <span className={`inline-flex items-center gap-0.5 text-[10px] font-medium px-1.5 py-0 rounded-lg ${urg.className}`}>
                     {urg.icon} {urg.label}
                   </span>
+                  {offer.hasFollowupTask && (
+                    <Badge variant="outline" className="text-[9px] px-1 py-0 rounded-md border-primary/30 text-primary">
+                      Oppgave opprettet
+                    </Badge>
+                  )}
                 </div>
                 <div className="flex items-center gap-2 text-xs text-muted-foreground/60">
                   <span className="truncate max-w-[180px]">{offer.project_title}</span>

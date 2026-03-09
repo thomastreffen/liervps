@@ -11,6 +11,7 @@ import { SalesRecommendations, buildRecommendations, type Recommendation } from 
 import { RecentOffersList, RecentLeadsList, type RecentOffer, type RecentLead } from "@/components/dashboard/SalesRecentLists";
 import { OfferSummaryCard, STATUS_WEIGHTS } from "@/components/dashboard/OfferSummaryCard";
 import { MyOffersFollowup } from "@/components/dashboard/MyOffersFollowup";
+import { DashboardFollowupTasks } from "@/components/dashboard/DashboardFollowupTasks";
 
 export default function SalesDashboard() {
   const nav = useNavigate();
@@ -167,8 +168,9 @@ export default function SalesDashboard() {
       </div>
 
       {/* Personal follow-up */}
-      <div className="px-4 sm:px-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 px-4 sm:px-6">
         <MyOffersFollowup />
+        <DashboardFollowupTasks />
       </div>
 
       {/* Action-driven sections */}
