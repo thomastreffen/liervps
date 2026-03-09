@@ -61,6 +61,9 @@ export default function TrashPage() {
     (contractsRes.data || []).forEach((c: any) => all.push({
       id: c.id, title: c.title, subtitle: c.counterparty_name, deleted_at: c.deleted_at, type: "contract",
     }));
+    (convsRes.data || []).forEach((c: any) => all.push({
+      id: c.id, title: c.title, subtitle: "Samtale", deleted_at: c.deleted_at, type: "conversation",
+    }));
     all.sort((a, b) => new Date(b.deleted_at).getTime() - new Date(a.deleted_at).getTime());
     setItems(all);
     setLoading(false);
@@ -70,8 +73,8 @@ export default function TrashPage() {
 
   const restore = async (item: DeletedItem) => {
     setOperating(item.id);
-    const table = item.type === "job" ? "events" : item.type === "calculation" ? "calculations" : item.type === "lead" ? "leads" : item.type === "contract" ? "contracts" : "offers";
-    await supabase.from(table).update({ deleted_at: null, deleted_by: null } as any).eq("id", item.id);
+    const table = item.type === "job" ? "events" : item.type === "calculation" ? "calculations" : item.type === "lead" ? "leads" : item.type === "contract" ? "contracts" : item.type === "conversation" ? "conversation_threads" : "offers";
+    await (supabase as any).from(table).update({ deleted_at: null, deleted_by: null }).eq("id", item.id);
     toast.success("Gjenopprettet", { description: item.title });
     setItems(prev => prev.filter(i => i.id !== item.id));
     setOperating(null);
@@ -79,8 +82,8 @@ export default function TrashPage() {
 
   const permanentDelete = async (item: DeletedItem) => {
     setOperating(item.id);
-    const table = item.type === "job" ? "events" : item.type === "calculation" ? "calculations" : item.type === "lead" ? "leads" : item.type === "contract" ? "contracts" : "offers";
-    await supabase.from(table).delete().eq("id", item.id);
+    const table = item.type === "job" ? "events" : item.type === "calculation" ? "calculations" : item.type === "lead" ? "leads" : item.type === "contract" ? "contracts" : item.type === "conversation" ? "conversation_threads" : "offers";
+    await (supabase as any).from(table).delete().eq("id", item.id);
     toast.success("Permanent slettet", { description: item.title });
     setItems(prev => prev.filter(i => i.id !== item.id));
     setOperating(null);
