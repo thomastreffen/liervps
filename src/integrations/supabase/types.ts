@@ -220,6 +220,7 @@ export type Database = {
           deleted_by: string | null
           department_id: string | null
           description: string | null
+          external_tripletex_number: string | null
           id: string
           lead_id: string | null
           project_title: string
@@ -244,6 +245,7 @@ export type Database = {
           deleted_by?: string | null
           department_id?: string | null
           description?: string | null
+          external_tripletex_number?: string | null
           id?: string
           lead_id?: string | null
           project_title: string
@@ -268,6 +270,7 @@ export type Database = {
           deleted_by?: string | null
           department_id?: string | null
           description?: string | null
+          external_tripletex_number?: string | null
           id?: string
           lead_id?: string | null
           project_title?: string
@@ -2109,6 +2112,7 @@ export type Database = {
           company_id: string | null
           created_at: string
           created_by: string | null
+          external_tripletex_id: string | null
           id: string
           main_email: string | null
           main_phone: string | null
@@ -2124,6 +2128,7 @@ export type Database = {
           company_id?: string | null
           created_at?: string
           created_by?: string | null
+          external_tripletex_id?: string | null
           id?: string
           main_email?: string | null
           main_phone?: string | null
@@ -2139,6 +2144,7 @@ export type Database = {
           company_id?: string | null
           created_at?: string
           created_by?: string | null
+          external_tripletex_id?: string | null
           id?: string
           main_email?: string | null
           main_phone?: string | null
@@ -2765,6 +2771,7 @@ export type Database = {
           editing_by: string | null
           editing_started_at: string | null
           end_time: string
+          external_tripletex_id: string | null
           id: string
           internal_number: string | null
           job_number: string | null
@@ -2834,6 +2841,7 @@ export type Database = {
           editing_by?: string | null
           editing_started_at?: string | null
           end_time: string
+          external_tripletex_id?: string | null
           id?: string
           internal_number?: string | null
           job_number?: string | null
@@ -2903,6 +2911,7 @@ export type Database = {
           editing_by?: string | null
           editing_started_at?: string | null
           end_time?: string
+          external_tripletex_id?: string | null
           id?: string
           internal_number?: string | null
           job_number?: string | null
@@ -3487,6 +3496,104 @@ export type Database = {
           post_id?: string
         }
         Relationships: []
+      }
+      import_logs: {
+        Row: {
+          created_at: string
+          created_count: number
+          failed_count: number
+          file_hash: string | null
+          file_name: string
+          id: string
+          ignored_count: number
+          import_type: string
+          imported_at: string
+          imported_by: string
+          status: string
+          summary_json: Json | null
+          total_rows: number
+          updated_count: number
+        }
+        Insert: {
+          created_at?: string
+          created_count?: number
+          failed_count?: number
+          file_hash?: string | null
+          file_name: string
+          id?: string
+          ignored_count?: number
+          import_type: string
+          imported_at?: string
+          imported_by: string
+          status?: string
+          summary_json?: Json | null
+          total_rows?: number
+          updated_count?: number
+        }
+        Update: {
+          created_at?: string
+          created_count?: number
+          failed_count?: number
+          file_hash?: string | null
+          file_name?: string
+          id?: string
+          ignored_count?: number
+          import_type?: string
+          imported_at?: string
+          imported_by?: string
+          status?: string
+          summary_json?: Json | null
+          total_rows?: number
+          updated_count?: number
+        }
+        Relationships: []
+      }
+      import_results: {
+        Row: {
+          action_taken: string
+          created_at: string
+          entity_type: string
+          external_key: string | null
+          id: string
+          import_log_id: string
+          message: string | null
+          raw_payload_json: Json | null
+          resolved_entity_id: string | null
+          status: string
+        }
+        Insert: {
+          action_taken: string
+          created_at?: string
+          entity_type: string
+          external_key?: string | null
+          id?: string
+          import_log_id: string
+          message?: string | null
+          raw_payload_json?: Json | null
+          resolved_entity_id?: string | null
+          status?: string
+        }
+        Update: {
+          action_taken?: string
+          created_at?: string
+          entity_type?: string
+          external_key?: string | null
+          id?: string
+          import_log_id?: string
+          message?: string | null
+          raw_payload_json?: Json | null
+          resolved_entity_id?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "import_results_import_log_id_fkey"
+            columns: ["import_log_id"]
+            isOneToOne: false
+            referencedRelation: "import_logs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       inbox_messages: {
         Row: {
@@ -5048,6 +5155,7 @@ export type Database = {
           deleted_at: string | null
           deleted_by: string | null
           department_id: string | null
+          external_tripletex_number: string | null
           generated_html_snapshot: string | null
           generated_pdf_url: string | null
           id: string
@@ -5078,6 +5186,7 @@ export type Database = {
           deleted_at?: string | null
           deleted_by?: string | null
           department_id?: string | null
+          external_tripletex_number?: string | null
           generated_html_snapshot?: string | null
           generated_pdf_url?: string | null
           id?: string
@@ -5108,6 +5217,7 @@ export type Database = {
           deleted_at?: string | null
           deleted_by?: string | null
           department_id?: string | null
+          external_tripletex_number?: string | null
           generated_html_snapshot?: string | null
           generated_pdf_url?: string | null
           id?: string
