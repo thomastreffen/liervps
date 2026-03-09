@@ -405,6 +405,7 @@ export const ResourceCalendar = memo(function ResourceCalendar({
         initialView={calendarView}
         initialDate={referenceDate}
         headerToolbar={false}
+        timeZone="Europe/Oslo"
         locale="nb"
         firstDay={1}
         height="auto"
