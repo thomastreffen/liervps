@@ -67,6 +67,7 @@ export default function SalesDashboard() {
       // Offer summary stats
       const activeCalcs = calcs.filter((c: any) => !["accepted", "rejected", "converted"].includes(c.status));
       const readyToSend = calcs.filter((c: any) => c.status === "draft").length;
+      const acceptedCalcs = calcs.filter((c: any) => c.status === "accepted");
       const openPipeline = activeCalcs.reduce((s: number, c: any) => s + Number(c.total_price || 0), 0);
       const weightedPipeline = activeCalcs.reduce((s: number, c: any) => {
         const w = STATUS_WEIGHTS[c.status as string] ?? 0.1;

@@ -30,7 +30,6 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Fetch offer with calculation + items
       const { data: offer, error: offerErr } = await sb
         .from("offers")
         .select(`
@@ -39,7 +38,7 @@ Deno.serve(async (req) => {
           rejected_at, rejected_comment, calculation_id,
           calculations(
             customer_name, customer_email, project_title, description,
-            company_id
+            company_id, created_by
           )
         `)
         .eq("public_token", token)
@@ -53,14 +52,12 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Fetch line items
       const { data: items } = await sb
         .from("calculation_items")
         .select("id, title, description, type, quantity, unit, unit_price, total_price")
         .eq("calculation_id", offer.calculation_id)
         .order("created_at", { ascending: true });
 
-      // Fetch company info for branding
       const companyId = (offer.calculations as any)?.company_id;
       let company = null;
       if (companyId) {
@@ -72,7 +69,6 @@ Deno.serve(async (req) => {
         company = cs;
       }
 
-      // Log view event
       await sb.from("offer_activity_events").insert({
         offer_id: offer.id,
         event_type: "offer_viewed",
@@ -101,7 +97,6 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Look up offer
       const { data: offer, error: findErr } = await sb
         .from("offers")
         .select("id, status, calculation_id")
@@ -116,13 +111,24 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Prevent double-action
       if (["accepted", "rejected"].includes(offer.status)) {
         return new Response(
           JSON.stringify({ error: "Offer already " + offer.status, status: offer.status }),
           { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
+
+      // Fetch calculation for owner info
+      const { data: calcData } = await sb
+        .from("calculations")
+        .select("created_by, company_id, customer_name, project_title")
+        .eq("id", offer.calculation_id)
+        .single();
+
+      const ownerId = calcData?.created_by || null;
+      const companyId = calcData?.company_id || null;
+      const customerName = calcData?.customer_name || "Kunde";
+      const projectTitle = calcData?.project_title || "Tilbud";
 
       const clientIp = req.headers.get("x-forwarded-for") || "unknown";
       const ipHash = await hashIp(clientIp);
@@ -138,10 +144,8 @@ Deno.serve(async (req) => {
           accepted_comment: comment || null,
         }).eq("id", offer.id);
 
-        // Update calculation status
         await sb.from("calculations").update({ status: "accepted" }).eq("id", offer.calculation_id);
 
-        // Log activity event
         await sb.from("offer_activity_events").insert({
           offer_id: offer.id,
           event_type: "offer_accepted",
@@ -149,7 +153,6 @@ Deno.serve(async (req) => {
           meta: { name, email, comment, ip_hash: ipHash, timestamp: now },
         });
 
-        // Log to activity_log
         await sb.from("activity_log").insert({
           entity_type: "offer",
           entity_id: offer.id,
@@ -157,6 +160,66 @@ Deno.serve(async (req) => {
           description: `Tilbud digitalt akseptert av ${name || "kunde"}`,
           metadata: { name, email, comment, ip_hash: ipHash },
         });
+
+        // --- Auto-create conversion task (idempotent) ---
+        if (ownerId && companyId) {
+          const { data: existingTask } = await sb
+            .from("tasks")
+            .select("id")
+            .eq("linked_offer_id", offer.id)
+            .in("status", ["todo", "in_progress"])
+            .ilike("title", "%konverter%")
+            .maybeSingle();
+
+          if (!existingTask) {
+            const nextWorkday = getNextWorkday(new Date());
+            await sb.from("tasks").insert({
+              company_id: companyId,
+              title: `Konverter akseptert tilbud til prosjekt — ${projectTitle}`,
+              description: `Kunde ${customerName} har godkjent tilbudet "${projectTitle}". Opprett prosjekt og planlegg oppstart.`,
+              status: "todo",
+              priority: "high",
+              due_at: nextWorkday.toISOString(),
+              created_by: ownerId,
+              owner_user_id: ownerId,
+              linked_offer_id: offer.id,
+            });
+          }
+
+          // --- Notifications ---
+          await sb.from("notifications").insert({
+            user_id: ownerId,
+            company_id: companyId,
+            type: "offer_accepted",
+            title: "🟢 Tilbud godkjent av kunde",
+            message: `${customerName} har akseptert tilbudet "${projectTitle}" — klart for prosjektopprettelse`,
+            link_url: `/sales/offers/${offer.calculation_id}`,
+            read: false,
+          });
+
+          // Notify admins (sales leaders)
+          const { data: adminRoles } = await sb
+            .from("user_roles")
+            .select("user_id")
+            .in("role", ["admin", "super_admin"]);
+
+          if (adminRoles) {
+            const adminNotifs = adminRoles
+              .filter((r: any) => r.user_id !== ownerId)
+              .map((r: any) => ({
+                user_id: r.user_id,
+                company_id: companyId,
+                type: "offer_accepted",
+                title: "🟢 Tilbud godkjent av kunde",
+                message: `${customerName} har akseptert "${projectTitle}"`,
+                link_url: `/sales/offers/${offer.calculation_id}`,
+                read: false,
+              }));
+            if (adminNotifs.length > 0) {
+              await sb.from("notifications").insert(adminNotifs);
+            }
+          }
+        }
 
         return new Response(JSON.stringify({ ok: true, status: "accepted" }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -186,6 +249,65 @@ Deno.serve(async (req) => {
           description: `Tilbud avslått av kunde${comment ? ": " + comment : ""}`,
           metadata: { comment, ip_hash: ipHash },
         });
+
+        // --- Auto-create follow-up task (idempotent) ---
+        if (ownerId && companyId) {
+          const { data: existingTask } = await sb
+            .from("tasks")
+            .select("id")
+            .eq("linked_offer_id", offer.id)
+            .in("status", ["todo", "in_progress"])
+            .ilike("title", "%oppfølg%avslått%")
+            .maybeSingle();
+
+          if (!existingTask) {
+            const followupDate = getNextWorkday(new Date(), 2);
+            await sb.from("tasks").insert({
+              company_id: companyId,
+              title: `Følg opp avslått tilbud — ${projectTitle}`,
+              description: `Kunde ${customerName} har avslått tilbudet "${projectTitle}".${comment ? ` Begrunnelse: "${comment}"` : ""} Kontakt kunden for å avklare muligheter.`,
+              status: "todo",
+              priority: "medium",
+              due_at: followupDate.toISOString(),
+              created_by: ownerId,
+              owner_user_id: ownerId,
+              linked_offer_id: offer.id,
+            });
+          }
+
+          // --- Notifications ---
+          await sb.from("notifications").insert({
+            user_id: ownerId,
+            company_id: companyId,
+            type: "offer_rejected",
+            title: "🔴 Tilbud avslått av kunde",
+            message: `${customerName} har avslått tilbudet "${projectTitle}" — krever oppfølging`,
+            link_url: `/sales/offers/${offer.calculation_id}`,
+            read: false,
+          });
+
+          const { data: adminRoles } = await sb
+            .from("user_roles")
+            .select("user_id")
+            .in("role", ["admin", "super_admin"]);
+
+          if (adminRoles) {
+            const adminNotifs = adminRoles
+              .filter((r: any) => r.user_id !== ownerId)
+              .map((r: any) => ({
+                user_id: r.user_id,
+                company_id: companyId,
+                type: "offer_rejected",
+                title: "🔴 Tilbud avslått av kunde",
+                message: `${customerName} har avslått "${projectTitle}"`,
+                link_url: `/sales/offers/${offer.calculation_id}`,
+                read: false,
+              }));
+            if (adminNotifs.length > 0) {
+              await sb.from("notifications").insert(adminNotifs);
+            }
+          }
+        }
 
         return new Response(JSON.stringify({ ok: true, status: "rejected" }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -217,4 +339,17 @@ async function hashIp(ip: string): Promise<string> {
   const hashBuffer = await crypto.subtle.digest("SHA-256", data);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
   return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("").slice(0, 16);
+}
+
+/** Get next workday (skip weekends). Pass daysAhead=2 for 2 business days. */
+function getNextWorkday(from: Date, daysAhead = 1): Date {
+  const d = new Date(from);
+  let added = 0;
+  while (added < daysAhead) {
+    d.setDate(d.getDate() + 1);
+    const dow = d.getDay();
+    if (dow !== 0 && dow !== 6) added++;
+  }
+  d.setHours(9, 0, 0, 0);
+  return d;
 }

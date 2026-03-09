@@ -592,36 +592,70 @@ export default function CalculationDetail() {
           </div>
         )}
 
-        {/* ── Customer acceptance info ── */}
+        {/* ── Customer acceptance banner ── */}
         {latestOffer && calc.status === "accepted" && latestOffer.accepted_at && (
-          <div className="rounded-xl border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-950 p-3 flex items-start gap-3">
-            <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400 shrink-0 mt-0.5" />
-            <div className="text-sm">
-              <p className="font-medium text-green-800 dark:text-green-200">Digitalt godkjent av kunde</p>
-              <p className="text-green-700 dark:text-green-300 text-xs mt-0.5">
-                {latestOffer.accepted_name && <span>{latestOffer.accepted_name} • </span>}
-                {latestOffer.accepted_email && <span>{latestOffer.accepted_email} • </span>}
-                {format(new Date(latestOffer.accepted_at), "d. MMM yyyy 'kl' HH:mm", { locale: nb })}
-              </p>
-              {latestOffer.accepted_comment && (
-                <p className="text-green-700 dark:text-green-300 text-xs mt-1 italic">«{latestOffer.accepted_comment}»</p>
-              )}
+          <div className="rounded-xl border-2 border-green-300 dark:border-green-700 bg-green-50 dark:bg-green-950 p-4 space-y-3">
+            <div className="flex items-start gap-3">
+              <div className="h-10 w-10 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center shrink-0">
+                <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
+              </div>
+              <div className="flex-1">
+                <p className="font-semibold text-green-800 dark:text-green-200 text-base">✅ Kunden har godkjent tilbudet</p>
+                <p className="text-green-700 dark:text-green-300 text-sm mt-1">
+                  Godkjent av: {latestOffer.accepted_name || "Ukjent"} {latestOffer.accepted_email && `(${latestOffer.accepted_email})`}
+                </p>
+                <p className="text-green-600 dark:text-green-400 text-xs mt-0.5">
+                  Tidspunkt: {format(new Date(latestOffer.accepted_at), "d. MMMM yyyy 'kl' HH:mm", { locale: nb })}
+                </p>
+                {latestOffer.accepted_comment && (
+                  <p className="text-green-700 dark:text-green-300 text-sm mt-2 italic bg-green-100/50 dark:bg-green-900/50 rounded-lg px-3 py-2">«{latestOffer.accepted_comment}»</p>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center gap-2 pt-1">
+              <Button onClick={() => setConvertOpen(true)} size="default" className="gap-2 rounded-lg bg-green-600 hover:bg-green-700 text-white font-semibold px-6">
+                <ArrowRightLeft className="h-4 w-4" /> Konverter til prosjekt
+              </Button>
             </div>
           </div>
         )}
 
-        {/* ── Customer rejection info ── */}
+        {/* ── Customer rejection banner ── */}
         {latestOffer && calc.status === "rejected" && latestOffer.rejected_at && (
-          <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 flex items-start gap-3">
-            <XCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
-            <div className="text-sm">
-              <p className="font-medium text-destructive">Avslått av kunde</p>
-              <p className="text-muted-foreground text-xs mt-0.5">
-                {format(new Date(latestOffer.rejected_at), "d. MMM yyyy 'kl' HH:mm", { locale: nb })}
-              </p>
-              {latestOffer.rejected_comment && (
-                <p className="text-muted-foreground text-xs mt-1 italic">«{latestOffer.rejected_comment}»</p>
+          <div className="rounded-xl border-2 border-destructive/40 bg-destructive/5 p-4 space-y-3">
+            <div className="flex items-start gap-3">
+              <div className="h-10 w-10 rounded-full bg-destructive/10 flex items-center justify-center shrink-0">
+                <XCircle className="h-5 w-5 text-destructive" />
+              </div>
+              <div className="flex-1">
+                <p className="font-semibold text-destructive text-base">❌ Kunden har avslått tilbudet</p>
+                <p className="text-muted-foreground text-sm mt-1">
+                  Begrunnelse: {latestOffer.rejected_comment || "Ingen kommentar"}
+                </p>
+                <p className="text-muted-foreground text-xs mt-0.5">
+                  Tidspunkt: {format(new Date(latestOffer.rejected_at), "d. MMMM yyyy 'kl' HH:mm", { locale: nb })}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 pt-1">
+              {calc.customer_email && (
+                <Button
+                  size="default"
+                  variant="outline"
+                  className="gap-2 rounded-lg font-semibold"
+                  onClick={() => window.open(`mailto:${calc.customer_email}?subject=Angående tilbud — ${calc.project_title}`, "_blank")}
+                >
+                  <Mail className="h-4 w-4" /> Kontakt kunde
+                </Button>
               )}
+              <Button
+                size="sm"
+                variant="ghost"
+                className="gap-1.5 rounded-lg text-muted-foreground"
+                onClick={() => navigate(`/sales/offers/new?lead_id=${calc.lead_id || ""}&customer=${encodeURIComponent(calc.customer_name)}`)}
+              >
+                <Plus className="h-3.5 w-3.5" /> Opprett revidert tilbud
+              </Button>
             </div>
           </div>
         )}
