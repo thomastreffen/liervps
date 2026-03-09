@@ -97,6 +97,7 @@ export default function TrashPage() {
     if (type === "calculation") return <Calculator className="h-3.5 w-3.5" />;
     if (type === "lead") return <UserPlus className="h-3.5 w-3.5" />;
     if (type === "contract") return <FileSignature className="h-3.5 w-3.5" />;
+    if (type === "conversation") return <MessageSquare className="h-3.5 w-3.5" />;
     return <ReceiptText className="h-3.5 w-3.5" />;
   };
 
@@ -105,6 +106,7 @@ export default function TrashPage() {
     if (type === "calculation") return "Kalkulasjon";
     if (type === "lead") return "Lead";
     if (type === "contract") return "Kontrakt";
+    if (type === "conversation") return "Samtale";
     return "Tilbud";
   };
 
@@ -129,6 +131,7 @@ export default function TrashPage() {
           <TabsTrigger value="contract" className="gap-1"><FileSignature className="h-3 w-3" />Kontrakter ({countByType("contract")})</TabsTrigger>
           <TabsTrigger value="calculation" className="gap-1"><Calculator className="h-3 w-3" />Kalkulasjoner ({countByType("calculation")})</TabsTrigger>
           <TabsTrigger value="offer" className="gap-1"><ReceiptText className="h-3 w-3" />Tilbud ({countByType("offer")})</TabsTrigger>
+          <TabsTrigger value="conversation" className="gap-1"><MessageSquare className="h-3 w-3" />Samtaler ({countByType("conversation")})</TabsTrigger>
         </TabsList>
       </Tabs>
 
