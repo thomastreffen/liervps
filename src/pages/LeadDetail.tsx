@@ -656,25 +656,20 @@ function LeadDetailInner() {
                 ) : (
                   <div className="space-y-2">
                     {offers.map(offer => (
-                      <div key={offer.id} className="flex items-center gap-3 py-2 border-b border-border/20 last:border-0 group">
+                      <div
+                        key={offer.id}
+                        className="flex items-center gap-3 py-2.5 px-2 border-b border-border/20 last:border-0 group rounded-lg hover:bg-secondary/40 cursor-pointer transition-colors"
+                        onClick={() => navigate(`/sales/offers/${offer.id}`)}
+                      >
                         <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium">{offer.offer_number} (v{offer.version})</p>
+                          <p className="text-sm font-medium truncate">{offer.project_title}</p>
                           <p className="text-xs text-muted-foreground">
-                            {format(new Date(offer.created_at), "d. MMM yyyy", { locale: nb })} · kr {Number(offer.total_ex_vat).toLocaleString("nb-NO")} eks. mva
+                            {format(new Date(offer.created_at), "d. MMM yyyy", { locale: nb })} · kr {Number(offer.total_price || 0).toLocaleString("nb-NO")} eks. mva
                           </p>
                         </div>
                         <Badge variant="outline" className="text-[10px] capitalize">{offer.status}</Badge>
-                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => navigate(`/sales/offers/${offer.id}`)} title="Åpne">
-                            <ExternalLink className="h-3.5 w-3.5 text-muted-foreground" />
-                          </Button>
-                          {(offer.status === "accepted" || offer.status === "signed") && (
-                            <Button size="sm" variant="outline" className="gap-1 text-xs h-7" onClick={() => setShowConvertPanel(true)}>
-                              <ArrowRightLeft className="h-3 w-3" /> Konverter
-                            </Button>
-                          )}
-                        </div>
+                        <ArrowRight className="h-3 w-3 text-muted-foreground/0 group-hover:text-primary/50 transition-all shrink-0" />
                       </div>
                     ))}
                   </div>
