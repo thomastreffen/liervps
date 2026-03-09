@@ -116,7 +116,7 @@ export function LeadActionPanel({
           </div>
         </SheetHeader>
 
-        <Tabs defaultValue={defaultTab} className="flex-1 flex flex-col min-h-0">
+        <Tabs key={defaultTab} defaultValue={defaultTab} className="flex-1 flex flex-col min-h-0">
           <TabsList className="mx-5 mt-3 flex-wrap">
             <TabsTrigger value="meeting" className="gap-1.5 text-xs">
               <CalendarPlus className="h-3.5 w-3.5" /> Møte
