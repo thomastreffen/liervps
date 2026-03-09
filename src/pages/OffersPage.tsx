@@ -165,7 +165,14 @@ export default function OffersPage() {
                         <Badge className={CALCULATION_STATUS_CONFIG[calc.status]?.className + " rounded-lg"}>
                           {CALCULATION_STATUS_CONFIG[calc.status]?.label || calc.status}
                         </Badge>
-                      </TableCell>
+                       </TableCell>
+                       <TableCell className="hidden lg:table-cell">
+                         <OfferActivityBadge
+                           lastEvent={activitySummaries[calc.id]?.lastEvent || null}
+                           viewCount={activitySummaries[calc.id]?.customerViewCount || 0}
+                           isActiveNow={activitySummaries[calc.id]?.isActiveNow || false}
+                         />
+                       </TableCell>
                       <TableCell className="text-right font-mono text-sm">
                         {Number(calc.total_price) > 0
                           ? `kr ${Number(calc.total_price).toLocaleString("nb-NO", { minimumFractionDigits: 0 })}`
