@@ -15,7 +15,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
-import { Trash2, RotateCcw, Loader2, FolderKanban, Calculator, ReceiptText, Archive, UserPlus, FileSignature } from "lucide-react";
+import { Trash2, RotateCcw, Loader2, FolderKanban, Calculator, ReceiptText, Archive, UserPlus, FileSignature, MessageSquare } from "lucide-react";
 import { toast } from "sonner";
 
 interface DeletedItem {
@@ -23,7 +23,7 @@ interface DeletedItem {
   title: string;
   subtitle?: string;
   deleted_at: string;
-  type: "job" | "calculation" | "offer" | "lead" | "contract";
+  type: "job" | "calculation" | "offer" | "lead" | "contract" | "conversation";
 }
 
 export default function TrashPage() {
@@ -36,12 +36,13 @@ export default function TrashPage() {
 
   const fetchDeleted = async () => {
     setLoading(true);
-    const [jobsRes, calcsRes, offersRes, leadsRes, contractsRes] = await Promise.all([
+    const [jobsRes, calcsRes, offersRes, leadsRes, contractsRes, convsRes] = await Promise.all([
       supabase.from("events").select("id, title, customer, deleted_at").not("deleted_at", "is", null).order("deleted_at", { ascending: false }),
       supabase.from("calculations").select("id, project_title, customer_name, deleted_at").not("deleted_at", "is", null).order("deleted_at", { ascending: false }),
       supabase.from("offers").select("id, offer_number, deleted_at, calculations(customer_name)").not("deleted_at", "is", null).order("deleted_at", { ascending: false }),
       supabase.from("leads").select("id, company_name, contact_name, deleted_at").not("deleted_at", "is", null).order("deleted_at", { ascending: false }),
       supabase.from("contracts").select("id, title, counterparty_name, deleted_at").not("deleted_at", "is", null).order("deleted_at", { ascending: false }),
+      (supabase as any).from("conversation_threads").select("id, title, deleted_at").not("deleted_at", "is", null).order("deleted_at", { ascending: false }),
     ]);
 
     const all: DeletedItem[] = [];
