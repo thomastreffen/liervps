@@ -29,6 +29,7 @@ interface FollowupOffer {
   urgency: "overdue" | "soon" | "stale" | "hot";
   customerActive?: boolean;
   customerViewCount?: number;
+  hasFollowupTask?: boolean;
 }
 
 const URGENCY_CONFIG = {
