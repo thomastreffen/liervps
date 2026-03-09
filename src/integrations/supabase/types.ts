@@ -5188,6 +5188,84 @@ export type Database = {
           },
         ]
       }
+      offer_followup_tasks: {
+        Row: {
+          assigned_to: string | null
+          company_id: string | null
+          completed_at: string | null
+          completed_by: string | null
+          created_at: string
+          customer_name: string | null
+          description: string | null
+          due_date: string | null
+          id: string
+          lead_id: string | null
+          meta: Json | null
+          offer_id: string
+          priority: Database["public"]["Enums"]["offer_followup_priority"]
+          snoozed_until: string | null
+          status: Database["public"]["Enums"]["offer_followup_status"]
+          task_type: Database["public"]["Enums"]["offer_followup_type"]
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          company_id?: string | null
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          customer_name?: string | null
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          lead_id?: string | null
+          meta?: Json | null
+          offer_id: string
+          priority?: Database["public"]["Enums"]["offer_followup_priority"]
+          snoozed_until?: string | null
+          status?: Database["public"]["Enums"]["offer_followup_status"]
+          task_type: Database["public"]["Enums"]["offer_followup_type"]
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_to?: string | null
+          company_id?: string | null
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          customer_name?: string | null
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          lead_id?: string | null
+          meta?: Json | null
+          offer_id?: string
+          priority?: Database["public"]["Enums"]["offer_followup_priority"]
+          snoozed_until?: string | null
+          status?: Database["public"]["Enums"]["offer_followup_status"]
+          task_type?: Database["public"]["Enums"]["offer_followup_type"]
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "offer_followup_tasks_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "internal_companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "offer_followup_tasks_offer_id_fkey"
+            columns: ["offer_id"]
+            isOneToOne: false
+            referencedRelation: "calculations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       offers: {
         Row: {
           accepted_at: string | null
@@ -7294,6 +7372,14 @@ export type Database = {
         | "offer_accepted"
         | "offer_rejected"
         | "offer_expired"
+      offer_followup_priority: "low" | "medium" | "high" | "urgent"
+      offer_followup_status: "open" | "snoozed" | "completed" | "cancelled"
+      offer_followup_type:
+        | "offer_follow_up"
+        | "offer_hot_lead_follow_up"
+        | "offer_expiry_warning"
+        | "offer_next_step_missing"
+        | "offer_active_customer_follow_up"
       offer_status:
         | "draft"
         | "sent"
@@ -7524,6 +7610,15 @@ export const Constants = {
         "offer_accepted",
         "offer_rejected",
         "offer_expired",
+      ],
+      offer_followup_priority: ["low", "medium", "high", "urgent"],
+      offer_followup_status: ["open", "snoozed", "completed", "cancelled"],
+      offer_followup_type: [
+        "offer_follow_up",
+        "offer_hot_lead_follow_up",
+        "offer_expiry_warning",
+        "offer_next_step_missing",
+        "offer_active_customer_follow_up",
       ],
       offer_status: [
         "draft",
