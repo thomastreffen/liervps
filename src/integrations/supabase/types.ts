@@ -2801,7 +2801,7 @@ export type Database = {
           start_time: string
           status: Database["public"]["Enums"]["job_status"]
           task_id: string | null
-          technician_id: string
+          technician_id: string | null
           title: string
           updated_at: string
           updated_by: string | null
@@ -2871,7 +2871,7 @@ export type Database = {
           start_time: string
           status?: Database["public"]["Enums"]["job_status"]
           task_id?: string | null
-          technician_id: string
+          technician_id?: string | null
           title: string
           updated_at?: string
           updated_by?: string | null
@@ -2941,7 +2941,7 @@ export type Database = {
           start_time?: string
           status?: Database["public"]["Enums"]["job_status"]
           task_id?: string | null
-          technician_id?: string
+          technician_id?: string | null
           title?: string
           updated_at?: string
           updated_by?: string | null
