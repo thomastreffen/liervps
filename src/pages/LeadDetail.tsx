@@ -472,7 +472,7 @@ function LeadDetailInner() {
               estimated_value: lead.estimated_value,
             }}
             participants={participants}
-            offers={offers}
+            offers={offers.map(o => ({ id: o.id, offer_number: o.project_title, status: o.status }))}
             onConverted={() => setShowConvertPanel(false)}
             onCancel={() => setShowConvertPanel(false)}
             logActivity={logActivity}
