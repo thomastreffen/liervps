@@ -158,6 +158,7 @@ export default function SalesDashboard() {
           weightedPipeline={offerStats.weightedPipeline}
           biggestOffer={offerStats.biggestOffer}
           needsFollowup={offerStats.needsFollowup}
+          activeCustomers24h={offerStats.activeCustomers24h}
           loading={loading}
         />
         <div className="lg:col-span-3">
