@@ -204,9 +204,14 @@ export function MyOffersFollowup() {
                   <Badge className={statusCfg.className + " rounded-lg text-[10px] px-1.5 py-0"}>
                     {statusCfg.label}
                   </Badge>
-                  <span className={`inline-flex items-center gap-0.5 text-[10px] font-medium px-1.5 py-0 rounded-lg ${urg.className}`}>
+                   <span className={`inline-flex items-center gap-0.5 text-[10px] font-medium px-1.5 py-0 rounded-lg ${urg.className}`}>
                     {urg.icon} {urg.label}
                   </span>
+                  {offer.hasFollowupTask && (
+                    <Badge variant="outline" className="text-[9px] px-1 py-0 rounded-md border-primary/30 text-primary">
+                      Oppgave opprettet
+                    </Badge>
+                  )}
                 </div>
                 <div className="flex items-center gap-2 text-xs text-muted-foreground/60">
                   <span className="truncate max-w-[180px]">{offer.project_title}</span>
