@@ -5140,6 +5140,54 @@ export type Database = {
           },
         ]
       }
+      offer_activity_events: {
+        Row: {
+          actor_id: string | null
+          actor_type: Database["public"]["Enums"]["offer_activity_actor_type"]
+          company_id: string | null
+          event_at: string
+          event_type: Database["public"]["Enums"]["offer_activity_event_type"]
+          id: string
+          meta: Json | null
+          offer_id: string
+        }
+        Insert: {
+          actor_id?: string | null
+          actor_type?: Database["public"]["Enums"]["offer_activity_actor_type"]
+          company_id?: string | null
+          event_at?: string
+          event_type: Database["public"]["Enums"]["offer_activity_event_type"]
+          id?: string
+          meta?: Json | null
+          offer_id: string
+        }
+        Update: {
+          actor_id?: string | null
+          actor_type?: Database["public"]["Enums"]["offer_activity_actor_type"]
+          company_id?: string | null
+          event_at?: string
+          event_type?: Database["public"]["Enums"]["offer_activity_event_type"]
+          id?: string
+          meta?: Json | null
+          offer_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "offer_activity_events_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "internal_companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "offer_activity_events_offer_id_fkey"
+            columns: ["offer_id"]
+            isOneToOne: false
+            referencedRelation: "calculations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       offers: {
         Row: {
           accepted_at: string | null
@@ -7234,6 +7282,18 @@ export type Database = {
         | "forhandling"
         | "lost"
         | "won"
+      offer_activity_actor_type: "system" | "user" | "customer"
+      offer_activity_event_type:
+        | "offer_created"
+        | "offer_sent_email"
+        | "offer_sent_link"
+        | "offer_viewed"
+        | "offer_pdf_downloaded"
+        | "offer_email_opened"
+        | "offer_link_clicked"
+        | "offer_accepted"
+        | "offer_rejected"
+        | "offer_expired"
       offer_status:
         | "draft"
         | "sent"
@@ -7451,6 +7511,19 @@ export const Constants = {
         "forhandling",
         "lost",
         "won",
+      ],
+      offer_activity_actor_type: ["system", "user", "customer"],
+      offer_activity_event_type: [
+        "offer_created",
+        "offer_sent_email",
+        "offer_sent_link",
+        "offer_viewed",
+        "offer_pdf_downloaded",
+        "offer_email_opened",
+        "offer_link_clicked",
+        "offer_accepted",
+        "offer_rejected",
+        "offer_expired",
       ],
       offer_status: [
         "draft",
