@@ -17,12 +17,14 @@ import { LeadPipelineBar } from "@/components/LeadPipelineBar";
 import { ActivityFeedList } from "@/components/activity/ActivityFeedList";
 import { LeadActionPanel, type ActionPanelTab } from "@/components/activity/LeadActionPanel";
 import { LeadStickyBar } from "@/components/activity/LeadStickyBar";
+import { NextStepCard } from "@/components/activity/NextStepCard";
+import { LeadConvertPanel } from "@/components/activity/LeadConvertPanel";
 import { ContractListSection } from "@/components/contracts/ContractListSection";
 import { LEAD_STATUS_CONFIG, ALL_LEAD_STATUSES, NEXT_ACTION_TYPES, type LeadStatus } from "@/lib/lead-status";
 import {
   User, Loader2, Save, Clock, ArrowLeft, Copy,
   AlertTriangle, Plus, Trash2, FileText, ArrowRightLeft, ShieldAlert,
-  Mail, CalendarPlus, RefreshCw, Calendar as CalendarIcon, CheckCircle2
+  Mail, CalendarPlus, RefreshCw, Calendar as CalendarIcon, CheckCircle2, ExternalLink, Link2
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -128,15 +130,13 @@ function LeadDetailInner() {
   const [probability, setProbability] = useState("50");
   const [expectedCloseDate, setExpectedCloseDate] = useState("");
   const [notes, setNotes] = useState("");
-  const [nextActionType, setNextActionType] = useState("");
-  const [nextActionDate, setNextActionDate] = useState("");
-  const [nextActionNote, setNextActionNote] = useState("");
 
-  // Dialogs — only confirmations now
+  // Dialogs — only confirmations
   const [addParticipantOpen, setAddParticipantOpen] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState("");
-  const [convertDialogOpen, setConvertDialogOpen] = useState(false);
-  const [convertingOfferId, setConvertingOfferId] = useState<string | null>(null);
+
+  // Inline convert panel
+  const [showConvertPanel, setShowConvertPanel] = useState(false);
 
   // Side panel
   const [actionPanelOpen, setActionPanelOpen] = useState(false);
@@ -167,9 +167,6 @@ function LeadDetailInner() {
       setProbability(l.probability ? String(l.probability) : "50");
       setExpectedCloseDate(l.expected_close_date || "");
       setNotes(l.notes || "");
-      setNextActionType(l.next_action_type || "");
-      setNextActionDate(l.next_action_date ? l.next_action_date.substring(0, 16) : "");
-      setNextActionNote(l.next_action_note || "");
     } catch (err) {
       console.error("[LeadDetail] Fetch error:", err);
       setNotFound(true);
@@ -250,9 +247,6 @@ function LeadDetailInner() {
       probability: Number(probability) || 50,
       expected_close_date: expectedCloseDate || null,
       notes: notes.trim() || null,
-      next_action_type: nextActionType || null,
-      next_action_date: nextActionDate || null,
-      next_action_note: nextActionNote.trim() || null,
     };
     await supabase.from("leads").update(payload).eq("id", lead.id);
     await logActivity({ action: "updated", description: "Lead oppdatert", type: "note", performedBy: user?.id });
@@ -265,6 +259,12 @@ function LeadDetailInner() {
 
   const handleStatusChange = async (newStatus: LeadStatus) => {
     if (!lead || lead.status === newStatus) return;
+
+    // If moving to won, show convert panel instead of immediate change
+    if (newStatus === "won") {
+      setShowConvertPanel(true);
+    }
+
     const oldLabel = LEAD_STATUS_CONFIG[lead.status]?.label || lead.status;
     const newLabel = LEAD_STATUS_CONFIG[newStatus]?.label || newStatus;
     await supabase.from("leads").update({ status: newStatus }).eq("id", lead.id);
@@ -316,49 +316,40 @@ function LeadDetailInner() {
     fetchActivities();
   };
 
-  const handleConvertToProject = async () => {
-    if (!lead || !convertingOfferId) return;
-    const offer = offers.find(o => o.id === convertingOfferId);
-    if (!offer) return;
-    const techRes = await supabase.from("technicians").select("id").eq("user_id", user!.id).single();
-    if (!techRes.data?.id) { toast.error("Finner ikke montørprofil for innlogget bruker"); return; }
-    const { data, error } = await supabase.from("events").insert({
-      title: `Prosjekt - ${lead.company_name}`,
-      customer: lead.company_name,
-      description: lead.notes || null,
-      company_id: lead.company_id,
-      offer_id: convertingOfferId,
-      start_time: new Date().toISOString(),
-      end_time: new Date(Date.now() + 8 * 3600000).toISOString(),
-      technician_id: techRes.data.id,
-      created_by: user!.id,
-      status: "scheduled",
-    } as any).select("id").single();
-    if (error) { toast.error("Feil ved konvertering", { description: error.message }); return; }
-    for (const p of participants) {
-      await supabase.from("job_participants").insert({ job_id: data!.id, user_id: p.user_id, role_label: p.role });
-    }
-    await supabase.from("leads").update({ status: "won" as LeadStatus }).eq("id", lead.id);
-    const desc = "Konvertert til prosjekt";
-    await logActivity({ action: "converted_to_project", description: desc, type: "status_change", title: desc, performedBy: user?.id, metadata: { job_id: data!.id, offer_id: convertingOfferId } });
-    await supabase.from("lead_history").insert({ lead_id: lead.id, action: "converted_to_project", description: desc, performed_by: user?.id, metadata: { job_id: data!.id, offer_id: convertingOfferId } });
-    await notifyParticipants("Lead konvertert", `Lead "${lead.company_name}" er konvertert til prosjekt.`);
-    toast.success("Lead konvertert til prosjekt");
-    setConvertDialogOpen(false);
-    navigate(`/projects/${data!.id}`);
-  };
-
-  const handleMarkNextActionDone = async () => {
+  // Next step handlers
+  const handleCompleteNextStep = async () => {
     if (!lead) return;
     const actionLabel = NEXT_ACTION_TYPES.find(t => t.key === lead.next_action_type)?.label || lead.next_action_type || "Aksjon";
     await supabase.from("leads").update({ next_action_type: null, next_action_date: null, next_action_note: null }).eq("id", lead.id);
     await logActivity({ action: "next_action_completed", description: `${actionLabel} markert som utført`, type: "note", performedBy: user?.id });
     await supabase.from("lead_history").insert({ lead_id: id!, action: "next_action_completed", description: `${actionLabel} markert som utført`, performed_by: user?.id, metadata: {} });
-    toast.success("Aksjon markert som utført");
-    setNextActionType("");
-    setNextActionDate("");
-    setNextActionNote("");
+    toast.success("Steg fullført");
     setLead({ ...lead, next_action_type: null, next_action_date: null, next_action_note: null });
+    fetchActivities();
+    // Offer to set new step via action panel
+    openActionPanel("note");
+  };
+
+  const handleUpdateNextStep = async (data: { type: string; date: string; note: string }) => {
+    if (!lead) return;
+    await supabase.from("leads").update({
+      next_action_type: data.type || null,
+      next_action_date: data.date || null,
+      next_action_note: data.note || null,
+    }).eq("id", lead.id);
+    const label = NEXT_ACTION_TYPES.find(t => t.key === data.type)?.label || data.type;
+    await logActivity({ action: "next_action_updated", description: `Neste steg satt til: ${label}`, type: "note", performedBy: user?.id });
+    toast.success("Neste steg oppdatert");
+    setLead({ ...lead, next_action_type: data.type || null, next_action_date: data.date || null, next_action_note: data.note || null });
+    fetchActivities();
+  };
+
+  const handlePostponeNextStep = async (newDate: string) => {
+    if (!lead) return;
+    await supabase.from("leads").update({ next_action_date: newDate }).eq("id", lead.id);
+    await logActivity({ action: "next_action_postponed", description: `Neste steg utsatt til ${format(new Date(newDate), "d. MMM yyyy HH:mm", { locale: nb })}`, type: "note", performedBy: user?.id });
+    toast.success("Neste steg utsatt");
+    setLead({ ...lead, next_action_date: newDate });
     fetchActivities();
   };
 
@@ -392,9 +383,11 @@ function LeadDetailInner() {
 
   // ─── Derived values ───
   const safeStatus = lead && LEAD_STATUS_CONFIG[lead.status] ? lead.status : "new";
-  const isOverdue = lead?.next_action_date && isPast(new Date(lead.next_action_date)) && !isToday(new Date(lead.next_action_date));
   const ownerSelectValue = lead?.assigned_owner_user_id && companyUsers.some(u => u.id === lead.assigned_owner_user_id)
     ? lead.assigned_owner_user_id : "__unset__";
+  const ownerName = lead?.assigned_owner_user_id
+    ? companyUsers.find(u => u.id === lead.assigned_owner_user_id)?.name
+    : undefined;
 
   if (loading) {
     return (
@@ -466,47 +459,44 @@ function LeadDetailInner() {
           </CardContent>
         </Card>
 
-        {/* ── Neste aksjon ── */}
-        {lead.next_action_date && (
-          <Card className={`rounded-2xl shadow-sm ${isOverdue ? "border-destructive/40 bg-destructive/[0.03]" : "border-primary/20 bg-primary/[0.02]"}`}>
-            <CardContent className="flex items-center gap-3 py-3.5">
-              {isOverdue ? <AlertTriangle className="h-5 w-5 text-destructive shrink-0" /> : <Clock className="h-5 w-5 text-primary shrink-0" />}
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium">
-                  {isOverdue ? "Forfalt: " : "Neste aksjon: "}
-                  <span className="font-semibold">{NEXT_ACTION_TYPES.find(t => t.key === lead.next_action_type)?.label || lead.next_action_type || "Ukjent"}</span>
-                  {" — "}
-                  {format(new Date(lead.next_action_date), "d. MMM yyyy HH:mm", { locale: nb })}
-                </p>
-                {lead.next_action_note && <p className="text-xs text-muted-foreground mt-0.5">{lead.next_action_note}</p>}
-              </div>
-              <Button variant="outline" size="sm" className="gap-1.5 shrink-0 rounded-xl" onClick={handleMarkNextActionDone}>
-                <CheckCircle2 className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Marker utført</span>
-              </Button>
-            </CardContent>
-          </Card>
+        {/* ── Inline convert panel (when won) ── */}
+        {showConvertPanel && (
+          <LeadConvertPanel
+            lead={{
+              id: lead.id,
+              company_name: lead.company_name,
+              notes: lead.notes,
+              company_id: lead.company_id,
+              estimated_value: lead.estimated_value,
+            }}
+            participants={participants}
+            offers={offers}
+            onConverted={() => setShowConvertPanel(false)}
+            onCancel={() => setShowConvertPanel(false)}
+            logActivity={logActivity}
+          />
         )}
 
-        {/* ── Activity Feed (prominent) ── */}
-        <Card className="rounded-2xl shadow-sm">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">Aktivitet</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ActivityFeedList
-              activities={activities}
-              maxItems={10}
-              showSections
-              emptyMessage="Ingen aktivitet ennå. Bruk handlingsknappene over for å komme i gang."
-            />
-          </CardContent>
-        </Card>
+        {/* ── Two-column: Left = Feed + Customer, Right = Next Step + Deal + Meetings ── */}
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
+          {/* Left column (3/5) */}
+          <div className="lg:col-span-3 space-y-5">
+            {/* Activity Feed */}
+            <Card className="rounded-2xl shadow-sm">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">Aktivitet</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ActivityFeedList
+                  activities={activities}
+                  maxItems={10}
+                  showSections
+                  emptyMessage="Ingen aktivitet ennå. Bruk handlingsknappene over for å komme i gang."
+                />
+              </CardContent>
+            </Card>
 
-        {/* ── Two-column layout ── */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-          {/* Left: Customer & participants */}
-          <div className="space-y-5">
+            {/* Customer info */}
             <Card className="rounded-2xl shadow-sm">
               <CardHeader className="pb-3"><CardTitle className="text-base">Kundeinformasjon</CardTitle></CardHeader>
               <CardContent className="space-y-3">
@@ -535,6 +525,7 @@ function LeadDetailInner() {
               </CardContent>
             </Card>
 
+            {/* Participants */}
             <Card className="rounded-2xl shadow-sm">
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
@@ -570,10 +561,29 @@ function LeadDetailInner() {
                 )}
               </CardContent>
             </Card>
+
+            {/* Notes */}
+            <Card className="rounded-2xl shadow-sm">
+              <CardHeader className="pb-3"><CardTitle className="text-base">Notater</CardTitle></CardHeader>
+              <CardContent>
+                <Textarea value={notes} onChange={e => setNotes(e.target.value)} rows={4} placeholder="Interne notater..." />
+              </CardContent>
+            </Card>
           </div>
 
-          {/* Right: Deal info, next action, offers, meetings */}
-          <div className="space-y-5">
+          {/* Right column (2/5) */}
+          <div className="lg:col-span-2 space-y-5">
+            {/* Next Step Card — operational motor */}
+            <NextStepCard
+              nextActionType={lead.next_action_type}
+              nextActionDate={lead.next_action_date}
+              nextActionNote={lead.next_action_note}
+              ownerName={ownerName}
+              onComplete={handleCompleteNextStep}
+              onUpdate={handleUpdateNextStep}
+              onPostpone={handlePostponeNextStep}
+            />
+
             {/* Value highlight */}
             <Card className="rounded-2xl shadow-sm">
               <CardContent className="pt-5">
@@ -593,6 +603,7 @@ function LeadDetailInner() {
               </CardContent>
             </Card>
 
+            {/* Deal details */}
             <Card className="rounded-2xl shadow-sm">
               <CardHeader className="pb-3"><CardTitle className="text-base">Ordredetaljer</CardTitle></CardHeader>
               <CardContent className="space-y-3">
@@ -623,54 +634,27 @@ function LeadDetailInner() {
               </CardContent>
             </Card>
 
-            {/* Neste aksjon editor */}
-            <Card className="rounded-2xl shadow-sm">
-              <CardHeader className="pb-3"><CardTitle className="text-base">Neste aksjon</CardTitle></CardHeader>
-              <CardContent className="space-y-3">
-                <div className="grid sm:grid-cols-3 gap-3">
-                  <div className="space-y-1.5">
-                    <Label>Type</Label>
-                    <Select value={nextActionType || "__none__"} onValueChange={v => setNextActionType(v === "__none__" ? "" : v)}>
-                      <SelectTrigger><SelectValue placeholder="Velg type" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__none__">Ingen</SelectItem>
-                        {NEXT_ACTION_TYPES.map(t => <SelectItem key={t.key} value={t.key}>{t.label}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label>Dato og tid</Label>
-                    <Input value={nextActionDate} onChange={e => setNextActionDate(e.target.value)} type="datetime-local" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label>Notat</Label>
-                    <Input value={nextActionNote} onChange={e => setNextActionNote(e.target.value)} placeholder="Kort beskrivelse..." />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Notater */}
-            <Card className="rounded-2xl shadow-sm">
-              <CardHeader className="pb-3"><CardTitle className="text-base">Notater</CardTitle></CardHeader>
-              <CardContent>
-                <Textarea value={notes} onChange={e => setNotes(e.target.value)} rows={4} placeholder="Interne notater..." />
-              </CardContent>
-            </Card>
-
             {/* Tilbud */}
             <Card className="rounded-2xl shadow-sm">
               <CardHeader className="pb-3"><CardTitle className="text-base">Tilbud</CardTitle></CardHeader>
               <CardContent>
                 {offers.length === 0 ? (
-                  <div className="text-center py-4 text-muted-foreground">
-                    <FileText className="h-6 w-6 mx-auto mb-1.5 opacity-40" />
-                    <p className="text-sm">Ingen tilbud ennå</p>
+                  <div className="text-center py-4">
+                    <FileText className="h-6 w-6 mx-auto mb-1.5 text-muted-foreground/40" />
+                    <p className="text-sm text-muted-foreground/60">Ingen tilbud ennå</p>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="mt-2 gap-1.5 text-xs rounded-xl"
+                      onClick={() => navigate(`/sales/offers/new?lead_id=${lead.id}`)}
+                    >
+                      <Plus className="h-3 w-3" /> Opprett tilbud
+                    </Button>
                   </div>
                 ) : (
                   <div className="space-y-2">
                     {offers.map(offer => (
-                      <div key={offer.id} className="flex items-center gap-3 py-2 border-b border-border/20 last:border-0">
+                      <div key={offer.id} className="flex items-center gap-3 py-2 border-b border-border/20 last:border-0 group">
                         <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium">{offer.offer_number} (v{offer.version})</p>
@@ -679,11 +663,16 @@ function LeadDetailInner() {
                           </p>
                         </div>
                         <Badge variant="outline" className="text-[10px] capitalize">{offer.status}</Badge>
-                        {offer.status === "accepted" && (
-                          <Button size="sm" variant="outline" className="gap-1 text-xs h-7" onClick={() => { setConvertingOfferId(offer.id); setConvertDialogOpen(true); }}>
-                            <ArrowRightLeft className="h-3 w-3" /> Konverter
+                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => navigate(`/sales/offers/${offer.id}`)} title="Åpne">
+                            <ExternalLink className="h-3.5 w-3.5 text-muted-foreground" />
                           </Button>
-                        )}
+                          {(offer.status === "accepted" || offer.status === "signed") && (
+                            <Button size="sm" variant="outline" className="gap-1 text-xs h-7" onClick={() => setShowConvertPanel(true)}>
+                              <ArrowRightLeft className="h-3 w-3" /> Konverter
+                            </Button>
+                          )}
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -691,7 +680,7 @@ function LeadDetailInner() {
               </CardContent>
             </Card>
 
-            {/* Befaringer & møter */}
+            {/* Befaringer & møter — action-driven */}
             <Card className="rounded-2xl shadow-sm">
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
@@ -703,14 +692,21 @@ function LeadDetailInner() {
               </CardHeader>
               <CardContent>
                 {calendarLinks.length === 0 ? (
-                  <div className="text-center py-4 text-muted-foreground">
-                    <CalendarIcon className="h-6 w-6 mx-auto mb-1.5 opacity-40" />
-                    <p className="text-sm">Ingen befaringer eller møter planlagt</p>
+                  <div className="text-center py-5 space-y-3">
+                    <CalendarIcon className="h-6 w-6 mx-auto text-muted-foreground/40" />
+                    <p className="text-sm text-muted-foreground/60">Ingen møter planlagt</p>
+                    <Button
+                      size="sm"
+                      className="gap-1.5 text-xs rounded-xl"
+                      onClick={() => openActionPanel("meeting")}
+                    >
+                      <CalendarPlus className="h-3.5 w-3.5" /> Planlegg møte
+                    </Button>
                   </div>
                 ) : (
                   <div className="space-y-2">
                     {calendarLinks.map(link => (
-                      <div key={link.id} className="flex items-center gap-3 py-2 border-b border-border/20 last:border-0">
+                      <div key={link.id} className="flex items-center gap-3 py-2 border-b border-border/20 last:border-0 group">
                         <CalendarIcon className="h-4 w-4 text-muted-foreground shrink-0" />
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium truncate">{link.event_subject || "Ukjent møte"}</p>
@@ -720,7 +716,7 @@ function LeadDetailInner() {
                             {link.event_location ? ` · ${link.event_location}` : ""}
                           </p>
                         </div>
-                        <div className="flex items-center gap-1">
+                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                           <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleResyncCalendarLink(link.id)} title="Resynkroniser">
                             <RefreshCw className="h-3.5 w-3.5 text-muted-foreground" />
                           </Button>
@@ -756,7 +752,7 @@ function LeadDetailInner() {
         </div>
       </div>
 
-      {/* ── Action Side Panel (replaces all modals for actions) ── */}
+      {/* ── Action Side Panel ── */}
       <LeadActionPanel
         open={actionPanelOpen}
         onOpenChange={setActionPanelOpen}
@@ -795,23 +791,6 @@ function LeadDetailInner() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setAddParticipantOpen(false)}>Avbryt</Button>
             <Button onClick={addParticipant} disabled={!selectedUserId || selectedUserId === "__pick__"}>Legg til</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={convertDialogOpen} onOpenChange={setConvertDialogOpen}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Konverter til prosjekt</DialogTitle>
-            <DialogDescription>
-              Dette oppretter et nytt prosjekt fra lead &quot;{lead.company_name}&quot; med det aksepterte tilbudet. Deltakere kopieres til prosjektet.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setConvertDialogOpen(false)}>Avbryt</Button>
-            <Button onClick={handleConvertToProject} className="gap-1.5">
-              <ArrowRightLeft className="h-4 w-4" /> Konverter
-            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
