@@ -95,7 +95,8 @@ export default function NewCalculation() {
       project_title: projectTitle.trim(),
       description: description.trim() || null,
       created_by: user!.id,
-    }).select("id").single();
+      lead_id: leadId || null,
+    } as any).select("id").single();
     setSaving(false);
     if (error) {
       toast.error("Kunne ikke opprette", { description: error.message });
