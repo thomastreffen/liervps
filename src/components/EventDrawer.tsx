@@ -680,18 +680,34 @@ export function EventDrawer({
                         }
                       }
 
-                      // Remove technician assignments → event disappears from calendar
-                      // The PROJECT (event) itself is NOT deleted
+                      // Remove technician assignments
                       await supabase
                         .from("event_technicians")
                         .delete()
                         .eq("event_id", editEvent.id);
 
-                      // Clear scheduling times so it's no longer a "planned" event
-                      await supabase
+                      // Check if this is a task (not a project) – tasks should be fully soft-deleted
+                      const { data: eventRow } = await supabase
                         .from("events")
-                        .update({ status: "requested" } as any)
-                        .eq("id", editEvent.id);
+                        .select("project_type")
+                        .eq("id", editEvent.id)
+                        .single();
+
+                      const isTaskEvent = (eventRow as any)?.project_type === "task";
+
+                      if (isTaskEvent) {
+                        // Soft-delete the task event entirely
+                        await supabase
+                          .from("events")
+                          .update({ deleted_at: new Date().toISOString(), status: "cancelled" } as any)
+                          .eq("id", editEvent.id);
+                      } else {
+                        // Projects: keep event, just reset status
+                        await supabase
+                          .from("events")
+                          .update({ status: "requested" } as any)
+                          .eq("id", editEvent.id);
+                      }
                     }
 
                     toast.success("Slettet ✓");
