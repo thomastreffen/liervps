@@ -36,11 +36,21 @@ export interface ScheduleBlock {
   project_title?: string | null;
 }
 
+/** Ensure a DB timestamp string is parsed as UTC */
+function parseUtc(val: string): Date {
+  // If the string already has a timezone indicator, parse as-is
+  if (val.endsWith("Z") || /[+-]\d{2}:\d{2}$/.test(val) || /[+-]\d{2}$/.test(val)) {
+    return new Date(val);
+  }
+  // Otherwise treat as UTC by appending Z
+  return new Date(val + "Z");
+}
+
 function mapRow(row: any): ScheduleBlock {
   return {
     ...row,
-    start_at: new Date(row.start_at),
-    end_at: new Date(row.end_at),
+    start_at: parseUtc(row.start_at),
+    end_at: parseUtc(row.end_at),
     technician_name: row.technicians?.name,
     technician_color: row.technicians?.color,
     project_title: row.events?.title ?? null,
