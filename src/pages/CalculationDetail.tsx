@@ -73,6 +73,13 @@ interface Offer {
   sent_at: string | null;
   sent_to_email: string | null;
   created_at: string;
+  public_token: string | null;
+  accepted_at: string | null;
+  accepted_name: string | null;
+  accepted_email: string | null;
+  accepted_comment: string | null;
+  rejected_at: string | null;
+  rejected_comment: string | null;
 }
 
 // ── Status badge icons ──
@@ -585,7 +592,64 @@ export default function CalculationDetail() {
           </div>
         )}
 
-        {/* ── KPI cards (punkt 6 — always visible) ── */}
+        {/* ── Customer acceptance info ── */}
+        {latestOffer && calc.status === "accepted" && latestOffer.accepted_at && (
+          <div className="rounded-xl border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-950 p-3 flex items-start gap-3">
+            <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400 shrink-0 mt-0.5" />
+            <div className="text-sm">
+              <p className="font-medium text-green-800 dark:text-green-200">Digitalt godkjent av kunde</p>
+              <p className="text-green-700 dark:text-green-300 text-xs mt-0.5">
+                {latestOffer.accepted_name && <span>{latestOffer.accepted_name} • </span>}
+                {latestOffer.accepted_email && <span>{latestOffer.accepted_email} • </span>}
+                {format(new Date(latestOffer.accepted_at), "d. MMM yyyy 'kl' HH:mm", { locale: nb })}
+              </p>
+              {latestOffer.accepted_comment && (
+                <p className="text-green-700 dark:text-green-300 text-xs mt-1 italic">«{latestOffer.accepted_comment}»</p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ── Customer rejection info ── */}
+        {latestOffer && calc.status === "rejected" && latestOffer.rejected_at && (
+          <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 flex items-start gap-3">
+            <XCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
+            <div className="text-sm">
+              <p className="font-medium text-destructive">Avslått av kunde</p>
+              <p className="text-muted-foreground text-xs mt-0.5">
+                {format(new Date(latestOffer.rejected_at), "d. MMM yyyy 'kl' HH:mm", { locale: nb })}
+              </p>
+              {latestOffer.rejected_comment && (
+                <p className="text-muted-foreground text-xs mt-1 italic">«{latestOffer.rejected_comment}»</p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ── Public link for sent offers ── */}
+        {latestOffer && latestOffer.public_token && ["sent", "generated"].includes(calc.status) && (
+          <div className="rounded-xl border border-border/40 bg-muted/20 p-3 flex items-center gap-3">
+            <ExternalLink className="h-4 w-4 text-muted-foreground shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-xs text-muted-foreground">Offentlig tilbudslenke</p>
+              <p className="text-xs font-mono truncate text-foreground">
+                {window.location.origin}/offer/accept/{latestOffer.public_token}
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-lg text-xs shrink-0"
+              onClick={() => {
+                navigator.clipboard.writeText(`${window.location.origin}/offer/accept/${latestOffer.public_token}`);
+                toast.success("Lenke kopiert!");
+              }}
+            >
+              Kopier
+            </Button>
+          </div>
+        )}
+
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <div className="rounded-xl border border-border/40 bg-card p-3 text-center">
             <p className="text-xs text-muted-foreground">Materialer</p>
