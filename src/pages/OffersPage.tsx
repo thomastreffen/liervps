@@ -137,7 +137,7 @@ export default function OffersPage() {
               <TableBody>
                 {paged.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center text-muted-foreground py-12">
+                     <TableCell colSpan={6} className="text-center text-muted-foreground py-12">
                       <ReceiptText className="h-8 w-8 mx-auto mb-2 opacity-30" />
                       Ingen tilbud funnet.
                     </TableCell>
