@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { startOfWeek, endOfWeek } from "date-fns";
+import { parseUtc } from "@/lib/parse-utc";
 
 export interface ScheduleBlock {
   id: string;
@@ -39,8 +40,8 @@ export interface ScheduleBlock {
 function mapRow(row: any): ScheduleBlock {
   return {
     ...row,
-    start_at: new Date(row.start_at),
-    end_at: new Date(row.end_at),
+    start_at: parseUtc(row.start_at),
+    end_at: parseUtc(row.end_at),
     technician_name: row.technicians?.name,
     technician_color: row.technicians?.color,
     project_title: row.events?.title ?? null,
