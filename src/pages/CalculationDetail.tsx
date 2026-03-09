@@ -1016,6 +1016,11 @@ export default function CalculationDetail() {
             </div>
           </div>
         </TabsContent>
+
+        {/* ===== Activity Tab ===== */}
+        <TabsContent value="activity" className="space-y-4 pt-4">
+          <OfferActivityTimeline offerId={calc.id} />
+        </TabsContent>
       </Tabs>
 
       {/* Sticky save bar */}
