@@ -24,7 +24,7 @@ import { LEAD_STATUS_CONFIG, ALL_LEAD_STATUSES, NEXT_ACTION_TYPES, type LeadStat
 import {
   User, Loader2, Save, Clock, ArrowLeft, Copy,
   AlertTriangle, Plus, Trash2, FileText, ArrowRightLeft, ShieldAlert,
-  Mail, CalendarPlus, RefreshCw, Calendar as CalendarIcon, CheckCircle2, ExternalLink, Link2
+  Mail, CalendarPlus, RefreshCw, Calendar as CalendarIcon, CheckCircle2, ExternalLink, Link2, ArrowRight
 } from "lucide-react";
 import { toast } from "sonner";
 
