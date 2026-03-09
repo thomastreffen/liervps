@@ -129,7 +129,7 @@ export function AppSidebar() {
     supabase.from("calculations")
       .select("id", { count: "exact", head: true })
       .is("deleted_at", null)
-      .in("status", ["draft", "completed"])
+      .in("status", ["draft", "generated", "sent"] as any)
       .then(({ count }) => setOfferCount(count || 0));
   }, [user]);
 
