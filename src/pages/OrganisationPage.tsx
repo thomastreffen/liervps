@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Building, FolderTree } from "lucide-react";
+import { Building, FolderTree, Paintbrush } from "lucide-react";
 import { CompaniesTab } from "@/components/access-control/CompaniesTab";
 import { DepartmentsTab } from "@/components/access-control/DepartmentsTab";
+import { CompanyProfileTab } from "@/components/access-control/CompanyProfileTab";
 
 export default function OrganisationPage() {
   const [tab, setTab] = useState("companies");
@@ -12,7 +13,7 @@ export default function OrganisationPage() {
       <div>
         <h1 className="text-xl sm:text-2xl font-bold">Organisasjon</h1>
         <p className="text-sm text-muted-foreground">
-          Administrer selskaper og avdelinger
+          Administrer selskaper, avdelinger og merkevare
         </p>
       </div>
 
@@ -26,6 +27,10 @@ export default function OrganisationPage() {
             <FolderTree className="h-3.5 w-3.5" />
             Avdelinger
           </TabsTrigger>
+          <TabsTrigger value="profile" className="gap-1.5">
+            <Paintbrush className="h-3.5 w-3.5" />
+            Profil & merkevare
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="companies">
@@ -33,6 +38,9 @@ export default function OrganisationPage() {
         </TabsContent>
         <TabsContent value="departments">
           <DepartmentsTab />
+        </TabsContent>
+        <TabsContent value="profile">
+          <CompanyProfileTab />
         </TabsContent>
       </Tabs>
     </div>

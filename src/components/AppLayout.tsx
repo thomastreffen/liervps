@@ -28,6 +28,7 @@ export function AppLayout() {
           <header className="flex items-center justify-between border-b border-border/40 bg-background px-4 py-2.5 sticky top-0 z-30">
             <div className="flex items-center gap-2">
               {!isMobile && <SidebarTrigger />}
+              {!isMobile && <CompanySelector />}
             </div>
 
             <div className="flex items-center gap-1.5">
