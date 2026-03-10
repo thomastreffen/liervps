@@ -7,7 +7,8 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Loader2, Mail, Info } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useCompanyContext } from "@/hooks/useCompanyContext";
@@ -30,6 +31,7 @@ export function CreatePersonDialog({ open, onOpenChange, onCreated }: CreatePers
   const [departmentId, setDepartmentId] = useState<string>("none");
   const [isPlannable, setIsPlannable] = useState(false);
   const [isActive, setIsActive] = useState(true);
+  const [sendInvite, setSendInvite] = useState(true);
   const [saving, setSaving] = useState(false);
 
   const [departments, setDepartments] = useState<DeptOption[]>([]);
@@ -45,6 +47,7 @@ export function CreatePersonDialog({ open, onOpenChange, onCreated }: CreatePers
       setDepartmentId("none");
       setIsPlannable(false);
       setIsActive(true);
+      setSendInvite(true);
       setSelectedRoles(new Set());
       fetchMeta();
     }
@@ -69,6 +72,14 @@ export function CreatePersonDialog({ open, onOpenChange, onCreated }: CreatePers
     setDepartments((data as any[]) || []);
   };
 
+  const toggleRole = (roleId: string) => {
+    setSelectedRoles((prev) => {
+      const next = new Set(prev);
+      next.has(roleId) ? next.delete(roleId) : next.add(roleId);
+      return next;
+    });
+  };
+
   const handleCreate = async () => {
     if (!fullName.trim() || !email.trim() || !companyId) {
       toast.error("Fyll ut navn, e-post og selskap");
@@ -76,39 +87,35 @@ export function CreatePersonDialog({ open, onOpenChange, onCreated }: CreatePers
     }
     setSaving(true);
     try {
-      // 1. Create person
-      const { data: person, error: pErr } = await supabase
-        .from("people")
-        .insert({
+      const { data, error } = await supabase.functions.invoke("create-person", {
+        body: {
           full_name: fullName.trim(),
-          email: email.trim().toLowerCase(),
+          email: email.trim(),
           phone: phone.trim() || null,
+          company_id: companyId,
+          department_id: departmentId === "none" ? null : departmentId,
+          is_plannable: isPlannable,
           is_active: isActive,
-        })
-        .select("id")
-        .single();
+          role_ids: Array.from(selectedRoles),
+          send_invite: sendInvite,
+        },
+      });
 
-      if (pErr || !person) {
-        toast.error("Kunne ikke opprette person", { description: pErr?.message });
+      if (error || !data?.success) {
+        toast.error("Kunne ikke opprette person", { description: data?.error || error?.message });
         setSaving(false);
         return;
       }
 
-      // 2. Create employment profile
-      const { error: epErr } = await supabase
-        .from("employment_profiles")
-        .insert({
-          person_id: person.id,
-          company_id: companyId,
-          department_id: departmentId === "none" ? null : departmentId,
-          is_plannable_resource: isPlannable,
-        });
-
-      if (epErr) {
-        toast.error("Feil ved ansattprofil", { description: epErr.message });
+      const msgs: string[] = [`${fullName} ble opprettet`];
+      if (data.auth_user_existed) {
+        msgs.push("Eksisterende brukerkonto ble koblet.");
+      }
+      if (data.invite_sent) {
+        msgs.push("Invitasjons-e-post sendt.");
       }
 
-      toast.success(`${fullName} ble opprettet`);
+      toast.success(msgs[0], { description: msgs.slice(1).join(" ") });
       onCreated();
       onOpenChange(false);
     } catch (err: any) {
@@ -161,6 +168,35 @@ export function CreatePersonDialog({ open, onOpenChange, onCreated }: CreatePers
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Roles */}
+            <div>
+              <Label className="text-xs">Roller</Label>
+              <div className="mt-1.5 space-y-1.5 rounded-md border border-border p-3">
+                {roles.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">Ingen roller definert</p>
+                ) : (
+                  roles.map((role) => (
+                    <label key={role.id} className="flex items-center gap-2 cursor-pointer">
+                      <Checkbox
+                        checked={selectedRoles.has(role.id)}
+                        onCheckedChange={() => toggleRole(role.id)}
+                      />
+                      <span className="text-sm">{role.name}</span>
+                    </label>
+                  ))
+                )}
+              </div>
+              {selectedRoles.size > 0 && (
+                <div className="flex flex-wrap gap-1 mt-1.5">
+                  {Array.from(selectedRoles).map((rid) => {
+                    const r = roles.find((x) => x.id === rid);
+                    return r ? <Badge key={rid} variant="secondary" className="text-[10px]">{r.name}</Badge> : null;
+                  })}
+                </div>
+              )}
+            </div>
+
             <div className="flex items-center justify-between">
               <div>
                 <Label className="text-sm">Planleggbar ressurs</Label>
@@ -171,6 +207,17 @@ export function CreatePersonDialog({ open, onOpenChange, onCreated }: CreatePers
             <div className="flex items-center justify-between">
               <Label className="text-sm">Aktiv</Label>
               <Switch checked={isActive} onCheckedChange={setIsActive} />
+            </div>
+
+            <div className="flex items-center justify-between rounded-md border border-border p-3 bg-muted/30">
+              <div className="flex items-center gap-2">
+                <Mail className="h-4 w-4 text-muted-foreground" />
+                <div>
+                  <Label className="text-sm">Send invitasjons-e-post</Label>
+                  <p className="text-[11px] text-muted-foreground">Bruker får e-post med aktiveringslenke</p>
+                </div>
+              </div>
+              <Switch checked={sendInvite} onCheckedChange={setSendInvite} />
             </div>
           </div>
         </ScrollArea>
