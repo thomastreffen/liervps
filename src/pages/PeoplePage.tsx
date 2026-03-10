@@ -3,9 +3,17 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Users, Archive, Search } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Loader2, Users, Archive, Search, Plus, UserPlus, Mail, CloudDownload } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { toast } from "sonner";
 
 interface PersonRow {
   id: string;
@@ -130,6 +138,38 @@ export default function PeoplePage() {
             <span className="text-sm text-muted-foreground">Arkiverte</span>
             <Switch checked={showArchived} onCheckedChange={setShowArchived} />
           </div>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="sm" className="gap-1.5">
+                <Plus className="h-4 w-4" />
+                Ny bruker
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-52">
+              <DropdownMenuItem
+                className="gap-2"
+                onClick={() => navigate("/admin/personer/ny")}
+              >
+                <UserPlus className="h-4 w-4" />
+                Legg til manuelt
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="gap-2"
+                onClick={() => toast.info("Invitasjon via e-post kommer snart")}
+              >
+                <Mail className="h-4 w-4" />
+                Inviter via e-post
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="gap-2"
+                onClick={() => navigate("/admin/employees/import")}
+              >
+                <CloudDownload className="h-4 w-4" />
+                Importer fra Microsoft 365
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
