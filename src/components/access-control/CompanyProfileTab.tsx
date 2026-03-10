@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Loader2, Save, Building, Palette, FileText, Mail } from "lucide-react";
+import { Loader2, Save, Building, Palette, FileText, Mail, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { Separator } from "@/components/ui/separator";
 
@@ -119,7 +119,28 @@ export function CompanyProfileTab() {
     setSaving(false);
   };
 
+  const [uploading, setUploading] = useState(false);
   const canEdit = isSuperAdmin || isAdmin;
+
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !profile) return;
+    setUploading(true);
+    const ext = file.name.split(".").pop();
+    const path = `${profile.id}/logo.${ext}`;
+    const { error: uploadErr } = await supabase.storage
+      .from("company-assets")
+      .upload(path, file, { upsert: true });
+    if (uploadErr) {
+      toast.error("Opplasting feilet", { description: uploadErr.message });
+      setUploading(false);
+      return;
+    }
+    const { data: urlData } = supabase.storage.from("company-assets").getPublicUrl(path);
+    update("logo_url", urlData.publicUrl);
+    setUploading(false);
+    toast.success("Logo lastet opp");
+  };
 
   if (loading) {
     return (
@@ -190,21 +211,36 @@ export function CompanyProfileTab() {
           <CardDescription>Logo og farger for tilbud og dokumenter</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <Label>Logo URL</Label>
-            <Input
-              placeholder="https://..."
-              value={profile.logo_url || ""}
-              onChange={(e) => update("logo_url", e.target.value)}
-              disabled={!canEdit}
-            />
-            {profile.logo_url && (
+          <div className="space-y-2">
+            <Label>Firmalogo</Label>
+            {profile.logo_url ? (
               <img
                 src={profile.logo_url}
                 alt="Logo"
-                className="mt-2 h-12 object-contain rounded border border-border p-1"
+                className="h-16 max-w-[200px] object-contain rounded border border-border p-1 bg-background"
               />
+            ) : (
+              <div className="h-16 w-32 rounded border border-dashed border-border flex items-center justify-center text-xs text-muted-foreground">
+                Ingen logo
+              </div>
             )}
+            {canEdit && (
+              <label className="inline-flex items-center gap-1.5 text-sm text-primary cursor-pointer hover:underline">
+                <Upload className="h-3.5 w-3.5" />
+                {uploading ? "Laster opp..." : "Last opp logo"}
+                <input type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} disabled={uploading} />
+              </label>
+            )}
+            <div className="pt-1">
+              <Label className="text-xs text-muted-foreground">Eller angi URL manuelt</Label>
+              <Input
+                placeholder="https://..."
+                value={profile.logo_url || ""}
+                onChange={(e) => update("logo_url", e.target.value)}
+                disabled={!canEdit}
+                className="mt-1"
+              />
+            </div>
           </div>
           <div className="space-y-3">
             <div>

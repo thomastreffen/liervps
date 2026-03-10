@@ -56,6 +56,7 @@ import ContractsPage from "./pages/ContractsPage";
 import ContractDetail from "./pages/ContractDetail";
 import ContractCronPage from "./pages/ContractCronPage";
 import EmployeesPage from "./pages/EmployeesPage";
+import EmployeeImportPage from "./pages/EmployeeImportPage";
 import PersonnelDetailPage from "./pages/PersonnelDetailPage";
 import CustomersPage from "./pages/CustomersPage";
 import CustomerNewPage from "./pages/CustomerNewPage";
@@ -251,17 +252,14 @@ const App = () => (
 
               <Route
                 path="/admin/company"
-                element={
-                  <ProtectedRoute requiredRoles={["super_admin"]}>
-                    <CompanySettings />
-                  </ProtectedRoute>
-                }
+                element={<Navigate to="/admin/organisasjon" replace />}
               />
               {/* Legacy redirects for old admin pages */}
               <Route path="/admin/users" element={<Navigate to="/admin/personer" replace />} />
               <Route path="/admin/access" element={<Navigate to="/admin/organisasjon" replace />} />
               <Route path="/admin/ansatte" element={<Navigate to="/admin/personer" replace />} />
               <Route path="/admin/ansatte/:id" element={<Navigate to="/admin/personer" replace />} />
+              <Route path="/admin/employees/import" element={<Navigate to="/admin/personer/import" replace />} />
 
               {/* New admin pages */}
               <Route
@@ -277,6 +275,14 @@ const App = () => (
                 element={
                   <ProtectedRoute requiredRoles={["admin", "super_admin"]}>
                     <PeoplePage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/personer/import"
+                element={
+                  <ProtectedRoute requiredRoles={["admin", "super_admin"]}>
+                    <EmployeeImportPage />
                   </ProtectedRoute>
                 }
               />
