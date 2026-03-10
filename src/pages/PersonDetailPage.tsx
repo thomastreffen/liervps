@@ -60,9 +60,21 @@ interface AuditEntry {
   created_at: string;
 }
 
+interface EmploymentProfileRow {
+  id: string;
+  company_id: string;
+  company_name: string;
+  department_id: string | null;
+  department_name: string | null;
+  is_plannable_resource: boolean;
+  archived_at: string | null;
+}
+
 export default function PersonDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const defaultTab = searchParams.get("tab") || "profile";
   const [person, setPerson] = useState<PersonData | null>(null);
   const [employment, setEmployment] = useState<EmploymentData | null>(null);
   const [account, setAccount] = useState<UserAccountData | null>(null);
