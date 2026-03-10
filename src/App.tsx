@@ -259,6 +259,7 @@ const App = () => (
               <Route path="/admin/access" element={<Navigate to="/admin/organisasjon" replace />} />
               <Route path="/admin/ansatte" element={<Navigate to="/admin/personer" replace />} />
               <Route path="/admin/ansatte/:id" element={<Navigate to="/admin/personer" replace />} />
+              <Route path="/admin/employees/import" element={<Navigate to="/admin/personer/import" replace />} />
 
               {/* New admin pages */}
               <Route
