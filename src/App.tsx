@@ -282,6 +282,14 @@ const App = () => (
                 }
               />
               <Route
+                path="/admin/personer/import"
+                element={
+                  <ProtectedRoute requiredRoles={["admin", "super_admin"]}>
+                    <EmployeeImportPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
                 path="/admin/personer/:id"
                 element={
                   <ProtectedRoute requiredRoles={["admin", "super_admin"]}>
