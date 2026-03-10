@@ -10,6 +10,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
 import { Bell, LogOut } from "lucide-react";
+import { CompanySelector } from "@/components/CompanySelector";
 
 export function AppLayout() {
   const isMobile = useIsMobile();
