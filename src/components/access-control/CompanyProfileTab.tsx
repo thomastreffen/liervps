@@ -119,7 +119,28 @@ export function CompanyProfileTab() {
     setSaving(false);
   };
 
+  const [uploading, setUploading] = useState(false);
   const canEdit = isSuperAdmin || isAdmin;
+
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !profile) return;
+    setUploading(true);
+    const ext = file.name.split(".").pop();
+    const path = `${profile.id}/logo.${ext}`;
+    const { error: uploadErr } = await supabase.storage
+      .from("company-assets")
+      .upload(path, file, { upsert: true });
+    if (uploadErr) {
+      toast.error("Opplasting feilet", { description: uploadErr.message });
+      setUploading(false);
+      return;
+    }
+    const { data: urlData } = supabase.storage.from("company-assets").getPublicUrl(path);
+    update("logo_url", urlData.publicUrl);
+    setUploading(false);
+    toast.success("Logo lastet opp");
+  };
 
   if (loading) {
     return (
