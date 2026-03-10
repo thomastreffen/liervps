@@ -56,6 +56,7 @@ import ContractsPage from "./pages/ContractsPage";
 import ContractDetail from "./pages/ContractDetail";
 import ContractCronPage from "./pages/ContractCronPage";
 import EmployeesPage from "./pages/EmployeesPage";
+import EmployeeImportPage from "./pages/EmployeeImportPage";
 import PersonnelDetailPage from "./pages/PersonnelDetailPage";
 import CustomersPage from "./pages/CustomersPage";
 import CustomerNewPage from "./pages/CustomerNewPage";
