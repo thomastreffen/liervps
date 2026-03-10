@@ -363,7 +363,7 @@ export default function PersonDetailPage() {
         </div>
 
         {/* Tabs */}
-        <Tabs defaultValue="profile">
+        <Tabs defaultValue={defaultTab}>
           <TabsList>
             <TabsTrigger value="profile"><User className="h-4 w-4 mr-1.5" />Profil</TabsTrigger>
             <TabsTrigger value="org"><Building className="h-4 w-4 mr-1.5" />Organisasjon</TabsTrigger>
