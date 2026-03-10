@@ -83,6 +83,9 @@ export default function PersonDetailPage() {
 
   // Org tab
   const [companies, setCompanies] = useState<CompanyOption[]>([]);
+  const [allEmployments, setAllEmployments] = useState<EmploymentProfileRow[]>([]);
+  const [addingCompany, setAddingCompany] = useState(false);
+  const [newCompanyId, setNewCompanyId] = useState("");
 
   // Permissions (unified)
   const [roles, setRoles] = useState<RoleOption[]>([]);
