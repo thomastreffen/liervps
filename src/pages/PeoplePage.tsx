@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Loader2, Users, Archive, Search, Plus, UserPlus, CloudDownload } from "lucide-react";
+import { Loader2, Users, Archive, Search, Plus, UserPlus, CloudDownload, MoreHorizontal, Shield, Mail, Pencil } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import {
@@ -12,8 +12,10 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { CreatePersonDialog } from "@/components/CreatePersonDialog";
+import { useCompanyContext } from "@/hooks/useCompanyContext";
 
 interface PersonRow {
   id: string;
@@ -27,10 +29,12 @@ interface PersonRow {
   trade_certificate_type: string | null;
   role_names: string[];
   has_user_account: boolean;
+  company_count: number;
 }
 
 export default function PeoplePage() {
   const navigate = useNavigate();
+  const { activeCompanyId } = useCompanyContext();
   const [people, setPeople] = useState<PersonRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [showArchived, setShowArchived] = useState(false);
@@ -39,12 +43,11 @@ export default function PeoplePage() {
 
   useEffect(() => {
     fetchPeople();
-  }, [showArchived]);
+  }, [showArchived, activeCompanyId]);
 
   const fetchPeople = async () => {
     setLoading(true);
 
-    // Fetch people + employment profiles + user accounts + roles
     const [
       { data: peopleData },
       { data: profiles },
@@ -67,9 +70,12 @@ export default function PeoplePage() {
     const deptMap = new Map((departments as any[] || []).map((d: any) => [d.id, d.name]));
     const roleMap = new Map((roles as any[] || []).map((r: any) => [r.id, r.name]));
 
-    const profileMap = new Map<string, any>();
+    // Group profiles by person_id
+    const profilesByPerson = new Map<string, any[]>();
     for (const ep of (profiles as any[] || [])) {
-      profileMap.set(ep.person_id, ep);
+      const arr = profilesByPerson.get(ep.person_id) || [];
+      arr.push(ep);
+      profilesByPerson.set(ep.person_id, arr);
     }
 
     const accountMap = new Map<string, any>();
@@ -86,7 +92,11 @@ export default function PeoplePage() {
     }
 
     const rows: PersonRow[] = (peopleData as any[] || []).map((p: any) => {
-      const ep = profileMap.get(p.id);
+      const eps = profilesByPerson.get(p.id) || [];
+      // Find the profile for active company, or fallback to first
+      const ep = activeCompanyId
+        ? eps.find((e: any) => e.company_id === activeCompanyId) || eps[0]
+        : eps[0];
       const ua = accountMap.get(p.id);
       return {
         id: p.id,
@@ -100,10 +110,22 @@ export default function PeoplePage() {
         trade_certificate_type: ep?.trade_certificate_type || null,
         role_names: ua ? (rolesByAccount.get(ua.id) || []) : [],
         has_user_account: !!ua,
+        company_count: eps.length,
       };
     });
 
-    const filtered = showArchived ? rows : rows.filter((r) => !r.archived_at);
+    // Filter to people who have a profile in active company (or show all if no active company)
+    let filtered = rows;
+    if (activeCompanyId) {
+      const personIdsInCompany = new Set(
+        (profiles as any[] || [])
+          .filter((ep: any) => ep.company_id === activeCompanyId)
+          .map((ep: any) => ep.person_id)
+      );
+      filtered = rows.filter((r) => personIdsInCompany.has(r.id));
+    }
+
+    filtered = showArchived ? filtered : filtered.filter((r) => !r.archived_at);
     setPeople(filtered);
     setLoading(false);
   };
@@ -114,6 +136,12 @@ export default function PeoplePage() {
         p.email.toLowerCase().includes(search.toLowerCase())
       )
     : people;
+
+  const getStatusBadge = (person: PersonRow) => {
+    if (person.archived_at) return <Badge variant="destructive" className="text-[10px]">Arkivert</Badge>;
+    if (!person.has_user_account) return <Badge variant="outline" className="text-[10px]">Kun ansatt</Badge>;
+    return <Badge variant="outline" className="text-[10px] border-green-500/50 text-green-700">Aktiv</Badge>;
+  };
 
   return (
     <div className="p-4 sm:p-6 space-y-6 max-w-5xl mx-auto">
@@ -187,6 +215,7 @@ export default function PeoplePage() {
                 <TableHead className="hidden lg:table-cell">Avdeling</TableHead>
                 <TableHead className="text-center">Planleggbar</TableHead>
                 <TableHead className="text-center">Status</TableHead>
+                <TableHead className="w-10"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -214,9 +243,14 @@ export default function PeoplePage() {
                     </div>
                   </TableCell>
                   <TableCell className="hidden md:table-cell">
-                    <span className="text-sm text-muted-foreground">
-                      {person.company_name || "–"}
-                    </span>
+                    <div className="flex items-center gap-1">
+                      <span className="text-sm text-muted-foreground">
+                        {person.company_name || "–"}
+                      </span>
+                      {person.company_count > 1 && (
+                        <Badge variant="outline" className="text-[9px]">+{person.company_count - 1}</Badge>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell className="hidden lg:table-cell">
                     <span className="text-sm text-muted-foreground">
@@ -231,13 +265,31 @@ export default function PeoplePage() {
                     )}
                   </TableCell>
                   <TableCell className="text-center">
-                    {person.archived_at ? (
-                      <Badge variant="destructive" className="text-[10px]">Arkivert</Badge>
-                    ) : !person.has_user_account ? (
-                      <Badge variant="outline" className="text-[10px]">Kun ansatt</Badge>
-                    ) : (
-                      <Badge variant="outline" className="text-[10px]">Aktiv</Badge>
-                    )}
+                    {getStatusBadge(person)}
+                  </TableCell>
+                  <TableCell>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                        <Button variant="ghost" size="icon" className="h-7 w-7">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-44">
+                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/admin/personer/${person.id}`); }}>
+                          <Pencil className="h-3.5 w-3.5 mr-2" />
+                          Rediger
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/admin/personer/${person.id}?tab=permissions`); }}>
+                          <Shield className="h-3.5 w-3.5 mr-2" />
+                          Tilganger
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/admin/personer/${person.id}`); }}>
+                          <Archive className="h-3.5 w-3.5 mr-2" />
+                          Arkiver
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </TableCell>
                 </TableRow>
               ))}

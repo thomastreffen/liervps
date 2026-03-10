@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,7 +14,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Loader2, ArrowLeft, User, Building, Shield, Activity,
-  Archive, ArchiveRestore,
+  Archive, ArchiveRestore, Plus, Trash2, Mail,
 } from "lucide-react";
 import { toast } from "sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -60,9 +60,21 @@ interface AuditEntry {
   created_at: string;
 }
 
+interface EmploymentProfileRow {
+  id: string;
+  company_id: string;
+  company_name: string;
+  department_id: string | null;
+  department_name: string | null;
+  is_plannable_resource: boolean;
+  archived_at: string | null;
+}
+
 export default function PersonDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const defaultTab = searchParams.get("tab") || "profile";
   const [person, setPerson] = useState<PersonData | null>(null);
   const [employment, setEmployment] = useState<EmploymentData | null>(null);
   const [account, setAccount] = useState<UserAccountData | null>(null);
@@ -71,6 +83,9 @@ export default function PersonDetailPage() {
 
   // Org tab
   const [companies, setCompanies] = useState<CompanyOption[]>([]);
+  const [allEmployments, setAllEmployments] = useState<EmploymentProfileRow[]>([]);
+  const [addingCompany, setAddingCompany] = useState(false);
+  const [newCompanyId, setNewCompanyId] = useState("");
 
   // Permissions (unified)
   const [roles, setRoles] = useState<RoleOption[]>([]);
@@ -91,14 +106,14 @@ export default function PersonDetailPage() {
 
     const [
       { data: pData },
-      { data: epData },
+      { data: allEpData },
       { data: uaData },
       { data: rolesData },
       { data: compsData },
       { data: deptsData },
     ] = await Promise.all([
       supabase.from("people").select("*").eq("id", id).single(),
-      supabase.from("employment_profiles").select("*").eq("person_id", id).maybeSingle(),
+      supabase.from("employment_profiles").select("*").eq("person_id", id),
       supabase.from("user_accounts").select("*").eq("person_id", id).maybeSingle(),
       supabase.from("roles").select("id, name, description").order("name"),
       supabase.from("internal_companies").select("id, name").eq("is_active", true),
@@ -106,16 +121,29 @@ export default function PersonDetailPage() {
     ]);
 
     setPerson(pData as any);
-    setEmployment(epData as any);
+    const epList = (allEpData as any[]) || [];
+    setEmployment(epList[0] || null);
     setAccount(uaData as any);
     setRoles((rolesData as any[]) || []);
-    setCompanies(
-      (compsData as any[] || []).map((c: any) => ({
-        id: c.id,
-        name: c.name,
-        departments: (deptsData as any[] || []).filter((d: any) => d.company_id === c.id).map((d: any) => ({ id: d.id, name: d.name })),
-      }))
-    );
+
+    const companyOptions = (compsData as any[] || []).map((c: any) => ({
+      id: c.id,
+      name: c.name,
+      departments: (deptsData as any[] || []).filter((d: any) => d.company_id === c.id).map((d: any) => ({ id: d.id, name: d.name })),
+    }));
+    setCompanies(companyOptions);
+
+    const compNameMap = new Map((compsData as any[] || []).map((c: any) => [c.id, c.name]));
+    const deptNameMap = new Map((deptsData as any[] || []).map((d: any) => [d.id, d.name]));
+    setAllEmployments(epList.map((ep: any) => ({
+      id: ep.id,
+      company_id: ep.company_id,
+      company_name: compNameMap.get(ep.company_id) || "Ukjent",
+      department_id: ep.department_id,
+      department_name: ep.department_id ? deptNameMap.get(ep.department_id) || null : null,
+      is_plannable_resource: ep.is_plannable_resource,
+      archived_at: ep.archived_at,
+    })));
 
     if (uaData) {
       const ua = uaData as any;
@@ -335,7 +363,7 @@ export default function PersonDetailPage() {
         </div>
 
         {/* Tabs */}
-        <Tabs defaultValue="profile">
+        <Tabs defaultValue={defaultTab}>
           <TabsList>
             <TabsTrigger value="profile"><User className="h-4 w-4 mr-1.5" />Profil</TabsTrigger>
             <TabsTrigger value="org"><Building className="h-4 w-4 mr-1.5" />Organisasjon</TabsTrigger>
@@ -406,33 +434,134 @@ export default function PersonDetailPage() {
           {/* Organisation Tab */}
           <TabsContent value="org">
             <div className="rounded-lg border p-4 sm:p-6 space-y-5 max-w-2xl">
-              {employment && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <Label className="text-xs">Selskap</Label>
-                    <Select value={employment.company_id} onValueChange={(v) => setEmployment({ ...employment, company_id: v })}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {companies.map((c) => (
+              <div>
+                <h3 className="text-sm font-medium mb-3">Tilknyttede selskaper</h3>
+                {allEmployments.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Ingen selskaper tilknyttet.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {allEmployments.map((ep) => (
+                      <div key={ep.id} className="flex items-center justify-between rounded-md border border-border p-3">
+                        <div>
+                          <p className="text-sm font-medium">{ep.company_name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {ep.department_name || "Ingen avdeling"}
+                            {ep.is_plannable_resource && " · Planleggbar"}
+                            {ep.archived_at && " · Arkivert"}
+                          </p>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                          onClick={async () => {
+                            if (!confirm("Fjerne dette selskapsmedlemskapet?")) return;
+                            await supabase.from("employment_profiles").delete().eq("id", ep.id);
+                            toast.success("Medlemskap fjernet");
+                            fetchData();
+                          }}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Add company */}
+                <div className="flex items-center gap-2 mt-3">
+                  <Select value={newCompanyId} onValueChange={setNewCompanyId}>
+                    <SelectTrigger className="flex-1">
+                      <SelectValue placeholder="Velg selskap å legge til..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {companies
+                        .filter((c) => !allEmployments.some((ep) => ep.company_id === c.id))
+                        .map((c) => (
                           <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                         ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label className="text-xs">Avdeling</Label>
-                    <Select value={employment.department_id || "none"} onValueChange={(v) => setEmployment({ ...employment, department_id: v === "none" ? null : v })}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">Ingen avdeling</SelectItem>
-                        {companies.find((c) => c.id === employment.company_id)?.departments.map((d) => (
-                          <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={!newCompanyId || addingCompany}
+                    onClick={async () => {
+                      if (!newCompanyId || !id) return;
+                      setAddingCompany(true);
+                      const { error } = await supabase.from("employment_profiles").insert({
+                        person_id: id,
+                        company_id: newCompanyId,
+                        is_plannable_resource: false,
+                      });
+                      if (error) {
+                        toast.error("Kunne ikke legge til selskap", { description: error.message });
+                      } else {
+                        toast.success("Selskap lagt til");
+                        setNewCompanyId("");
+                        fetchData();
+                      }
+                      setAddingCompany(false);
+                    }}
+                    className="gap-1"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    Legg til
+                  </Button>
                 </div>
+              </div>
+
+              <Separator />
+
+              {/* Primary employment details */}
+              {employment && (
+                <>
+                  <h3 className="text-sm font-medium">Primær ansattprofil</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-xs">Selskap</Label>
+                      <Select value={employment.company_id} onValueChange={(v) => setEmployment({ ...employment, company_id: v })}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {companies.map((c) => (
+                            <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-xs">Avdeling</Label>
+                      <Select value={employment.department_id || "none"} onValueChange={(v) => setEmployment({ ...employment, department_id: v === "none" ? null : v })}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">Ingen avdeling</SelectItem>
+                          {companies.find((c) => c.id === employment.company_id)?.departments.map((d) => (
+                            <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </>
               )}
+
+              {/* Account status */}
+              <Separator />
+              <div>
+                <h3 className="text-sm font-medium mb-2">Kontostatus</h3>
+                {account ? (
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className="text-[10px] border-green-500/50 text-green-700">Brukerkonto aktiv</Badge>
+                    <span className="text-xs text-muted-foreground">Auth ID: {account.auth_user_id.slice(0, 8)}…</span>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <Badge variant="outline" className="text-[10px]">Kun ansatt – ingen innlogging</Badge>
+                    <p className="text-xs text-muted-foreground">Denne personen har ikke en brukerkonto ennå.</p>
+                  </div>
+                )}
+              </div>
+
               <div className="flex justify-end">
                 <Button onClick={handleSaveProfile} disabled={saving}>
                   {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Lagre"}

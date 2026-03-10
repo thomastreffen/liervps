@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Loader2, Search, UserPlus, Check, RefreshCw } from "lucide-react";
+import { useCompanyContext } from "@/hooks/useCompanyContext";
 
 interface MsEmployee {
   microsoftId: string;
@@ -22,9 +23,12 @@ interface MsEmployee {
   jobTitle: string | null;
   department: string | null;
   alreadyAdded: boolean;
+  existsInSystem?: boolean;
+  existsInCompany?: boolean;
 }
 
 export function EmployeeImport() {
+  const { activeCompanyId, activeCompany } = useCompanyContext();
   const [employees, setEmployees] = useState<MsEmployee[]>([]);
   const [loading, setLoading] = useState(false);
   const [adding, setAdding] = useState(false);
@@ -43,7 +47,47 @@ export function EmployeeImport() {
         });
         return;
       }
-      setEmployees(data.employees);
+
+      // Check which employees already exist in system
+      const { data: existingPeople } = await supabase
+        .from("people")
+        .select("email");
+      const existingEmails = new Set(
+        (existingPeople || []).map((p: any) => p.email?.toLowerCase())
+      );
+
+      let companyPersonIds = new Set<string>();
+      if (activeCompanyId) {
+        const { data: companyProfiles } = await supabase
+          .from("employment_profiles")
+          .select("person_id")
+          .eq("company_id", activeCompanyId);
+        
+        if (companyProfiles) {
+          const pIds = companyProfiles.map((p: any) => p.person_id);
+          const { data: companyPeople } = await supabase
+            .from("people")
+            .select("email")
+            .in("id", pIds.length > 0 ? pIds : ["__none__"]);
+          companyPersonIds = new Set(
+            (companyPeople || []).map((p: any) => p.email?.toLowerCase())
+          );
+        }
+      }
+
+      const enriched: MsEmployee[] = data.employees.map((e: any) => {
+        const emailLower = e.email?.toLowerCase();
+        const existsInSystem = existingEmails.has(emailLower);
+        const existsInCompany = companyPersonIds.has(emailLower);
+        return {
+          ...e,
+          existsInSystem,
+          existsInCompany,
+          alreadyAdded: existsInCompany,
+        };
+      });
+
+      setEmployees(enriched);
       setFetched(true);
       setSelected(new Set());
     } catch (err) {
@@ -55,28 +99,30 @@ export function EmployeeImport() {
 
   const addSelected = async () => {
     const toAdd = employees.filter(
-      (e) => selected.has(e.microsoftId) && !e.alreadyAdded
+      (e) => selected.has(e.microsoftId) && !e.existsInCompany
     );
     if (toAdd.length === 0) return;
 
     setAdding(true);
     try {
       const { data, error } = await supabase.functions.invoke("add-technicians", {
-        body: { employees: toAdd },
+        body: {
+          employees: toAdd,
+          company_id: activeCompanyId,
+        },
       });
 
       if (error) {
-        toast.error("Kunne ikke legge til montører", { description: error.message });
+        toast.error("Kunne ikke legge til brukere", { description: error.message });
         return;
       }
 
       const successCount = data.results.filter((r: any) => r.success).length;
-      toast.success(`${successCount} montør(er) lagt til`);
+      toast.success(`${successCount} bruker(e) importert og invitert`);
 
-      // Mark as added
       setEmployees((prev) =>
         prev.map((e) =>
-          selected.has(e.microsoftId) ? { ...e, alreadyAdded: true } : e
+          selected.has(e.microsoftId) ? { ...e, alreadyAdded: true, existsInCompany: true } : e
         )
       );
       setSelected(new Set());
@@ -96,7 +142,7 @@ export function EmployeeImport() {
   };
 
   const selectAllAvailable = () => {
-    const available = filtered.filter((e) => !e.alreadyAdded).map((e) => e.microsoftId);
+    const available = filtered.filter((e) => !e.existsInCompany).map((e) => e.microsoftId);
     setSelected(new Set(available));
   };
 
@@ -108,13 +154,28 @@ export function EmployeeImport() {
   );
 
   const selectedCount = [...selected].filter(
-    (id) => !employees.find((e) => e.microsoftId === id)?.alreadyAdded
+    (id) => !employees.find((e) => e.microsoftId === id)?.existsInCompany
   ).length;
+
+  const getStatusBadge = (emp: MsEmployee) => {
+    if (emp.existsInCompany) {
+      return <Badge variant="secondary" className="gap-1"><Check className="h-3 w-3" />I dette selskapet</Badge>;
+    }
+    if (emp.existsInSystem) {
+      return <Badge variant="outline" className="text-amber-600 border-amber-300">Finnes i systemet</Badge>;
+    }
+    return <Badge variant="outline">Ny</Badge>;
+  };
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-medium">Importer ansatte fra Microsoft 365</h3>
+        <div>
+          <h3 className="text-sm font-medium">Importer ansatte fra Microsoft 365</h3>
+          {activeCompany && (
+            <p className="text-xs text-muted-foreground">Importeres til: {activeCompany.name}</p>
+          )}
+        </div>
         <Button
           size="sm"
           variant="outline"
@@ -150,7 +211,7 @@ export function EmployeeImport() {
                 ) : (
                   <UserPlus className="h-3.5 w-3.5" />
                 )}
-                Legg til {selectedCount} montør{selectedCount > 1 ? "er" : ""}
+                Importer {selectedCount} bruker{selectedCount > 1 ? "e" : ""}
               </Button>
             )}
           </div>
@@ -162,9 +223,9 @@ export function EmployeeImport() {
                   <TableHead className="w-10">
                     <Checkbox
                       checked={
-                        filtered.filter((e) => !e.alreadyAdded).length > 0 &&
+                        filtered.filter((e) => !e.existsInCompany).length > 0 &&
                         filtered
-                          .filter((e) => !e.alreadyAdded)
+                          .filter((e) => !e.existsInCompany)
                           .every((e) => selected.has(e.microsoftId))
                       }
                       onCheckedChange={selectAllAvailable}
@@ -174,20 +235,20 @@ export function EmployeeImport() {
                   <TableHead>E-post</TableHead>
                   <TableHead>Stilling</TableHead>
                   <TableHead>Avdeling</TableHead>
-                  <TableHead className="w-24">Status</TableHead>
+                  <TableHead className="w-32">Status</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filtered.map((emp) => (
                   <TableRow
                     key={emp.microsoftId}
-                    className={emp.alreadyAdded ? "opacity-50" : "cursor-pointer"}
-                    onClick={() => !emp.alreadyAdded && toggleSelect(emp.microsoftId)}
+                    className={emp.existsInCompany ? "opacity-50" : "cursor-pointer"}
+                    onClick={() => !emp.existsInCompany && toggleSelect(emp.microsoftId)}
                   >
                     <TableCell>
                       <Checkbox
                         checked={selected.has(emp.microsoftId)}
-                        disabled={emp.alreadyAdded}
+                        disabled={emp.existsInCompany}
                         onCheckedChange={() => toggleSelect(emp.microsoftId)}
                       />
                     </TableCell>
@@ -196,14 +257,7 @@ export function EmployeeImport() {
                     <TableCell className="text-muted-foreground">{emp.jobTitle || "–"}</TableCell>
                     <TableCell className="text-muted-foreground">{emp.department || "–"}</TableCell>
                     <TableCell>
-                      {emp.alreadyAdded ? (
-                        <Badge variant="secondary" className="gap-1">
-                          <Check className="h-3 w-3" />
-                          Lagt til
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline">Ny</Badge>
-                      )}
+                      {getStatusBadge(emp)}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -218,7 +272,10 @@ export function EmployeeImport() {
             </Table>
           </div>
           <p className="text-xs text-muted-foreground">
-            {employees.length} ansatte totalt · {employees.filter((e) => e.alreadyAdded).length} allerede lagt til
+            {employees.length} ansatte totalt · {employees.filter((e) => e.existsInCompany).length} allerede i dette selskapet
+            {employees.filter((e) => e.existsInSystem && !e.existsInCompany).length > 0 && (
+              <> · {employees.filter((e) => e.existsInSystem && !e.existsInCompany).length} finnes i systemet men ikke i dette selskapet</>
+            )}
           </p>
         </>
       )}
