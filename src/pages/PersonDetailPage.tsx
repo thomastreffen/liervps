@@ -121,16 +121,29 @@ export default function PersonDetailPage() {
     ]);
 
     setPerson(pData as any);
-    setEmployment(epData as any);
+    const epList = (allEpData as any[]) || [];
+    setEmployment(epList[0] || null);
     setAccount(uaData as any);
     setRoles((rolesData as any[]) || []);
-    setCompanies(
-      (compsData as any[] || []).map((c: any) => ({
-        id: c.id,
-        name: c.name,
-        departments: (deptsData as any[] || []).filter((d: any) => d.company_id === c.id).map((d: any) => ({ id: d.id, name: d.name })),
-      }))
-    );
+
+    const companyOptions = (compsData as any[] || []).map((c: any) => ({
+      id: c.id,
+      name: c.name,
+      departments: (deptsData as any[] || []).filter((d: any) => d.company_id === c.id).map((d: any) => ({ id: d.id, name: d.name })),
+    }));
+    setCompanies(companyOptions);
+
+    const compNameMap = new Map((compsData as any[] || []).map((c: any) => [c.id, c.name]));
+    const deptNameMap = new Map((deptsData as any[] || []).map((d: any) => [d.id, d.name]));
+    setAllEmployments(epList.map((ep: any) => ({
+      id: ep.id,
+      company_id: ep.company_id,
+      company_name: compNameMap.get(ep.company_id) || "Ukjent",
+      department_id: ep.department_id,
+      department_name: ep.department_id ? deptNameMap.get(ep.department_id) || null : null,
+      is_plannable_resource: ep.is_plannable_resource,
+      archived_at: ep.archived_at,
+    })));
 
     if (uaData) {
       const ua = uaData as any;
