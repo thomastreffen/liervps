@@ -245,6 +245,11 @@ export default function PeoplePage() {
           </Table>
         </div>
       )}
+      <CreatePersonDialog
+        open={createDialogOpen}
+        onOpenChange={setCreateDialogOpen}
+        onCreated={fetchPeople}
+      />
     </div>
   );
 }

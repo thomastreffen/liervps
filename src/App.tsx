@@ -252,11 +252,7 @@ const App = () => (
 
               <Route
                 path="/admin/company"
-                element={
-                  <ProtectedRoute requiredRoles={["super_admin"]}>
-                    <CompanySettings />
-                  </ProtectedRoute>
-                }
+                element={<Navigate to="/admin/organisasjon" replace />}
               />
               {/* Legacy redirects for old admin pages */}
               <Route path="/admin/users" element={<Navigate to="/admin/personer" replace />} />

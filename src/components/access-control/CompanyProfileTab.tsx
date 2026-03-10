@@ -211,21 +211,36 @@ export function CompanyProfileTab() {
           <CardDescription>Logo og farger for tilbud og dokumenter</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <Label>Logo URL</Label>
-            <Input
-              placeholder="https://..."
-              value={profile.logo_url || ""}
-              onChange={(e) => update("logo_url", e.target.value)}
-              disabled={!canEdit}
-            />
-            {profile.logo_url && (
+          <div className="space-y-2">
+            <Label>Firmalogo</Label>
+            {profile.logo_url ? (
               <img
                 src={profile.logo_url}
                 alt="Logo"
-                className="mt-2 h-12 object-contain rounded border border-border p-1"
+                className="h-16 max-w-[200px] object-contain rounded border border-border p-1 bg-background"
               />
+            ) : (
+              <div className="h-16 w-32 rounded border border-dashed border-border flex items-center justify-center text-xs text-muted-foreground">
+                Ingen logo
+              </div>
             )}
+            {canEdit && (
+              <label className="inline-flex items-center gap-1.5 text-sm text-primary cursor-pointer hover:underline">
+                <Upload className="h-3.5 w-3.5" />
+                {uploading ? "Laster opp..." : "Last opp logo"}
+                <input type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} disabled={uploading} />
+              </label>
+            )}
+            <div className="pt-1">
+              <Label className="text-xs text-muted-foreground">Eller angi URL manuelt</Label>
+              <Input
+                placeholder="https://..."
+                value={profile.logo_url || ""}
+                onChange={(e) => update("logo_url", e.target.value)}
+                disabled={!canEdit}
+                className="mt-1"
+              />
+            </div>
           </div>
           <div className="space-y-3">
             <div>
