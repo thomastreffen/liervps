@@ -106,14 +106,14 @@ export default function PersonDetailPage() {
 
     const [
       { data: pData },
-      { data: epData },
+      { data: allEpData },
       { data: uaData },
       { data: rolesData },
       { data: compsData },
       { data: deptsData },
     ] = await Promise.all([
       supabase.from("people").select("*").eq("id", id).single(),
-      supabase.from("employment_profiles").select("*").eq("person_id", id).maybeSingle(),
+      supabase.from("employment_profiles").select("*").eq("person_id", id),
       supabase.from("user_accounts").select("*").eq("person_id", id).maybeSingle(),
       supabase.from("roles").select("id, name, description").order("name"),
       supabase.from("internal_companies").select("id, name").eq("is_active", true),
