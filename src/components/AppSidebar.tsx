@@ -108,20 +108,15 @@ export function AppSidebar() {
   const { isAdmin: realIsAdmin, isSuperAdmin: realIsSuperAdmin, user } = useAuth();
   const { hasPermission } = usePermissions();
   const { isModuleVisible } = useModuleVisibility();
+  const { active: previewActive, effectiveRole } = usePreviewMode();
   const location = useLocation();
 
   // In preview mode, derive isAdmin/isSuperAdmin from effective role
-  let previewCtx: any = null;
-  try {
-    const { usePreviewMode } = require("@/hooks/usePreviewMode");
-    previewCtx = usePreviewMode();
-  } catch { /* not in provider */ }
-
-  const isAdmin = previewCtx?.active
-    ? (previewCtx.effectiveRole === "admin" || previewCtx.effectiveRole === "super_admin")
+  const isAdmin = previewActive
+    ? (effectiveRole === "admin" || effectiveRole === "super_admin")
     : realIsAdmin;
-  const isSuperAdmin = previewCtx?.active
-    ? previewCtx.effectiveRole === "super_admin"
+  const isSuperAdmin = previewActive
+    ? effectiveRole === "super_admin"
     : realIsSuperAdmin;
 
   const [projectCount, setProjectCount] = useState<number>(0);
