@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
+import { usePermissions } from "@/hooks/usePermissions";
 import { SharePointExplorer } from "@/components/SharePointExplorer";
 import {
   FileText,
@@ -103,7 +104,11 @@ interface DocumentCenterProps {
 }
 
 export function DocumentCenter({ jobId, companyId }: DocumentCenterProps) {
-  const { user, isAdmin } = useAuth();
+  const { user } = useAuth();
+  const { hasPermission } = usePermissions();
+  const canUpload = hasPermission("documents.upload");
+  const canDelete = hasPermission("documents.delete");
+  const canAnalyze = hasPermission("documents.analyze");
   const [docs, setDocs] = useState<DocumentRow[]>([]);
   const [analyses, setAnalyses] = useState<AnalysisRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -709,7 +714,7 @@ export function DocumentCenter({ jobId, companyId }: DocumentCenterProps) {
                 )}
 
                 {/* Delete */}
-                {isAdmin && (
+                {canDelete && (
                   <button
                     onClick={() => handleDelete(doc)}
                     className="text-muted-foreground hover:text-destructive shrink-0"

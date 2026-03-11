@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { format } from "date-fns";
 import { nb } from "date-fns/locale";
 import { Plus, Search, Loader2, ChevronLeft, ChevronRight, Calculator } from "lucide-react";
-import { useAuth } from "@/hooks/useAuth";
+import { usePermissions } from "@/hooks/usePermissions";
 import {
   CALCULATION_STATUS_CONFIG,
   ALL_CALCULATION_STATUSES,
@@ -32,7 +32,7 @@ const PAGE_SIZE = 20;
 
 export default function CalculationsPage() {
   const navigate = useNavigate();
-  const { isAdmin } = useAuth();
+  const { hasPermission } = usePermissions();
   const [calcs, setCalcs] = useState<CalcRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -79,7 +79,7 @@ export default function CalculationsPage() {
           </h1>
           <p className="text-sm text-muted-foreground/70">{filtered.length} kalkulasjoner totalt</p>
         </div>
-        {isAdmin && (
+        {hasPermission("calculations.create") && (
           <Button onClick={() => navigate("/sales/calculations/new")} className="gap-1.5 self-start rounded-xl">
             <Plus className="h-4 w-4" />
             Ny kalkulasjon

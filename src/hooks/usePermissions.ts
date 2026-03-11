@@ -63,23 +63,22 @@ export function usePermissions(): PermissionState {
       }
 
       // Also check legacy role for backward compat
+      const adminKeys = [
+        "scope.view.all", "admin.manage_companies", "admin.manage_departments",
+        "admin.manage_users", "admin.manage_roles", "admin.manage_settings",
+        "calendar.read_busy", "calendar.view_external", "calendar.write_events", "calendar.delete_events",
+        "documents.upload", "documents.delete", "documents.analyze",
+        "change_orders.create", "change_orders.send", "change_orders.cancel", "change_orders.mark_invoiced",
+        "contracts.create", "contracts.analyze", "contracts.upload_document",
+        "calculations.create", "calculations.edit", "calculations.ai_generate", "calculations.create_offer",
+        "projects.edit_plan", "projects.delete_attachment", "admin.data_integrity",
+      ];
       if (user.role === "super_admin") {
-        merged["scope.view.all"] = true;
-        merged["admin.manage_companies"] = true;
-        merged["admin.manage_departments"] = true;
-        merged["admin.manage_users"] = true;
-        merged["admin.manage_roles"] = true;
-        merged["admin.manage_settings"] = true;
-        // Super admin gets all calendar permissions by default
-        merged["calendar.read_busy"] = merged["calendar.read_busy"] ?? true;
-        merged["calendar.view_external"] = merged["calendar.view_external"] ?? true;
-        merged["calendar.write_events"] = merged["calendar.write_events"] ?? true;
-        merged["calendar.delete_events"] = merged["calendar.delete_events"] ?? true;
+        for (const k of adminKeys) merged[k] = merged[k] ?? true;
       } else if (user.role === "admin") {
-        merged["scope.view.company"] = true;
-        // Admin gets calendar read/write by default
-        merged["calendar.read_busy"] = merged["calendar.read_busy"] ?? true;
-        merged["calendar.write_events"] = merged["calendar.write_events"] ?? true;
+        merged["scope.view.company"] = merged["scope.view.company"] ?? true;
+        const adminSubset = adminKeys.filter(k => k !== "scope.view.all" && k !== "admin.data_integrity");
+        for (const k of adminSubset) merged[k] = merged[k] ?? true;
       }
 
       setPermissions(merged);

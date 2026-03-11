@@ -28,6 +28,20 @@ Deno.serve(async (req) => {
       });
     }
 
+    const supabaseAdmin = createClient(supabaseUrl, serviceKey);
+
+    // Permission check: change_orders.send
+    const { data: hasPerm } = await supabaseAdmin.rpc("check_permission_v2", {
+      _auth_user_id: user.id,
+      _perm: "change_orders.send",
+    });
+    if (!hasPerm) {
+      return new Response(JSON.stringify({ ok: false, message: "Mangler rettighet: change_orders.send" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const { change_order_id } = await req.json();
     if (!change_order_id) {
       return new Response(JSON.stringify({ ok: false, message: "change_order_id mangler" }), {

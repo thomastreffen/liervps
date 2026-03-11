@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
+import { usePermissions } from "@/hooks/usePermissions";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
@@ -45,7 +45,8 @@ interface ChangeOrderTabProps {
 }
 
 export function ChangeOrderTab({ jobId, customer, customerEmail, baseAmount, currency, onTotalsChange }: ChangeOrderTabProps) {
-  const { isAdmin } = useAuth();
+  const { hasPermission } = usePermissions();
+  const canCreate = hasPermission("change_orders.create");
   const [orders, setOrders] = useState<ChangeOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [createOpen, setCreateOpen] = useState(false);
@@ -114,7 +115,7 @@ export function ChangeOrderTab({ jobId, customer, customerEmail, baseAmount, cur
       </div>
 
       {/* Actions */}
-      {isAdmin && (
+      {canCreate && (
         <div className="flex justify-end">
           <Button size="sm" className="rounded-xl gap-1.5" onClick={() => setCreateOpen(true)}>
             <Plus className="h-3.5 w-3.5" />

@@ -33,7 +33,19 @@ serve(async (req) => {
     const userId = claimsData.claims.sub as string;
     const { action, contract_id, text_override } = await req.json();
 
+    // Permission guard helper
+    const checkPerm = async (perm: string): Promise<boolean> => {
+      const { data } = await supabaseAdmin.rpc("check_permission_v2", {
+        _auth_user_id: userId,
+        _perm: perm,
+      });
+      return data === true;
+    };
+
     if (action === "analyze_contract") {
+      if (!(await checkPerm("contracts.analyze"))) {
+        return new Response(JSON.stringify({ error: "Mangler rettighet: contracts.analyze", error_code: "permission_denied" }), { status: 403, headers: corsHeaders });
+      }
       if (!contract_id) throw new Error("contract_id required");
       if (!lovableKey) throw new Error("LOVABLE_API_KEY not configured");
 

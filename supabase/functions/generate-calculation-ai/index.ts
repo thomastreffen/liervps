@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -9,6 +10,35 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
+    // Auth check
+    const authHeader = req.headers.get("Authorization") || "";
+    if (!authHeader.startsWith("Bearer ")) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+    const jwt = authHeader.replace("Bearer ", "");
+    const supabaseAnon = createClient(supabaseUrl, anonKey);
+    const { data: { user }, error: authErr } = await supabaseAnon.auth.getUser(jwt);
+    if (authErr || !user) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    // Permission check: calculations.ai_generate
+    const supabaseAdmin = createClient(supabaseUrl, serviceKey);
+    const { data: hasPerm } = await supabaseAdmin.rpc("check_permission_v2", {
+      _auth_user_id: user.id,
+      _perm: "calculations.ai_generate",
+    });
+    if (!hasPerm) {
+      return new Response(JSON.stringify({ error: "Mangler rettighet: calculations.ai_generate", error_code: "permission_denied" }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const { description, project_title, customer_name, material_multiplier, hour_rate } = await req.json();
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");

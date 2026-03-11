@@ -18,6 +18,7 @@ import {
   type JobStatus,
 } from "@/lib/job-status";
 import { useAuth } from "@/hooks/useAuth";
+import { usePermissions } from "@/hooks/usePermissions";
 import { ImageLightbox } from "@/components/ImageLightbox";
 import { ProjectAccessDrawer } from "@/components/project/ProjectAccessDrawer";
 import { Loader2, X, ArrowLeft } from "lucide-react";
@@ -27,7 +28,10 @@ import type { OutlookSyncStatus } from "@/lib/mock-data";
 export default function JobDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { user, isAdmin } = useAuth();
+  const { user } = useAuth();
+  const { hasPermission } = usePermissions();
+  const canEditPlan = hasPermission("projects.edit_plan");
+  const canDeleteAttachment = hasPermission("projects.delete_attachment");
 
   const [job, setJob] = useState<Job | null>(null);
   const [loading, setLoading] = useState(true);
@@ -147,7 +151,7 @@ export default function JobDetail() {
             jobAddress={job.address}
             technicianIds={job.technicianIds}
             technicianNames={technicianNames}
-            isAdmin={isAdmin}
+            isAdmin={canEditPlan}
             calendarDirty={job.calendarDirty}
             calendarLastSyncedAt={job.calendarLastSyncedAt}
             onSynced={() => fetchJob()}
@@ -235,9 +239,9 @@ export default function JobDetail() {
         initialIndex={lightboxIndex}
         open={lightboxOpen}
         onOpenChange={setLightboxOpen}
-        canDelete={isAdmin}
+        canDelete={canDeleteAttachment}
         onDelete={async (name) => {
-          if (!job || !isAdmin) return;
+          if (!job || !canDeleteAttachment) return;
           const updated = (job.attachments ?? []).filter((a) => a.name !== name);
           const { error } = await supabase.from("events").update({ attachments: updated as any }).eq("id", job.id);
           if (!error) { setJob((p) => p ? { ...p, attachments: updated } : null); toast.success("Vedlegg slettet"); }

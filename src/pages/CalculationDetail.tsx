@@ -4,6 +4,7 @@ import { format } from "date-fns";
 import { nb } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { usePermissions } from "@/hooks/usePermissions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -95,7 +96,9 @@ const STATUS_ICONS: Record<CalculationStatus, React.ReactNode> = {
 export default function CalculationDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { user, isAdmin } = useAuth();
+  const { user } = useAuth();
+  const { hasPermission } = usePermissions();
+  const isAdmin = hasPermission("calculations.edit");
 
   const [calc, setCalc] = useState<Calculation | null>(null);
   const [items, setItems] = useState<CalcItem[]>([]);
