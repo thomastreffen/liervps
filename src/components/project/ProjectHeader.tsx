@@ -13,6 +13,7 @@ import {
   Shield,
   Copy,
   Trash2,
+  BookOpen,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -38,6 +39,7 @@ interface ProjectHeaderProps {
   onOpenAccess?: () => void;
   onOpenSpaces?: () => void;
   onEdit?: () => void;
+  projectId?: string;
 }
 
 export function ProjectHeader({
@@ -50,6 +52,7 @@ export function ProjectHeader({
   onOpenAccess,
   onOpenSpaces,
   onEdit,
+  projectId,
 }: ProjectHeaderProps) {
   const navigate = useNavigate();
   const period = `${format(start, "d. MMM", { locale: nb })} – ${format(end, "d. MMM yyyy", { locale: nb })}`;
@@ -107,6 +110,21 @@ export function ProjectHeader({
           <h1 className="text-xl sm:text-3xl font-extrabold text-foreground tracking-tight">
             {title}
           </h1>
+
+          {/* Fag button */}
+          {projectId && (
+            <div className="mt-2 sm:mt-3">
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 text-xs"
+                onClick={() => navigate(`/fag?project=${projectId}`)}
+              >
+                <BookOpen className="h-3.5 w-3.5" />
+                Still fagspørsmål
+              </Button>
+            </div>
+          )}
 
           {/* Meta row – single line on mobile */}
           <div className="flex items-center justify-center gap-2 sm:gap-3 mt-1.5 sm:mt-3 flex-wrap">

@@ -15,6 +15,7 @@ import {
   BarChart3,
   FileText,
   Target,
+  BookOpen,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/hooks/useAuth";
@@ -46,6 +47,7 @@ const mainNav = [
   { title: "Prosjekter", url: "/projects", icon: FolderKanban, moduleKey: "projects" },
   { title: "Ressursplan", url: "/projects/plan", icon: CalendarDays, moduleKey: "resource_plan" },
   { title: "Fakturagrunnlag", url: "/invoice-basis", icon: Receipt, moduleKey: "invoice_basis" },
+  { title: "Fagstøtte", url: "/fag", icon: BookOpen, moduleKey: "fag" },
 ];
 
 const adminItems = [
