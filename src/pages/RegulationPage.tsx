@@ -5,7 +5,8 @@ import {
   FolderKanban, Sparkles, MessageCircle, Plus, ImageIcon,
   ChevronRight, Clock, ArrowRight, MoreHorizontal,
   Archive, ArchiveRestore, Trash2, FlaskConical, CheckSquare, Square,
-  Pin, PinOff, ArrowLeft, Mic,
+  Pin, PinOff, ArrowLeft, Mic, Thermometer, FileDown,
+  AlertTriangle, Shield, Zap, Eye,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
