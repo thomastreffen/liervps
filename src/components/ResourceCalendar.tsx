@@ -115,8 +115,14 @@ export const ResourceCalendar = memo(function ResourceCalendar({
   onExternalDrop,
   isAdmin = false,
   isSuperAdmin = false,
+  canWriteEvents,
+  canViewExternalDetails,
+  canReadBusy = true,
   hideExternalEvents = false,
 }: ResourceCalendarProps) {
+  // Resolve permission: prefer new props, fall back to legacy
+  const effectiveCanWrite = canWriteEvents ?? isAdmin;
+  const effectiveCanViewExternal = canViewExternalDetails ?? isSuperAdmin;
   const calendarRef = useRef<FullCalendar>(null);
   const { events: calendarEvents } = useCalendarEvents(technicianId, referenceDate);
 
