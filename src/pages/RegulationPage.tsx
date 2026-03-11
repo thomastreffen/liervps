@@ -1343,6 +1343,7 @@ function ChatThread({
   followups,
   onSuggestionClick,
   chatEndRef,
+  onNekRefClick,
 }: {
   messages: ChatMessage[];
   loading: boolean;
@@ -1350,7 +1351,78 @@ function ChatThread({
   followups: string[];
   onSuggestionClick: (text: string) => void;
   chatEndRef: React.RefObject<HTMLDivElement>;
+  onNekRefClick?: (ref: NekReference) => void;
 }) {
+  const generateThermographyReport = useCallback((msg: ChatMessage) => {
+    if (!msg.thermography) return;
+    const t = msg.thermography;
+    const lines: string[] = [
+      "TERMOGRAFIRAPPORT",
+      "═".repeat(40),
+      `Dato: ${format(new Date(msg.timestamp), "d. MMMM yyyy HH:mm", { locale: nb })}`,
+      "",
+      `RISIKONIVÅ: ${t.overall_risk === "critical" ? "KRITISK" : t.overall_risk === "warning" ? "ADVARSEL" : "NORMAL"}`,
+      t.max_temperature ? `Maks temperatur: ${t.max_temperature}` : "",
+      t.delta_t ? `Delta-T: ${t.delta_t}` : "",
+      t.load_estimate ? `Lastforhold: ${t.load_estimate}` : "",
+      "",
+      "HOTSPOTS:",
+      ...t.hotspots.map((h, i) =>
+        `  ${i + 1}. [${h.severity.toUpperCase()}] ${h.component} – ${h.location}${h.temperature_estimate ? ` (${h.temperature_estimate})` : ""}\n     ${h.description}`
+      ),
+      "",
+      "MULIGE ÅRSAKER:",
+      ...t.possible_causes.map((c, i) =>
+        `  ${i + 1}. ${c.cause} (${c.likelihood} sannsynlighet)\n     ${c.explanation}`
+      ),
+      "",
+      "TILTAKSLISTE:",
+      ...t.action_items.map((a, i) =>
+        `  ${i + 1}. [${a.priority === "immediate" ? "UMIDDELBART" : a.priority === "planned" ? "PLANLAGT" : "OVERVÅKING"}] ${a.action}\n     ${a.description}`
+      ),
+      "",
+      "NORMHENVISNINGER:",
+      ...t.nek_references.map((r, i) =>
+        `  ${i + 1}. ${r.reference}\n     ${r.plain_summary}`
+      ),
+      "",
+      "═".repeat(40),
+      "Generert av Fagstøtte – AI-veiledning, sjekk alltid original forskrift",
+    ].filter(Boolean);
+
+    const blob = new Blob([lines.join("\n")], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `termografirapport-${format(new Date(), "yyyy-MM-dd-HHmm")}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("Termografirapport eksportert");
+  }, []);
+
+  const exportNekReferences = useCallback((refs: NekReference[], timestamp: string) => {
+    const lines = [
+      "NORMGRUNNLAG – Fagstøtte",
+      "═".repeat(40),
+      `Generert: ${format(new Date(timestamp), "d. MMMM yyyy HH:mm", { locale: nb })}`,
+      "",
+      ...refs.map((r, i) => {
+        const icon = r.relevance === "high" ? "[HØY]" : r.relevance === "supplementary" ? "[SUPPLERENDE]" : "[RELATERT]";
+        return `${i + 1}. ${icon} ${r.reference}${r.used_in_assessment ? " ✓ Brukt i vurdering" : ""}\n   ${r.plain_summary}\n   Hvorfor relevant: ${r.why_relevant}\n`;
+      }),
+      "═".repeat(40),
+      "Generert av Fagstøtte – AI-veiledning, sjekk alltid original forskrift",
+    ];
+    const blob = new Blob([lines.join("\n")], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `normgrunnlag-${format(new Date(), "yyyy-MM-dd-HHmm")}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("Normgrunnlag eksportert");
+  }, []);
+
   return (
     <div className="space-y-4">
       {loading && (
@@ -1369,12 +1441,26 @@ function ChatThread({
           )}>
             {msg.role === "assistant" && (
               <div className="flex items-center gap-1.5 mb-2">
-                <Sparkles className="h-3.5 w-3.5 text-primary" />
-                <span className="text-[11px] font-medium text-primary">Fagassistent</span>
+                {msg.analysisType === "thermography" ? (
+                  <>
+                    <Thermometer className="h-3.5 w-3.5 text-destructive" />
+                    <span className="text-[11px] font-medium text-destructive">Termografi-analyse</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-3.5 w-3.5 text-primary" />
+                    <span className="text-[11px] font-medium text-primary">Fagassistent</span>
+                  </>
+                )}
                 {msg.confidence != null && (
                   <span className="text-[10px] text-muted-foreground ml-auto">{msg.confidence}%</span>
                 )}
               </div>
+            )}
+
+            {/* Thermography risk banner */}
+            {msg.thermography && (
+              <ThermographyRiskBanner risk={msg.thermography.overall_risk} />
             )}
 
             {msg.role === "user" ? (
@@ -1388,6 +1474,66 @@ function ChatThread({
             {msg.imagePath && (
               <div className="mt-2">
                 <FagImagePreview path={msg.imagePath} />
+              </div>
+            )}
+
+            {/* NEK references inline (clickable) */}
+            {msg.nekReferences && msg.nekReferences.length > 0 && (
+              <div className="mt-3 border-t border-border/40 pt-2">
+                <p className="text-[10px] font-medium text-muted-foreground mb-1.5 flex items-center gap-1">
+                  📚 Normhenvisninger
+                  <button
+                    onClick={() => exportNekReferences(msg.nekReferences!, msg.timestamp)}
+                    className="ml-auto text-primary hover:underline flex items-center gap-0.5"
+                  >
+                    <FileDown className="h-2.5 w-2.5" /> Eksporter
+                  </button>
+                </p>
+                <div className="space-y-1">
+                  {msg.nekReferences.map((ref, i) => (
+                    <button
+                      key={i}
+                      onClick={() => onNekRefClick?.(ref)}
+                      className="w-full text-left flex items-start gap-1.5 px-2 py-1 rounded-md hover:bg-secondary/60 transition-colors group"
+                    >
+                      <span className="shrink-0 text-[10px] mt-0.5">
+                        {ref.relevance === "high" ? "🎯" : ref.relevance === "supplementary" ? "➕" : "ℹ️"}
+                      </span>
+                      <div className="min-w-0">
+                        <span className="text-[11px] font-medium text-foreground group-hover:text-primary transition-colors">
+                          {ref.reference}
+                        </span>
+                        {ref.used_in_assessment && (
+                          <span className="ml-1 text-[9px] text-primary">✅ Brukt</span>
+                        )}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Thermography action buttons */}
+            {msg.thermography && (
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-[10px] gap-1"
+                  onClick={() => generateThermographyReport(msg)}
+                >
+                  <FileDown className="h-3 w-3" /> Lag termografirapport
+                </Button>
+                {msg.thermography.nek_references.length > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-[10px] gap-1"
+                    onClick={() => exportNekReferences(msg.thermography!.nek_references, msg.timestamp)}
+                  >
+                    <BookOpen className="h-3 w-3" /> Eksporter normgrunnlag
+                  </Button>
+                )}
               </div>
             )}
 
@@ -1425,6 +1571,59 @@ function ChatThread({
       )}
 
       <div ref={chatEndRef} />
+    </div>
+  );
+}
+
+function ThermographyRiskBanner({ risk }: { risk: "critical" | "warning" | "normal" }) {
+  const config = {
+    critical: { icon: AlertTriangle, label: "Kritisk – bør utbedres umiddelbart", bg: "bg-destructive/10 border-destructive/30 text-destructive" },
+    warning: { icon: AlertTriangle, label: "Bør følges opp", bg: "bg-amber-500/10 border-amber-500/30 text-amber-700 dark:text-amber-400" },
+    normal: { icon: Shield, label: "Ingen tiltak nødvendig", bg: "bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-400" },
+  };
+  const c = config[risk];
+  const Icon = c.icon;
+  return (
+    <div className={cn("flex items-center gap-2 px-3 py-2 rounded-lg border mb-3 text-xs font-medium", c.bg)}>
+      <Icon className="h-4 w-4 shrink-0" />
+      {c.label}
+    </div>
+  );
+}
+
+function NekReferencePanel({ ref: nekRef, onClose }: { ref: NekReference; onClose: () => void }) {
+  const relevanceLabel = nekRef.relevance === "high" ? "🎯 Høy relevans" : nekRef.relevance === "supplementary" ? "➕ Supplerende" : "ℹ️ Relatert";
+  return (
+    <div className="fixed inset-y-0 right-0 w-80 bg-card border-l border-border shadow-lg z-50 flex flex-col">
+      <div className="flex items-center justify-between p-4 border-b border-border">
+        <h3 className="text-sm font-semibold">Normreferanse</h3>
+        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onClose}>
+          <X className="h-4 w-4" />
+        </Button>
+      </div>
+      <ScrollArea className="flex-1 p-4">
+        <div className="space-y-4">
+          <div>
+            <p className="text-xs text-muted-foreground mb-1">Referanse</p>
+            <p className="text-sm font-medium">{nekRef.reference}</p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground mb-1">Relevans</p>
+            <Badge variant="outline" className="text-xs">{relevanceLabel}</Badge>
+            {nekRef.used_in_assessment && (
+              <Badge variant="outline" className="text-xs ml-1 bg-primary/10 text-primary border-primary/20">✅ Brukt i vurdering</Badge>
+            )}
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground mb-1">Hva betyr dette i praksis?</p>
+            <p className="text-sm">{nekRef.plain_summary}</p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground mb-1">Hvorfor relevant for spørsmålet?</p>
+            <p className="text-sm">{nekRef.why_relevant}</p>
+          </div>
+        </div>
+      </ScrollArea>
     </div>
   );
 }
