@@ -60,7 +60,11 @@ export default function ResourcePlan() {
   const navigate = useNavigate();
   const { isAdmin, isSuperAdmin } = useAuth();
   const { hasPermission } = usePermissions();
-  const canViewExternal = isSuperAdmin || hasPermission("calendar.view_external");
+  // Permission-based access: use permission keys, NOT role checks
+  const canReadBusy = hasPermission("calendar.read_busy");
+  const canViewExternal = hasPermission("calendar.view_external");
+  const canWriteEvents = hasPermission("calendar.write_events");
+  const canDeleteEvents = hasPermission("calendar.delete_events");
   const confirmationCount = useConfirmationCount();
   const syncHealth = useSyncHealth(isAdmin);
   const { technicians } = useTechnicians();
@@ -70,7 +74,8 @@ export default function ResourcePlan() {
   const [externalBlocksCapacity, setExternalBlocksCapacity] = useState(true);
   const [minFreeMinutes, setMinFreeMinutes] = useState<number | null>(null);
   const [calendarView, setCalendarView] = useState<CalendarViewType>(getStoredView);
-  const { busySlots, getBusySlotsForDay, getExternalBusyMinutesForDay } = useExternalBusy(selectedTechId);
+  // Only fetch external busy data if user has calendar.read_busy permission
+  const { busySlots, getBusySlotsForDay, getExternalBusyMinutesForDay } = useExternalBusy(canReadBusy ? selectedTechId : "__disabled__");
   const { syncUpdate, syncCreate, forceUpdate, acceptGraphVersion, conflict, dismissConflict } = useCalendarSync();
   const [selectedBlock, setSelectedBlock] = useState<ScheduleBlock | null>(null);
   const [hideExternalEvents, setHideExternalEvents] = useState(false);
