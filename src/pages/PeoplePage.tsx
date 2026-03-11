@@ -5,6 +5,7 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Loader2, Users, Archive, Search, Plus, UserPlus, CloudDownload, MoreHorizontal, Shield, Mail, Pencil } from "lucide-react";
+import { toast } from "sonner";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import {
@@ -29,7 +30,9 @@ interface PersonRow {
   trade_certificate_type: string | null;
   role_names: string[];
   has_user_account: boolean;
+  has_logged_in: boolean;
   company_count: number;
+  auth_user_id: string | null;
 }
 
 export default function PeoplePage() {
@@ -110,7 +113,9 @@ export default function PeoplePage() {
         trade_certificate_type: ep?.trade_certificate_type || null,
         role_names: ua ? (rolesByAccount.get(ua.id) || []) : [],
         has_user_account: !!ua,
+        has_logged_in: ua?.is_active && !!ua?.auth_user_id,
         company_count: eps.length,
+        auth_user_id: ua?.auth_user_id || null,
       };
     });
 
@@ -138,9 +143,10 @@ export default function PeoplePage() {
     : people;
 
   const getStatusBadge = (person: PersonRow) => {
-    if (person.archived_at) return <Badge variant="destructive" className="text-[10px]">Arkivert</Badge>;
-    if (!person.has_user_account) return <Badge variant="outline" className="text-[10px]">Kun ansatt</Badge>;
-    return <Badge variant="outline" className="text-[10px] border-green-500/50 text-green-700">Aktiv</Badge>;
+    if (person.archived_at) return <Badge variant="destructive" className="text-[10px]">🔴 Arkivert</Badge>;
+    if (!person.has_user_account) return <Badge variant="outline" className="text-[10px]">⚪ Kun ansatt</Badge>;
+    if (!person.has_logged_in) return <Badge variant="outline" className="text-[10px] border-yellow-500/50 text-yellow-700">🟡 Invitert</Badge>;
+    return <Badge variant="outline" className="text-[10px] border-green-500/50 text-green-700">🟢 Aktiv</Badge>;
   };
 
   return (
@@ -274,7 +280,7 @@ export default function PeoplePage() {
                           <MoreHorizontal className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-44">
+                       <DropdownMenuContent align="end" className="w-48">
                         <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/admin/personer/${person.id}`); }}>
                           <Pencil className="h-3.5 w-3.5 mr-2" />
                           Rediger
@@ -283,12 +289,30 @@ export default function PeoplePage() {
                           <Shield className="h-3.5 w-3.5 mr-2" />
                           Tilganger
                         </DropdownMenuItem>
+                        {person.has_user_account && !person.has_logged_in && (
+                          <DropdownMenuItem onClick={async (e) => {
+                            e.stopPropagation();
+                            try {
+                              const { data: { session } } = await supabase.auth.getSession();
+                              const res = await supabase.functions.invoke("create-person", {
+                                body: { full_name: person.full_name, email: person.email, company_id: activeCompanyId, send_invite: true },
+                              });
+                              if (res.error) throw res.error;
+                              toast.success("Invitasjon sendt på nytt");
+                            } catch (err: any) {
+                              toast.error("Feil", { description: err.message });
+                            }
+                          }}>
+                            <Mail className="h-3.5 w-3.5 mr-2" />
+                            Send invitasjon på nytt
+                          </DropdownMenuItem>
+                        )}
                         <DropdownMenuSeparator />
                         <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/admin/personer/${person.id}`); }}>
                           <Archive className="h-3.5 w-3.5 mr-2" />
                           Arkiver
                         </DropdownMenuItem>
-                      </DropdownMenuContent>
+                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
                 </TableRow>

@@ -80,8 +80,10 @@ Deno.serve(async (req) => {
       console.log("[create-person] Auth user exists:", authUserId);
     } else if (send_invite !== false) {
       // Create user with invite (sends magic link email)
+      const siteUrl = Deno.env.get("SITE_URL") || req.headers.get("origin") || "https://mcsressurs.lovable.app";
       const { data: invited, error: inviteErr } = await supabaseAdmin.auth.admin.inviteUserByEmail(normalizedEmail, {
         data: { full_name },
+        redirectTo: `${siteUrl}/activate`,
       });
       if (inviteErr) {
         console.error("[create-person] Invite failed:", inviteErr.message);

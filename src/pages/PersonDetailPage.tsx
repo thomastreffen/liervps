@@ -550,14 +550,88 @@ export default function PersonDetailPage() {
               <div>
                 <h3 className="text-sm font-medium mb-2">Kontostatus</h3>
                 {account ? (
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="text-[10px] border-green-500/50 text-green-700">Brukerkonto aktiv</Badge>
-                    <span className="text-xs text-muted-foreground">Auth ID: {account.auth_user_id.slice(0, 8)}…</span>
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="text-[10px] border-green-500/50 text-green-700">Brukerkonto aktiv</Badge>
+                      <span className="text-xs text-muted-foreground">Auth ID: {account.auth_user_id.slice(0, 8)}…</span>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-1.5 text-xs"
+                        onClick={async () => {
+                          if (!person) return;
+                          setSaving(true);
+                          try {
+                            const res = await supabase.functions.invoke("create-person", {
+                              body: { full_name: person.full_name, email: person.email, company_id: employment?.company_id, send_invite: true },
+                            });
+                            if (res.error) throw res.error;
+                            toast.success("Invitasjon sendt på nytt");
+                          } catch (err: any) {
+                            toast.error("Feil", { description: err.message });
+                          } finally {
+                            setSaving(false);
+                          }
+                        }}
+                        disabled={saving}
+                      >
+                        <Mail className="h-3.5 w-3.5" />
+                        Send invitasjon på nytt
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-1.5 text-xs"
+                        onClick={async () => {
+                          if (!person?.email) return;
+                          setSaving(true);
+                          const { error } = await supabase.auth.resetPasswordForEmail(person.email, {
+                            redirectTo: `${window.location.origin}/activate`,
+                          });
+                          setSaving(false);
+                          if (error) {
+                            toast.error("Feil", { description: error.message });
+                          } else {
+                            toast.success("E-post for passordtilbakestilling sendt");
+                          }
+                        }}
+                        disabled={saving}
+                      >
+                        Nullstill passord
+                      </Button>
+                    </div>
                   </div>
                 ) : (
                   <div className="space-y-2">
                     <Badge variant="outline" className="text-[10px]">Kun ansatt – ingen innlogging</Badge>
                     <p className="text-xs text-muted-foreground">Denne personen har ikke en brukerkonto ennå.</p>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-1.5 text-xs"
+                      onClick={async () => {
+                        if (!person || !employment) return;
+                        setSaving(true);
+                        try {
+                          const res = await supabase.functions.invoke("create-person", {
+                            body: { full_name: person.full_name, email: person.email, company_id: employment.company_id, send_invite: true },
+                          });
+                          if (res.error) throw res.error;
+                          toast.success("Invitasjon sendt");
+                          fetchData();
+                        } catch (err: any) {
+                          toast.error("Feil", { description: err.message });
+                        } finally {
+                          setSaving(false);
+                        }
+                      }}
+                      disabled={saving}
+                    >
+                      <Mail className="h-3.5 w-3.5" />
+                      Opprett konto og send invitasjon
+                    </Button>
                   </div>
                 )}
               </div>
