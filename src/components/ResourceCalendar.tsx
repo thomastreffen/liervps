@@ -312,7 +312,7 @@ export const ResourceCalendar = memo(function ResourceCalendar({
     }
 
     return result;
-  }, [calendarEvents, getBusySlotsForDay, technicianMap, techColorMap, referenceDate, isAdmin, isSuperAdmin, hideExternalEvents, isMonthView, scheduleBlocks]);
+  }, [calendarEvents, getBusySlotsForDay, technicianMap, techColorMap, referenceDate, effectiveCanWrite, effectiveCanViewExternal, hideExternalEvents, isMonthView, scheduleBlocks]);
 
   const handleEventClick = useCallback((info: EventClickArg) => {
     const props = info.event.extendedProps;
