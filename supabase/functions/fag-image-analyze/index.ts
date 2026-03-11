@@ -138,7 +138,7 @@ Du MÅ svare med gyldig JSON i følgende format:
     ];
 
     // 9. Call AI
-    const aiResponse = await fetch("https://api.lovable.dev/v1/chat/completions", {
+    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -151,7 +151,40 @@ Du MÅ svare med gyldig JSON i følgende format:
           { role: "user", content: userContent },
         ],
         temperature: 0.3,
-        response_format: { type: "json_object" },
+        tools: [
+          {
+            type: "function",
+            function: {
+              name: "fag_assessment",
+              description: "Return a structured professional assessment of the technical question.",
+              parameters: {
+                type: "object",
+                properties: {
+                  summary: { type: "string", description: "Kort teknisk oppsummering (2-3 setninger)" },
+                  what_i_see: { type: "array", items: { type: "string" }, description: "Observasjoner fra bilde" },
+                  assessment: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        topic: { type: "string" },
+                        guidance: { type: "string" },
+                        confidence: { type: "number" },
+                      },
+                      required: ["topic", "guidance", "confidence"],
+                    },
+                  },
+                  recommendations: { type: "array", items: { type: "string" } },
+                  risks: { type: "array", items: { type: "string" } },
+                  followup_questions: { type: "array", items: { type: "string" } },
+                  disclaimer: { type: "string" },
+                },
+                required: ["summary", "assessment", "recommendations", "followup_questions", "disclaimer"],
+              },
+            },
+          },
+        ],
+        tool_choice: { type: "function", function: { name: "fag_assessment" } },
       }),
     });
 
