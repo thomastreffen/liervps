@@ -112,6 +112,7 @@ const App = () => (
             <Route path="/offer/accept/:token" element={<OfferAcceptPage />} />
             <Route path="/approve-change-order" element={<ApproveChangeOrderPage />} />
             <Route path="/invite/thread/:token" element={<ThreadInviteAcceptPage />} />
+            <Route path="/activate" element={<ActivatePage />} />
 
             {/* Customer Portal */}
             <Route path="/portal/login" element={<PortalLogin />} />
