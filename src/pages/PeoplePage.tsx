@@ -112,7 +112,9 @@ export default function PeoplePage() {
         trade_certificate_type: ep?.trade_certificate_type || null,
         role_names: ua ? (rolesByAccount.get(ua.id) || []) : [],
         has_user_account: !!ua,
+        has_logged_in: ua?.is_active && !!ua?.auth_user_id,
         company_count: eps.length,
+        auth_user_id: ua?.auth_user_id || null,
       };
     });
 
