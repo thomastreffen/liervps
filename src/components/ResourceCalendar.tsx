@@ -279,7 +279,7 @@ export const ResourceCalendar = memo(function ResourceCalendar({
       const displayTitle = block.outlook_subject || block.title || "Outlook-blokk";
 
       // Privacy: non-superadmins see masked external blocks
-      const masked = isExternal && !isSuperAdmin;
+      const masked = isExternal && !effectiveCanViewExternal;
       const BUSY_GRAY = "#9CA3AF";
 
       result.push({
