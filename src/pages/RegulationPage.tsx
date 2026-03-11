@@ -142,6 +142,8 @@ export default function RegulationPage() {
   const [bulkMode, setBulkMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [testModeActive, setTestModeActive] = useState(false);
+  const [thermographyMode, setThermographyMode] = useState(false);
+  const [nekPanelRef, setNekPanelRef] = useState<NekReference | null>(null);
 
   // Mobile state
   const [mobileShowChat, setMobileShowChat] = useState(false);
