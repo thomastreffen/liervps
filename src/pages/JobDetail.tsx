@@ -27,7 +27,10 @@ import type { OutlookSyncStatus } from "@/lib/mock-data";
 export default function JobDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { user, isAdmin } = useAuth();
+  const { user } = useAuth();
+  const { hasPermission } = usePermissions();
+  const canEditPlan = hasPermission("projects.edit_plan");
+  const canDeleteAttachment = hasPermission("projects.delete_attachment");
 
   const [job, setJob] = useState<Job | null>(null);
   const [loading, setLoading] = useState(true);

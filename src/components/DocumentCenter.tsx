@@ -103,7 +103,11 @@ interface DocumentCenterProps {
 }
 
 export function DocumentCenter({ jobId, companyId }: DocumentCenterProps) {
-  const { user, isAdmin } = useAuth();
+  const { user } = useAuth();
+  const { hasPermission } = usePermissions();
+  const canUpload = hasPermission("documents.upload");
+  const canDelete = hasPermission("documents.delete");
+  const canAnalyze = hasPermission("documents.analyze");
   const [docs, setDocs] = useState<DocumentRow[]>([]);
   const [analyses, setAnalyses] = useState<AnalysisRow[]>([]);
   const [loading, setLoading] = useState(true);

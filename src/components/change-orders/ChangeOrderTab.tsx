@@ -45,7 +45,8 @@ interface ChangeOrderTabProps {
 }
 
 export function ChangeOrderTab({ jobId, customer, customerEmail, baseAmount, currency, onTotalsChange }: ChangeOrderTabProps) {
-  const { isAdmin } = useAuth();
+  const { hasPermission } = usePermissions();
+  const canCreate = hasPermission("change_orders.create");
   const [orders, setOrders] = useState<ChangeOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [createOpen, setCreateOpen] = useState(false);

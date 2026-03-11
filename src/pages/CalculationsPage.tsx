@@ -32,7 +32,7 @@ const PAGE_SIZE = 20;
 
 export default function CalculationsPage() {
   const navigate = useNavigate();
-  const { isAdmin } = useAuth();
+  const { hasPermission } = usePermissions();
   const [calcs, setCalcs] = useState<CalcRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");

@@ -95,7 +95,9 @@ const STATUS_ICONS: Record<CalculationStatus, React.ReactNode> = {
 export default function CalculationDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { user, isAdmin } = useAuth();
+  const { user } = useAuth();
+  const { hasPermission } = usePermissions();
+  const isAdmin = hasPermission("calculations.edit");
 
   const [calc, setCalc] = useState<Calculation | null>(null);
   const [items, setItems] = useState<CalcItem[]>([]);

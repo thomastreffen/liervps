@@ -23,7 +23,11 @@ interface Props {
 }
 
 export function ChangeOrderDetail({ changeOrderId, jobId, onBack }: Props) {
-  const { user, isAdmin } = useAuth();
+  const { user } = useAuth();
+  const { hasPermission } = usePermissions();
+  const canSend = hasPermission("change_orders.send");
+  const canCancel = hasPermission("change_orders.cancel");
+  const canInvoice = hasPermission("change_orders.mark_invoiced");
   const [order, setOrder] = useState<any>(null);
   const [events, setEvents] = useState<ChangeOrderEvent[]>([]);
   const [loading, setLoading] = useState(true);
