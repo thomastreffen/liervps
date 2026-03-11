@@ -39,6 +39,7 @@ interface ProjectHeaderProps {
   onOpenAccess?: () => void;
   onOpenSpaces?: () => void;
   onEdit?: () => void;
+  projectId?: string;
 }
 
 export function ProjectHeader({
