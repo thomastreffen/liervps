@@ -132,10 +132,10 @@ export default function RegulationPage() {
 
     // Load child requests (follow-ups)
     try {
-      const { data: children } = await supabase
+      const { data: children } = await (supabase
         .from("fag_requests")
-        .select("*")
-        .eq("parent_request_id" as any, req.id)
+        .select("*") as any)
+        .eq("parent_request_id", req.id)
         .order("created_at", { ascending: true });
 
       if (children) {
