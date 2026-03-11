@@ -369,8 +369,8 @@ export default function ResourcePlan() {
             hideExternalEvents={hideExternalEvents}
             onHideExternalEventsChange={setHideExternalEvents}
             isSuperAdmin={canViewExternal}
-            minFreeMinutes={minFreeMinutes}
-            onMinFreeMinutesChange={setMinFreeMinutes}
+            minFreeMinutes={canReadBusy ? minFreeMinutes : null}
+            onMinFreeMinutesChange={canReadBusy ? setMinFreeMinutes : undefined}
           />
         ) : (
           <>
