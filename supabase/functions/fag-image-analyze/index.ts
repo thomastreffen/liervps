@@ -199,7 +199,15 @@ Du MÅ svare med gyldig JSON i følgende format:
     }
 
     const aiData = await aiResponse.json();
-    const rawContent = aiData.choices?.[0]?.message?.content || "{}";
+    
+    // Extract from tool call or direct content
+    let rawContent: string;
+    const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
+    if (toolCall?.function?.arguments) {
+      rawContent = toolCall.function.arguments;
+    } else {
+      rawContent = aiData.choices?.[0]?.message?.content || "{}";
+    }
     const usage = aiData.usage;
 
     let parsed: any;
