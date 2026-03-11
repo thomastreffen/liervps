@@ -23,6 +23,12 @@ export function useExternalBusy(technicianId: string | null) {
   const weekEnd = useMemo(() => endOfWeek(new Date(), { weekStartsOn: 1 }), []);
 
   const fetchBusy = useCallback(async () => {
+    // If technicianId is "__disabled__", skip fetching (permission guard)
+    if (technicianId === "__disabled__") {
+      setBusySlots([]);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setError(null);
 
