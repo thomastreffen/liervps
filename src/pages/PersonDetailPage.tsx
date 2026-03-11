@@ -14,7 +14,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Loader2, ArrowLeft, User, Building, Shield, Activity,
-  Archive, ArchiveRestore, Plus, Trash2, Mail,
+  Archive, ArchiveRestore, Plus, Trash2, Mail, RotateCcw,
 } from "lucide-react";
 import { toast } from "sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
