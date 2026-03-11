@@ -34,8 +34,16 @@ interface ResourceCalendarProps {
   onEventDrop?: (eventId: string, newStart: Date, newEnd: Date) => void;
   onEventResize?: (eventId: string, newStart: Date, newEnd: Date) => void;
   onExternalDrop?: (info: { taskId: string; title: string; start: Date; end: Date; estimatedMinutes: number; priority: string; dropType: string }) => void;
+  /** @deprecated Use canWriteEvents instead */
   isAdmin?: boolean;
+  /** @deprecated Use canViewExternalDetails instead */
   isSuperAdmin?: boolean;
+  /** Permission: can write/edit calendar events */
+  canWriteEvents?: boolean;
+  /** Permission: can see external calendar details (titles, locations) */
+  canViewExternalDetails?: boolean;
+  /** Permission: can see busy/available status */
+  canReadBusy?: boolean;
   hideExternalEvents?: boolean;
 }
 
