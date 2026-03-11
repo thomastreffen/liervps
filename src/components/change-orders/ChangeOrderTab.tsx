@@ -115,7 +115,7 @@ export function ChangeOrderTab({ jobId, customer, customerEmail, baseAmount, cur
       </div>
 
       {/* Actions */}
-      {isAdmin && (
+      {canCreate && (
         <div className="flex justify-end">
           <Button size="sm" className="rounded-xl gap-1.5" onClick={() => setCreateOpen(true)}>
             <Plus className="h-3.5 w-3.5" />

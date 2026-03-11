@@ -714,7 +714,7 @@ export function DocumentCenter({ jobId, companyId }: DocumentCenterProps) {
                 )}
 
                 {/* Delete */}
-                {isAdmin && (
+                {canDelete && (
                   <button
                     onClick={() => handleDelete(doc)}
                     className="text-muted-foreground hover:text-destructive shrink-0"

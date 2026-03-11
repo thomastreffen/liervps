@@ -157,21 +157,21 @@ export function ChangeOrderDetail({ changeOrderId, jobId, onBack }: Props) {
       )}
 
       {/* Actions */}
-      {isAdmin && (
+      {(canSend || canCancel || canInvoice) && (
         <div className="flex gap-2 flex-wrap">
-          {order.status === "draft" && (
+          {canSend && order.status === "draft" && (
             <Button size="sm" className="gap-1.5 rounded-xl" onClick={handleSend} disabled={actionLoading}>
               {actionLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
               Send til kunde
             </Button>
           )}
-          {order.status === "approved" && (
+          {canInvoice && order.status === "approved" && (
             <Button size="sm" variant="outline" className="gap-1.5 rounded-xl" onClick={handleMarkInvoiced} disabled={actionLoading}>
               <CheckCircle className="h-3.5 w-3.5" />
               Marker fakturert
             </Button>
           )}
-          {(order.status === "draft" || order.status === "sent") && (
+          {canCancel && (order.status === "draft" || order.status === "sent") && (
             <Button size="sm" variant="outline" className="gap-1.5 rounded-xl text-destructive hover:text-destructive" onClick={handleCancel} disabled={actionLoading}>
               <Ban className="h-3.5 w-3.5" />
               Kanseller

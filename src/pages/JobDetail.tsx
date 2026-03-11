@@ -239,9 +239,9 @@ export default function JobDetail() {
         initialIndex={lightboxIndex}
         open={lightboxOpen}
         onOpenChange={setLightboxOpen}
-        canDelete={isAdmin}
+        canDelete={canDeleteAttachment}
         onDelete={async (name) => {
-          if (!job || !isAdmin) return;
+          if (!job || !canDeleteAttachment) return;
           const updated = (job.attachments ?? []).filter((a) => a.name !== name);
           const { error } = await supabase.from("events").update({ attachments: updated as any }).eq("id", job.id);
           if (!error) { setJob((p) => p ? { ...p, attachments: updated } : null); toast.success("Vedlegg slettet"); }

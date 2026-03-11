@@ -79,7 +79,7 @@ export default function CalculationsPage() {
           </h1>
           <p className="text-sm text-muted-foreground/70">{filtered.length} kalkulasjoner totalt</p>
         </div>
-        {isAdmin && (
+        {hasPermission("calculations.create") && (
           <Button onClick={() => navigate("/sales/calculations/new")} className="gap-1.5 self-start rounded-xl">
             <Plus className="h-4 w-4" />
             Ny kalkulasjon
