@@ -537,8 +537,8 @@ export default function ResourcePlan() {
           </>
         )}
 
-        {/* Capacity status bar (desktop only) */}
-        {!isMobile && techCapacities.length > 0 && (
+        {/* Capacity status bar (desktop only) – only shown if user can read busy */}
+        {!isMobile && canReadBusy && techCapacities.length > 0 && (
           <CapacityStatusBar
             techCapacities={techCapacities}
             todayDayIndex={todayDayIndex}
