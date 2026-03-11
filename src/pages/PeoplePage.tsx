@@ -279,7 +279,7 @@ export default function PeoplePage() {
                           <MoreHorizontal className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-44">
+                       <DropdownMenuContent align="end" className="w-48">
                         <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/admin/personer/${person.id}`); }}>
                           <Pencil className="h-3.5 w-3.5 mr-2" />
                           Rediger
@@ -288,12 +288,30 @@ export default function PeoplePage() {
                           <Shield className="h-3.5 w-3.5 mr-2" />
                           Tilganger
                         </DropdownMenuItem>
+                        {person.has_user_account && !person.has_logged_in && (
+                          <DropdownMenuItem onClick={async (e) => {
+                            e.stopPropagation();
+                            try {
+                              const { data: { session } } = await supabase.auth.getSession();
+                              const res = await supabase.functions.invoke("create-person", {
+                                body: { full_name: person.full_name, email: person.email, company_id: activeCompanyId, send_invite: true },
+                              });
+                              if (res.error) throw res.error;
+                              toast.success("Invitasjon sendt på nytt");
+                            } catch (err: any) {
+                              toast.error("Feil", { description: err.message });
+                            }
+                          }}>
+                            <Mail className="h-3.5 w-3.5 mr-2" />
+                            Send invitasjon på nytt
+                          </DropdownMenuItem>
+                        )}
                         <DropdownMenuSeparator />
                         <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/admin/personer/${person.id}`); }}>
                           <Archive className="h-3.5 w-3.5 mr-2" />
                           Arkiver
                         </DropdownMenuItem>
-                      </DropdownMenuContent>
+                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
                 </TableRow>
