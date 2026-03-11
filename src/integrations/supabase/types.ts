@@ -3053,6 +3053,50 @@ export type Database = {
           },
         ]
       }
+      fag_company_profiles: {
+        Row: {
+          company_id: string
+          created_at: string
+          custom_system_prompt: string | null
+          default_regime: string
+          id: string
+          primary_standards: string[]
+          secondary_standards: string[]
+          specialization: string[]
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          custom_system_prompt?: string | null
+          default_regime?: string
+          id?: string
+          primary_standards?: string[]
+          secondary_standards?: string[]
+          specialization?: string[]
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          custom_system_prompt?: string | null
+          default_regime?: string
+          id?: string
+          primary_standards?: string[]
+          secondary_standards?: string[]
+          specialization?: string[]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fag_company_profiles_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: true
+            referencedRelation: "internal_companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fag_requests: {
         Row: {
           ai_confidence: number | null
@@ -3067,6 +3111,7 @@ export type Database = {
           linked_case_id: string | null
           linked_offer_id: string | null
           linked_project_id: string | null
+          parent_request_id: string | null
           priority: Database["public"]["Enums"]["fag_priority"]
           question: string
           regime: Database["public"]["Enums"]["fag_regime"]
@@ -3086,6 +3131,7 @@ export type Database = {
           linked_case_id?: string | null
           linked_offer_id?: string | null
           linked_project_id?: string | null
+          parent_request_id?: string | null
           priority?: Database["public"]["Enums"]["fag_priority"]
           question: string
           regime: Database["public"]["Enums"]["fag_regime"]
@@ -3105,6 +3151,7 @@ export type Database = {
           linked_case_id?: string | null
           linked_offer_id?: string | null
           linked_project_id?: string | null
+          parent_request_id?: string | null
           priority?: Database["public"]["Enums"]["fag_priority"]
           question?: string
           regime?: Database["public"]["Enums"]["fag_regime"]
@@ -3117,6 +3164,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "internal_companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fag_requests_parent_request_id_fkey"
+            columns: ["parent_request_id"]
+            isOneToOne: false
+            referencedRelation: "fag_requests"
             referencedColumns: ["id"]
           },
         ]
