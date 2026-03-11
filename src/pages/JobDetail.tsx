@@ -151,7 +151,7 @@ export default function JobDetail() {
             jobAddress={job.address}
             technicianIds={job.technicianIds}
             technicianNames={technicianNames}
-            isAdmin={isAdmin}
+            isAdmin={canEditPlan}
             calendarDirty={job.calendarDirty}
             calendarLastSyncedAt={job.calendarLastSyncedAt}
             onSynced={() => fetchJob()}
