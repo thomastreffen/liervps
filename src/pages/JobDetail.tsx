@@ -180,6 +180,7 @@ export default function JobDetail() {
           onEdit={() => navigate(`/projects/${id}/settings`)}
           onOpenAccess={() => { setAccessDrawerTab("members"); setAccessDrawerOpen(true); }}
           onOpenSpaces={() => { setAccessDrawerTab("spaces"); setAccessDrawerOpen(true); }}
+          projectId={id}
         />
 
         {/* Room content or Rooms overview */}
