@@ -1,46 +1,58 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
-import { BookOpen, Search, Send, Loader2, ImageIcon, X, AlertTriangle, ChevronDown, ChevronUp, Camera, MapPin, FolderKanban, Sparkles, HelpCircle } from "lucide-react";
+import {
+  BookOpen, Send, Loader2, X, Camera, MapPin,
+  FolderKanban, Sparkles, MessageCircle, Plus, ImageIcon,
+  ChevronRight, Clock, ArrowRight,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { nb } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { useFagRequests, type FagRegime, type FagPriority, type FagRequest, type FagAnswer } from "@/hooks/useFagRequests";
 import { useCompanyContext } from "@/hooks/useCompanyContext";
 import { supabase } from "@/integrations/supabase/client";
 
-const REGIMES: { value: FagRegime; label: string; description: string }[] = [
-  { value: "nek", label: "NEK", description: "Norsk Elektroteknisk Komité" },
-  { value: "fel", label: "FEL", description: "Forskrift om elektriske lavspenningsanlegg" },
-  { value: "fse", label: "FSE", description: "Forskrift om sikkerhet ved arbeid i elektriske anlegg" },
-  { value: "fsl", label: "FSL", description: "Forskrift om sikkerhet ved vassdragsanlegg" },
-  { value: "annet", label: "Usikker / Annet", description: "La AI-en foreslå riktig regelverk" },
+// ─── Constants ─────────────────────────────────────────────
+
+const REGIMES: { value: FagRegime; label: string; short: string }[] = [
+  { value: "nek", label: "NEK 439 / NEK 400", short: "NEK" },
+  { value: "fel", label: "Forskrift om elektriske lavspenningsanlegg", short: "FEL" },
+  { value: "fse", label: "Sikkerhet ved arbeid i elektriske anlegg", short: "FSE" },
+  { value: "fsl", label: "Sikkerhet – lavspent", short: "FSL" },
+  { value: "annet", label: "La AI-en foreslå riktig regelverk", short: "Usikker" },
 ];
 
-const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
-  new: { label: "Venter", className: "bg-muted text-muted-foreground" },
-  analyzing: { label: "Analyserer…", className: "bg-primary/10 text-primary" },
-  answered: { label: "Besvart", className: "bg-success/10 text-success" },
-  needs_followup: { label: "Trenger oppfølging", className: "bg-accent/10 text-accent" },
-  error: { label: "Feil", className: "bg-destructive/10 text-destructive" },
-};
-
 const EXAMPLE_QUESTIONS = [
-  "Hva er kravet til kapslingsgrad (IP) for installasjoner i våtrom?",
-  "Hvilke krav gjelder for jordfeilbryter i boliger etter NEK 400?",
-  "Er det krav om nødlyssystem i dette bygget?",
-  "Hva er minstekrav til tverrsnitt for jordleder i TN-S system?",
-  "Hvilke krav stilles til dokumentasjon ved ferdigmelding?",
-  "Trenger jeg FDV-dokumentasjon for denne typen installasjon?",
+  "Hvilke konstruksjonskrav gjelder for tavler iht. NEK 439?",
+  "Hvordan vurderes temperaturstigning i fordelingstavler?",
+  "Krav til kortslutningsytelse og vernselektivitet",
+  "Hvilke kapslingskrav gjelder i tavlerom?",
+  "Dokumentasjonskrav ved levering av tavleanlegg",
+  "Krav og klaringer ved bruk av strømskinner",
 ];
 
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024;
 const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
+
+// ─── Types ─────────────────────────────────────────────────
+
+interface ChatMessage {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  timestamp: string;
+  imagePath?: string;
+  confidence?: number | null;
+  followups?: string[];
+  status?: string;
+}
+
+// ─── Main Page ─────────────────────────────────────────────
 
 export default function RegulationPage() {
   const { activeCompanyId } = useCompanyContext();
@@ -48,29 +60,27 @@ export default function RegulationPage() {
   const [searchParams] = useSearchParams();
   const projectId = searchParams.get("project");
 
-  const [showForm, setShowForm] = useState(false);
-  const [search, setSearch] = useState("");
-  const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [answers, setAnswers] = useState<Record<string, FagAnswer[]>>({});
+  // Active conversation
+  const [activeRequestId, setActiveRequestId] = useState<string | null>(null);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [chatLoading, setChatLoading] = useState(false);
 
   // Project context
   const [projectContext, setProjectContext] = useState<{ title: string; customer: string; address: string } | null>(null);
 
-  // Form state
+  // Input state
   const [regime, setRegime] = useState<FagRegime>("nek");
   const [question, setQuestion] = useState("");
-  const [priority, setPriority] = useState<FagPriority>("normal");
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [showRegimeSelector, setShowRegimeSelector] = useState(false);
 
-  const formRef = useRef<HTMLDivElement>(null);
+  const chatEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const newRequestRef = useRef<string | null>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  useEffect(() => {
-    fetchRequests();
-  }, [fetchRequests]);
+  useEffect(() => { fetchRequests(); }, [fetchRequests]);
 
   // Load project context
   useEffect(() => {
@@ -83,36 +93,88 @@ export default function RegulationPage() {
       .then(({ data }) => {
         if (data) setProjectContext(data as any);
       });
-    // Auto-open form in project context mode
-    setShowForm(true);
   }, [projectId]);
 
-  // Scroll to new request after creation
+  // Scroll to bottom on new messages
   useEffect(() => {
-    if (newRequestRef.current) {
-      const el = document.getElementById(`fag-${newRequestRef.current}`);
-      if (el) {
-        el.scrollIntoView({ behavior: "smooth", block: "center" });
-        setExpandedId(newRequestRef.current);
-        newRequestRef.current = null;
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [chatMessages, chatLoading]);
+
+  // ─── Open conversation ─────────────────────────────────
+
+  const openConversation = useCallback(async (req: FagRequest) => {
+    setActiveRequestId(req.id);
+    setChatLoading(true);
+
+    const msgs: ChatMessage[] = [{
+      id: `q-${req.id}`,
+      role: "user",
+      content: req.question,
+      timestamp: req.created_at,
+      imagePath: req.image_paths?.[0],
+    }];
+
+    try {
+      const answers = await fetchAnswers(req.id);
+      for (const a of answers.reverse()) {
+        msgs.push({
+          id: `a-${a.id}`,
+          role: "assistant",
+          content: a.answer_markdown,
+          timestamp: a.created_at,
+          confidence: null,
+          followups: req.ai_followup_questions,
+        });
       }
+    } catch (err) {
+      console.warn("Failed to load answers:", err);
     }
-  }, [requests]);
+
+    // Load child requests (follow-ups)
+    try {
+      const { data: children } = await (supabase
+        .from("fag_requests")
+        .select("*") as any)
+        .eq("parent_request_id", req.id)
+        .order("created_at", { ascending: true });
+
+      if (children) {
+        for (const child of children) {
+          msgs.push({
+            id: `q-${child.id}`,
+            role: "user",
+            content: child.question,
+            timestamp: child.created_at,
+            imagePath: (child as any).image_paths?.[0],
+          });
+
+          const childAnswers = await fetchAnswers(child.id);
+          for (const a of childAnswers.reverse()) {
+            msgs.push({
+              id: `a-${a.id}`,
+              role: "assistant",
+              content: a.answer_markdown,
+              timestamp: a.created_at,
+              followups: (child as any).ai_followup_questions || [],
+            });
+          }
+        }
+      }
+    } catch {}
+
+    setChatMessages(msgs);
+    setChatLoading(false);
+  }, [fetchAnswers]);
+
+  // ─── Handle image ──────────────────────────────────────
 
   const handleImageSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
-      toast.error("Kun JPG, PNG og WebP er støttet");
-      return;
-    }
-    if (file.size > MAX_IMAGE_SIZE) {
-      toast.error("Bildet er for stort. Maks 10 MB.");
-      return;
-    }
+    if (!ALLOWED_IMAGE_TYPES.includes(file.type)) { toast.error("Kun JPG, PNG og WebP"); return; }
+    if (file.size > MAX_IMAGE_SIZE) { toast.error("Maks 10 MB"); return; }
     setImageFile(file);
-    const url = URL.createObjectURL(file);
-    setImagePreview(url);
+    setImagePreview(URL.createObjectURL(file));
   }, []);
 
   const removeImage = useCallback(() => {
@@ -122,11 +184,28 @@ export default function RegulationPage() {
     if (fileInputRef.current) fileInputRef.current.value = "";
   }, [imagePreview]);
 
-  const handleSubmit = useCallback(async () => {
+  // ─── Send message ──────────────────────────────────────
+
+  const handleSend = useCallback(async () => {
     if (!question.trim() || !activeCompanyId) return;
     setSubmitting(true);
+    const text = question.trim();
+    setQuestion("");
+
+    const isNewConversation = !activeRequestId;
+
     try {
-      const req = await createRequest({ regime, question: question.trim(), priority });
+      // Create request (with parent_request_id if follow-up)
+      const insertPayload: any = { regime, question: text, priority: "normal" as FagPriority };
+      const req = await createRequest(insertPayload);
+
+      // If this is a follow-up, link to parent
+      if (activeRequestId) {
+        await supabase
+          .from("fag_requests")
+          .update({ parent_request_id: activeRequestId } as any)
+          .eq("id", req.id);
+      }
 
       let imagePaths: string[] = [];
       let images: Array<{ path: string; mime_type: string }> = [];
@@ -136,508 +215,418 @@ export default function RegulationPage() {
         images = [{ path, mime_type: imageFile.type }];
         await updateImagePaths(req.id, imagePaths);
       }
-
-      setQuestion("");
-      setRegime("nek");
-      setPriority("normal");
       removeImage();
-      setShowForm(false);
-      toast.success("Spørsmål sendt – faglig vurdering pågår…");
-      newRequestRef.current = req.id;
 
-      await analyzeRequest({
+      // Add user message to chat immediately
+      const userMsg: ChatMessage = {
+        id: `q-${req.id}`,
+        role: "user",
+        content: text,
+        timestamp: new Date().toISOString(),
+        imagePath: imagePaths[0],
+      };
+
+      if (isNewConversation) {
+        setActiveRequestId(req.id);
+        setChatMessages([userMsg]);
+      } else {
+        setChatMessages(prev => [...prev, userMsg]);
+      }
+
+      // Build conversation history for context
+      const history = chatMessages
+        .filter(m => m.role === "user" || m.role === "assistant")
+        .map(m => ({
+          role: m.role,
+          content: m.role === "assistant" ? (m.content.substring(0, 500) + "...") : m.content,
+        }));
+
+      // Analyze
+      const result = await analyzeRequest({
         fag_request_id: req.id,
         company_id: activeCompanyId,
         regime,
-        question: question.trim(),
+        question: text,
         images,
-        context: projectContext ? { site: projectContext.address, notes: `Prosjekt: ${projectContext.title}, Kunde: ${projectContext.customer}` } : undefined,
+        context: projectContext
+          ? { site: projectContext.address, notes: `Prosjekt: ${projectContext.title}, Kunde: ${projectContext.customer}` }
+          : undefined,
       });
+
+      // Add AI response to chat
+      if (result?.answer_markdown) {
+        const aiMsg: ChatMessage = {
+          id: `a-${req.id}`,
+          role: "assistant",
+          content: result.answer_markdown,
+          timestamp: new Date().toISOString(),
+          confidence: result.ai_confidence,
+          followups: result.followup_questions || [],
+        };
+        setChatMessages(prev => [...prev, aiMsg]);
+      }
 
       await fetchRequests();
     } catch (err: any) {
-      console.error("Submit error:", err);
-      toast.error("Kunne ikke sende spørsmål", { description: err.message });
+      console.error("Send error:", err);
+      toast.error("Kunne ikke sende", { description: err.message });
       await fetchRequests();
     } finally {
       setSubmitting(false);
     }
-  }, [question, regime, priority, imageFile, activeCompanyId, createRequest, uploadImage, updateImagePaths, analyzeRequest, removeImage, fetchRequests, projectContext]);
+  }, [question, regime, imageFile, activeCompanyId, activeRequestId, chatMessages, createRequest, uploadImage, updateImagePaths, analyzeRequest, removeImage, fetchRequests, projectContext]);
 
-  const toggleExpand = useCallback(async (id: string) => {
-    if (expandedId === id) {
-      setExpandedId(null);
-      return;
-    }
-    setExpandedId(id);
-    if (!answers[id]) {
-      try {
-        const a = await fetchAnswers(id);
-        setAnswers(prev => ({ ...prev, [id]: a }));
-      } catch (err) {
-        console.warn("Failed to fetch answers:", err);
-      }
-    }
-  }, [expandedId, answers, fetchAnswers]);
+  // ─── New conversation ──────────────────────────────────
 
-  const handleFollowupClick = useCallback((text: string) => {
+  const startNewConversation = useCallback(() => {
+    setActiveRequestId(null);
+    setChatMessages([]);
+    setQuestion("");
+    removeImage();
+    inputRef.current?.focus();
+  }, [removeImage]);
+
+  // ─── Handle example/followup click ────────────────────
+
+  const handleSuggestionClick = useCallback((text: string) => {
     setQuestion(text);
-    setShowForm(true);
-    setTimeout(() => formRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
+    inputRef.current?.focus();
   }, []);
 
-  const openForm = useCallback(() => {
-    setShowForm(true);
-    setTimeout(() => formRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
-  }, []);
+  // ─── Keyboard ──────────────────────────────────────────
 
-  const filtered = useMemo(() => {
-    if (!search.trim()) return requests;
-    const s = search.toLowerCase();
-    return requests.filter(r =>
-      r.question.toLowerCase().includes(s) ||
-      r.regime.includes(s) ||
-      r.ai_summary?.toLowerCase().includes(s)
-    );
-  }, [requests, search]);
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
+  }, [handleSend]);
 
-  const showEmptyState = !loading && requests.length === 0 && !showForm;
+  // ─── Conversations list (root requests only) ──────────
+
+  const conversations = useMemo(() =>
+    requests.filter(r => !(r as any).parent_request_id),
+    [requests]
+  );
+
+  const lastFollowups = useMemo(() => {
+    const last = chatMessages.filter(m => m.role === "assistant").slice(-1)[0];
+    return last?.followups || [];
+  }, [chatMessages]);
+
+  // ─── View: Empty / Chat ────────────────────────────────
+
+  const isInChat = activeRequestId !== null || chatMessages.length > 0;
 
   return (
-    <div className="w-full p-5 sm:p-8 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold flex items-center gap-2">
-            <BookOpen className="h-5 w-5 text-primary" />
+    <div className="flex h-[calc(100vh-3.5rem)] overflow-hidden">
+      {/* ─── Sidebar: Conversation history ─── */}
+      <div className="hidden md:flex w-72 border-r border-border flex-col bg-muted/30">
+        <div className="p-3 border-b border-border flex items-center justify-between">
+          <h2 className="text-sm font-semibold flex items-center gap-1.5">
+            <BookOpen className="h-4 w-4 text-primary" />
             Fagstøtte
-          </h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            Din digitale fagassistent — spør om regelverk, krav og beste praksis
-          </p>
-        </div>
-        {!showForm && !showEmptyState && (
-          <Button onClick={openForm} className="gap-1.5">
-            <HelpCircle className="h-4 w-4" />
-            Still fagspørsmål
+          </h2>
+          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={startNewConversation}>
+            <Plus className="h-4 w-4" />
           </Button>
-        )}
+        </div>
+
+        <ScrollArea className="flex-1">
+          <div className="p-2 space-y-1">
+            {loading && <div className="text-xs text-muted-foreground p-3 text-center">Laster…</div>}
+            {conversations.map(conv => {
+              const isActive = activeRequestId === conv.id;
+              const preview = conv.ai_summary || conv.question.substring(0, 60);
+              return (
+                <button
+                  key={conv.id}
+                  onClick={() => openConversation(conv)}
+                  className={cn(
+                    "w-full text-left px-3 py-2.5 rounded-lg transition-colors group",
+                    isActive
+                      ? "bg-primary/10 border border-primary/20"
+                      : "hover:bg-secondary/60"
+                  )}
+                >
+                  <div className="flex items-start gap-2">
+                    <MessageCircle className={cn("h-3.5 w-3.5 mt-0.5 shrink-0", isActive ? "text-primary" : "text-muted-foreground")} />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-medium truncate">{conv.question.split("\n")[0].substring(0, 50)}</p>
+                      <p className="text-[10px] text-muted-foreground truncate mt-0.5">{preview}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
+                          <Clock className="h-2.5 w-2.5" />
+                          {format(new Date(conv.last_activity_at || conv.created_at), "d. MMM", { locale: nb })}
+                        </span>
+                        <Badge variant="outline" className={cn("text-[9px] h-4 px-1", regimeChipClass(conv.regime))}>
+                          {conv.regime.toUpperCase()}
+                        </Badge>
+                      </div>
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </ScrollArea>
       </div>
 
-      {/* Context stripe */}
-      {projectContext && (
-        <div className="flex items-center gap-3 rounded-xl border border-primary/20 bg-primary/[0.03] px-4 py-2.5">
-          <FolderKanban className="h-4 w-4 text-primary shrink-0" />
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium text-foreground truncate">{projectContext.title}</p>
-            <div className="flex items-center gap-3 text-xs text-muted-foreground">
-              {projectContext.customer && <span>{projectContext.customer}</span>}
-              {projectContext.address && (
-                <span className="flex items-center gap-1">
-                  <MapPin className="h-3 w-3" />
-                  {projectContext.address}
-                </span>
-              )}
-            </div>
+      {/* ─── Main chat area ─── */}
+      <div className="flex-1 flex flex-col min-w-0">
+
+        {/* Context stripe */}
+        {projectContext && (
+          <div className="flex items-center gap-3 border-b border-border bg-primary/[0.03] px-4 py-2">
+            <FolderKanban className="h-3.5 w-3.5 text-primary shrink-0" />
+            <p className="text-xs font-medium truncate">{projectContext.title}</p>
+            {projectContext.customer && <span className="text-[10px] text-muted-foreground">· {projectContext.customer}</span>}
+            {projectContext.address && (
+              <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
+                <MapPin className="h-2.5 w-2.5" /> {projectContext.address}
+              </span>
+            )}
           </div>
-          <Badge variant="outline" className="text-[10px] border-primary/20 text-primary shrink-0">
-            Prosjektkontekst
-          </Badge>
-        </div>
-      )}
+        )}
 
-      {/* Inline form */}
-      {showForm && (
-        <div ref={formRef}>
-          <Card className="border-primary/30">
-            <CardContent className="p-5 space-y-4">
-              <div className="flex items-center justify-between">
-                <h2 className="text-sm font-semibold flex items-center gap-1.5">
-                  <Sparkles className="h-4 w-4 text-primary" />
-                  Still fagspørsmål
-                </h2>
-                <Button variant="ghost" size="sm" onClick={() => setShowForm(false)} className="h-7 text-xs">
-                  Avbryt
-                </Button>
+        {/* Chat messages area */}
+        <ScrollArea className="flex-1">
+          <div className="max-w-3xl mx-auto px-4 py-6">
+            {!isInChat && !loading ? (
+              /* ─── Welcome / Empty state ─── */
+              <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-6">
+                <div className="h-14 w-14 rounded-2xl bg-primary/10 flex items-center justify-center">
+                  <Sparkles className="h-7 w-7 text-primary" />
+                </div>
+                <div className="text-center space-y-1">
+                  <h2 className="text-lg font-semibold">Hva kan jeg hjelpe med?</h2>
+                  <p className="text-sm text-muted-foreground max-w-md">
+                    Spør om NEK 439, tavlekonstruksjon, kapslingskrav, vernselektivitet eller annet fagstoff.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full max-w-xl">
+                  {EXAMPLE_QUESTIONS.map((eq, i) => (
+                    <button
+                      key={i}
+                      onClick={() => handleSuggestionClick(eq)}
+                      className="text-left px-4 py-3 rounded-xl border border-border/60 bg-card hover:bg-secondary/40 hover:border-primary/20 transition-all text-sm text-foreground/80 hover:text-foreground group"
+                    >
+                      <span className="flex items-start gap-2">
+                        <ArrowRight className="h-3.5 w-3.5 mt-0.5 text-primary shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        <span>{eq}</span>
+                      </span>
+                    </button>
+                  ))}
+                </div>
+
+                {/* Mobile: show recent conversations */}
+                {conversations.length > 0 && (
+                  <div className="md:hidden w-full max-w-xl space-y-2">
+                    <p className="text-xs font-medium text-muted-foreground">Tidligere samtaler</p>
+                    {conversations.slice(0, 5).map(conv => (
+                      <button
+                        key={conv.id}
+                        onClick={() => openConversation(conv)}
+                        className="w-full text-left px-4 py-3 rounded-xl border border-border/60 bg-card hover:bg-secondary/40 transition-all flex items-center gap-3"
+                      >
+                        <MessageCircle className="h-4 w-4 text-muted-foreground shrink-0" />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm truncate">{conv.question.split("\n")[0].substring(0, 50)}</p>
+                          <p className="text-[10px] text-muted-foreground mt-0.5">
+                            {format(new Date(conv.last_activity_at || conv.created_at), "d. MMM HH:mm", { locale: nb })}
+                          </p>
+                        </div>
+                        <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
+            ) : (
+              /* ─── Chat thread ─── */
+              <div className="space-y-4">
+                {chatLoading && (
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                  </div>
+                )}
 
-              {/* Regime chips */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-muted-foreground">Hvilket regelverk gjelder?</label>
-                <div className="flex flex-wrap gap-2">
+                {chatMessages.map(msg => (
+                  <div key={msg.id} className={cn("flex", msg.role === "user" ? "justify-end" : "justify-start")}>
+                    <div className={cn(
+                      "max-w-[85%] rounded-2xl px-4 py-3",
+                      msg.role === "user"
+                        ? "rounded-tr-md bg-primary text-primary-foreground"
+                        : "rounded-tl-md bg-muted/60"
+                    )}>
+                      {msg.role === "assistant" && (
+                        <div className="flex items-center gap-1.5 mb-2">
+                          <Sparkles className="h-3.5 w-3.5 text-primary" />
+                          <span className="text-[11px] font-medium text-primary">Fagassistent</span>
+                          {msg.confidence != null && (
+                            <span className="text-[10px] text-muted-foreground ml-auto">{msg.confidence}%</span>
+                          )}
+                        </div>
+                      )}
+
+                      {msg.role === "user" ? (
+                        <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                      ) : (
+                        <div className="prose prose-sm max-w-none text-foreground">
+                          <MarkdownRenderer content={msg.content} />
+                        </div>
+                      )}
+
+                      {msg.imagePath && (
+                        <div className="mt-2">
+                          <FagImagePreview path={msg.imagePath} />
+                        </div>
+                      )}
+
+                      <p className={cn(
+                        "text-[10px] mt-1.5",
+                        msg.role === "user" ? "text-primary-foreground/60 text-right" : "text-muted-foreground"
+                      )}>
+                        {format(new Date(msg.timestamp), "d. MMM HH:mm", { locale: nb })}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+
+                {/* Analyzing indicator */}
+                {submitting && (
+                  <div className="flex justify-start">
+                    <div className="flex items-center gap-2 rounded-2xl rounded-tl-md bg-muted/60 px-4 py-3">
+                      <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                      <span className="text-sm text-muted-foreground">Analyserer…</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Follow-up suggestions */}
+                {lastFollowups.length > 0 && !submitting && (
+                  <div className="flex flex-wrap gap-2 pl-2">
+                    {lastFollowups.map((q, i) => (
+                      <button
+                        key={i}
+                        onClick={() => handleSuggestionClick(q)}
+                        className="px-3 py-1.5 rounded-full text-xs bg-primary/5 text-primary border border-primary/20 hover:bg-primary/10 transition-colors"
+                      >
+                        {q}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                <div ref={chatEndRef} />
+              </div>
+            )}
+          </div>
+        </ScrollArea>
+
+        {/* ─── Input bar ─── */}
+        <div className="border-t border-border bg-card p-3">
+          <div className="max-w-3xl mx-auto">
+            {/* Regime selector (inline toggle) */}
+            <div className="flex items-center gap-2 mb-2">
+              <button
+                onClick={() => setShowRegimeSelector(!showRegimeSelector)}
+                className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors"
+              >
+                <Badge variant="outline" className={cn("text-[9px] h-4 px-1.5", regimeChipClass(regime))}>
+                  {REGIMES.find(r => r.value === regime)?.short}
+                </Badge>
+                Regelverk
+              </button>
+              {showRegimeSelector && (
+                <div className="flex flex-wrap gap-1">
                   {REGIMES.map(r => (
                     <button
                       key={r.value}
-                      type="button"
-                      onClick={() => setRegime(r.value)}
-                      title={r.description}
+                      onClick={() => { setRegime(r.value); setShowRegimeSelector(false); }}
                       className={cn(
-                        "px-3 py-1.5 rounded-full text-xs font-medium transition-colors border",
+                        "px-2 py-1 rounded-full text-[10px] font-medium transition-colors border",
                         regime === r.value
                           ? "bg-accent text-accent-foreground border-accent"
                           : "bg-secondary text-secondary-foreground border-border hover:bg-secondary/80"
                       )}
                     >
-                      {r.label}
+                      {r.short}
                     </button>
                   ))}
                 </div>
-              </div>
-
-              {/* Question */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-muted-foreground">Hva lurer du på?</label>
-                <Textarea
-                  value={question}
-                  onChange={e => setQuestion(e.target.value)}
-                  placeholder="Beskriv situasjonen eller still et konkret spørsmål…"
-                  className="min-h-[140px] resize-y"
-                />
-              </div>
-
-              {/* Image upload */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-muted-foreground">Bilde (valgfritt)</label>
-                {imagePreview ? (
-                  <div className="relative inline-block">
-                    <img
-                      src={imagePreview}
-                      alt="Vedlagt bilde"
-                      className="h-32 w-auto rounded-lg border border-border object-cover"
-                    />
-                    <button
-                      type="button"
-                      onClick={removeImage}
-                      className="absolute -top-2 -right-2 h-6 w-6 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center shadow-md"
-                    >
-                      <X className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                ) : (
-                  <div
-                    onClick={() => fileInputRef.current?.click()}
-                    onDragOver={e => { e.preventDefault(); e.stopPropagation(); }}
-                    onDrop={e => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      const file = e.dataTransfer.files?.[0];
-                      if (file) {
-                        const fakeEvent = { target: { files: [file] } } as any;
-                        handleImageSelect(fakeEvent);
-                      }
-                    }}
-                    className="border-2 border-dashed border-border rounded-lg p-6 text-center cursor-pointer hover:border-primary/40 hover:bg-primary/[0.02] transition-colors"
-                  >
-                    <Camera className="h-8 w-8 mx-auto text-muted-foreground/40 mb-2" />
-                    <p className="text-xs text-muted-foreground">
-                      Dra og slipp eller klikk for å velge bilde
-                    </p>
-                    <p className="text-[10px] text-muted-foreground/60 mt-1">
-                      JPG, PNG, WebP · Maks 10 MB
-                    </p>
-                  </div>
-                )}
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".jpg,.jpeg,.png,.webp"
-                  onChange={handleImageSelect}
-                  className="hidden"
-                />
-              </div>
-
-              {/* Priority */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-muted-foreground">Hvor raskt trenger du svar?</label>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setPriority("normal")}
-                    className={cn(
-                      "px-3 py-1.5 rounded-full text-xs font-medium transition-colors border",
-                      priority === "normal"
-                        ? "bg-primary/10 text-primary border-primary/30"
-                        : "bg-secondary text-secondary-foreground border-border"
-                    )}
-                  >
-                    Normalt
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPriority("viktig")}
-                    className={cn(
-                      "px-3 py-1.5 rounded-full text-xs font-medium transition-colors border",
-                      priority === "viktig"
-                        ? "bg-accent/10 text-accent border-accent/30"
-                        : "bg-secondary text-secondary-foreground border-border"
-                    )}
-                  >
-                    Haster
-                  </button>
-                </div>
-              </div>
-
-              {/* Submit */}
-              <Button
-                onClick={handleSubmit}
-                disabled={submitting || !question.trim()}
-                className="w-full gap-2"
-              >
-                {submitting ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Analyserer…
-                  </>
-                ) : (
-                  <>
-                    <Send className="h-4 w-4" />
-                    Få faglig vurdering
-                  </>
-                )}
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {/* Empty state with example questions */}
-      {showEmptyState && (
-        <div className="text-center py-8 space-y-6">
-          <div>
-            <div className="mx-auto h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
-              <BookOpen className="h-8 w-8 text-primary" />
+              )}
             </div>
-            <h2 className="text-lg font-semibold text-foreground">Hva lurer du på?</h2>
-            <p className="text-sm text-muted-foreground mt-1 max-w-md mx-auto">
-              Still spørsmål om regelverk, krav og beste praksis. AI-en gir deg faglig veiledning basert på NEK, FEL, FSE og FSL.
-            </p>
-          </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-w-2xl mx-auto">
-            {EXAMPLE_QUESTIONS.map((eq, i) => (
+            {/* Image preview */}
+            {imagePreview && (
+              <div className="mb-2 relative inline-block">
+                <img src={imagePreview} alt="Vedlegg" className="h-20 w-auto rounded-lg border border-border object-cover" />
+                <button
+                  onClick={removeImage}
+                  className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center shadow-sm"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </div>
+            )}
+
+            {/* Input row */}
+            <div className="flex items-end gap-2">
               <button
-                key={i}
-                onClick={() => handleFollowupClick(eq)}
-                className="text-left px-4 py-3 rounded-xl border border-border/60 bg-card hover:bg-secondary/40 hover:border-primary/20 transition-all text-sm text-foreground/80 hover:text-foreground"
+                onClick={() => fileInputRef.current?.click()}
+                className="h-10 w-10 rounded-lg border border-border flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors shrink-0"
               >
-                <span className="text-primary mr-1.5">→</span>
-                {eq}
+                {imageFile ? <ImageIcon className="h-4 w-4 text-primary" /> : <Camera className="h-4 w-4" />}
               </button>
-            ))}
-          </div>
-
-          <Button onClick={openForm} variant="outline" className="gap-1.5 mt-2">
-            <HelpCircle className="h-4 w-4" />
-            Skriv eget spørsmål
-          </Button>
-        </div>
-      )}
-
-      {/* Search — only show if there are requests */}
-      {requests.length > 0 && (
-        <>
-          <div className="relative max-w-sm">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="Søk i tidligere spørsmål…"
-              className="pl-9"
-            />
-          </div>
-
-          {/* Request list */}
-          <div className="space-y-3">
-            {loading ? (
-              <div className="text-center py-12 text-muted-foreground">Laster…</div>
-            ) : filtered.length === 0 ? (
-              <div className="text-center py-12 space-y-3">
-                <BookOpen className="h-10 w-10 mx-auto text-muted-foreground/40" />
-                <p className="text-muted-foreground">Ingen treff</p>
-              </div>
-            ) : (
-              filtered.map(req => (
-                <FagRequestCard
-                  key={req.id}
-                  request={req}
-                  expanded={expandedId === req.id}
-                  onToggle={() => toggleExpand(req.id)}
-                  answers={answers[req.id] || []}
-                  onFollowupClick={handleFollowupClick}
-                />
-              ))
-            )}
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
-
-// --- Sub-components ---
-
-function FagRequestCard({
-  request,
-  expanded,
-  onToggle,
-  answers,
-  onFollowupClick,
-}: {
-  request: FagRequest;
-  expanded: boolean;
-  onToggle: () => void;
-  answers: FagAnswer[];
-  onFollowupClick: (text: string) => void;
-}) {
-  const statusCfg = STATUS_CONFIG[request.status] || STATUS_CONFIG.new;
-  const firstLine = request.question.split("\n")[0].substring(0, 120);
-  const hasImage = request.image_paths.length > 0;
-  const isAnswered = request.status === "answered" && answers.length > 0;
-
-  return (
-    <div id={`fag-${request.id}`} className="rounded-xl border border-border/60 bg-card overflow-hidden">
-      {/* Compact row */}
-      <button onClick={onToggle} className="w-full text-left p-4 hover:bg-secondary/30 transition-colors">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2 mb-1 flex-wrap">
-              <Badge variant="outline" className={cn("text-[10px]", regimeChipClass(request.regime))}>
-                {request.regime.toUpperCase()}
-              </Badge>
-              <Badge variant="outline" className={cn("text-[10px]", statusCfg.className)}>
-                {statusCfg.label}
-              </Badge>
-              {request.priority === "viktig" && (
-                <Badge variant="outline" className="text-[10px] bg-accent/10 text-accent border-accent/20">
-                  Haster
-                </Badge>
-              )}
-              {hasImage && <ImageIcon className="h-3 w-3 text-muted-foreground" />}
-              {request.ai_confidence != null && (
-                <span className="text-[10px] text-muted-foreground">
-                  {request.ai_confidence}% sikkerhet
-                </span>
-              )}
-            </div>
-            <p className="text-sm font-medium truncate">{firstLine}</p>
-            {request.ai_summary && !expanded && (
-              <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{request.ai_summary}</p>
-            )}
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <span className="text-[10px] text-muted-foreground">
-              {format(new Date(request.created_at), "d. MMM HH:mm", { locale: nb })}
-            </span>
-            {expanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
-          </div>
-        </div>
-      </button>
-
-      {/* Expanded: conversation-style */}
-      {expanded && (
-        <div className="border-t border-border/40">
-          {/* User's question bubble */}
-          <div className="p-5 space-y-3">
-            <div className="flex justify-end">
-              <div className="max-w-[80%] rounded-2xl rounded-tr-md bg-primary/10 px-4 py-3">
-                <p className="text-sm whitespace-pre-wrap text-foreground">{request.question}</p>
-                <p className="text-[10px] text-muted-foreground mt-1.5 text-right">
-                  {format(new Date(request.created_at), "d. MMM HH:mm", { locale: nb })}
-                </p>
-              </div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".jpg,.jpeg,.png,.webp"
+                onChange={handleImageSelect}
+                className="hidden"
+              />
+              <Textarea
+                ref={inputRef}
+                value={question}
+                onChange={e => setQuestion(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="Still et fagspørsmål…"
+                className="min-h-[40px] max-h-[120px] resize-none flex-1"
+                rows={1}
+              />
+              <Button
+                onClick={handleSend}
+                disabled={submitting || !question.trim()}
+                size="icon"
+                className="h-10 w-10 shrink-0"
+              >
+                {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+              </Button>
             </div>
 
-            {/* Image */}
-            {hasImage && (
-              <div className="flex justify-end">
-                <div className="max-w-[60%]">
-                  <FagImagePreview path={request.image_paths[0]} />
-                </div>
-              </div>
-            )}
-
-            {/* AI analyzing */}
-            {request.status === "analyzing" && (
-              <div className="flex justify-start">
-                <div className="flex items-center gap-2 rounded-2xl rounded-tl-md bg-muted/60 px-4 py-3 text-primary">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  <span className="text-sm">Analyserer spørsmålet…</span>
-                </div>
-              </div>
-            )}
-
-            {/* AI error */}
-            {request.status === "error" && (
-              <div className="flex justify-start">
-                <div className="flex items-center gap-2 rounded-2xl rounded-tl-md bg-destructive/5 px-4 py-3 text-destructive">
-                  <AlertTriangle className="h-4 w-4" />
-                  <span className="text-sm">Analysen feilet. Prøv igjen senere.</span>
-                </div>
-              </div>
-            )}
-
-            {/* AI answer bubble */}
-            {answers.length > 0 && (
-              <div className="flex justify-start">
-                <div className="max-w-[85%] rounded-2xl rounded-tl-md bg-muted/50 px-4 py-3">
-                  <div className="flex items-center gap-1.5 mb-2">
-                    <Sparkles className="h-3.5 w-3.5 text-primary" />
-                    <span className="text-[11px] font-medium text-primary">Faglig vurdering</span>
-                  </div>
-                  <div className="prose prose-sm max-w-none text-foreground">
-                    <MarkdownRenderer content={answers[0].answer_markdown} />
-                  </div>
-                  {answers[0].model && (
-                    <p className="text-[10px] text-muted-foreground mt-3">
-                      {format(new Date(answers[0].created_at), "d. MMM HH:mm", { locale: nb })}
-                    </p>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Followup questions */}
-          {request.ai_followup_questions.length > 0 && (
-            <div className="px-5 pb-4">
-              <p className="text-[11px] font-medium text-muted-foreground mb-2">Spør videre</p>
-              <div className="flex flex-wrap gap-2">
-                {request.ai_followup_questions.map((q, i) => (
-                  <button
-                    key={i}
-                    onClick={() => onFollowupClick(q)}
-                    className="px-3 py-1.5 rounded-full text-xs bg-primary/5 text-primary border border-primary/20 hover:bg-primary/10 transition-colors"
-                  >
-                    {q}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Disclaimer */}
-          <div className="px-5 py-3 bg-muted/30">
-            <p className="text-[11px] text-muted-foreground italic">
-              ⚠️ AI gir veiledning basert på kjente prinsipper. Original forskrift må alltid sjekkes ved tvil.
+            <p className="text-[10px] text-muted-foreground mt-1.5 text-center">
+              AI gir veiledning – sjekk alltid original forskrift ved tvil
             </p>
           </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }
+
+// ─── Sub-components ────────────────────────────────────────
 
 function FagImagePreview({ path }: { path: string }) {
   const [url, setUrl] = useState<string | null>(null);
-
   useEffect(() => {
     supabase.storage.from("fag-attachments").createSignedUrl(path, 3600).then(({ data }) => {
       if (data?.signedUrl) setUrl(data.signedUrl);
     });
   }, [path]);
-
-  if (!url) return <div className="h-32 w-32 rounded-lg bg-muted animate-pulse" />;
-  return <img src={url} alt="Vedlagt bilde" className="max-h-64 rounded-lg border border-border object-contain" />;
+  if (!url) return <div className="h-24 w-24 rounded-lg bg-muted/40 animate-pulse" />;
+  return <img src={url} alt="Vedlegg" className="max-h-48 rounded-lg border border-border object-contain" />;
 }
 
 function MarkdownRenderer({ content }: { content: string }) {
@@ -651,7 +640,6 @@ function MarkdownRenderer({ content }: { content: string }) {
     .replace(/^---$/gm, '<hr class="my-3 border-border/40" />')
     .replace(/\n\n/g, '<br/><br/>')
     .replace(/\n/g, '<br/>');
-
   return <div dangerouslySetInnerHTML={{ __html: html }} />;
 }
 
