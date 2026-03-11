@@ -1,13 +1,12 @@
 import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth, type AppRole } from "@/hooks/useAuth";
+import { PreviewPermissionOverrideProvider } from "@/hooks/usePermissions";
 
 export interface PreviewTarget {
   type: "user" | "role";
-  /** auth_user_id when type=user, role_id when type=role */
   id: string;
   label: string;
-  /** Legacy app_role for the target (used for isAdmin/isSuperAdmin override) */
   appRole?: AppRole;
 }
 
@@ -19,25 +18,15 @@ export interface PreviewPermissionDetail {
 }
 
 interface PreviewModeContextType {
-  /** Whether preview is currently active */
   active: boolean;
-  /** The preview target */
   target: PreviewTarget | null;
-  /** Effective permissions for the preview target */
   permissions: Record<string, boolean>;
-  /** Detailed permission breakdown for inspector */
   permissionDetails: PreviewPermissionDetail[];
-  /** Derived scope */
   scope: "own" | "company" | "all";
-  /** Loading state while fetching target permissions */
   loading: boolean;
-  /** Activate preview for a target */
   activate: (target: PreviewTarget) => Promise<void>;
-  /** Deactivate preview */
   deactivate: () => void;
-  /** Effective role overrides */
   effectiveRole: AppRole | null;
-  /** Whether current user is actually superadmin (real identity) */
   realIsSuperAdmin: boolean;
 }
 
@@ -54,7 +43,6 @@ export function PreviewModeProvider({ children }: { children: ReactNode }) {
   const [effectiveRole, setEffectiveRole] = useState<AppRole | null>(null);
 
   const fetchUserPermissions = useCallback(async (authUserId: string) => {
-    // Fetch role assignments
     const { data: assignments } = await supabase
       .from("user_role_assignments")
       .select("role_id")
@@ -62,7 +50,6 @@ export function PreviewModeProvider({ children }: { children: ReactNode }) {
 
     const roleIds = (assignments || []).map((a: any) => a.role_id);
 
-    // Fetch role names for inspector
     let roleNames: Record<string, string> = {};
     if (roleIds.length > 0) {
       const { data: roles } = await supabase
@@ -74,7 +61,6 @@ export function PreviewModeProvider({ children }: { children: ReactNode }) {
       }
     }
 
-    // Fetch role permissions
     let rolePerms: Record<string, boolean> = {};
     const details: PreviewPermissionDetail[] = [];
     if (roleIds.length > 0) {
@@ -96,7 +82,6 @@ export function PreviewModeProvider({ children }: { children: ReactNode }) {
       }
     }
 
-    // Fetch overrides
     const { data: overrides } = await supabase
       .from("user_permission_overrides")
       .select("permission_key, allowed")
@@ -109,7 +94,6 @@ export function PreviewModeProvider({ children }: { children: ReactNode }) {
       details.push({ key: pk, allowed: (o as any).allowed, source: "override" });
     }
 
-    // Check legacy role
     const { data: legacyRole } = await supabase
       .from("user_roles")
       .select("role")
@@ -118,7 +102,6 @@ export function PreviewModeProvider({ children }: { children: ReactNode }) {
 
     const appRole = (legacyRole?.role as AppRole) || "montør";
 
-    // Apply legacy admin defaults (same as usePermissions)
     const adminKeys = [
       "scope.view.all", "admin.manage_companies", "admin.manage_departments",
       "admin.manage_users", "admin.manage_roles", "admin.manage_settings",
@@ -177,7 +160,6 @@ export function PreviewModeProvider({ children }: { children: ReactNode }) {
       setPermissionDetails(result.details);
       setEffectiveRole(appRole);
 
-      // Derive scope
       if (result.permissions["scope.view.all"]) setScope("all");
       else if (result.permissions["scope.view.company"]) setScope("company");
       else setScope("own");
@@ -190,7 +172,7 @@ export function PreviewModeProvider({ children }: { children: ReactNode }) {
           action: "preview_mode_activated",
           target_type: newTarget.type === "user" ? "user" : "role",
           target_id: newTarget.id,
-          actor_user_account_id: null, // We'll use metadata
+          actor_user_account_id: null,
           metadata: {
             actor_auth_id: user.id,
             actor_name: user.name,
@@ -215,20 +197,24 @@ export function PreviewModeProvider({ children }: { children: ReactNode }) {
     setEffectiveRole(null);
   }, []);
 
+  const contextValue: PreviewModeContextType = {
+    active,
+    target,
+    permissions,
+    permissionDetails,
+    scope,
+    loading,
+    activate,
+    deactivate,
+    effectiveRole,
+    realIsSuperAdmin: isSuperAdmin,
+  };
+
   return (
-    <PreviewModeContext.Provider value={{
-      active,
-      target,
-      permissions,
-      permissionDetails,
-      scope,
-      loading,
-      activate,
-      deactivate,
-      effectiveRole,
-      realIsSuperAdmin: isSuperAdmin,
-    }}>
-      {children}
+    <PreviewModeContext.Provider value={contextValue}>
+      <PreviewPermissionOverrideProvider value={active ? { active, permissions, scope, loading } : null}>
+        {children}
+      </PreviewPermissionOverrideProvider>
     </PreviewModeContext.Provider>
   );
 }
