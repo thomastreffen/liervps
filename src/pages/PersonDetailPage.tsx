@@ -14,11 +14,14 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Loader2, ArrowLeft, User, Building, Shield, Activity,
-  Archive, ArchiveRestore, Plus, Trash2, Mail,
+  Archive, ArchiveRestore, Plus, Trash2, Mail, RotateCcw,
 } from "lucide-react";
 import { toast } from "sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { PermissionsPanel } from "@/components/permissions/PermissionsPanel";
+import { HardDeleteDialog } from "@/components/person/HardDeleteDialog";
+import { ResetOnboardingDialog } from "@/components/person/ResetOnboardingDialog";
+import { useAuth } from "@/hooks/useAuth";
 
 interface PersonData {
   id: string;
@@ -74,12 +77,15 @@ export default function PersonDetailPage() {
   const { id } = useParams<{ id: string }>();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { isSuperAdmin } = useAuth();
   const defaultTab = searchParams.get("tab") || "profile";
   const [person, setPerson] = useState<PersonData | null>(null);
   const [employment, setEmployment] = useState<EmploymentData | null>(null);
   const [account, setAccount] = useState<UserAccountData | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [hardDeleteOpen, setHardDeleteOpen] = useState(false);
+  const [resetOnboardingOpen, setResetOnboardingOpen] = useState(false);
 
   // Org tab
   const [companies, setCompanies] = useState<CompanyOption[]>([]);
@@ -350,16 +356,30 @@ export default function PersonDetailPage() {
             </div>
             <p className="text-sm text-muted-foreground">{person.email}</p>
           </div>
-          {employment && (
-            <Button
-              variant={employment.archived_at ? "outline" : "destructive"}
-              size="sm"
-              onClick={handleArchiveToggle}
-              disabled={saving}
-            >
-              {employment.archived_at ? <><ArchiveRestore className="h-4 w-4 mr-1" />Gjenopprett</> : <><Archive className="h-4 w-4 mr-1" />Arkiver</>}
-            </Button>
-          )}
+          <div className="flex items-center gap-2">
+            {isSuperAdmin && account && (
+              <Button variant="outline" size="sm" onClick={() => setResetOnboardingOpen(true)} disabled={saving} className="gap-1.5">
+                <RotateCcw className="h-4 w-4" />
+                Nullstill onboarding
+              </Button>
+            )}
+            {employment && (
+              <Button
+                variant={employment.archived_at ? "outline" : "destructive"}
+                size="sm"
+                onClick={handleArchiveToggle}
+                disabled={saving}
+              >
+                {employment.archived_at ? <><ArchiveRestore className="h-4 w-4 mr-1" />Gjenopprett</> : <><Archive className="h-4 w-4 mr-1" />Arkiver</>}
+              </Button>
+            )}
+            {isSuperAdmin && (
+              <Button variant="destructive" size="sm" onClick={() => setHardDeleteOpen(true)} className="gap-1.5">
+                <Trash2 className="h-4 w-4" />
+                Slett permanent
+              </Button>
+            )}
+          </div>
         </div>
 
         {/* Tabs */}
@@ -692,6 +712,27 @@ export default function PersonDetailPage() {
             </div>
           </TabsContent>
         </Tabs>
+
+        {person && (
+          <>
+            <HardDeleteDialog
+              open={hardDeleteOpen}
+              onOpenChange={setHardDeleteOpen}
+              personId={person.id}
+              personName={person.full_name}
+              personEmail={person.email}
+              onDeleted={() => navigate("/admin/personer")}
+            />
+            <ResetOnboardingDialog
+              open={resetOnboardingOpen}
+              onOpenChange={setResetOnboardingOpen}
+              personId={person.id}
+              personName={person.full_name}
+              personEmail={person.email}
+              onReset={fetchData}
+            />
+          </>
+        )}
       </div>
     </TooltipProvider>
   );
