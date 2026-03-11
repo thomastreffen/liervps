@@ -244,8 +244,26 @@ Deno.serve(async (req) => {
 
     log(`Action: ${action}, caller: ${authUser.id}`);
 
+    // ── Server-side permission check via check_permission_v2 ──
+    const checkPerm = async (perm: string): Promise<boolean> => {
+      const { data } = await supabaseAdmin.rpc("check_permission_v2", {
+        _auth_user_id: authUser.id,
+        _perm: perm,
+      });
+      return data === true;
+    };
+
     // ─── ACTION: availability ───
     if (action === "availability") {
+      // PERMISSION GUARD: calendar.read_busy required
+      const canReadBusy = await checkPerm("calendar.read_busy");
+      if (!canReadBusy) {
+        log(`DENIED: User ${authUser.id} lacks calendar.read_busy`);
+        return respond({ error: "Mangler rettighet: calendar.read_busy", error_code: "permission_denied", results: [], logs }, 403);
+      }
+
+      const canViewExternal = await checkPerm("calendar.view_external");
+
       const { user_ids, start, end } = body;
       if (!user_ids?.length || !start || !end) {
         return respond({ error: "Missing user_ids, start, end", logs }, 400);
@@ -314,7 +332,8 @@ Deno.serve(async (req) => {
           .filter((s: any) => s.status !== "free")
           .map((s: any) => ({
             status: s.status,
-            subject: s.subject || null,
+            // PERMISSION FILTER: strip subject/details unless user has calendar.view_external
+            subject: canViewExternal ? (s.subject || null) : null,
             start: s.start?.dateTime,
             end: s.end?.dateTime,
             is_private: s.isPrivate || false,
@@ -325,7 +344,8 @@ Deno.serve(async (req) => {
           technician_id: tech?.id || null,
           user_id: tech?.user_id || null,
           name: tech?.name || entry.scheduleId,
-          email: entry.scheduleId,
+          // Strip email for non-external viewers
+          email: canViewExternal ? entry.scheduleId : null,
           busy: isBusy,
           busy_slots: busySlots,
         };
@@ -336,6 +356,12 @@ Deno.serve(async (req) => {
 
     // ─── ACTION: upsert_job_events ───
     if (action === "upsert_job_events") {
+      // PERMISSION GUARD: calendar.write_events required
+      const canWrite = await checkPerm("calendar.write_events");
+      if (!canWrite) {
+        log(`DENIED: User ${authUser.id} lacks calendar.write_events`);
+        return respond({ error: "Mangler rettighet: calendar.write_events", error_code: "permission_denied", logs }, 403);
+      }
       const { job_id, user_ids, override_conflicts } = body;
       if (!job_id) return respond({ error: "Missing job_id", logs }, 400);
 
@@ -596,6 +622,12 @@ Deno.serve(async (req) => {
 
     // ─── ACTION: unlink_job_events ───
     if (action === "unlink_job_events") {
+      // PERMISSION GUARD: calendar.write_events required
+      const canWrite = await checkPerm("calendar.write_events");
+      if (!canWrite) {
+        log(`DENIED: User ${authUser.id} lacks calendar.write_events`);
+        return respond({ error: "Mangler rettighet: calendar.write_events", error_code: "permission_denied", logs }, 403);
+      }
       const { job_id, user_ids } = body;
       if (!job_id) return respond({ error: "Missing job_id", logs }, 400);
 
@@ -673,6 +705,12 @@ Deno.serve(async (req) => {
 
     // ─── ACTION: repair_sync ───
     if (action === "repair_sync") {
+      // PERMISSION GUARD: calendar.write_events required
+      const canWrite = await checkPerm("calendar.write_events");
+      if (!canWrite) {
+        log(`DENIED: User ${authUser.id} lacks calendar.write_events`);
+        return respond({ error: "Mangler rettighet: calendar.write_events", error_code: "permission_denied", logs }, 403);
+      }
       const { job_id } = body;
       if (!job_id) return respond({ error: "Missing job_id", logs }, 400);
 

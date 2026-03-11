@@ -14,6 +14,35 @@ Deno.serve(async (req) => {
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceKey);
 
+    // ── Auth check (was missing!) ──
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const anonClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const { data: { user }, error: authErr } = await anonClient.auth.getUser();
+    if (authErr || !user) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // ── Permission check: calendar.delete_events ──
+    const { data: canDelete } = await supabase.rpc("check_permission_v2", {
+      _auth_user_id: user.id,
+      _perm: "calendar.delete_events",
+    });
+    if (!canDelete) {
+      console.log(`[delete-schedule-block] DENIED: User ${user.id} lacks calendar.delete_events`);
+      return new Response(JSON.stringify({ error: "Mangler rettighet: calendar.delete_events", error_code: "permission_denied" }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const { schedule_block_id } = await req.json();
     if (!schedule_block_id) {
       return new Response(JSON.stringify({ error: "Missing schedule_block_id" }), {
