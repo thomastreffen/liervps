@@ -1210,6 +1210,11 @@ export default function RegulationPage() {
         handlePurgeTest={handlePurgeTest}
         testCount={testCount}
       />
+
+      {/* NEK Reference side panel */}
+      {nekPanelRef && (
+        <NekReferencePanel ref={nekPanelRef} onClose={() => setNekPanelRef(null)} />
+      )}
     </div>
   );
 }
