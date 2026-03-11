@@ -81,7 +81,7 @@ import ManagementPage from "./pages/ManagementPage";
 import MyDayPage from "./pages/MyDayPage";
 import HelpCenterPage from "./pages/HelpCenterPage";
 import { CompanyProvider } from "@/hooks/useCompanyContext";
-import PortalLogin from "./pages/portal/PortalLogin";
+import { PreviewModeProvider } from "@/hooks/usePreviewMode";
 import PortalActivate from "./pages/portal/PortalActivate";
 import ActivatePage from "./pages/ActivatePage";
 import PortalLayout from "./pages/portal/PortalLayout";
