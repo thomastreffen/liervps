@@ -1043,6 +1043,7 @@ export default function RegulationPage() {
                 followups={lastFollowups}
                 onSuggestionClick={handleSuggestionClick}
                 chatEndRef={chatEndRef}
+                onNekRefClick={setNekPanelRef}
               />
             )}
           </div>
