@@ -146,12 +146,12 @@ export default function ResourcePlan() {
   }, []);
 
   const handleDateSelect = useCallback((start: Date, end: Date) => {
-    if (!isAdmin) return;
+    if (!canWriteEvents) return;
     setEditEvent(null);
     setPreselectedStart(start);
     setPreselectedEnd(end);
     setDrawerOpen(true);
-  }, [isAdmin]);
+  }, [canWriteEvents]);
 
   const handleNewEvent = useCallback(() => {
     setEditEvent(null);
