@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { BookOpen, Plus, Search, Send, Loader2, ImageIcon, X, AlertTriangle, ChevronDown, ChevronUp, Camera } from "lucide-react";
+import { useSearchParams } from "react-router-dom";
+import { BookOpen, Search, Send, Loader2, ImageIcon, X, AlertTriangle, ChevronDown, ChevronUp, Camera, MapPin, FolderKanban, Sparkles, HelpCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -13,21 +14,30 @@ import { useFagRequests, type FagRegime, type FagPriority, type FagRequest, type
 import { useCompanyContext } from "@/hooks/useCompanyContext";
 import { supabase } from "@/integrations/supabase/client";
 
-const REGIMES: { value: FagRegime; label: string }[] = [
-  { value: "nek", label: "NEK" },
-  { value: "fel", label: "FEL" },
-  { value: "fse", label: "FSE" },
-  { value: "fsl", label: "FSL" },
-  { value: "annet", label: "Annet" },
+const REGIMES: { value: FagRegime; label: string; description: string }[] = [
+  { value: "nek", label: "NEK", description: "Norsk Elektroteknisk Komité" },
+  { value: "fel", label: "FEL", description: "Forskrift om elektriske lavspenningsanlegg" },
+  { value: "fse", label: "FSE", description: "Forskrift om sikkerhet ved arbeid i elektriske anlegg" },
+  { value: "fsl", label: "FSL", description: "Forskrift om sikkerhet ved vassdragsanlegg" },
+  { value: "annet", label: "Usikker / Annet", description: "La AI-en foreslå riktig regelverk" },
 ];
 
 const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
-  new: { label: "Ny", className: "bg-muted text-muted-foreground" },
+  new: { label: "Venter", className: "bg-muted text-muted-foreground" },
   analyzing: { label: "Analyserer…", className: "bg-primary/10 text-primary" },
   answered: { label: "Besvart", className: "bg-success/10 text-success" },
   needs_followup: { label: "Trenger oppfølging", className: "bg-accent/10 text-accent" },
   error: { label: "Feil", className: "bg-destructive/10 text-destructive" },
 };
+
+const EXAMPLE_QUESTIONS = [
+  "Hva er kravet til kapslingsgrad (IP) for installasjoner i våtrom?",
+  "Hvilke krav gjelder for jordfeilbryter i boliger etter NEK 400?",
+  "Er det krav om nødlyssystem i dette bygget?",
+  "Hva er minstekrav til tverrsnitt for jordleder i TN-S system?",
+  "Hvilke krav stilles til dokumentasjon ved ferdigmelding?",
+  "Trenger jeg FDV-dokumentasjon for denne typen installasjon?",
+];
 
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024;
 const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
@@ -35,11 +45,16 @@ const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
 export default function RegulationPage() {
   const { activeCompanyId } = useCompanyContext();
   const { requests, loading, fetchRequests, fetchAnswers, createRequest, uploadImage, updateImagePaths, analyzeRequest } = useFagRequests();
+  const [searchParams] = useSearchParams();
+  const projectId = searchParams.get("project");
 
   const [showForm, setShowForm] = useState(false);
   const [search, setSearch] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [answers, setAnswers] = useState<Record<string, FagAnswer[]>>({});
+
+  // Project context
+  const [projectContext, setProjectContext] = useState<{ title: string; customer: string; address: string } | null>(null);
 
   // Form state
   const [regime, setRegime] = useState<FagRegime>("nek");
@@ -56,6 +71,21 @@ export default function RegulationPage() {
   useEffect(() => {
     fetchRequests();
   }, [fetchRequests]);
+
+  // Load project context
+  useEffect(() => {
+    if (!projectId) return;
+    supabase
+      .from("events")
+      .select("title, customer, address")
+      .eq("id", projectId)
+      .single()
+      .then(({ data }) => {
+        if (data) setProjectContext(data as any);
+      });
+    // Auto-open form in project context mode
+    setShowForm(true);
+  }, [projectId]);
 
   // Scroll to new request after creation
   useEffect(() => {
@@ -96,10 +126,8 @@ export default function RegulationPage() {
     if (!question.trim() || !activeCompanyId) return;
     setSubmitting(true);
     try {
-      // 1. Create request
       const req = await createRequest({ regime, question: question.trim(), priority });
 
-      // 2. Upload image if present
       let imagePaths: string[] = [];
       let images: Array<{ path: string; mime_type: string }> = [];
       if (imageFile) {
@@ -109,34 +137,32 @@ export default function RegulationPage() {
         await updateImagePaths(req.id, imagePaths);
       }
 
-      // 3. Reset form
       setQuestion("");
       setRegime("nek");
       setPriority("normal");
       removeImage();
       setShowForm(false);
-      toast.success("Forespørsel sendt. AI analyserer…");
+      toast.success("Spørsmål sendt – faglig vurdering pågår…");
       newRequestRef.current = req.id;
 
-      // 4. Trigger analysis
       await analyzeRequest({
         fag_request_id: req.id,
         company_id: activeCompanyId,
         regime,
         question: question.trim(),
         images,
+        context: projectContext ? { site: projectContext.address, notes: `Prosjekt: ${projectContext.title}, Kunde: ${projectContext.customer}` } : undefined,
       });
 
-      // 5. Refresh
       await fetchRequests();
     } catch (err: any) {
       console.error("Submit error:", err);
-      toast.error("Kunne ikke sende forespørsel", { description: err.message });
+      toast.error("Kunne ikke sende spørsmål", { description: err.message });
       await fetchRequests();
     } finally {
       setSubmitting(false);
     }
-  }, [question, regime, priority, imageFile, activeCompanyId, createRequest, uploadImage, updateImagePaths, analyzeRequest, removeImage, fetchRequests]);
+  }, [question, regime, priority, imageFile, activeCompanyId, createRequest, uploadImage, updateImagePaths, analyzeRequest, removeImage, fetchRequests, projectContext]);
 
   const toggleExpand = useCallback(async (id: string) => {
     if (expandedId === id) {
@@ -157,7 +183,7 @@ export default function RegulationPage() {
   const handleFollowupClick = useCallback((text: string) => {
     setQuestion(text);
     setShowForm(true);
-    formRef.current?.scrollIntoView({ behavior: "smooth" });
+    setTimeout(() => formRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
   }, []);
 
   const openForm = useCallback(() => {
@@ -175,6 +201,8 @@ export default function RegulationPage() {
     );
   }, [requests, search]);
 
+  const showEmptyState = !loading && requests.length === 0 && !showForm;
+
   return (
     <div className="w-full p-5 sm:p-8 space-y-6">
       {/* Header */}
@@ -182,19 +210,41 @@ export default function RegulationPage() {
         <div>
           <h1 className="text-xl font-bold flex items-center gap-2">
             <BookOpen className="h-5 w-5 text-primary" />
-            Fag
+            Fagstøtte
           </h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Faglig veiledning og bildeanalyse — NEK, FEL, FSE, FSL
+            Din digitale fagassistent — spør om regelverk, krav og beste praksis
           </p>
         </div>
-        {!showForm && (
+        {!showForm && !showEmptyState && (
           <Button onClick={openForm} className="gap-1.5">
-            <Plus className="h-4 w-4" />
-            Ny forespørsel
+            <HelpCircle className="h-4 w-4" />
+            Still fagspørsmål
           </Button>
         )}
       </div>
+
+      {/* Context stripe */}
+      {projectContext && (
+        <div className="flex items-center gap-3 rounded-xl border border-primary/20 bg-primary/[0.03] px-4 py-2.5">
+          <FolderKanban className="h-4 w-4 text-primary shrink-0" />
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium text-foreground truncate">{projectContext.title}</p>
+            <div className="flex items-center gap-3 text-xs text-muted-foreground">
+              {projectContext.customer && <span>{projectContext.customer}</span>}
+              {projectContext.address && (
+                <span className="flex items-center gap-1">
+                  <MapPin className="h-3 w-3" />
+                  {projectContext.address}
+                </span>
+              )}
+            </div>
+          </div>
+          <Badge variant="outline" className="text-[10px] border-primary/20 text-primary shrink-0">
+            Prosjektkontekst
+          </Badge>
+        </div>
+      )}
 
       {/* Inline form */}
       {showForm && (
@@ -202,7 +252,10 @@ export default function RegulationPage() {
           <Card className="border-primary/30">
             <CardContent className="p-5 space-y-4">
               <div className="flex items-center justify-between">
-                <h2 className="text-sm font-semibold">Ny fagforespørsel</h2>
+                <h2 className="text-sm font-semibold flex items-center gap-1.5">
+                  <Sparkles className="h-4 w-4 text-primary" />
+                  Still fagspørsmål
+                </h2>
                 <Button variant="ghost" size="sm" onClick={() => setShowForm(false)} className="h-7 text-xs">
                   Avbryt
                 </Button>
@@ -210,13 +263,14 @@ export default function RegulationPage() {
 
               {/* Regime chips */}
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-muted-foreground">Regelverk</label>
+                <label className="text-xs font-medium text-muted-foreground">Hvilket regelverk gjelder?</label>
                 <div className="flex flex-wrap gap-2">
                   {REGIMES.map(r => (
                     <button
                       key={r.value}
                       type="button"
                       onClick={() => setRegime(r.value)}
+                      title={r.description}
                       className={cn(
                         "px-3 py-1.5 rounded-full text-xs font-medium transition-colors border",
                         regime === r.value
@@ -232,11 +286,11 @@ export default function RegulationPage() {
 
               {/* Question */}
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-muted-foreground">Spørsmål</label>
+                <label className="text-xs font-medium text-muted-foreground">Hva lurer du på?</label>
                 <Textarea
                   value={question}
                   onChange={e => setQuestion(e.target.value)}
-                  placeholder="F.eks: Hva er kravet til kapslingsgrad for denne installasjonen?"
+                  placeholder="Beskriv situasjonen eller still et konkret spørsmål…"
                   className="min-h-[140px] resize-y"
                 />
               </div>
@@ -294,7 +348,7 @@ export default function RegulationPage() {
 
               {/* Priority */}
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-muted-foreground">Prioritet</label>
+                <label className="text-xs font-medium text-muted-foreground">Hvor raskt trenger du svar?</label>
                 <div className="flex gap-2">
                   <button
                     type="button"
@@ -306,7 +360,7 @@ export default function RegulationPage() {
                         : "bg-secondary text-secondary-foreground border-border"
                     )}
                   >
-                    Normal
+                    Normalt
                   </button>
                   <button
                     type="button"
@@ -318,7 +372,7 @@ export default function RegulationPage() {
                         : "bg-secondary text-secondary-foreground border-border"
                     )}
                   >
-                    Viktig
+                    Haster
                   </button>
                 </div>
               </div>
@@ -332,12 +386,12 @@ export default function RegulationPage() {
                 {submitting ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    Sender…
+                    Analyserer…
                   </>
                 ) : (
                   <>
                     <Send className="h-4 w-4" />
-                    Send forespørsel
+                    Få faglig vurdering
                   </>
                 )}
               </Button>
@@ -346,47 +400,76 @@ export default function RegulationPage() {
         </div>
       )}
 
-      {/* Search */}
-      <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          placeholder="Søk i forespørsler…"
-          className="pl-9"
-        />
-      </div>
-
-      {/* Request list */}
-      <div className="space-y-3">
-        {loading ? (
-          <div className="text-center py-12 text-muted-foreground">Laster…</div>
-        ) : filtered.length === 0 ? (
-          <div className="text-center py-12 space-y-3">
-            <BookOpen className="h-10 w-10 mx-auto text-muted-foreground/40" />
-            <p className="text-muted-foreground">
-              {requests.length === 0 ? "Ingen fagforespørsler ennå" : "Ingen treff"}
+      {/* Empty state with example questions */}
+      {showEmptyState && (
+        <div className="text-center py-8 space-y-6">
+          <div>
+            <div className="mx-auto h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
+              <BookOpen className="h-8 w-8 text-primary" />
+            </div>
+            <h2 className="text-lg font-semibold text-foreground">Hva lurer du på?</h2>
+            <p className="text-sm text-muted-foreground mt-1 max-w-md mx-auto">
+              Still spørsmål om regelverk, krav og beste praksis. AI-en gir deg faglig veiledning basert på NEK, FEL, FSE og FSL.
             </p>
-            {requests.length === 0 && (
-              <Button variant="outline" onClick={openForm} className="gap-1.5">
-                <Plus className="h-4 w-4" />
-                Opprett første forespørsel
-              </Button>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-w-2xl mx-auto">
+            {EXAMPLE_QUESTIONS.map((eq, i) => (
+              <button
+                key={i}
+                onClick={() => handleFollowupClick(eq)}
+                className="text-left px-4 py-3 rounded-xl border border-border/60 bg-card hover:bg-secondary/40 hover:border-primary/20 transition-all text-sm text-foreground/80 hover:text-foreground"
+              >
+                <span className="text-primary mr-1.5">→</span>
+                {eq}
+              </button>
+            ))}
+          </div>
+
+          <Button onClick={openForm} variant="outline" className="gap-1.5 mt-2">
+            <HelpCircle className="h-4 w-4" />
+            Skriv eget spørsmål
+          </Button>
+        </div>
+      )}
+
+      {/* Search — only show if there are requests */}
+      {requests.length > 0 && (
+        <>
+          <div className="relative max-w-sm">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Søk i tidligere spørsmål…"
+              className="pl-9"
+            />
+          </div>
+
+          {/* Request list */}
+          <div className="space-y-3">
+            {loading ? (
+              <div className="text-center py-12 text-muted-foreground">Laster…</div>
+            ) : filtered.length === 0 ? (
+              <div className="text-center py-12 space-y-3">
+                <BookOpen className="h-10 w-10 mx-auto text-muted-foreground/40" />
+                <p className="text-muted-foreground">Ingen treff</p>
+              </div>
+            ) : (
+              filtered.map(req => (
+                <FagRequestCard
+                  key={req.id}
+                  request={req}
+                  expanded={expandedId === req.id}
+                  onToggle={() => toggleExpand(req.id)}
+                  answers={answers[req.id] || []}
+                  onFollowupClick={handleFollowupClick}
+                />
+              ))
             )}
           </div>
-        ) : (
-          filtered.map(req => (
-            <FagRequestCard
-              key={req.id}
-              request={req}
-              expanded={expandedId === req.id}
-              onToggle={() => toggleExpand(req.id)}
-              answers={answers[req.id] || []}
-              onFollowupClick={handleFollowupClick}
-            />
-          ))
-        )}
-      </div>
+        </>
+      )}
     </div>
   );
 }
@@ -409,6 +492,7 @@ function FagRequestCard({
   const statusCfg = STATUS_CONFIG[request.status] || STATUS_CONFIG.new;
   const firstLine = request.question.split("\n")[0].substring(0, 120);
   const hasImage = request.image_paths.length > 0;
+  const isAnswered = request.status === "answered" && answers.length > 0;
 
   return (
     <div id={`fag-${request.id}`} className="rounded-xl border border-border/60 bg-card overflow-hidden">
@@ -425,7 +509,7 @@ function FagRequestCard({
               </Badge>
               {request.priority === "viktig" && (
                 <Badge variant="outline" className="text-[10px] bg-accent/10 text-accent border-accent/20">
-                  Viktig
+                  Haster
                 </Badge>
               )}
               {hasImage && <ImageIcon className="h-3 w-3 text-muted-foreground" />}
@@ -436,7 +520,7 @@ function FagRequestCard({
               )}
             </div>
             <p className="text-sm font-medium truncate">{firstLine}</p>
-            {request.ai_summary && (
+            {request.ai_summary && !expanded && (
               <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{request.ai_summary}</p>
             )}
           </div>
@@ -449,56 +533,74 @@ function FagRequestCard({
         </div>
       </button>
 
-      {/* Expanded content */}
+      {/* Expanded: conversation-style */}
       {expanded && (
         <div className="border-t border-border/40">
-          {/* Full question */}
-          <div className="p-5 border-b border-border/40">
-            <p className="text-xs font-medium text-muted-foreground mb-1">Spørsmål</p>
-            <p className="text-sm whitespace-pre-wrap">{request.question}</p>
-          </div>
-
-          {/* Image preview */}
-          {hasImage && (
-            <div className="p-5 border-b border-border/40">
-              <p className="text-xs font-medium text-muted-foreground mb-2">Vedlagt bilde</p>
-              <FagImagePreview path={request.image_paths[0]} />
-            </div>
-          )}
-
-          {/* AI Answer */}
-          {request.status === "analyzing" && (
-            <div className="p-5 flex items-center gap-2 text-primary">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              <span className="text-sm">AI analyserer forespørselen…</span>
-            </div>
-          )}
-
-          {request.status === "error" && (
-            <div className="p-5 flex items-center gap-2 text-destructive">
-              <AlertTriangle className="h-4 w-4" />
-              <span className="text-sm">Analysen feilet. Prøv igjen senere.</span>
-            </div>
-          )}
-
-          {answers.length > 0 && (
-            <div className="p-5 border-b border-border/40">
-              <p className="text-xs font-medium text-muted-foreground mb-3">AI-svar</p>
-              <div className="prose prose-sm max-w-none text-foreground">
-                <MarkdownRenderer content={answers[0].answer_markdown} />
-              </div>
-              {answers[0].model && (
-                <p className="text-[10px] text-muted-foreground mt-3">
-                  Modell: {answers[0].model} · {format(new Date(answers[0].created_at), "d. MMM HH:mm", { locale: nb })}
+          {/* User's question bubble */}
+          <div className="p-5 space-y-3">
+            <div className="flex justify-end">
+              <div className="max-w-[80%] rounded-2xl rounded-tr-md bg-primary/10 px-4 py-3">
+                <p className="text-sm whitespace-pre-wrap text-foreground">{request.question}</p>
+                <p className="text-[10px] text-muted-foreground mt-1.5 text-right">
+                  {format(new Date(request.created_at), "d. MMM HH:mm", { locale: nb })}
                 </p>
-              )}
+              </div>
             </div>
-          )}
+
+            {/* Image */}
+            {hasImage && (
+              <div className="flex justify-end">
+                <div className="max-w-[60%]">
+                  <FagImagePreview path={request.image_paths[0]} />
+                </div>
+              </div>
+            )}
+
+            {/* AI analyzing */}
+            {request.status === "analyzing" && (
+              <div className="flex justify-start">
+                <div className="flex items-center gap-2 rounded-2xl rounded-tl-md bg-muted/60 px-4 py-3 text-primary">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span className="text-sm">Analyserer spørsmålet…</span>
+                </div>
+              </div>
+            )}
+
+            {/* AI error */}
+            {request.status === "error" && (
+              <div className="flex justify-start">
+                <div className="flex items-center gap-2 rounded-2xl rounded-tl-md bg-destructive/5 px-4 py-3 text-destructive">
+                  <AlertTriangle className="h-4 w-4" />
+                  <span className="text-sm">Analysen feilet. Prøv igjen senere.</span>
+                </div>
+              </div>
+            )}
+
+            {/* AI answer bubble */}
+            {answers.length > 0 && (
+              <div className="flex justify-start">
+                <div className="max-w-[85%] rounded-2xl rounded-tl-md bg-muted/50 px-4 py-3">
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <Sparkles className="h-3.5 w-3.5 text-primary" />
+                    <span className="text-[11px] font-medium text-primary">Faglig vurdering</span>
+                  </div>
+                  <div className="prose prose-sm max-w-none text-foreground">
+                    <MarkdownRenderer content={answers[0].answer_markdown} />
+                  </div>
+                  {answers[0].model && (
+                    <p className="text-[10px] text-muted-foreground mt-3">
+                      {format(new Date(answers[0].created_at), "d. MMM HH:mm", { locale: nb })}
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* Followup questions */}
           {request.ai_followup_questions.length > 0 && (
-            <div className="p-5">
-              <p className="text-xs font-medium text-muted-foreground mb-2">Oppfølgingsspørsmål</p>
+            <div className="px-5 pb-4">
+              <p className="text-[11px] font-medium text-muted-foreground mb-2">Spør videre</p>
               <div className="flex flex-wrap gap-2">
                 {request.ai_followup_questions.map((q, i) => (
                   <button
@@ -539,7 +641,6 @@ function FagImagePreview({ path }: { path: string }) {
 }
 
 function MarkdownRenderer({ content }: { content: string }) {
-  // Simple markdown to HTML: headings, lists, bold, italic, hr
   const html = content
     .replace(/^### (.+)$/gm, '<h4 class="text-sm font-semibold mt-3 mb-1">$1</h4>')
     .replace(/^## (.+)$/gm, '<h3 class="text-sm font-bold mt-4 mb-2 text-primary">$1</h3>')
