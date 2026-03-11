@@ -1081,6 +1081,58 @@ export default function RegulationPage() {
               )}
             </div>
 
+            {/* Regime selector + thermography toggle */}
+            <div className="flex items-center gap-2 mb-2">
+              <button
+                onClick={() => setShowRegimeSelector(!showRegimeSelector)}
+                className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors"
+              >
+                <Badge variant="outline" className={cn("text-[9px] h-4 px-1.5", regimeChipClass(regime))}>
+                  {REGIMES.find(r => r.value === regime)?.short}
+                </Badge>
+                Regelverk
+              </button>
+              {showRegimeSelector && (
+                <div className="flex flex-wrap gap-1">
+                  {REGIMES.map(r => (
+                    <button
+                      key={r.value}
+                      onClick={() => { setRegime(r.value); setShowRegimeSelector(false); }}
+                      className={cn(
+                        "px-2 py-1 rounded-full text-[10px] font-medium transition-colors border",
+                        regime === r.value
+                          ? "bg-accent text-accent-foreground border-accent"
+                          : "bg-secondary text-secondary-foreground border-border hover:bg-secondary/80"
+                      )}
+                    >
+                      {r.short}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <div className="h-4 w-px bg-border mx-1" />
+              <button
+                onClick={() => setThermographyMode(!thermographyMode)}
+                className={cn(
+                  "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-medium transition-all border",
+                  thermographyMode
+                    ? "bg-destructive/10 text-destructive border-destructive/30"
+                    : "text-muted-foreground hover:text-foreground hover:bg-secondary/60 border-transparent"
+                )}
+              >
+                <Thermometer className="h-3 w-3" />
+                Termografi
+              </button>
+            </div>
+
+            {/* Thermography mode info */}
+            {thermographyMode && (
+              <div className="mb-2 flex items-center gap-2 px-3 py-1.5 rounded-lg bg-destructive/5 border border-destructive/20 text-[11px] text-destructive">
+                <Thermometer className="h-3.5 w-3.5 shrink-0" />
+                <span>Termografi-modus: Last opp IR-bilde for automatisk hotspot-analyse og risikovurdering</span>
+              </div>
+            )}
+
             {/* Image preview */}
             {imagePreview && (
               <div className="mb-2 relative inline-block">
@@ -1091,6 +1143,11 @@ export default function RegulationPage() {
                 >
                   <X className="h-3 w-3" />
                 </button>
+                {thermographyMode && (
+                  <div className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded bg-destructive/80 text-[9px] text-destructive-foreground font-medium">
+                    🌡️ IR
+                  </div>
+                )}
               </div>
             )}
 
@@ -1117,7 +1174,7 @@ export default function RegulationPage() {
                 value={question}
                 onChange={e => setQuestion(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Still et fagspørsmål…"
+                placeholder={thermographyMode ? "Beskriv hva du ønsker vurdert i IR-bildet…" : "Still et fagspørsmål…"}
                 className="min-h-[40px] max-h-[120px] resize-none flex-1"
                 rows={1}
               />
