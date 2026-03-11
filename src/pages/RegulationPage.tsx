@@ -1598,7 +1598,7 @@ function ThermographyRiskBanner({ risk }: { risk: "critical" | "warning" | "norm
   );
 }
 
-function NekReferencePanel({ ref: nekRef, onClose }: { ref: NekReference; onClose: () => void }) {
+function NekReferencePanel({ nekRef, onClose }: { nekRef: NekReference; onClose: () => void }) {
   const relevanceLabel = nekRef.relevance === "high" ? "🎯 Høy relevans" : nekRef.relevance === "supplementary" ? "➕ Supplerende" : "ℹ️ Relatert";
   return (
     <div className="fixed inset-y-0 right-0 w-80 bg-card border-l border-border shadow-lg z-50 flex flex-col">
