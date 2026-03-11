@@ -106,21 +106,27 @@ export function usePermissions(): PermissionState {
     fetchPermissions();
   }, [fetchPermissions]);
 
+  const hasPermission = useCallback(
+    (key: string) => {
+      // If preview mode is active, use preview permissions
+      if (preview?.active) {
+        return preview.permissions[key] === true;
+      }
+      return permissions[key] === true;
+    },
+    [permissions, preview]
+  );
+
   // If preview mode is active, override with preview permissions
   if (preview?.active) {
     return {
       permissions: preview.permissions,
       scope: preview.scope,
       loading: preview.loading,
-      hasPermission: (key: string) => preview.permissions[key] === true,
+      hasPermission,
       refetch: fetchPermissions,
     };
   }
-
-  const hasPermission = useCallback(
-    (key: string) => permissions[key] === true,
-    [permissions]
-  );
 
   return { permissions, scope, loading, hasPermission, refetch: fetchPermissions };
 }
