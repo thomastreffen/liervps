@@ -480,7 +480,7 @@ export default function ResourcePlan() {
                   </Button>
                 )}
 
-                {isAdmin && (
+                {canWriteEvents && (
                   <Button onClick={handleNewEvent} size="sm" className="gap-1.5 rounded-xl">
                     <Plus className="h-4 w-4" />
                     Ny aktivitet
