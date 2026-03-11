@@ -25,11 +25,13 @@ Deno.serve(async (req) => {
 
     const supabaseAdmin = createClient(supabaseUrl, serviceKey);
 
-    // Check admin
-    const { data: isAdminResult } = await supabaseAdmin.rpc("has_role", { _user_id: user.id, _role: "admin" });
-    const { data: isSuperResult } = await supabaseAdmin.rpc("has_role", { _user_id: user.id, _role: "super_admin" });
-    if (!isAdminResult && !isSuperResult) {
-      return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    // Check permission via v2 system
+    const { data: hasPerm } = await supabaseAdmin.rpc("check_permission_v2", {
+      _auth_user_id: user.id,
+      _perm: "admin.data_integrity",
+    });
+    if (!hasPerm) {
+      return new Response(JSON.stringify({ error: "Forbidden: mangler rettighet admin.data_integrity" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     const body = await req.json().catch(() => ({}));
