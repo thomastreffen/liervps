@@ -255,7 +255,8 @@ export default function ResourcePlan() {
     });
   }, [selectedTechId, technicians]);
 
-  const nowStatusMap = useTechnicianNowStatus(calEvents, busySlots, techIds, externalBlocksCapacity);
+  // Only compute now-status if user has permission to see busy/available
+  const nowStatusMap = useTechnicianNowStatus(calEvents, canReadBusy ? busySlots : [], techIds, externalBlocksCapacity);
 
   const todayDayIndex = useMemo(() => {
     const today = new Date();
