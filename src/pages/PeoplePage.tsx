@@ -29,7 +29,9 @@ interface PersonRow {
   trade_certificate_type: string | null;
   role_names: string[];
   has_user_account: boolean;
+  has_logged_in: boolean;
   company_count: number;
+  auth_user_id: string | null;
 }
 
 export default function PeoplePage() {
