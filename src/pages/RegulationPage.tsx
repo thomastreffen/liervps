@@ -66,6 +66,43 @@ interface ChatMessage {
   confidence?: number | null;
   followups?: string[];
   status?: string;
+  analysisType?: "general" | "thermography";
+  thermography?: ThermographyData | null;
+  nekReferences?: NekReference[] | null;
+}
+
+interface NekReference {
+  reference: string;
+  relevance: "high" | "supplementary" | "related";
+  plain_summary: string;
+  why_relevant: string;
+  used_in_assessment: boolean;
+}
+
+interface ThermographyData {
+  overall_risk: "critical" | "warning" | "normal";
+  hotspots: Array<{
+    component: string;
+    location: string;
+    severity: "critical" | "warning" | "normal";
+    temperature_estimate?: string;
+    description: string;
+    confidence: number;
+  }>;
+  possible_causes: Array<{
+    cause: string;
+    likelihood: "high" | "medium" | "low";
+    explanation: string;
+  }>;
+  action_items: Array<{
+    action: string;
+    priority: "immediate" | "planned" | "monitoring";
+    description: string;
+  }>;
+  nek_references: NekReference[];
+  max_temperature?: string;
+  delta_t?: string;
+  load_estimate?: string;
 }
 
 type SidebarFilter = "active" | "archived" | "test";
