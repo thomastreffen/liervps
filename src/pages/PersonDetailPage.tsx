@@ -712,6 +712,27 @@ export default function PersonDetailPage() {
             </div>
           </TabsContent>
         </Tabs>
+
+        {person && (
+          <>
+            <HardDeleteDialog
+              open={hardDeleteOpen}
+              onOpenChange={setHardDeleteOpen}
+              personId={person.id}
+              personName={person.full_name}
+              personEmail={person.email}
+              onDeleted={() => navigate("/admin/personer")}
+            />
+            <ResetOnboardingDialog
+              open={resetOnboardingOpen}
+              onOpenChange={setResetOnboardingOpen}
+              personId={person.id}
+              personName={person.full_name}
+              personEmail={person.email}
+              onReset={fetchData}
+            />
+          </>
+        )}
       </div>
     </TooltipProvider>
   );
