@@ -15,6 +15,7 @@ import {
   BarChart3,
   FileText,
   Target,
+  BookOpen,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/hooks/useAuth";
