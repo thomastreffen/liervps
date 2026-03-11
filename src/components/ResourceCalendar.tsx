@@ -404,8 +404,8 @@ export const ResourceCalendar = memo(function ResourceCalendar({
   }, [onEventClick, onScheduleBlockClick, scheduleBlocks]);
 
   const handleDateSelect = useCallback((info: DateSelectArg) => {
-    if (isAdmin) onDateSelect?.(info.start, info.end);
-  }, [isAdmin, onDateSelect]);
+    if (effectiveCanWrite) onDateSelect?.(info.start, info.end);
+  }, [effectiveCanWrite, onDateSelect]);
 
   const handleEventDrop = useCallback((info: EventDropArg) => {
     if (info.event.extendedProps.isBusy) { info.revert(); return; }
