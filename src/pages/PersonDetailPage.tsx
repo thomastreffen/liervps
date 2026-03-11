@@ -356,16 +356,30 @@ export default function PersonDetailPage() {
             </div>
             <p className="text-sm text-muted-foreground">{person.email}</p>
           </div>
-          {employment && (
-            <Button
-              variant={employment.archived_at ? "outline" : "destructive"}
-              size="sm"
-              onClick={handleArchiveToggle}
-              disabled={saving}
-            >
-              {employment.archived_at ? <><ArchiveRestore className="h-4 w-4 mr-1" />Gjenopprett</> : <><Archive className="h-4 w-4 mr-1" />Arkiver</>}
-            </Button>
-          )}
+          <div className="flex items-center gap-2">
+            {isSuperAdmin && account && (
+              <Button variant="outline" size="sm" onClick={() => setResetOnboardingOpen(true)} disabled={saving} className="gap-1.5">
+                <RotateCcw className="h-4 w-4" />
+                Nullstill onboarding
+              </Button>
+            )}
+            {employment && (
+              <Button
+                variant={employment.archived_at ? "outline" : "destructive"}
+                size="sm"
+                onClick={handleArchiveToggle}
+                disabled={saving}
+              >
+                {employment.archived_at ? <><ArchiveRestore className="h-4 w-4 mr-1" />Gjenopprett</> : <><Archive className="h-4 w-4 mr-1" />Arkiver</>}
+              </Button>
+            )}
+            {isSuperAdmin && (
+              <Button variant="destructive" size="sm" onClick={() => setHardDeleteOpen(true)} className="gap-1.5">
+                <Trash2 className="h-4 w-4" />
+                Slett permanent
+              </Button>
+            )}
+          </div>
         </div>
 
         {/* Tabs */}
