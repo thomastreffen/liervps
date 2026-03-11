@@ -138,9 +138,10 @@ export default function PeoplePage() {
     : people;
 
   const getStatusBadge = (person: PersonRow) => {
-    if (person.archived_at) return <Badge variant="destructive" className="text-[10px]">Arkivert</Badge>;
-    if (!person.has_user_account) return <Badge variant="outline" className="text-[10px]">Kun ansatt</Badge>;
-    return <Badge variant="outline" className="text-[10px] border-green-500/50 text-green-700">Aktiv</Badge>;
+    if (person.archived_at) return <Badge variant="destructive" className="text-[10px]">🔴 Arkivert</Badge>;
+    if (!person.has_user_account) return <Badge variant="outline" className="text-[10px]">⚪ Kun ansatt</Badge>;
+    if (!person.has_logged_in) return <Badge variant="outline" className="text-[10px] border-yellow-500/50 text-yellow-700">🟡 Invitert</Badge>;
+    return <Badge variant="outline" className="text-[10px] border-green-500/50 text-green-700">🟢 Aktiv</Badge>;
   };
 
   return (
