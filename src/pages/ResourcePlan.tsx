@@ -441,7 +441,7 @@ export default function ResourcePlan() {
                   </div>
                 )}
 
-                {isAdmin && (
+                {hasPermission("admin.manage_settings") && (
                   <TooltipProvider delayDuration={200}>
                     <Tooltip>
                       <TooltipTrigger asChild>
