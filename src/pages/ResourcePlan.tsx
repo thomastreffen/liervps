@@ -341,9 +341,9 @@ export default function ResourcePlan() {
             onSelect={setSelectedTechId}
             allowDeselect
             filterIds={filteredTechForSidebar}
-            nowStatusMap={nowStatusMap}
+            nowStatusMap={canReadBusy ? nowStatusMap : undefined}
             onColorChange={handleTechColorChange}
-            techDayPercents={techDayPercents}
+            techDayPercents={canReadBusy ? techDayPercents : undefined}
           />
         </aside>
       )}
