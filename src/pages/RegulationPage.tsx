@@ -3,7 +3,8 @@ import { useSearchParams } from "react-router-dom";
 import {
   BookOpen, Send, Loader2, X, Camera, MapPin,
   FolderKanban, Sparkles, MessageCircle, Plus, ImageIcon,
-  ChevronRight, Clock, ArrowRight,
+  ChevronRight, Clock, ArrowRight, MoreHorizontal,
+  Archive, ArchiveRestore, Trash2, FlaskConical, CheckSquare, Square,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -13,6 +14,20 @@ import { format } from "date-fns";
 import { nb } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem,
+  DropdownMenuSeparator, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle,
+  DialogFooter, DialogDescription,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel,
+  AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
+  AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Switch } from "@/components/ui/switch";
 import { useFagRequests, type FagRegime, type FagPriority, type FagRequest, type FagAnswer } from "@/hooks/useFagRequests";
 import { useCompanyContext } from "@/hooks/useCompanyContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -52,11 +67,18 @@ interface ChatMessage {
   status?: string;
 }
 
+type SidebarFilter = "active" | "archived" | "test";
+
 // ─── Main Page ─────────────────────────────────────────────
 
 export default function RegulationPage() {
   const { activeCompanyId } = useCompanyContext();
-  const { requests, loading, fetchRequests, fetchAnswers, createRequest, uploadImage, updateImagePaths, analyzeRequest } = useFagRequests();
+  const {
+    requests, loading, fetchRequests, fetchAnswers, createRequest,
+    uploadImage, updateImagePaths, analyzeRequest,
+    archiveRequest, unarchiveRequest, deleteRequest, toggleTestMode,
+    bulkArchive, bulkDelete,
+  } = useFagRequests();
   const [searchParams] = useSearchParams();
   const projectId = searchParams.get("project");
 
@@ -75,6 +97,16 @@ export default function RegulationPage() {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [showRegimeSelector, setShowRegimeSelector] = useState(false);
+
+  // Sidebar state
+  const [sidebarFilter, setSidebarFilter] = useState<SidebarFilter>("active");
+  const [bulkMode, setBulkMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [testModeActive, setTestModeActive] = useState(false);
+
+  // Dialogs
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
 
   const chatEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -105,6 +137,8 @@ export default function RegulationPage() {
   const openConversation = useCallback(async (req: FagRequest) => {
     setActiveRequestId(req.id);
     setChatLoading(true);
+    setBulkMode(false);
+    setSelectedIds(new Set());
 
     const msgs: ChatMessage[] = [{
       id: `q-${req.id}`,
@@ -136,6 +170,7 @@ export default function RegulationPage() {
         .from("fag_requests")
         .select("*") as any)
         .eq("parent_request_id", req.id)
+        .is("deleted_at", null)
         .order("created_at", { ascending: true });
 
       if (children) {
@@ -195,7 +230,6 @@ export default function RegulationPage() {
     const isNewConversation = !activeRequestId;
 
     try {
-      // Create request (with parent_request_id if follow-up)
       const insertPayload: any = { regime, question: text, priority: "normal" as FagPriority };
       const req = await createRequest(insertPayload);
 
@@ -204,6 +238,14 @@ export default function RegulationPage() {
         await supabase
           .from("fag_requests")
           .update({ parent_request_id: activeRequestId } as any)
+          .eq("id", req.id);
+      }
+
+      // If test mode is active, mark as test
+      if (testModeActive && isNewConversation) {
+        await supabase
+          .from("fag_requests")
+          .update({ is_test: true } as any)
           .eq("id", req.id);
       }
 
@@ -217,7 +259,6 @@ export default function RegulationPage() {
       }
       removeImage();
 
-      // Add user message to chat immediately
       const userMsg: ChatMessage = {
         id: `q-${req.id}`,
         role: "user",
@@ -233,7 +274,6 @@ export default function RegulationPage() {
         setChatMessages(prev => [...prev, userMsg]);
       }
 
-      // Build conversation history for context
       const history = chatMessages
         .filter(m => m.role === "user" || m.role === "assistant")
         .map(m => ({
@@ -241,7 +281,6 @@ export default function RegulationPage() {
           content: m.role === "assistant" ? (m.content.substring(0, 500) + "...") : m.content,
         }));
 
-      // Analyze
       const result = await analyzeRequest({
         fag_request_id: req.id,
         company_id: activeCompanyId,
@@ -253,7 +292,6 @@ export default function RegulationPage() {
           : undefined,
       });
 
-      // Add AI response to chat
       if (result?.answer_markdown) {
         const aiMsg: ChatMessage = {
           id: `a-${req.id}`,
@@ -274,7 +312,7 @@ export default function RegulationPage() {
     } finally {
       setSubmitting(false);
     }
-  }, [question, regime, imageFile, activeCompanyId, activeRequestId, chatMessages, createRequest, uploadImage, updateImagePaths, analyzeRequest, removeImage, fetchRequests, projectContext]);
+  }, [question, regime, imageFile, activeCompanyId, activeRequestId, chatMessages, createRequest, uploadImage, updateImagePaths, analyzeRequest, removeImage, fetchRequests, projectContext, testModeActive]);
 
   // ─── New conversation ──────────────────────────────────
 
@@ -302,70 +340,249 @@ export default function RegulationPage() {
     }
   }, [handleSend]);
 
-  // ─── Conversations list (root requests only) ──────────
+  // ─── Archive / Delete handlers ─────────────────────────
 
-  const conversations = useMemo(() =>
-    requests.filter(r => !(r as any).parent_request_id),
-    [requests]
-  );
+  const handleArchive = useCallback(async (id: string) => {
+    await archiveRequest(id);
+    if (activeRequestId === id) { setActiveRequestId(null); setChatMessages([]); }
+    toast.success("Samtale arkivert");
+  }, [archiveRequest, activeRequestId]);
+
+  const handleUnarchive = useCallback(async (id: string) => {
+    await unarchiveRequest(id);
+    toast.success("Samtale gjenopprettet");
+  }, [unarchiveRequest]);
+
+  const handleDelete = useCallback(async (id: string) => {
+    await deleteRequest(id);
+    if (activeRequestId === id) { setActiveRequestId(null); setChatMessages([]); }
+    toast.success("Samtale slettet permanent");
+    setDeleteConfirmId(null);
+  }, [deleteRequest, activeRequestId]);
+
+  // ─── Bulk handlers ────────────────────────────────────
+
+  const toggleSelect = useCallback((id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const handleBulkArchive = useCallback(async () => {
+    await bulkArchive(Array.from(selectedIds));
+    setSelectedIds(new Set());
+    setBulkMode(false);
+    toast.success(`${selectedIds.size} samtaler arkivert`);
+  }, [bulkArchive, selectedIds]);
+
+  const handleBulkDelete = useCallback(async () => {
+    await bulkDelete(Array.from(selectedIds));
+    setSelectedIds(new Set());
+    setBulkMode(false);
+    setBulkDeleteConfirm(false);
+    if (activeRequestId && selectedIds.has(activeRequestId)) {
+      setActiveRequestId(null);
+      setChatMessages([]);
+    }
+    toast.success(`${selectedIds.size} samtaler slettet`);
+  }, [bulkDelete, selectedIds, activeRequestId]);
+
+  // ─── Filtered conversations ───────────────────────────
+
+  const conversations = useMemo(() => {
+    const roots = requests.filter(r => !(r as any).parent_request_id);
+    switch (sidebarFilter) {
+      case "archived":
+        return roots.filter(r => r.archived_at);
+      case "test":
+        return roots.filter(r => r.is_test && !r.archived_at);
+      default:
+        return roots.filter(r => !r.archived_at);
+    }
+  }, [requests, sidebarFilter]);
 
   const lastFollowups = useMemo(() => {
     const last = chatMessages.filter(m => m.role === "assistant").slice(-1)[0];
     return last?.followups || [];
   }, [chatMessages]);
 
-  // ─── View: Empty / Chat ────────────────────────────────
+  const activeReq = useMemo(() => requests.find(r => r.id === activeRequestId), [requests, activeRequestId]);
 
   const isInChat = activeRequestId !== null || chatMessages.length > 0;
 
+  const archivedCount = useMemo(() => requests.filter(r => !(r as any).parent_request_id && r.archived_at).length, [requests]);
+  const testCount = useMemo(() => requests.filter(r => !(r as any).parent_request_id && r.is_test && !r.archived_at).length, [requests]);
+
   return (
     <div className="flex h-[calc(100vh-3.5rem)] overflow-hidden">
-      {/* ─── Sidebar: Conversation history ─── */}
+      {/* ─── Sidebar ─── */}
       <div className="hidden md:flex w-72 border-r border-border flex-col bg-muted/30">
-        <div className="p-3 border-b border-border flex items-center justify-between">
-          <h2 className="text-sm font-semibold flex items-center gap-1.5">
-            <BookOpen className="h-4 w-4 text-primary" />
-            Fagstøtte
-          </h2>
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={startNewConversation}>
-            <Plus className="h-4 w-4" />
-          </Button>
+        <div className="p-3 border-b border-border space-y-2">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold flex items-center gap-1.5">
+              <BookOpen className="h-4 w-4 text-primary" />
+              Fagstøtte
+            </h2>
+            <div className="flex items-center gap-1">
+              {bulkMode ? (
+                <>
+                  <Button variant="ghost" size="sm" className="h-7 text-[10px] px-2" onClick={() => { setBulkMode(false); setSelectedIds(new Set()); }}>
+                    Avbryt
+                  </Button>
+                  {selectedIds.size > 0 && (
+                    <>
+                      <Button variant="ghost" size="sm" className="h-7 text-[10px] px-2" onClick={handleBulkArchive}>
+                        <Archive className="h-3 w-3 mr-1" /> Arkiver ({selectedIds.size})
+                      </Button>
+                      <Button variant="ghost" size="sm" className="h-7 text-[10px] px-2 text-destructive hover:text-destructive" onClick={() => setBulkDeleteConfirm(true)}>
+                        <Trash2 className="h-3 w-3 mr-1" /> Slett ({selectedIds.size})
+                      </Button>
+                    </>
+                  )}
+                </>
+              ) : (
+                <>
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setBulkMode(true)} title="Velg flere">
+                    <CheckSquare className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={startNewConversation}>
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Filter tabs */}
+          <div className="flex items-center gap-1">
+            {([
+              { key: "active" as SidebarFilter, label: "Aktive" },
+              { key: "archived" as SidebarFilter, label: `Arkiv${archivedCount ? ` (${archivedCount})` : ""}` },
+              { key: "test" as SidebarFilter, label: `Test${testCount ? ` (${testCount})` : ""}` },
+            ]).map(tab => (
+              <button
+                key={tab.key}
+                onClick={() => { setSidebarFilter(tab.key); setBulkMode(false); setSelectedIds(new Set()); }}
+                className={cn(
+                  "px-2 py-1 rounded-md text-[10px] font-medium transition-colors",
+                  sidebarFilter === tab.key
+                    ? "bg-primary/10 text-primary"
+                    : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
+                )}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Test mode toggle */}
+          <div className="flex items-center justify-between px-1">
+            <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+              <FlaskConical className="h-3 w-3" /> Testmodus
+            </span>
+            <Switch
+              checked={testModeActive}
+              onCheckedChange={setTestModeActive}
+              className="scale-75"
+            />
+          </div>
         </div>
 
         <ScrollArea className="flex-1">
           <div className="p-2 space-y-1">
             {loading && <div className="text-xs text-muted-foreground p-3 text-center">Laster…</div>}
+            {conversations.length === 0 && !loading && (
+              <p className="text-xs text-muted-foreground text-center py-6">
+                {sidebarFilter === "archived" ? "Ingen arkiverte samtaler" : sidebarFilter === "test" ? "Ingen testsamtaler" : "Ingen samtaler ennå"}
+              </p>
+            )}
             {conversations.map(conv => {
               const isActive = activeRequestId === conv.id;
               const preview = conv.ai_summary || conv.question.substring(0, 60);
+              const isSelected = selectedIds.has(conv.id);
               return (
-                <button
-                  key={conv.id}
-                  onClick={() => openConversation(conv)}
-                  className={cn(
-                    "w-full text-left px-3 py-2.5 rounded-lg transition-colors group",
-                    isActive
-                      ? "bg-primary/10 border border-primary/20"
-                      : "hover:bg-secondary/60"
-                  )}
-                >
-                  <div className="flex items-start gap-2">
-                    <MessageCircle className={cn("h-3.5 w-3.5 mt-0.5 shrink-0", isActive ? "text-primary" : "text-muted-foreground")} />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-xs font-medium truncate">{conv.question.split("\n")[0].substring(0, 50)}</p>
-                      <p className="text-[10px] text-muted-foreground truncate mt-0.5">{preview}</p>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
-                          <Clock className="h-2.5 w-2.5" />
-                          {format(new Date(conv.last_activity_at || conv.created_at), "d. MMM", { locale: nb })}
-                        </span>
-                        <Badge variant="outline" className={cn("text-[9px] h-4 px-1", regimeChipClass(conv.regime))}>
-                          {conv.regime.toUpperCase()}
-                        </Badge>
+                <div key={conv.id} className="group relative">
+                  <button
+                    onClick={() => bulkMode ? toggleSelect(conv.id) : openConversation(conv)}
+                    className={cn(
+                      "w-full text-left px-3 py-2.5 rounded-lg transition-colors",
+                      isActive
+                        ? "bg-primary/10 border border-primary/20"
+                        : isSelected
+                          ? "bg-accent/10 border border-accent/30"
+                          : "hover:bg-secondary/60 border border-transparent"
+                    )}
+                  >
+                    <div className="flex items-start gap-2">
+                      {bulkMode ? (
+                        <div className="mt-0.5 shrink-0">
+                          {isSelected ? <CheckSquare className="h-3.5 w-3.5 text-primary" /> : <Square className="h-3.5 w-3.5 text-muted-foreground" />}
+                        </div>
+                      ) : (
+                        <MessageCircle className={cn("h-3.5 w-3.5 mt-0.5 shrink-0", isActive ? "text-primary" : "text-muted-foreground")} />
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-medium truncate">{conv.question.split("\n")[0].substring(0, 50)}</p>
+                        <p className="text-[10px] text-muted-foreground truncate mt-0.5">{preview}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
+                            <Clock className="h-2.5 w-2.5" />
+                            {format(new Date(conv.last_activity_at || conv.created_at), "d. MMM", { locale: nb })}
+                          </span>
+                          <Badge variant="outline" className={cn("text-[9px] h-4 px-1", regimeChipClass(conv.regime))}>
+                            {conv.regime.toUpperCase()}
+                          </Badge>
+                          {conv.is_test && (
+                            <Badge variant="outline" className="text-[9px] h-4 px-1 bg-accent/10 text-accent-foreground border-accent/30">
+                              Test
+                            </Badge>
+                          )}
+                          {conv.archived_at && (
+                            <Badge variant="outline" className="text-[9px] h-4 px-1 bg-muted text-muted-foreground border-border">
+                              Arkivert
+                            </Badge>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </button>
+                  </button>
+
+                  {/* Context menu */}
+                  {!bulkMode && (
+                    <div className="absolute right-1 top-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-6 w-6">
+                            <MoreHorizontal className="h-3.5 w-3.5" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-44">
+                          {conv.archived_at ? (
+                            <DropdownMenuItem onClick={() => handleUnarchive(conv.id)} className="gap-2 text-xs">
+                              <ArchiveRestore className="h-3.5 w-3.5" /> Gjenopprett
+                            </DropdownMenuItem>
+                          ) : (
+                            <DropdownMenuItem onClick={() => handleArchive(conv.id)} className="gap-2 text-xs">
+                              <Archive className="h-3.5 w-3.5" /> Arkiver
+                            </DropdownMenuItem>
+                          )}
+                          <DropdownMenuSeparator />
+                          {conv.linked_project_id ? (
+                            <DropdownMenuItem disabled className="gap-2 text-xs text-muted-foreground">
+                              <Trash2 className="h-3.5 w-3.5" /> Koblet til prosjekt
+                            </DropdownMenuItem>
+                          ) : (
+                            <DropdownMenuItem onClick={() => setDeleteConfirmId(conv.id)} className="gap-2 text-xs text-destructive focus:text-destructive">
+                              <Trash2 className="h-3.5 w-3.5" /> Slett permanent
+                            </DropdownMenuItem>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  )}
+                </div>
               );
             })}
           </div>
@@ -386,6 +603,25 @@ export default function RegulationPage() {
                 <MapPin className="h-2.5 w-2.5" /> {projectContext.address}
               </span>
             )}
+          </div>
+        )}
+
+        {/* Test mode banner */}
+        {testModeActive && (
+          <div className="flex items-center gap-2 border-b border-accent/30 bg-accent/5 px-4 py-1.5">
+            <FlaskConical className="h-3.5 w-3.5 text-accent-foreground" />
+            <span className="text-xs font-medium text-accent-foreground">Testmodus aktiv – samtaler merkes som test</span>
+          </div>
+        )}
+
+        {/* Active conversation info bar */}
+        {activeReq?.archived_at && (
+          <div className="flex items-center gap-2 border-b border-border bg-muted/40 px-4 py-1.5">
+            <Archive className="h-3.5 w-3.5 text-muted-foreground" />
+            <span className="text-xs text-muted-foreground">Denne samtalen er arkivert</span>
+            <Button variant="ghost" size="sm" className="h-6 text-[10px] ml-auto" onClick={() => handleUnarchive(activeReq.id)}>
+              Gjenopprett
+            </Button>
           </div>
         )}
 
@@ -528,7 +764,7 @@ export default function RegulationPage() {
         {/* ─── Input bar ─── */}
         <div className="border-t border-border bg-card p-3">
           <div className="max-w-3xl mx-auto">
-            {/* Regime selector (inline toggle) */}
+            {/* Regime selector */}
             <div className="flex items-center gap-2 mb-2">
               <button
                 onClick={() => setShowRegimeSelector(!showRegimeSelector)}
@@ -612,6 +848,48 @@ export default function RegulationPage() {
           </div>
         </div>
       </div>
+
+      {/* ─── Delete confirmation ─── */}
+      <AlertDialog open={!!deleteConfirmId} onOpenChange={(open) => !open && setDeleteConfirmId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Slett samtale permanent?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Denne handlingen kan ikke angres. Samtalen og alle meldinger vil bli fjernet permanent.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Avbryt</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deleteConfirmId && handleDelete(deleteConfirmId)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Slett permanent
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* ─── Bulk delete confirmation ─── */}
+      <AlertDialog open={bulkDeleteConfirm} onOpenChange={setBulkDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Slett {selectedIds.size} samtaler permanent?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Denne handlingen kan ikke angres. Alle valgte samtaler og tilhørende meldinger vil bli fjernet permanent.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Avbryt</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleBulkDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Slett {selectedIds.size} samtaler
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

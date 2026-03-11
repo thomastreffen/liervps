@@ -3102,11 +3102,16 @@ export type Database = {
           ai_confidence: number | null
           ai_followup_questions: string[]
           ai_summary: string | null
+          archived_at: string | null
+          archived_by: string | null
           company_id: string
           created_at: string
           created_by_user_id: string
+          deleted_at: string | null
+          deleted_by: string | null
           id: string
           image_paths: string[]
+          is_test: boolean
           last_activity_at: string
           linked_case_id: string | null
           linked_offer_id: string | null
@@ -3122,11 +3127,16 @@ export type Database = {
           ai_confidence?: number | null
           ai_followup_questions?: string[]
           ai_summary?: string | null
+          archived_at?: string | null
+          archived_by?: string | null
           company_id: string
           created_at?: string
           created_by_user_id: string
+          deleted_at?: string | null
+          deleted_by?: string | null
           id?: string
           image_paths?: string[]
+          is_test?: boolean
           last_activity_at?: string
           linked_case_id?: string | null
           linked_offer_id?: string | null
@@ -3142,11 +3152,16 @@ export type Database = {
           ai_confidence?: number | null
           ai_followup_questions?: string[]
           ai_summary?: string | null
+          archived_at?: string | null
+          archived_by?: string | null
           company_id?: string
           created_at?: string
           created_by_user_id?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
           id?: string
           image_paths?: string[]
+          is_test?: boolean
           last_activity_at?: string
           linked_case_id?: string | null
           linked_offer_id?: string | null
