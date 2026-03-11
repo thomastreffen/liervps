@@ -332,7 +332,8 @@ Deno.serve(async (req) => {
           .filter((s: any) => s.status !== "free")
           .map((s: any) => ({
             status: s.status,
-            subject: s.subject || null,
+            // PERMISSION FILTER: strip subject/details unless user has calendar.view_external
+            subject: canViewExternal ? (s.subject || null) : null,
             start: s.start?.dateTime,
             end: s.end?.dateTime,
             is_private: s.isPrivate || false,
@@ -343,7 +344,8 @@ Deno.serve(async (req) => {
           technician_id: tech?.id || null,
           user_id: tech?.user_id || null,
           name: tech?.name || entry.scheduleId,
-          email: entry.scheduleId,
+          // Strip email for non-external viewers
+          email: canViewExternal ? entry.scheduleId : null,
           busy: isBusy,
           busy_slots: busySlots,
         };
