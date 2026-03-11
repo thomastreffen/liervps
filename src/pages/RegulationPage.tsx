@@ -1213,7 +1213,7 @@ export default function RegulationPage() {
 
       {/* NEK Reference side panel */}
       {nekPanelRef && (
-        <NekReferencePanel ref={nekPanelRef} onClose={() => setNekPanelRef(null)} />
+        <NekReferencePanel nekRef={nekPanelRef} onClose={() => setNekPanelRef(null)} />
       )}
     </div>
   );
