@@ -566,17 +566,18 @@ export default function ResourcePlan() {
           referenceDate={referenceDate}
           calendarView={calendarView}
           technicianMap={technicianMap}
-          getBusySlotsForDay={getBusySlotsForDay}
-          dayCapacities={aggregatedDays}
+          getBusySlotsForDay={canReadBusy ? getBusySlotsForDay : undefined}
+          dayCapacities={canReadBusy ? aggregatedDays : undefined}
           scheduleBlocks={scheduleBlocks}
           onEventClick={handleEventClick}
           onScheduleBlockClick={(block) => setSelectedBlock(block)}
-          onDateSelect={handleDateSelect}
-          onEventDrop={handleEventDrop}
-          onEventResize={handleEventResize}
-          onExternalDrop={handleExternalDrop}
-          isAdmin={isAdmin}
-          isSuperAdmin={canViewExternal}
+          onDateSelect={canWriteEvents ? handleDateSelect : undefined}
+          onEventDrop={canWriteEvents ? handleEventDrop : undefined}
+          onEventResize={canWriteEvents ? handleEventResize : undefined}
+          onExternalDrop={canWriteEvents ? handleExternalDrop : undefined}
+          canWriteEvents={canWriteEvents}
+          canViewExternalDetails={canViewExternal}
+          canReadBusy={canReadBusy}
           hideExternalEvents={hideExternalEvents}
         />
         </div>
