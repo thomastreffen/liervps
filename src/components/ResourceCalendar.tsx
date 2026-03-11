@@ -236,24 +236,24 @@ export const ResourceCalendar = memo(function ResourceCalendar({
               console.warn(`[ResourceCalendar] Busy slot missing technician name – techId=${techId}, slot=${slot.start.toISOString()}`);
             }
             const busyTechColor = techColorMap.get(techId) || GCAL_PALETTE[0];
-            // Privacy: non-superadmins see only "Opptatt" without names
-            const maskedTitle = isSuperAdmin ? `${displayName} – opptatt` : "Opptatt";
+            // Privacy: use permission check, not role
+            const maskedTitle = effectiveCanViewExternal ? `${displayName} – opptatt` : "Opptatt";
             const BUSY_GRAY = "#9CA3AF";
             result.push({
               id: `busy-${techId}-${slot.start.getTime()}`,
               title: maskedTitle,
               start: slot.start,
               end: slot.end,
-              backgroundColor: isSuperAdmin ? hexToRgba(busyTechColor, 0.25) : hexToRgba(BUSY_GRAY, 0.15),
-              borderColor: isSuperAdmin ? hexToRgba(busyTechColor, 0.5) : hexToRgba(BUSY_GRAY, 0.35),
-              textColor: isSuperAdmin ? busyTechColor : "#9CA3AF",
+              backgroundColor: effectiveCanViewExternal ? hexToRgba(busyTechColor, 0.25) : hexToRgba(BUSY_GRAY, 0.15),
+              borderColor: effectiveCanViewExternal ? hexToRgba(busyTechColor, 0.5) : hexToRgba(BUSY_GRAY, 0.35),
+              textColor: effectiveCanViewExternal ? busyTechColor : "#9CA3AF",
               editable: false,
               extendedProps: {
                 isBusy: true,
-                techName: isSuperAdmin ? displayName : undefined,
-                busyTechColor: isSuperAdmin ? busyTechColor : BUSY_GRAY,
+                techName: effectiveCanViewExternal ? displayName : undefined,
+                busyTechColor: effectiveCanViewExternal ? busyTechColor : BUSY_GRAY,
                 busyTechId: techId,
-                isExternalMasked: !isSuperAdmin,
+                isExternalMasked: !effectiveCanViewExternal,
               },
             });
           }
