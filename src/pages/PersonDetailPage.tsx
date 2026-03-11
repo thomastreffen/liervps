@@ -77,12 +77,15 @@ export default function PersonDetailPage() {
   const { id } = useParams<{ id: string }>();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { isSuperAdmin } = useAuth();
   const defaultTab = searchParams.get("tab") || "profile";
   const [person, setPerson] = useState<PersonData | null>(null);
   const [employment, setEmployment] = useState<EmploymentData | null>(null);
   const [account, setAccount] = useState<UserAccountData | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [hardDeleteOpen, setHardDeleteOpen] = useState(false);
+  const [resetOnboardingOpen, setResetOnboardingOpen] = useState(false);
 
   // Org tab
   const [companies, setCompanies] = useState<CompanyOption[]>([]);
