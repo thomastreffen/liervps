@@ -3117,6 +3117,7 @@ export type Database = {
           linked_offer_id: string | null
           linked_project_id: string | null
           parent_request_id: string | null
+          pinned_at: string | null
           priority: Database["public"]["Enums"]["fag_priority"]
           question: string
           regime: Database["public"]["Enums"]["fag_regime"]
@@ -3142,6 +3143,7 @@ export type Database = {
           linked_offer_id?: string | null
           linked_project_id?: string | null
           parent_request_id?: string | null
+          pinned_at?: string | null
           priority?: Database["public"]["Enums"]["fag_priority"]
           question: string
           regime: Database["public"]["Enums"]["fag_regime"]
@@ -3167,6 +3169,7 @@ export type Database = {
           linked_offer_id?: string | null
           linked_project_id?: string | null
           parent_request_id?: string | null
+          pinned_at?: string | null
           priority?: Database["public"]["Enums"]["fag_priority"]
           question?: string
           regime?: Database["public"]["Enums"]["fag_regime"]
