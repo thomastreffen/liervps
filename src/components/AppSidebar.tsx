@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/hooks/useAuth";
+import { usePreviewMode } from "@/hooks/usePreviewMode";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useModuleVisibility } from "@/hooks/useModuleVisibility";
 import { supabase } from "@/integrations/supabase/client";
