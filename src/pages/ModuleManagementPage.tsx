@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { Eye, EyeOff, Globe, User } from "lucide-react";
+import { Eye, EyeOff, Globe, User, Info, Shield } from "lucide-react";
 
 interface ModuleSetting {
   module_key: string;
@@ -77,6 +77,25 @@ export default function ModuleManagementPage() {
     },
   });
 
+  // Fetch selected user's roles for summary
+  const { data: selectedUserRoles = [] } = useQuery<string[]>({
+    queryKey: ["module-mgmt-user-roles", selectedUser],
+    enabled: !!selectedUser,
+    queryFn: async () => {
+      const { data: urData } = await supabase
+        .from("user_roles_v2")
+        .select("role_id")
+        .eq("user_account_id", selectedUser!);
+      if (!urData || urData.length === 0) return [];
+      const roleIds = (urData as any[]).map((r: any) => r.role_id);
+      const { data: rolesData } = await supabase
+        .from("roles")
+        .select("name")
+        .in("id", roleIds);
+      return (rolesData as any[] || []).map((r: any) => r.name);
+    },
+  });
+
   const toggleGlobal = useMutation({
     mutationFn: async ({ key, enabled }: { key: string; enabled: boolean }) => {
       const { error } = await supabase
@@ -113,12 +132,24 @@ export default function ModuleManagementPage() {
   const isOverrideHidden = (key: string) =>
     overrides.find((o) => o.module_key === key)?.is_hidden ?? false;
 
+  const hiddenCount = overrides.filter((o) => o.is_hidden).length;
+
   return (
     <div className="p-4 sm:p-6 space-y-8 max-w-4xl mx-auto">
       <div>
         <h1 className="text-xl sm:text-2xl font-bold">Modulsynlighet</h1>
         <p className="text-sm text-muted-foreground">
           Styr hvilke moduler som er synlige globalt og per bruker. Superadmin ser alltid alt.
+        </p>
+      </div>
+
+      {/* Info banner */}
+      <div className="rounded-lg border border-border bg-muted/30 p-3 flex gap-2">
+        <Info className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+        <p className="text-xs text-muted-foreground">
+          <strong>Modulsynlighet</strong> styrer kun hva som vises i meny og grensesnitt.
+          Faktisk tilgang styres av <strong>roller</strong>, <strong>omfang</strong> og <strong>rettigheter</strong>.
+          Å skjule en modul fjerner ikke brukerens underliggende tilgang.
         </p>
       </div>
 
@@ -180,32 +211,50 @@ export default function ModuleManagementPage() {
         </Select>
 
         {selectedUser && (
-          <div className="rounded-lg border divide-y">
-            <ModuleGroupHeader label="Hovedmeny" />
-            {mainModules.map((mod) => (
-              <UserOverrideRow
-                key={mod.module_key}
-                label={mod.label}
-                globalEnabled={mod.is_enabled}
-                isHidden={isOverrideHidden(mod.module_key)}
-                onToggle={(hidden) =>
-                  upsertOverride.mutate({ key: mod.module_key, userId: selectedUser, hidden })
-                }
-              />
-            ))}
-            <ModuleGroupHeader label="Admin" />
-            {adminModules.map((mod) => (
-              <UserOverrideRow
-                key={mod.module_key}
-                label={mod.label}
-                globalEnabled={mod.is_enabled}
-                isHidden={isOverrideHidden(mod.module_key)}
-                onToggle={(hidden) =>
-                  upsertOverride.mutate({ key: mod.module_key, userId: selectedUser, hidden })
-                }
-              />
-            ))}
-          </div>
+          <>
+            {/* User summary */}
+            <div className="rounded-md border bg-muted/30 p-3 space-y-1">
+              <div className="flex items-center gap-2 text-xs">
+                <Shield className="h-3.5 w-3.5 text-muted-foreground" />
+                <span className="text-muted-foreground">Roller:</span>
+                <span className="font-medium">
+                  {selectedUserRoles.length > 0 ? selectedUserRoles.join(", ") : "Ingen"}
+                </span>
+              </div>
+              <div className="flex items-center gap-2 text-xs">
+                <EyeOff className="h-3.5 w-3.5 text-muted-foreground" />
+                <span className="text-muted-foreground">Skjulte moduler:</span>
+                <span className="font-medium">{hiddenCount}</span>
+              </div>
+            </div>
+
+            <div className="rounded-lg border divide-y">
+              <ModuleGroupHeader label="Hovedmeny" />
+              {mainModules.map((mod) => (
+                <UserOverrideRow
+                  key={mod.module_key}
+                  label={mod.label}
+                  globalEnabled={mod.is_enabled}
+                  isHidden={isOverrideHidden(mod.module_key)}
+                  onToggle={(hidden) =>
+                    upsertOverride.mutate({ key: mod.module_key, userId: selectedUser, hidden })
+                  }
+                />
+              ))}
+              <ModuleGroupHeader label="Admin" />
+              {adminModules.map((mod) => (
+                <UserOverrideRow
+                  key={mod.module_key}
+                  label={mod.label}
+                  globalEnabled={mod.is_enabled}
+                  isHidden={isOverrideHidden(mod.module_key)}
+                  onToggle={(hidden) =>
+                    upsertOverride.mutate({ key: mod.module_key, userId: selectedUser, hidden })
+                  }
+                />
+              ))}
+            </div>
+          </>
         )}
       </section>
     </div>
