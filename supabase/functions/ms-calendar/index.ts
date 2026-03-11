@@ -244,8 +244,26 @@ Deno.serve(async (req) => {
 
     log(`Action: ${action}, caller: ${authUser.id}`);
 
+    // ── Server-side permission check via check_permission_v2 ──
+    const checkPerm = async (perm: string): Promise<boolean> => {
+      const { data } = await supabaseAdmin.rpc("check_permission_v2", {
+        _auth_user_id: authUser.id,
+        _perm: perm,
+      });
+      return data === true;
+    };
+
     // ─── ACTION: availability ───
     if (action === "availability") {
+      // PERMISSION GUARD: calendar.read_busy required
+      const canReadBusy = await checkPerm("calendar.read_busy");
+      if (!canReadBusy) {
+        log(`DENIED: User ${authUser.id} lacks calendar.read_busy`);
+        return respond({ error: "Mangler rettighet: calendar.read_busy", error_code: "permission_denied", results: [], logs }, 403);
+      }
+
+      const canViewExternal = await checkPerm("calendar.view_external");
+
       const { user_ids, start, end } = body;
       if (!user_ids?.length || !start || !end) {
         return respond({ error: "Missing user_ids, start, end", logs }, 400);
