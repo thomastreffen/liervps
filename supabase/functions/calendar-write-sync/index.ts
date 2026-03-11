@@ -219,6 +219,21 @@ Deno.serve(async (req) => {
 
     const callerUserId = await resolveCallerUserId(req, supabaseAdmin);
 
+    // ── Server-side permission check ──
+    if (callerUserId) {
+      const { data: canWrite } = await supabaseAdmin.rpc("check_permission_v2", {
+        _auth_user_id: callerUserId,
+        _perm: "calendar.write_events",
+      });
+      if (!canWrite) {
+        console.log(`[calendar-write-sync] DENIED: User ${callerUserId} lacks calendar.write_events`);
+        return new Response(JSON.stringify({ error: "Mangler rettighet: calendar.write_events", error_code: "permission_denied" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
     const body = await req.json();
     const { action, event_id } = body;
 
