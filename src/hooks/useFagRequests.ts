@@ -129,6 +129,7 @@ export function useFagRequests() {
     question: string;
     images: Array<{ path: string; mime_type: string }>;
     context?: { site?: string; notes?: string };
+    analysis_type?: "general" | "thermography";
   }) => {
     const { data, error } = await supabase.functions.invoke("fag-image-analyze", {
       body: params,
