@@ -356,6 +356,7 @@ export default function RegulationPage() {
         context: projectContext
           ? { site: projectContext.address, notes: `Prosjekt: ${projectContext.title}, Kunde: ${projectContext.customer}` }
           : undefined,
+        analysis_type: thermographyMode ? "thermography" : "general",
       });
 
       if (result?.answer_markdown) {
@@ -366,6 +367,9 @@ export default function RegulationPage() {
           timestamp: new Date().toISOString(),
           confidence: result.ai_confidence,
           followups: result.followup_questions || [],
+          analysisType: result.analysis_type || "general",
+          thermography: result.thermography || null,
+          nekReferences: result.nek_references || null,
         };
         setChatMessages(prev => [...prev, aiMsg]);
       }
