@@ -26,6 +26,18 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const { action, block_id, project_id } = body;
 
+    // ── Server-side permission check: calendar.write_events ──
+    const { data: canWrite } = await supabase.rpc("check_permission_v2", {
+      _auth_user_id: user.id,
+      _perm: "calendar.write_events",
+    });
+    if (!canWrite) {
+      console.log(`[confirm-schedule-block] DENIED: User ${user.id} lacks calendar.write_events`);
+      return new Response(JSON.stringify({ error: "Mangler rettighet: calendar.write_events", error_code: "permission_denied" }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // Get the block
     const { data: block, error: blockError } = await supabase
       .from("schedule_blocks")
