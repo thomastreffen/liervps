@@ -31,6 +31,7 @@ export interface FagRequest {
   deleted_at: string | null;
   deleted_by: string | null;
   is_test: boolean;
+  pinned_at: string | null;
 }
 
 export interface FagAnswer {
@@ -140,13 +141,11 @@ export function useFagRequests() {
   const archiveRequest = useCallback(async (requestId: string) => {
     if (!user) return;
     const now = new Date().toISOString();
-    // Archive the root + all children
     const { error } = await supabase
       .from("fag_requests")
       .update({ archived_at: now, archived_by: user.id } as any)
       .eq("id", requestId);
     if (error) throw error;
-    // Archive children too
     await supabase
       .from("fag_requests")
       .update({ archived_at: now, archived_by: user.id } as any)
@@ -170,12 +169,10 @@ export function useFagRequests() {
   const deleteRequest = useCallback(async (requestId: string) => {
     if (!user) return;
     const now = new Date().toISOString();
-    // Soft-delete children first
     await supabase
       .from("fag_requests")
       .update({ deleted_at: now, deleted_by: user.id } as any)
       .eq("parent_request_id", requestId);
-    // Soft-delete parent
     const { error } = await supabase
       .from("fag_requests")
       .update({ deleted_at: now, deleted_by: user.id } as any)
@@ -188,6 +185,15 @@ export function useFagRequests() {
     const { error } = await supabase
       .from("fag_requests")
       .update({ is_test: isTest } as any)
+      .eq("id", requestId);
+    if (error) throw error;
+    await fetchRequests();
+  }, [fetchRequests]);
+
+  const pinRequest = useCallback(async (requestId: string, pin: boolean) => {
+    const { error } = await supabase
+      .from("fag_requests")
+      .update({ pinned_at: pin ? new Date().toISOString() : null } as any)
       .eq("id", requestId);
     if (error) throw error;
     await fetchRequests();
@@ -213,6 +219,26 @@ export function useFagRequests() {
     await fetchRequests();
   }, [user, fetchRequests]);
 
+  const bulkMarkTest = useCallback(async (ids: string[]) => {
+    if (ids.length === 0) return;
+    for (const id of ids) {
+      await supabase.from("fag_requests").update({ is_test: true } as any).eq("id", id);
+    }
+    await fetchRequests();
+  }, [fetchRequests]);
+
+  const purgeTestConversations = useCallback(async () => {
+    if (!user) return;
+    const now = new Date().toISOString();
+    // Get all test root requests
+    const testRoots = requests.filter(r => r.is_test && !r.parent_request_id && !r.deleted_at);
+    for (const r of testRoots) {
+      await supabase.from("fag_requests").update({ deleted_at: now, deleted_by: user.id } as any).eq("parent_request_id", r.id);
+      await supabase.from("fag_requests").update({ deleted_at: now, deleted_by: user.id } as any).eq("id", r.id);
+    }
+    await fetchRequests();
+  }, [user, requests, fetchRequests]);
+
   return {
     requests,
     loading,
@@ -226,7 +252,10 @@ export function useFagRequests() {
     unarchiveRequest,
     deleteRequest,
     toggleTestMode,
+    pinRequest,
     bulkArchive,
     bulkDelete,
+    bulkMarkTest,
+    purgeTestConversations,
   };
 }
