@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { format } from "date-fns";
 import { nb } from "date-fns/locale";
 import { Plus, Search, Loader2, ChevronLeft, ChevronRight, Calculator } from "lucide-react";
-import { useAuth } from "@/hooks/useAuth";
+import { usePermissions } from "@/hooks/usePermissions";
 import {
   CALCULATION_STATUS_CONFIG,
   ALL_CALCULATION_STATUSES,
