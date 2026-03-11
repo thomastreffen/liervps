@@ -179,7 +179,7 @@ export const ResourceCalendar = memo(function ResourceCalendar({
           baseColor,
           statusDot: statusDotColors[ev.status] || "#FFFFFF",
         },
-        editable: isAdmin,
+        editable: effectiveCanWrite,
       };
     });
 
