@@ -13,6 +13,7 @@ import {
   Shield,
   Copy,
   Trash2,
+  BookOpen,
 } from "lucide-react";
 import {
   DropdownMenu,
