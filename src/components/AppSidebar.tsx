@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/hooks/useAuth";
+import { usePreviewMode } from "@/hooks/usePreviewMode";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useModuleVisibility } from "@/hooks/useModuleVisibility";
 import { supabase } from "@/integrations/supabase/client";
@@ -104,10 +105,19 @@ function NavItem({ item, isActive, collapsed, badge }: {
 export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
-  const { isAdmin, isSuperAdmin, user } = useAuth();
+  const { isAdmin: realIsAdmin, isSuperAdmin: realIsSuperAdmin, user } = useAuth();
   const { hasPermission } = usePermissions();
   const { isModuleVisible } = useModuleVisibility();
+  const { active: previewActive, effectiveRole } = usePreviewMode();
   const location = useLocation();
+
+  // In preview mode, derive isAdmin/isSuperAdmin from effective role
+  const isAdmin = previewActive
+    ? (effectiveRole === "admin" || effectiveRole === "super_admin")
+    : realIsAdmin;
+  const isSuperAdmin = previewActive
+    ? effectiveRole === "super_admin"
+    : realIsSuperAdmin;
 
   const [projectCount, setProjectCount] = useState<number>(0);
   const [inboxCount, setInboxCount] = useState<number>(0);

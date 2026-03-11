@@ -81,6 +81,7 @@ import ManagementPage from "./pages/ManagementPage";
 import MyDayPage from "./pages/MyDayPage";
 import HelpCenterPage from "./pages/HelpCenterPage";
 import { CompanyProvider } from "@/hooks/useCompanyContext";
+import { PreviewModeProvider } from "@/hooks/usePreviewMode";
 import PortalLogin from "./pages/portal/PortalLogin";
 import PortalActivate from "./pages/portal/PortalActivate";
 import ActivatePage from "./pages/ActivatePage";
@@ -105,6 +106,7 @@ const App = () => (
       <BrowserRouter>
         <AuthProvider>
           <CompanyProvider>
+          <PreviewModeProvider>
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/auth/callback" element={<AuthCallback />} />
@@ -397,6 +399,7 @@ const App = () => (
 
             <Route path="*" element={<NotFound />} />
           </Routes>
+          </PreviewModeProvider>
           </CompanyProvider>
         </AuthProvider>
       </BrowserRouter>

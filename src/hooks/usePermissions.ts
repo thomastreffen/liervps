@@ -1,6 +1,19 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, createContext, useContext } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+
+// Preview mode override context - set by PreviewModeProvider
+interface PreviewOverride {
+  active: boolean;
+  permissions: Record<string, boolean>;
+  scope: "own" | "company" | "all";
+  loading: boolean;
+}
+
+const PreviewPermissionCtx = createContext<PreviewOverride | null>(null);
+
+/** Used by PreviewModeProvider to inject override permissions */
+export const PreviewPermissionOverrideProvider = PreviewPermissionCtx.Provider;
 
 export interface PermissionState {
   permissions: Record<string, boolean>;
@@ -12,6 +25,7 @@ export interface PermissionState {
 
 export function usePermissions(): PermissionState {
   const { user } = useAuth();
+  const preview = useContext(PreviewPermissionCtx);
   const [permissions, setPermissions] = useState<Record<string, boolean>>({});
   const [scope, setScope] = useState<"own" | "company" | "all">("own");
   const [loading, setLoading] = useState(true);
@@ -25,7 +39,6 @@ export function usePermissions(): PermissionState {
     }
 
     try {
-      // Fetch role permissions via user_role_assignments
       const { data: assignments } = await supabase
         .from("user_role_assignments")
         .select("role_id")
@@ -41,7 +54,6 @@ export function usePermissions(): PermissionState {
           .in("role_id", roleIds);
 
         for (const p of rp || []) {
-          // bool_or: if any role allows it, it's allowed
           if ((p as any).allowed) {
             rolePerms[(p as any).permission_key] = true;
           } else if (!(rolePerms[(p as any).permission_key])) {
@@ -50,19 +62,16 @@ export function usePermissions(): PermissionState {
         }
       }
 
-      // Fetch user overrides
       const { data: overrides } = await supabase
         .from("user_permission_overrides")
         .select("permission_key, allowed")
         .eq("user_id", user.id);
 
-      // Merge: override wins
       const merged = { ...rolePerms };
       for (const o of overrides || []) {
         merged[(o as any).permission_key] = (o as any).allowed;
       }
 
-      // Also check legacy role for backward compat
       const adminKeys = [
         "scope.view.all", "admin.manage_companies", "admin.manage_departments",
         "admin.manage_users", "admin.manage_roles", "admin.manage_settings",
@@ -83,7 +92,6 @@ export function usePermissions(): PermissionState {
 
       setPermissions(merged);
 
-      // Derive scope
       if (merged["scope.view.all"]) setScope("all");
       else if (merged["scope.view.company"]) setScope("company");
       else setScope("own");
@@ -97,6 +105,17 @@ export function usePermissions(): PermissionState {
   useEffect(() => {
     fetchPermissions();
   }, [fetchPermissions]);
+
+  // If preview mode is active, override with preview permissions
+  if (preview?.active) {
+    return {
+      permissions: preview.permissions,
+      scope: preview.scope,
+      loading: preview.loading,
+      hasPermission: (key: string) => preview.permissions[key] === true,
+      refetch: fetchPermissions,
+    };
+  }
 
   const hasPermission = useCallback(
     (key: string) => permissions[key] === true,
