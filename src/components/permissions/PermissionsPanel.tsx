@@ -10,7 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
-  Search, Shield, RotateCcw, Copy, Info, Loader2, X,
+  Search, Shield, RotateCcw, Copy, Info, Loader2, X, AlertTriangle, Eye, Building, ChevronDown,
 } from "lucide-react";
 import { PERMISSION_CATEGORIES, SCOPE_OPTIONS, getPermLabel, getPermDescription } from "@/lib/permission-labels";
 
@@ -44,34 +44,23 @@ export interface CompanyOption {
 }
 
 interface Props {
-  /** The user_account_id we're editing */
   userAccountId: string;
-  /** All available roles */
   roles: RoleOption[];
-  /** Currently assigned role ids */
   assignedRoles: string[];
   onAssignedRolesChange: (roles: string[]) => void;
-  /** Role permissions map: key -> boolean (aggregated from assigned roles) */
   rolePermissions: Record<string, boolean>;
-  /** Role name map: permission_key -> role name that granted it */
   rolePermSourceMap: Record<string, string>;
-  /** Current overrides */
   overrides: Record<string, "allow" | "deny">;
   onOverridesChange: (overrides: Record<string, "allow" | "deny">) => void;
-  /** Scope */
   scopeOverride: string;
   onScopeOverrideChange: (v: string) => void;
-  /** Organisational scopes */
   scopes: ScopeEntry[];
   onScopesChange: (s: ScopeEntry[]) => void;
   companies: CompanyOption[];
-  /** All people for "copy from" */
   allPeople?: { id: string; name: string }[];
   onCopyFrom?: (personId: string) => void;
-  /** Save + loading */
   saving: boolean;
   onSave: () => void;
-  /** Show only overrides toggle */
   showOnlyOverrides?: boolean;
 }
 
@@ -95,8 +84,8 @@ export function PermissionsPanel({
 }: Props) {
   const [search, setSearch] = useState("");
   const [onlyOverrides, setOnlyOverrides] = useState(false);
+  const [advancedMode, setAdvancedMode] = useState(false);
 
-  // Derive effective state per key
   const getEffective = useCallback(
     (key: string): EffectivePerm => {
       const ov = overrides[key];
@@ -114,28 +103,17 @@ export function PermissionsPanel({
     (key: string) => {
       const eff = getEffective(key);
       const newOverrides = { ...overrides };
-
       if (eff.source === "override") {
-        // Already overridden - toggle or remove
         if (eff.overrideMode === "allow") {
-          // Was allow override -> if role gives it too, just remove override; else set deny
-          if (rolePermissions[key]) {
-            delete newOverrides[key]; // role gives it, remove override
-          } else {
-            delete newOverrides[key]; // unchecking an allow override = remove
-          }
+          delete newOverrides[key];
         } else {
-          // Was deny override -> remove it (revert to role)
           delete newOverrides[key];
         }
       } else if (eff.source === "role") {
-        // Role gives it, user wants to remove -> create deny override
         newOverrides[key] = "deny";
       } else {
-        // No access, user wants to add -> create allow override
         newOverrides[key] = "allow";
       }
-
       onOverridesChange(newOverrides);
     },
     [getEffective, overrides, rolePermissions, onOverridesChange]
@@ -182,7 +160,6 @@ export function PermissionsPanel({
     [scopes, onScopesChange]
   );
 
-  // Filter categories by search
   const filteredCategories = useMemo(() => {
     const q = search.toLowerCase();
     return PERMISSION_CATEGORIES.map((cat) => ({
@@ -201,23 +178,76 @@ export function PermissionsPanel({
 
   const overrideCount = Object.keys(overrides).length + (scopeOverride !== "inherit" ? 1 : 0);
 
-  // Scope display
   const scopeDisplay = useMemo(() => {
     if (scopes.length === 0) return "Ingen tilgang konfigurert";
     return scopes
       .map((s) => {
         const comp = companies.find((c) => c.id === s.company_id);
         if (!comp) return "Ukjent";
-        if (!s.department_id) return `${comp.name} (hele selskapet)`;
+        if (!s.department_id) return comp.name;
         const dept = comp.departments.find((d) => d.id === s.department_id);
         return `${comp.name} → ${dept?.name || "Ukjent avd."}`;
       })
       .join(", ");
   }, [scopes, companies]);
 
+  // Summary data
+  const roleNames = assignedRoles
+    .map((rid) => roles.find((r) => r.id === rid)?.name)
+    .filter(Boolean)
+    .join(", ") || "Ingen roller";
+
+  const accessType = overrideCount > 0 ? "Arvet fra rolle + overstyringer" : "Arvet fra rolle";
+
   return (
     <TooltipProvider>
       <div className="space-y-6">
+        {/* ─── Summary card ─────────────────────────────────── */}
+        <div className="rounded-lg border bg-muted/30 p-4 sm:p-5 space-y-2">
+          <h3 className="text-sm font-semibold flex items-center gap-1.5">
+            <Eye className="h-4 w-4 text-muted-foreground" />
+            Tilgangsoppsummering
+          </h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5 text-sm">
+            <div className="flex gap-2">
+              <span className="text-muted-foreground">Rolle(r):</span>
+              <span className="font-medium">{roleNames}</span>
+            </div>
+            <div className="flex gap-2">
+              <span className="text-muted-foreground">Omfang:</span>
+              <span className="font-medium">{scopeDisplay}</span>
+            </div>
+            <div className="flex gap-2">
+              <span className="text-muted-foreground">Tilgangstype:</span>
+              <span className="font-medium">{accessType}</span>
+            </div>
+            <div className="flex gap-2">
+              <span className="text-muted-foreground">Overstyringer:</span>
+              <span className="font-medium">
+                {overrideCount > 0 ? `${overrideCount} manuell${overrideCount > 1 ? "e" : ""} avvik` : "Ingen"}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* ─── Mode toggle ────────────────────────────────── */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Info className="h-4 w-4 text-muted-foreground" />
+            <p className="text-xs text-muted-foreground">
+              <strong>Rolle</strong> gir standardrettigheter. <strong>Omfang</strong> bestemmer hva brukeren ser. <strong>Rettigheter</strong> er detaljert tilgangskontroll.
+            </p>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <Label htmlFor="advanced-mode" className="text-xs cursor-pointer text-muted-foreground">Avansert</Label>
+            <Switch
+              id="advanced-mode"
+              checked={advancedMode}
+              onCheckedChange={setAdvancedMode}
+            />
+          </div>
+        </div>
+
         {/* ─── Section A: Roller ──────────────────────────────── */}
         <section className="rounded-lg border p-4 sm:p-5 space-y-4">
           <div className="flex items-center gap-2">
@@ -251,10 +281,13 @@ export function PermissionsPanel({
           </div>
         </section>
 
-        {/* ─── Section: Omfang (Scopes) ───────────────────────── */}
+        {/* ─── Section: Omfang ───────────────────────── */}
         <section className="rounded-lg border p-4 sm:p-5 space-y-4">
           <div>
-            <h3 className="text-sm font-semibold">Omfang</h3>
+            <div className="flex items-center gap-2">
+              <Building className="h-4 w-4 text-muted-foreground" />
+              <h3 className="text-sm font-semibold">Omfang</h3>
+            </div>
             <p className="text-[11px] text-muted-foreground">
               Bestemmer hvilke selskaper og avdelinger brukeren kan se data i.
             </p>
@@ -263,25 +296,25 @@ export function PermissionsPanel({
             </p>
           </div>
 
-          {/* Scope level override */}
-          <div className="flex items-center gap-3 flex-wrap">
-            <Label className="text-xs shrink-0">Synlighetsomfang:</Label>
-            <Select value={scopeOverride} onValueChange={onScopeOverrideChange}>
-              <SelectTrigger className="w-[280px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="inherit">Arv fra rolle</SelectItem>
-                {SCOPE_OPTIONS.map((opt) => (
-                  <SelectItem key={opt.key} value={opt.key}>
-                    {opt.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {advancedMode && (
+            <div className="flex items-center gap-3 flex-wrap">
+              <Label className="text-xs shrink-0">Synlighetsomfang:</Label>
+              <Select value={scopeOverride} onValueChange={onScopeOverrideChange}>
+                <SelectTrigger className="w-[280px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="inherit">Arv fra rolle</SelectItem>
+                  {SCOPE_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.key} value={opt.key}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
-          {/* Company/dept checkboxes */}
           <div className="space-y-3">
             {companies.map((c) => (
               <div key={c.id}>
@@ -316,95 +349,119 @@ export function PermissionsPanel({
           </div>
         </section>
 
-        {/* ─── Section B: Rettigheter ─────────────────────────── */}
-        <section className="rounded-lg border p-4 sm:p-5 space-y-4">
-          <div className="flex items-center justify-between flex-wrap gap-2">
-            <h3 className="text-sm font-semibold">Rettigheter</h3>
-            <div className="flex items-center gap-2 flex-wrap">
-              {overrideCount > 0 && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-xs gap-1 text-destructive hover:text-destructive"
-                  onClick={handleResetAll}
-                >
-                  <RotateCcw className="h-3 w-3" />
-                  Tilbakestill alle ({overrideCount})
-                </Button>
-              )}
-              {allPeople && onCopyFrom && (
-                <CopyFromSelector people={allPeople} onSelect={onCopyFrom} />
-              )}
+        {/* ─── Section B: Rettigheter (advanced only) ─────────── */}
+        {advancedMode && (
+          <section className="rounded-lg border p-4 sm:p-5 space-y-4">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <h3 className="text-sm font-semibold">Rettigheter</h3>
+              <div className="flex items-center gap-2 flex-wrap">
+                {overrideCount > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-xs gap-1 text-destructive hover:text-destructive"
+                    onClick={handleResetAll}
+                  >
+                    <RotateCcw className="h-3 w-3" />
+                    Tilbakestill alle ({overrideCount})
+                  </Button>
+                )}
+                {allPeople && onCopyFrom && (
+                  <CopyFromSelector people={allPeople} onSelect={onCopyFrom} />
+                )}
+              </div>
+            </div>
+
+            {/* Override hint */}
+            {overrideCount >= 5 && (
+              <div className="rounded-md border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-900/20 p-3 flex gap-2">
+                <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                <p className="text-xs text-amber-700 dark:text-amber-300">
+                  Denne brukeren har mange manuelle avvik ({overrideCount}). Vurder å lage eller bruke en mer passende rolle for å forenkle tilgangsstyringen.
+                </p>
+              </div>
+            )}
+
+            {/* Search + filter */}
+            <div className="flex items-center gap-3 flex-wrap">
+              <div className="relative flex-1 min-w-[200px]">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Søk i rettigheter…"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="pl-9 h-9"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <Switch
+                  id="only-overrides"
+                  checked={onlyOverrides}
+                  onCheckedChange={setOnlyOverrides}
+                />
+                <Label htmlFor="only-overrides" className="text-xs cursor-pointer">
+                  Vis bare avvik fra rolle
+                </Label>
+              </div>
+            </div>
+
+            {/* Module accordions */}
+            <Accordion type="multiple" defaultValue={PERMISSION_CATEGORIES.map((c) => c.category)}>
+              {filteredCategories.map((cat) => (
+                <AccordionItem key={cat.category} value={cat.category}>
+                  <AccordionTrigger className="py-2.5 text-sm hover:no-underline">
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold">{cat.category}</span>
+                      <span className="text-[10px] text-muted-foreground font-normal">
+                        {cat.description}
+                      </span>
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent className="pb-1">
+                    <div className="space-y-0.5">
+                      {cat.keys.map((key) => {
+                        const eff = getEffective(key);
+                        const desc = getPermDescription(key);
+                        return (
+                          <PermissionRow
+                            key={key}
+                            permKey={key}
+                            effective={eff}
+                            description={desc}
+                            onToggle={() => handleCheckboxClick(key)}
+                            onReset={
+                              eff.source === "override"
+                                ? () => handleResetOverride(key)
+                                : undefined
+                            }
+                          />
+                        );
+                      })}
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              ))}
+            </Accordion>
+
+            {filteredCategories.length === 0 && (
+              <p className="text-sm text-muted-foreground text-center py-6">
+                Ingen rettigheter matcher søket.
+              </p>
+            )}
+          </section>
+        )}
+
+        {/* Non-advanced: show read-only effective summary */}
+        {!advancedMode && overrideCount > 0 && (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-900/20 p-3 flex items-start gap-2">
+            <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+            <div>
+              <p className="text-xs text-amber-700 dark:text-amber-300">
+                Denne brukeren har {overrideCount} manuell{overrideCount > 1 ? "e" : ""} overstyring{overrideCount > 1 ? "er" : ""}. Slå på «Avansert» for å se og endre dem.
+              </p>
             </div>
           </div>
-
-          {/* Search + filter */}
-          <div className="flex items-center gap-3 flex-wrap">
-            <div className="relative flex-1 min-w-[200px]">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Søk i rettigheter…"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="pl-9 h-9"
-              />
-            </div>
-            <div className="flex items-center gap-2">
-              <Switch
-                id="only-overrides"
-                checked={onlyOverrides}
-                onCheckedChange={setOnlyOverrides}
-              />
-              <Label htmlFor="only-overrides" className="text-xs cursor-pointer">
-                Vis bare avvik fra rolle
-              </Label>
-            </div>
-          </div>
-
-          {/* Module accordions */}
-          <Accordion type="multiple" defaultValue={PERMISSION_CATEGORIES.map((c) => c.category)}>
-            {filteredCategories.map((cat) => (
-              <AccordionItem key={cat.category} value={cat.category}>
-                <AccordionTrigger className="py-2.5 text-sm hover:no-underline">
-                  <div className="flex items-center gap-2">
-                    <span className="font-semibold">{cat.category}</span>
-                    <span className="text-[10px] text-muted-foreground font-normal">
-                      {cat.description}
-                    </span>
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent className="pb-1">
-                  <div className="space-y-0.5">
-                    {cat.keys.map((key) => {
-                      const eff = getEffective(key);
-                      const desc = getPermDescription(key);
-                      return (
-                        <PermissionRow
-                          key={key}
-                          permKey={key}
-                          effective={eff}
-                          description={desc}
-                          onToggle={() => handleCheckboxClick(key)}
-                          onReset={
-                            eff.source === "override"
-                              ? () => handleResetOverride(key)
-                              : undefined
-                          }
-                        />
-                      );
-                    })}
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
-            ))}
-          </Accordion>
-
-          {filteredCategories.length === 0 && (
-            <p className="text-sm text-muted-foreground text-center py-6">
-              Ingen rettigheter matcher søket.
-            </p>
-          )}
-        </section>
+        )}
 
         {/* ─── Sticky save bar ────────────────────────────────── */}
         <div className="sticky bottom-0 bg-background/95 backdrop-blur border-t py-3 -mx-4 px-4 sm:-mx-5 sm:px-5 flex items-center justify-between">
@@ -442,14 +499,11 @@ function PermissionRow({
 }) {
   return (
     <div className="flex items-center gap-3 py-1.5 px-1 rounded hover:bg-accent/30 transition-colors group">
-      {/* Checkbox */}
       <Checkbox
         checked={effective.allowed}
         onCheckedChange={onToggle}
         className="shrink-0"
       />
-
-      {/* Label + description */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5">
           <span className="text-sm">{getPermLabel(permKey)}</span>
@@ -465,36 +519,33 @@ function PermissionRow({
           )}
         </div>
       </div>
-
-      {/* Effective badge */}
       <div className="flex items-center gap-1.5 shrink-0">
-        {effective.allowed ? (
+        {effective.source === "override" ? (
+          <Badge
+            variant="outline"
+            className={`text-[10px] ${
+              effective.overrideMode === "allow"
+                ? "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800"
+                : "bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-900/20 dark:text-orange-400 dark:border-orange-800"
+            }`}
+          >
+            {effective.overrideMode === "allow" ? "✎ Manuelt gitt" : "✎ Manuelt fjernet"}
+          </Badge>
+        ) : effective.allowed ? (
           <Badge
             variant="outline"
             className="text-[10px] bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800"
           >
-            Har tilgang
+            Via rolle
           </Badge>
         ) : (
-          <Badge
-            variant="outline"
-            className="text-[10px] bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800"
-          >
-            Ingen tilgang
-          </Badge>
+          <span className="text-[10px] text-muted-foreground">Ingen tilgang</span>
         )}
 
-        {/* Source indicator */}
         <span className="text-[10px] text-muted-foreground whitespace-nowrap">
-          {effective.source === "role" && `Via rolle: ${effective.roleName}`}
-          {effective.source === "override" &&
-            (effective.overrideMode === "allow"
-              ? "Overstyring: Tillatt"
-              : "Overstyring: Nektet")}
-          {effective.source === "none" && "Ingen"}
+          {effective.source === "role" && effective.roleName}
         </span>
 
-        {/* Reset link */}
         {onReset && (
           <button
             onClick={(e) => {
