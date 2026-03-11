@@ -705,6 +705,12 @@ Deno.serve(async (req) => {
 
     // ─── ACTION: repair_sync ───
     if (action === "repair_sync") {
+      // PERMISSION GUARD: calendar.write_events required
+      const canWrite = await checkPerm("calendar.write_events");
+      if (!canWrite) {
+        log(`DENIED: User ${authUser.id} lacks calendar.write_events`);
+        return respond({ error: "Mangler rettighet: calendar.write_events", error_code: "permission_denied", logs }, 403);
+      }
       const { job_id } = body;
       if (!job_id) return respond({ error: "Missing job_id", logs }, 400);
 
