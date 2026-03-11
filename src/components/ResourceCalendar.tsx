@@ -34,8 +34,16 @@ interface ResourceCalendarProps {
   onEventDrop?: (eventId: string, newStart: Date, newEnd: Date) => void;
   onEventResize?: (eventId: string, newStart: Date, newEnd: Date) => void;
   onExternalDrop?: (info: { taskId: string; title: string; start: Date; end: Date; estimatedMinutes: number; priority: string; dropType: string }) => void;
+  /** @deprecated Use canWriteEvents instead */
   isAdmin?: boolean;
+  /** @deprecated Use canViewExternalDetails instead */
   isSuperAdmin?: boolean;
+  /** Permission: can write/edit calendar events */
+  canWriteEvents?: boolean;
+  /** Permission: can see external calendar details (titles, locations) */
+  canViewExternalDetails?: boolean;
+  /** Permission: can see busy/available status */
+  canReadBusy?: boolean;
   hideExternalEvents?: boolean;
 }
 
@@ -107,8 +115,14 @@ export const ResourceCalendar = memo(function ResourceCalendar({
   onExternalDrop,
   isAdmin = false,
   isSuperAdmin = false,
+  canWriteEvents,
+  canViewExternalDetails,
+  canReadBusy = true,
   hideExternalEvents = false,
 }: ResourceCalendarProps) {
+  // Resolve permission: prefer new props, fall back to legacy
+  const effectiveCanWrite = canWriteEvents ?? isAdmin;
+  const effectiveCanViewExternal = canViewExternalDetails ?? isSuperAdmin;
   const calendarRef = useRef<FullCalendar>(null);
   const { events: calendarEvents } = useCalendarEvents(technicianId, referenceDate);
 
@@ -165,7 +179,7 @@ export const ResourceCalendar = memo(function ResourceCalendar({
           baseColor,
           statusDot: statusDotColors[ev.status] || "#FFFFFF",
         },
-        editable: isAdmin,
+        editable: effectiveCanWrite,
       };
     });
 
@@ -222,24 +236,24 @@ export const ResourceCalendar = memo(function ResourceCalendar({
               console.warn(`[ResourceCalendar] Busy slot missing technician name – techId=${techId}, slot=${slot.start.toISOString()}`);
             }
             const busyTechColor = techColorMap.get(techId) || GCAL_PALETTE[0];
-            // Privacy: non-superadmins see only "Opptatt" without names
-            const maskedTitle = isSuperAdmin ? `${displayName} – opptatt` : "Opptatt";
+            // Privacy: use permission check, not role
+            const maskedTitle = effectiveCanViewExternal ? `${displayName} – opptatt` : "Opptatt";
             const BUSY_GRAY = "#9CA3AF";
             result.push({
               id: `busy-${techId}-${slot.start.getTime()}`,
               title: maskedTitle,
               start: slot.start,
               end: slot.end,
-              backgroundColor: isSuperAdmin ? hexToRgba(busyTechColor, 0.25) : hexToRgba(BUSY_GRAY, 0.15),
-              borderColor: isSuperAdmin ? hexToRgba(busyTechColor, 0.5) : hexToRgba(BUSY_GRAY, 0.35),
-              textColor: isSuperAdmin ? busyTechColor : "#9CA3AF",
+              backgroundColor: effectiveCanViewExternal ? hexToRgba(busyTechColor, 0.25) : hexToRgba(BUSY_GRAY, 0.15),
+              borderColor: effectiveCanViewExternal ? hexToRgba(busyTechColor, 0.5) : hexToRgba(BUSY_GRAY, 0.35),
+              textColor: effectiveCanViewExternal ? busyTechColor : "#9CA3AF",
               editable: false,
               extendedProps: {
                 isBusy: true,
-                techName: isSuperAdmin ? displayName : undefined,
-                busyTechColor: isSuperAdmin ? busyTechColor : BUSY_GRAY,
+                techName: effectiveCanViewExternal ? displayName : undefined,
+                busyTechColor: effectiveCanViewExternal ? busyTechColor : BUSY_GRAY,
                 busyTechId: techId,
-                isExternalMasked: !isSuperAdmin,
+                isExternalMasked: !effectiveCanViewExternal,
               },
             });
           }
@@ -265,7 +279,7 @@ export const ResourceCalendar = memo(function ResourceCalendar({
       const displayTitle = block.outlook_subject || block.title || "Outlook-blokk";
 
       // Privacy: non-superadmins see masked external blocks
-      const masked = isExternal && !isSuperAdmin;
+      const masked = isExternal && !effectiveCanViewExternal;
       const BUSY_GRAY = "#9CA3AF";
 
       result.push({
@@ -298,7 +312,7 @@ export const ResourceCalendar = memo(function ResourceCalendar({
     }
 
     return result;
-  }, [calendarEvents, getBusySlotsForDay, technicianMap, techColorMap, referenceDate, isAdmin, isSuperAdmin, hideExternalEvents, isMonthView, scheduleBlocks]);
+  }, [calendarEvents, getBusySlotsForDay, technicianMap, techColorMap, referenceDate, effectiveCanWrite, effectiveCanViewExternal, hideExternalEvents, isMonthView, scheduleBlocks]);
 
   const handleEventClick = useCallback((info: EventClickArg) => {
     const props = info.event.extendedProps;
@@ -390,8 +404,8 @@ export const ResourceCalendar = memo(function ResourceCalendar({
   }, [onEventClick, onScheduleBlockClick, scheduleBlocks]);
 
   const handleDateSelect = useCallback((info: DateSelectArg) => {
-    if (isAdmin) onDateSelect?.(info.start, info.end);
-  }, [isAdmin, onDateSelect]);
+    if (effectiveCanWrite) onDateSelect?.(info.start, info.end);
+  }, [effectiveCanWrite, onDateSelect]);
 
   const handleEventDrop = useCallback((info: EventDropArg) => {
     if (info.event.extendedProps.isBusy) { info.revert(); return; }
@@ -435,11 +449,11 @@ export const ResourceCalendar = memo(function ResourceCalendar({
         slotLabelFormat={{ hour: "2-digit", minute: "2-digit", hour12: false }}
         weekends={true}
         nowIndicator={true}
-        selectable={isAdmin}
+        selectable={effectiveCanWrite}
         selectMirror={true}
-        editable={isAdmin}
-        eventDurationEditable={isAdmin}
-        eventStartEditable={isAdmin}
+        editable={effectiveCanWrite}
+        eventDurationEditable={effectiveCanWrite}
+        eventStartEditable={effectiveCanWrite}
         snapDuration="00:15:00"
         droppable={true}
         drop={handleExternalDrop}

@@ -60,7 +60,11 @@ export default function ResourcePlan() {
   const navigate = useNavigate();
   const { isAdmin, isSuperAdmin } = useAuth();
   const { hasPermission } = usePermissions();
-  const canViewExternal = isSuperAdmin || hasPermission("calendar.view_external");
+  // Permission-based access: use permission keys, NOT role checks
+  const canReadBusy = hasPermission("calendar.read_busy");
+  const canViewExternal = hasPermission("calendar.view_external");
+  const canWriteEvents = hasPermission("calendar.write_events");
+  const canDeleteEvents = hasPermission("calendar.delete_events");
   const confirmationCount = useConfirmationCount();
   const syncHealth = useSyncHealth(isAdmin);
   const { technicians } = useTechnicians();
@@ -70,7 +74,8 @@ export default function ResourcePlan() {
   const [externalBlocksCapacity, setExternalBlocksCapacity] = useState(true);
   const [minFreeMinutes, setMinFreeMinutes] = useState<number | null>(null);
   const [calendarView, setCalendarView] = useState<CalendarViewType>(getStoredView);
-  const { busySlots, getBusySlotsForDay, getExternalBusyMinutesForDay } = useExternalBusy(selectedTechId);
+  // Only fetch external busy data if user has calendar.read_busy permission
+  const { busySlots, getBusySlotsForDay, getExternalBusyMinutesForDay } = useExternalBusy(canReadBusy ? selectedTechId : "__disabled__");
   const { syncUpdate, syncCreate, forceUpdate, acceptGraphVersion, conflict, dismissConflict } = useCalendarSync();
   const [selectedBlock, setSelectedBlock] = useState<ScheduleBlock | null>(null);
   const [hideExternalEvents, setHideExternalEvents] = useState(false);
@@ -141,12 +146,12 @@ export default function ResourcePlan() {
   }, []);
 
   const handleDateSelect = useCallback((start: Date, end: Date) => {
-    if (!isAdmin) return;
+    if (!canWriteEvents) return;
     setEditEvent(null);
     setPreselectedStart(start);
     setPreselectedEnd(end);
     setDrawerOpen(true);
-  }, [isAdmin]);
+  }, [canWriteEvents]);
 
   const handleNewEvent = useCallback(() => {
     setEditEvent(null);
@@ -250,7 +255,8 @@ export default function ResourcePlan() {
     });
   }, [selectedTechId, technicians]);
 
-  const nowStatusMap = useTechnicianNowStatus(calEvents, busySlots, techIds, externalBlocksCapacity);
+  // Only compute now-status if user has permission to see busy/available
+  const nowStatusMap = useTechnicianNowStatus(calEvents, canReadBusy ? busySlots : [], techIds, externalBlocksCapacity);
 
   const todayDayIndex = useMemo(() => {
     const today = new Date();
@@ -335,9 +341,9 @@ export default function ResourcePlan() {
             onSelect={setSelectedTechId}
             allowDeselect
             filterIds={filteredTechForSidebar}
-            nowStatusMap={nowStatusMap}
+            nowStatusMap={canReadBusy ? nowStatusMap : undefined}
             onColorChange={handleTechColorChange}
-            techDayPercents={techDayPercents}
+            techDayPercents={canReadBusy ? techDayPercents : undefined}
           />
         </aside>
       )}
@@ -363,8 +369,8 @@ export default function ResourcePlan() {
             hideExternalEvents={hideExternalEvents}
             onHideExternalEventsChange={setHideExternalEvents}
             isSuperAdmin={canViewExternal}
-            minFreeMinutes={minFreeMinutes}
-            onMinFreeMinutesChange={setMinFreeMinutes}
+            minFreeMinutes={canReadBusy ? minFreeMinutes : null}
+            onMinFreeMinutesChange={canReadBusy ? setMinFreeMinutes : undefined}
           />
         ) : (
           <>
@@ -435,7 +441,7 @@ export default function ResourcePlan() {
                   </div>
                 )}
 
-                {isAdmin && (
+                {hasPermission("admin.manage_settings") && (
                   <TooltipProvider delayDuration={200}>
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -474,7 +480,7 @@ export default function ResourcePlan() {
                   </Button>
                 )}
 
-                {isAdmin && (
+                {canWriteEvents && (
                   <Button onClick={handleNewEvent} size="sm" className="gap-1.5 rounded-xl">
                     <Plus className="h-4 w-4" />
                     Ny aktivitet
@@ -531,8 +537,8 @@ export default function ResourcePlan() {
           </>
         )}
 
-        {/* Capacity status bar (desktop only) */}
-        {!isMobile && techCapacities.length > 0 && (
+        {/* Capacity status bar (desktop only) – only shown if user can read busy */}
+        {!isMobile && canReadBusy && techCapacities.length > 0 && (
           <CapacityStatusBar
             techCapacities={techCapacities}
             todayDayIndex={todayDayIndex}
@@ -560,17 +566,18 @@ export default function ResourcePlan() {
           referenceDate={referenceDate}
           calendarView={calendarView}
           technicianMap={technicianMap}
-          getBusySlotsForDay={getBusySlotsForDay}
-          dayCapacities={aggregatedDays}
+          getBusySlotsForDay={canReadBusy ? getBusySlotsForDay : undefined}
+          dayCapacities={canReadBusy ? aggregatedDays : undefined}
           scheduleBlocks={scheduleBlocks}
           onEventClick={handleEventClick}
           onScheduleBlockClick={(block) => setSelectedBlock(block)}
-          onDateSelect={handleDateSelect}
-          onEventDrop={handleEventDrop}
-          onEventResize={handleEventResize}
-          onExternalDrop={handleExternalDrop}
-          isAdmin={isAdmin}
-          isSuperAdmin={canViewExternal}
+          onDateSelect={canWriteEvents ? handleDateSelect : undefined}
+          onEventDrop={canWriteEvents ? handleEventDrop : undefined}
+          onEventResize={canWriteEvents ? handleEventResize : undefined}
+          onExternalDrop={canWriteEvents ? handleExternalDrop : undefined}
+          canWriteEvents={canWriteEvents}
+          canViewExternalDetails={canViewExternal}
+          canReadBusy={canReadBusy}
           hideExternalEvents={hideExternalEvents}
         />
         </div>

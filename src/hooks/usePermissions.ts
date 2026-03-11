@@ -70,8 +70,16 @@ export function usePermissions(): PermissionState {
         merged["admin.manage_users"] = true;
         merged["admin.manage_roles"] = true;
         merged["admin.manage_settings"] = true;
+        // Super admin gets all calendar permissions by default
+        merged["calendar.read_busy"] = merged["calendar.read_busy"] ?? true;
+        merged["calendar.view_external"] = merged["calendar.view_external"] ?? true;
+        merged["calendar.write_events"] = merged["calendar.write_events"] ?? true;
+        merged["calendar.delete_events"] = merged["calendar.delete_events"] ?? true;
       } else if (user.role === "admin") {
         merged["scope.view.company"] = true;
+        // Admin gets calendar read/write by default
+        merged["calendar.read_busy"] = merged["calendar.read_busy"] ?? true;
+        merged["calendar.write_events"] = merged["calendar.write_events"] ?? true;
       }
 
       setPermissions(merged);
