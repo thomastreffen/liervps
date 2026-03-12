@@ -82,6 +82,7 @@ export default function JobsPage() {
   const [page, setPage] = useState(0);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [sendingApproval, setSendingApproval] = useState<string | null>(null);
+  const [reassignOpen, setReassignOpen] = useState(false);
 
   const toggleSelect = (id: string) => {
     setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
