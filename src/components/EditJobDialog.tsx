@@ -17,8 +17,9 @@ import { FileUpload } from "./FileUpload";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
-import { AlertTriangle, Bell, BellOff } from "lucide-react";
+import { AlertTriangle, Bell, BellOff, Moon } from "lucide-react";
 import type { Attachment } from "@/lib/mock-data";
+import { normalizeOvernightDates, isOvernightRange, autoAdjustEndDate } from "@/lib/overnight";
 
 interface EditJobDialogProps {
   open: boolean;
