@@ -13,6 +13,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
+import { useCompanyContext } from "@/hooks/useCompanyContext";
+import { SourceMetadataBadge, SourceMetadataSection } from "@/components/SourceMetadataBadge";
 import { format } from "date-fns";
 import { nb } from "date-fns/locale";
 import { JOB_STATUS_CONFIG, type JobStatus } from "@/lib/job-status";
