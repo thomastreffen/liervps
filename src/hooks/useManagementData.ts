@@ -123,13 +123,15 @@ export function useManagementData() {
       const overCount = statuses.filter((s) => s.status === "overbooket").length;
 
       // 3. Unplanned projects
-      const { count: unplanned } = await supabase
+      let unplannedQ = supabase
         .from("events")
         .select("id", { count: "exact", head: true })
         .is("deleted_at", null)
         .is("archived_at", null)
         .in("status", ["requested", "approved"])
         .is("microsoft_event_id", null);
+      if (activeCompanyId) unplannedQ = unplannedQ.eq("company_id", activeCompanyId);
+      const { count: unplanned } = await unplannedQ;
 
       // 4. Pending approvals (service_journals in review status)
       const { count: pendingApproval } = await supabase
