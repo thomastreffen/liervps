@@ -67,7 +67,7 @@ export default function InvoiceBasisPage() {
 
       if (data && data.length > 0) {
         // Fetch project titles
-        const projectIds = [...new Set(data.map((r: any) => r.project_id))];
+        const projectIds = [...new Set((data as any[]).map((r: any) => r.project_id))] as string[];
         const { data: projects } = await supabase
           .from("events")
           .select("id, title, address")
