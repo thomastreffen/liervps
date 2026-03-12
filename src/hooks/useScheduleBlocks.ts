@@ -161,6 +161,11 @@ export function useScheduleBlocks(
   // Initial fetch
   useEffect(() => { fetchBlocks(); }, [fetchBlocks]);
 
+  // Optimistic removal – instantly hide a block by id (used by callers after delete)
+  const removeBlockOptimistic = useCallback((blockId: string) => {
+    setBlocks((prev) => prev.filter((b) => b.id !== blockId));
+  }, []);
+
   // Realtime – debounced to handle cron batch upserts
   useEffect(() => {
     const channel = supabase
@@ -173,14 +178,21 @@ export function useScheduleBlocks(
       .on(
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "schedule_blocks" },
-        () => debouncedRefetch()
+        (payload) => {
+          const updated = payload.new as any;
+          // Soft-deleted blocks should be removed immediately
+          if (updated.deleted_at) {
+            setBlocks((prev) => prev.filter((b) => b.id !== updated.id));
+          } else {
+            debouncedRefetch();
+          }
+        }
       )
       .on(
         "postgres_changes",
         { event: "DELETE", schema: "public", table: "schedule_blocks" },
         (payload) => {
           const old = payload.old as any;
-          // Immediate removal from state
           setBlocks((prev) => prev.filter((b) => b.id !== old.id));
         }
       )
