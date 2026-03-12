@@ -64,8 +64,16 @@ export default function ResourcePlan() {
   const { isAdmin, isSuperAdmin } = useAuth();
   const { hasPermission } = usePermissions();
   const { activeCompanyId } = useCompanyContext();
+  // Permission-based access
+  const canReadBusy = hasPermission("calendar.read_busy");
+  const canViewExternal = hasPermission("calendar.view_external");
+  const canWriteEvents = hasPermission("calendar.write_events");
+  const canDeleteEvents = hasPermission("calendar.delete_events");
+  const canCrossCompany = hasPermission("resourceplan.cross_company") || hasPermission("scope.view.all");
+  const confirmationCount = useConfirmationCount();
+  const syncHealth = useSyncHealth(isAdmin);
 
-  // Global company scope is the single source of truth
+  // Global company scope is the single source of truth — no local override
   const effectiveCompanyId = activeCompanyId; // null = all companies
 
   const { technicians } = useTechnicians(effectiveCompanyId);
