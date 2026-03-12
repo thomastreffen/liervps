@@ -12,7 +12,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Plus, CalendarDays, ChevronLeft, ChevronRight, RotateCcw, UserCheck, UserMinus, Clock,
-  Calendar, List, Bell, Sun, Moon, Sunrise, ZoomIn,
+  Calendar, List, Bell, Sun, Moon, Sunrise, ZoomIn, Building,
 } from "lucide-react";
 import { useOperatingHours, type ZoomLevel } from "@/hooks/useOperatingHours";
 import { setWorkHours } from "@/hooks/useTechnicianNowStatus";
@@ -38,6 +38,7 @@ import { CapacityStatusBar } from "@/components/resource-plan/CapacityStatusBar"
 import { UnplannedProjectsBanner } from "@/components/resource-plan/UnplannedProjectsBanner";
 import { useUnplannedProjects } from "@/hooks/useUnplannedProjects";
 import { DropConfirmPopover, type DropPayload } from "@/components/resource-plan/DropConfirmPopover";
+import { useCompanyContext } from "@/hooks/useCompanyContext";
 
 type CalendarViewType = "timeGridDay" | "timeGridWeek" | "dayGridMonth" | "listWeek";
 
