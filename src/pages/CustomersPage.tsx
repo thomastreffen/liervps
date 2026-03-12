@@ -33,6 +33,7 @@ const PAGE_SIZE = 20;
 
 export default function CustomersPage() {
   const navigate = useNavigate();
+  const { activeCompanyId } = useCompanyContext();
   const [customers, setCustomers] = useState<CustomerRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -42,10 +43,14 @@ export default function CustomersPage() {
 
   const fetchCustomers = async () => {
     setLoading(true);
-    const { data, error } = await supabase
+    let query = supabase
       .from("customers")
       .select("id, name, org_number, billing_city, main_email, created_at")
       .order("name", { ascending: true });
+
+    if (activeCompanyId) {
+      query = query.eq("company_id", activeCompanyId);
+    }
 
     if (data) {
       // Get project counts per customer
