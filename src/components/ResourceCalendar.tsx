@@ -285,13 +285,19 @@ export const ResourceCalendar = memo(function ResourceCalendar({
           const techSbRanges = sbRangesByTech.get(techId) || [];
 
           for (const slot of merged) {
-            // Deduplicate: skip busy slot if a schedule_block already covers this time range
+            // Deduplicate: skip busy slot if a schedule_block OR calendarEvent already covers this time range
             const slotStart = slot.start.getTime();
             const slotEnd = slot.end.getTime();
             const coveredBySb = techSbRanges.some(
               (r) => r.start <= slotStart + 60000 && r.end >= slotEnd - 60000
             );
             if (coveredBySb) continue;
+
+            const calRanges = calEventRangesByTech.get(techId) || [];
+            const coveredByCalEvent = calRanges.some(
+              (r) => r.start <= slotStart + 60000 && r.end >= slotEnd - 60000
+            );
+            if (coveredByCalEvent) continue;
 
             const techName = tech?.name?.trim();
             const displayName = techName
