@@ -108,6 +108,28 @@ export function useTripletexImport() {
     setStep("preview");
   }, [companyId]);
 
+  /** Resolve a customer id from maps using priority: tripletex_id → org_nr → name */
+  const resolveCustomerFromMaps = (
+    maps: CustomerMaps, customerName: string, customerNumber: string
+  ): string | null => {
+    // 1. Tripletex customer ID (highest priority – stable & unique)
+    if (customerNumber) {
+      const byTx = maps.customerByTripletexId.get(customerNumber.trim());
+      if (byTx) return byTx.id;
+    }
+    // 2. Org number
+    if (customerNumber) {
+      const byOrg = maps.customerByOrgNr.get(customerNumber.trim());
+      if (byOrg) return byOrg.id;
+    }
+    // 3. Exact name match (case-insensitive)
+    if (customerName) {
+      const byName = maps.customerByName.get(customerName.toLowerCase().trim());
+      if (byName) return byName.id;
+    }
+    return null;
+  };
+
   const matchProjects = async (parsed: ParsedCSV) => {
     // Fetch existing projects and customers for matching
     const [{ data: existing }, { data: customers }] = await Promise.all([
@@ -141,6 +163,8 @@ export function useTripletexImport() {
       if (e.project_number) byProjectNumber.set(e.project_number.toLowerCase(), { id: e.id, title: e.title, customer: e.customer });
       if ((e as any).external_tripletex_id) byTripletexId.set(((e as any).external_tripletex_id as string).toLowerCase(), { id: e.id, title: e.title, customer: e.customer });
     });
+
+    const maps: CustomerMaps = { customerByOrgNr, customerByTripletexId, customerByName };
 
     const rows: ProjectRow[] = parsed.rows.map((row, idx) => {
       const projectNumber = getCol(row, "Prosjektnummer");
@@ -183,7 +207,6 @@ export function useTripletexImport() {
               .map(e => {
                 const nameScore = stringSimilarity(projectName, e.title);
                 const customerScore = stringSimilarity(customerName, e.customer || "");
-                // Combined score: name is more important
                 const combined = nameScore * 0.6 + customerScore * 0.4;
                 return { id: e.id, title: e.title, customer: e.customer, score: combined };
               })
@@ -196,11 +219,18 @@ export function useTripletexImport() {
               candidates = fuzzyMatches;
               matchedEntityId = fuzzyMatches[0].id;
               matchedEntityTitle = fuzzyMatches[0].title;
-              action = "create"; // Default to create, admin decides
+              action = "create";
             }
           }
         }
       }
+
+      // Resolve customer
+      const resolvedCustomerId = customerName || customerNumber
+        ? resolveCustomerFromMaps(maps, customerName, customerNumber) ?? undefined
+        : undefined;
+
+      const missingCustomer = !!(customerName && !resolvedCustomerId);
 
       if (startDate === null && getCol(row, "Startdato")) {
         error = (error ? error + "; " : "") + "Ugyldig startdato";
@@ -229,12 +259,14 @@ export function useTripletexImport() {
         candidates,
         action,
         error,
+        missingCustomer,
+        resolvedCustomerId,
         raw: row,
       };
     });
 
     // Store customer maps for use during import execution
-    customerMapsRef.current = { customerByOrgNr, customerByTripletexId, customerByName };
+    customerMapsRef.current = maps;
 
     setProjectRows(rows);
   };
