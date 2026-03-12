@@ -420,8 +420,31 @@ export default function ResourcePlan() {
                   )}
                 </div>
                 <span className="text-[9px] font-mono text-muted-foreground/60 select-all">
-                  UI build: 2026-03-07 10:00
+                  UI build: 2026-03-12 14:00
                 </span>
+                {/* Company scope selector */}
+                <div className="flex items-center gap-1.5">
+                  <Building className="h-3.5 w-3.5 text-muted-foreground" />
+                  <Select value={rpCompanyScope} onValueChange={(v) => {
+                    if (v === "all" && !canCrossCompany) return;
+                    setRpCompanyScope(v);
+                  }}>
+                    <SelectTrigger className="h-7 text-xs w-[180px] rounded-lg border-border/40">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="active">
+                        {companies.find(c => c.id === activeCompanyId)?.name || "Aktivt selskap"}
+                      </SelectItem>
+                      {companies.filter(c => c.id !== activeCompanyId).map(c => (
+                        <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                      ))}
+                      {canCrossCompany && (
+                        <SelectItem value="all">Alle selskaper</SelectItem>
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
               <div className="flex items-center gap-2 flex-wrap">
