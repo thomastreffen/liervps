@@ -44,6 +44,7 @@ export default function Dashboard() {
         {!isMobile && (
           <aside className="w-64 shrink-0 border-r bg-card overflow-y-auto p-3">
             <TechnicianList
+              technicians={technicians}
               selectedId={selectedTechId}
               onSelect={setSelectedTechId}
               allowDeselect
