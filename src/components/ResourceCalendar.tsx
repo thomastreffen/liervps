@@ -128,6 +128,12 @@ export const ResourceCalendar = memo(function ResourceCalendar({
   canViewExternalDetails,
   canReadBusy = true,
   hideExternalEvents = false,
+  slotMinTime = "07:00:00",
+  slotMaxTime = "16:00:00",
+  slotDuration = "00:30:00",
+  operatingStartHour = 7,
+  operatingEndHour = 16,
+  hasNightHours = false,
 }: ResourceCalendarProps) {
   // Resolve permission: prefer new props, fall back to legacy
   const effectiveCanWrite = canWriteEvents ?? isAdmin;

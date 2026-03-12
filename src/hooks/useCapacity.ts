@@ -143,5 +143,5 @@ export function useCapacity(
       availableTechIds,
       partialTechIds,
     };
-  }, [events, busySlots, referenceDate, technicianIds]);
+  }, [events, busySlots, referenceDate, technicianIds, workDayMinutes]);
 }
