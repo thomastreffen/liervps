@@ -3,6 +3,7 @@ import { BookOpen, BarChart3, CheckCircle2, Clock, TrendingUp } from "lucide-rea
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
+import { useCompanyContext } from "@/hooks/useCompanyContext";
 import { format, startOfWeek, differenceInHours } from "date-fns";
 import { nb } from "date-fns/locale";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
