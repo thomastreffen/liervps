@@ -652,6 +652,9 @@ export const ResourceCalendar = memo(function ResourceCalendar({
                   className="fc-event-internal px-2 py-1.5 overflow-hidden h-full cursor-grab active:cursor-grabbing select-none"
                 >
                   <div className="flex items-center gap-1.5">
+                    {props.isOvernight && (
+                      <Moon className="h-3 w-3 shrink-0 text-white/80" />
+                    )}
                     {props.techNames && (
                       <p className="text-[12px] font-bold leading-tight truncate text-white/90">
                         {props.techNames}
