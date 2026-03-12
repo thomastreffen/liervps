@@ -383,6 +383,10 @@ export const ResourceCalendar = memo(function ResourceCalendar({
       });
     }
 
+    if (eventIdsWithScheduleBlock.size > 0) {
+      console.log(`[ResourceCalendar] Dedup: ${eventIdsWithScheduleBlock.size} calendarEvent(s) suppressed by schedule_blocks`);
+    }
+
     return result;
   }, [calendarEvents, getBusySlotsForDay, technicianMap, techColorMap, referenceDate, effectiveCanWrite, effectiveCanViewExternal, hideExternalEvents, isMonthView, scheduleBlocks]);
 
