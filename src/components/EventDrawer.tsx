@@ -251,14 +251,16 @@ export function EventDrawer({
     if (date) setEndDate(autoAdjustEndDate(date, startTime, nextEndTime));
   };
 
-  const overnight = date && startTime && endDate && endTime
-    ? isOvernightRange(date, startTime, endDate, endTime)
+  const resolvedEndDate = endDate || (date ? autoAdjustEndDate(date, startTime, endTime) : "");
+
+  const overnight = date && startTime && resolvedEndDate && endTime
+    ? isOvernightRange(date, startTime, resolvedEndDate, endTime)
     : false;
 
-  const summaryLine = date && startTime && endDate && endTime ? (() => {
+  const summaryLine = date && startTime && resolvedEndDate && endTime ? (() => {
     try {
       const start = new Date(`${date}T${startTime}`);
-      const end = new Date(`${endDate}T${endTime}`);
+      const end = new Date(`${resolvedEndDate}T${endTime}`);
       return `${format(start, "dd.MM.yyyy HH:mm", { locale: nb })} → ${format(end, "dd.MM.yyyy HH:mm", { locale: nb })}`;
     } catch {
       return null;
