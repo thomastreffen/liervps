@@ -236,6 +236,35 @@ export function EventDrawer({
     return () => clearTimeout(timer);
   }, [date, startTime, endDate, endTime, techIds, open, editEvent, checkConflicts]);
 
+  const handleDateChange = (nextDate: string) => {
+    setDate(nextDate);
+    setEndDate(nextDate ? autoAdjustEndDate(nextDate, startTime, endTime) : "");
+  };
+
+  const handleStartTimeChange = (nextStartTime: string) => {
+    setStartTime(nextStartTime);
+    if (date) setEndDate(autoAdjustEndDate(date, nextStartTime, endTime));
+  };
+
+  const handleEndTimeChange = (nextEndTime: string) => {
+    setEndTime(nextEndTime);
+    if (date) setEndDate(autoAdjustEndDate(date, startTime, nextEndTime));
+  };
+
+  const overnight = date && startTime && endDate && endTime
+    ? isOvernightRange(date, startTime, endDate, endTime)
+    : false;
+
+  const summaryLine = date && startTime && endDate && endTime ? (() => {
+    try {
+      const start = new Date(`${date}T${startTime}`);
+      const end = new Date(`${endDate}T${endTime}`);
+      return `${format(start, "dd.MM.yyyy HH:mm", { locale: nb })} → ${format(end, "dd.MM.yyyy HH:mm", { locale: nb })}`;
+    } catch {
+      return null;
+    }
+  })() : null;
+
   // Save: create or update
   const handleSave = async () => {
     if (saving || submitted) return;
