@@ -48,17 +48,22 @@ function getStoredZoom(): ZoomLevel {
   return "normal";
 }
 
-export function useOperatingHours(): OperatingHours {
+export function useOperatingHours(companyId?: string | null): OperatingHours {
   const { activeCompanyId } = useCompanyContext();
+  const resolvedCompanyId = companyId ?? activeCompanyId;
   const [profile, setProfile] = useState<OperatingProfile>("office");
   const [zoom, setZoomState] = useState<ZoomLevel>(getStoredZoom);
 
   useEffect(() => {
-    if (!activeCompanyId) return;
+    if (!resolvedCompanyId) {
+      setProfile("office");
+      return;
+    }
+
     supabase
       .from("internal_companies")
       .select("operating_profile")
-      .eq("id", activeCompanyId)
+      .eq("id", resolvedCompanyId)
       .single()
       .then(({ data }) => {
         const p = (data as any)?.operating_profile;
@@ -66,7 +71,7 @@ export function useOperatingHours(): OperatingHours {
           setProfile(p);
         }
       });
-  }, [activeCompanyId]);
+  }, [resolvedCompanyId]);
 
   const setZoom = (z: ZoomLevel) => {
     setZoomState(z);

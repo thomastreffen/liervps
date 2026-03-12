@@ -15,7 +15,7 @@ export interface CalendarEvent extends Job {
   technicians: TechnicianInfo[];
 }
 
-export function useCalendarEvents(technicianId: string | null, referenceDate?: Date) {
+export function useCalendarEvents(technicianId: string | null, referenceDate?: Date, companyId?: string | null) {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -28,7 +28,7 @@ export function useCalendarEvents(technicianId: string | null, referenceDate?: D
   const fetchEvents = useCallback(async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from("events")
         .select(`
           id,
@@ -60,6 +60,12 @@ export function useCalendarEvents(technicianId: string | null, referenceDate?: D
         .gte("start_time", weekStartISO)
         .lte("start_time", weekEndISO)
         .order("start_time", { ascending: true });
+
+      if (companyId) {
+        query = query.eq("company_id", companyId);
+      }
+
+      const { data, error } = await query;
 
       if (error) {
         console.error("[Calendar] Failed to fetch events:", error);
@@ -123,14 +129,14 @@ export function useCalendarEvents(technicianId: string | null, referenceDate?: D
         };
       });
 
-      console.log(`[Calendar] Fetched ${mapped.length} unique events (tech: ${technicianId ?? "ALL"}, week: ${weekStartISO.slice(0, 10)})`);
+      console.log(`[Calendar] Fetched ${mapped.length} unique events (tech: ${technicianId ?? "ALL"}, company: ${companyId ?? "ALL"}, week: ${weekStartISO.slice(0, 10)})`);
       setEvents(mapped);
     } catch (err) {
       console.error("[Calendar] Fetch exception:", err);
     } finally {
       setLoading(false);
     }
-  }, [technicianId, weekStartISO, weekEndISO]);
+  }, [technicianId, weekStartISO, weekEndISO, companyId]);
 
   useEffect(() => {
     fetchEvents();
