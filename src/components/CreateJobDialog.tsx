@@ -11,9 +11,10 @@ import { FileUpload } from "./FileUpload";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
-import { AlertTriangle, ChevronDown, ChevronUp } from "lucide-react";
+import { AlertTriangle, ChevronDown, ChevronUp, Moon } from "lucide-react";
 import { useCalendarSync } from "@/hooks/useCalendarSync";
 import { useCompanyContext } from "@/hooks/useCompanyContext";
+import { normalizeOvernightDates, isOvernightRange, autoAdjustEndDate } from "@/lib/overnight";
 
 interface CreateJobDialogProps {
   open: boolean;
@@ -85,8 +86,7 @@ function CreateJobDialogInner({
       setConflicts([]);
       return;
     }
-    const startISO = new Date(`${startDate}T${startTime}`).toISOString();
-    const endISO = new Date(`${endDate}T${endTime}`).toISOString();
+    const { startISO, endISO } = normalizeOvernightDates(startDate, startTime, endDate, endTime);
 
     const { data: overlapping } = await supabase
       .from("event_technicians")
@@ -127,8 +127,7 @@ function CreateJobDialogInner({
     setSubmitting(true);
 
     try {
-      const startISO = new Date(`${startDate}T${startTime}`).toISOString();
-      const endISO = new Date(`${endDate}T${endTime}`).toISOString();
+    const { startISO, endISO } = normalizeOvernightDates(startDate, startTime, endDate, endTime);
 
       const { data: session } = await supabase.auth.getSession();
       const userId = session?.session?.user?.id;
@@ -265,7 +264,7 @@ function CreateJobDialogInner({
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <Label>Startdato *</Label>
+              <Label>Start *</Label>
               <div className="flex gap-2">
                 <Input
                   type="date"
@@ -273,26 +272,60 @@ function CreateJobDialogInner({
                   onChange={(e) => {
                     setStartDate(e.target.value);
                     if (!endDate) setEndDate(e.target.value);
+                    else {
+                      const adj = autoAdjustEndDate(e.target.value, startTime, endTime);
+                      setEndDate(adj);
+                    }
                   }}
                   required
                 />
                 <Input
                   type="time"
                   value={startTime}
-                  onChange={(e) => setStartTime(e.target.value)}
+                  onChange={(e) => {
+                    setStartTime(e.target.value);
+                    if (startDate) {
+                      setEndDate(autoAdjustEndDate(startDate, e.target.value, endTime));
+                    }
+                  }}
                   required
                   className="w-24"
                 />
               </div>
             </div>
             <div className="space-y-1.5">
-              <Label>Sluttdato *</Label>
+              <Label>Slutt *</Label>
               <div className="flex gap-2">
                 <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} required />
-                <Input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} required className="w-24" />
+                <Input
+                  type="time"
+                  value={endTime}
+                  onChange={(e) => {
+                    setEndTime(e.target.value);
+                    if (startDate) {
+                      setEndDate(autoAdjustEndDate(startDate, startTime, e.target.value));
+                    }
+                  }}
+                  required
+                  className="w-24"
+                />
               </div>
             </div>
           </div>
+
+          {/* Overnight indicator */}
+          {isOvernightRange(startDate, startTime, endDate, endTime) && (
+            <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/50 px-3 py-2">
+              <Moon className="h-4 w-4 text-primary" />
+              <span className="text-sm text-muted-foreground">
+                Går over midnatt – slutt{" "}
+                <span className="font-medium text-foreground">
+                  {autoAdjustEndDate(startDate, startTime, endTime)}
+                </span>{" "}
+                kl. {endTime}
+              </span>
+            </div>
+          )}
 
           {/* Conflict warning */}
           {conflicts.length > 0 && (

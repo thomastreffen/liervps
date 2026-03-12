@@ -122,8 +122,23 @@ function mapsLink(address: string): string {
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
 }
 
+/* ── Normalize overnight: ensure end > start ── */
+function normalizeEventTimes(event: any): { startTime: string; endTime: string } {
+  const start = new Date(event.start_time);
+  let end = new Date(event.end_time);
+  if (end.getTime() <= start.getTime()) {
+    // end is before start → likely overnight, bump end by 1 day
+    end = new Date(end.getTime() + 24 * 60 * 60 * 1000);
+    console.log(`[calendar-write-sync] Overnight normalization: ${event.start_time} → ${end.toISOString()}`);
+  }
+  return { startTime: start.toISOString(), endTime: end.toISOString() };
+}
+
 /* ── Build Graph event body ── */
 function buildGraphBody(event: any, customer?: any) {
+  // Normalize overnight times before building payload
+  const { startTime: normalizedStart, endTime: normalizedEnd } = normalizeEventTimes(event);
+
   // Subject: [KUNDE] – [TYPE] – [STED]  (human, no internal codes)
   const typeLabel = PROJECT_TYPE_LABELS[event.project_type] || event.project_type || "Arbeid";
   const customerName = event.customer || customer?.name || "";
@@ -135,15 +150,20 @@ function buildGraphBody(event: any, customer?: any) {
     : event.title || "Oppdrag";
 
   // Structured body – scannable in 3 seconds
-  const timeDisplay = formatTimeRange(event.start_time, event.end_time);
+  const timeDisplay = formatTimeRange(normalizedStart, normalizedEnd);
   const addressDisplay = event.address || "Ikke angitt";
   const mapsUrl = event.address ? mapsLink(event.address) : "";
+
+  // Check if overnight for display
+  const startD = new Date(normalizedStart);
+  const endD = new Date(normalizedEnd);
+  const isOvernight = startD.toDateString() !== endD.toDateString();
 
   let html = `<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 14px; line-height: 1.6; color: #1a1a1a;">`;
 
   // OPPDRAG
   html += `<p style="margin: 0 0 4px; font-size: 13px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px;">Oppdrag</p>`;
-  html += `<p style="margin: 0 0 16px; font-size: 15px;">${event.title || typeLabel}${event.description ? `<br/><span style="color: #6b7280;">${event.description}</span>` : ""}</p>`;
+  html += `<p style="margin: 0 0 16px; font-size: 15px;">${event.title || typeLabel}${event.description ? `<br/><span style="color: #6b7280;">${event.description}</span>` : ""}${isOvernight ? '<br/><span style="color: #7c3aed;">🌙 Nattoppdrag</span>' : ""}</p>`;
 
   // TID
   html += `<p style="margin: 0 0 4px; font-size: 13px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px;">Tidspunkt</p>`;
@@ -171,10 +191,10 @@ function buildGraphBody(event: any, customer?: any) {
   html += `</div>`;
 
   const body: any = {
-    subject,
+    subject: isOvernight ? `🌙 ${subject}` : subject,
     body: { contentType: "HTML", content: html },
-    start: { dateTime: toLocalDateTimeString(event.start_time), timeZone: "Europe/Oslo" },
-    end: { dateTime: toLocalDateTimeString(event.end_time), timeZone: "Europe/Oslo" },
+    start: { dateTime: toLocalDateTimeString(normalizedStart), timeZone: "Europe/Oslo" },
+    end: { dateTime: toLocalDateTimeString(normalizedEnd), timeZone: "Europe/Oslo" },
     categories: ["Arbeid"],
   };
 
@@ -263,6 +283,18 @@ Deno.serve(async (req) => {
         status: 404,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    // Server-side overnight normalization: ensure end > start in DB
+    const evStart = new Date(event.start_time);
+    const evEnd = new Date(event.end_time);
+    if (evEnd.getTime() <= evStart.getTime()) {
+      const correctedEnd = new Date(evEnd.getTime() + 24 * 60 * 60 * 1000);
+      console.log(`[calendar-write-sync] Correcting overnight: end ${event.end_time} → ${correctedEnd.toISOString()}`);
+      await supabaseAdmin.from("events").update({
+        end_time: correctedEnd.toISOString(),
+      }).eq("id", event_id);
+      event.end_time = correctedEnd.toISOString();
     }
 
     const customer = event.customers || null;

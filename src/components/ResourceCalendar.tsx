@@ -9,7 +9,7 @@ import { useCalendarEvents, type CalendarEvent } from "@/hooks/useCalendarEvents
 import type { ExternalBusySlot } from "@/hooks/useExternalBusy";
 import type { DayCapacity } from "@/hooks/useCapacity";
 import type { ScheduleBlock } from "@/hooks/useScheduleBlocks";
-import { Lock, CalendarCheck, AlertTriangle, Globe, Monitor, MapPin } from "lucide-react";
+import { Lock, CalendarCheck, AlertTriangle, Globe, Monitor, MapPin, Moon } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { format } from "date-fns";
 import { nb } from "date-fns/locale";
@@ -202,6 +202,7 @@ export const ResourceCalendar = memo(function ResourceCalendar({
       const techNames = ev.technicians.map((t) => t.name.split(" ")[0]).join(", ");
       const firstTechId = ev.technicians[0]?.id;
       const baseColor = (firstTechId && techColorMap.get(firstTechId)) || GCAL_PALETTE[0];
+      const isOvernight = ev.start.toDateString() !== ev.end.toDateString();
       return {
         id: ev.id,
         title: ev.title.replace("SERVICE – ", ""),
@@ -217,6 +218,7 @@ export const ResourceCalendar = memo(function ResourceCalendar({
           techNames,
           baseColor,
           statusDot: statusDotColors[ev.status] || "#FFFFFF",
+          isOvernight,
         },
         editable: effectiveCanWrite,
       };
@@ -650,6 +652,9 @@ export const ResourceCalendar = memo(function ResourceCalendar({
                   className="fc-event-internal px-2 py-1.5 overflow-hidden h-full cursor-grab active:cursor-grabbing select-none"
                 >
                   <div className="flex items-center gap-1.5">
+                    {props.isOvernight && (
+                      <Moon className="h-3 w-3 shrink-0 text-white/80" />
+                    )}
                     {props.techNames && (
                       <p className="text-[12px] font-bold leading-tight truncate text-white/90">
                         {props.techNames}

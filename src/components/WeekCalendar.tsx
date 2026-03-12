@@ -5,7 +5,7 @@ import { useCalendarEvents, type CalendarEvent } from "@/hooks/useCalendarEvents
 import { JOB_STATUS_CONFIG, type JobStatus } from "@/lib/job-status";
 import { cn } from "@/lib/utils";
 import { JobStatusBadge } from "./JobStatusBadge";
-import { AlertTriangle, Lock, MapPin } from "lucide-react";
+import { AlertTriangle, Lock, MapPin, Moon } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import type { ExternalBusySlot } from "@/hooks/useExternalBusy";
 
@@ -41,6 +41,7 @@ const CalendarCard = memo(function CalendarCard({
 }) {
   const statusConfig = JOB_STATUS_CONFIG[job.status];
   const isTimeChange = job.status === "time_change_proposed";
+  const isOvernight = job.start.toDateString() !== job.end.toDateString();
   const primaryTech = job.technicians?.[0];
   const techColor = primaryTech?.color || "#6366f1";
 
@@ -60,6 +61,9 @@ const CalendarCard = memo(function CalendarCard({
       }}
     >
       <div className="flex items-center gap-1.5">
+        {isOvernight && (
+          <Moon className="h-3 w-3 shrink-0 text-primary" />
+        )}
         {isTimeChange && (
           <AlertTriangle className="h-3 w-3 shrink-0 text-status-time-change-proposed" />
         )}
