@@ -543,6 +543,53 @@ export default function ResourcePlan() {
                 <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
+
+            {/* Zoom + Quick nav row */}
+            <div className="flex items-center justify-between mb-4 gap-2">
+              {/* Zoom level */}
+              <div className="flex items-center gap-1.5">
+                <ZoomIn className="h-3.5 w-3.5 text-muted-foreground" />
+                <div className="flex items-center gap-0.5 border border-border/40 rounded-lg p-0.5">
+                  {(["compact", "normal", "detailed"] as ZoomLevel[]).map((z) => (
+                    <Button
+                      key={z}
+                      variant={operatingHours.zoom === z ? "default" : "ghost"}
+                      size="sm"
+                      className="h-6 text-[10px] rounded-md px-2"
+                      onClick={() => operatingHours.setZoom(z)}
+                    >
+                      {z === "compact" ? "Kompakt" : z === "normal" ? "Normal" : "Detaljert"}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Quick time navigation – only for extended/industry profiles */}
+              {operatingHours.hasNightHours && (calendarView === "timeGridDay" || calendarView === "timeGridWeek") && (
+                <div className="flex items-center gap-1 border border-border/40 rounded-lg p-0.5">
+                  <Button variant="ghost" size="sm" className="h-6 text-[10px] rounded-md px-2 gap-1" onClick={() => {
+                    calendarRef?.current && (calendarRef as any).current?.getApi?.()?.scrollToTime?.("06:00:00");
+                  }}>
+                    <Sunrise className="h-3 w-3" /> Morgen
+                  </Button>
+                  <Button variant="ghost" size="sm" className="h-6 text-[10px] rounded-md px-2 gap-1" onClick={() => {
+                    calendarRef?.current && (calendarRef as any).current?.getApi?.()?.scrollToTime?.("18:00:00");
+                  }}>
+                    <Sun className="h-3 w-3" /> Kveld
+                  </Button>
+                  <Button variant="ghost" size="sm" className="h-6 text-[10px] rounded-md px-2 gap-1" onClick={() => {
+                    calendarRef?.current && (calendarRef as any).current?.getApi?.()?.scrollToTime?.("00:00:00");
+                  }}>
+                    <Moon className="h-3 w-3" /> Natt
+                  </Button>
+                </div>
+              )}
+
+              {/* Operating profile badge */}
+              <Badge variant="outline" className="text-[10px] h-5">
+                {operatingHours.profile === "office" ? "Kontor 08–16" : operatingHours.profile === "extended" ? "Utvidet 06–22" : "Industri 24/7"}
+              </Badge>
+            </div>
           </>
         )}
 
