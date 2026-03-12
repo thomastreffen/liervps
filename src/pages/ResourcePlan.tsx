@@ -721,7 +721,12 @@ export default function ResourcePlan() {
         <ScheduleBlockDetailPanel
           block={selectedBlock}
           onClose={() => setSelectedBlock(null)}
-          onConfirmed={() => {
+          onConfirmed={(deletedBlockIds) => {
+            // Optimistic removal – hide blocks instantly
+            if (deletedBlockIds?.length) {
+              for (const id of deletedBlockIds) removeBlockOptimistic(id);
+            }
+            setSelectedBlock(null);
             void refreshPlanData();
           }}
         />
