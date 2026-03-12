@@ -297,6 +297,8 @@ Deno.serve(async (req) => {
       event.end_time = correctedEnd.toISOString();
     }
 
+    const customer = event.customers || null;
+
     // Find a technician with a valid MS token
     const techs = (event.event_technicians ?? [])
       .filter((et: any) => et.technicians?.user_id && et.technicians?.email)
