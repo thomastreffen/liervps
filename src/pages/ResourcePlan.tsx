@@ -376,6 +376,8 @@ export default function ResourcePlan() {
       {!isMobile && (
         <aside className="w-56 shrink-0 border-r border-border/30 bg-card/50 overflow-y-auto p-3">
           <TechnicianList
+            technicians={technicians}
+            isGlobalScope={effectiveCompanyId === null}
             selectedId={selectedTechId}
             onSelect={setSelectedTechId}
             allowDeselect
