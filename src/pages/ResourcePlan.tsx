@@ -674,6 +674,7 @@ export default function ResourcePlan() {
           technicianId={capacityFilter !== "all" && filteredTechForSidebar
             ? (filteredTechForSidebar.size === 1 ? Array.from(filteredTechForSidebar)[0] : selectedTechId)
             : selectedTechId}
+          companyId={effectiveCompanyId}
           referenceDate={referenceDate}
           calendarView={calendarView}
           technicianMap={technicianMap}
