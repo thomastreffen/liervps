@@ -59,6 +59,8 @@ export function TripletexProjectImport() {
     );
   }
 
+  const missingCustomerCount = projectRows.filter(r => r.missingCustomer && r.action !== "ignore").length;
+
   const summary = {
     match: projectRows.filter(r => r.matchStatus === "match").length,
     new: projectRows.filter(r => r.matchStatus === "new").length,
@@ -94,6 +96,9 @@ export function TripletexProjectImport() {
         {summary.needs_review > 0 && <Badge variant="outline" className="border-yellow-500 text-yellow-700">{summary.needs_review} trenger avklaring</Badge>}
         {summary.error > 0 && <Badge variant="destructive">{summary.error} feil</Badge>}
         {summary.ignored > 0 && <Badge variant="outline">{summary.ignored} ignoreres</Badge>}
+        {missingCustomerCount > 0 && (
+          <Badge variant="outline" className="border-amber-500 text-amber-700">{missingCustomerCount} nye kunder opprettes</Badge>
+        )}
       </div>
 
       {/* Table */}
@@ -119,7 +124,12 @@ export function TripletexProjectImport() {
                     <TableCell><ImportStatusBadge status={row.action === "ignore" ? "ignored" : row.action === "link" ? "match" : row.matchStatus} /></TableCell>
                     <TableCell className="font-mono text-xs">{row.projectNumber || "—"}</TableCell>
                     <TableCell className="max-w-[200px] truncate">{row.projectName}</TableCell>
-                    <TableCell className="text-xs">{row.customerName}</TableCell>
+                    <TableCell className="text-xs">
+                      {row.customerName}
+                      {row.missingCustomer && row.action !== "ignore" && (
+                        <span className="block text-[10px] text-amber-600">+ ny kunde</span>
+                      )}
+                    </TableCell>
                     <TableCell className="text-xs">{row.startDate || "—"}</TableCell>
                     <TableCell className="text-xs">{row.endDate || "—"}</TableCell>
                     <TableCell className="text-xs text-muted-foreground">
