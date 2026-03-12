@@ -201,39 +201,44 @@ export const ScheduleBlockDetailPanel = memo(function ScheduleBlockDetailPanel({
     if (!block.project_id) return;
     setActionLoading("confirm");
     try {
-      const { error } = await supabase.from("schedule_blocks")
-        .update({ match_state: "confirmed" })
-        .eq("id", block.id);
-      if (error) toast.error("Kunne ikke bekrefte");
-      else {
-        toast.success("Bekreftet ✓");
+      const { error } = await supabase.from("schedule_blocks").update({
+        match_state: "confirmed",
+        match_reason: "Manuelt bekreftet",
+      }).eq("id", block.id);
 
-        const subject = block.outlook_subject || block.title || "";
-        const tokens = subject.split(/[\s–\-,.:;/()]+/).filter(w => w.length > 2).map(w => w.toLowerCase());
-        try {
-          await supabase.from("confirmation_learnings").insert({
-            company_id: block.company_id,
-            technician_id: block.technician_id,
-            project_id: block.project_id,
-            signal_tokens: tokens,
-            source_block_id: block.id,
-          });
-        } catch { /* ignore */ }
+      if (error) { toast.error("Feil ved bekreftelse"); return; }
 
-        onConfirmed?.();
-        onClose();
-      }
-    } catch { /* handled above */ } finally {
+      const subject = block.outlook_subject || block.title || "";
+      const tokens = subject.split(/[\s–\-,.:;/()]+/).filter(w => w.length > 2).map(w => w.toLowerCase());
+      try {
+        await supabase.from("confirmation_learnings").insert({
+          company_id: block.company_id,
+          technician_id: block.technician_id,
+          project_id: block.project_id,
+          signal_tokens: tokens,
+          source_block_id: block.id,
+        });
+      } catch { /* ignore */ }
+
+      toast.success("Bekreftet ✓");
+      onConfirmed?.();
+      onClose();
+    } catch (err: any) {
+      toast.error("Feil", { description: err?.message });
+    } finally {
       setActionLoading(null);
     }
   };
 
   // Delete / remove from plan
-  const handleDelete = async () => {
+  const handleDelete = async (forceDeleteOutlook?: boolean) => {
     setActionLoading("delete");
     try {
       const { data, error } = await supabase.functions.invoke("delete-schedule-block", {
-        body: { schedule_block_id: block.id },
+        body: {
+          schedule_block_id: block.id,
+          force_delete_outlook: forceDeleteOutlook ?? false,
+        },
       });
 
       if (error) {
@@ -243,11 +248,17 @@ export const ScheduleBlockDetailPanel = memo(function ScheduleBlockDetailPanel({
 
       const result = data as any;
       if (result?.status === "ok") {
-        toast.success("Fjernet fra plan", {
-          description: result.deleted_in_outlook
-            ? "Fjernet fra plan og Outlook"
-            : isOutlook ? "Fjernet fra plan. Outlook-avtalen er beholdt." : "Fjernet",
-        });
+        if (result.deleted_in_outlook) {
+          toast.success("Fjernet fra plan og Outlook ✓", {
+            description: `${result.outlook_events_removed} Outlook-hendelse(r) slettet.`,
+          });
+        } else if (isOutlook && !forceDeleteOutlook) {
+          toast.success("Fjernet fra plan", {
+            description: "Outlook-avtalen er beholdt.",
+          });
+        } else {
+          toast.success("Fjernet fra plan ✓");
+        }
       } else {
         toast.error("Feil ved fjerning");
       }
@@ -281,6 +292,12 @@ export const ScheduleBlockDetailPanel = memo(function ScheduleBlockDetailPanel({
                 <span className="text-[10px] font-semibold uppercase tracking-wider text-primary">Fra Outlook</span>
               </div>
             )}
+            {isSystem && (
+              <div className="flex items-center gap-1.5 mb-1">
+                <CalendarIcon className="h-3.5 w-3.5 text-muted-foreground" />
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Systemopprettet</span>
+              </div>
+            )}
             <p className="text-sm font-semibold truncate">{block.outlook_subject || block.title || "Uten tittel"}</p>
             <p className="text-xs text-muted-foreground">
               {block.technician_name} · {format(block.start_at, "EEE d. MMM HH:mm", { locale: nb })}–{format(block.end_at, "HH:mm")}
@@ -309,132 +326,94 @@ export const ScheduleBlockDetailPanel = memo(function ScheduleBlockDetailPanel({
 
         {/* Preview */}
         {block.outlook_preview && (
-          <div className="flex items-start gap-1.5 text-xs text-muted-foreground">
-            <FileText className="h-3 w-3 shrink-0 mt-0.5" />
-            <p className="line-clamp-3">{block.outlook_preview}</p>
+          <p className="text-xs text-muted-foreground bg-muted/50 rounded-lg p-2 line-clamp-3">{block.outlook_preview}</p>
+        )}
+
+        {/* Match state badge */}
+        <Badge variant={stateInfo.variant} className="text-[10px]">{stateInfo.label}</Badge>
+
+        {/* AI match info */}
+        {block.match_state === "auto" && block.match_reason && (
+          <div className="flex items-start gap-1.5 text-xs text-muted-foreground bg-primary/5 rounded-lg p-2">
+            <Sparkles className="h-3 w-3 shrink-0 mt-0.5 text-primary" />
+            <span>{block.match_reason}</span>
           </div>
         )}
 
-        {/* State badge + AI */}
-        <div className="flex items-center gap-1.5">
-          <Badge variant={stateInfo.variant} className="text-xs">
-            {stateInfo.label}
-          </Badge>
-          {block.ai_confidence !== null && block.ai_confidence > 0 && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span className="inline-flex items-center gap-0.5 text-[9px] font-semibold uppercase tracking-wider text-primary bg-primary/10 rounded px-1.5 py-0.5 cursor-default">
-                  <Sparkles className="h-2.5 w-2.5" />
-                  AI {block.ai_confidence}%
-                </span>
-              </TooltipTrigger>
-              <TooltipContent side="top" className="text-xs max-w-[220px]">
-                {block.ai_match_reason || `AI-sikkerhet: ${block.ai_confidence}%`}
-              </TooltipContent>
-            </Tooltip>
-          )}
-        </div>
+        {/* Link to project */}
+        {hasProject && (
+          <div className="space-y-1">
+            <div className="flex items-center gap-1.5">
+              <Link2 className="h-3 w-3 text-muted-foreground" />
+              <span className="text-xs text-muted-foreground">Koblet til prosjekt</span>
+            </div>
+            <Button variant="outline" size="sm" className="h-7 text-xs gap-1 rounded-lg w-full justify-start"
+              onClick={() => navigate(`/projects/${block.project_id}`)}>
+              <ArrowRight className="h-3 w-3" />
+              Åpne prosjekt
+            </Button>
+          </div>
+        )}
 
-        {/* ──── ACTIONS: Has project ──── */}
-        {hasProject && !showProjectSearch && (
-          <>
-            {block.project_title && (
-              <button
-                onClick={() => navigate(`/projects/${block.project_id}`)}
-                className="flex items-center gap-2 w-full text-left p-2 rounded-lg bg-primary/5 hover:bg-primary/10 transition-colors"
-              >
-                <span className="text-xs font-medium text-primary truncate">{block.project_title}</span>
-                <ArrowRight className="h-3 w-3 text-primary shrink-0" />
-              </button>
-            )}
+        {/* Actions based on state */}
+        {block.match_state === "needs_confirmation" && hasProject && (
+          <div className="flex gap-1.5">
+            <Button variant="default" size="sm" className="h-7 text-xs gap-1 rounded-lg flex-1"
+              onClick={handleConfirmSuggestion} disabled={isLoading}>
+              <Check className="h-3 w-3" /> Bekreft
+            </Button>
+            <Button variant="outline" size="sm" className="h-7 text-xs gap-1 rounded-lg flex-1"
+              onClick={handleMarkExternal} disabled={isLoading}>
+              <Globe className="h-3 w-3" /> Privat
+            </Button>
+          </div>
+        )}
 
-            {block.match_state === "needs_confirmation" && (
-              <div className="space-y-2">
-                {block.match_reason && (
-                  <div className="p-2 rounded-lg bg-amber-500/5 border border-amber-500/20">
-                    <p className="text-xs font-medium text-amber-700 dark:text-amber-400">
-                      Foreslått prosjekt
-                      {block.ai_confidence !== null && block.ai_confidence > 0 && (
-                        <span className="text-muted-foreground ml-1">(AI {block.ai_confidence}%)</span>
-                      )}
-                    </p>
-                    <p className="text-[10px] text-muted-foreground mt-0.5">{block.match_reason}</p>
-                  </div>
-                )}
-                <div className="flex items-center gap-1.5">
-                  <Button size="sm" className="h-7 text-xs gap-1 rounded-lg flex-1" onClick={handleConfirmSuggestion} disabled={isLoading}>
-                    {actionLoading === "confirm" ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
-                    Bekreft
-                  </Button>
-                  <Button variant="outline" size="sm" className="h-7 text-xs rounded-lg"
-                    onClick={() => setShowProjectSearch(true)} disabled={isLoading}>
-                    Velg annet
-                  </Button>
-                  <Button variant="ghost" size="sm" className="h-7 text-xs rounded-lg text-muted-foreground"
-                    onClick={handleMarkExternal} disabled={isLoading}>
-                    Privat
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            {block.match_state !== "needs_confirmation" && (
-              <Button
-                variant="outline" size="sm" className="h-8 text-xs gap-1.5 rounded-lg w-full justify-start"
-                onClick={handleUnlinkProject} disabled={isLoading}
-              >
-                {actionLoading === "unlink" ? <Loader2 className="h-3 w-3 animate-spin" /> : <Unlink className="h-3 w-3" />}
-                Koble fra prosjekt
+        {/* Create / link project */}
+        {!hasProject && !submitted && !showProjectSearch && (
+          <div className="space-y-1.5">
+            <Button variant="default" size="sm" className="h-7 text-xs gap-1 rounded-lg w-full"
+              onClick={handleCreateJob} disabled={isLoading}>
+              {actionLoading === "create" ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}
+              Opprett prosjekt
+            </Button>
+            <Button variant="outline" size="sm" className="h-7 text-xs gap-1 rounded-lg w-full"
+              onClick={() => setShowProjectSearch(true)} disabled={isLoading}>
+              <Search className="h-3 w-3" />
+              Koble til eksisterende
+            </Button>
+            {(block.match_state as string) !== "external_confirmed" && (
+              <Button variant="ghost" size="sm" className="h-7 text-xs gap-1 rounded-lg w-full"
+                onClick={handleMarkExternal} disabled={isLoading}>
+                <Globe className="h-3 w-3" />
+                Marker som privat
               </Button>
             )}
-          </>
+          </div>
         )}
 
-        {/* ──── ACTIONS: No project ──── */}
-        {!hasProject && !showProjectSearch && !submitted && (
-          <div className="space-y-1.5 pt-1">
-            <Button
-              size="sm" className="h-8 text-xs gap-1.5 rounded-lg w-full justify-start"
-              onClick={handleCreateJob} disabled={isLoading || submitted}
-            >
-              {actionLoading === "create" ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}
-              Opprett nytt prosjekt
-            </Button>
-            <Button
-              variant="outline" size="sm" className="h-8 text-xs gap-1.5 rounded-lg w-full justify-start"
-              onClick={() => setShowProjectSearch(true)} disabled={isLoading}
-            >
-              <Link2 className="h-3 w-3" />
-              Knytt til eksisterende prosjekt
-            </Button>
-            <Button
-              variant="ghost" size="sm" className="h-8 text-xs gap-1.5 rounded-lg w-full justify-start text-muted-foreground"
-              onClick={handleMarkExternal} disabled={isLoading}
-            >
-              {actionLoading === "external" ? <Loader2 className="h-3 w-3 animate-spin" /> : <Globe className="h-3 w-3" />}
-              Privat / ekstern
-            </Button>
-          </div>
+        {/* Unlink */}
+        {hasProject && (block.match_state === "confirmed" || block.match_state === "auto" || block.match_state === "manual" || block.match_state === "needs_confirmation") && (
+          <Button variant="ghost" size="sm" className="h-7 text-xs gap-1 rounded-lg w-full justify-start text-muted-foreground"
+            onClick={handleUnlinkProject} disabled={isLoading}>
+            {actionLoading === "unlink" ? <Loader2 className="h-3 w-3 animate-spin" /> : <Unlink className="h-3 w-3" />}
+            Koble fra prosjekt
+          </Button>
         )}
 
         {/* Project search */}
         {showProjectSearch && (
-          <div className="space-y-2 pt-1">
-            <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-              <Input
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Søk prosjekt…"
-                className="pl-8 h-8 text-xs"
-                autoFocus
-              />
-            </div>
-            {searchLoading && (
-              <div className="flex justify-center py-2"><Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" /></div>
-            )}
+          <div className="space-y-2">
+            <Input
+              placeholder="Søk prosjekt..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="h-7 text-xs"
+              autoFocus
+            />
+            {searchLoading && <p className="text-xs text-muted-foreground">Søker…</p>}
             {searchResults.length > 0 && (
-              <div className="max-h-32 overflow-y-auto space-y-0.5 rounded-lg border border-border p-1">
+              <div className="max-h-40 overflow-y-auto space-y-0.5">
                 {searchResults.map((p) => (
                   <button
                     key={p.id} type="button"
@@ -492,29 +471,52 @@ export const ScheduleBlockDetailPanel = memo(function ScheduleBlockDetailPanel({
           </Button>
         </div>
 
-        {/* Delete confirmation */}
+        {/* Delete confirmation — different dialog based on source */}
         <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Fjern fra plan?</AlertDialogTitle>
+              <AlertDialogTitle>
+                {isSystem ? "Fjern oppdrag?" : "Fjern fra plan?"}
+              </AlertDialogTitle>
               <AlertDialogDescription>
                 {isSystem
-                  ? "Dette fjerner oppdraget fra planen og sletter avtalen i Outlook. Kan ikke angres."
-                  : "Oppdraget fjernes fra planoversikten. Avtalen i Outlook beholdes – slett den i Outlook om du vil fjerne den helt."}
+                  ? "Dette fjerner oppdraget fra planen og sletter avtalen fra montørens Outlook-kalender. Kan ikke angres."
+                  : "Denne hendelsen ble importert fra Outlook. Velg om du bare vil fjerne den fra planoversikten, eller også slette den fra Outlook."}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel disabled={actionLoading === "delete"}>Avbryt</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={handleDelete}
-                disabled={actionLoading === "delete"}
-                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              >
-                {actionLoading === "delete" ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
-                ) : null}
-                Fjern
-              </AlertDialogAction>
+              {isOutlook ? (
+                <>
+                  <Button
+                    variant="outline"
+                    onClick={() => handleDelete(false)}
+                    disabled={actionLoading === "delete"}
+                    className="gap-1.5"
+                  >
+                    {actionLoading === "delete" && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                    Bare fjern fra plan
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    onClick={() => handleDelete(true)}
+                    disabled={actionLoading === "delete"}
+                    className="gap-1.5"
+                  >
+                    {actionLoading === "delete" && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                    Fjern også fra Outlook
+                  </Button>
+                </>
+              ) : (
+                <AlertDialogAction
+                  onClick={() => handleDelete(false)}
+                  disabled={actionLoading === "delete"}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  {actionLoading === "delete" && <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />}
+                  Fjern
+                </AlertDialogAction>
+              )}
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
