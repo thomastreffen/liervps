@@ -17,10 +17,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { nb } from "date-fns/locale";
-import { AlertTriangle, Search, Loader2, CalendarPlus, Link2 } from "lucide-react";
+import { AlertTriangle, Search, Loader2, CalendarPlus, Link2, Moon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { JobStatusBadge } from "./JobStatusBadge";
 import type { JobStatus } from "@/lib/job-status";
+import { TimeSelect } from "@/components/ui/time-select";
+import { normalizeOvernightDates, isOvernightRange, autoAdjustEndDate } from "@/lib/overnight";
 
 interface ResourceAssignDialogProps {
   open: boolean;
@@ -76,6 +78,7 @@ export function ResourceAssignDialog({
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   const [assignDate, setAssignDate] = useState("");
   const [assignStartTime, setAssignStartTime] = useState("08:00");
+  const [assignEndDate, setAssignEndDate] = useState("");
   const [assignEndTime, setAssignEndTime] = useState("16:00");
 
   // Conflict detection
@@ -88,8 +91,9 @@ export function ResourceAssignDialog({
       if (preselectedDate) {
         const dateStr = format(preselectedDate, "yyyy-MM-dd");
         setStartDate(dateStr);
-        setEndDate(dateStr);
+        setEndDate(autoAdjustEndDate(dateStr, startTime, endTime));
         setAssignDate(dateStr);
+        setAssignEndDate(autoAdjustEndDate(dateStr, assignStartTime, assignEndTime));
       }
       if (preselectedTechId) {
         setTechIds([preselectedTechId]);
@@ -139,6 +143,7 @@ export function ResourceAssignDialog({
     setSearchResults([]);
     setSelectedJobId(null);
     setAssignDate("");
+    setAssignEndDate("");
     setAssignStartTime("08:00");
     setAssignEndTime("16:00");
     setMode("new");
@@ -151,15 +156,14 @@ export function ResourceAssignDialog({
   };
 
   // Check for conflicts before submitting
-  const checkConflicts = useCallback(async (date: string, start: string, end: string, techs: string[]) => {
-    if (!date || techs.length === 0) {
+  const checkConflicts = useCallback(async (date: string, start: string, endDateValue: string, end: string, techs: string[]) => {
+    if (!date || !endDateValue || techs.length === 0) {
       setConflicts([]);
       return;
     }
     setCheckingConflicts(true);
     try {
-      const startISO = new Date(`${date}T${start}`).toISOString();
-      const endISO = new Date(`${date}T${end}`).toISOString();
+      const { startISO, endISO } = normalizeOvernightDates(date, start, endDateValue, end);
 
       // Check overlapping events for each technician
       const { data: overlaps } = await supabase
@@ -194,13 +198,13 @@ export function ResourceAssignDialog({
   useEffect(() => {
     const timer = setTimeout(() => {
       if (mode === "new" && startDate && techIds.length > 0) {
-        checkConflicts(startDate, startTime, endTime, techIds);
+        checkConflicts(startDate, startTime, endDate, endTime, techIds);
       } else if (mode === "existing" && assignDate && techIds.length > 0) {
-        checkConflicts(assignDate, assignStartTime, assignEndTime, techIds);
+        checkConflicts(assignDate, assignStartTime, assignEndDate, assignEndTime, techIds);
       }
     }, 500);
     return () => clearTimeout(timer);
-  }, [mode, startDate, startTime, endTime, assignDate, assignStartTime, assignEndTime, techIds, checkConflicts]);
+  }, [mode, startDate, startTime, endDate, endTime, assignDate, assignStartTime, assignEndDate, assignEndTime, techIds, checkConflicts]);
 
   // Create new event
   const handleCreateNew = async (e: React.FormEvent) => {
@@ -208,8 +212,7 @@ export function ResourceAssignDialog({
     if (techIds.length === 0) return;
     setSubmitting(true);
     try {
-      const startISO = new Date(`${startDate}T${startTime}`).toISOString();
-      const endISO = new Date(`${endDate}T${endTime}`).toISOString();
+      const { startISO, endISO } = normalizeOvernightDates(startDate, startTime, endDate, endTime);
       const { data: session } = await supabase.auth.getSession();
       const userId = session?.session?.user?.id;
 
@@ -268,8 +271,7 @@ export function ResourceAssignDialog({
     try {
       // Update job times if date is provided
       if (assignDate) {
-        const startISO = new Date(`${assignDate}T${assignStartTime}`).toISOString();
-        const endISO = new Date(`${assignDate}T${assignEndTime}`).toISOString();
+        const { startISO, endISO } = normalizeOvernightDates(assignDate, assignStartTime, assignEndDate, assignEndTime);
         await supabase
           .from("events")
           .update({ start_time: startISO, end_time: endISO })
@@ -314,6 +316,35 @@ export function ResourceAssignDialog({
   };
 
   const safeTechIds = Array.isArray(techIds) ? techIds : [];
+
+  const handleAssignDateChange = (value: string) => {
+    setAssignDate(value);
+    setAssignEndDate(value ? autoAdjustEndDate(value, assignStartTime, assignEndTime) : "");
+  };
+
+  const handleAssignStartTimeChange = (value: string) => {
+    setAssignStartTime(value);
+    if (assignDate) setAssignEndDate(autoAdjustEndDate(assignDate, value, assignEndTime));
+  };
+
+  const handleAssignEndTimeChange = (value: string) => {
+    setAssignEndTime(value);
+    if (assignDate) setAssignEndDate(autoAdjustEndDate(assignDate, assignStartTime, value));
+  };
+
+  const existingOvernight = assignDate && assignStartTime && assignEndDate && assignEndTime
+    ? isOvernightRange(assignDate, assignStartTime, assignEndDate, assignEndTime)
+    : false;
+
+  const existingSummaryLine = assignDate && assignStartTime && assignEndDate && assignEndTime ? (() => {
+    try {
+      const start = new Date(`${assignDate}T${assignStartTime}`);
+      const end = new Date(`${assignEndDate}T${assignEndTime}`);
+      return `${format(start, "dd.MM.yyyy HH:mm", { locale: nb })} → ${format(end, "dd.MM.yyyy HH:mm", { locale: nb })}`;
+    } catch {
+      return null;
+    }
+  })() : null;
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -391,20 +422,36 @@ export function ResourceAssignDialog({
                   searchResults={searchResults} searchLoading={searchLoading}
                   selectedJobId={selectedJobId} setSelectedJobId={setSelectedJobId}
                 />
-                <div className="grid grid-cols-3 gap-3">
-                  <div>
-                    <Label>Dato</Label>
-                    <Input type="date" value={assignDate} onChange={(e) => setAssignDate(e.target.value)} className="mt-1" />
-                  </div>
+                <div className="grid grid-cols-2 gap-3">
                   <div>
                     <Label>Start</Label>
-                    <Input type="time" value={assignStartTime} onChange={(e) => setAssignStartTime(e.target.value)} className="mt-1" />
+                    <div className="flex gap-2 mt-1">
+                      <Input type="date" value={assignDate} onChange={(e) => handleAssignDateChange(e.target.value)} className="flex-1" />
+                      <TimeSelect value={assignStartTime} onChange={handleAssignStartTimeChange} className="w-[110px]" />
+                    </div>
                   </div>
                   <div>
                     <Label>Slutt</Label>
-                    <Input type="time" value={assignEndTime} onChange={(e) => setAssignEndTime(e.target.value)} className="mt-1" />
+                    <div className="flex gap-2 mt-1">
+                      <Input type="date" value={assignEndDate} onChange={(e) => setAssignEndDate(e.target.value)} className="flex-1" />
+                      <TimeSelect value={assignEndTime} onChange={handleAssignEndTimeChange} className="w-[110px]" />
+                    </div>
                   </div>
                 </div>
+
+                {existingOvernight && (
+                  <div className="flex items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2">
+                    <Moon className="h-4 w-4 text-primary shrink-0" />
+                    <span className="text-sm font-medium text-primary">Går over midnatt – slutter neste dag</span>
+                  </div>
+                )}
+
+                {existingSummaryLine && (
+                  <div className="rounded-lg bg-muted/50 px-3 py-2">
+                    <p className="text-xs text-muted-foreground">Tidsrom</p>
+                    <p className="text-sm font-medium">{existingSummaryLine}</p>
+                  </div>
+                )}
                 <TechnicianMultiSelect selectedIds={techIds} onChange={setTechIds} />
 
                 {/* Conflict warnings */}
@@ -440,20 +487,36 @@ export function ResourceAssignDialog({
               <p className="text-sm font-medium">{projectTitle || "Prosjekt"}</p>
               <p className="text-xs text-muted-foreground mt-0.5">Velg montør(er) og tidspunkt for denne jobben</p>
             </div>
-            <div className="grid grid-cols-3 gap-3">
-              <div>
-                <Label>Dato</Label>
-                <Input type="date" value={assignDate} onChange={(e) => setAssignDate(e.target.value)} className="mt-1" required />
-              </div>
+            <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label>Start</Label>
-                <Input type="time" value={assignStartTime} onChange={(e) => setAssignStartTime(e.target.value)} className="mt-1" required />
+                <div className="flex gap-2 mt-1">
+                  <Input type="date" value={assignDate} onChange={(e) => handleAssignDateChange(e.target.value)} className="flex-1" required />
+                  <TimeSelect value={assignStartTime} onChange={handleAssignStartTimeChange} className="w-[110px]" />
+                </div>
               </div>
               <div>
                 <Label>Slutt</Label>
-                <Input type="time" value={assignEndTime} onChange={(e) => setAssignEndTime(e.target.value)} className="mt-1" required />
+                <div className="flex gap-2 mt-1">
+                  <Input type="date" value={assignEndDate} onChange={(e) => setAssignEndDate(e.target.value)} className="flex-1" required />
+                  <TimeSelect value={assignEndTime} onChange={handleAssignEndTimeChange} className="w-[110px]" />
+                </div>
               </div>
             </div>
+
+            {existingOvernight && (
+              <div className="flex items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2">
+                <Moon className="h-4 w-4 text-primary shrink-0" />
+                <span className="text-sm font-medium text-primary">Går over midnatt – slutter neste dag</span>
+              </div>
+            )}
+
+            {existingSummaryLine && (
+              <div className="rounded-lg bg-muted/50 px-3 py-2">
+                <p className="text-xs text-muted-foreground">Tidsrom</p>
+                <p className="text-sm font-medium">{existingSummaryLine}</p>
+              </div>
+            )}
             <TechnicianMultiSelect selectedIds={techIds} onChange={setTechIds} />
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => handleClose(false)}>Avbryt</Button>
@@ -481,6 +544,20 @@ function NewEventForm({
   endTime, setEndTime,
   techIds, setTechIds,
 }: any) {
+  const overnight = startDate && startTime && endDate && endTime
+    ? isOvernightRange(startDate, startTime, endDate, endTime)
+    : false;
+
+  const summaryLine = startDate && startTime && endDate && endTime ? (() => {
+    try {
+      const start = new Date(`${startDate}T${startTime}`);
+      const end = new Date(`${endDate}T${endTime}`);
+      return `${format(start, "dd.MM.yyyy HH:mm", { locale: nb })} → ${format(end, "dd.MM.yyyy HH:mm", { locale: nb })}`;
+    } catch {
+      return null;
+    }
+  })() : null;
+
   return (
     <>
       <div className="grid grid-cols-2 gap-4">
@@ -507,18 +584,54 @@ function NewEventForm({
         <div>
           <Label>Start</Label>
           <div className="flex gap-2 mt-1">
-            <Input type="date" value={startDate} onChange={(e: any) => { setStartDate(e.target.value); if (!endDate) setEndDate(e.target.value); }} required />
-            <Input type="time" value={startTime} onChange={(e: any) => setStartTime(e.target.value)} required className="w-28" />
+            <Input
+              type="date"
+              value={startDate}
+              onChange={(e: any) => {
+                setStartDate(e.target.value);
+                setEndDate(autoAdjustEndDate(e.target.value, startTime, endTime));
+              }}
+              required
+              className="flex-1"
+            />
+            <TimeSelect
+              value={startTime}
+              onChange={(value) => {
+                setStartTime(value);
+                if (startDate) setEndDate(autoAdjustEndDate(startDate, value, endTime));
+              }}
+            />
           </div>
         </div>
         <div>
           <Label>Slutt</Label>
           <div className="flex gap-2 mt-1">
-            <Input type="date" value={endDate} onChange={(e: any) => setEndDate(e.target.value)} required />
-            <Input type="time" value={endTime} onChange={(e: any) => setEndTime(e.target.value)} required className="w-28" />
+            <Input type="date" value={endDate} onChange={(e: any) => setEndDate(e.target.value)} required className="flex-1" />
+            <TimeSelect
+              value={endTime}
+              onChange={(value) => {
+                setEndTime(value);
+                if (startDate) setEndDate(autoAdjustEndDate(startDate, startTime, value));
+              }}
+            />
           </div>
         </div>
       </div>
+
+      {overnight && (
+        <div className="flex items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2">
+          <Moon className="h-4 w-4 text-primary shrink-0" />
+          <span className="text-sm font-medium text-primary">Går over midnatt – slutter neste dag</span>
+        </div>
+      )}
+
+      {summaryLine && (
+        <div className="rounded-lg bg-muted/50 px-3 py-2">
+          <p className="text-xs text-muted-foreground">Tidsrom</p>
+          <p className="text-sm font-medium">{summaryLine}</p>
+        </div>
+      )}
+
       <TechnicianMultiSelect selectedIds={techIds} onChange={setTechIds} />
       <div>
         <Label htmlFor="ra-desc">Beskrivelse</Label>

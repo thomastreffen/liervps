@@ -33,6 +33,7 @@ import {
   Trash2,
   FolderKanban,
   ListChecks,
+  Moon,
 } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel,
@@ -45,6 +46,8 @@ import type { CalendarEvent } from "@/hooks/useCalendarEvents";
 import type { JobStatus } from "@/lib/job-status";
 import { useCalendarSync } from "@/hooks/useCalendarSync";
 import { useCompanyContext } from "@/hooks/useCompanyContext";
+import { TimeSelect } from "@/components/ui/time-select";
+import { normalizeOvernightDates, isOvernightRange, autoAdjustEndDate } from "@/lib/overnight";
 
 /* ── Types ── */
 interface ExistingJob {
@@ -109,6 +112,7 @@ export function EventDrawer({
   const [description, setDescription] = useState("");
   const [date, setDate] = useState("");
   const [startTime, setStartTime] = useState("08:00");
+  const [endDate, setEndDate] = useState("");
   const [endTime, setEndTime] = useState("16:00");
   const [techIds, setTechIds] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
@@ -139,27 +143,24 @@ export function EventDrawer({
       setDescription(editEvent.description || "");
       setDate(format(editEvent.start, "yyyy-MM-dd"));
       setStartTime(format(editEvent.start, "HH:mm"));
+      setEndDate(format(editEvent.end, "yyyy-MM-dd"));
       setEndTime(format(editEvent.end, "HH:mm"));
       setTechIds(editEvent.technicians.map((t) => t.id));
       setMode("new");
     } else {
       // New event
+      const nextDate = preselectedStart ? format(preselectedStart, "yyyy-MM-dd") : "";
+      const nextStartTime = preselectedStart ? format(preselectedStart, "HH:mm") : "08:00";
+      const nextEndTime = preselectedEnd ? format(preselectedEnd, "HH:mm") : "16:00";
+
       setTitle(projectTitle || "");
       setCustomer("");
       setAddress("");
       setDescription("");
-      if (preselectedStart) {
-        setDate(format(preselectedStart, "yyyy-MM-dd"));
-        setStartTime(format(preselectedStart, "HH:mm"));
-      } else {
-        setDate("");
-        setStartTime("08:00");
-      }
-      if (preselectedEnd) {
-        setEndTime(format(preselectedEnd, "HH:mm"));
-      } else {
-        setEndTime("16:00");
-      }
+      setDate(nextDate);
+      setStartTime(nextStartTime);
+      setEndTime(nextEndTime);
+      setEndDate(nextDate ? autoAdjustEndDate(nextDate, nextStartTime, nextEndTime) : "");
       setTechIds(preselectedTechId ? [preselectedTechId] : []);
       setMode(projectId ? "existing" : "new");
       setEventType("project");
@@ -194,11 +195,10 @@ export function EventDrawer({
   }, [searchQuery, mode]);
 
   // Conflict check
-  const checkConflicts = useCallback(async (d: string, s: string, e: string, techs: string[], excludeId?: string) => {
-    if (!d || techs.length === 0) { setConflicts([]); return; }
+  const checkConflicts = useCallback(async (d: string, s: string, ed: string, e: string, techs: string[], excludeId?: string) => {
+    if (!d || !ed || techs.length === 0) { setConflicts([]); return; }
     try {
-      const startISO = new Date(`${d}T${s}`).toISOString();
-      const endISO = new Date(`${d}T${e}`).toISOString();
+      const { startISO, endISO } = normalizeOvernightDates(d, s, ed, e);
 
       let query = supabase
         .from("events")
@@ -231,10 +231,41 @@ export function EventDrawer({
   useEffect(() => {
     if (!open) return;
     const timer = setTimeout(() => {
-      checkConflicts(date, startTime, endTime, techIds, editEvent?.id);
+      checkConflicts(date, startTime, endDate || (date ? autoAdjustEndDate(date, startTime, endTime) : ""), endTime, techIds, editEvent?.id);
     }, 500);
     return () => clearTimeout(timer);
-  }, [date, startTime, endTime, techIds, open, editEvent, checkConflicts]);
+  }, [date, startTime, endDate, endTime, techIds, open, editEvent, checkConflicts]);
+
+  const handleDateChange = (nextDate: string) => {
+    setDate(nextDate);
+    setEndDate(nextDate ? autoAdjustEndDate(nextDate, startTime, endTime) : "");
+  };
+
+  const handleStartTimeChange = (nextStartTime: string) => {
+    setStartTime(nextStartTime);
+    if (date) setEndDate(autoAdjustEndDate(date, nextStartTime, endTime));
+  };
+
+  const handleEndTimeChange = (nextEndTime: string) => {
+    setEndTime(nextEndTime);
+    if (date) setEndDate(autoAdjustEndDate(date, startTime, nextEndTime));
+  };
+
+  const resolvedEndDate = endDate || (date ? autoAdjustEndDate(date, startTime, endTime) : "");
+
+  const overnight = date && startTime && resolvedEndDate && endTime
+    ? isOvernightRange(date, startTime, resolvedEndDate, endTime)
+    : false;
+
+  const summaryLine = date && startTime && resolvedEndDate && endTime ? (() => {
+    try {
+      const start = new Date(`${date}T${startTime}`);
+      const end = new Date(`${resolvedEndDate}T${endTime}`);
+      return `${format(start, "dd.MM.yyyy HH:mm", { locale: nb })} → ${format(end, "dd.MM.yyyy HH:mm", { locale: nb })}`;
+    } catch {
+      return null;
+    }
+  })() : null;
 
   // Save: create or update
   const handleSave = async () => {
@@ -246,8 +277,7 @@ export function EventDrawer({
 
       if (isEditing && editEvent) {
         // Update existing event
-        const startISO = new Date(`${date}T${startTime}`).toISOString();
-        const endISO = new Date(`${date}T${endTime}`).toISOString();
+        const { startISO, endISO } = normalizeOvernightDates(date, startTime, endDate, endTime);
 
         await supabase.from("events")
           .update({ start_time: startISO, end_time: endISO, title, customer, address, description })
@@ -278,8 +308,7 @@ export function EventDrawer({
       } else if (mode === "existing" && selectedJobId) {
         // Assign technicians to existing job
         if (date) {
-          const startISO = new Date(`${date}T${startTime}`).toISOString();
-          const endISO = new Date(`${date}T${endTime}`).toISOString();
+          const { startISO, endISO } = normalizeOvernightDates(date, startTime, endDate, endTime);
           await supabase.from("events").update({ start_time: startISO, end_time: endISO }).eq("id", selectedJobId);
         }
 
@@ -305,8 +334,7 @@ export function EventDrawer({
           setSaving(false);
           return;
         }
-        const startISO = new Date(`${date}T${startTime}`).toISOString();
-        const endISO = new Date(`${date}T${endTime}`).toISOString();
+        const { startISO, endISO } = normalizeOvernightDates(date, startTime, endDate, endTime);
 
         // Idempotency: check if already created with this client_request_id
         const { data: existing } = await supabase
@@ -377,9 +405,10 @@ export function EventDrawer({
   const hasChanges = isEditing && editEvent ? (
     date !== format(editEvent.start, "yyyy-MM-dd") ||
     startTime !== format(editEvent.start, "HH:mm") ||
+    endDate !== format(editEvent.end, "yyyy-MM-dd") ||
     endTime !== format(editEvent.end, "HH:mm") ||
     title !== editEvent.title ||
-    JSON.stringify(techIds.sort()) !== JSON.stringify(editEvent.technicians.map((t) => t.id).sort())
+    JSON.stringify([...techIds].sort()) !== JSON.stringify(editEvent.technicians.map((t) => t.id).sort())
   ) : true;
 
   return (
@@ -546,20 +575,36 @@ export function EventDrawer({
           {/* Date & Time */}
           <div className="space-y-2">
             <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Tidspunkt</Label>
-            <div className="grid grid-cols-3 gap-3">
-              <div>
-                <Label className="text-xs">Dato</Label>
-                <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="mt-1" />
-              </div>
+            <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label className="text-xs">Start</Label>
-                <Input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} className="mt-1" />
+                <div className="flex gap-2 mt-1">
+                  <Input type="date" value={date} onChange={(e) => handleDateChange(e.target.value)} className="flex-1" />
+                  <TimeSelect value={startTime} onChange={handleStartTimeChange} className="w-[110px]" />
+                </div>
               </div>
               <div>
                 <Label className="text-xs">Slutt</Label>
-                <Input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} className="mt-1" />
+                <div className="flex gap-2 mt-1">
+                  <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="flex-1" />
+                  <TimeSelect value={endTime} onChange={handleEndTimeChange} className="w-[110px]" />
+                </div>
               </div>
             </div>
+
+            {overnight && (
+              <div className="flex items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2">
+                <Moon className="h-4 w-4 text-primary shrink-0" />
+                <span className="text-sm font-medium text-primary">Går over midnatt – slutter neste dag</span>
+              </div>
+            )}
+
+            {summaryLine && (
+              <div className="rounded-lg bg-muted/50 px-3 py-2">
+                <p className="text-xs text-muted-foreground">Tidsrom</p>
+                <p className="text-sm font-medium">{summaryLine}</p>
+              </div>
+            )}
           </div>
 
           {/* Technicians (optional for tasks) */}
