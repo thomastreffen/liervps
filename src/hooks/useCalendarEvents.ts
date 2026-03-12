@@ -15,7 +15,7 @@ export interface CalendarEvent extends Job {
   technicians: TechnicianInfo[];
 }
 
-export function useCalendarEvents(technicianId: string | null, referenceDate?: Date, companyId?: string | null) {
+export function useCalendarEvents(technicianId: string | null, referenceDate?: Date, companyId?: string | null, scopedTechnicianIds?: string[]) {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(false);
 

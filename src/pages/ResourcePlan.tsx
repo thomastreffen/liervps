@@ -94,9 +94,14 @@ export default function ResourcePlan() {
   // Week navigation
   const [referenceDate, setReferenceDate] = useState<Date>(new Date());
 
+  const scopedCompanyTechIds = useMemo(
+    () => technicians.map((t) => t.id),
+    [technicians]
+  );
+
   const techIds = useMemo(
-    () => selectedTechId ? [selectedTechId] : technicians.map((t) => t.id),
-    [selectedTechId, technicians]
+    () => selectedTechId ? [selectedTechId] : scopedCompanyTechIds,
+    [selectedTechId, scopedCompanyTechIds]
   );
 
   // Reset selected technician when switching to a company where that tech is not present
