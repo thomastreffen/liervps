@@ -78,6 +78,7 @@ export function ResourceAssignDialog({
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   const [assignDate, setAssignDate] = useState("");
   const [assignStartTime, setAssignStartTime] = useState("08:00");
+  const [assignEndDate, setAssignEndDate] = useState("");
   const [assignEndTime, setAssignEndTime] = useState("16:00");
 
   // Conflict detection
@@ -90,8 +91,9 @@ export function ResourceAssignDialog({
       if (preselectedDate) {
         const dateStr = format(preselectedDate, "yyyy-MM-dd");
         setStartDate(dateStr);
-        setEndDate(dateStr);
+        setEndDate(autoAdjustEndDate(dateStr, startTime, endTime));
         setAssignDate(dateStr);
+        setAssignEndDate(autoAdjustEndDate(dateStr, assignStartTime, assignEndTime));
       }
       if (preselectedTechId) {
         setTechIds([preselectedTechId]);
@@ -141,6 +143,7 @@ export function ResourceAssignDialog({
     setSearchResults([]);
     setSelectedJobId(null);
     setAssignDate("");
+    setAssignEndDate("");
     setAssignStartTime("08:00");
     setAssignEndTime("16:00");
     setMode("new");
@@ -153,15 +156,14 @@ export function ResourceAssignDialog({
   };
 
   // Check for conflicts before submitting
-  const checkConflicts = useCallback(async (date: string, start: string, end: string, techs: string[]) => {
-    if (!date || techs.length === 0) {
+  const checkConflicts = useCallback(async (date: string, start: string, endDateValue: string, end: string, techs: string[]) => {
+    if (!date || !endDateValue || techs.length === 0) {
       setConflicts([]);
       return;
     }
     setCheckingConflicts(true);
     try {
-      const startISO = new Date(`${date}T${start}`).toISOString();
-      const endISO = new Date(`${date}T${end}`).toISOString();
+      const { startISO, endISO } = normalizeOvernightDates(date, start, endDateValue, end);
 
       // Check overlapping events for each technician
       const { data: overlaps } = await supabase
@@ -196,13 +198,13 @@ export function ResourceAssignDialog({
   useEffect(() => {
     const timer = setTimeout(() => {
       if (mode === "new" && startDate && techIds.length > 0) {
-        checkConflicts(startDate, startTime, endTime, techIds);
+        checkConflicts(startDate, startTime, endDate, endTime, techIds);
       } else if (mode === "existing" && assignDate && techIds.length > 0) {
-        checkConflicts(assignDate, assignStartTime, assignEndTime, techIds);
+        checkConflicts(assignDate, assignStartTime, assignEndDate, assignEndTime, techIds);
       }
     }, 500);
     return () => clearTimeout(timer);
-  }, [mode, startDate, startTime, endTime, assignDate, assignStartTime, assignEndTime, techIds, checkConflicts]);
+  }, [mode, startDate, startTime, endDate, endTime, assignDate, assignStartTime, assignEndDate, assignEndTime, techIds, checkConflicts]);
 
   // Create new event
   const handleCreateNew = async (e: React.FormEvent) => {
