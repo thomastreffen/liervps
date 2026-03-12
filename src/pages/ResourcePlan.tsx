@@ -701,6 +701,13 @@ export default function ResourcePlan() {
             : null
         }
         onSaved={() => {
+          // Optimistic: remove all blocks linked to this event
+          if (editEvent) {
+            const linkedIds = scheduleBlocks
+              .filter((sb) => sb.project_id === editEvent.id || sb.mcs_block_id === editEvent.id)
+              .map((sb) => sb.id);
+            for (const id of linkedIds) removeBlockOptimistic(id);
+          }
           void refreshPlanData();
         }}
       />
