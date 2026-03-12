@@ -241,12 +241,50 @@ async function syncForTechnician(
     return { techId: tech.id, techName: tech.name, status: "no_email" };
   }
 
-  const existingCalEventId = eventTechRow.calendar_event_id;
+  const existingCalEventId = eventTechRow.calendar_event_id as string | null;
 
   if (action === "create") {
-    if (existingCalEventId) {
-      // Already has a calendar event, skip
+    // Concurrency guard: claim the row before Graph POST to prevent duplicate events
+    let pendingMarker: string | null = null;
+    let claimed = false;
+
+    if (existingCalEventId && !existingCalEventId.startsWith("pending:")) {
       return { techId: tech.id, techName: tech.name, status: "already_exists", calendarEventId: existingCalEventId };
+    }
+
+    if (!existingCalEventId) {
+      pendingMarker = `pending:${crypto.randomUUID()}`;
+      const { data: claimRow, error: claimErr } = await supabaseAdmin
+        .from("event_technicians")
+        .update({ calendar_event_id: pendingMarker })
+        .eq("id", eventTechRow.id)
+        .is("calendar_event_id", null)
+        .select("id")
+        .maybeSingle();
+
+      if (claimErr) {
+        console.error(`[calendar-write-sync] Claim failed for event_technician ${eventTechRow.id}:`, claimErr.message);
+        return { techId: tech.id, techName: tech.name, status: "error", code: "claim_failed" };
+      }
+
+      if (!claimRow) {
+        const { data: currentRow } = await supabaseAdmin
+          .from("event_technicians")
+          .select("calendar_event_id")
+          .eq("id", eventTechRow.id)
+          .maybeSingle();
+
+        const currentId = currentRow?.calendar_event_id as string | null | undefined;
+        if (currentId && !currentId.startsWith("pending:")) {
+          return { techId: tech.id, techName: tech.name, status: "already_exists", calendarEventId: currentId };
+        }
+
+        return { techId: tech.id, techName: tech.name, status: "in_progress" };
+      }
+
+      claimed = true;
+    } else {
+      return { techId: tech.id, techName: tech.name, status: "in_progress" };
     }
 
     const res = await fetch(
@@ -261,13 +299,29 @@ async function syncForTechnician(
     if (!res.ok) {
       const errText = await res.text();
       console.error(`[calendar-write-sync] Create failed for ${techEmail}:`, res.status, errText);
+
+      if (claimed && pendingMarker) {
+        await supabaseAdmin
+          .from("event_technicians")
+          .update({ calendar_event_id: null })
+          .eq("id", eventTechRow.id)
+          .eq("calendar_event_id", pendingMarker);
+      }
+
       return { techId: tech.id, techName: tech.name, status: "error", code: res.status };
     }
 
     const data = await res.json();
-    await supabaseAdmin.from("event_technicians")
+    let saveQuery = supabaseAdmin
+      .from("event_technicians")
       .update({ calendar_event_id: data.id })
       .eq("id", eventTechRow.id);
+
+    if (claimed && pendingMarker) {
+      saveQuery = saveQuery.eq("calendar_event_id", pendingMarker);
+    }
+
+    await saveQuery;
 
     await logAction("outlook_created", `Outlook-event opprettet for ${tech.name} (${techEmail})`);
     return { techId: tech.id, techName: tech.name, status: "created", calendarEventId: data.id };
