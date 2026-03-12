@@ -45,6 +45,15 @@ interface ResourceCalendarProps {
   /** Permission: can see busy/available status */
   canReadBusy?: boolean;
   hideExternalEvents?: boolean;
+  /** Operating hours config */
+  slotMinTime?: string;
+  slotMaxTime?: string;
+  slotDuration?: string;
+  /** Start hour for night shading (e.g. 0 for industry) */
+  operatingStartHour?: number;
+  /** End hour for night shading (e.g. 24 for industry) */
+  operatingEndHour?: number;
+  hasNightHours?: boolean;
 }
 
 /** Merge overlapping external slots into contiguous blocks */
