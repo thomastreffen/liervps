@@ -568,17 +568,17 @@ export default function ResourcePlan() {
               {operatingHours.hasNightHours && (calendarView === "timeGridDay" || calendarView === "timeGridWeek") && (
                 <div className="flex items-center gap-1 border border-border/40 rounded-lg p-0.5">
                   <Button variant="ghost" size="sm" className="h-6 text-[10px] rounded-md px-2 gap-1" onClick={() => {
-                    calendarRef?.current && (calendarRef as any).current?.getApi?.()?.scrollToTime?.("06:00:00");
+                    window.dispatchEvent(new CustomEvent("resource-calendar:scroll-to", { detail: "06:00:00" }));
                   }}>
                     <Sunrise className="h-3 w-3" /> Morgen
                   </Button>
                   <Button variant="ghost" size="sm" className="h-6 text-[10px] rounded-md px-2 gap-1" onClick={() => {
-                    calendarRef?.current && (calendarRef as any).current?.getApi?.()?.scrollToTime?.("18:00:00");
+                    window.dispatchEvent(new CustomEvent("resource-calendar:scroll-to", { detail: "18:00:00" }));
                   }}>
                     <Sun className="h-3 w-3" /> Kveld
                   </Button>
                   <Button variant="ghost" size="sm" className="h-6 text-[10px] rounded-md px-2 gap-1" onClick={() => {
-                    calendarRef?.current && (calendarRef as any).current?.getApi?.()?.scrollToTime?.("00:00:00");
+                    window.dispatchEvent(new CustomEvent("resource-calendar:scroll-to", { detail: "00:00:00" }));
                   }}>
                     <Moon className="h-3 w-3" /> Natt
                   </Button>

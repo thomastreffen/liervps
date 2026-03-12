@@ -165,15 +165,23 @@ export const ResourceCalendar = memo(function ResourceCalendar({
     }
   }, [isDayView, calendarView, referenceDate]);
 
-  // Night shading via CSS custom property
+  // Night shading class
+  const [wrapperRef, setWrapperRef] = useState<HTMLDivElement | null>(null);
   useEffect(() => {
-    const el = (calendarRef.current as any)?.elRef?.current;
-    if (!el || !hasNightHours) return;
-    el.classList.add("fc-night-shading");
-    return () => {
-      el?.classList.remove("fc-night-shading");
+    if (!wrapperRef || !hasNightHours) return;
+    wrapperRef.classList.add("fc-night-shading");
+    return () => { wrapperRef?.classList.remove("fc-night-shading"); };
+  }, [hasNightHours, wrapperRef]);
+
+  // Listen for scroll-to events from parent
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const time = (e as CustomEvent).detail as string;
+      calendarRef.current?.getApi()?.scrollToTime(time);
     };
-  }, [hasNightHours]);
+    window.addEventListener("resource-calendar:scroll-to", handler);
+    return () => window.removeEventListener("resource-calendar:scroll-to", handler);
+  }, []);
 
   // Build a stable color assignment per technician (Google Calendar style)
   const techColorMap = useMemo(() => {
