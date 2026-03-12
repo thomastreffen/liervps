@@ -32,8 +32,13 @@ export function useCalendarSync() {
       } else if (data?.status === "no_token") {
         // Silent – no MS connection
       } else if (data?.status === "error") {
-        toast.error("Outlook ble ikke oppdatert", {
-          description: `Feilkode ${data.code}`,
+        console.error("[CalendarSync] create error:", data.code, data.detail);
+        toast.error("Oppdraget ble lagret, men kalendersynk feilet", {
+          description: `Feilkode ${data.code}. Du kan prøve på nytt.`,
+          action: {
+            label: "Prøv igjen",
+            onClick: () => syncCreate(eventId),
+          },
         });
       }
     } catch (err) {

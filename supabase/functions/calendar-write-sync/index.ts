@@ -285,7 +285,17 @@ Deno.serve(async (req) => {
       });
     }
 
-    const customer = event.customers || null;
+    // Server-side overnight normalization: ensure end > start in DB
+    const evStart = new Date(event.start_time);
+    const evEnd = new Date(event.end_time);
+    if (evEnd.getTime() <= evStart.getTime()) {
+      const correctedEnd = new Date(evEnd.getTime() + 24 * 60 * 60 * 1000);
+      console.log(`[calendar-write-sync] Correcting overnight: end ${event.end_time} → ${correctedEnd.toISOString()}`);
+      await supabaseAdmin.from("events").update({
+        end_time: correctedEnd.toISOString(),
+      }).eq("id", event_id);
+      event.end_time = correctedEnd.toISOString();
+    }
 
     // Find a technician with a valid MS token
     const techs = (event.event_technicians ?? [])
