@@ -4,6 +4,7 @@ import { format } from "date-fns";
 import { nb } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useCompanyContext } from "@/hooks/useCompanyContext";
 import { useOfferActivitySummary } from "@/hooks/useOfferActivity";
 import { OfferActivityBadge } from "@/components/offer/OfferActivityTimeline";
 import { Badge } from "@/components/ui/badge";
