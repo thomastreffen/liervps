@@ -57,6 +57,7 @@ export default function Dashboard() {
           <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
             <SheetContent side="left" className="w-72 p-3">
               <TechnicianList
+                technicians={technicians}
                 selectedId={selectedTechId}
                 onSelect={handleSelectTech}
                 allowDeselect
