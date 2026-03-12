@@ -179,7 +179,7 @@ export default function CustomerImportPage() {
         billing_zip: getMappedValue(row, "billing_zip"),
         billing_city: getMappedValue(row, "billing_city"),
         notes: getMappedValue(row, "notes"),
-        company_id: activeCompanyId || null,
+        company_id: activeCompanyId,
         created_by: user?.id || null,
       } as any);
 
