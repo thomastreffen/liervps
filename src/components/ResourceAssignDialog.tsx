@@ -17,10 +17,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { nb } from "date-fns/locale";
-import { AlertTriangle, Search, Loader2, CalendarPlus, Link2 } from "lucide-react";
+import { AlertTriangle, Search, Loader2, CalendarPlus, Link2, Moon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { JobStatusBadge } from "./JobStatusBadge";
 import type { JobStatus } from "@/lib/job-status";
+import { TimeSelect } from "@/components/ui/time-select";
+import { normalizeOvernightDates, isOvernightRange, autoAdjustEndDate } from "@/lib/overnight";
 
 interface ResourceAssignDialogProps {
   open: boolean;
