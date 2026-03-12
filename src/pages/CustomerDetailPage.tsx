@@ -205,6 +205,13 @@ export default function CustomerDetailPage() {
                   {customer.org_number && <span className="font-mono">Org: {customer.org_number}</span>}
                   {customer.billing_city && <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{customer.billing_city}</span>}
                 </div>
+                <div className="mt-1">
+                  <SourceMetadataBadge
+                    source={customer.external_tripletex_id ? "tripletex" : "local"}
+                    externalId={customer.external_tripletex_id}
+                    companyName={activeCompany?.name}
+                  />
+                </div>
               </div>
             </div>
             <div className="flex items-center gap-2">
