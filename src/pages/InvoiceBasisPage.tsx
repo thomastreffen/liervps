@@ -49,6 +49,7 @@ const statusConfig: Record<string, { label: string; variant: "default" | "second
 
 export default function InvoiceBasisPage() {
   const { user } = useAuth();
+  const { activeCompanyId } = useCompanyContext();
   const [rows, setRows] = useState<InvoiceBasisRow[]>([]);
   const [wpRows, setWpRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -57,10 +58,12 @@ export default function InvoiceBasisPage() {
 
   useEffect(() => {
     const load = async () => {
-      const { data } = await supabase
+      let query = supabase
         .from("invoice_basis")
         .select("*")
         .order("approved_at", { ascending: false });
+      if (activeCompanyId) query = query.eq("company_id" as any, activeCompanyId);
+      const { data } = await query;
 
       if (data && data.length > 0) {
         // Fetch project titles

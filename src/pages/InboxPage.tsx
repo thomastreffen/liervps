@@ -217,14 +217,18 @@ export default function InboxPage() {
     );
   }, []);
 
+  const { activeCompanyId } = useCompanyContext();
+
   const fetchCases = useCallback(async () => {
     setLoading(true);
-    const { data, error } = await supabase
+    let query = supabase
       .from("cases")
       .select("*")
       .not("status", "eq", "archived")
       .order("updated_at", { ascending: false })
       .limit(200);
+    if (activeCompanyId) query = query.eq("company_id", activeCompanyId);
+    const { data, error } = await query;
 
     if (error) {
       console.error("Failed to load cases:", error);
@@ -233,7 +237,7 @@ export default function InboxPage() {
       setCases((data as unknown as Case[]) || []);
     }
     setLoading(false);
-  }, []);
+  }, [activeCompanyId]);
 
   const fetchItems = useCallback(async (caseId: string) => {
     const { data } = await supabase

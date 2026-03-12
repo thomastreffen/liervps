@@ -102,16 +102,16 @@ export default function LeadsPage() {
   const fetchLeads = async () => {
     setLoading(true);
     let result;
-    if (viewMode === "trash") result = await fetchDeletedLeads();
-    else if (viewMode === "archived") result = await fetchArchivedLeads();
-    else result = await fetchActiveLeads();
+    if (viewMode === "trash") result = await fetchDeletedLeads("*", activeCompanyId);
+    else if (viewMode === "archived") result = await fetchArchivedLeads("*", activeCompanyId);
+    else result = await fetchActiveLeads("*", activeCompanyId);
     const sorted = (result.data || []).sort((a: any, b: any) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
     setLeads(sorted as any as Lead[]);
     setSelectedIds([]);
     setLoading(false);
   };
 
-  useEffect(() => { fetchLeads(); }, [viewMode]);
+  useEffect(() => { fetchLeads(); }, [viewMode, activeCompanyId]);
 
   // Fetch offer counts per lead
   useEffect(() => {

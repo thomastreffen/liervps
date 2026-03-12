@@ -151,7 +151,7 @@ export default function SalesDashboard() {
 
       setLoading(false);
     })();
-  }, []);
+  }, [activeCompanyId]);
 
   return (
     <div className="space-y-4 max-w-[1920px] mx-auto pb-8">
