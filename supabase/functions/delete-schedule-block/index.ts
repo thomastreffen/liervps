@@ -99,16 +99,130 @@ Deno.serve(async (req) => {
       });
     }
 
+    const normalizeTitle = (v: string | null | undefined) => (v || "").trim().toLowerCase();
+    const selectedTitle = normalizeTitle(block.outlook_subject || block.title);
+
+    const relatedBlockIds = new Set<string>([block.id]);
+    const relatedOutlookBlocks: Array<{
+      id: string;
+      source: string;
+      project_id: string | null;
+      technician_id: string;
+      outlook_event_id: string | null;
+      calendar_id: string | null;
+      start_at: string;
+      end_at: string;
+      title: string | null;
+      outlook_subject: string | null;
+    }> = [
+      {
+        id: block.id,
+        source: block.source,
+        project_id: block.project_id,
+        technician_id: block.technician_id,
+        outlook_event_id: block.outlook_event_id,
+        calendar_id: block.calendar_id,
+        start_at: block.start_at,
+        end_at: block.end_at,
+        title: block.title,
+        outlook_subject: block.outlook_subject,
+      },
+    ];
+
+    // For imported Outlook blocks, include same-slot twins so one click doesn't leave ghost siblings.
+    if (block.source === "outlook") {
+      const { data: sameSlotBlocks } = await supabase
+        .from("schedule_blocks")
+        .select("id, source, project_id, technician_id, outlook_event_id, calendar_id, start_at, end_at, title, outlook_subject")
+        .eq("technician_id", block.technician_id)
+        .eq("start_at", block.start_at)
+        .eq("end_at", block.end_at)
+        .is("deleted_at", null)
+        .limit(20);
+
+      for (const candidate of sameSlotBlocks || []) {
+        if (candidate.id === block.id) continue;
+        const sameProject = !!block.project_id && candidate.project_id === block.project_id;
+        const sameTitle = normalizeTitle(candidate.outlook_subject || candidate.title) === selectedTitle;
+        if (sameProject || sameTitle) {
+          relatedBlockIds.add(candidate.id);
+          relatedOutlookBlocks.push(candidate as any);
+        }
+      }
+    }
+
     const isSystemBlock = block.source === "system" || block.source === "manual" || block.source === "linked_outlook";
     const isOutlookImported = block.source === "outlook";
     const shouldDeleteOutlook = isSystemBlock || (isOutlookImported && force_delete_outlook === true);
+    const deletePath = shouldDeleteOutlook
+      ? (isSystemBlock ? "system_with_outlook_delete" : "imported_with_forced_outlook_delete")
+      : "local_only";
+
+    const blockTechEmail = (block as any).technicians?.email as string | undefined;
 
     let deletedInOutlook = false;
     let outlookError: string | null = null;
     const deletedOutlookEvents: string[] = [];
+    const graphAttempts: Array<{ path: string; mailbox: string; event_id: string; status: number; ok: boolean }> = [];
+    const attemptedTargets = new Set<string>();
+    const eventTechnicianTargets: Array<{
+      event_technician_id: string;
+      technician_id: string | null;
+      technician_email: string | null;
+      calendar_event_id: string | null;
+    }> = [];
+
+    console.log("[delete-schedule-block] Request", JSON.stringify({
+      source: block.source,
+      schedule_block_id,
+      technician_id: block.technician_id,
+      technician_user_id: (block as any).technicians?.user_id ?? null,
+      outlook_event_id: block.outlook_event_id,
+      calendar_event_id: block.outlook_event_id,
+      external_event_id: block.outlook_event_id,
+      origin: isSystemBlock ? "system" : "imported",
+      force_delete_outlook: force_delete_outlook === true,
+      delete_path: deletePath,
+      related_block_ids: Array.from(relatedBlockIds),
+      start_at: block.start_at,
+      end_at: block.end_at,
+      title: block.outlook_subject || block.title,
+    }));
+
+    let appToken: string | null = null;
+
+    const tryDeleteOutlook = async (
+      path: string,
+      mailbox: string | null | undefined,
+      eventId: string | null | undefined
+    ) => {
+      if (!mailbox || !eventId || eventId.startsWith("pending:")) return;
+      if (!appToken) return;
+
+      const targetKey = `${mailbox.toLowerCase()}|${eventId}`;
+      if (attemptedTargets.has(targetKey)) return;
+      attemptedTargets.add(targetKey);
+
+      const result = await deleteOutlookEvent(appToken, mailbox, eventId);
+      graphAttempts.push({ path, mailbox, event_id: eventId, status: result.status, ok: result.ok });
+
+      console.log("[delete-schedule-block] Graph delete", JSON.stringify({
+        path,
+        mailbox,
+        event_id: eventId,
+        status: result.status,
+        ok: result.ok,
+      }));
+
+      if (result.ok) {
+        deletedOutlookEvents.push(eventId);
+      } else {
+        outlookError = `Graph DELETE failed (${path}) for ${mailbox}: ${result.status}`;
+      }
+    };
 
     if (shouldDeleteOutlook) {
-      const appToken = await getAppToken();
+      appToken = await getAppToken();
       if (!appToken) {
         outlookError = "Failed to get Graph app token";
         console.error("[delete-schedule-block]", outlookError);
@@ -123,20 +237,21 @@ Deno.serve(async (req) => {
           if (eventTechs && eventTechs.length > 0) {
             for (const et of eventTechs) {
               const calEventId = et.calendar_event_id as string | null;
-              const techEmail = (et as any).technicians?.email;
-              if (calEventId && !calEventId.startsWith("pending:") && techEmail) {
-                console.log(`[delete-schedule-block] Deleting Outlook event ${calEventId.slice(0, 20)}... for ${techEmail}`);
-                const result = await deleteOutlookEvent(appToken, techEmail, calEventId);
-                if (result.ok) {
-                  deletedOutlookEvents.push(calEventId);
-                  // Clear the calendar_event_id
-                  await supabase.from("event_technicians")
-                    .update({ calendar_event_id: null } as any)
-                    .eq("id", et.id);
-                } else {
-                  outlookError = `Graph DELETE failed for ${techEmail}: ${result.status}`;
-                  console.error("[delete-schedule-block]", outlookError);
-                }
+              const techEmail = (et as any).technicians?.email as string | null;
+
+              eventTechnicianTargets.push({
+                event_technician_id: et.id,
+                technician_id: et.technician_id,
+                technician_email: techEmail,
+                calendar_event_id: calEventId,
+              });
+
+              await tryDeleteOutlook("event_technicians", techEmail, calEventId);
+
+              if (calEventId && deletedOutlookEvents.includes(calEventId)) {
+                await supabase.from("event_technicians")
+                  .update({ calendar_event_id: null } as any)
+                  .eq("id", et.id);
               }
             }
           }
@@ -152,56 +267,57 @@ Deno.serve(async (req) => {
           if (calLinks && calLinks.length > 0) {
             for (const link of calLinks) {
               const calEventId = link.calendar_event_id as string | null;
-              if (calEventId && !deletedOutlookEvents.includes(calEventId)) {
-                const techEmail = (link as any).technicians?.email;
-                if (techEmail) {
-                  console.log(`[delete-schedule-block] Deleting via job_calendar_links: ${calEventId.slice(0, 20)}... for ${techEmail}`);
-                  const result = await deleteOutlookEvent(appToken, techEmail, calEventId);
-                  if (result.ok) {
-                    deletedOutlookEvents.push(calEventId);
-                    await supabase.from("job_calendar_links")
-                      .update({ sync_status: "unlinked", calendar_event_id: null, calendar_event_url: null } as any)
-                      .eq("id", link.id);
-                  } else {
-                    outlookError = `Graph DELETE (link) failed: ${result.status}`;
-                    console.error("[delete-schedule-block]", outlookError);
-                  }
-                }
+              const techEmail = (link as any).technicians?.email as string | null;
+              await tryDeleteOutlook("job_calendar_links", techEmail, calEventId);
+
+              if (calEventId && deletedOutlookEvents.includes(calEventId)) {
+                await supabase.from("job_calendar_links")
+                  .update({ sync_status: "unlinked", calendar_event_id: null, calendar_event_url: null } as any)
+                  .eq("id", link.id);
               }
             }
           }
         }
 
-        // Strategy 2: Fallback to schedule_blocks.outlook_event_id (legacy / direct)
-        if (block.outlook_event_id && block.calendar_id && !deletedOutlookEvents.includes(block.outlook_event_id)) {
-          console.log(`[delete-schedule-block] Legacy delete: ${block.outlook_event_id.slice(0, 20)}... via calendar_id ${block.calendar_id}`);
-          const result = await deleteOutlookEvent(appToken, block.calendar_id, block.outlook_event_id);
-          if (result.ok) {
-            deletedOutlookEvents.push(block.outlook_event_id);
-          } else {
-            outlookError = `Graph DELETE (legacy) failed: ${result.status}`;
-            console.error("[delete-schedule-block]", outlookError);
-          }
+        // Strategy 2: Fallback to schedule_blocks.outlook_event_id (legacy/direct)
+        for (const relatedBlock of relatedOutlookBlocks) {
+          const mailbox = relatedBlock.calendar_id || blockTechEmail || null;
+          await tryDeleteOutlook("schedule_blocks_fallback", mailbox, relatedBlock.outlook_event_id);
+        }
+
+        if ((force_delete_outlook === true || isSystemBlock) && deletedOutlookEvents.length === 0 && !outlookError) {
+          outlookError = "No Outlook events deleted (no matching calendar_event_id/outlook_event_id found)";
         }
 
         deletedInOutlook = deletedOutlookEvents.length > 0;
       }
     }
 
-    // Soft delete the block
+    // Soft delete all matched blocks (selected + same-slot twins)
+    const blockIdsToDelete = Array.from(relatedBlockIds);
+    const deletedReason = isSystemBlock
+      ? "manual_delete"
+      : (force_delete_outlook ? "manual_delete_with_outlook" : "removed_from_plan");
+
     const { error: updateErr } = await supabase
       .from("schedule_blocks")
       .update({
         deleted_at: new Date().toISOString(),
-        deleted_reason: isSystemBlock ? "manual_delete" : (force_delete_outlook ? "manual_delete_with_outlook" : "removed_from_plan"),
+        deleted_reason: deletedReason,
       } as any)
-      .eq("id", schedule_block_id);
+      .in("id", blockIdsToDelete);
 
     if (updateErr) {
       return new Response(JSON.stringify({ error: "Failed to soft-delete block" }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    const { count: stillActiveRelatedCount } = await supabase
+      .from("schedule_blocks")
+      .select("id", { count: "exact", head: true })
+      .in("id", blockIdsToDelete)
+      .is("deleted_at", null);
 
     // Also soft-delete the linked event if it's a task (tasks have no existence outside the plan)
     if (isSystemBlock && block.project_id) {
@@ -226,16 +342,47 @@ Deno.serve(async (req) => {
       entity_id: schedule_block_id,
       action: "deleted",
       type: "system",
-      description: `Schedule block deleted (source: ${block.source}). Outlook events removed: ${deletedOutlookEvents.length}${outlookError ? ` Error: ${outlookError}` : ""}`,
+      description: `Schedule block deleted (${deletePath}). Blocks soft-deleted: ${blockIdsToDelete.length}. Outlook removed: ${deletedOutlookEvents.length}${outlookError ? ` Error: ${outlookError}` : ""}`,
+      metadata: {
+        source: block.source,
+        delete_path: deletePath,
+        origin: isSystemBlock ? "system" : "imported",
+        force_delete_outlook: force_delete_outlook === true,
+        block_ids_soft_deleted: blockIdsToDelete,
+        graph_attempts: graphAttempts,
+      },
     });
 
     return new Response(
       JSON.stringify({
         status: "ok",
         source: block.source,
+        origin: isSystemBlock ? "system" : "imported",
+        delete_path: deletePath,
         deleted_in_outlook: deletedInOutlook,
         outlook_events_removed: deletedOutlookEvents.length,
         outlook_error: outlookError,
+        block_ids_soft_deleted: blockIdsToDelete,
+        schedule_blocks_active_after_delete: stillActiveRelatedCount ?? 0,
+        debug: {
+          selected_block: {
+            source: block.source,
+            schedule_block_id,
+            technician_id: block.technician_id,
+            technician_user_id: (block as any).technicians?.user_id ?? null,
+            outlook_event_id: block.outlook_event_id,
+            calendar_event_id: block.outlook_event_id,
+            external_event_id: block.outlook_event_id,
+            calendar_id: block.calendar_id,
+            project_id: block.project_id,
+            start_at: block.start_at,
+            end_at: block.end_at,
+            title: block.outlook_subject || block.title,
+          },
+          related_blocks: relatedOutlookBlocks,
+          event_technician_targets: eventTechnicianTargets,
+          graph_attempts: graphAttempts,
+        },
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

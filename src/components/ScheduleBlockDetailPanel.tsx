@@ -233,6 +233,25 @@ export const ScheduleBlockDetailPanel = memo(function ScheduleBlockDetailPanel({
   // Delete / remove from plan
   const handleDelete = async (forceDeleteOutlook?: boolean) => {
     setActionLoading("delete");
+    const origin = isSystem ? "system" : "imported";
+    const requestTrace = {
+      source: block.source,
+      schedule_block_id: block.id,
+      technician_id: block.technician_id,
+      user_id: (block as any).user_id ?? null,
+      outlook_event_id: block.outlook_event_id,
+      calendar_event_id: block.outlook_event_id,
+      external_event_id: block.outlook_event_id,
+      calendar_id: block.calendar_id,
+      origin,
+      force_delete_outlook: forceDeleteOutlook ?? false,
+      start: block.start_at?.toISOString?.(),
+      end: block.end_at?.toISOString?.(),
+      title: block.outlook_subject || block.title,
+    };
+
+    console.info("[ScheduleBlockDetailPanel] Delete request", requestTrace);
+
     try {
       const { data, error } = await supabase.functions.invoke("delete-schedule-block", {
         body: {
@@ -242,15 +261,25 @@ export const ScheduleBlockDetailPanel = memo(function ScheduleBlockDetailPanel({
       });
 
       if (error) {
+        console.error("[ScheduleBlockDetailPanel] Delete failed", { request: requestTrace, error });
         toast.error("Kunne ikke fjerne", { description: error.message });
         return;
       }
 
       const result = data as any;
+      console.info("[ScheduleBlockDetailPanel] Delete response", {
+        request: requestTrace,
+        result,
+      });
+
       if (result?.status === "ok") {
         if (result.deleted_in_outlook) {
           toast.success("Fjernet fra plan og Outlook ✓", {
             description: `${result.outlook_events_removed} Outlook-hendelse(r) slettet.`,
+          });
+        } else if ((forceDeleteOutlook ?? false) || isSystem) {
+          toast.warning("Delvis sletting", {
+            description: result.outlook_error || "Outlook-avtale ble ikke bekreftet slettet.",
           });
         } else if (isOutlook && !forceDeleteOutlook) {
           toast.success("Fjernet fra plan", {
@@ -266,6 +295,7 @@ export const ScheduleBlockDetailPanel = memo(function ScheduleBlockDetailPanel({
       onConfirmed?.();
       onClose();
     } catch (err: any) {
+      console.error("[ScheduleBlockDetailPanel] Delete exception", { request: requestTrace, err });
       toast.error("Feil", { description: err?.message });
     } finally {
       setActionLoading(null);
