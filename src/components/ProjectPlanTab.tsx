@@ -386,6 +386,7 @@ function CreateTaskDrawer({
   jobId: string; userId: string | null; tasksCount: number;
   onCreated: () => void;
 }) {
+  const { activeCompanyId } = useCompanyContext();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [techIds, setTechIds] = useState<string[]>([]);
