@@ -154,8 +154,7 @@ export function EditJobDialog({ open, onOpenChange, jobId, onSaved }: EditJobDia
     setSubmitting(true);
 
     try {
-      const startISO = new Date(`${startDate}T${startTime}`).toISOString();
-      const endISO = new Date(`${endDate}T${endTime}`).toISOString();
+      const { startISO, endISO } = normalizeOvernightDates(startDate, startTime, endDate, endTime);
       const { data: session } = await supabase.auth.getSession();
       const userId = session?.session?.user?.id;
 
