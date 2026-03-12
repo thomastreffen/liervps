@@ -467,7 +467,7 @@ export const ResourceCalendar = memo(function ResourceCalendar({
 
   return (
     <TooltipProvider delayDuration={300}>
-    <div className="fc-wrapper rounded-2xl border border-border/30 bg-card shadow-card overflow-hidden">
+    <div ref={setWrapperRef} className="fc-wrapper rounded-2xl border border-border/30 bg-card shadow-card overflow-hidden">
       <FullCalendar
         ref={calendarRef}
         plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin, listPlugin]}
