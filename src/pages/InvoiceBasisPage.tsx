@@ -112,7 +112,7 @@ export default function InvoiceBasisPage() {
       }
     };
     load();
-  }, []);
+  }, [activeCompanyId]);
 
   const markAsSent = async (id: string) => {
     const row = rows.find((r) => r.id === id);
