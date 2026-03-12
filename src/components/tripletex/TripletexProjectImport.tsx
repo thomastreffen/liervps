@@ -96,7 +96,9 @@ export function TripletexProjectImport() {
         {summary.needs_review > 0 && <Badge variant="outline" className="border-yellow-500 text-yellow-700">{summary.needs_review} trenger avklaring</Badge>}
         {summary.error > 0 && <Badge variant="destructive">{summary.error} feil</Badge>}
         {summary.ignored > 0 && <Badge variant="outline">{summary.ignored} ignoreres</Badge>}
-      </div>
+        {missingCustomerCount > 0 && (
+          <Badge variant="outline" className="border-amber-500 text-amber-700">{missingCustomerCount} nye kunder opprettes</Badge>
+        )}
 
       {/* Table */}
       <Card>
