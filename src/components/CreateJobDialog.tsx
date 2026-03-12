@@ -11,10 +11,12 @@ import { FileUpload } from "./FileUpload";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
+import { nb } from "date-fns/locale";
 import { AlertTriangle, ChevronDown, ChevronUp, Moon } from "lucide-react";
 import { useCalendarSync } from "@/hooks/useCalendarSync";
 import { useCompanyContext } from "@/hooks/useCompanyContext";
 import { normalizeOvernightDates, isOvernightRange, autoAdjustEndDate } from "@/lib/overnight";
+import { TimeSelect } from "@/components/ui/time-select";
 
 interface CreateJobDialogProps {
   open: boolean;
@@ -78,6 +80,9 @@ function CreateJobDialogInner({
   const [showMore, setShowMore] = useState(false);
   const { syncCreate } = useCalendarSync();
   const { activeCompanyId } = useCompanyContext();
+
+  const overnight = startDate && startTime && endTime ? isOvernightRange(startDate, startTime, endDate || startDate, endTime) : false;
+  const effectiveEndDate = startDate && overnight ? autoAdjustEndDate(startDate, startTime, endTime) : endDate;
 
   // DB-based conflict check
   const checkConflicts = useCallback(async () => {
@@ -225,6 +230,15 @@ function CreateJobDialogInner({
     setClientRequestId(crypto.randomUUID());
   };
 
+  // Format summary line
+  const summaryLine = startDate && startTime && endTime ? (() => {
+    try {
+      const startD = new Date(`${startDate}T${startTime}`);
+      const endD = new Date(`${effectiveEndDate}T${endTime}`);
+      return `${format(startD, "EEE d. MMM", { locale: nb })} ${startTime} → ${overnight ? format(endD, "EEE d. MMM", { locale: nb }) + " " : ""}${endTime}`;
+    } catch { return null; }
+  })() : null;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
@@ -262,68 +276,67 @@ function CreateJobDialogInner({
             <TechnicianMultiSelect selectedIds={techIds} onChange={setTechIds} />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <Label>Start *</Label>
-              <div className="flex gap-2">
-                <Input
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => {
-                    setStartDate(e.target.value);
-                    if (!endDate) setEndDate(e.target.value);
-                    else {
-                      const adj = autoAdjustEndDate(e.target.value, startTime, endTime);
-                      setEndDate(adj);
-                    }
-                  }}
-                  required
-                />
-                <Input
-                  type="time"
-                  value={startTime}
-                  onChange={(e) => {
-                    setStartTime(e.target.value);
-                    if (startDate) {
-                      setEndDate(autoAdjustEndDate(startDate, e.target.value, endTime));
-                    }
-                  }}
-                  required
-                  className="w-24"
-                />
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Slutt *</Label>
-              <div className="flex gap-2">
-                <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} required />
-                <Input
-                  type="time"
-                  value={endTime}
-                  onChange={(e) => {
-                    setEndTime(e.target.value);
-                    if (startDate) {
-                      setEndDate(autoAdjustEndDate(startDate, startTime, e.target.value));
-                    }
-                  }}
-                  required
-                  className="w-24"
-                />
-              </div>
+          {/* Start row */}
+          <div className="space-y-1.5">
+            <Label>Start *</Label>
+            <div className="flex gap-2 items-center">
+              <Input
+                type="date"
+                value={startDate}
+                onChange={(e) => {
+                  setStartDate(e.target.value);
+                  if (!endDate) setEndDate(e.target.value);
+                  else {
+                    const adj = autoAdjustEndDate(e.target.value, startTime, endTime);
+                    setEndDate(adj);
+                  }
+                }}
+                required
+                className="flex-1"
+              />
+              <TimeSelect
+                value={startTime}
+                onChange={(v) => {
+                  setStartTime(v);
+                  if (startDate) setEndDate(autoAdjustEndDate(startDate, v, endTime));
+                }}
+              />
             </div>
           </div>
 
-          {/* Overnight indicator */}
-          {isOvernightRange(startDate, startTime, endDate, endTime) && (
-            <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/50 px-3 py-2">
-              <Moon className="h-4 w-4 text-primary" />
-              <span className="text-sm text-muted-foreground">
-                Går over midnatt – slutt{" "}
-                <span className="font-medium text-foreground">
-                  {autoAdjustEndDate(startDate, startTime, endTime)}
-                </span>{" "}
-                kl. {endTime}
-              </span>
+          {/* End row */}
+          <div className="space-y-1.5">
+            <Label>Slutt *</Label>
+            <div className="flex gap-2 items-center">
+              <Input
+                type="date"
+                value={effectiveEndDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                required
+                className="flex-1"
+              />
+              <TimeSelect
+                value={endTime}
+                onChange={(v) => {
+                  setEndTime(v);
+                  if (startDate) setEndDate(autoAdjustEndDate(startDate, startTime, v));
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Overnight indicator + time summary */}
+          {overnight && (
+            <div className="flex items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2">
+              <Moon className="h-4 w-4 text-primary shrink-0" />
+              <span className="text-sm font-medium text-primary">Går over midnatt – slutter neste dag</span>
+            </div>
+          )}
+
+          {summaryLine && (
+            <div className="rounded-lg bg-muted/50 px-3 py-2">
+              <p className="text-xs text-muted-foreground">Tidsrom</p>
+              <p className="text-sm font-medium">{summaryLine}</p>
             </div>
           )}
 
