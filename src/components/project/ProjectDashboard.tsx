@@ -249,37 +249,28 @@ export function ProjectDashboard({
         </Card>
       </div>
 
-      {/* Row 3: History */}
-      <Card className="rounded-2xl border-border/50">
-        <CardContent className="p-5">
-          <h3 className="text-sm font-semibold flex items-center gap-2 mb-3">
-            <Clock className="h-4 w-4 text-muted-foreground" />
-            Historikk
-            {logs.length > 0 && (
-              <span className="inline-flex items-center rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
-                {logs.length}
-              </span>
-            )}
-          </h3>
-          {logs.length > 0 ? (
-            <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-              {logs.slice(0, 10).map((log) => (
-                <div key={log.id} className="flex items-start gap-2.5 text-sm">
-                  <div className="h-1.5 w-1.5 rounded-full bg-border mt-2 shrink-0" />
-                  <div className="min-w-0">
-                    <p className="text-sm text-foreground">{log.change_summary || log.action_type}</p>
-                    <p className="text-[11px] text-muted-foreground">
-                      {format(new Date(log.timestamp), "d. MMM yyyy HH:mm", { locale: nb })}
-                    </p>
-                  </div>
+      {/* Row 3: Recent activity – compact, max 5 entries */}
+      {logs.length > 0 && (
+        <Card className="rounded-2xl border-border/50">
+          <CardContent className="p-5">
+            <h3 className="text-sm font-semibold flex items-center gap-2 mb-3">
+              <Clock className="h-4 w-4 text-muted-foreground" />
+              Siste aktivitet
+            </h3>
+            <div className="space-y-1.5">
+              {logs.slice(0, 5).map((log) => (
+                <div key={log.id} className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <div className="h-1 w-1 rounded-full bg-border shrink-0" />
+                  <span className="truncate flex-1">{log.change_summary || log.action_type}</span>
+                  <span className="shrink-0 text-[10px]">
+                    {format(new Date(log.timestamp), "d. MMM", { locale: nb })}
+                  </span>
                 </div>
               ))}
             </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">Ingen historikk registrert.</p>
-          )}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
