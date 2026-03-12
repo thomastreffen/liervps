@@ -99,7 +99,7 @@ export function EventDrawer({
   onSaved,
 }: EventDrawerProps) {
   const navigate = useNavigate();
-  const { syncDelete } = useCalendarSync();
+  const { syncCreate, syncUpdate, syncDelete } = useCalendarSync();
   const { activeCompanyId } = useCompanyContext();
   const isEditing = !!editEvent;
 
