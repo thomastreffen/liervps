@@ -156,6 +156,15 @@ export const PERMISSION_CATEGORIES: { category: string; description: string; key
     keys: ["calendar.read_busy", "calendar.view_external", "calendar.write_events", "calendar.delete_events"],
   },
   {
+    category: "Ressursplan",
+    description: "Tilgang til ressursplanen med planlegging og eksternvisning.",
+    keys: [
+      "resourceplan.view", "resourceplan.view_busy", "resourceplan.view_external_blocks",
+      "resourceplan.view_external_titles", "resourceplan.view_external_details",
+      "resourceplan.schedule", "resourceplan.edit_others", "resourceplan.cross_company",
+    ],
+  },
+  {
     category: "Administrasjon",
     description: "Tilgang til systeminnstillinger og brukeradministrasjon.",
     keys: ["admin.manage_companies", "admin.manage_departments", "admin.manage_users", "admin.manage_roles", "admin.manage_settings"],

@@ -564,8 +564,8 @@ export default function ResourcePlan() {
                 </div>
               </div>
 
-              {/* Quick time navigation – only for extended/industry profiles */}
-              {operatingHours.hasNightHours && (calendarView === "timeGridDay" || calendarView === "timeGridWeek") && (
+              {/* Quick time navigation – always available since calendar is 24h */}
+              {(calendarView === "timeGridDay" || calendarView === "timeGridWeek") && (
                 <div className="flex items-center gap-1 border border-border/40 rounded-lg p-0.5">
                   <Button variant="ghost" size="sm" className="h-6 text-[10px] rounded-md px-2 gap-1" onClick={() => {
                     window.dispatchEvent(new CustomEvent("resource-calendar:scroll-to", { detail: "06:00:00" }));
@@ -585,9 +585,9 @@ export default function ResourcePlan() {
                 </div>
               )}
 
-              {/* Operating profile badge */}
+              {/* Operating profile badge – shows working hours profile, calendar is always 24h */}
               <Badge variant="outline" className="text-[10px] h-5">
-                {operatingHours.profile === "office" ? "Kontor 08–16" : operatingHours.profile === "extended" ? "Utvidet 06–22" : "Industri 24/7"}
+                Driftsprofil: {operatingHours.profile === "office" ? "Kontor 08–16" : operatingHours.profile === "extended" ? "Utvidet 06–22" : "Industri 24/7"}
               </Badge>
             </div>
           </>
