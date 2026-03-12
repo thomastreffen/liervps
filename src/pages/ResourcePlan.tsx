@@ -85,14 +85,32 @@ export default function ResourcePlan() {
   }, [activeCompanyId, canCrossCompany, rpCompanyScope]);
 
   const { technicians } = useTechnicians(effectiveCompanyId);
-  const unplannedCount = useUnplannedProjects();
   const [selectedTechId, setSelectedTechId] = useState<string | null>(null);
   const [capacityFilter, setCapacityFilter] = useState<"all" | "available" | "partial">("all");
   const [externalBlocksCapacity, setExternalBlocksCapacity] = useState(true);
   const [minFreeMinutes, setMinFreeMinutes] = useState<number | null>(null);
   const [calendarView, setCalendarView] = useState<CalendarViewType>(getStoredView);
+
+  const techIds = useMemo(
+    () => selectedTechId ? [selectedTechId] : technicians.map((t) => t.id),
+    [selectedTechId, technicians]
+  );
+
+  // Reset selected technician when switching to a company where that tech is not present
+  useEffect(() => {
+    if (selectedTechId && !technicians.some((t) => t.id === selectedTechId)) {
+      setSelectedTechId(null);
+    }
+  }, [selectedTechId, technicians]);
+
+  const unplannedCount = useUnplannedProjects(effectiveCompanyId);
+
   // Only fetch external busy data if user has calendar.read_busy permission
-  const { busySlots, getBusySlotsForDay, getExternalBusyMinutesForDay } = useExternalBusy(canReadBusy ? selectedTechId : "__disabled__");
+  const { busySlots, getBusySlotsForDay, getExternalBusyMinutesForDay } = useExternalBusy(
+    canReadBusy ? selectedTechId : "__disabled__",
+    { technicianIds: techIds, referenceDate }
+  );
+
   const { syncUpdate, syncCreate, forceUpdate, acceptGraphVersion, conflict, dismissConflict } = useCalendarSync();
   const [selectedBlock, setSelectedBlock] = useState<ScheduleBlock | null>(null);
   const [hideExternalEvents, setHideExternalEvents] = useState(false);
@@ -112,7 +130,7 @@ export default function ResourcePlan() {
 
   // Week navigation
   const [referenceDate, setReferenceDate] = useState<Date>(new Date());
-  const { blocks: scheduleBlocks, refetch: refetchBlocks } = useScheduleBlocks(referenceDate, selectedTechId);
+  const { blocks: scheduleBlocks, refetch: refetchBlocks } = useScheduleBlocks(referenceDate, selectedTechId, undefined, effectiveCompanyId);
   const isCurrentWeek = isSameWeek(referenceDate, new Date(), { weekStartsOn: 1 });
   const weekStart = startOfWeek(referenceDate, { weekStartsOn: 1 });
 
@@ -132,11 +150,7 @@ export default function ResourcePlan() {
     setColorOverrides((prev) => new Map(prev).set(techId, color));
   }, []);
 
-  const techIds = useMemo(
-    () => selectedTechId ? [selectedTechId] : technicians.map((t) => t.id),
-    [selectedTechId, technicians]
-  );
-  const { events: calEvents } = useCalendarEvents(selectedTechId, referenceDate);
+  const { events: calEvents } = useCalendarEvents(selectedTechId, referenceDate, effectiveCompanyId);
 
   // Navigation helpers – view-aware
   const goToPrev = useCallback(() => {
