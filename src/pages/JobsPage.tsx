@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BulkDeleteBar } from "@/components/BulkDeleteBar";
+import { BulkReassignCompanyDialog } from "@/components/BulkReassignCompanyDialog";
 import { format } from "date-fns";
 import { nb } from "date-fns/locale";
 import {
