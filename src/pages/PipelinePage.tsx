@@ -50,7 +50,7 @@ export default function PipelinePage() {
   useEffect(() => {
     (async () => {
       setLoading(true);
-      const { data: leads } = await fetchActiveLeads();
+      const { data: leads } = await fetchActiveLeads("*", activeCompanyId);
       const activeLeads = (leads || []).filter((l: any) => l.status !== "lost");
 
       const leadIds = activeLeads.map((l: any) => l.id);
