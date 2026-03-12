@@ -419,6 +419,7 @@ export function useTripletexImport() {
               await supabase.from("events").update({
                 title: row.projectName || undefined,
                 customer: row.customerName || undefined,
+                customer_id: customerId || undefined,
                 description: row.description || undefined,
                 external_tripletex_id: row.projectNumber,
               } as any).eq("id", row.matchedEntityId);
