@@ -243,17 +243,7 @@ export function ProjectScheduleSheet({
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Starttid</Label>
-              <Select value={startTime} onValueChange={setStartTime}>
-                <SelectTrigger className="h-10">
-                  <Clock className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {TIME_SLOTS.map((s) => (
-                    <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <TimeSelect value={startTime} onChange={setStartTime} className="w-full h-10" />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Varighet</Label>
