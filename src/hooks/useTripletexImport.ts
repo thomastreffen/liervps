@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useCompanyContext } from "@/hooks/useCompanyContext";
@@ -58,6 +58,13 @@ export function useTripletexImport() {
   const { user } = useAuth();
   const { activeCompanyId: companyId } = useCompanyContext();
 
+  type CustomerMaps = {
+    customerByOrgNr: Map<string, { id: string; name: string }>;
+    customerByTripletexId: Map<string, { id: string; name: string }>;
+    customerByName: Map<string, { id: string; name: string }>;
+  };
+  const customerMapsRef = useRef<CustomerMaps | null>(null);
+
   const [parsedData, setParsedData] = useState<ParsedCSV | null>(null);
   const [detectedType, setDetectedType] = useState<DetectedFileType>("unknown");
   const [fileName, setFileName] = useState("");
@@ -98,15 +105,31 @@ export function useTripletexImport() {
   }, [companyId]);
 
   const matchProjects = async (parsed: ParsedCSV) => {
-    // Fetch existing projects for matching
-    const { data: existing } = await supabase
-      .from("events")
-      .select("id, title, project_number, external_tripletex_id, customer, project_type")
-      .is("deleted_at", null);
+    // Fetch existing projects and customers for matching
+    const [{ data: existing }, { data: customers }] = await Promise.all([
+      supabase
+        .from("events")
+        .select("id, title, project_number, external_tripletex_id, customer, project_type")
+        .is("deleted_at", null),
+      supabase
+        .from("customers")
+        .select("id, name, org_number, external_tripletex_id"),
+    ]);
 
     const allProjects = (existing || []);
+    const allCustomers = (customers || []);
 
-    // Build exact-match maps
+    // Build customer lookup maps
+    const customerByOrgNr = new Map<string, { id: string; name: string }>();
+    const customerByTripletexId = new Map<string, { id: string; name: string }>();
+    const customerByName = new Map<string, { id: string; name: string }>();
+    allCustomers.forEach(c => {
+      if (c.org_number) customerByOrgNr.set(c.org_number.trim(), { id: c.id, name: c.name });
+      if ((c as any).external_tripletex_id) customerByTripletexId.set(((c as any).external_tripletex_id as string).trim(), { id: c.id, name: c.name });
+      customerByName.set(c.name.toLowerCase().trim(), { id: c.id, name: c.name });
+    });
+
+    // Build exact-match maps for projects
     const byProjectNumber = new Map<string, { id: string; title: string; customer: string | null }>();
     const byTripletexId = new Map<string, { id: string; title: string; customer: string | null }>();
 
@@ -205,6 +228,9 @@ export function useTripletexImport() {
         raw: row,
       };
     });
+
+    // Store customer maps for use during import execution
+    customerMapsRef.current = { customerByOrgNr, customerByTripletexId, customerByName };
 
     setProjectRows(rows);
   };
@@ -327,6 +353,25 @@ export function useTripletexImport() {
     const logId = (logData as any)?.id || "";
 
     try {
+      // Helper to resolve customer_id from CSV row data
+      const resolveCustomerId = (customerName: string, customerNumber: string): string | null => {
+        const maps = customerMapsRef.current;
+        if (!maps) return null;
+        // 1. Try org number / tripletex customer ID
+        if (customerNumber) {
+          const byOrg = maps.customerByOrgNr.get(customerNumber.trim());
+          if (byOrg) return byOrg.id;
+          const byTx = maps.customerByTripletexId.get(customerNumber.trim());
+          if (byTx) return byTx.id;
+        }
+        // 2. Try exact name match (case-insensitive)
+        if (customerName) {
+          const byName = maps.customerByName.get(customerName.toLowerCase().trim());
+          if (byName) return byName.id;
+        }
+        return null;
+      };
+
       if (detectedType === "project") {
         for (const row of projectRows) {
           if (row.action === "ignore" || row.matchStatus === "error") {
@@ -334,12 +379,14 @@ export function useTripletexImport() {
             await insertResult(logId, row.projectNumber, "project", "ignored", "Ignorert", row.raw);
             continue;
           }
+          const customerId = resolveCustomerId(row.customerName, row.customerNumber);
           try {
             if (row.action === "link" && row.matchedEntityId) {
-              // Link to existing project: store tripletex ID on it
+              // Link to existing project: store tripletex ID + customer_id on it
               await supabase.from("events").update({
                 external_tripletex_id: row.projectNumber,
                 customer: row.customerName || undefined,
+                customer_id: customerId || undefined,
               } as any).eq("id", row.matchedEntityId);
               updated++;
               await insertResult(logId, row.projectNumber, "project", "linked", "Koblet til eksisterende", row.raw, row.matchedEntityId);
@@ -349,6 +396,7 @@ export function useTripletexImport() {
                 title: row.projectName || row.projectNumber,
                 project_number: row.projectNumber,
                 customer: row.customerName,
+                customer_id: customerId,
                 description: row.description,
                 start_time: row.startDate ? `${row.startDate}T08:00:00` : new Date().toISOString(),
                 end_time: row.endDate ? `${row.endDate}T16:00:00` : new Date(Date.now() + 86400000 * 90).toISOString(),
@@ -371,6 +419,7 @@ export function useTripletexImport() {
               await supabase.from("events").update({
                 title: row.projectName || undefined,
                 customer: row.customerName || undefined,
+                customer_id: customerId || undefined,
                 description: row.description || undefined,
                 external_tripletex_id: row.projectNumber,
               } as any).eq("id", row.matchedEntityId);
