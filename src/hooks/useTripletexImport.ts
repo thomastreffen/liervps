@@ -58,6 +58,13 @@ export function useTripletexImport() {
   const { user } = useAuth();
   const { activeCompanyId: companyId } = useCompanyContext();
 
+  type CustomerMaps = {
+    customerByOrgNr: Map<string, { id: string; name: string }>;
+    customerByTripletexId: Map<string, { id: string; name: string }>;
+    customerByName: Map<string, { id: string; name: string }>;
+  };
+  const customerMapsRef = useRef<CustomerMaps | null>(null);
+
   const [parsedData, setParsedData] = useState<ParsedCSV | null>(null);
   const [detectedType, setDetectedType] = useState<DetectedFileType>("unknown");
   const [fileName, setFileName] = useState("");
