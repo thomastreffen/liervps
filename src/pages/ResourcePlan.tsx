@@ -232,8 +232,15 @@ export default function ResourcePlan() {
     }
     setRefreshKey((k) => k + 1);
   }, [syncUpdate, calEvents]);
+  const operatingHours = useOperatingHours();
+
+  // Sync work hours to now-status module
+  useEffect(() => {
+    setWorkHours(operatingHours.startHour, operatingHours.endHour === 24 ? 23 : operatingHours.endHour);
+  }, [operatingHours.startHour, operatingHours.endHour]);
+
   const { aggregatedDays, techCapacities, availableTechIds, partialTechIds } = useCapacity(
-    calEvents, busySlots, referenceDate, techIds
+    calEvents, busySlots, referenceDate, techIds, operatingHours.workDayMinutes
   );
 
   // Handle external drop from TaskResourceStrip
