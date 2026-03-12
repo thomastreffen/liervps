@@ -338,6 +338,7 @@ export const ResourceCalendar = memo(function ResourceCalendar({
     }
 
     // Schedule blocks (Outlook-synced)
+    const seenScheduleBlockKeys = new Set<string>();
     for (const block of scheduleBlocks) {
       const isExternal = block.source === "outlook" && !block.project_id;
 
