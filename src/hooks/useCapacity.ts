@@ -91,7 +91,7 @@ export function useCapacity(
         weekTotal += totalMinutes;
       }
 
-      const weekPercent = (weekTotal / (5 * WORK_DAY_MINUTES)) * 100; // 5 work days
+      const weekPercent = (weekTotal / (5 * workDayMinutes)) * 100; // 5 work days
 
       return { techId, days, weekPercent };
     });
