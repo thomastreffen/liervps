@@ -86,9 +86,9 @@ export default function JobsPage() {
     setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
   };
 
-  const fetchJobs = async () => {
+  const fetchJobs = useCallback(async () => {
     setLoading(true);
-    const { data } = await supabase
+    let query = supabase
       .from("events")
       .select(`
         id, title, customer, address, start_time, end_time, status, job_number, internal_number,
@@ -96,6 +96,12 @@ export default function JobsPage() {
       `)
       .is("deleted_at", null)
       .order("start_time", { ascending: false });
+
+    if (activeCompanyId) {
+      query = query.eq("company_id", activeCompanyId);
+    }
+
+    const { data } = await query;
 
     if (data) {
       setJobs(
