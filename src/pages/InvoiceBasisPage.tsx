@@ -58,11 +58,11 @@ export default function InvoiceBasisPage() {
 
   useEffect(() => {
     const load = async () => {
-      let query = supabase
+      let query = (supabase as any)
         .from("invoice_basis")
         .select("*")
         .order("approved_at", { ascending: false });
-      if (activeCompanyId) query = query.eq("company_id" as any, activeCompanyId);
+      if (activeCompanyId) query = query.eq("company_id", activeCompanyId);
       const { data } = await query;
 
       if (data && data.length > 0) {
