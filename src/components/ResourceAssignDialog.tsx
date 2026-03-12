@@ -422,20 +422,36 @@ export function ResourceAssignDialog({
                   searchResults={searchResults} searchLoading={searchLoading}
                   selectedJobId={selectedJobId} setSelectedJobId={setSelectedJobId}
                 />
-                <div className="grid grid-cols-3 gap-3">
-                  <div>
-                    <Label>Dato</Label>
-                    <Input type="date" value={assignDate} onChange={(e) => setAssignDate(e.target.value)} className="mt-1" />
-                  </div>
+                <div className="grid grid-cols-2 gap-3">
                   <div>
                     <Label>Start</Label>
-                    <Input type="time" value={assignStartTime} onChange={(e) => setAssignStartTime(e.target.value)} className="mt-1" />
+                    <div className="flex gap-2 mt-1">
+                      <Input type="date" value={assignDate} onChange={(e) => handleAssignDateChange(e.target.value)} className="flex-1" />
+                      <TimeSelect value={assignStartTime} onChange={handleAssignStartTimeChange} className="w-[110px]" />
+                    </div>
                   </div>
                   <div>
                     <Label>Slutt</Label>
-                    <Input type="time" value={assignEndTime} onChange={(e) => setAssignEndTime(e.target.value)} className="mt-1" />
+                    <div className="flex gap-2 mt-1">
+                      <Input type="date" value={assignEndDate} onChange={(e) => setAssignEndDate(e.target.value)} className="flex-1" />
+                      <TimeSelect value={assignEndTime} onChange={handleAssignEndTimeChange} className="w-[110px]" />
+                    </div>
                   </div>
                 </div>
+
+                {existingOvernight && (
+                  <div className="flex items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2">
+                    <Moon className="h-4 w-4 text-primary shrink-0" />
+                    <span className="text-sm font-medium text-primary">Går over midnatt – slutter neste dag</span>
+                  </div>
+                )}
+
+                {existingSummaryLine && (
+                  <div className="rounded-lg bg-muted/50 px-3 py-2">
+                    <p className="text-xs text-muted-foreground">Tidsrom</p>
+                    <p className="text-sm font-medium">{existingSummaryLine}</p>
+                  </div>
+                )}
                 <TechnicianMultiSelect selectedIds={techIds} onChange={setTechIds} />
 
                 {/* Conflict warnings */}
