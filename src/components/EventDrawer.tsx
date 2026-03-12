@@ -378,9 +378,13 @@ export function EventDrawer({
             if (isTask) {
               // Tasks: auto-schedule without approval flow
               await supabase.from("events").update({ status: "scheduled" } as any).eq("id", createdId);
+              // Sync to Outlook for assigned technicians (same as projects)
+              syncCreate(createdId);
             } else {
               // Projects: normal approval flow
               await supabase.functions.invoke("create-approval", { body: { job_id: createdId } });
+              // Sync to Outlook for assigned technicians
+              syncCreate(createdId);
             }
           }
         }
