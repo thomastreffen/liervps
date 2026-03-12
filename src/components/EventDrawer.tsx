@@ -275,8 +275,7 @@ export function EventDrawer({
 
       if (isEditing && editEvent) {
         // Update existing event
-        const startISO = new Date(`${date}T${startTime}`).toISOString();
-        const endISO = new Date(`${date}T${endTime}`).toISOString();
+        const { startISO, endISO } = normalizeOvernightDates(date, startTime, endDate, endTime);
 
         await supabase.from("events")
           .update({ start_time: startISO, end_time: endISO, title, customer, address, description })
