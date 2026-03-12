@@ -228,7 +228,7 @@ export default function OverviewPage() {
 
     setActivity((activityRes.data as ActivityItem[]) || []);
     setDataLoading(false);
-  }, [user]);
+  }, [user, activeCompanyId]);
 
   useEffect(() => {
     if (!user || configLoading) return;
