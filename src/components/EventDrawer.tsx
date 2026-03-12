@@ -403,9 +403,10 @@ export function EventDrawer({
   const hasChanges = isEditing && editEvent ? (
     date !== format(editEvent.start, "yyyy-MM-dd") ||
     startTime !== format(editEvent.start, "HH:mm") ||
+    endDate !== format(editEvent.end, "yyyy-MM-dd") ||
     endTime !== format(editEvent.end, "HH:mm") ||
     title !== editEvent.title ||
-    JSON.stringify(techIds.sort()) !== JSON.stringify(editEvent.technicians.map((t) => t.id).sort())
+    JSON.stringify([...techIds].sort()) !== JSON.stringify(editEvent.technicians.map((t) => t.id).sort())
   ) : true;
 
   return (
