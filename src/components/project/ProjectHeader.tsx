@@ -116,7 +116,16 @@ export function ProjectHeader({
             {title}
           </h1>
 
-          {/* Fag button */}
+          {/* Source badge */}
+          {(externalTripletexId || companyName) && (
+            <div className="mt-1">
+              <SourceMetadataBadge
+                source={externalTripletexId ? "tripletex" : "local"}
+                externalId={externalTripletexId}
+                companyName={companyName}
+              />
+            </div>
+          )}
           {projectId && (
             <div className="mt-2 sm:mt-3">
               <Button
