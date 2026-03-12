@@ -635,6 +635,12 @@ export default function ResourcePlan() {
           canViewExternalDetails={canViewExternal}
           canReadBusy={canReadBusy}
           hideExternalEvents={hideExternalEvents}
+          slotMinTime={operatingHours.slotMinTime}
+          slotMaxTime={operatingHours.slotMaxTime}
+          slotDuration={operatingHours.slotDuration}
+          operatingStartHour={operatingHours.startHour}
+          operatingEndHour={operatingHours.endHour}
+          hasNightHours={operatingHours.hasNightHours}
         />
         </div>
 
