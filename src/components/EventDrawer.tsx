@@ -332,8 +332,7 @@ export function EventDrawer({
           setSaving(false);
           return;
         }
-        const startISO = new Date(`${date}T${startTime}`).toISOString();
-        const endISO = new Date(`${date}T${endTime}`).toISOString();
+        const { startISO, endISO } = normalizeOvernightDates(date, startTime, endDate, endTime);
 
         // Idempotency: check if already created with this client_request_id
         const { data: existing } = await supabase
