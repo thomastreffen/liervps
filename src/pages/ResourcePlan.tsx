@@ -63,14 +63,28 @@ export default function ResourcePlan() {
   const navigate = useNavigate();
   const { isAdmin, isSuperAdmin } = useAuth();
   const { hasPermission } = usePermissions();
+  const { companies, activeCompanyId } = useCompanyContext();
   // Permission-based access: use permission keys, NOT role checks
   const canReadBusy = hasPermission("calendar.read_busy");
   const canViewExternal = hasPermission("calendar.view_external");
   const canWriteEvents = hasPermission("calendar.write_events");
   const canDeleteEvents = hasPermission("calendar.delete_events");
+  const canCrossCompany = hasPermission("resourceplan.cross_company") || hasPermission("scope.view.all");
   const confirmationCount = useConfirmationCount();
   const syncHealth = useSyncHealth(isAdmin);
-  const { technicians } = useTechnicians();
+
+  // Resource plan company scope: default to active company, "all" requires permission
+  const [rpCompanyScope, setRpCompanyScope] = useState<string>("active");
+  const effectiveCompanyId = rpCompanyScope === "all" ? null : (rpCompanyScope === "active" ? activeCompanyId : rpCompanyScope);
+
+  // Sync with global company selector
+  useEffect(() => {
+    if (rpCompanyScope === "active" || (!canCrossCompany && rpCompanyScope === "all")) {
+      // keep following active company
+    }
+  }, [activeCompanyId, canCrossCompany, rpCompanyScope]);
+
+  const { technicians } = useTechnicians(effectiveCompanyId);
   const unplannedCount = useUnplannedProjects();
   const [selectedTechId, setSelectedTechId] = useState<string | null>(null);
   const [capacityFilter, setCapacityFilter] = useState<"all" | "available" | "partial">("all");
