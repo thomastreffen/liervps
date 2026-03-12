@@ -691,12 +691,8 @@ export default function ResourcePlan() {
               )?.id ?? null
             : null
         }
-        onSaved={(eventId) => {
+        onSaved={() => {
           setRefreshKey((k) => k + 1);
-          if (eventId) {
-            if (editEvent) syncUpdate(eventId);
-            else syncCreate(eventId);
-          }
         }}
       />
 
