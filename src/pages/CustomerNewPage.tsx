@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Loader2, Users2 } from "lucide-react";
+import { ArrowLeft, Loader2, Users2, Building, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { useCompanyContext } from "@/hooks/useCompanyContext";
@@ -14,7 +14,7 @@ import { useCompanyContext } from "@/hooks/useCompanyContext";
 export default function CustomerNewPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { activeCompanyId } = useCompanyContext();
+  const { activeCompanyId, activeCompany } = useCompanyContext();
   const [saving, setSaving] = useState(false);
 
   const [name, setName] = useState("");
@@ -29,6 +29,10 @@ export default function CustomerNewPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
+    if (!activeCompanyId) {
+      toast.error("Du må velge et selskap før du kan opprette en kunde");
+      return;
+    }
     setSaving(true);
 
     const { data, error } = await supabase
@@ -42,7 +46,7 @@ export default function CustomerNewPage() {
         billing_zip: zip.trim() || null,
         billing_city: city.trim() || null,
         notes: notes.trim() || null,
-        company_id: activeCompanyId || null,
+        company_id: activeCompanyId,
         created_by: user?.id || null,
       } as any)
       .select("id")
@@ -79,6 +83,19 @@ export default function CustomerNewPage() {
             <CardTitle className="text-base">Kundeinformasjon</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            {activeCompany && (
+              <div className="flex items-center gap-2 text-xs bg-primary/5 border border-primary/10 rounded-xl px-3 py-2">
+                <Building className="h-3.5 w-3.5 text-primary" />
+                <span className="text-muted-foreground">Kunden opprettes under</span>
+                <span className="font-semibold text-foreground">{activeCompany.name}</span>
+              </div>
+            )}
+            {!activeCompanyId && (
+              <div className="flex items-center gap-2 text-xs bg-destructive/5 border border-destructive/10 rounded-xl px-3 py-2 text-destructive">
+                <AlertTriangle className="h-3.5 w-3.5" />
+                Velg et selskap i headeren før du oppretter en kunde
+              </div>
+            )}
             <div className="space-y-1.5">
               <Label htmlFor="name">Kundenavn *</Label>
               <Input

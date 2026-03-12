@@ -1,32 +1,28 @@
 import { useEffect, useState, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { format, startOfDay, endOfDay, addDays } from "date-fns";
 import { nb } from "date-fns/locale";
-import { Loader2, Settings2 } from "lucide-react";
+import { Loader2, Plus, ArrowRight } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useCompanyContext } from "@/hooks/useCompanyContext";
-import { useDashboardConfig, type ModuleKey } from "@/hooks/useDashboardConfig";
 import { ProjectCards, type ProjectCardData } from "@/components/overview/ProjectCards";
 import { YourDay, type DayBlock } from "@/components/overview/YourDay";
 import { MyTasks, type OverviewEvent } from "@/components/overview/MyTasks";
-import { ActivityFeed, type ActivityItem } from "@/components/overview/ActivityFeed";
 import { RiskWidget } from "@/components/overview/RiskWidget";
 import { SectionHeader } from "@/components/overview/SectionHeader";
-import { DashboardModuleManager } from "@/components/overview/DashboardModuleManager";
 import type { JobStatus } from "@/lib/job-status";
 import { Button } from "@/components/ui/button";
 import { EventDrawer } from "@/components/EventDrawer";
 
 export default function OverviewPage() {
-  const { user, isSuperAdmin } = useAuth();
+  const navigate = useNavigate();
+  const { user } = useAuth();
   const { activeCompanyId } = useCompanyContext();
-  const { modules, enabledModules, loading: configLoading, saveModules, isEnabled } = useDashboardConfig();
   const [dataLoading, setDataLoading] = useState(true);
   const [projects, setProjects] = useState<ProjectCardData[]>([]);
   const [dayBlocks, setDayBlocks] = useState<DayBlock[]>([]);
   const [myEvents, setMyEvents] = useState<OverviewEvent[]>([]);
-  const [activity, setActivity] = useState<ActivityItem[]>([]);
-  const [showModuleManager, setShowModuleManager] = useState(false);
   const [showTaskDrawer, setShowTaskDrawer] = useState(false);
 
   const fetchAll = useCallback(async () => {
@@ -45,18 +41,15 @@ export default function OverviewPage() {
       .maybeSingle();
 
     let projectQuery = supabase.from("events")
-        .select("id, title, customer, status, internal_number")
-        .in("status", activeStatuses)
-        .neq("project_type", "task")
-        .is("deleted_at", null)
-        .order("updated_at", { ascending: false })
-        .limit(12);
+      .select("id, title, customer, status, internal_number")
+      .in("status", activeStatuses)
+      .neq("project_type", "task")
+      .is("deleted_at", null)
+      .order("updated_at", { ascending: false })
+      .limit(12);
     if (activeCompanyId) projectQuery = projectQuery.eq("company_id", activeCompanyId);
 
-    const [projectsRes, techRes] = await Promise.all([
-      projectQuery,
-      techPromise,
-    ]);
+    const [projectsRes, techRes] = await Promise.all([projectQuery, techPromise]);
 
     const rawProjects = (projectsRes.data || []) as Array<{
       id: string; title: string; customer: string; status: JobStatus; internal_number: string | null;
@@ -65,30 +58,15 @@ export default function OverviewPage() {
     const techId = techRes.data?.id;
     const projectIds = rawProjects.map((p) => p.id);
 
-    // Fetch my events: events created by me OR where I'm assigned as technician, coming up in the next 7 days
-    const myEventsQuery = supabase
-      .from("events")
-      .select("id, title, start_time, end_time, project_type, status, customer, description")
-      .is("deleted_at", null)
-      .in("status", [...activeStatuses, "completed" as any])
-      .gte("start_time", startOfDay(now).toISOString())
-      .lte("start_time", weekEnd)
-      .order("start_time", { ascending: true })
-      .limit(30);
-
-    // If user has a technician profile, get events assigned to them; otherwise get events created by them
+    // My events query
     let myEventsPromise: PromiseLike<any>;
     if (techId) {
-      // Get event IDs assigned to this technician
       myEventsPromise = supabase
         .from("event_technicians")
         .select("event_id, events!inner(id, title, start_time, end_time, project_type, status, customer, description)")
         .eq("technician_id", techId)
         .then(({ data }) => {
-          const events = (data || [])
-            .map((et: any) => et.events)
-            .filter((e: any) => e && !e.deleted_at);
-          // Also get task-type events created by user
+          const events = (data || []).map((et: any) => et.events).filter((e: any) => e && !e.deleted_at);
           return supabase
             .from("events")
             .select("id, title, start_time, end_time, project_type, status, customer, description")
@@ -101,12 +79,10 @@ export default function OverviewPage() {
             .limit(20)
             .then(({ data: taskData }) => {
               const combined = [...events, ...(taskData || [])];
-              // Deduplicate
               const seen = new Set<string>();
               return combined.filter((e: any) => {
                 if (seen.has(e.id)) return false;
                 seen.add(e.id);
-                // Filter by date range
                 const start = new Date(e.start_time);
                 return start >= startOfDay(now) && start <= new Date(weekEnd);
               }).sort((a: any, b: any) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
@@ -125,7 +101,7 @@ export default function OverviewPage() {
         .then(({ data }) => data || []);
     }
 
-    const [taskCountsRes, nextActivitiesRes, blocksRes, myEventsResult, activityRes, plannedBlocksRes, messageCountsRes] = await Promise.all([
+    const [taskCountsRes, nextActivitiesRes, blocksRes, myEventsResult, plannedBlocksRes, messageCountsRes] = await Promise.all([
       projectIds.length > 0
         ? supabase.from("job_tasks").select("job_id, status").in("job_id", projectIds).neq("status", "completed")
         : Promise.resolve({ data: [] }),
@@ -148,10 +124,6 @@ export default function OverviewPage() {
             .limit(10)
         : Promise.resolve({ data: [] }),
       myEventsPromise,
-      supabase.from("activity_log")
-        .select("id, type, action, title, description, entity_type, entity_id, created_at, performed_by")
-        .order("created_at", { ascending: false })
-        .limit(20),
       projectIds.length > 0
         ? supabase.from("schedule_blocks")
             .select("project_id")
@@ -213,7 +185,6 @@ export default function OverviewPage() {
       technician_name: b.technicians?.name ?? null,
     })));
 
-    // Map my events
     const rawMyEvents: OverviewEvent[] = ((myEventsResult as any) || []).map((e: any) => ({
       id: e.id,
       title: e.title,
@@ -226,14 +197,13 @@ export default function OverviewPage() {
     }));
     setMyEvents(rawMyEvents);
 
-    setActivity((activityRes.data as ActivityItem[]) || []);
     setDataLoading(false);
   }, [user, activeCompanyId]);
 
   useEffect(() => {
-    if (!user || configLoading) return;
+    if (!user) return;
     fetchAll();
-  }, [user, configLoading, fetchAll]);
+  }, [user, fetchAll]);
 
   const greeting = () => {
     const h = new Date().getHours();
@@ -243,8 +213,9 @@ export default function OverviewPage() {
   };
 
   const firstName = user?.name?.split(" ")[0] || "";
+  const unplannedProjects = projects.filter((p) => !p.hasPlanned);
 
-  if (dataLoading || configLoading) {
+  if (dataLoading) {
     return (
       <div className="flex items-center justify-center p-20">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -252,28 +223,31 @@ export default function OverviewPage() {
     );
   }
 
-  // Build module render map
-  const renderModule = (key: ModuleKey) => {
-    switch (key) {
-      case "projects":
-        return (
-          <div key={key}>
-            <SectionHeader title="Prosjekter" count={projects.length} />
-            <ProjectCards projects={projects} />
-          </div>
-        );
-      case "yourday":
-        return (
-          <div key={key}>
+  return (
+    <div className="max-w-[1100px] mx-auto px-4 sm:px-8 py-8 sm:py-12">
+      {/* Compact greeting */}
+      <div className="mb-8">
+        <h1 className="text-2xl sm:text-3xl font-extrabold text-foreground tracking-tight">
+          {greeting()}, {firstName}
+        </h1>
+        <p className="text-sm text-muted-foreground mt-1">
+          {format(new Date(), "EEEE d. MMMM yyyy", { locale: nb })} · Uke {format(new Date(), "w")}
+        </p>
+      </div>
+
+      <div className="space-y-10">
+        {/* 1. Krever handling — Risk alerts (only if there are active risks) */}
+        <RiskWidget />
+
+        {/* 2. Din dag + Mine gjøremål side by side */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div>
             <SectionHeader title="Din dag" />
             <div className="rounded-2xl border border-border/30 bg-card shadow-card overflow-hidden">
               <YourDay blocks={dayBlocks} />
             </div>
           </div>
-        );
-      case "tasks":
-        return (
-          <div key={key}>
+          <div>
             <SectionHeader title="Mine gjøremål" />
             <div className="rounded-2xl border border-border/30 bg-card shadow-card overflow-hidden">
               <MyTasks
@@ -282,108 +256,26 @@ export default function OverviewPage() {
               />
             </div>
           </div>
-        );
-      case "activity":
-        return (
-          <div key={key}>
-            <SectionHeader title="Aktivitet" />
-            <div className="rounded-2xl border border-border/30 bg-card shadow-card overflow-hidden">
-              <ActivityFeed
-                items={activity}
-                maxItems={8}
-                userId={user?.id}
-                followedProjectIds={projects.map((p) => p.id)}
-              />
-            </div>
-          </div>
-        );
-      case "risk":
-        return (
-          <div key={key}>
-            <SectionHeader title="Risiko" />
-            <div className="rounded-2xl border border-border/30 bg-card shadow-card overflow-hidden">
-              <RiskWidget />
-            </div>
-          </div>
-        );
-      default:
-        return null;
-    }
-  };
+        </div>
 
-  return (
-    <div className="max-w-[1100px] mx-auto px-4 sm:px-8 py-12 sm:py-16">
-      {/* Greeting */}
-      <div className="text-center mb-16">
-        <h1 className="text-3xl sm:text-[2.75rem] font-extrabold text-foreground tracking-tight leading-tight">
-          {greeting()}, {firstName} 👋
-        </h1>
-        <p className="text-sm text-muted-foreground mt-3">
-          {format(new Date(), "EEEE d. MMMM yyyy", { locale: nb })} · Uke {format(new Date(), "w")}
-        </p>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="mt-4 text-xs text-muted-foreground/40 hover:text-primary gap-1.5"
-          onClick={() => setShowModuleManager(true)}
-        >
-          <Settings2 className="h-3.5 w-3.5" />
-          Tilpass dashboard
-        </Button>
-        <div className="mt-8 h-px bg-gradient-to-r from-transparent via-border to-transparent" />
+        {/* 3. Aktive prosjekter */}
+        <div>
+          <div className="flex items-center justify-between mb-6">
+            <SectionHeader title="Aktive prosjekter" count={projects.length} />
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-xs text-muted-foreground hover:text-primary gap-1"
+              onClick={() => navigate("/jobs")}
+            >
+              Se alle <ArrowRight className="h-3 w-3" />
+            </Button>
+          </div>
+          <ProjectCards projects={projects} />
+        </div>
       </div>
 
-      {/* Render modules */}
-      <div className="space-y-14">
-        {(() => {
-          const rendered: React.ReactNode[] = [];
-          let i = 0;
-          const all = enabledModules;
-
-          while (i < all.length) {
-            const mod = all[i];
-            if (mod.column_placement === "full") {
-              rendered.push(
-                <div key={`full-${mod.module_key}`}>
-                  {renderModule(mod.module_key)}
-                </div>
-              );
-              i++;
-            } else {
-              const gridItems: { left: typeof all; right: typeof all } = { left: [], right: [] };
-              while (i < all.length && all[i].column_placement !== "full") {
-                if (all[i].column_placement === "left") gridItems.left.push(all[i]);
-                else gridItems.right.push(all[i]);
-                i++;
-              }
-              const maxLen = Math.max(gridItems.left.length, gridItems.right.length);
-              for (let j = 0; j < maxLen; j++) {
-                rendered.push(
-                  <div key={`grid-${j}-${gridItems.left[j]?.module_key || gridItems.right[j]?.module_key}`} className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-                    <div>{gridItems.left[j] && renderModule(gridItems.left[j].module_key)}</div>
-                    <div>{gridItems.right[j] && renderModule(gridItems.right[j].module_key)}</div>
-                  </div>
-                );
-              }
-            }
-          }
-          return rendered;
-        })()}
-      </div>
-
-      {/* Module manager dialog */}
-      {showModuleManager && (
-        <DashboardModuleManager
-          modules={modules}
-          onSave={(newModules) => {
-            saveModules(newModules);
-            setShowModuleManager(false);
-          }}
-          onClose={() => setShowModuleManager(false)}
-        />
-      )}
-
-      {/* Task creation drawer (reuses EventDrawer) */}
+      {/* Task creation drawer */}
       <EventDrawer
         open={showTaskDrawer}
         onOpenChange={setShowTaskDrawer}
