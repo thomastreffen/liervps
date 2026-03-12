@@ -6,11 +6,16 @@ import { useEffect, useState } from "react";
 export type OperatingProfile = "office" | "extended" | "industry";
 export type ZoomLevel = "compact" | "normal" | "detailed";
 
-const PROFILE_HOURS: Record<OperatingProfile, { start: string; end: string; startHour: number; endHour: number; dayMinutes: number }> = {
-  office:   { start: "08:00:00", end: "16:00:00", startHour: 8,  endHour: 16, dayMinutes: 480 },
-  extended: { start: "06:00:00", end: "22:00:00", startHour: 6,  endHour: 22, dayMinutes: 480 },
-  industry: { start: "00:00:00", end: "24:00:00", startHour: 0,  endHour: 24, dayMinutes: 480 },
+/** Operating hours per profile – used for capacity calc, NOT for calendar axis */
+const PROFILE_HOURS: Record<OperatingProfile, { startHour: number; endHour: number; dayMinutes: number }> = {
+  office:   { startHour: 8,  endHour: 16, dayMinutes: 480 },
+  extended: { startHour: 6,  endHour: 22, dayMinutes: 480 },
+  industry: { startHour: 0,  endHour: 24, dayMinutes: 480 },
 };
+
+/** Calendar always shows full 24h regardless of profile */
+const CALENDAR_SLOT_MIN = "00:00:00";
+const CALENDAR_SLOT_MAX = "24:00:00";
 
 const ZOOM_DURATIONS: Record<ZoomLevel, string> = {
   compact:  "01:00:00",
