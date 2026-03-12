@@ -41,6 +41,8 @@ interface ProjectHeaderProps {
   onOpenSpaces?: () => void;
   onEdit?: () => void;
   projectId?: string;
+  externalTripletexId?: string | null;
+  companyName?: string | null;
 }
 
 export function ProjectHeader({
