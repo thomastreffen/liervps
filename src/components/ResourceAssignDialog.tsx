@@ -271,8 +271,7 @@ export function ResourceAssignDialog({
     try {
       // Update job times if date is provided
       if (assignDate) {
-        const startISO = new Date(`${assignDate}T${assignStartTime}`).toISOString();
-        const endISO = new Date(`${assignDate}T${assignEndTime}`).toISOString();
+        const { startISO, endISO } = normalizeOvernightDates(assignDate, assignStartTime, assignEndDate, assignEndTime);
         await supabase
           .from("events")
           .update({ start_time: startISO, end_time: endISO })
