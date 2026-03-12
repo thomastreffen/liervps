@@ -33,6 +33,7 @@ import {
   Trash2,
   FolderKanban,
   ListChecks,
+  Moon,
 } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel,
@@ -45,6 +46,8 @@ import type { CalendarEvent } from "@/hooks/useCalendarEvents";
 import type { JobStatus } from "@/lib/job-status";
 import { useCalendarSync } from "@/hooks/useCalendarSync";
 import { useCompanyContext } from "@/hooks/useCompanyContext";
+import { TimeSelect } from "@/components/ui/time-select";
+import { normalizeOvernightDates, isOvernightRange, autoAdjustEndDate } from "@/lib/overnight";
 
 /* ── Types ── */
 interface ExistingJob {
