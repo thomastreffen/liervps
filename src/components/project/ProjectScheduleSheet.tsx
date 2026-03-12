@@ -14,10 +14,11 @@ import {
   Popover, PopoverContent, PopoverTrigger,
 } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
+import { TimeSelect } from "@/components/ui/time-select";
 import { format, addMinutes, startOfDay, setHours, setMinutes } from "date-fns";
 import { nb } from "date-fns/locale";
 import {
-  CalendarIcon, Clock, Loader2, Check, ChevronDown, User, MapPin,
+  CalendarIcon, Loader2, Check, ChevronDown, MapPin, Moon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
