@@ -455,6 +455,11 @@ export default function JobsPage() {
           )}
         </>
       )}
+      <BulkReassignCompanyDialog
+        open={reassignOpen}
+        onOpenChange={setReassignOpen}
+        onComplete={fetchJobs}
+      />
     </div>
   );
 }
