@@ -87,7 +87,7 @@ export default function CustomersPage() {
     setLoading(false);
   };
 
-  useEffect(() => { fetchCustomers(); }, []);
+  useEffect(() => { fetchCustomers(); }, [activeCompanyId]);
 
   const filtered = useMemo(() => {
     let result = [...customers];
