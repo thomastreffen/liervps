@@ -154,13 +154,29 @@ export const ResourceCalendar = memo(function ResourceCalendar({
     }
   }, [referenceDate, calendarView]);
 
-  // Scroll to current time in day view
+  // Scroll to current time in time grid views
   useEffect(() => {
-    if (isDayView) {
+    if (isDayView || calendarView === "timeGridWeek") {
       const api = calendarRef.current?.getApi();
-      if (api) api.scrollToTime(new Date().toTimeString().slice(0, 8));
+      if (api) {
+        // Small delay to ensure DOM is ready
+        setTimeout(() => api.scrollToTime(new Date().toTimeString().slice(0, 8)), 100);
+      }
     }
-  }, [isDayView, calendarView]);
+  }, [isDayView, calendarView, referenceDate]);
+
+  // Night shading via CSS custom property
+  useEffect(() => {
+    const wrapper = calendarRef.current?.getApi()?.el;
+    if (!wrapper || !hasNightHours) return;
+    // Apply night shading class
+    wrapper.classList.add("fc-night-shading");
+    wrapper.style.setProperty("--fc-night-start", `${operatingStartHour}`);
+    wrapper.style.setProperty("--fc-night-end", `${operatingEndHour}`);
+    return () => {
+      wrapper.classList.remove("fc-night-shading");
+    };
+  }, [hasNightHours, operatingStartHour, operatingEndHour]);
 
   // Build a stable color assignment per technician (Google Calendar style)
   const techColorMap = useMemo(() => {
