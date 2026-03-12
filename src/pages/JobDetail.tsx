@@ -20,8 +20,6 @@ import { type JobStatus } from "@/lib/job-status";
 import { useAuth } from "@/hooks/useAuth";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useActivityLog } from "@/hooks/useActivityLog";
-import { useCompanyContext } from "@/hooks/useCompanyContext";
-import { useActivityLog } from "@/hooks/useActivityLog";
 import { ImageLightbox } from "@/components/ImageLightbox";
 import { ProjectAccessDrawer } from "@/components/project/ProjectAccessDrawer";
 import { ChangeOrderTab } from "@/components/change-orders/ChangeOrderTab";
