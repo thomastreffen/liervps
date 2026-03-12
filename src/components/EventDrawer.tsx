@@ -573,20 +573,36 @@ export function EventDrawer({
           {/* Date & Time */}
           <div className="space-y-2">
             <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Tidspunkt</Label>
-            <div className="grid grid-cols-3 gap-3">
-              <div>
-                <Label className="text-xs">Dato</Label>
-                <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="mt-1" />
-              </div>
+            <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label className="text-xs">Start</Label>
-                <Input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} className="mt-1" />
+                <div className="flex gap-2 mt-1">
+                  <Input type="date" value={date} onChange={(e) => handleDateChange(e.target.value)} className="flex-1" />
+                  <TimeSelect value={startTime} onChange={handleStartTimeChange} className="w-[110px]" />
+                </div>
               </div>
               <div>
                 <Label className="text-xs">Slutt</Label>
-                <Input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} className="mt-1" />
+                <div className="flex gap-2 mt-1">
+                  <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="flex-1" />
+                  <TimeSelect value={endTime} onChange={handleEndTimeChange} className="w-[110px]" />
+                </div>
               </div>
             </div>
+
+            {overnight && (
+              <div className="flex items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2">
+                <Moon className="h-4 w-4 text-primary shrink-0" />
+                <span className="text-sm font-medium text-primary">Går over midnatt – slutter neste dag</span>
+              </div>
+            )}
+
+            {summaryLine && (
+              <div className="rounded-lg bg-muted/50 px-3 py-2">
+                <p className="text-xs text-muted-foreground">Tidsrom</p>
+                <p className="text-sm font-medium">{summaryLine}</p>
+              </div>
+            )}
           </div>
 
           {/* Technicians (optional for tasks) */}
