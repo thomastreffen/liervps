@@ -227,7 +227,7 @@ export default function JobDetail() {
           )}
 
           {activeTab === "skjemaer" && (
-            <ProjectFormsTab projectId={id!} />
+            <ProjectFormsTab projectId={id!} isAdmin={canEditPlan} />
           )}
 
           {activeTab === "servicearbeid" && (
