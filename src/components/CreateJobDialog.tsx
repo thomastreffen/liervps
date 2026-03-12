@@ -13,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { AlertTriangle, ChevronDown, ChevronUp } from "lucide-react";
 import { useCalendarSync } from "@/hooks/useCalendarSync";
+import { useCompanyContext } from "@/hooks/useCompanyContext";
 
 interface CreateJobDialogProps {
   open: boolean;
