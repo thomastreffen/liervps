@@ -54,7 +54,7 @@ export default function JobDetail() {
   const [scheduleRefreshKey, setScheduleRefreshKey] = useState(0);
 
   // Activity log for home dashboard
-  const { logs } = useActivityLog(id || "");
+  const { activities } = useActivityLog("project", id);
 
   /* ── Fetch data ── */
   const fetchJob = useCallback(async () => {
