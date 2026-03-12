@@ -317,7 +317,34 @@ export function ResourceAssignDialog({
 
   const safeTechIds = Array.isArray(techIds) ? techIds : [];
 
-  return (
+  const handleAssignDateChange = (value: string) => {
+    setAssignDate(value);
+    setAssignEndDate(value ? autoAdjustEndDate(value, assignStartTime, assignEndTime) : "");
+  };
+
+  const handleAssignStartTimeChange = (value: string) => {
+    setAssignStartTime(value);
+    if (assignDate) setAssignEndDate(autoAdjustEndDate(assignDate, value, assignEndTime));
+  };
+
+  const handleAssignEndTimeChange = (value: string) => {
+    setAssignEndTime(value);
+    if (assignDate) setAssignEndDate(autoAdjustEndDate(assignDate, assignStartTime, value));
+  };
+
+  const existingOvernight = assignDate && assignStartTime && assignEndDate && assignEndTime
+    ? isOvernightRange(assignDate, assignStartTime, assignEndDate, assignEndTime)
+    : false;
+
+  const existingSummaryLine = assignDate && assignStartTime && assignEndDate && assignEndTime ? (() => {
+    try {
+      const start = new Date(`${assignDate}T${assignStartTime}`);
+      const end = new Date(`${assignEndDate}T${assignEndTime}`);
+      return `${format(start, "dd.MM.yyyy HH:mm", { locale: nb })} → ${format(end, "dd.MM.yyyy HH:mm", { locale: nb })}`;
+    } catch {
+      return null;
+    }
+  })() : null;
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-[720px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
