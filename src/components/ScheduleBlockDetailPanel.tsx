@@ -382,7 +382,7 @@ export const ScheduleBlockDetailPanel = memo(function ScheduleBlockDetailPanel({
               <Search className="h-3 w-3" />
               Koble til eksisterende
             </Button>
-            {block.match_state !== "external_confirmed" && (
+            {(block.match_state as string) !== "external_confirmed" && (
               <Button variant="ghost" size="sm" className="h-7 text-xs gap-1 rounded-lg w-full"
                 onClick={handleMarkExternal} disabled={isLoading}>
                 <Globe className="h-3 w-3" />
