@@ -81,6 +81,9 @@ export function usePermissions(): PermissionState {
         "contracts.create", "contracts.analyze", "contracts.upload_document",
         "calculations.create", "calculations.edit", "calculations.ai_generate", "calculations.create_offer",
         "projects.edit_plan", "projects.delete_attachment", "admin.data_integrity",
+        "resourceplan.view", "resourceplan.view_busy", "resourceplan.view_external_blocks",
+        "resourceplan.view_external_titles", "resourceplan.view_external_details",
+        "resourceplan.schedule", "resourceplan.edit_others", "resourceplan.cross_company",
       ];
       if (user.role === "super_admin") {
         for (const k of adminKeys) merged[k] = merged[k] ?? true;
