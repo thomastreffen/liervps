@@ -19,6 +19,7 @@ import { EventDrawer } from "@/components/EventDrawer";
 
 export default function OverviewPage() {
   const { user, isSuperAdmin } = useAuth();
+  const { activeCompanyId } = useCompanyContext();
   const { modules, enabledModules, loading: configLoading, saveModules, isEnabled } = useDashboardConfig();
   const [dataLoading, setDataLoading] = useState(true);
   const [projects, setProjects] = useState<ProjectCardData[]>([]);
