@@ -44,14 +44,17 @@ export default function OverviewPage() {
       .eq("user_id", user.id)
       .maybeSingle();
 
-    const [projectsRes, techRes] = await Promise.all([
-      supabase.from("events")
+    let projectQuery = supabase.from("events")
         .select("id, title, customer, status, internal_number")
         .in("status", activeStatuses)
         .neq("project_type", "task")
         .is("deleted_at", null)
         .order("updated_at", { ascending: false })
-        .limit(12),
+        .limit(12);
+    if (activeCompanyId) projectQuery = projectQuery.eq("company_id", activeCompanyId);
+
+    const [projectsRes, techRes] = await Promise.all([
+      projectQuery,
       techPromise,
     ]);
 
