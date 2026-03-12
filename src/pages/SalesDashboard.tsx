@@ -5,6 +5,7 @@ import { fetchActiveLeads } from "@/lib/lead-queries";
 import { type OfferStatus } from "@/lib/offer-status";
 import { type LeadStatus } from "@/lib/lead-status";
 import { useAuth } from "@/hooks/useAuth";
+import { useCompanyContext } from "@/hooks/useCompanyContext";
 import { SalesPulse } from "@/components/dashboard/SalesPulse";
 import { SalesHeader } from "@/components/dashboard/SalesHeader";
 import { SalesActionRequired, buildActionItems, type ActionItem } from "@/components/dashboard/SalesActionRequired";
