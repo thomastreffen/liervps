@@ -61,6 +61,9 @@ const CalendarCard = memo(function CalendarCard({
       }}
     >
       <div className="flex items-center gap-1.5">
+        {isOvernight && (
+          <Moon className="h-3 w-3 shrink-0 text-primary" />
+        )}
         {isTimeChange && (
           <AlertTriangle className="h-3 w-3 shrink-0 text-status-time-change-proposed" />
         )}
