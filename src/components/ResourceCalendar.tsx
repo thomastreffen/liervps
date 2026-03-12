@@ -22,6 +22,7 @@ interface TechLookup {
 
 interface ResourceCalendarProps {
   technicianId: string | null;
+  companyId?: string | null;
   referenceDate: Date;
   calendarView?: string;
   technicianMap: Map<string, TechLookup>;
@@ -110,6 +111,7 @@ const matchStateColors: Record<string, { bg: string; border: string; text: strin
 
 export const ResourceCalendar = memo(function ResourceCalendar({
   technicianId,
+  companyId,
   referenceDate,
   calendarView = "timeGridWeek",
   technicianMap,
@@ -139,7 +141,8 @@ export const ResourceCalendar = memo(function ResourceCalendar({
   const effectiveCanWrite = canWriteEvents ?? isAdmin;
   const effectiveCanViewExternal = canViewExternalDetails ?? isSuperAdmin;
   const calendarRef = useRef<FullCalendar>(null);
-  const { events: calendarEvents } = useCalendarEvents(technicianId, referenceDate);
+  const scopedTechnicianIds = useMemo(() => Array.from(technicianMap.keys()), [technicianMap]);
+  const { events: calendarEvents } = useCalendarEvents(technicianId, referenceDate, companyId, scopedTechnicianIds);
 
   const isMonthView = calendarView === "dayGridMonth";
   const isDayView = calendarView === "timeGridDay";

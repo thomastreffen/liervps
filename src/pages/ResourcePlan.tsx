@@ -85,14 +85,40 @@ export default function ResourcePlan() {
   }, [activeCompanyId, canCrossCompany, rpCompanyScope]);
 
   const { technicians } = useTechnicians(effectiveCompanyId);
-  const unplannedCount = useUnplannedProjects();
   const [selectedTechId, setSelectedTechId] = useState<string | null>(null);
   const [capacityFilter, setCapacityFilter] = useState<"all" | "available" | "partial">("all");
   const [externalBlocksCapacity, setExternalBlocksCapacity] = useState(true);
   const [minFreeMinutes, setMinFreeMinutes] = useState<number | null>(null);
   const [calendarView, setCalendarView] = useState<CalendarViewType>(getStoredView);
+
+  // Week navigation
+  const [referenceDate, setReferenceDate] = useState<Date>(new Date());
+
+  const scopedCompanyTechIds = useMemo(
+    () => technicians.map((t) => t.id),
+    [technicians]
+  );
+
+  const techIds = useMemo(
+    () => selectedTechId ? [selectedTechId] : scopedCompanyTechIds,
+    [selectedTechId, scopedCompanyTechIds]
+  );
+
+  // Reset selected technician when switching to a company where that tech is not present
+  useEffect(() => {
+    if (selectedTechId && !technicians.some((t) => t.id === selectedTechId)) {
+      setSelectedTechId(null);
+    }
+  }, [selectedTechId, technicians]);
+
+  const unplannedCount = useUnplannedProjects(effectiveCompanyId);
+
   // Only fetch external busy data if user has calendar.read_busy permission
-  const { busySlots, getBusySlotsForDay, getExternalBusyMinutesForDay } = useExternalBusy(canReadBusy ? selectedTechId : "__disabled__");
+  const { busySlots, getBusySlotsForDay, getExternalBusyMinutesForDay } = useExternalBusy(
+    canReadBusy ? selectedTechId : "__disabled__",
+    { technicianIds: techIds, referenceDate }
+  );
+
   const { syncUpdate, syncCreate, forceUpdate, acceptGraphVersion, conflict, dismissConflict } = useCalendarSync();
   const [selectedBlock, setSelectedBlock] = useState<ScheduleBlock | null>(null);
   const [hideExternalEvents, setHideExternalEvents] = useState(false);
@@ -110,9 +136,7 @@ export default function ResourcePlan() {
   const [preselectedEnd, setPreselectedEnd] = useState<Date | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
 
-  // Week navigation
-  const [referenceDate, setReferenceDate] = useState<Date>(new Date());
-  const { blocks: scheduleBlocks, refetch: refetchBlocks } = useScheduleBlocks(referenceDate, selectedTechId);
+  const { blocks: scheduleBlocks, refetch: refetchBlocks } = useScheduleBlocks(referenceDate, selectedTechId, undefined, effectiveCompanyId);
   const isCurrentWeek = isSameWeek(referenceDate, new Date(), { weekStartsOn: 1 });
   const weekStart = startOfWeek(referenceDate, { weekStartsOn: 1 });
 
@@ -132,11 +156,7 @@ export default function ResourcePlan() {
     setColorOverrides((prev) => new Map(prev).set(techId, color));
   }, []);
 
-  const techIds = useMemo(
-    () => selectedTechId ? [selectedTechId] : technicians.map((t) => t.id),
-    [selectedTechId, technicians]
-  );
-  const { events: calEvents } = useCalendarEvents(selectedTechId, referenceDate);
+  const { events: calEvents } = useCalendarEvents(selectedTechId, referenceDate, effectiveCompanyId, scopedCompanyTechIds);
 
   // Navigation helpers – view-aware
   const goToPrev = useCallback(() => {
@@ -247,7 +267,7 @@ export default function ResourcePlan() {
     }
     setRefreshKey((k) => k + 1);
   }, [syncUpdate, calEvents]);
-  const operatingHours = useOperatingHours();
+  const operatingHours = useOperatingHours(effectiveCompanyId);
 
   // Sync work hours to now-status module
   useEffect(() => {
@@ -361,6 +381,8 @@ export default function ResourcePlan() {
       {!isMobile && (
         <aside className="w-56 shrink-0 border-r border-border/30 bg-card/50 overflow-y-auto p-3">
           <TechnicianList
+            technicians={technicians}
+            isGlobalScope={effectiveCompanyId === null}
             selectedId={selectedTechId}
             onSelect={setSelectedTechId}
             allowDeselect
@@ -657,6 +679,7 @@ export default function ResourcePlan() {
           technicianId={capacityFilter !== "all" && filteredTechForSidebar
             ? (filteredTechForSidebar.size === 1 ? Array.from(filteredTechForSidebar)[0] : selectedTechId)
             : selectedTechId}
+          companyId={effectiveCompanyId}
           referenceDate={referenceDate}
           calendarView={calendarView}
           technicianMap={technicianMap}

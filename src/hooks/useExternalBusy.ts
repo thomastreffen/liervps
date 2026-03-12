@@ -9,18 +9,33 @@ export interface ExternalBusySlot {
   end: Date;
 }
 
+interface UseExternalBusyOptions {
+  technicianIds?: string[];
+  referenceDate?: Date;
+}
+
 /**
- * Fetches external (Outlook) busy slots for all technicians for the current week.
- * Uses the existing ms-calendar edge function "availability" action.
- * Filters out slots that overlap with existing system events to avoid duplicates.
+ * Fetches external (Outlook) busy slots for technicians for the visible week.
+ * Uses the existing ms-calendar edge function "availability".
  */
-export function useExternalBusy(technicianId: string | null) {
+export function useExternalBusy(technicianId: string | null, options?: UseExternalBusyOptions) {
   const [busySlots, setBusySlots] = useState<ExternalBusySlot[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const weekStart = useMemo(() => startOfWeek(new Date(), { weekStartsOn: 1 }), []);
-  const weekEnd = useMemo(() => endOfWeek(new Date(), { weekStartsOn: 1 }), []);
+  const scopedTechIds = options?.technicianIds;
+  const dateRef = options?.referenceDate ?? new Date();
+
+  const weekStart = useMemo(
+    () => startOfWeek(dateRef, { weekStartsOn: 1 }),
+    [dateRef.toDateString()]
+  );
+  const weekEnd = useMemo(
+    () => endOfWeek(dateRef, { weekStartsOn: 1 }),
+    [dateRef.toDateString()]
+  );
+
+  const scopedTechKey = scopedTechIds?.length ? scopedTechIds.join(",") : "all";
 
   const fetchBusy = useCallback(async () => {
     // If technicianId is "__disabled__", skip fetching (permission guard)
@@ -29,15 +44,29 @@ export function useExternalBusy(technicianId: string | null) {
       setLoading(false);
       return;
     }
+
+    // No technicians in selected company scope -> no busy slots
+    if (scopedTechIds && scopedTechIds.length === 0) {
+      setBusySlots([]);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
     try {
-      // Get all technician user_ids
-      const { data: techs } = await supabase
+      // Get scoped technician user_ids
+      let techQuery = supabase
         .from("technicians")
         .select("id, user_id")
         .not("user_id", "is", null);
+
+      if (scopedTechIds && scopedTechIds.length > 0) {
+        techQuery = techQuery.in("id", scopedTechIds);
+      }
+
+      const { data: techs } = await techQuery;
 
       if (!techs?.length) {
         setBusySlots([]);
@@ -98,7 +127,7 @@ export function useExternalBusy(technicianId: string | null) {
         }
       }
 
-      console.log(`[ExternalBusy] Total: ${totalSlots} slots fetched, ${matchedSlots} matched to technician, ${droppedSlots} dropped`);
+      console.log(`[ExternalBusy] Total: ${totalSlots} slots fetched, ${matchedSlots} matched to technician, ${droppedSlots} dropped (scope: ${scopedTechKey})`);
       setBusySlots(slots);
     } catch (err: any) {
       console.error("[ExternalBusy] Exception:", err);
@@ -107,18 +136,18 @@ export function useExternalBusy(technicianId: string | null) {
     } finally {
       setLoading(false);
     }
-  }, [weekStart, weekEnd]);
+  }, [weekStart, weekEnd, scopedTechIds, scopedTechKey, technicianId]);
 
   useEffect(() => {
     fetchBusy();
   }, [fetchBusy]);
 
-  /** Get external busy slots for a specific day, optionally filtered by technician */
+  /** Get external busy slots for a specific day, optionally filtered by selected technician */
   const getBusySlotsForDay = useCallback(
     (date: Date): ExternalBusySlot[] => {
       const dayStr = date.toDateString();
       return busySlots.filter((s) => {
-        if (technicianId && s.technicianId !== technicianId) return false;
+        if (technicianId && technicianId !== "__disabled__" && s.technicianId !== technicianId) return false;
         return s.start.toDateString() === dayStr;
       });
     },

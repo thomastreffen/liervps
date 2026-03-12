@@ -15,7 +15,7 @@ export interface CalendarEvent extends Job {
   technicians: TechnicianInfo[];
 }
 
-export function useCalendarEvents(technicianId: string | null, referenceDate?: Date) {
+export function useCalendarEvents(technicianId: string | null, referenceDate?: Date, companyId?: string | null, scopedTechnicianIds?: string[]) {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -28,7 +28,7 @@ export function useCalendarEvents(technicianId: string | null, referenceDate?: D
   const fetchEvents = useCallback(async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from("events")
         .select(`
           id,
@@ -61,6 +61,12 @@ export function useCalendarEvents(technicianId: string | null, referenceDate?: D
         .lte("start_time", weekEndISO)
         .order("start_time", { ascending: true });
 
+      if (companyId) {
+        query = query.eq("company_id", companyId);
+      }
+
+      const { data, error } = await query;
+
       if (error) {
         console.error("[Calendar] Failed to fetch events:", error);
         setEvents([]);
@@ -80,11 +86,19 @@ export function useCalendarEvents(technicianId: string | null, referenceDate?: D
         console.warn(`[Calendar] Dropped ${orphanCount} events without event_technicians (orphans)`);
       }
 
+      const scoped = Array.isArray(scopedTechnicianIds)
+        ? (scopedTechnicianIds.length === 0
+            ? []
+            : withTechs.filter((e: any) =>
+                e.event_technicians?.some((et: any) => scopedTechnicianIds.includes(et.technician_id))
+              ))
+        : withTechs;
+
       const filtered = technicianId
-        ? withTechs.filter((e: any) =>
+        ? scoped.filter((e: any) =>
             e.event_technicians?.some((et: any) => et.technician_id === technicianId)
           )
-        : withTechs;
+        : scoped;
 
       const uniqueMap = new Map<string, (typeof filtered)[0]>();
       for (const e of filtered) {
@@ -123,14 +137,14 @@ export function useCalendarEvents(technicianId: string | null, referenceDate?: D
         };
       });
 
-      console.log(`[Calendar] Fetched ${mapped.length} unique events (tech: ${technicianId ?? "ALL"}, week: ${weekStartISO.slice(0, 10)})`);
+      console.log(`[Calendar] Fetched ${mapped.length} unique events (tech: ${technicianId ?? "ALL"}, company: ${companyId ?? "ALL"}, scope-techs: ${Array.isArray(scopedTechnicianIds) ? scopedTechnicianIds.length : "ALL"}, week: ${weekStartISO.slice(0, 10)})`);
       setEvents(mapped);
     } catch (err) {
       console.error("[Calendar] Fetch exception:", err);
     } finally {
       setLoading(false);
     }
-  }, [technicianId, weekStartISO, weekEndISO]);
+  }, [technicianId, weekStartISO, weekEndISO, companyId, scopedTechnicianIds?.join(",")]);
 
   useEffect(() => {
     fetchEvents();

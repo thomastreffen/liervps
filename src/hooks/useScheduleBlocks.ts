@@ -58,7 +58,8 @@ function mapRow(row: any): ScheduleBlock {
 export function useScheduleBlocks(
   referenceDate: Date,
   technicianId?: string | null,
-  technicianIds?: string[]
+  technicianIds?: string[],
+  companyId?: string | null
 ) {
   const [blocks, setBlocks] = useState<ScheduleBlock[]>([]);
   const [loading, setLoading] = useState(false);
@@ -76,8 +77,8 @@ export function useScheduleBlocks(
     [referenceDate.toDateString()]
   );
 
-  // Stable key for technician filter
-  const techFilterKey = technicianId || (technicianIds ? technicianIds.join(",") : "all");
+  // Stable key for subscription filtering
+  const techFilterKey = `${companyId ?? "all-companies"}|${technicianId || (technicianIds ? technicianIds.join(",") : "all-techs")}`;
 
   const fetchBlocks = useCallback(async (silent = false) => {
     const id = ++fetchIdRef.current;
@@ -95,6 +96,11 @@ export function useScheduleBlocks(
         .lt("start_at", weekEnd.toISOString())
         .gt("end_at", weekStart.toISOString())
         .order("start_at", { ascending: true });
+
+      // Filter by company scope
+      if (companyId) {
+        query = query.eq("company_id", companyId);
+      }
 
       // Filter by technician(s)
       if (technicianId) {
@@ -137,7 +143,7 @@ export function useScheduleBlocks(
     } finally {
       if (id === fetchIdRef.current && !silent) setLoading(false);
     }
-  }, [weekStart, weekEnd, technicianId, technicianIds?.join(",")]);
+  }, [weekStart, weekEnd, technicianId, technicianIds?.join(","), companyId]);
 
   // Debounced silent refetch – batches multiple realtime events
   const debouncedRefetch = useCallback(() => {
