@@ -16,6 +16,8 @@ import type { CalendarEvent } from "@/hooks/useCalendarEvents";
 export default function Dashboard() {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
+  const { activeCompanyId } = useCompanyContext();
+  const { technicians } = useTechnicians(activeCompanyId);
   const [selectedTechId, setSelectedTechId] = useState<string | null>(null);
   const [createJobOpen, setCreateJobOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
