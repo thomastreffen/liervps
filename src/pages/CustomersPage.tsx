@@ -52,13 +52,17 @@ export default function CustomersPage() {
       query = query.eq("company_id", activeCompanyId);
     }
 
+    const { data } = await query;
+
     if (data) {
       // Get project counts per customer
-      const { data: projectCounts } = await supabase
+      let projectQuery = supabase
         .from("events")
         .select("customer_id")
         .not("customer_id", "is", null)
         .is("deleted_at", null);
+      if (activeCompanyId) projectQuery = projectQuery.eq("company_id", activeCompanyId);
+      const { data: projectCounts } = await projectQuery;
 
       const countMap = new Map<string, number>();
       if (projectCounts) {
