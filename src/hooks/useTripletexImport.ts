@@ -353,6 +353,25 @@ export function useTripletexImport() {
     const logId = (logData as any)?.id || "";
 
     try {
+      // Helper to resolve customer_id from CSV row data
+      const resolveCustomerId = (customerName: string, customerNumber: string): string | null => {
+        const maps = customerMapsRef.current;
+        if (!maps) return null;
+        // 1. Try org number / tripletex customer ID
+        if (customerNumber) {
+          const byOrg = maps.customerByOrgNr.get(customerNumber.trim());
+          if (byOrg) return byOrg.id;
+          const byTx = maps.customerByTripletexId.get(customerNumber.trim());
+          if (byTx) return byTx.id;
+        }
+        // 2. Try exact name match (case-insensitive)
+        if (customerName) {
+          const byName = maps.customerByName.get(customerName.toLowerCase().trim());
+          if (byName) return byName.id;
+        }
+        return null;
+      };
+
       if (detectedType === "project") {
         for (const row of projectRows) {
           if (row.action === "ignore" || row.matchStatus === "error") {
@@ -360,12 +379,14 @@ export function useTripletexImport() {
             await insertResult(logId, row.projectNumber, "project", "ignored", "Ignorert", row.raw);
             continue;
           }
+          const customerId = resolveCustomerId(row.customerName, row.customerNumber);
           try {
             if (row.action === "link" && row.matchedEntityId) {
-              // Link to existing project: store tripletex ID on it
+              // Link to existing project: store tripletex ID + customer_id on it
               await supabase.from("events").update({
                 external_tripletex_id: row.projectNumber,
                 customer: row.customerName || undefined,
+                customer_id: customerId || undefined,
               } as any).eq("id", row.matchedEntityId);
               updated++;
               await insertResult(logId, row.projectNumber, "project", "linked", "Koblet til eksisterende", row.raw, row.matchedEntityId);
@@ -375,6 +396,7 @@ export function useTripletexImport() {
                 title: row.projectName || row.projectNumber,
                 project_number: row.projectNumber,
                 customer: row.customerName,
+                customer_id: customerId,
                 description: row.description,
                 start_time: row.startDate ? `${row.startDate}T08:00:00` : new Date().toISOString(),
                 end_time: row.endDate ? `${row.endDate}T16:00:00` : new Date(Date.now() + 86400000 * 90).toISOString(),
