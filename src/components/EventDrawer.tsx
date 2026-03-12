@@ -97,6 +97,7 @@ export function EventDrawer({
 }: EventDrawerProps) {
   const navigate = useNavigate();
   const { syncDelete } = useCalendarSync();
+  const { activeCompanyId } = useCompanyContext();
   const isEditing = !!editEvent;
 
   // Form state
