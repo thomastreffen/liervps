@@ -55,11 +55,7 @@ const DURATIONS = [
   { value: "480", label: "Hel dag (8t)" },
 ];
 
-const TIME_SLOTS = Array.from({ length: 18 }, (_, i) => {
-  const h = 7 + Math.floor(i / 2);
-  const m = (i % 2) * 30;
-  return { value: `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`, label: `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}` };
-});
+/* TIME_SLOTS replaced by TimeSelect component */
 
 export function ProjectScheduleSheet({
   open, onOpenChange, projectId, projectTitle, customer, address,
