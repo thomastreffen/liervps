@@ -1,51 +1,60 @@
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ProjectHeader } from "@/components/project/ProjectHeader";
-import { ProjectRooms } from "@/components/project/ProjectRooms";
-import { ProjectFeed } from "@/components/project/ProjectFeed";
+import { ProjectSubnav } from "@/components/project/ProjectSubnav";
+import { ProjectDashboard } from "@/components/project/ProjectDashboard";
+import { ProjectPlanTab } from "@/components/ProjectPlanTab";
 import { ThreadList } from "@/components/conversations/ThreadList";
 import { DocsFilesRoom } from "@/components/docs/DocsFilesRoom";
-import { ProjectPlanTab } from "@/components/ProjectPlanTab";
+import { ProjectFormsTab } from "@/components/forms/ProjectFormsTab";
 import { ServiceJournal } from "@/components/project/ServiceJournal";
+import { JobRiskPanel } from "@/components/risk/JobRiskPanel";
+import { JobEmailTab } from "@/components/project/JobEmailTab";
 import { ProjectScheduleSheet } from "@/components/project/ProjectScheduleSheet";
+import { SourceMetadataSection } from "@/components/SourceMetadataBadge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import type { Job, Attachment } from "@/lib/mock-data";
-import {
-  JOB_STATUS_CONFIG,
-  canSetStatus,
-  getDisplayNumber,
-  type JobStatus,
-} from "@/lib/job-status";
+import { type JobStatus } from "@/lib/job-status";
 import { useAuth } from "@/hooks/useAuth";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useActivityLog } from "@/hooks/useActivityLog";
 import { useCompanyContext } from "@/hooks/useCompanyContext";
 import { ImageLightbox } from "@/components/ImageLightbox";
 import { ProjectAccessDrawer } from "@/components/project/ProjectAccessDrawer";
-import { Loader2, X, ArrowLeft } from "lucide-react";
+import { ChangeOrderTab } from "@/components/change-orders/ChangeOrderTab";
+import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import type { OutlookSyncStatus } from "@/lib/mock-data";
 
 export default function JobDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
   const { hasPermission } = usePermissions();
   const { activeCompany } = useCompanyContext();
   const canEditPlan = hasPermission("projects.edit_plan");
   const canDeleteAttachment = hasPermission("projects.delete_attachment");
 
+  const activeTab = searchParams.get("tab") || "home";
+  const setActiveTab = (tab: string) => {
+    setSearchParams(tab === "home" ? {} : { tab }, { replace: true });
+  };
+
   const [job, setJob] = useState<Job | null>(null);
   const [loading, setLoading] = useState(true);
   const [technicianNames, setTechnicianNames] = useState<string[]>([]);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
-  const [showPlan, setShowPlan] = useState(false);
-  const [activeRoom, setActiveRoom] = useState<string | null>(null);
   const [accessDrawerOpen, setAccessDrawerOpen] = useState(false);
   const [accessDrawerTab, setAccessDrawerTab] = useState<"members" | "spaces">("members");
   const [scheduleSheetOpen, setScheduleSheetOpen] = useState(false);
   const [scheduleRefreshKey, setScheduleRefreshKey] = useState(0);
+
+  // Activity log for home dashboard
+  const { activities } = useActivityLog("project", id);
 
   /* ── Fetch data ── */
   const fetchJob = useCallback(async () => {
@@ -128,46 +137,12 @@ export default function JobDetail() {
   }
 
   const imageAttachments = (job.attachments ?? []).filter((a) => /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(a.name));
-
-  /* ── Plan overlay ── */
-  if (showPlan) {
-    return (
-      <div className="min-h-screen bg-background">
-        <div className="sticky top-0 z-30 border-b border-border/40 bg-background/95 backdrop-blur-sm">
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 py-3 flex items-center justify-between">
-            <div>
-              <h2 className="text-lg font-semibold text-foreground">{job.title} – Plan</h2>
-              <p className="text-xs text-muted-foreground">{technicianNames.join(", ") || "Ingen montører tildelt"}</p>
-            </div>
-            <Button variant="ghost" size="icon" className="rounded-lg" onClick={() => setShowPlan(false)}>
-              <X className="h-5 w-5" />
-            </Button>
-          </div>
-        </div>
-        <div className="p-4 sm:p-6">
-          <ProjectPlanTab
-            jobId={job.id}
-            jobTitle={job.title}
-            jobStart={job.start}
-            jobEnd={job.end}
-            jobAddress={job.address}
-            technicianIds={job.technicianIds}
-            technicianNames={technicianNames}
-            isAdmin={canEditPlan}
-            calendarDirty={job.calendarDirty}
-            calendarLastSyncedAt={job.calendarLastSyncedAt}
-            onSynced={() => fetchJob()}
-            onResourceAssign={() => fetchJob()}
-          />
-        </div>
-      </div>
-    );
-  }
+  const externalTripletexId = (job as any).externalTripletexId || null;
 
   return (
     <>
       <div className="min-h-screen bg-background">
-        {/* Header */}
+        {/* Compact Header */}
         <ProjectHeader
           jobNumber={job.jobNumber ?? null}
           internalNumber={job.internalNumber ?? null}
@@ -178,62 +153,131 @@ export default function JobDetail() {
           end={job.end}
           status={job.status}
           technicianNames={technicianNames}
-          onOpenPlan={() => setShowPlan(true)}
+          onOpenPlan={() => setActiveTab("plan")}
           onEdit={() => navigate(`/projects/${id}/settings`)}
           onOpenAccess={() => { setAccessDrawerTab("members"); setAccessDrawerOpen(true); }}
           onOpenSpaces={() => { setAccessDrawerTab("spaces"); setAccessDrawerOpen(true); }}
           projectId={id}
-          externalTripletexId={(job as any).externalTripletexId}
+          externalTripletexId={externalTripletexId}
           companyName={activeCompany?.name}
         />
 
-        {/* Room content or Rooms overview */}
-        <div className="mx-auto max-w-5xl px-4 sm:px-6 py-8 pb-28 md:pb-8">
-         {activeRoom ? (
-            <div className="space-y-4">
-              <button
-                onClick={() => setActiveRoom(null)}
-                className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <ArrowLeft className="h-3.5 w-3.5" />
-                Tilbake til prosjektet
-              </button>
-              <h2 className="text-xl font-bold text-foreground capitalize">{activeRoom}</h2>
+        {/* Tab navigation */}
+        <ProjectSubnav activeTab={activeTab} onTabChange={setActiveTab} />
 
-              {activeRoom === "samtaler" && (
-                <ThreadList projectId={id!} />
-              )}
-              {(activeRoom === "oppgaver" || activeRoom === "arbeidspakker") && (
-                <ProjectFeed
-                  jobId={id!}
-                  jobTitle={job.title}
-                  customer={job.customer}
-                  internalNumber={job.internalNumber || null}
-                  filter="tasks"
-                />
-              )}
-              {activeRoom === "dokumenter" && (
-                <DocsFilesRoom projectId={id!} jobId={id!} />
-              )}
-              {activeRoom === "servicejournal" && (
-                <ServiceJournal
-                  projectId={id!}
-                  projectTitle={job.title}
-                  customer={job.customer}
-                  address={job.address}
-                  technicianNames={technicianNames}
-                  internalNumber={job.internalNumber || undefined}
-                />
+        {/* Tab content */}
+        <div className="mx-auto max-w-6xl px-4 sm:px-6 py-6 pb-28 md:pb-8">
+          {activeTab === "home" && (
+            <div className="space-y-6">
+              <ProjectDashboard
+                jobId={job.id}
+                technicianNames={technicianNames}
+                start={job.start}
+                end={job.end}
+                logs={activities.map(l => ({
+                  id: l.id,
+                  action_type: l.action,
+                  change_summary: l.description || null,
+                  timestamp: l.created_at,
+                }))}
+                onNavigateTab={setActiveTab}
+              />
+              {/* Source metadata – collapsible section at bottom of home */}
+              {(externalTripletexId || activeCompany?.name) && (
+                <Card className="rounded-2xl border-border/50">
+                  <CardContent className="p-4">
+                    <SourceMetadataSection
+                      source={externalTripletexId ? "tripletex" : "local"}
+                      externalId={externalTripletexId}
+                      companyName={activeCompany?.name}
+                      lastSynced={job.updatedAt?.toISOString()}
+                    />
+                  </CardContent>
+                </Card>
               )}
             </div>
-          ) : (
-            <ProjectRooms
-              jobId={id!}
-              onOpenPlan={() => setShowPlan(true)}
-              onOpenRoom={(room) => setActiveRoom(room)}
-              onOpenScheduleSheet={() => setScheduleSheetOpen(true)}
-              key={scheduleRefreshKey}
+          )}
+
+          {activeTab === "plan" && (
+            <ProjectPlanTab
+              jobId={job.id}
+              jobTitle={job.title}
+              jobStart={job.start}
+              jobEnd={job.end}
+              jobAddress={job.address}
+              technicianIds={job.technicianIds}
+              technicianNames={technicianNames}
+              isAdmin={canEditPlan}
+              calendarDirty={job.calendarDirty}
+              calendarLastSyncedAt={job.calendarLastSyncedAt}
+              onSynced={() => fetchJob()}
+              onResourceAssign={() => fetchJob()}
             />
+          )}
+
+          {activeTab === "epost" && (
+            <div className="space-y-6">
+              <ThreadList projectId={id!} />
+              <JobEmailTab jobId={id!} linkField="linked_project_id" />
+            </div>
+          )}
+
+          {activeTab === "dokumenter" && (
+            <DocsFilesRoom projectId={id!} jobId={id!} />
+          )}
+
+          {activeTab === "skjemaer" && (
+            <ProjectFormsTab projectId={id!} isAdmin={canEditPlan} />
+          )}
+
+          {activeTab === "servicearbeid" && (
+            <ServiceJournal
+              projectId={id!}
+              projectTitle={job.title}
+              customer={job.customer}
+              address={job.address}
+              technicianNames={technicianNames}
+              internalNumber={job.internalNumber || undefined}
+            />
+          )}
+
+          {activeTab === "risiko" && (
+            <div className="space-y-6">
+              <JobRiskPanel jobId={id!} />
+              <ChangeOrderTab jobId={id!} customer={job.customer} baseAmount={null} currency="NOK" />
+            </div>
+          )}
+
+          {activeTab === "okonomi" && (
+            <div className="space-y-6">
+              <Card className="rounded-2xl border-border/50">
+                <CardContent className="p-6">
+                  <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">Økonomi & Tripletex</h3>
+                  <div className="space-y-3 text-sm">
+                    {externalTripletexId ? (
+                      <>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Tripletex prosjekt-ID</span>
+                          <span className="font-mono">{externalTripletexId}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Selskap</span>
+                          <span>{activeCompany?.name || "—"}</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground/60 pt-2 border-t border-border/30">
+                          Økonomidetaljer som faktura, timer og kostnader styres i Tripletex.
+                          Denne seksjonen vil bli utvidet med synkronisert økonomidata.
+                        </p>
+                      </>
+                    ) : (
+                      <p className="text-muted-foreground/60">
+                        Ingen Tripletex-kobling. Prosjektet ble opprettet lokalt.
+                      </p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           )}
         </div>
       </div>
@@ -253,24 +297,17 @@ export default function JobDetail() {
         }}
       />
 
-      {/* Access drawer – slides in from right */}
+      {/* Access drawer */}
       {accessDrawerOpen && id && (
         <div className="fixed inset-0 z-50 flex justify-end">
-          <div
-            className="absolute inset-0 bg-black/20 backdrop-blur-[2px]"
-            onClick={() => setAccessDrawerOpen(false)}
-          />
+          <div className="absolute inset-0 bg-black/20 backdrop-blur-[2px]" onClick={() => setAccessDrawerOpen(false)} />
           <div className="relative w-full max-w-md bg-background border-l border-border shadow-xl overflow-y-auto p-6">
-            <ProjectAccessDrawer
-              projectId={id}
-              onClose={() => setAccessDrawerOpen(false)}
-              initialTab={accessDrawerTab}
-            />
+            <ProjectAccessDrawer projectId={id} onClose={() => setAccessDrawerOpen(false)} initialTab={accessDrawerTab} />
           </div>
         </div>
       )}
 
-      {/* Schedule sheet – inline from project page */}
+      {/* Schedule sheet */}
       {job && (
         <ProjectScheduleSheet
           open={scheduleSheetOpen}
