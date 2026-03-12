@@ -59,6 +59,8 @@ export function TripletexProjectImport() {
     );
   }
 
+  const missingCustomerCount = projectRows.filter(r => r.missingCustomer && r.action !== "ignore").length;
+
   const summary = {
     match: projectRows.filter(r => r.matchStatus === "match").length,
     new: projectRows.filter(r => r.matchStatus === "new").length,
