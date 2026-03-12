@@ -41,6 +41,7 @@ const CalendarCard = memo(function CalendarCard({
 }) {
   const statusConfig = JOB_STATUS_CONFIG[job.status];
   const isTimeChange = job.status === "time_change_proposed";
+  const isOvernight = job.start.toDateString() !== job.end.toDateString();
   const primaryTech = job.technicians?.[0];
   const techColor = primaryTech?.color || "#6366f1";
 
