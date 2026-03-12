@@ -22,6 +22,7 @@ interface TechLookup {
 
 interface ResourceCalendarProps {
   technicianId: string | null;
+  companyId?: string | null;
   referenceDate: Date;
   calendarView?: string;
   technicianMap: Map<string, TechLookup>;
