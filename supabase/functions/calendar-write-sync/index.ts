@@ -328,6 +328,10 @@ async function syncForTechnician(
   }
 
   if (action === "update" || action === "force_update") {
+    if (existingCalEventId?.startsWith("pending:")) {
+      return { techId: tech.id, techName: tech.name, status: "in_progress" };
+    }
+
     if (!existingCalEventId) {
       // No existing calendar event → create instead
       const res = await fetch(
