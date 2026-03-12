@@ -99,6 +99,7 @@ export function TripletexProjectImport() {
         {missingCustomerCount > 0 && (
           <Badge variant="outline" className="border-amber-500 text-amber-700">{missingCustomerCount} nye kunder opprettes</Badge>
         )}
+      </div>
 
       {/* Table */}
       <Card>
