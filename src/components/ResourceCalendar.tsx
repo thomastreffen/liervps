@@ -167,16 +167,13 @@ export const ResourceCalendar = memo(function ResourceCalendar({
 
   // Night shading via CSS custom property
   useEffect(() => {
-    const wrapper = calendarRef.current?.getApi()?.el;
-    if (!wrapper || !hasNightHours) return;
-    // Apply night shading class
-    wrapper.classList.add("fc-night-shading");
-    wrapper.style.setProperty("--fc-night-start", `${operatingStartHour}`);
-    wrapper.style.setProperty("--fc-night-end", `${operatingEndHour}`);
+    const el = (calendarRef.current as any)?.elRef?.current;
+    if (!el || !hasNightHours) return;
+    el.classList.add("fc-night-shading");
     return () => {
-      wrapper.classList.remove("fc-night-shading");
+      el?.classList.remove("fc-night-shading");
     };
-  }, [hasNightHours, operatingStartHour, operatingEndHour]);
+  }, [hasNightHours]);
 
   // Build a stable color assignment per technician (Google Calendar style)
   const techColorMap = useMemo(() => {
