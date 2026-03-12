@@ -174,10 +174,10 @@ export default function JobDetail() {
                 technicianNames={technicianNames}
                 start={job.start}
                 end={job.end}
-                logs={logs.map(l => ({
+                logs={activities.map(l => ({
                   id: l.id,
                   action_type: l.action,
-                  change_summary: l.description,
+                  change_summary: l.description || null,
                   timestamp: l.created_at,
                 }))}
                 onNavigateTab={setActiveTab}
