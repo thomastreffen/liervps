@@ -53,7 +53,7 @@ Deno.serve(async (req) => {
     // Fetch the block
     const { data: block, error: fetchErr } = await supabase
       .from("schedule_blocks")
-      .select("*, technicians!inner(user_id, name)")
+      .select("*, technicians(user_id, name)")
       .eq("id", schedule_block_id)
       .is("deleted_at", null)
       .single();
