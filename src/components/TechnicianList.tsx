@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { Users, Loader2, AlertTriangle } from "lucide-react";
@@ -11,7 +11,7 @@ interface DBTechnician {
   id: string;
   name: string;
   email: string;
-  user_id: string | null;
+  user_id?: string | null;
   color: string | null;
 }
 
@@ -24,6 +24,10 @@ interface TechnicianListProps {
   onColorChange?: (techId: string, color: string) => void;
   /** Per-tech capacity for today – used for overbooking indicators */
   techDayPercents?: Map<string, number>;
+  /** Pre-filtered technicians from parent scope */
+  technicians?: DBTechnician[];
+  /** Whether null-selection truly means cross-company global scope */
+  isGlobalScope?: boolean;
 }
 
 const COLOR_PRESETS = [
@@ -67,13 +71,29 @@ function ColorPicker({ currentColor, onPick }: { currentColor: string | null; on
   );
 }
 
-export function TechnicianList({ selectedId, onSelect, allowDeselect, filterIds, nowStatusMap, onColorChange, techDayPercents }: TechnicianListProps) {
+export function TechnicianList({
+  selectedId,
+  onSelect,
+  allowDeselect,
+  filterIds,
+  nowStatusMap,
+  onColorChange,
+  techDayPercents,
+  technicians: scopedTechnicians,
+  isGlobalScope = false,
+}: TechnicianListProps) {
   const [technicians, setTechnicians] = useState<DBTechnician[]>([]);
   const [loading, setLoading] = useState(true);
   const [colorPickerOpen, setColorPickerOpen] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchTechnicians() {
+      if (scopedTechnicians) {
+        setTechnicians(scopedTechnicians);
+        setLoading(false);
+        return;
+      }
+
       const { data, error } = await supabase
         .from("technicians")
         .select("id, name, email, user_id, color")
@@ -89,8 +109,9 @@ export function TechnicianList({ selectedId, onSelect, allowDeselect, filterIds,
       }
       setLoading(false);
     }
+
     fetchTechnicians();
-  }, []);
+  }, [scopedTechnicians]);
 
   const handleColorPick = useCallback(async (techId: string, color: string) => {
     // Optimistic update
@@ -120,7 +141,7 @@ export function TechnicianList({ selectedId, onSelect, allowDeselect, filterIds,
   if (technicians.length === 0) {
     return (
       <div className="px-3 py-4 text-sm text-muted-foreground">
-        Ingen montører lagt til ennå.
+        Ingen montører i valgt selskap.
       </div>
     );
   }
@@ -131,7 +152,7 @@ export function TechnicianList({ selectedId, onSelect, allowDeselect, filterIds,
         Montører
       </h2>
 
-      {/* Global view button */}
+      {/* Scope-wide view button */}
       <button
         onClick={() => onSelect(null)}
         className={cn(
@@ -146,7 +167,7 @@ export function TechnicianList({ selectedId, onSelect, allowDeselect, filterIds,
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium">Alle montører</p>
-          <p className="text-xs text-muted-foreground">Global oversikt</p>
+          <p className="text-xs text-muted-foreground">{isGlobalScope ? "Global oversikt" : "Innen valgt selskap"}</p>
         </div>
       </button>
 
