@@ -4,6 +4,7 @@ import { format, startOfDay, endOfDay, addDays } from "date-fns";
 import { nb } from "date-fns/locale";
 import { Loader2, Settings2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { useCompanyContext } from "@/hooks/useCompanyContext";
 import { useDashboardConfig, type ModuleKey } from "@/hooks/useDashboardConfig";
 import { ProjectCards, type ProjectCardData } from "@/components/overview/ProjectCards";
 import { YourDay, type DayBlock } from "@/components/overview/YourDay";
