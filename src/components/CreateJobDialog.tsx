@@ -11,9 +11,10 @@ import { FileUpload } from "./FileUpload";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
-import { AlertTriangle, ChevronDown, ChevronUp } from "lucide-react";
+import { AlertTriangle, ChevronDown, ChevronUp, Moon } from "lucide-react";
 import { useCalendarSync } from "@/hooks/useCalendarSync";
 import { useCompanyContext } from "@/hooks/useCompanyContext";
+import { normalizeOvernightDates, isOvernightRange, autoAdjustEndDate } from "@/lib/overnight";
 
 interface CreateJobDialogProps {
   open: boolean;
