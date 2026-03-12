@@ -19,20 +19,23 @@ interface QueryRow {
 }
 
 export default function FagInsightsPage() {
+  const { activeCompanyId } = useCompanyContext();
   const [queries, setQueries] = useState<QueryRow[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     (async () => {
-      const { data } = await supabase
+      let query = supabase
         .from("regulation_queries")
         .select("id, created_at, topic, reviewed_status, reviewed_at, usage_count, question")
         .order("created_at", { ascending: false })
         .limit(500);
+      if (activeCompanyId) query = query.eq("company_id", activeCompanyId);
+      const { data } = await query;
       setQueries((data || []) as QueryRow[]);
       setLoading(false);
     })();
-  }, []);
+  }, [activeCompanyId]);
 
   const weeklyData = useMemo(() => {
     const weeks = new Map<string, number>();
