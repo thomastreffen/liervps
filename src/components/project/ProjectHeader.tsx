@@ -56,6 +56,8 @@ export function ProjectHeader({
   onOpenSpaces,
   onEdit,
   projectId,
+  externalTripletexId,
+  companyName,
 }: ProjectHeaderProps) {
   const navigate = useNavigate();
   const period = `${format(start, "d. MMM", { locale: nb })} – ${format(end, "d. MMM yyyy", { locale: nb })}`;
