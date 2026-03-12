@@ -124,7 +124,12 @@ export function TripletexProjectImport() {
                     <TableCell><ImportStatusBadge status={row.action === "ignore" ? "ignored" : row.action === "link" ? "match" : row.matchStatus} /></TableCell>
                     <TableCell className="font-mono text-xs">{row.projectNumber || "—"}</TableCell>
                     <TableCell className="max-w-[200px] truncate">{row.projectName}</TableCell>
-                    <TableCell className="text-xs">{row.customerName}</TableCell>
+                    <TableCell className="text-xs">
+                      {row.customerName}
+                      {row.missingCustomer && row.action !== "ignore" && (
+                        <span className="block text-[10px] text-amber-600">+ ny kunde</span>
+                      )}
+                    </TableCell>
                     <TableCell className="text-xs">{row.startDate || "—"}</TableCell>
                     <TableCell className="text-xs">{row.endDate || "—"}</TableCell>
                     <TableCell className="text-xs text-muted-foreground">
