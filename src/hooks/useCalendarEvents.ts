@@ -86,11 +86,19 @@ export function useCalendarEvents(technicianId: string | null, referenceDate?: D
         console.warn(`[Calendar] Dropped ${orphanCount} events without event_technicians (orphans)`);
       }
 
+      const scoped = Array.isArray(scopedTechnicianIds)
+        ? (scopedTechnicianIds.length === 0
+            ? []
+            : withTechs.filter((e: any) =>
+                e.event_technicians?.some((et: any) => scopedTechnicianIds.includes(et.technician_id))
+              ))
+        : withTechs;
+
       const filtered = technicianId
-        ? withTechs.filter((e: any) =>
+        ? scoped.filter((e: any) =>
             e.event_technicians?.some((et: any) => et.technician_id === technicianId)
           )
-        : withTechs;
+        : scoped;
 
       const uniqueMap = new Map<string, (typeof filtered)[0]>();
       for (const e of filtered) {
