@@ -262,7 +262,7 @@ export default function ResourcePlan() {
     }
     setRefreshKey((k) => k + 1);
   }, [syncUpdate, calEvents]);
-  const operatingHours = useOperatingHours();
+  const operatingHours = useOperatingHours(effectiveCompanyId);
 
   // Sync work hours to now-status module
   useEffect(() => {
