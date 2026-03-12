@@ -52,6 +52,7 @@ export interface Alert {
 }
 
 export function useManagementData() {
+  const { activeCompanyId } = useCompanyContext();
   const [kpis, setKpis] = useState<ManagementKPIs>({
     availableTechs: 0,
     overbookedTechs: 0,
