@@ -40,7 +40,8 @@ export function useCapacity(
   events: CalendarEvent[],
   busySlots: ExternalBusySlot[],
   referenceDate: Date,
-  technicianIds: string[]
+  technicianIds: string[],
+  workDayMinutes: number = DEFAULT_WORK_DAY_MINUTES
 ) {
   return useMemo(() => {
     const weekStart = startOfWeek(referenceDate, { weekStartsOn: 1 });
