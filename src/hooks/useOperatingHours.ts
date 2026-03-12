@@ -77,14 +77,17 @@ export function useOperatingHours(): OperatingHours {
 
   return useMemo(() => ({
     profile,
-    slotMinTime: hours.start,
-    slotMaxTime: hours.end,
+    /** Calendar always shows full 24h */
+    slotMinTime: CALENDAR_SLOT_MIN,
+    slotMaxTime: CALENDAR_SLOT_MAX,
+    /** Operating hours for capacity/logic/visual shading */
     startHour: hours.startHour,
     endHour: hours.endHour,
     workDayMinutes: hours.dayMinutes,
     slotDuration: ZOOM_DURATIONS[zoom],
     zoom,
     setZoom,
-    hasNightHours: profile !== "office",
+    /** Always true since calendar is 24h – used for night shading */
+    hasNightHours: true,
   }), [profile, zoom, hours]);
 }
