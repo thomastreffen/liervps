@@ -23,7 +23,7 @@ import { useNavigate } from "react-router-dom";
 interface Props {
   block: ScheduleBlock;
   onClose: () => void;
-  onConfirmed?: () => void;
+  onConfirmed?: (deletedBlockIds?: string[]) => void;
 }
 
 const stateLabels: Record<string, { label: string; variant: "default" | "secondary" | "outline" | "destructive" }> = {
