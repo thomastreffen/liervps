@@ -198,12 +198,37 @@ export const ResourceCalendar = memo(function ResourceCalendar({
   }, [technicianMap]);
 
   const fcEvents: EventInput[] = useMemo(() => {
-    const result: EventInput[] = calendarEvents.map((ev) => {
+    // ── Dedup: Build sets to prevent the same job from appearing multiple times ──
+    // schedule_blocks linked to a project (event) should suppress that calendarEvent
+    const eventIdsWithScheduleBlock = new Set<string>();
+    for (const block of scheduleBlocks) {
+      if (block.project_id) {
+        eventIdsWithScheduleBlock.add(block.project_id);
+      }
+    }
+
+    // calendarEvent time ranges per technician – used to dedup busy slots
+    const calEventRangesByTech = new Map<string, Array<{ start: number; end: number }>>();
+
+    const result: EventInput[] = [];
+
+    for (const ev of calendarEvents) {
+      // Skip calendarEvent if a schedule_block already represents this project
+      if (eventIdsWithScheduleBlock.has(ev.id)) continue;
+
       const techNames = ev.technicians.map((t) => t.name.split(" ")[0]).join(", ");
       const firstTechId = ev.technicians[0]?.id;
       const baseColor = (firstTechId && techColorMap.get(firstTechId)) || GCAL_PALETTE[0];
       const isOvernight = ev.start.toDateString() !== ev.end.toDateString();
-      return {
+
+      // Track time ranges for busy slot dedup
+      for (const t of ev.technicians) {
+        const ranges = calEventRangesByTech.get(t.id) || [];
+        ranges.push({ start: ev.start.getTime(), end: ev.end.getTime() });
+        calEventRangesByTech.set(t.id, ranges);
+      }
+
+      result.push({
         id: ev.id,
         title: ev.title.replace("SERVICE – ", ""),
         start: ev.start,
@@ -221,8 +246,8 @@ export const ResourceCalendar = memo(function ResourceCalendar({
           isOvernight,
         },
         editable: effectiveCanWrite,
-      };
-    });
+      });
+    }
 
     // External busy slots – merged and solid
     // Skip entirely if hideExternalEvents is on
@@ -260,13 +285,19 @@ export const ResourceCalendar = memo(function ResourceCalendar({
           const techSbRanges = sbRangesByTech.get(techId) || [];
 
           for (const slot of merged) {
-            // Deduplicate: skip busy slot if a schedule_block already covers this time range
+            // Deduplicate: skip busy slot if a schedule_block OR calendarEvent already covers this time range
             const slotStart = slot.start.getTime();
             const slotEnd = slot.end.getTime();
             const coveredBySb = techSbRanges.some(
               (r) => r.start <= slotStart + 60000 && r.end >= slotEnd - 60000
             );
             if (coveredBySb) continue;
+
+            const calRanges = calEventRangesByTech.get(techId) || [];
+            const coveredByCalEvent = calRanges.some(
+              (r) => r.start <= slotStart + 60000 && r.end >= slotEnd - 60000
+            );
+            if (coveredByCalEvent) continue;
 
             const techName = tech?.name?.trim();
             const displayName = techName
@@ -350,6 +381,10 @@ export const ResourceCalendar = memo(function ResourceCalendar({
           aiMatchReason: masked ? undefined : block.ai_match_reason,
         },
       });
+    }
+
+    if (eventIdsWithScheduleBlock.size > 0) {
+      console.log(`[ResourceCalendar] Dedup: ${eventIdsWithScheduleBlock.size} calendarEvent(s) suppressed by schedule_blocks`);
     }
 
     return result;
