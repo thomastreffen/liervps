@@ -38,6 +38,10 @@ export interface ProjectRow {
   candidates?: { id: string; title: string; customer: string | null; score: number }[];
   action: ImportAction;
   error?: string;
+  /** True when customer was not found locally */
+  missingCustomer?: boolean;
+  /** Resolved local customer id (set during matching) */
+  resolvedCustomerId?: string;
   raw: Record<string, string>;
 }
 
