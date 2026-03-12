@@ -71,6 +71,7 @@ const TAB_LABELS: Record<StatusTab, string> = {
 export default function JobsPage() {
   const navigate = useNavigate();
   const { user, isAdmin } = useAuth();
+  const { activeCompanyId } = useCompanyContext();
   const [jobs, setJobs] = useState<JobRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
