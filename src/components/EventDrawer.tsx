@@ -231,7 +231,7 @@ export function EventDrawer({
   useEffect(() => {
     if (!open) return;
     const timer = setTimeout(() => {
-      checkConflicts(date, startTime, resolvedEndDate, endTime, techIds, editEvent?.id);
+      checkConflicts(date, startTime, endDate || (date ? autoAdjustEndDate(date, startTime, endTime) : ""), endTime, techIds, editEvent?.id);
     }, 500);
     return () => clearTimeout(timer);
   }, [date, startTime, endDate, endTime, techIds, open, editEvent, checkConflicts]);
