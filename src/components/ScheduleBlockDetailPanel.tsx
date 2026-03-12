@@ -23,7 +23,7 @@ import { useNavigate } from "react-router-dom";
 interface Props {
   block: ScheduleBlock;
   onClose: () => void;
-  onConfirmed?: () => void;
+  onConfirmed?: (deletedBlockIds?: string[]) => void;
 }
 
 const stateLabels: Record<string, { label: string; variant: "default" | "secondary" | "outline" | "destructive" }> = {
@@ -292,7 +292,8 @@ export const ScheduleBlockDetailPanel = memo(function ScheduleBlockDetailPanel({
         toast.error("Feil ved fjerning");
       }
 
-      onConfirmed?.();
+      const deletedIds: string[] = result?.block_ids_soft_deleted ?? [block.id];
+      onConfirmed?.(deletedIds);
       onClose();
     } catch (err: any) {
       console.error("[ScheduleBlockDetailPanel] Delete exception", { request: requestTrace, err });

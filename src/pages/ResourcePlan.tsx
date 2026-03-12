@@ -128,7 +128,7 @@ export default function ResourcePlan() {
   const [preselectedEnd, setPreselectedEnd] = useState<Date | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
 
-  const { blocks: scheduleBlocks, refetch: refetchBlocks } = useScheduleBlocks(referenceDate, selectedTechId, undefined, effectiveCompanyId);
+  const { blocks: scheduleBlocks, refetch: refetchBlocks, removeBlockOptimistic } = useScheduleBlocks(referenceDate, selectedTechId, undefined, effectiveCompanyId);
   const isCurrentWeek = isSameWeek(referenceDate, new Date(), { weekStartsOn: 1 });
   const weekStart = startOfWeek(referenceDate, { weekStartsOn: 1 });
 
@@ -701,6 +701,13 @@ export default function ResourcePlan() {
             : null
         }
         onSaved={() => {
+          // Optimistic: remove all blocks linked to this event
+          if (editEvent) {
+            const linkedIds = scheduleBlocks
+              .filter((sb) => sb.project_id === editEvent.id || sb.mcs_block_id === editEvent.id)
+              .map((sb) => sb.id);
+            for (const id of linkedIds) removeBlockOptimistic(id);
+          }
           void refreshPlanData();
         }}
       />
@@ -721,7 +728,12 @@ export default function ResourcePlan() {
         <ScheduleBlockDetailPanel
           block={selectedBlock}
           onClose={() => setSelectedBlock(null)}
-          onConfirmed={() => {
+          onConfirmed={(deletedBlockIds) => {
+            // Optimistic removal – hide blocks instantly
+            if (deletedBlockIds?.length) {
+              for (const id of deletedBlockIds) removeBlockOptimistic(id);
+            }
+            setSelectedBlock(null);
             void refreshPlanData();
           }}
         />
