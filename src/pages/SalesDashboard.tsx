@@ -19,6 +19,7 @@ import { SalesTeamOverview } from "@/components/dashboard/SalesTeamOverview";
 export default function SalesDashboard() {
   const nav = useNavigate();
   const { isAdmin } = useAuth();
+  const { activeCompanyId } = useCompanyContext();
   const [recentOffers, setRecentOffers] = useState<RecentOffer[]>([]);
   const [recentLeads, setRecentLeads] = useState<RecentLead[]>([]);
   const [actions, setActions] = useState<ActionItem[]>([]);
