@@ -14,6 +14,7 @@ import {
   Plus,
   Search,
   ArrowUpDown,
+  ArrowRightLeft,
   Loader2,
   ChevronLeft,
   ChevronRight,
