@@ -298,10 +298,10 @@ export function EventDrawer({
           await supabase.from("event_technicians").insert(
             toAdd.map((tid) => ({ event_id: editEvent.id, technician_id: tid }))
           );
-        }
-        if (toAdd.length > 0) {
           await supabase.functions.invoke("create-approval", { body: { job_id: editEvent.id } });
         }
+        // Sync updated event to all assigned technicians' calendars
+        syncUpdate(editEvent.id);
 
         toast.success("Hendelse oppdatert", { description: "Tid og ressurser er lagret." });
         onSaved?.(editEvent.id);
