@@ -14,10 +14,11 @@ import {
   Popover, PopoverContent, PopoverTrigger,
 } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
+import { TimeSelect } from "@/components/ui/time-select";
 import { format, addMinutes, startOfDay, setHours, setMinutes } from "date-fns";
 import { nb } from "date-fns/locale";
 import {
-  CalendarIcon, Clock, Loader2, Check, ChevronDown, User, MapPin,
+  CalendarIcon, Loader2, Check, ChevronDown, MapPin, Moon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -54,11 +55,7 @@ const DURATIONS = [
   { value: "480", label: "Hel dag (8t)" },
 ];
 
-const TIME_SLOTS = Array.from({ length: 18 }, (_, i) => {
-  const h = 7 + Math.floor(i / 2);
-  const m = (i % 2) * 30;
-  return { value: `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`, label: `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}` };
-});
+/* TIME_SLOTS replaced by TimeSelect component */
 
 export function ProjectScheduleSheet({
   open, onOpenChange, projectId, projectTitle, customer, address,
@@ -246,17 +243,7 @@ export function ProjectScheduleSheet({
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Starttid</Label>
-              <Select value={startTime} onValueChange={setStartTime}>
-                <SelectTrigger className="h-10">
-                  <Clock className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {TIME_SLOTS.map((s) => (
-                    <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <TimeSelect value={startTime} onChange={setStartTime} className="w-full h-10" />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Varighet</Label>
@@ -316,13 +303,21 @@ export function ProjectScheduleSheet({
             )}
           </div>
 
+          {/* Overnight indicator */}
+          {computedEnd.getDate() !== computedStart.getDate() && (
+            <div className="flex items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2">
+              <Moon className="h-4 w-4 text-primary shrink-0" />
+              <span className="text-sm font-medium text-primary">Går over midnatt – slutter neste dag</span>
+            </div>
+          )}
+
           {/* Summary */}
           <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 text-sm space-y-1">
             <p className="font-semibold text-primary">Oppsummering</p>
             <p>{selectedTech?.name || "Ingen montør valgt"}</p>
             <p className="text-muted-foreground">
               {date ? format(computedStart, "EEE d. MMM", { locale: nb }) : "—"}{" "}
-              kl. {format(computedStart, "HH:mm")} – {format(computedEnd, "HH:mm")}
+              kl. {format(computedStart, "HH:mm")} – {computedEnd.getDate() !== computedStart.getDate() ? format(computedEnd, "EEE d. MMM", { locale: nb }) + " " : ""}{format(computedEnd, "HH:mm")}
             </p>
           </div>
 

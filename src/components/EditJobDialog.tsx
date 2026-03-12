@@ -1,11 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-  DialogDescription,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,9 +12,11 @@ import { FileUpload } from "./FileUpload";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
+import { nb } from "date-fns/locale";
 import { AlertTriangle, Bell, BellOff, Moon } from "lucide-react";
 import type { Attachment } from "@/lib/mock-data";
 import { normalizeOvernightDates, isOvernightRange, autoAdjustEndDate } from "@/lib/overnight";
+import { TimeSelect } from "@/components/ui/time-select";
 
 interface EditJobDialogProps {
   open: boolean;
@@ -53,6 +50,9 @@ export function EditJobDialog({ open, onOpenChange, jobId, onSaved }: EditJobDia
   const [loading, setLoading] = useState(true);
   const [conflicts, setConflicts] = useState<ConflictInfo[]>([]);
 
+  const overnight = startDate && startTime && endTime ? isOvernightRange(startDate, startTime, endDate || startDate, endTime) : false;
+  const effectiveEndDate = startDate && overnight ? autoAdjustEndDate(startDate, startTime, endTime) : endDate;
+
   // Fetch existing job data
   useEffect(() => {
     if (!open || !jobId) return;
@@ -61,10 +61,7 @@ export function EditJobDialog({ open, onOpenChange, jobId, onSaved }: EditJobDia
     (async () => {
       const { data, error } = await supabase
         .from("events")
-        .select(`
-          *,
-          event_technicians ( technician_id )
-        `)
+        .select(`*, event_technicians ( technician_id )`)
         .eq("id", jobId)
         .single();
 
@@ -97,37 +94,29 @@ export function EditJobDialog({ open, onOpenChange, jobId, onSaved }: EditJobDia
     })();
   }, [open, jobId, onOpenChange]);
 
-  // Check conflicts when time/technicians change
+  // Check conflicts
   const checkConflicts = useCallback(async () => {
     if (!startDate || !startTime || !endDate || !endTime || techIds.length === 0) {
       setConflicts([]);
       return;
     }
-
     const { startISO, endISO } = normalizeOvernightDates(startDate, startTime, endDate, endTime);
 
-    // Find overlapping events for selected technicians
     const { data: overlapping } = await supabase
       .from("event_technicians")
       .select(`
         technician_id,
         technicians ( name ),
-        events:event_id (
-          id, title, start_time, end_time
-        )
+        events:event_id ( id, title, start_time, end_time )
       `)
       .in("technician_id", techIds);
 
-    if (!overlapping) {
-      setConflicts([]);
-      return;
-    }
+    if (!overlapping) { setConflicts([]); return; }
 
     const found: ConflictInfo[] = [];
     for (const row of overlapping as any[]) {
       const ev = row.events;
       if (!ev || ev.id === jobId) continue;
-      // Check time overlap
       if (ev.start_time < endISO && ev.end_time > startISO) {
         found.push({
           technicianName: row.technicians?.name ?? "Ukjent",
@@ -158,31 +147,15 @@ export function EditJobDialog({ open, onOpenChange, jobId, onSaved }: EditJobDia
       const { data: session } = await supabase.auth.getSession();
       const userId = session?.session?.user?.id;
 
-      // Upload new files
       let allAttachments = [...existingAttachments];
       for (const file of files) {
         const filePath = `${jobId}/${Date.now()}-${file.name}`;
-        const { error: uploadError } = await supabase.storage
-          .from("job-attachments")
-          .upload(filePath, file);
-
-        if (uploadError) {
-          toast.error(`Kunne ikke laste opp ${file.name}`);
-          continue;
-        }
-
-        const { data: urlData } = supabase.storage
-          .from("job-attachments")
-          .getPublicUrl(filePath);
-
-        allAttachments.push({
-          name: file.name,
-          url: urlData.publicUrl,
-          size: file.size,
-        });
+        const { error: uploadError } = await supabase.storage.from("job-attachments").upload(filePath, file);
+        if (uploadError) { toast.error(`Kunne ikke laste opp ${file.name}`); continue; }
+        const { data: urlData } = supabase.storage.from("job-attachments").getPublicUrl(filePath);
+        allAttachments.push({ name: file.name, url: urlData.publicUrl, size: file.size });
       }
 
-      // Update event
       const { error: updateError } = await supabase
         .from("events")
         .update({
@@ -204,15 +177,10 @@ export function EditJobDialog({ open, onOpenChange, jobId, onSaved }: EditJobDia
         return;
       }
 
-      // Update technician assignments
       await supabase.from("event_technicians").delete().eq("event_id", jobId);
-      const techInserts = techIds.map((techId) => ({
-        event_id: jobId,
-        technician_id: techId,
-      }));
+      const techInserts = techIds.map((techId) => ({ event_id: jobId, technician_id: techId }));
       await supabase.from("event_technicians").insert(techInserts);
 
-      // Log the change
       await supabase.from("event_logs").insert({
         event_id: jobId,
         action_type: "updated",
@@ -220,14 +188,11 @@ export function EditJobDialog({ open, onOpenChange, jobId, onSaved }: EditJobDia
         change_summary: `Jobb oppdatert${notifyParticipants ? " (deltakere varslet)" : " (uten varsling)"}`,
       });
 
-      // If notify is ON, trigger approval re-send for new technicians
       if (notifyParticipants) {
         const { error: approvalError } = await supabase.functions.invoke("create-approval", {
           body: { job_id: jobId },
         });
-        if (approvalError) {
-          console.error("[EditJob] Approval re-trigger failed:", approvalError);
-        }
+        if (approvalError) console.error("[EditJob] Approval re-trigger failed:", approvalError);
       }
 
       toast.success("Jobb oppdatert", {
@@ -244,6 +209,15 @@ export function EditJobDialog({ open, onOpenChange, jobId, onSaved }: EditJobDia
       setSubmitting(false);
     }
   };
+
+  // Format summary line
+  const summaryLine = startDate && startTime && endTime ? (() => {
+    try {
+      const startD = new Date(`${startDate}T${startTime}`);
+      const endD = new Date(`${effectiveEndDate}T${endTime}`);
+      return `${format(startD, "EEE d. MMM", { locale: nb })} ${startTime} → ${overnight ? format(endD, "EEE d. MMM", { locale: nb }) + " " : ""}${endTime}`;
+    } catch { return null; }
+  })() : null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -264,22 +238,12 @@ export function EditJobDialog({ open, onOpenChange, jobId, onSaved }: EditJobDia
                 <Label htmlFor="edit-title">Tittel</Label>
                 <div className="flex items-center gap-2 mt-1">
                   <span className="text-sm text-muted-foreground whitespace-nowrap">SERVICE –</span>
-                  <Input
-                    id="edit-title"
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    required
-                  />
+                  <Input id="edit-title" value={title} onChange={(e) => setTitle(e.target.value)} required />
                 </div>
               </div>
               <div>
                 <Label htmlFor="edit-jobNumber">Jobbnummer</Label>
-                <Input
-                  id="edit-jobNumber"
-                  value={jobNumber}
-                  onChange={(e) => setJobNumber(e.target.value)}
-                  className="mt-1"
-                />
+                <Input id="edit-jobNumber" value={jobNumber} onChange={(e) => setJobNumber(e.target.value)} className="mt-1" />
               </div>
             </div>
 
@@ -296,6 +260,7 @@ export function EditJobDialog({ open, onOpenChange, jobId, onSaved }: EditJobDia
               <Input value={address} onChange={(e) => setAddress(e.target.value)} required className="mt-1" />
             </div>
 
+            {/* Start */}
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label>Start</Label>
@@ -303,36 +268,37 @@ export function EditJobDialog({ open, onOpenChange, jobId, onSaved }: EditJobDia
                   <Input type="date" value={startDate} onChange={(e) => {
                     setStartDate(e.target.value);
                     setEndDate(autoAdjustEndDate(e.target.value, startTime, endTime));
-                  }} required />
-                  <Input type="time" value={startTime} onChange={(e) => {
-                    setStartTime(e.target.value);
-                    if (startDate) setEndDate(autoAdjustEndDate(startDate, e.target.value, endTime));
-                  }} required className="w-28" />
+                  }} required className="flex-1" />
+                  <TimeSelect value={startTime} onChange={(v) => {
+                    setStartTime(v);
+                    if (startDate) setEndDate(autoAdjustEndDate(startDate, v, endTime));
+                  }} />
                 </div>
               </div>
               <div>
                 <Label>Slutt</Label>
                 <div className="flex gap-2 mt-1">
-                  <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} required />
-                  <Input type="time" value={endTime} onChange={(e) => {
-                    setEndTime(e.target.value);
-                    if (startDate) setEndDate(autoAdjustEndDate(startDate, startTime, e.target.value));
-                  }} required className="w-28" />
+                  <Input type="date" value={effectiveEndDate} onChange={(e) => setEndDate(e.target.value)} required className="flex-1" />
+                  <TimeSelect value={endTime} onChange={(v) => {
+                    setEndTime(v);
+                    if (startDate) setEndDate(autoAdjustEndDate(startDate, startTime, v));
+                  }} />
                 </div>
               </div>
             </div>
 
-            {/* Overnight indicator */}
-            {isOvernightRange(startDate, startTime, endDate, endTime) && (
-              <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/50 px-3 py-2">
-                <Moon className="h-4 w-4 text-primary" />
-                <span className="text-sm text-muted-foreground">
-                  Går over midnatt – slutt{" "}
-                  <span className="font-medium text-foreground">
-                    {autoAdjustEndDate(startDate, startTime, endTime)}
-                  </span>{" "}
-                  kl. {endTime}
-                </span>
+            {/* Overnight indicator + summary */}
+            {overnight && (
+              <div className="flex items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2">
+                <Moon className="h-4 w-4 text-primary shrink-0" />
+                <span className="text-sm font-medium text-primary">Går over midnatt – slutter neste dag</span>
+              </div>
+            )}
+
+            {summaryLine && (
+              <div className="rounded-lg bg-muted/50 px-3 py-2">
+                <p className="text-xs text-muted-foreground">Tidsrom</p>
+                <p className="text-sm font-medium">{summaryLine}</p>
               </div>
             )}
 
@@ -369,17 +335,11 @@ export function EditJobDialog({ open, onOpenChange, jobId, onSaved }: EditJobDia
             {/* Notify toggle */}
             <div className="flex items-center justify-between rounded-lg border bg-card p-3">
               <div className="flex items-center gap-2">
-                {notifyParticipants ? (
-                  <Bell className="h-4 w-4 text-primary" />
-                ) : (
-                  <BellOff className="h-4 w-4 text-muted-foreground" />
-                )}
+                {notifyParticipants ? <Bell className="h-4 w-4 text-primary" /> : <BellOff className="h-4 w-4 text-muted-foreground" />}
                 <div>
                   <p className="text-sm font-medium">Varsle deltakere</p>
                   <p className="text-xs text-muted-foreground">
-                    {notifyParticipants
-                      ? "E-post og kalenderhendelse oppdateres"
-                      : "Kun databasen oppdateres"}
+                    {notifyParticipants ? "E-post og kalenderhendelse oppdateres" : "Kun databasen oppdateres"}
                   </p>
                 </div>
               </div>
@@ -387,9 +347,7 @@ export function EditJobDialog({ open, onOpenChange, jobId, onSaved }: EditJobDia
             </div>
 
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-                Avbryt
-              </Button>
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Avbryt</Button>
               <Button type="submit" disabled={techIds.length === 0 || submitting}>
                 {submitting ? "Lagrer..." : "Lagre endringer"}
               </Button>
