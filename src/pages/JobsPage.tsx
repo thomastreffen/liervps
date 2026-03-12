@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { JOB_STATUS_CONFIG, getDisplayNumber, type JobStatus } from "@/lib/job-status";
 import { useAuth } from "@/hooks/useAuth";
+import { useCompanyContext } from "@/hooks/useCompanyContext";
 import { toast } from "sonner";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
