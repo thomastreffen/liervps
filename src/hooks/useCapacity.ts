@@ -3,7 +3,7 @@ import { startOfWeek, addDays, differenceInMinutes } from "date-fns";
 import type { CalendarEvent } from "@/hooks/useCalendarEvents";
 import type { ExternalBusySlot } from "@/hooks/useExternalBusy";
 
-const WORK_DAY_MINUTES = 480; // 8h (08:00–16:00)
+const DEFAULT_WORK_DAY_MINUTES = 480; // 8h (08:00–16:00)
 
 export interface DayCapacity {
   date: Date;
