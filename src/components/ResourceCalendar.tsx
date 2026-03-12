@@ -202,6 +202,7 @@ export const ResourceCalendar = memo(function ResourceCalendar({
       const techNames = ev.technicians.map((t) => t.name.split(" ")[0]).join(", ");
       const firstTechId = ev.technicians[0]?.id;
       const baseColor = (firstTechId && techColorMap.get(firstTechId)) || GCAL_PALETTE[0];
+      const isOvernight = ev.start.toDateString() !== ev.end.toDateString();
       return {
         id: ev.id,
         title: ev.title.replace("SERVICE – ", ""),
@@ -217,6 +218,7 @@ export const ResourceCalendar = memo(function ResourceCalendar({
           techNames,
           baseColor,
           statusDot: statusDotColors[ev.status] || "#FFFFFF",
+          isOvernight,
         },
         editable: effectiveCanWrite,
       };
