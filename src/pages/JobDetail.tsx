@@ -183,6 +183,8 @@ export default function JobDetail() {
           onOpenAccess={() => { setAccessDrawerTab("members"); setAccessDrawerOpen(true); }}
           onOpenSpaces={() => { setAccessDrawerTab("spaces"); setAccessDrawerOpen(true); }}
           projectId={id}
+          externalTripletexId={(job as any).externalTripletexId}
+          companyName={activeCompany?.name}
         />
 
         {/* Room content or Rooms overview */}
