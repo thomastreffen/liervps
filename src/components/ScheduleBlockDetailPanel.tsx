@@ -393,7 +393,7 @@ export const ScheduleBlockDetailPanel = memo(function ScheduleBlockDetailPanel({
         )}
 
         {/* Unlink */}
-        {hasProject && (block.match_state === "confirmed" || block.match_state === "auto" || block.match_state === "manual") && (
+        {hasProject && (block.match_state === "confirmed" || block.match_state === "auto" || block.match_state === "manual" || block.match_state === "needs_confirmation") && (
           <Button variant="ghost" size="sm" className="h-7 text-xs gap-1 rounded-lg w-full justify-start text-muted-foreground"
             onClick={handleUnlinkProject} disabled={isLoading}>
             {actionLoading === "unlink" ? <Loader2 className="h-3 w-3 animate-spin" /> : <Unlink className="h-3 w-3" />}
