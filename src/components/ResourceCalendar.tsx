@@ -338,6 +338,7 @@ export const ResourceCalendar = memo(function ResourceCalendar({
     }
 
     // Schedule blocks (Outlook-synced)
+    const seenScheduleBlockKeys = new Set<string>();
     for (const block of scheduleBlocks) {
       const isExternal = block.source === "outlook" && !block.project_id;
 
@@ -349,6 +350,28 @@ export const ResourceCalendar = memo(function ResourceCalendar({
       const sourceLabel = block.source === "outlook" ? "Outlook" : "System";
       // Use outlook_subject for display title when available
       const displayTitle = block.outlook_subject || block.title || "Outlook-blokk";
+
+      // Robust dedup for schedule_blocks: avoid duplicate ghost blocks from sync race
+      const normalizedTitle = displayTitle.trim().toLowerCase();
+      const dedupKey = block.project_id
+        ? `linked|${block.source}|${block.technician_id}|${block.project_id}|${block.start_at.toISOString()}|${block.end_at.toISOString()}|${normalizedTitle}`
+        : `external|${block.source}|${block.technician_id}|${block.outlook_event_id || "no_external_id"}|${block.start_at.toISOString()}|${block.end_at.toISOString()}`;
+
+      if (seenScheduleBlockKeys.has(dedupKey)) {
+        console.warn("[ResourceCalendar] Suppressed duplicate schedule_block", {
+          source: block.source,
+          schedule_block_id: block.id,
+          external_event_id: block.outlook_event_id,
+          project_id: block.project_id,
+          start: block.start_at.toISOString(),
+          end: block.end_at.toISOString(),
+          title: displayTitle,
+          technician_id: block.technician_id,
+          calendar_id: block.calendar_id,
+        });
+        continue;
+      }
+      seenScheduleBlockKeys.add(dedupKey);
 
       // Privacy: non-superadmins see masked external blocks
       const masked = isExternal && !effectiveCanViewExternal;

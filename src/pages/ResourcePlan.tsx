@@ -111,7 +111,7 @@ export default function ResourcePlan() {
     { technicianIds: techIds, referenceDate }
   );
 
-  const { syncUpdate, syncCreate, forceUpdate, acceptGraphVersion, conflict, dismissConflict } = useCalendarSync();
+  const { syncUpdate, forceUpdate, acceptGraphVersion, conflict, dismissConflict } = useCalendarSync();
   const [selectedBlock, setSelectedBlock] = useState<ScheduleBlock | null>(null);
   const [hideExternalEvents, setHideExternalEvents] = useState(false);
   const [dropPayload, setDropPayload] = useState<DropPayload | null>(null);
@@ -691,12 +691,8 @@ export default function ResourcePlan() {
               )?.id ?? null
             : null
         }
-        onSaved={(eventId) => {
+        onSaved={() => {
           setRefreshKey((k) => k + 1);
-          if (eventId) {
-            if (editEvent) syncUpdate(eventId);
-            else syncCreate(eventId);
-          }
         }}
       />
 
