@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { nb } from "date-fns/locale";
 import { JobStatusBadge } from "@/components/JobStatusBadge";
+import { SourceMetadataBadge } from "@/components/SourceMetadataBadge";
 import {
   ArrowLeft,
   Users,
