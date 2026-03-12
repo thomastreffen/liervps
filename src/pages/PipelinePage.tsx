@@ -97,7 +97,7 @@ export default function PipelinePage() {
       setCards(items);
       setLoading(false);
     })();
-  }, []);
+  }, [activeCompanyId]);
 
   const handleDragStart = (cardId: string) => setDragging(cardId);
   const handleDragEnd = () => setDragging(null);

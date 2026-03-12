@@ -248,7 +248,7 @@ export function useManagementData() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [activeCompanyId]);
 
   useEffect(() => {
     fetchData();
