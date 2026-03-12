@@ -220,7 +220,7 @@ export function useScheduleBlocks(
     };
   }, [fetchBlocks]);
 
-  return { blocks, loading, refetch: fetchBlocks };
+  return { blocks, loading, refetch: fetchBlocks, removeBlockOptimistic };
 }
 
 /** Hook to get count of blocks needing confirmation */
