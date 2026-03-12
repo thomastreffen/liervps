@@ -126,9 +126,9 @@ export default function JobsPage() {
       );
     }
     setLoading(false);
-  };
+  }, [activeCompanyId]);
 
-  useEffect(() => { fetchJobs(); }, []);
+  useEffect(() => { fetchJobs(); }, [fetchJobs]);
 
   const tabCounts = useMemo(() => {
     const counts: Record<StatusTab, number> = { requested: 0, scheduled: 0, in_progress: 0, completed: 0, archive: 0, all: jobs.length };
