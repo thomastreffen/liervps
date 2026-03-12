@@ -98,15 +98,31 @@ export function useTripletexImport() {
   }, [companyId]);
 
   const matchProjects = async (parsed: ParsedCSV) => {
-    // Fetch existing projects for matching
-    const { data: existing } = await supabase
-      .from("events")
-      .select("id, title, project_number, external_tripletex_id, customer, project_type")
-      .is("deleted_at", null);
+    // Fetch existing projects and customers for matching
+    const [{ data: existing }, { data: customers }] = await Promise.all([
+      supabase
+        .from("events")
+        .select("id, title, project_number, external_tripletex_id, customer, project_type")
+        .is("deleted_at", null),
+      supabase
+        .from("customers")
+        .select("id, name, org_number, external_tripletex_id"),
+    ]);
 
     const allProjects = (existing || []);
+    const allCustomers = (customers || []);
 
-    // Build exact-match maps
+    // Build customer lookup maps
+    const customerByOrgNr = new Map<string, { id: string; name: string }>();
+    const customerByTripletexId = new Map<string, { id: string; name: string }>();
+    const customerByName = new Map<string, { id: string; name: string }>();
+    allCustomers.forEach(c => {
+      if (c.org_number) customerByOrgNr.set(c.org_number.trim(), { id: c.id, name: c.name });
+      if ((c as any).external_tripletex_id) customerByTripletexId.set(((c as any).external_tripletex_id as string).trim(), { id: c.id, name: c.name });
+      customerByName.set(c.name.toLowerCase().trim(), { id: c.id, name: c.name });
+    });
+
+    // Build exact-match maps for projects
     const byProjectNumber = new Map<string, { id: string; title: string; customer: string | null }>();
     const byTripletexId = new Map<string, { id: string; title: string; customer: string | null }>();
 
@@ -205,6 +221,9 @@ export function useTripletexImport() {
         raw: row,
       };
     });
+
+    // Store customer maps for use during import execution
+    customerMapsRef.current = { customerByOrgNr, customerByTripletexId, customerByName };
 
     setProjectRows(rows);
   };
