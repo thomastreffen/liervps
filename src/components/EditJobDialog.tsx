@@ -104,8 +104,7 @@ export function EditJobDialog({ open, onOpenChange, jobId, onSaved }: EditJobDia
       return;
     }
 
-    const startISO = new Date(`${startDate}T${startTime}`).toISOString();
-    const endISO = new Date(`${endDate}T${endTime}`).toISOString();
+    const { startISO, endISO } = normalizeOvernightDates(startDate, startTime, endDate, endTime);
 
     // Find overlapping events for selected technicians
     const { data: overlapping } = await supabase
