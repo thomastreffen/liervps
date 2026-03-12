@@ -12,8 +12,10 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Plus, CalendarDays, ChevronLeft, ChevronRight, RotateCcw, UserCheck, UserMinus, Clock,
-  Calendar, List, Bell,
+  Calendar, List, Bell, Sun, Moon, Sunrise, ZoomIn,
 } from "lucide-react";
+import { useOperatingHours, type ZoomLevel } from "@/hooks/useOperatingHours";
+import { setWorkHours } from "@/hooks/useTechnicianNowStatus";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/hooks/useAuth";
 import { usePermissions } from "@/hooks/usePermissions";
