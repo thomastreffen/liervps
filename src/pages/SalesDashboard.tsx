@@ -41,15 +41,15 @@ export default function SalesDashboard() {
       const now = new Date();
       const d7 = new Date(now.getTime() - 7 * 86400000).toISOString();
 
-      const leadsRes = await fetchActiveLeads("id, company_name, status, lead_ref_code, updated_at, next_action_date, next_action_type");
-      const [calcsRes] = await Promise.all([
-        supabase
+      const leadsRes = await fetchActiveLeads("id, company_name, status, lead_ref_code, updated_at, next_action_date, next_action_type", activeCompanyId);
+      let calcsQuery = supabase
           .from("calculations")
           .select("id, project_title, customer_name, status, total_price, created_at, lead_id")
           .is("deleted_at", null)
           .order("created_at", { ascending: false })
-          .limit(20),
-      ]);
+          .limit(20);
+      if (activeCompanyId) calcsQuery = calcsQuery.eq("company_id", activeCompanyId);
+      const [calcsRes] = await Promise.all([calcsQuery]);
 
       const leads = leadsRes.data || [];
       const calcs = calcsRes.data || [];
