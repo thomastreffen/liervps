@@ -4,6 +4,7 @@ import { format, startOfDay, endOfDay, addDays } from "date-fns";
 import { nb } from "date-fns/locale";
 import { Loader2, Settings2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { useCompanyContext } from "@/hooks/useCompanyContext";
 import { useDashboardConfig, type ModuleKey } from "@/hooks/useDashboardConfig";
 import { ProjectCards, type ProjectCardData } from "@/components/overview/ProjectCards";
 import { YourDay, type DayBlock } from "@/components/overview/YourDay";
@@ -18,6 +19,7 @@ import { EventDrawer } from "@/components/EventDrawer";
 
 export default function OverviewPage() {
   const { user, isSuperAdmin } = useAuth();
+  const { activeCompanyId } = useCompanyContext();
   const { modules, enabledModules, loading: configLoading, saveModules, isEnabled } = useDashboardConfig();
   const [dataLoading, setDataLoading] = useState(true);
   const [projects, setProjects] = useState<ProjectCardData[]>([]);
@@ -42,14 +44,17 @@ export default function OverviewPage() {
       .eq("user_id", user.id)
       .maybeSingle();
 
-    const [projectsRes, techRes] = await Promise.all([
-      supabase.from("events")
+    let projectQuery = supabase.from("events")
         .select("id, title, customer, status, internal_number")
         .in("status", activeStatuses)
         .neq("project_type", "task")
         .is("deleted_at", null)
         .order("updated_at", { ascending: false })
-        .limit(12),
+        .limit(12);
+    if (activeCompanyId) projectQuery = projectQuery.eq("company_id", activeCompanyId);
+
+    const [projectsRes, techRes] = await Promise.all([
+      projectQuery,
       techPromise,
     ]);
 
@@ -223,7 +228,7 @@ export default function OverviewPage() {
 
     setActivity((activityRes.data as ActivityItem[]) || []);
     setDataLoading(false);
-  }, [user]);
+  }, [user, activeCompanyId]);
 
   useEffect(() => {
     if (!user || configLoading) return;

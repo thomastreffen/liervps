@@ -5,6 +5,7 @@ import { fetchActiveLeads } from "@/lib/lead-queries";
 import { type OfferStatus } from "@/lib/offer-status";
 import { type LeadStatus } from "@/lib/lead-status";
 import { useAuth } from "@/hooks/useAuth";
+import { useCompanyContext } from "@/hooks/useCompanyContext";
 import { SalesPulse } from "@/components/dashboard/SalesPulse";
 import { SalesHeader } from "@/components/dashboard/SalesHeader";
 import { SalesActionRequired, buildActionItems, type ActionItem } from "@/components/dashboard/SalesActionRequired";
@@ -18,6 +19,7 @@ import { SalesTeamOverview } from "@/components/dashboard/SalesTeamOverview";
 export default function SalesDashboard() {
   const nav = useNavigate();
   const { isAdmin } = useAuth();
+  const { activeCompanyId } = useCompanyContext();
   const [recentOffers, setRecentOffers] = useState<RecentOffer[]>([]);
   const [recentLeads, setRecentLeads] = useState<RecentLead[]>([]);
   const [actions, setActions] = useState<ActionItem[]>([]);
@@ -39,15 +41,15 @@ export default function SalesDashboard() {
       const now = new Date();
       const d7 = new Date(now.getTime() - 7 * 86400000).toISOString();
 
-      const leadsRes = await fetchActiveLeads("id, company_name, status, lead_ref_code, updated_at, next_action_date, next_action_type");
-      const [calcsRes] = await Promise.all([
-        supabase
+      const leadsRes = await fetchActiveLeads("id, company_name, status, lead_ref_code, updated_at, next_action_date, next_action_type", activeCompanyId);
+      let calcsQuery = supabase
           .from("calculations")
           .select("id, project_title, customer_name, status, total_price, created_at, lead_id")
           .is("deleted_at", null)
           .order("created_at", { ascending: false })
-          .limit(20),
-      ]);
+          .limit(20);
+      if (activeCompanyId) calcsQuery = calcsQuery.eq("company_id", activeCompanyId);
+      const [calcsRes] = await Promise.all([calcsQuery]);
 
       const leads = leadsRes.data || [];
       const calcs = calcsRes.data || [];
@@ -149,7 +151,7 @@ export default function SalesDashboard() {
 
       setLoading(false);
     })();
-  }, []);
+  }, [activeCompanyId]);
 
   return (
     <div className="space-y-4 max-w-[1920px] mx-auto pb-8">

@@ -13,6 +13,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
+import { useCompanyContext } from "@/hooks/useCompanyContext";
+import { SourceMetadataBadge, SourceMetadataSection } from "@/components/SourceMetadataBadge";
 import { format } from "date-fns";
 import { nb } from "date-fns/locale";
 import { JOB_STATUS_CONFIG, type JobStatus } from "@/lib/job-status";
@@ -28,6 +30,8 @@ interface Customer {
   billing_city: string | null;
   notes: string | null;
   created_at: string;
+  external_tripletex_id: string | null;
+  company_id: string | null;
 }
 
 interface Contact {
@@ -50,6 +54,7 @@ export default function CustomerDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { isAdmin } = useAuth();
+  const { activeCompany } = useCompanyContext();
 
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [loading, setLoading] = useState(true);
@@ -199,6 +204,13 @@ export default function CustomerDetailPage() {
                 <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
                   {customer.org_number && <span className="font-mono">Org: {customer.org_number}</span>}
                   {customer.billing_city && <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{customer.billing_city}</span>}
+                </div>
+                <div className="mt-1">
+                  <SourceMetadataBadge
+                    source={customer.external_tripletex_id ? "tripletex" : "local"}
+                    externalId={customer.external_tripletex_id}
+                    companyName={activeCompany?.name}
+                  />
                 </div>
               </div>
             </div>
@@ -379,6 +391,16 @@ export default function CustomerDetailPage() {
                 )}
               </CardContent>
             </Card>
+
+            {/* Source / integration section */}
+            <div className="mt-4">
+              <SourceMetadataSection
+                source={customer.external_tripletex_id ? "tripletex" : "local"}
+                externalId={customer.external_tripletex_id}
+                companyName={activeCompany?.name}
+                lastSynced={customer.external_tripletex_id ? customer.created_at : null}
+              />
+            </div>
           </TabsContent>
         </Tabs>
       </div>

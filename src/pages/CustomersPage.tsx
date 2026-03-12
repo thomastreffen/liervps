@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useCompanyContext } from "@/hooks/useCompanyContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -32,6 +33,7 @@ const PAGE_SIZE = 20;
 
 export default function CustomersPage() {
   const navigate = useNavigate();
+  const { activeCompanyId } = useCompanyContext();
   const [customers, setCustomers] = useState<CustomerRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -41,18 +43,26 @@ export default function CustomersPage() {
 
   const fetchCustomers = async () => {
     setLoading(true);
-    const { data, error } = await supabase
+    let query = supabase
       .from("customers")
       .select("id, name, org_number, billing_city, main_email, created_at")
       .order("name", { ascending: true });
 
+    if (activeCompanyId) {
+      query = query.eq("company_id", activeCompanyId);
+    }
+
+    const { data } = await query;
+
     if (data) {
       // Get project counts per customer
-      const { data: projectCounts } = await supabase
+      let projectQuery = supabase
         .from("events")
         .select("customer_id")
         .not("customer_id", "is", null)
         .is("deleted_at", null);
+      if (activeCompanyId) projectQuery = projectQuery.eq("company_id", activeCompanyId);
+      const { data: projectCounts } = await projectQuery;
 
       const countMap = new Map<string, number>();
       if (projectCounts) {
@@ -77,7 +87,7 @@ export default function CustomersPage() {
     setLoading(false);
   };
 
-  useEffect(() => { fetchCustomers(); }, []);
+  useEffect(() => { fetchCustomers(); }, [activeCompanyId]);
 
   const filtered = useMemo(() => {
     let result = [...customers];

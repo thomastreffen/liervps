@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useCompanyContext } from "@/hooks/useCompanyContext";
 import {
   FileText, CheckCircle, Clock, Users, AlertTriangle,
   Send, Receipt, ArrowRight, Loader2, Filter, ClipboardCheck, Package
@@ -48,6 +49,7 @@ const statusConfig: Record<string, { label: string; variant: "default" | "second
 
 export default function InvoiceBasisPage() {
   const { user } = useAuth();
+  const { activeCompanyId } = useCompanyContext();
   const [rows, setRows] = useState<InvoiceBasisRow[]>([]);
   const [wpRows, setWpRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -56,14 +58,16 @@ export default function InvoiceBasisPage() {
 
   useEffect(() => {
     const load = async () => {
-      const { data } = await supabase
+      let query = (supabase as any)
         .from("invoice_basis")
         .select("*")
         .order("approved_at", { ascending: false });
+      if (activeCompanyId) query = query.eq("company_id", activeCompanyId);
+      const { data } = await query;
 
       if (data && data.length > 0) {
         // Fetch project titles
-        const projectIds = [...new Set(data.map((r: any) => r.project_id))];
+        const projectIds = [...new Set((data as any[]).map((r: any) => r.project_id))] as string[];
         const { data: projects } = await supabase
           .from("events")
           .select("id, title, address")
@@ -108,7 +112,7 @@ export default function InvoiceBasisPage() {
       }
     };
     load();
-  }, []);
+  }, [activeCompanyId]);
 
   const markAsSent = async (id: string) => {
     const row = rows.find((r) => r.id === id);

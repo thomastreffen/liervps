@@ -19,6 +19,7 @@ import {
 } from "@/lib/job-status";
 import { useAuth } from "@/hooks/useAuth";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useCompanyContext } from "@/hooks/useCompanyContext";
 import { ImageLightbox } from "@/components/ImageLightbox";
 import { ProjectAccessDrawer } from "@/components/project/ProjectAccessDrawer";
 import { Loader2, X, ArrowLeft } from "lucide-react";
@@ -30,6 +31,7 @@ export default function JobDetail() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { hasPermission } = usePermissions();
+  const { activeCompany } = useCompanyContext();
   const canEditPlan = hasPermission("projects.edit_plan");
   const canDeleteAttachment = hasPermission("projects.delete_attachment");
 
@@ -181,6 +183,8 @@ export default function JobDetail() {
           onOpenAccess={() => { setAccessDrawerTab("members"); setAccessDrawerOpen(true); }}
           onOpenSpaces={() => { setAccessDrawerTab("spaces"); setAccessDrawerOpen(true); }}
           projectId={id}
+          externalTripletexId={(job as any).externalTripletexId}
+          companyName={activeCompany?.name}
         />
 
         {/* Room content or Rooms overview */}

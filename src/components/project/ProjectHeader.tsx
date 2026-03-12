@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { nb } from "date-fns/locale";
 import { JobStatusBadge } from "@/components/JobStatusBadge";
+import { SourceMetadataBadge } from "@/components/SourceMetadataBadge";
 import {
   ArrowLeft,
   Users,
@@ -40,6 +41,8 @@ interface ProjectHeaderProps {
   onOpenSpaces?: () => void;
   onEdit?: () => void;
   projectId?: string;
+  externalTripletexId?: string | null;
+  companyName?: string | null;
 }
 
 export function ProjectHeader({
@@ -53,6 +56,8 @@ export function ProjectHeader({
   onOpenSpaces,
   onEdit,
   projectId,
+  externalTripletexId,
+  companyName,
 }: ProjectHeaderProps) {
   const navigate = useNavigate();
   const period = `${format(start, "d. MMM", { locale: nb })} – ${format(end, "d. MMM yyyy", { locale: nb })}`;
@@ -111,7 +116,16 @@ export function ProjectHeader({
             {title}
           </h1>
 
-          {/* Fag button */}
+          {/* Source badge */}
+          {(externalTripletexId || companyName) && (
+            <div className="mt-1">
+              <SourceMetadataBadge
+                source={externalTripletexId ? "tripletex" : "local"}
+                externalId={externalTripletexId}
+                companyName={companyName}
+              />
+            </div>
+          )}
           {projectId && (
             <div className="mt-2 sm:mt-3">
               <Button

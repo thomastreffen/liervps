@@ -5,6 +5,7 @@ import { nb } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchActiveLeads } from "@/lib/lead-queries";
 import { useAuth } from "@/hooks/useAuth";
+import { useCompanyContext } from "@/hooks/useCompanyContext";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -35,6 +36,7 @@ const STALE_DAYS = 7;
 export default function PipelinePage() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { activeCompanyId } = useCompanyContext();
   const [cards, setCards] = useState<PipelineCard[]>([]);
   const [loading, setLoading] = useState(true);
   const [dragging, setDragging] = useState<string | null>(null);
@@ -48,7 +50,7 @@ export default function PipelinePage() {
   useEffect(() => {
     (async () => {
       setLoading(true);
-      const { data: leads } = await fetchActiveLeads();
+      const { data: leads } = await fetchActiveLeads("*", activeCompanyId);
       const activeLeads = (leads || []).filter((l: any) => l.status !== "lost");
 
       const leadIds = activeLeads.map((l: any) => l.id);
@@ -95,7 +97,7 @@ export default function PipelinePage() {
       setCards(items);
       setLoading(false);
     })();
-  }, []);
+  }, [activeCompanyId]);
 
   const handleDragStart = (cardId: string) => setDragging(cardId);
   const handleDragEnd = () => setDragging(null);
