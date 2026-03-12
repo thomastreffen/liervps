@@ -67,11 +67,21 @@ export const PERMISSION_LABELS: Record<string, PermissionMeta> = {
     category: "Kommunikasjon",
   },
 
-  // Calendar
+  // Calendar (legacy – kept for backward compat)
   "calendar.read_busy": { label: "Se opptatt/ledig i kalender", category: "Kalender" },
   "calendar.view_external": { label: "Se detaljer i eksterne kalenderavtaler", description: "Kan se titler, lokasjoner og annen metadata på eksterne Outlook-hendelser i ressursplanen. Uten denne rettigheten vises kun anonymiserte 'Opptatt'-blokker.", category: "Kalender" },
   "calendar.write_events": { label: "Opprette og endre kalenderavtaler", category: "Kalender" },
   "calendar.delete_events": { label: "Slette kalenderavtaler", category: "Kalender" },
+
+  // Ressursplan
+  "resourceplan.view": { label: "Se ressursplan", description: "Tilgang til å åpne og se ressursplanen.", category: "Ressursplan" },
+  "resourceplan.view_busy": { label: "Se opptatt/ledig i ressursplan", description: "Kan se tilgjengelighetsstatus for montører.", category: "Ressursplan" },
+  "resourceplan.view_external_blocks": { label: "Se eksterne kalenderblokker", description: "Kan se Outlook-importerte blokker i ressursplanen.", category: "Ressursplan" },
+  "resourceplan.view_external_titles": { label: "Se titler på eksterne avtaler", description: "Kan se tittel på eksterne Outlook-avtaler i stedet for anonymisert 'Opptatt'.", category: "Ressursplan" },
+  "resourceplan.view_external_details": { label: "Se detaljer i eksterne avtaler", description: "Kan se lokasjon, organisator og andre detaljer på eksterne kalenderavtaler.", category: "Ressursplan" },
+  "resourceplan.schedule": { label: "Planlegge ressurser", description: "Kan dra og slippe prosjekter og oppgaver inn i ressursplanen.", category: "Ressursplan" },
+  "resourceplan.edit_others": { label: "Endre andres planlagte aktiviteter", description: "Kan flytte og endre varighet på aktiviteter planlagt av andre.", category: "Ressursplan" },
+  "resourceplan.cross_company": { label: "Se ressursplan på tvers av selskaper", description: "Kan se ressurser og aktiviteter fra alle selskaper i ressursplanen.", category: "Ressursplan" },
 
   // Admin
   "admin.manage_companies": { label: "Administrere selskaper", category: "Administrasjon" },
@@ -144,6 +154,15 @@ export const PERMISSION_CATEGORIES: { category: string; description: string; key
     category: "Kalender",
     description: "Tilgang til kalender og avtaler.",
     keys: ["calendar.read_busy", "calendar.view_external", "calendar.write_events", "calendar.delete_events"],
+  },
+  {
+    category: "Ressursplan",
+    description: "Tilgang til ressursplanen med planlegging og eksternvisning.",
+    keys: [
+      "resourceplan.view", "resourceplan.view_busy", "resourceplan.view_external_blocks",
+      "resourceplan.view_external_titles", "resourceplan.view_external_details",
+      "resourceplan.schedule", "resourceplan.edit_others", "resourceplan.cross_company",
+    ],
   },
   {
     category: "Administrasjon",

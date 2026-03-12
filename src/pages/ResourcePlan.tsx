@@ -12,7 +12,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Plus, CalendarDays, ChevronLeft, ChevronRight, RotateCcw, UserCheck, UserMinus, Clock,
-  Calendar, List, Bell, Sun, Moon, Sunrise, ZoomIn,
+  Calendar, List, Bell, Sun, Moon, Sunrise, ZoomIn, Building,
 } from "lucide-react";
 import { useOperatingHours, type ZoomLevel } from "@/hooks/useOperatingHours";
 import { setWorkHours } from "@/hooks/useTechnicianNowStatus";
@@ -38,6 +38,7 @@ import { CapacityStatusBar } from "@/components/resource-plan/CapacityStatusBar"
 import { UnplannedProjectsBanner } from "@/components/resource-plan/UnplannedProjectsBanner";
 import { useUnplannedProjects } from "@/hooks/useUnplannedProjects";
 import { DropConfirmPopover, type DropPayload } from "@/components/resource-plan/DropConfirmPopover";
+import { useCompanyContext } from "@/hooks/useCompanyContext";
 
 type CalendarViewType = "timeGridDay" | "timeGridWeek" | "dayGridMonth" | "listWeek";
 
@@ -62,14 +63,28 @@ export default function ResourcePlan() {
   const navigate = useNavigate();
   const { isAdmin, isSuperAdmin } = useAuth();
   const { hasPermission } = usePermissions();
+  const { companies, activeCompanyId } = useCompanyContext();
   // Permission-based access: use permission keys, NOT role checks
   const canReadBusy = hasPermission("calendar.read_busy");
   const canViewExternal = hasPermission("calendar.view_external");
   const canWriteEvents = hasPermission("calendar.write_events");
   const canDeleteEvents = hasPermission("calendar.delete_events");
+  const canCrossCompany = hasPermission("resourceplan.cross_company") || hasPermission("scope.view.all");
   const confirmationCount = useConfirmationCount();
   const syncHealth = useSyncHealth(isAdmin);
-  const { technicians } = useTechnicians();
+
+  // Resource plan company scope: default to active company, "all" requires permission
+  const [rpCompanyScope, setRpCompanyScope] = useState<string>("active");
+  const effectiveCompanyId = rpCompanyScope === "all" ? null : (rpCompanyScope === "active" ? activeCompanyId : rpCompanyScope);
+
+  // Sync with global company selector
+  useEffect(() => {
+    if (rpCompanyScope === "active" || (!canCrossCompany && rpCompanyScope === "all")) {
+      // keep following active company
+    }
+  }, [activeCompanyId, canCrossCompany, rpCompanyScope]);
+
+  const { technicians } = useTechnicians(effectiveCompanyId);
   const unplannedCount = useUnplannedProjects();
   const [selectedTechId, setSelectedTechId] = useState<string | null>(null);
   const [capacityFilter, setCapacityFilter] = useState<"all" | "available" | "partial">("all");
@@ -405,8 +420,31 @@ export default function ResourcePlan() {
                   )}
                 </div>
                 <span className="text-[9px] font-mono text-muted-foreground/60 select-all">
-                  UI build: 2026-03-07 10:00
+                  UI build: 2026-03-12 14:00
                 </span>
+                {/* Company scope selector */}
+                <div className="flex items-center gap-1.5">
+                  <Building className="h-3.5 w-3.5 text-muted-foreground" />
+                  <Select value={rpCompanyScope} onValueChange={(v) => {
+                    if (v === "all" && !canCrossCompany) return;
+                    setRpCompanyScope(v);
+                  }}>
+                    <SelectTrigger className="h-7 text-xs w-[180px] rounded-lg border-border/40">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="active">
+                        {companies.find(c => c.id === activeCompanyId)?.name || "Aktivt selskap"}
+                      </SelectItem>
+                      {companies.filter(c => c.id !== activeCompanyId).map(c => (
+                        <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                      ))}
+                      {canCrossCompany && (
+                        <SelectItem value="all">Alle selskaper</SelectItem>
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
               <div className="flex items-center gap-2 flex-wrap">
@@ -564,8 +602,8 @@ export default function ResourcePlan() {
                 </div>
               </div>
 
-              {/* Quick time navigation – only for extended/industry profiles */}
-              {operatingHours.hasNightHours && (calendarView === "timeGridDay" || calendarView === "timeGridWeek") && (
+              {/* Quick time navigation – always available since calendar is 24h */}
+              {(calendarView === "timeGridDay" || calendarView === "timeGridWeek") && (
                 <div className="flex items-center gap-1 border border-border/40 rounded-lg p-0.5">
                   <Button variant="ghost" size="sm" className="h-6 text-[10px] rounded-md px-2 gap-1" onClick={() => {
                     window.dispatchEvent(new CustomEvent("resource-calendar:scroll-to", { detail: "06:00:00" }));
@@ -585,9 +623,9 @@ export default function ResourcePlan() {
                 </div>
               )}
 
-              {/* Operating profile badge */}
+              {/* Operating profile badge – shows working hours profile, calendar is always 24h */}
               <Badge variant="outline" className="text-[10px] h-5">
-                {operatingHours.profile === "office" ? "Kontor 08–16" : operatingHours.profile === "extended" ? "Utvidet 06–22" : "Industri 24/7"}
+                Driftsprofil: {operatingHours.profile === "office" ? "Kontor 08–16" : operatingHours.profile === "extended" ? "Utvidet 06–22" : "Industri 24/7"}
               </Badge>
             </div>
           </>
