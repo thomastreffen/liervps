@@ -701,7 +701,7 @@ export default function ResourcePlan() {
             : null
         }
         onSaved={() => {
-          setRefreshKey((k) => k + 1);
+          void refreshPlanData();
         }}
       />
 
@@ -721,7 +721,9 @@ export default function ResourcePlan() {
         <ScheduleBlockDetailPanel
           block={selectedBlock}
           onClose={() => setSelectedBlock(null)}
-          onConfirmed={() => refetchBlocks()}
+          onConfirmed={() => {
+            void refreshPlanData();
+          }}
         />
       )}
 
@@ -729,8 +731,7 @@ export default function ResourcePlan() {
         payload={dropPayload}
         onClose={() => setDropPayload(null)}
         onCreated={() => {
-          setRefreshKey((k) => k + 1);
-          refetchBlocks();
+          void refreshPlanData();
         }}
       />
     </div>
