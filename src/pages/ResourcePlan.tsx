@@ -156,7 +156,7 @@ export default function ResourcePlan() {
     setColorOverrides((prev) => new Map(prev).set(techId, color));
   }, []);
 
-  const { events: calEvents } = useCalendarEvents(selectedTechId, referenceDate, effectiveCompanyId);
+  const { events: calEvents } = useCalendarEvents(selectedTechId, referenceDate, effectiveCompanyId, scopedCompanyTechIds);
 
   // Navigation helpers – view-aware
   const goToPrev = useCallback(() => {

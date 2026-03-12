@@ -141,7 +141,8 @@ export const ResourceCalendar = memo(function ResourceCalendar({
   const effectiveCanWrite = canWriteEvents ?? isAdmin;
   const effectiveCanViewExternal = canViewExternalDetails ?? isSuperAdmin;
   const calendarRef = useRef<FullCalendar>(null);
-  const { events: calendarEvents } = useCalendarEvents(technicianId, referenceDate, companyId);
+  const scopedTechnicianIds = useMemo(() => Array.from(technicianMap.keys()), [technicianMap]);
+  const { events: calendarEvents } = useCalendarEvents(technicianId, referenceDate, companyId, scopedTechnicianIds);
 
   const isMonthView = calendarView === "dayGridMonth";
   const isDayView = calendarView === "timeGridDay";

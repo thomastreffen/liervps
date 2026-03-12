@@ -137,14 +137,14 @@ export function useCalendarEvents(technicianId: string | null, referenceDate?: D
         };
       });
 
-      console.log(`[Calendar] Fetched ${mapped.length} unique events (tech: ${technicianId ?? "ALL"}, company: ${companyId ?? "ALL"}, week: ${weekStartISO.slice(0, 10)})`);
+      console.log(`[Calendar] Fetched ${mapped.length} unique events (tech: ${technicianId ?? "ALL"}, company: ${companyId ?? "ALL"}, scope-techs: ${Array.isArray(scopedTechnicianIds) ? scopedTechnicianIds.length : "ALL"}, week: ${weekStartISO.slice(0, 10)})`);
       setEvents(mapped);
     } catch (err) {
       console.error("[Calendar] Fetch exception:", err);
     } finally {
       setLoading(false);
     }
-  }, [technicianId, weekStartISO, weekEndISO, companyId]);
+  }, [technicianId, weekStartISO, weekEndISO, companyId, scopedTechnicianIds?.join(",")]);
 
   useEffect(() => {
     fetchEvents();
