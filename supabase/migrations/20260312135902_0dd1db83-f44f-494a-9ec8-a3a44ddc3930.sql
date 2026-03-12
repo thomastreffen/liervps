@@ -1,0 +1,1 @@
+ALTER TABLE public.event_technicians ADD COLUMN IF NOT EXISTS calendar_event_id text DEFAULT NULL;

@@ -21,7 +21,6 @@ async function ensureValidMsToken(
 
   if (!accessToken) return null;
 
-  // Still valid?
   if (expiresAt && new Date(expiresAt).getTime() > Date.now() + 5 * 60 * 1000) {
     return accessToken;
   }
@@ -67,9 +66,7 @@ async function ensureValidMsToken(
 
 /* ── Strip UTC offset so Graph uses the explicit timeZone property ── */
 function toLocalDateTimeString(isoString: string): string {
-  // Convert "2026-03-06T07:00:00+00:00" (UTC) to "2026-03-06T08:00:00" (Europe/Oslo local)
   const d = new Date(isoString);
-  // Format in Europe/Oslo timezone without offset
   const parts = new Intl.DateTimeFormat("sv-SE", {
     timeZone: "Europe/Oslo",
     year: "numeric",
@@ -95,6 +92,7 @@ const PROJECT_TYPE_LABELS: Record<string, string> = {
   repair: "Reparasjon",
   consultation: "Rådgivning",
   emergency: "Akutt",
+  task: "Oppgave",
 };
 
 /* ── Format time for display ── */
@@ -127,7 +125,6 @@ function normalizeEventTimes(event: any): { startTime: string; endTime: string }
   const start = new Date(event.start_time);
   let end = new Date(event.end_time);
   if (end.getTime() <= start.getTime()) {
-    // end is before start → likely overnight, bump end by 1 day
     end = new Date(end.getTime() + 24 * 60 * 60 * 1000);
     console.log(`[calendar-write-sync] Overnight normalization: ${event.start_time} → ${end.toISOString()}`);
   }
@@ -136,10 +133,8 @@ function normalizeEventTimes(event: any): { startTime: string; endTime: string }
 
 /* ── Build Graph event body ── */
 function buildGraphBody(event: any, customer?: any) {
-  // Normalize overnight times before building payload
   const { startTime: normalizedStart, endTime: normalizedEnd } = normalizeEventTimes(event);
 
-  // Subject: [KUNDE] – [TYPE] – [STED]  (human, no internal codes)
   const typeLabel = PROJECT_TYPE_LABELS[event.project_type] || event.project_type || "Arbeid";
   const customerName = event.customer || customer?.name || "";
   const locationShort = event.address?.split(",")[0]?.trim() || "";
@@ -149,27 +144,22 @@ function buildGraphBody(event: any, customer?: any) {
     ? subjectParts.join(" – ")
     : event.title || "Oppdrag";
 
-  // Structured body – scannable in 3 seconds
   const timeDisplay = formatTimeRange(normalizedStart, normalizedEnd);
   const addressDisplay = event.address || "Ikke angitt";
   const mapsUrl = event.address ? mapsLink(event.address) : "";
 
-  // Check if overnight for display
   const startD = new Date(normalizedStart);
   const endD = new Date(normalizedEnd);
   const isOvernight = startD.toDateString() !== endD.toDateString();
 
   let html = `<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 14px; line-height: 1.6; color: #1a1a1a;">`;
 
-  // OPPDRAG
   html += `<p style="margin: 0 0 4px; font-size: 13px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px;">Oppdrag</p>`;
   html += `<p style="margin: 0 0 16px; font-size: 15px;">${event.title || typeLabel}${event.description ? `<br/><span style="color: #6b7280;">${event.description}</span>` : ""}${isOvernight ? '<br/><span style="color: #7c3aed;">🌙 Nattoppdrag</span>' : ""}</p>`;
 
-  // TID
   html += `<p style="margin: 0 0 4px; font-size: 13px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px;">Tidspunkt</p>`;
   html += `<p style="margin: 0 0 16px; font-size: 15px; white-space: pre-line;">${timeDisplay}</p>`;
 
-  // STED
   html += `<p style="margin: 0 0 4px; font-size: 13px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px;">Sted</p>`;
   html += `<p style="margin: 0 0 4px; font-size: 15px;">${addressDisplay}</p>`;
   if (mapsUrl) {
@@ -178,7 +168,6 @@ function buildGraphBody(event: any, customer?: any) {
     html += `<p style="margin: 0 0 16px;"></p>`;
   }
 
-  // KONTAKT
   if (customerName || customer?.main_phone || customer?.main_email) {
     html += `<p style="margin: 0 0 4px; font-size: 13px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px;">Kontakt</p>`;
     const contactParts: string[] = [];
@@ -223,6 +212,147 @@ async function resolveCallerUserId(req: Request, supabaseAdmin: any): Promise<st
   const { data, error } = await anonClient.auth.getUser(token);
   if (error || !data?.user) return null;
   return data.user.id;
+}
+
+/* ── Per-technician calendar sync helper ── */
+async function syncForTechnician(
+  supabaseAdmin: any,
+  tech: any,
+  eventTechRow: any,
+  event: any,
+  customer: any,
+  graphBody: any,
+  action: string,
+  callerUserId: string | null,
+  logAction: (actionType: string, summary: string) => Promise<void>
+): Promise<any> {
+  const userId = tech.user_id;
+  if (!userId) {
+    return { techId: tech.id, techName: tech.name, status: "no_user_id" };
+  }
+
+  const msToken = await ensureValidMsToken(supabaseAdmin, userId);
+  if (!msToken) {
+    return { techId: tech.id, techName: tech.name, status: "no_token" };
+  }
+
+  const techEmail = tech.email;
+  if (!techEmail) {
+    return { techId: tech.id, techName: tech.name, status: "no_email" };
+  }
+
+  const existingCalEventId = eventTechRow.calendar_event_id;
+
+  if (action === "create") {
+    if (existingCalEventId) {
+      // Already has a calendar event, skip
+      return { techId: tech.id, techName: tech.name, status: "already_exists", calendarEventId: existingCalEventId };
+    }
+
+    const res = await fetch(
+      `https://graph.microsoft.com/v1.0/users/${techEmail}/events`,
+      {
+        method: "POST",
+        headers: { Authorization: `Bearer ${msToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify(graphBody),
+      }
+    );
+
+    if (!res.ok) {
+      const errText = await res.text();
+      console.error(`[calendar-write-sync] Create failed for ${techEmail}:`, res.status, errText);
+      return { techId: tech.id, techName: tech.name, status: "error", code: res.status };
+    }
+
+    const data = await res.json();
+    await supabaseAdmin.from("event_technicians")
+      .update({ calendar_event_id: data.id })
+      .eq("id", eventTechRow.id);
+
+    await logAction("outlook_created", `Outlook-event opprettet for ${tech.name} (${techEmail})`);
+    return { techId: tech.id, techName: tech.name, status: "created", calendarEventId: data.id };
+  }
+
+  if (action === "update" || action === "force_update") {
+    if (!existingCalEventId) {
+      // No existing calendar event → create instead
+      const res = await fetch(
+        `https://graph.microsoft.com/v1.0/users/${techEmail}/events`,
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${msToken}`, "Content-Type": "application/json" },
+          body: JSON.stringify(graphBody),
+        }
+      );
+
+      if (!res.ok) {
+        const errText = await res.text();
+        console.error(`[calendar-write-sync] Create (from update) failed for ${techEmail}:`, res.status, errText);
+        return { techId: tech.id, techName: tech.name, status: "error", code: res.status };
+      }
+
+      const data = await res.json();
+      await supabaseAdmin.from("event_technicians")
+        .update({ calendar_event_id: data.id })
+        .eq("id", eventTechRow.id);
+
+      await logAction("outlook_created", `Outlook-event opprettet (fra oppdatering) for ${tech.name}`);
+      return { techId: tech.id, techName: tech.name, status: "created", calendarEventId: data.id };
+    }
+
+    const headers: Record<string, string> = {
+      Authorization: `Bearer ${msToken}`,
+      "Content-Type": "application/json",
+    };
+    // Only use If-Match for non-force updates
+    if (action === "update" && event.microsoft_etag) {
+      // Note: per-tech etags would be ideal, but for now skip If-Match for multi-tech
+    }
+
+    const res = await fetch(
+      `https://graph.microsoft.com/v1.0/users/${techEmail}/events/${existingCalEventId}`,
+      { method: "PATCH", headers, body: JSON.stringify(graphBody) }
+    );
+
+    if (res.status === 409 || res.status === 412) {
+      await logAction("outlook_conflict", `Outlook-konflikt for ${tech.name} (${res.status})`);
+      return { techId: tech.id, techName: tech.name, status: "conflict", code: res.status };
+    }
+
+    if (!res.ok) {
+      const errText = await res.text();
+      console.error(`[calendar-write-sync] PATCH failed for ${techEmail}:`, res.status, errText);
+      return { techId: tech.id, techName: tech.name, status: "error", code: res.status };
+    }
+
+    await logAction("outlook_updated", `Outlook-event oppdatert for ${tech.name}`);
+    return { techId: tech.id, techName: tech.name, status: "updated" };
+  }
+
+  if (action === "delete") {
+    if (!existingCalEventId) {
+      return { techId: tech.id, techName: tech.name, status: "no_calendar_event" };
+    }
+
+    const res = await fetch(
+      `https://graph.microsoft.com/v1.0/users/${techEmail}/events/${existingCalEventId}`,
+      { method: "DELETE", headers: { Authorization: `Bearer ${msToken}` } }
+    );
+
+    if (!res.ok && res.status !== 404) {
+      console.error(`[calendar-write-sync] DELETE failed for ${techEmail}:`, res.status);
+      return { techId: tech.id, techName: tech.name, status: "error", code: res.status };
+    }
+
+    await supabaseAdmin.from("event_technicians")
+      .update({ calendar_event_id: null })
+      .eq("id", eventTechRow.id);
+
+    await logAction("outlook_deleted", `Outlook-event slettet for ${tech.name}`);
+    return { techId: tech.id, techName: tech.name, status: "deleted" };
+  }
+
+  return { techId: tech.id, techName: tech.name, status: "unknown_action" };
 }
 
 Deno.serve(async (req) => {
@@ -270,7 +400,9 @@ Deno.serve(async (req) => {
       .select(`
         *,
         event_technicians (
+          id,
           technician_id,
+          calendar_event_id,
           technicians ( id, name, email, user_id )
         ),
         customers ( id, name, main_phone, main_email )
@@ -299,41 +431,17 @@ Deno.serve(async (req) => {
 
     const customer = event.customers || null;
 
-    // Find a technician with a valid MS token
-    const techs = (event.event_technicians ?? [])
-      .filter((et: any) => et.technicians?.user_id && et.technicians?.email)
-      .map((et: any) => et.technicians);
+    // Get technicians with their event_technicians row info
+    const techRows = (event.event_technicians ?? [])
+      .filter((et: any) => et.technicians?.user_id)
+      .map((et: any) => ({
+        eventTechRow: { id: et.id, calendar_event_id: et.calendar_event_id },
+        tech: et.technicians,
+      }));
 
-    // Also try the caller user directly
-    const userIdsToTry = [
-      ...(callerUserId ? [callerUserId] : []),
-      ...techs.map((t: any) => t.user_id),
-    ];
-
-    let msToken: string | null = null;
-    let tokenUserId: string | null = null;
-    let tokenUserEmail: string | null = null;
-
-    for (const uid of userIdsToTry) {
-      msToken = await ensureValidMsToken(supabaseAdmin, uid);
-      if (msToken) {
-        tokenUserId = uid;
-        // Find email for this user
-        const tech = techs.find((t: any) => t.user_id === uid);
-        if (tech) {
-          tokenUserEmail = tech.email;
-        } else {
-          // Get from user metadata
-          const { data: u } = await supabaseAdmin.auth.admin.getUserById(uid);
-          tokenUserEmail = u?.user?.email || null;
-        }
-        break;
-      }
-    }
-
-    if (!msToken || !tokenUserEmail) {
-      console.log("[calendar-write-sync] No valid MS token found for event", event_id);
-      return new Response(JSON.stringify({ status: "no_token", message: "Ingen gyldig Microsoft-tilkobling" }), {
+    if (techRows.length === 0) {
+      console.log("[calendar-write-sync] No technicians with user_id for event", event_id);
+      return new Response(JSON.stringify({ status: "no_token", message: "Ingen montører med bruker-kobling" }), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -348,257 +456,57 @@ Deno.serve(async (req) => {
       });
     };
 
-    // ─── ACTION: create ───
-    if (action === "create") {
-      const graphBody = buildGraphBody(event, customer);
+    const graphBody = buildGraphBody(event, customer);
 
-      const res = await fetch(
-        `https://graph.microsoft.com/v1.0/users/${tokenUserEmail}/events`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${msToken}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(graphBody),
-        }
+    // ── Sync for EACH technician independently ──
+    const results: any[] = [];
+    for (const { eventTechRow, tech } of techRows) {
+      const result = await syncForTechnician(
+        supabaseAdmin, tech, eventTechRow, event, customer,
+        graphBody, action, callerUserId, logAction
       );
+      results.push(result);
+    }
 
-      if (!res.ok) {
-        const errText = await res.text();
-        console.error("[calendar-write-sync] Create failed:", res.status, errText);
-        await logAction("outlook_create_failed", `Graph POST feilet: ${res.status}`);
-        return new Response(JSON.stringify({ status: "error", code: res.status, detail: errText }), {
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
+    // Determine overall status
+    const hasCreated = results.some(r => r.status === "created");
+    const hasUpdated = results.some(r => r.status === "updated");
+    const hasDeleted = results.some(r => r.status === "deleted");
+    const hasConflict = results.some(r => r.status === "conflict");
+    const hasError = results.some(r => r.status === "error");
 
-      const data = await res.json();
-      const graphEventId = data.id;
-      const etag = data["@odata.etag"] || null;
+    let overallStatus = "ok";
+    if (action === "create" && hasCreated) overallStatus = "created";
+    else if (action === "update" && hasUpdated) overallStatus = "updated";
+    else if (action === "force_update" && (hasUpdated || hasCreated)) overallStatus = "force_updated";
+    else if (action === "delete" && hasDeleted) overallStatus = "deleted";
+    else if (hasConflict) overallStatus = "conflict";
+    else if (hasError) overallStatus = "error";
+    else if (results.every(r => r.status === "no_token")) overallStatus = "no_token";
 
+    // Update legacy microsoft_event_id on events table for backward compat
+    const firstCreated = results.find(r => r.calendarEventId);
+    if (firstCreated && !event.microsoft_event_id) {
       await supabaseAdmin.from("events").update({
-        microsoft_event_id: graphEventId,
-        microsoft_etag: etag,
+        microsoft_event_id: firstCreated.calendarEventId,
         outlook_sync_status: "synced",
         outlook_last_synced_at: new Date().toISOString(),
       }).eq("id", event_id);
-
-      await logAction("outlook_created", `Outlook-event opprettet for ${tokenUserEmail}`);
-
-      return new Response(JSON.stringify({ status: "created", graph_event_id: graphEventId, etag }), {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
     }
 
-    // ─── ACTION: update ───
-    if (action === "update") {
-      const graphBody = buildGraphBody(event, customer);
-
-      if (event.microsoft_event_id) {
-        // PATCH existing
-        const headers: Record<string, string> = {
-          Authorization: `Bearer ${msToken}`,
-          "Content-Type": "application/json",
-        };
-        if (event.microsoft_etag) {
-          headers["If-Match"] = event.microsoft_etag;
-        }
-
-        const res = await fetch(
-          `https://graph.microsoft.com/v1.0/users/${tokenUserEmail}/events/${event.microsoft_event_id}`,
-          { method: "PATCH", headers, body: JSON.stringify(graphBody) }
-        );
-
-        if (res.status === 409 || res.status === 412) {
-          // Conflict – fetch current from Graph
-          console.warn("[calendar-write-sync] Conflict detected, fetching Graph version");
-          const getRes = await fetch(
-            `https://graph.microsoft.com/v1.0/users/${tokenUserEmail}/events/${event.microsoft_event_id}?$select=id,subject,start,end`,
-            { headers: { Authorization: `Bearer ${msToken}` } }
-          );
-
-          let graphVersion = null;
-          if (getRes.ok) {
-            graphVersion = await getRes.json();
-          }
-
-          await logAction("outlook_conflict", `Outlook-event endret utenfor systemet (${res.status})`);
-
-          return new Response(JSON.stringify({
-            status: "conflict",
-            code: res.status,
-            graph_version: graphVersion ? {
-              start: graphVersion.start?.dateTime,
-              end: graphVersion.end?.dateTime,
-              subject: graphVersion.subject,
-            } : null,
-          }), {
-            status: 200,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
-
-        if (!res.ok) {
-          const errText = await res.text();
-          console.error("[calendar-write-sync] PATCH failed:", res.status, errText);
-          await logAction("outlook_update_failed", `Graph PATCH feilet: ${res.status}`);
-          return new Response(JSON.stringify({ status: "error", code: res.status, detail: errText }), {
-            status: 200,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
-
-        const data = await res.json();
-        const newEtag = data["@odata.etag"] || null;
-
-        await supabaseAdmin.from("events").update({
-          microsoft_etag: newEtag,
-          outlook_sync_status: "synced",
-          outlook_last_synced_at: new Date().toISOString(),
-        }).eq("id", event_id);
-
-        await logAction("outlook_updated", `Outlook-event oppdatert for ${tokenUserEmail}`);
-
-        return new Response(JSON.stringify({ status: "updated", etag: newEtag }), {
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      } else {
-        // No Graph event yet – create
-        const res = await fetch(
-          `https://graph.microsoft.com/v1.0/users/${tokenUserEmail}/events`,
-          {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${msToken}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify(graphBody),
-          }
-        );
-
-        if (!res.ok) {
-          const errText = await res.text();
-          console.error("[calendar-write-sync] Create (from update) failed:", res.status, errText);
-          await logAction("outlook_create_failed", `Graph POST feilet ved oppdatering: ${res.status}`);
-          return new Response(JSON.stringify({ status: "error", code: res.status, detail: errText }), {
-            status: 200,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
-
-        const data = await res.json();
-        await supabaseAdmin.from("events").update({
-          microsoft_event_id: data.id,
-          microsoft_etag: data["@odata.etag"] || null,
-          outlook_sync_status: "synced",
-          outlook_last_synced_at: new Date().toISOString(),
-        }).eq("id", event_id);
-
-        await logAction("outlook_created", `Outlook-event opprettet (fra oppdatering) for ${tokenUserEmail}`);
-
-        return new Response(JSON.stringify({ status: "created", graph_event_id: data.id }), {
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-    }
-
-    // ─── ACTION: delete ───
     if (action === "delete") {
-      if (!event.microsoft_event_id) {
-        return new Response(JSON.stringify({ status: "no_graph_event" }), {
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      const res = await fetch(
-        `https://graph.microsoft.com/v1.0/users/${tokenUserEmail}/events/${event.microsoft_event_id}`,
-        {
-          method: "DELETE",
-          headers: { Authorization: `Bearer ${msToken}` },
-        }
-      );
-
-      if (!res.ok && res.status !== 404) {
-        const errText = await res.text();
-        console.error("[calendar-write-sync] DELETE failed:", res.status, errText);
-        await logAction("outlook_delete_failed", `Graph DELETE feilet: ${res.status}`);
-        return new Response(JSON.stringify({ status: "error", code: res.status, detail: errText }), {
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
       await supabaseAdmin.from("events").update({
         microsoft_event_id: null,
         microsoft_etag: null,
         outlook_sync_status: "not_synced",
         outlook_last_synced_at: null,
       }).eq("id", event_id);
-
-      await logAction("outlook_deleted", `Outlook-event slettet for ${tokenUserEmail}`);
-
-      return new Response(JSON.stringify({ status: "deleted" }), {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
     }
 
-    // ─── ACTION: force_update (override conflict) ───
-    if (action === "force_update") {
-      const graphBody = buildGraphBody(event, customer);
+    console.log(`[calendar-write-sync] ${action} for event ${event_id}: ${results.length} technicians, status: ${overallStatus}`);
 
-      if (!event.microsoft_event_id) {
-        return new Response(JSON.stringify({ status: "no_graph_event" }), {
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      // PATCH without If-Match to force
-      const res = await fetch(
-        `https://graph.microsoft.com/v1.0/users/${tokenUserEmail}/events/${event.microsoft_event_id}`,
-        {
-          method: "PATCH",
-          headers: {
-            Authorization: `Bearer ${msToken}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(graphBody),
-        }
-      );
-
-      if (!res.ok) {
-        const errText = await res.text();
-        await logAction("outlook_force_update_failed", `Force PATCH feilet: ${res.status}`);
-        return new Response(JSON.stringify({ status: "error", code: res.status, detail: errText }), {
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      const data = await res.json();
-      await supabaseAdmin.from("events").update({
-        microsoft_etag: data["@odata.etag"] || null,
-        outlook_sync_status: "synced",
-        outlook_last_synced_at: new Date().toISOString(),
-      }).eq("id", event_id);
-
-      await logAction("outlook_force_updated", `Outlook-event tvunget oppdatert`);
-
-      return new Response(JSON.stringify({ status: "force_updated", etag: data["@odata.etag"] }), {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    return new Response(JSON.stringify({ error: "Unknown action" }), {
-      status: 400,
+    return new Response(JSON.stringify({ status: overallStatus, results }), {
+      status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {

@@ -99,7 +99,7 @@ export function EventDrawer({
   onSaved,
 }: EventDrawerProps) {
   const navigate = useNavigate();
-  const { syncDelete } = useCalendarSync();
+  const { syncCreate, syncUpdate, syncDelete } = useCalendarSync();
   const { activeCompanyId } = useCompanyContext();
   const isEditing = !!editEvent;
 
@@ -298,10 +298,10 @@ export function EventDrawer({
           await supabase.from("event_technicians").insert(
             toAdd.map((tid) => ({ event_id: editEvent.id, technician_id: tid }))
           );
-        }
-        if (toAdd.length > 0) {
           await supabase.functions.invoke("create-approval", { body: { job_id: editEvent.id } });
         }
+        // Sync updated event to all assigned technicians' calendars
+        syncUpdate(editEvent.id);
 
         toast.success("Hendelse oppdatert", { description: "Tid og ressurser er lagret." });
         onSaved?.(editEvent.id);
@@ -378,9 +378,13 @@ export function EventDrawer({
             if (isTask) {
               // Tasks: auto-schedule without approval flow
               await supabase.from("events").update({ status: "scheduled" } as any).eq("id", createdId);
+              // Sync to Outlook for assigned technicians (same as projects)
+              syncCreate(createdId);
             } else {
               // Projects: normal approval flow
               await supabase.functions.invoke("create-approval", { body: { job_id: createdId } });
+              // Sync to Outlook for assigned technicians
+              syncCreate(createdId);
             }
           }
         }
