@@ -109,6 +109,7 @@ export function EventDrawer({
   const [description, setDescription] = useState("");
   const [date, setDate] = useState("");
   const [startTime, setStartTime] = useState("08:00");
+  const [endDate, setEndDate] = useState("");
   const [endTime, setEndTime] = useState("16:00");
   const [techIds, setTechIds] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
@@ -139,27 +140,24 @@ export function EventDrawer({
       setDescription(editEvent.description || "");
       setDate(format(editEvent.start, "yyyy-MM-dd"));
       setStartTime(format(editEvent.start, "HH:mm"));
+      setEndDate(format(editEvent.end, "yyyy-MM-dd"));
       setEndTime(format(editEvent.end, "HH:mm"));
       setTechIds(editEvent.technicians.map((t) => t.id));
       setMode("new");
     } else {
       // New event
+      const nextDate = preselectedStart ? format(preselectedStart, "yyyy-MM-dd") : "";
+      const nextStartTime = preselectedStart ? format(preselectedStart, "HH:mm") : "08:00";
+      const nextEndTime = preselectedEnd ? format(preselectedEnd, "HH:mm") : "16:00";
+
       setTitle(projectTitle || "");
       setCustomer("");
       setAddress("");
       setDescription("");
-      if (preselectedStart) {
-        setDate(format(preselectedStart, "yyyy-MM-dd"));
-        setStartTime(format(preselectedStart, "HH:mm"));
-      } else {
-        setDate("");
-        setStartTime("08:00");
-      }
-      if (preselectedEnd) {
-        setEndTime(format(preselectedEnd, "HH:mm"));
-      } else {
-        setEndTime("16:00");
-      }
+      setDate(nextDate);
+      setStartTime(nextStartTime);
+      setEndTime(nextEndTime);
+      setEndDate(nextDate ? autoAdjustEndDate(nextDate, nextStartTime, nextEndTime) : "");
       setTechIds(preselectedTechId ? [preselectedTechId] : []);
       setMode(projectId ? "existing" : "new");
       setEventType("project");
@@ -194,11 +192,10 @@ export function EventDrawer({
   }, [searchQuery, mode]);
 
   // Conflict check
-  const checkConflicts = useCallback(async (d: string, s: string, e: string, techs: string[], excludeId?: string) => {
-    if (!d || techs.length === 0) { setConflicts([]); return; }
+  const checkConflicts = useCallback(async (d: string, s: string, ed: string, e: string, techs: string[], excludeId?: string) => {
+    if (!d || !ed || techs.length === 0) { setConflicts([]); return; }
     try {
-      const startISO = new Date(`${d}T${s}`).toISOString();
-      const endISO = new Date(`${d}T${e}`).toISOString();
+      const { startISO, endISO } = normalizeOvernightDates(d, s, ed, e);
 
       let query = supabase
         .from("events")
@@ -231,10 +228,10 @@ export function EventDrawer({
   useEffect(() => {
     if (!open) return;
     const timer = setTimeout(() => {
-      checkConflicts(date, startTime, endTime, techIds, editEvent?.id);
+      checkConflicts(date, startTime, endDate, endTime, techIds, editEvent?.id);
     }, 500);
     return () => clearTimeout(timer);
-  }, [date, startTime, endTime, techIds, open, editEvent, checkConflicts]);
+  }, [date, startTime, endDate, endTime, techIds, open, editEvent, checkConflicts]);
 
   // Save: create or update
   const handleSave = async () => {
