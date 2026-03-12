@@ -244,7 +244,7 @@ export default function JobDetail() {
           {activeTab === "risiko" && (
             <div className="space-y-6">
               <JobRiskPanel jobId={id!} />
-              <ChangeOrderTab jobId={id!} />
+              <ChangeOrderTab jobId={id!} customer={job.customer} baseAmount={null} currency="NOK" />
             </div>
           )}
 
