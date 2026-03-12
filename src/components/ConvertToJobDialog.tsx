@@ -43,6 +43,7 @@ export function ConvertToJobDialog({
 }: Props) {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { activeCompanyId } = useCompanyContext();
   const [creating, setCreating] = useState(false);
 
   const [title, setTitle] = useState(defaultTitle || "");
