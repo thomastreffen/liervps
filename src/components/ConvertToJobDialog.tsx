@@ -96,6 +96,7 @@ export function ConvertToJobDialog({
         created_by: user?.id,
         offer_id: offerId || null,
         project_type: "project",
+        company_id: activeCompanyId,
       } as any).select("id").single();
 
       if (error) {
