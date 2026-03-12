@@ -14,7 +14,7 @@ import { useCompanyContext } from "@/hooks/useCompanyContext";
 export default function CustomerNewPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { activeCompanyId } = useCompanyContext();
+  const { activeCompanyId, activeCompany } = useCompanyContext();
   const [saving, setSaving] = useState(false);
 
   const [name, setName] = useState("");
