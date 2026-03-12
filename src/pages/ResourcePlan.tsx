@@ -128,7 +128,7 @@ export default function ResourcePlan() {
   const [preselectedEnd, setPreselectedEnd] = useState<Date | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
 
-  const { blocks: scheduleBlocks, refetch: refetchBlocks } = useScheduleBlocks(referenceDate, selectedTechId, undefined, effectiveCompanyId);
+  const { blocks: scheduleBlocks, refetch: refetchBlocks, removeBlockOptimistic } = useScheduleBlocks(referenceDate, selectedTechId, undefined, effectiveCompanyId);
   const isCurrentWeek = isSameWeek(referenceDate, new Date(), { weekStartsOn: 1 });
   const weekStart = startOfWeek(referenceDate, { weekStartsOn: 1 });
 
