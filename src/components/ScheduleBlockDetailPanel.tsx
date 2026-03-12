@@ -292,7 +292,8 @@ export const ScheduleBlockDetailPanel = memo(function ScheduleBlockDetailPanel({
         toast.error("Feil ved fjerning");
       }
 
-      onConfirmed?.();
+      const deletedIds: string[] = result?.block_ids_soft_deleted ?? [block.id];
+      onConfirmed?.(deletedIds);
       onClose();
     } catch (err: any) {
       console.error("[ScheduleBlockDetailPanel] Delete exception", { request: requestTrace, err });
