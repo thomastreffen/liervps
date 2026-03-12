@@ -2705,18 +2705,21 @@ export type Database = {
       }
       event_technicians: {
         Row: {
+          calendar_event_id: string | null
           created_at: string
           event_id: string
           id: string
           technician_id: string
         }
         Insert: {
+          calendar_event_id?: string | null
           created_at?: string
           event_id: string
           id?: string
           technician_id: string
         }
         Update: {
+          calendar_event_id?: string | null
           created_at?: string
           event_id?: string
           id?: string
