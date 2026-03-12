@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { JOB_STATUS_CONFIG, getDisplayNumber, type JobStatus } from "@/lib/job-status";
 import { useAuth } from "@/hooks/useAuth";
+import { useCompanyContext } from "@/hooks/useCompanyContext";
 import { toast } from "sonner";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -70,6 +71,7 @@ const TAB_LABELS: Record<StatusTab, string> = {
 export default function JobsPage() {
   const navigate = useNavigate();
   const { user, isAdmin } = useAuth();
+  const { activeCompanyId } = useCompanyContext();
   const [jobs, setJobs] = useState<JobRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -84,9 +86,9 @@ export default function JobsPage() {
     setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
   };
 
-  const fetchJobs = async () => {
+  const fetchJobs = useCallback(async () => {
     setLoading(true);
-    const { data } = await supabase
+    let query = supabase
       .from("events")
       .select(`
         id, title, customer, address, start_time, end_time, status, job_number, internal_number,
@@ -94,6 +96,12 @@ export default function JobsPage() {
       `)
       .is("deleted_at", null)
       .order("start_time", { ascending: false });
+
+    if (activeCompanyId) {
+      query = query.eq("company_id", activeCompanyId);
+    }
+
+    const { data } = await query;
 
     if (data) {
       setJobs(
@@ -118,9 +126,9 @@ export default function JobsPage() {
       );
     }
     setLoading(false);
-  };
+  }, [activeCompanyId]);
 
-  useEffect(() => { fetchJobs(); }, []);
+  useEffect(() => { fetchJobs(); }, [fetchJobs]);
 
   const tabCounts = useMemo(() => {
     const counts: Record<StatusTab, number> = { requested: 0, scheduled: 0, in_progress: 0, completed: 0, archive: 0, all: jobs.length };

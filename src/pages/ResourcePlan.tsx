@@ -12,7 +12,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Plus, CalendarDays, ChevronLeft, ChevronRight, RotateCcw, UserCheck, UserMinus, Clock,
-  Calendar, List, Bell, Sun, Moon, Sunrise, ZoomIn, Building,
+  Calendar, List, Bell, Sun, Moon, Sunrise, ZoomIn,
 } from "lucide-react";
 import { useOperatingHours, type ZoomLevel } from "@/hooks/useOperatingHours";
 import { setWorkHours } from "@/hooks/useTechnicianNowStatus";
@@ -63,8 +63,8 @@ export default function ResourcePlan() {
   const navigate = useNavigate();
   const { isAdmin, isSuperAdmin } = useAuth();
   const { hasPermission } = usePermissions();
-  const { companies, activeCompanyId } = useCompanyContext();
-  // Permission-based access: use permission keys, NOT role checks
+  const { activeCompanyId } = useCompanyContext();
+  // Permission-based access
   const canReadBusy = hasPermission("calendar.read_busy");
   const canViewExternal = hasPermission("calendar.view_external");
   const canWriteEvents = hasPermission("calendar.write_events");
@@ -73,16 +73,8 @@ export default function ResourcePlan() {
   const confirmationCount = useConfirmationCount();
   const syncHealth = useSyncHealth(isAdmin);
 
-  // Resource plan company scope: default to active company, "all" requires permission
-  const [rpCompanyScope, setRpCompanyScope] = useState<string>("active");
-  const effectiveCompanyId = rpCompanyScope === "all" ? null : (rpCompanyScope === "active" ? activeCompanyId : rpCompanyScope);
-
-  // Sync with global company selector
-  useEffect(() => {
-    if (rpCompanyScope === "active" || (!canCrossCompany && rpCompanyScope === "all")) {
-      // keep following active company
-    }
-  }, [activeCompanyId, canCrossCompany, rpCompanyScope]);
+  // Global company scope is the single source of truth — no local override
+  const effectiveCompanyId = activeCompanyId; // null = all companies
 
   const { technicians } = useTechnicians(effectiveCompanyId);
   const [selectedTechId, setSelectedTechId] = useState<string | null>(null);
@@ -444,29 +436,6 @@ export default function ResourcePlan() {
                 <span className="text-[9px] font-mono text-muted-foreground/60 select-all">
                   UI build: 2026-03-12 14:00
                 </span>
-                {/* Company scope selector */}
-                <div className="flex items-center gap-1.5">
-                  <Building className="h-3.5 w-3.5 text-muted-foreground" />
-                  <Select value={rpCompanyScope} onValueChange={(v) => {
-                    if (v === "all" && !canCrossCompany) return;
-                    setRpCompanyScope(v);
-                  }}>
-                    <SelectTrigger className="h-7 text-xs w-[180px] rounded-lg border-border/40">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="active">
-                        {companies.find(c => c.id === activeCompanyId)?.name || "Aktivt selskap"}
-                      </SelectItem>
-                      {companies.filter(c => c.id !== activeCompanyId).map(c => (
-                        <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                      ))}
-                      {canCrossCompany && (
-                        <SelectItem value="all">Alle selskaper</SelectItem>
-                      )}
-                    </SelectContent>
-                  </Select>
-                </div>
               </div>
 
               <div className="flex items-center gap-2 flex-wrap">

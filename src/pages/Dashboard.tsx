@@ -9,11 +9,15 @@ import { format } from "date-fns";
 import { nb } from "date-fns/locale";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useCompanyContext } from "@/hooks/useCompanyContext";
+import { useTechnicians } from "@/hooks/useTechnicians";
 import type { CalendarEvent } from "@/hooks/useCalendarEvents";
 
 export default function Dashboard() {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
+  const { activeCompanyId } = useCompanyContext();
+  const { technicians } = useTechnicians(activeCompanyId);
   const [selectedTechId, setSelectedTechId] = useState<string | null>(null);
   const [createJobOpen, setCreateJobOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -40,6 +44,7 @@ export default function Dashboard() {
         {!isMobile && (
           <aside className="w-64 shrink-0 border-r bg-card overflow-y-auto p-3">
             <TechnicianList
+              technicians={technicians}
               selectedId={selectedTechId}
               onSelect={setSelectedTechId}
               allowDeselect
@@ -52,6 +57,7 @@ export default function Dashboard() {
           <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
             <SheetContent side="left" className="w-72 p-3">
               <TechnicianList
+                technicians={technicians}
                 selectedId={selectedTechId}
                 onSelect={handleSelectTech}
                 allowDeselect

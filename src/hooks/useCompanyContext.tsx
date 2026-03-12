@@ -10,11 +10,14 @@ interface Company {
 
 interface CompanyContextType {
   companies: Company[];
+  /** null means "Alle selskaper" (cross-company aggregate) */
   activeCompanyId: string | null;
   activeCompany: Company | null;
-  setActiveCompanyId: (id: string) => void;
+  setActiveCompanyId: (id: string | null) => void;
   loading: boolean;
   userMemberships: { company_id: string; department_id: string | null }[];
+  /** True when user explicitly chose "all companies" */
+  isAllCompanies: boolean;
 }
 
 const CompanyContext = createContext<CompanyContextType | undefined>(undefined);
@@ -23,6 +26,7 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const [companies, setCompanies] = useState<Company[]>([]);
   const [activeCompanyId, setActiveCompanyIdState] = useState<string | null>(null);
+  const [isAllCompanies, setIsAllCompanies] = useState(false);
   const [loading, setLoading] = useState(true);
   const [userMemberships, setUserMemberships] = useState<{ company_id: string; department_id: string | null }[]>([]);
 
@@ -30,6 +34,7 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
     if (!user) {
       setCompanies([]);
       setActiveCompanyIdState(null);
+      setIsAllCompanies(false);
       setLoading(false);
       return;
     }
@@ -49,7 +54,7 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
         }))
       );
 
-      // Get all active companies (for super_admin) or only membership companies
+      // Get all active companies
       const { data: comps } = await supabase
         .from("internal_companies")
         .select("id, name, org_number")
@@ -66,10 +71,15 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
 
       // Restore from localStorage or pick first
       const stored = localStorage.getItem("mcs_active_company");
-      if (stored && companyList.some((c) => c.id === stored)) {
+      if (stored === "__all__") {
+        setActiveCompanyIdState(null);
+        setIsAllCompanies(true);
+      } else if (stored && companyList.some((c) => c.id === stored)) {
         setActiveCompanyIdState(stored);
+        setIsAllCompanies(false);
       } else if (companyList.length > 0) {
         setActiveCompanyIdState(companyList[0].id);
+        setIsAllCompanies(false);
       }
 
       setLoading(false);
@@ -78,16 +88,23 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
     fetch();
   }, [user]);
 
-  const setActiveCompanyId = useCallback((id: string) => {
-    setActiveCompanyIdState(id);
-    localStorage.setItem("mcs_active_company", id);
+  const setActiveCompanyId = useCallback((id: string | null) => {
+    if (id === null) {
+      setActiveCompanyIdState(null);
+      setIsAllCompanies(true);
+      localStorage.setItem("mcs_active_company", "__all__");
+    } else {
+      setActiveCompanyIdState(id);
+      setIsAllCompanies(false);
+      localStorage.setItem("mcs_active_company", id);
+    }
   }, []);
 
   const activeCompany = companies.find((c) => c.id === activeCompanyId) || null;
 
   return (
     <CompanyContext.Provider
-      value={{ companies, activeCompanyId, activeCompany, setActiveCompanyId, loading, userMemberships }}
+      value={{ companies, activeCompanyId, activeCompany, setActiveCompanyId, loading, userMemberships, isAllCompanies }}
     >
       {children}
     </CompanyContext.Provider>
