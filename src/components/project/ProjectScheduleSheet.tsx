@@ -303,13 +303,21 @@ export function ProjectScheduleSheet({
             )}
           </div>
 
+          {/* Overnight indicator */}
+          {computedEnd.getDate() !== computedStart.getDate() && (
+            <div className="flex items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2">
+              <Moon className="h-4 w-4 text-primary shrink-0" />
+              <span className="text-sm font-medium text-primary">Går over midnatt – slutter neste dag</span>
+            </div>
+          )}
+
           {/* Summary */}
           <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 text-sm space-y-1">
             <p className="font-semibold text-primary">Oppsummering</p>
             <p>{selectedTech?.name || "Ingen montør valgt"}</p>
             <p className="text-muted-foreground">
               {date ? format(computedStart, "EEE d. MMM", { locale: nb }) : "—"}{" "}
-              kl. {format(computedStart, "HH:mm")} – {format(computedEnd, "HH:mm")}
+              kl. {format(computedStart, "HH:mm")} – {computedEnd.getDate() !== computedStart.getDate() ? format(computedEnd, "EEE d. MMM", { locale: nb }) + " " : ""}{format(computedEnd, "HH:mm")}
             </p>
           </div>
 
