@@ -19,6 +19,7 @@ import type { Job, Attachment } from "@/lib/mock-data";
 import { type JobStatus } from "@/lib/job-status";
 import { useAuth } from "@/hooks/useAuth";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useActivityLog } from "@/hooks/useActivityLog";
 import { useCompanyContext } from "@/hooks/useCompanyContext";
 import { useActivityLog } from "@/hooks/useActivityLog";
 import { ImageLightbox } from "@/components/ImageLightbox";
