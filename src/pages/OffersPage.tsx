@@ -36,6 +36,7 @@ const PAGE_SIZE = 20;
 export default function OffersPage() {
   const navigate = useNavigate();
   const { isAdmin } = useAuth();
+  const { activeCompanyId } = useCompanyContext();
   const [calcs, setCalcs] = useState<CalcRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -44,16 +45,18 @@ export default function OffersPage() {
 
   const fetchCalcs = async () => {
     setLoading(true);
-    const { data } = await supabase
+    let query = supabase
       .from("calculations")
       .select("id, customer_name, customer_email, project_title, status, total_price, created_at")
       .is("deleted_at", null)
       .order("created_at", { ascending: false });
+    if (activeCompanyId) query = query.eq("company_id", activeCompanyId);
+    const { data } = await query;
     if (data) setCalcs(data as CalcRow[]);
     setLoading(false);
   };
 
-  useEffect(() => { fetchCalcs(); }, []);
+  useEffect(() => { fetchCalcs(); }, [activeCompanyId]);
 
   const offerIds = useMemo(() => calcs.map(c => c.id), [calcs]);
   const { summaries: activitySummaries } = useOfferActivitySummary(offerIds);
