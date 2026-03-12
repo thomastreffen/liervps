@@ -7,12 +7,14 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BulkDeleteBar } from "@/components/BulkDeleteBar";
+import { BulkReassignCompanyDialog } from "@/components/BulkReassignCompanyDialog";
 import { format } from "date-fns";
 import { nb } from "date-fns/locale";
 import {
   Plus,
   Search,
   ArrowUpDown,
+  ArrowRightLeft,
   Loader2,
   ChevronLeft,
   ChevronRight,
@@ -81,6 +83,7 @@ export default function JobsPage() {
   const [page, setPage] = useState(0);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [sendingApproval, setSendingApproval] = useState<string | null>(null);
+  const [reassignOpen, setReassignOpen] = useState(false);
 
   const toggleSelect = (id: string) => {
     setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
@@ -215,10 +218,16 @@ export default function JobsPage() {
           <p className="text-sm text-muted-foreground/70">{filtered.length} prosjekter</p>
         </div>
         {isAdmin && (
-          <Button onClick={() => navigate("/projects/new")} className="gap-1.5 self-start rounded-xl">
-            <Plus className="h-4 w-4" />
-            Nytt prosjekt
-          </Button>
+          <div className="flex items-center gap-2 self-start">
+            <Button variant="outline" size="sm" onClick={() => setReassignOpen(true)} className="gap-1.5 rounded-xl text-xs">
+              <ArrowRightLeft className="h-3.5 w-3.5" />
+              Flytt selskap
+            </Button>
+            <Button onClick={() => navigate("/projects/new")} className="gap-1.5 rounded-xl">
+              <Plus className="h-4 w-4" />
+              Nytt prosjekt
+            </Button>
+          </div>
         )}
       </div>
 
@@ -446,6 +455,11 @@ export default function JobsPage() {
           )}
         </>
       )}
+      <BulkReassignCompanyDialog
+        open={reassignOpen}
+        onOpenChange={setReassignOpen}
+        onComplete={fetchJobs}
+      />
     </div>
   );
 }

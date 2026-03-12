@@ -13,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { AlertTriangle, ChevronDown, ChevronUp } from "lucide-react";
 import { useCalendarSync } from "@/hooks/useCalendarSync";
+import { useCompanyContext } from "@/hooks/useCompanyContext";
 
 interface CreateJobDialogProps {
   open: boolean;
@@ -75,6 +76,7 @@ function CreateJobDialogInner({
   const [conflicts, setConflicts] = useState<ConflictInfo[]>([]);
   const [showMore, setShowMore] = useState(false);
   const { syncCreate } = useCalendarSync();
+  const { activeCompanyId } = useCompanyContext();
 
   // DB-based conflict check
   const checkConflicts = useCallback(async () => {
@@ -145,7 +147,8 @@ function CreateJobDialogInner({
           status: "requested",
           created_by: userId || null,
           client_request_id: clientRequestId,
-        })
+          company_id: activeCompanyId,
+        } as any)
         .select("id")
         .single();
 

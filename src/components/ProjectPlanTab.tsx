@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useCompanyContext } from "@/hooks/useCompanyContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -89,6 +90,7 @@ export function ProjectPlanTab({
   calendarDirty, calendarLastSyncedAt, onSynced, onResourceAssign,
 }: ProjectPlanTabProps) {
   const { user } = useAuth();
+  const { activeCompanyId } = useCompanyContext();
   const [tasks, setTasks] = useState<JobTask[]>([]);
   const [linkedEvents, setLinkedEvents] = useState<LinkedEvent[]>([]);
   const [loading, setLoading] = useState(true);
@@ -384,6 +386,7 @@ function CreateTaskDrawer({
   jobId: string; userId: string | null; tasksCount: number;
   onCreated: () => void;
 }) {
+  const { activeCompanyId } = useCompanyContext();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [techIds, setTechIds] = useState<string[]>([]);
@@ -440,7 +443,8 @@ function CreateTaskDrawer({
         status: "requested" as any,
         created_by: currentUserId || null,
         task_id: taskData.id,
-      }).select("id").single();
+        company_id: activeCompanyId,
+      } as any).select("id").single();
 
       if (eventData) {
         await supabase.from("event_technicians").insert(

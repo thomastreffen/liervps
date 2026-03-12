@@ -44,6 +44,7 @@ import { useNavigate } from "react-router-dom";
 import type { CalendarEvent } from "@/hooks/useCalendarEvents";
 import type { JobStatus } from "@/lib/job-status";
 import { useCalendarSync } from "@/hooks/useCalendarSync";
+import { useCompanyContext } from "@/hooks/useCompanyContext";
 
 /* ── Types ── */
 interface ExistingJob {
@@ -96,6 +97,7 @@ export function EventDrawer({
 }: EventDrawerProps) {
   const navigate = useNavigate();
   const { syncDelete } = useCalendarSync();
+  const { activeCompanyId } = useCompanyContext();
   const isEditing = !!editEvent;
 
   // Form state
@@ -330,6 +332,7 @@ export function EventDrawer({
             created_by: userId || null,
             client_request_id: clientRequestId,
             project_type: isTask ? "task" : "project",
+            company_id: activeCompanyId,
           } as any).select("id").single();
 
           if (error || !created) {

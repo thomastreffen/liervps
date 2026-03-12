@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useCompanyContext } from "@/hooks/useCompanyContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -42,6 +43,7 @@ export function ConvertToJobDialog({
 }: Props) {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { activeCompanyId } = useCompanyContext();
   const [creating, setCreating] = useState(false);
 
   const [title, setTitle] = useState(defaultTitle || "");
@@ -94,6 +96,7 @@ export function ConvertToJobDialog({
         created_by: user?.id,
         offer_id: offerId || null,
         project_type: "project",
+        company_id: activeCompanyId,
       } as any).select("id").single();
 
       if (error) {
