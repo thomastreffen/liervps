@@ -83,6 +83,19 @@ export default function CustomerNewPage() {
             <CardTitle className="text-base">Kundeinformasjon</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            {activeCompany && (
+              <div className="flex items-center gap-2 text-xs bg-primary/5 border border-primary/10 rounded-xl px-3 py-2">
+                <Building className="h-3.5 w-3.5 text-primary" />
+                <span className="text-muted-foreground">Kunden opprettes under</span>
+                <span className="font-semibold text-foreground">{activeCompany.name}</span>
+              </div>
+            )}
+            {!activeCompanyId && (
+              <div className="flex items-center gap-2 text-xs bg-destructive/5 border border-destructive/10 rounded-xl px-3 py-2 text-destructive">
+                <AlertTriangle className="h-3.5 w-3.5" />
+                Velg et selskap i headeren før du oppretter en kunde
+              </div>
+            )}
             <div className="space-y-1.5">
               <Label htmlFor="name">Kundenavn *</Label>
               <Input
