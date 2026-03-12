@@ -396,6 +396,14 @@ const App = () => (
                   </ProtectedRoute>
                 }
               />
+              <Route
+                path="/admin/company-migration"
+                element={
+                  <ProtectedRoute requiredRoles={["super_admin"]}>
+                    <CompanyMigrationPage />
+                  </ProtectedRoute>
+                }
+              />
             </Route>
 
             <Route path="*" element={<NotFound />} />
