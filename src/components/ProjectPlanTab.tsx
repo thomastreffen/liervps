@@ -442,7 +442,8 @@ function CreateTaskDrawer({
         status: "requested" as any,
         created_by: currentUserId || null,
         task_id: taskData.id,
-      }).select("id").single();
+        company_id: activeCompanyId,
+      } as any).select("id").single();
 
       if (eventData) {
         await supabase.from("event_technicians").insert(
