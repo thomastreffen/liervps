@@ -3773,6 +3773,7 @@ export type Database = {
           id: string
           is_active: boolean
           name: string
+          operating_profile: string
           org_number: string | null
         }
         Insert: {
@@ -3780,6 +3781,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           name: string
+          operating_profile?: string
           org_number?: string | null
         }
         Update: {
@@ -3787,6 +3789,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           name?: string
+          operating_profile?: string
           org_number?: string | null
         }
         Relationships: []
