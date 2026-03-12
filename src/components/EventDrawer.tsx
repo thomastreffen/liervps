@@ -44,6 +44,7 @@ import { useNavigate } from "react-router-dom";
 import type { CalendarEvent } from "@/hooks/useCalendarEvents";
 import type { JobStatus } from "@/lib/job-status";
 import { useCalendarSync } from "@/hooks/useCalendarSync";
+import { useCompanyContext } from "@/hooks/useCompanyContext";
 
 /* ── Types ── */
 interface ExistingJob {
