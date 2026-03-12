@@ -86,8 +86,7 @@ function CreateJobDialogInner({
       setConflicts([]);
       return;
     }
-    const startISO = new Date(`${startDate}T${startTime}`).toISOString();
-    const endISO = new Date(`${endDate}T${endTime}`).toISOString();
+    const { startISO, endISO } = normalizeOvernightDates(startDate, startTime, endDate, endTime);
 
     const { data: overlapping } = await supabase
       .from("event_technicians")
