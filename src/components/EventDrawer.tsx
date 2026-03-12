@@ -332,6 +332,7 @@ export function EventDrawer({
             created_by: userId || null,
             client_request_id: clientRequestId,
             project_type: isTask ? "task" : "project",
+            company_id: activeCompanyId,
           } as any).select("id").single();
 
           if (error || !created) {
