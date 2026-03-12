@@ -29,6 +29,10 @@ export default function CustomerNewPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
+    if (!activeCompanyId) {
+      toast.error("Du må velge et selskap før du kan opprette en kunde");
+      return;
+    }
     setSaving(true);
 
     const { data, error } = await supabase
@@ -42,7 +46,7 @@ export default function CustomerNewPage() {
         billing_zip: zip.trim() || null,
         billing_city: city.trim() || null,
         notes: notes.trim() || null,
-        company_id: activeCompanyId || null,
+        company_id: activeCompanyId,
         created_by: user?.id || null,
       } as any)
       .select("id")
