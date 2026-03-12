@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useCompanyContext } from "@/hooks/useCompanyContext";
 import {
   FileText, CheckCircle, Clock, Users, AlertTriangle,
   Send, Receipt, ArrowRight, Loader2, Filter, ClipboardCheck, Package
