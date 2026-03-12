@@ -342,3 +342,24 @@
     min-width: 0;
   }
 }
+
+/* Night shading for extended/industry operating profiles */
+.fc-night-shading .fc-timegrid-slot[data-time^="00:"],
+.fc-night-shading .fc-timegrid-slot[data-time^="01:"],
+.fc-night-shading .fc-timegrid-slot[data-time^="02:"],
+.fc-night-shading .fc-timegrid-slot[data-time^="03:"],
+.fc-night-shading .fc-timegrid-slot[data-time^="04:"],
+.fc-night-shading .fc-timegrid-slot[data-time^="05:"],
+.fc-night-shading .fc-timegrid-slot[data-time^="20:"],
+.fc-night-shading .fc-timegrid-slot[data-time^="21:"],
+.fc-night-shading .fc-timegrid-slot[data-time^="22:"],
+.fc-night-shading .fc-timegrid-slot[data-time^="23:"] {
+  background-color: hsl(var(--muted) / 0.4);
+}
+.fc-night-shading .fc-timegrid-slot[data-time^="06:"],
+.fc-night-shading .fc-timegrid-slot[data-time^="07:"],
+.fc-night-shading .fc-timegrid-slot[data-time^="17:"],
+.fc-night-shading .fc-timegrid-slot[data-time^="18:"],
+.fc-night-shading .fc-timegrid-slot[data-time^="19:"] {
+  background-color: hsl(var(--muted) / 0.15);
+}

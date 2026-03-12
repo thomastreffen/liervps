@@ -3,7 +3,7 @@ import { startOfWeek, addDays, differenceInMinutes } from "date-fns";
 import type { CalendarEvent } from "@/hooks/useCalendarEvents";
 import type { ExternalBusySlot } from "@/hooks/useExternalBusy";
 
-const WORK_DAY_MINUTES = 480; // 8h (08:00–16:00)
+const DEFAULT_WORK_DAY_MINUTES = 480; // 8h (08:00–16:00)
 
 export interface DayCapacity {
   date: Date;
@@ -40,7 +40,8 @@ export function useCapacity(
   events: CalendarEvent[],
   busySlots: ExternalBusySlot[],
   referenceDate: Date,
-  technicianIds: string[]
+  technicianIds: string[],
+  workDayMinutes: number = DEFAULT_WORK_DAY_MINUTES
 ) {
   return useMemo(() => {
     const weekStart = startOfWeek(referenceDate, { weekStartsOn: 1 });
@@ -75,7 +76,7 @@ export function useCapacity(
 
         const totalMinutes = bookedMinutes + externalMinutes;
         // Weekend days: use same calculation but note capacity is still 8h for consistency
-        const percent = (totalMinutes / WORK_DAY_MINUTES) * 100;
+        const percent = (totalMinutes / workDayMinutes) * 100;
 
         days.push({
           date: day,
@@ -90,7 +91,7 @@ export function useCapacity(
         weekTotal += totalMinutes;
       }
 
-      const weekPercent = (weekTotal / (5 * WORK_DAY_MINUTES)) * 100; // 5 work days
+      const weekPercent = (weekTotal / (5 * workDayMinutes)) * 100; // 5 work days
 
       return { techId, days, weekPercent };
     });
@@ -111,7 +112,7 @@ export function useCapacity(
       }
 
       const totalMinutes = totalBooked + totalExternal;
-      const totalCapacity = technicianIds.length * WORK_DAY_MINUTES;
+      const totalCapacity = technicianIds.length * workDayMinutes;
       const percent = totalCapacity > 0 ? (totalMinutes / totalCapacity) * 100 : 0;
 
       aggregatedDays.push({
@@ -142,5 +143,5 @@ export function useCapacity(
       availableTechIds,
       partialTechIds,
     };
-  }, [events, busySlots, referenceDate, technicianIds]);
+  }, [events, busySlots, referenceDate, technicianIds, workDayMinutes]);
 }

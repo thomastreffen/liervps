@@ -12,9 +12,14 @@ export interface TechNowStatus {
   source?: "internal" | "external";
 }
 
-const WORK_START_HOUR = 7;
-const WORK_END_HOUR = 15;
+let WORK_START_HOUR = 7;
+let WORK_END_HOUR = 15;
 const BUFFER_MINUTES = 30;
+
+export function setWorkHours(start: number, end: number) {
+  WORK_START_HOUR = start;
+  WORK_END_HOUR = end;
+}
 
 function workStart(date: Date): Date {
   const d = new Date(date);

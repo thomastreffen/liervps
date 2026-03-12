@@ -45,6 +45,15 @@ interface ResourceCalendarProps {
   /** Permission: can see busy/available status */
   canReadBusy?: boolean;
   hideExternalEvents?: boolean;
+  /** Operating hours config */
+  slotMinTime?: string;
+  slotMaxTime?: string;
+  slotDuration?: string;
+  /** Start hour for night shading (e.g. 0 for industry) */
+  operatingStartHour?: number;
+  /** End hour for night shading (e.g. 24 for industry) */
+  operatingEndHour?: number;
+  hasNightHours?: boolean;
 }
 
 /** Merge overlapping external slots into contiguous blocks */
@@ -119,6 +128,12 @@ export const ResourceCalendar = memo(function ResourceCalendar({
   canViewExternalDetails,
   canReadBusy = true,
   hideExternalEvents = false,
+  slotMinTime = "07:00:00",
+  slotMaxTime = "16:00:00",
+  slotDuration = "00:30:00",
+  operatingStartHour = 7,
+  operatingEndHour = 16,
+  hasNightHours = false,
 }: ResourceCalendarProps) {
   // Resolve permission: prefer new props, fall back to legacy
   const effectiveCanWrite = canWriteEvents ?? isAdmin;
@@ -139,13 +154,34 @@ export const ResourceCalendar = memo(function ResourceCalendar({
     }
   }, [referenceDate, calendarView]);
 
-  // Scroll to current time in day view
+  // Scroll to current time in time grid views
   useEffect(() => {
-    if (isDayView) {
+    if (isDayView || calendarView === "timeGridWeek") {
       const api = calendarRef.current?.getApi();
-      if (api) api.scrollToTime(new Date().toTimeString().slice(0, 8));
+      if (api) {
+        // Small delay to ensure DOM is ready
+        setTimeout(() => api.scrollToTime(new Date().toTimeString().slice(0, 8)), 100);
+      }
     }
-  }, [isDayView, calendarView]);
+  }, [isDayView, calendarView, referenceDate]);
+
+  // Night shading class
+  const [wrapperRef, setWrapperRef] = useState<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!wrapperRef || !hasNightHours) return;
+    wrapperRef.classList.add("fc-night-shading");
+    return () => { wrapperRef?.classList.remove("fc-night-shading"); };
+  }, [hasNightHours, wrapperRef]);
+
+  // Listen for scroll-to events from parent
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const time = (e as CustomEvent).detail as string;
+      calendarRef.current?.getApi()?.scrollToTime(time);
+    };
+    window.addEventListener("resource-calendar:scroll-to", handler);
+    return () => window.removeEventListener("resource-calendar:scroll-to", handler);
+  }, []);
 
   // Build a stable color assignment per technician (Google Calendar style)
   const techColorMap = useMemo(() => {
@@ -431,7 +467,7 @@ export const ResourceCalendar = memo(function ResourceCalendar({
 
   return (
     <TooltipProvider delayDuration={300}>
-    <div className="fc-wrapper rounded-2xl border border-border/30 bg-card shadow-card overflow-hidden">
+    <div ref={setWrapperRef} className="fc-wrapper rounded-2xl border border-border/30 bg-card shadow-card overflow-hidden">
       <FullCalendar
         ref={calendarRef}
         plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin, listPlugin]}
@@ -440,11 +476,12 @@ export const ResourceCalendar = memo(function ResourceCalendar({
         headerToolbar={false}
         locale="nb"
         firstDay={1}
-        height="auto"
+        height={hasNightHours ? 800 : "auto"}
+        scrollTimeReset={false}
         allDaySlot={false}
-        slotMinTime="07:00:00"
-        slotMaxTime="16:00:00"
-        slotDuration="00:30:00"
+  slotMinTime={slotMinTime}
+        slotMaxTime={slotMaxTime}
+        slotDuration={slotDuration}
         slotLabelInterval="01:00:00"
         slotLabelFormat={{ hour: "2-digit", minute: "2-digit", hour12: false }}
         weekends={true}
