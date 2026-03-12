@@ -76,7 +76,7 @@ export function useCapacity(
 
         const totalMinutes = bookedMinutes + externalMinutes;
         // Weekend days: use same calculation but note capacity is still 8h for consistency
-        const percent = (totalMinutes / WORK_DAY_MINUTES) * 100;
+        const percent = (totalMinutes / workDayMinutes) * 100;
 
         days.push({
           date: day,
