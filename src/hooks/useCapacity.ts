@@ -112,7 +112,7 @@ export function useCapacity(
       }
 
       const totalMinutes = totalBooked + totalExternal;
-      const totalCapacity = technicianIds.length * WORK_DAY_MINUTES;
+      const totalCapacity = technicianIds.length * workDayMinutes;
       const percent = totalCapacity > 0 ? (totalMinutes / totalCapacity) * 100 : 0;
 
       aggregatedDays.push({
