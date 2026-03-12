@@ -389,36 +389,58 @@ export function useTripletexImport() {
     const logId = (logData as any)?.id || "";
 
     try {
-      // Helper to resolve customer_id from CSV row data
-      const resolveCustomerId = (customerName: string, customerNumber: string): string | null => {
-        const maps = customerMapsRef.current;
-        if (!maps) return null;
-        // 1. Try org number / tripletex customer ID
-        if (customerNumber) {
-          const byOrg = maps.customerByOrgNr.get(customerNumber.trim());
-          if (byOrg) return byOrg.id;
-          const byTx = maps.customerByTripletexId.get(customerNumber.trim());
-          if (byTx) return byTx.id;
-        }
-        // 2. Try exact name match (case-insensitive)
-        if (customerName) {
-          const byName = maps.customerByName.get(customerName.toLowerCase().trim());
-          if (byName) return byName.id;
-        }
-        return null;
-      };
-
       if (detectedType === "project") {
+        // --- Phase 1: Auto-create missing customers ---
+        const missingCustomerRows = projectRows.filter(
+          r => r.missingCustomer && r.action !== "ignore" && r.matchStatus !== "error"
+        );
+        // De-duplicate by customerName (case-insensitive)
+        const seenCustomerNames = new Set<string>();
+        const uniqueMissing: { name: string; number: string }[] = [];
+        for (const r of missingCustomerRows) {
+          const key = r.customerName.toLowerCase().trim();
+          if (!seenCustomerNames.has(key)) {
+            seenCustomerNames.add(key);
+            uniqueMissing.push({ name: r.customerName, number: r.customerNumber });
+          }
+        }
+
+        // Create customers and build a new lookup map
+        const newCustomerMap = new Map<string, string>(); // lowercased name → id
+        for (const cust of uniqueMissing) {
+          try {
+            const { data: newCust } = await supabase.from("customers").insert({
+              name: cust.name,
+              org_number: cust.number || null,
+              external_tripletex_id: cust.number || null,
+              company_id: companyId,
+              created_by: user.id,
+            } as any).select("id").single();
+            if (newCust) {
+              newCustomerMap.set(cust.name.toLowerCase().trim(), newCust.id);
+              console.log(`Auto-created customer: ${cust.name} → ${newCust.id}`);
+            }
+          } catch (e: any) {
+            console.warn(`Failed to auto-create customer "${cust.name}":`, e?.message);
+          }
+        }
+
+        // --- Phase 2: Import projects ---
         for (const row of projectRows) {
           if (row.action === "ignore" || row.matchStatus === "error") {
             ignored++;
             await insertResult(logId, row.projectNumber, "project", "ignored", "Ignorert", row.raw);
             continue;
           }
-          const customerId = resolveCustomerId(row.customerName, row.customerNumber);
+
+          // Resolve customer: use pre-resolved id, or check newly-created customers
+          let customerId = row.resolvedCustomerId || null;
+          if (!customerId && row.customerName) {
+            customerId = newCustomerMap.get(row.customerName.toLowerCase().trim()) || null;
+          }
+
           try {
             if (row.action === "link" && row.matchedEntityId) {
-              // Link to existing project: store tripletex ID + customer_id on it
               await supabase.from("events").update({
                 external_tripletex_id: row.projectNumber,
                 customer: row.customerName || undefined,
@@ -427,7 +449,6 @@ export function useTripletexImport() {
               updated++;
               await insertResult(logId, row.projectNumber, "project", "linked", "Koblet til eksisterende", row.raw, row.matchedEntityId);
             } else if (row.action === "create") {
-              // Create as a real MCS project in the events table
               const { data, error: insertError } = await supabase.from("events").insert({
                 title: row.projectName || row.projectNumber,
                 project_number: row.projectNumber,
