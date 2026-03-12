@@ -79,6 +79,7 @@ import ModuleManagementPage from "./pages/ModuleManagementPage";
 import TripletexImportPage from "./pages/TripletexImportPage";
 import ManagementPage from "./pages/ManagementPage";
 import MyDayPage from "./pages/MyDayPage";
+import CompanyMigrationPage from "./pages/CompanyMigrationPage";
 import HelpCenterPage from "./pages/HelpCenterPage";
 import { CompanyProvider } from "@/hooks/useCompanyContext";
 import { PreviewModeProvider } from "@/hooks/usePreviewMode";
