@@ -391,6 +391,16 @@ export default function CustomerDetailPage() {
                 )}
               </CardContent>
             </Card>
+
+            {/* Source / integration section */}
+            <div className="mt-4">
+              <SourceMetadataSection
+                source={customer.external_tripletex_id ? "tripletex" : "local"}
+                externalId={customer.external_tripletex_id}
+                companyName={activeCompany?.name}
+                lastSynced={customer.external_tripletex_id ? customer.created_at : null}
+              />
+            </div>
           </TabsContent>
         </Tabs>
       </div>
