@@ -129,6 +129,10 @@ export default function CustomerImportPage() {
       toast.error("Du må mappe minst 'Kundenavn'");
       return;
     }
+    if (!activeCompanyId) {
+      toast.error("Du må velge et selskap før du kan importere kunder");
+      return;
+    }
 
     setImporting(true);
     let created = 0;
