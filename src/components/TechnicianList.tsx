@@ -12,7 +12,7 @@ interface DBTechnician {
   name: string;
   email: string;
   user_id?: string | null;
-  color: string | null;
+  color?: string | null;
 }
 
 interface TechnicianListProps {
