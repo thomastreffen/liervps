@@ -106,7 +106,7 @@ export default function ResourcePlan() {
   const unplannedCount = useUnplannedProjects(effectiveCompanyId);
 
   // Only fetch external busy data if user has calendar.read_busy permission
-  const { busySlots, getBusySlotsForDay, getExternalBusyMinutesForDay } = useExternalBusy(
+  const { busySlots, getBusySlotsForDay, getExternalBusyMinutesForDay, refetch: refetchBusySlots } = useExternalBusy(
     canReadBusy ? selectedTechId : "__disabled__",
     { technicianIds: techIds, referenceDate }
   );
@@ -148,7 +148,16 @@ export default function ResourcePlan() {
     setColorOverrides((prev) => new Map(prev).set(techId, color));
   }, []);
 
-  const { events: calEvents } = useCalendarEvents(selectedTechId, referenceDate, effectiveCompanyId, scopedCompanyTechIds);
+  const { events: calEvents, refetch: refetchCalendarEvents } = useCalendarEvents(selectedTechId, referenceDate, effectiveCompanyId, scopedCompanyTechIds);
+
+  const refreshPlanData = useCallback(async () => {
+    setRefreshKey((k) => k + 1);
+    await Promise.allSettled([
+      Promise.resolve(refetchBlocks(true)),
+      Promise.resolve(refetchBusySlots()),
+      Promise.resolve(refetchCalendarEvents()),
+    ]);
+  }, [refetchBlocks, refetchBusySlots, refetchCalendarEvents]);
 
   // Navigation helpers – view-aware
   const goToPrev = useCallback(() => {
