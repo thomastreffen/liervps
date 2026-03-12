@@ -528,9 +528,11 @@ Deno.serve(async (req) => {
     const hasDeleted = results.some(r => r.status === "deleted");
     const hasConflict = results.some(r => r.status === "conflict");
     const hasError = results.some(r => r.status === "error");
+    const hasAlreadyExists = results.some(r => r.status === "already_exists");
+    const hasInProgress = results.some(r => r.status === "in_progress");
 
     let overallStatus = "ok";
-    if (action === "create" && hasCreated) overallStatus = "created";
+    if (action === "create" && (hasCreated || hasAlreadyExists || hasInProgress)) overallStatus = "created";
     else if (action === "update" && hasUpdated) overallStatus = "updated";
     else if (action === "force_update" && (hasUpdated || hasCreated)) overallStatus = "force_updated";
     else if (action === "delete" && hasDeleted) overallStatus = "deleted";
