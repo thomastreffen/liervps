@@ -111,6 +111,7 @@ const matchStateColors: Record<string, { bg: string; border: string; text: strin
 
 export const ResourceCalendar = memo(function ResourceCalendar({
   technicianId,
+  companyId,
   referenceDate,
   calendarView = "timeGridWeek",
   technicianMap,
@@ -140,7 +141,7 @@ export const ResourceCalendar = memo(function ResourceCalendar({
   const effectiveCanWrite = canWriteEvents ?? isAdmin;
   const effectiveCanViewExternal = canViewExternalDetails ?? isSuperAdmin;
   const calendarRef = useRef<FullCalendar>(null);
-  const { events: calendarEvents } = useCalendarEvents(technicianId, referenceDate);
+  const { events: calendarEvents } = useCalendarEvents(technicianId, referenceDate, companyId);
 
   const isMonthView = calendarView === "dayGridMonth";
   const isDayView = calendarView === "timeGridDay";
