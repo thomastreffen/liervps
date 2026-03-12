@@ -31,6 +31,7 @@ export default function JobDetail() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { hasPermission } = usePermissions();
+  const { activeCompany } = useCompanyContext();
   const canEditPlan = hasPermission("projects.edit_plan");
   const canDeleteAttachment = hasPermission("projects.delete_attachment");
 
