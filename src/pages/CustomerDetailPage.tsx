@@ -30,6 +30,8 @@ interface Customer {
   billing_city: string | null;
   notes: string | null;
   created_at: string;
+  external_tripletex_id: string | null;
+  company_id: string | null;
 }
 
 interface Contact {
