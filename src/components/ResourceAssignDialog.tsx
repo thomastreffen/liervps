@@ -544,6 +544,20 @@ function NewEventForm({
   endTime, setEndTime,
   techIds, setTechIds,
 }: any) {
+  const overnight = startDate && startTime && endDate && endTime
+    ? isOvernightRange(startDate, startTime, endDate, endTime)
+    : false;
+
+  const summaryLine = startDate && startTime && endDate && endTime ? (() => {
+    try {
+      const start = new Date(`${startDate}T${startTime}`);
+      const end = new Date(`${endDate}T${endTime}`);
+      return `${format(start, "dd.MM.yyyy HH:mm", { locale: nb })} → ${format(end, "dd.MM.yyyy HH:mm", { locale: nb })}`;
+    } catch {
+      return null;
+    }
+  })() : null;
+
   return (
     <>
       <div className="grid grid-cols-2 gap-4">
@@ -570,18 +584,54 @@ function NewEventForm({
         <div>
           <Label>Start</Label>
           <div className="flex gap-2 mt-1">
-            <Input type="date" value={startDate} onChange={(e: any) => { setStartDate(e.target.value); if (!endDate) setEndDate(e.target.value); }} required />
-            <Input type="time" value={startTime} onChange={(e: any) => setStartTime(e.target.value)} required className="w-28" />
+            <Input
+              type="date"
+              value={startDate}
+              onChange={(e: any) => {
+                setStartDate(e.target.value);
+                setEndDate(autoAdjustEndDate(e.target.value, startTime, endTime));
+              }}
+              required
+              className="flex-1"
+            />
+            <TimeSelect
+              value={startTime}
+              onChange={(value) => {
+                setStartTime(value);
+                if (startDate) setEndDate(autoAdjustEndDate(startDate, value, endTime));
+              }}
+            />
           </div>
         </div>
         <div>
           <Label>Slutt</Label>
           <div className="flex gap-2 mt-1">
-            <Input type="date" value={endDate} onChange={(e: any) => setEndDate(e.target.value)} required />
-            <Input type="time" value={endTime} onChange={(e: any) => setEndTime(e.target.value)} required className="w-28" />
+            <Input type="date" value={endDate} onChange={(e: any) => setEndDate(e.target.value)} required className="flex-1" />
+            <TimeSelect
+              value={endTime}
+              onChange={(value) => {
+                setEndTime(value);
+                if (startDate) setEndDate(autoAdjustEndDate(startDate, startTime, value));
+              }}
+            />
           </div>
         </div>
       </div>
+
+      {overnight && (
+        <div className="flex items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2">
+          <Moon className="h-4 w-4 text-primary shrink-0" />
+          <span className="text-sm font-medium text-primary">Går over midnatt – slutter neste dag</span>
+        </div>
+      )}
+
+      {summaryLine && (
+        <div className="rounded-lg bg-muted/50 px-3 py-2">
+          <p className="text-xs text-muted-foreground">Tidsrom</p>
+          <p className="text-sm font-medium">{summaryLine}</p>
+        </div>
+      )}
+
       <TechnicianMultiSelect selectedIds={techIds} onChange={setTechIds} />
       <div>
         <Label htmlFor="ra-desc">Beskrivelse</Label>
