@@ -90,6 +90,7 @@ export function ProjectPlanTab({
   calendarDirty, calendarLastSyncedAt, onSynced, onResourceAssign,
 }: ProjectPlanTabProps) {
   const { user } = useAuth();
+  const { activeCompanyId } = useCompanyContext();
   const [tasks, setTasks] = useState<JobTask[]>([]);
   const [linkedEvents, setLinkedEvents] = useState<LinkedEvent[]>([]);
   const [loading, setLoading] = useState(true);
