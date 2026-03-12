@@ -91,6 +91,9 @@ export default function ResourcePlan() {
   const [minFreeMinutes, setMinFreeMinutes] = useState<number | null>(null);
   const [calendarView, setCalendarView] = useState<CalendarViewType>(getStoredView);
 
+  // Week navigation
+  const [referenceDate, setReferenceDate] = useState<Date>(new Date());
+
   const techIds = useMemo(
     () => selectedTechId ? [selectedTechId] : technicians.map((t) => t.id),
     [selectedTechId, technicians]
@@ -128,8 +131,6 @@ export default function ResourcePlan() {
   const [preselectedEnd, setPreselectedEnd] = useState<Date | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
 
-  // Week navigation
-  const [referenceDate, setReferenceDate] = useState<Date>(new Date());
   const { blocks: scheduleBlocks, refetch: refetchBlocks } = useScheduleBlocks(referenceDate, selectedTechId, undefined, effectiveCompanyId);
   const isCurrentWeek = isSameWeek(referenceDate, new Date(), { weekStartsOn: 1 });
   const weekStart = startOfWeek(referenceDate, { weekStartsOn: 1 });
