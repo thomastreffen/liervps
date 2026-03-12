@@ -147,7 +147,8 @@ function CreateJobDialogInner({
           status: "requested",
           created_by: userId || null,
           client_request_id: clientRequestId,
-        })
+          company_id: activeCompanyId,
+        } as any)
         .select("id")
         .single();
 
