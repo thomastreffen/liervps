@@ -76,6 +76,7 @@ function CreateJobDialogInner({
   const [conflicts, setConflicts] = useState<ConflictInfo[]>([]);
   const [showMore, setShowMore] = useState(false);
   const { syncCreate } = useCalendarSync();
+  const { activeCompanyId } = useCompanyContext();
 
   // DB-based conflict check
   const checkConflicts = useCallback(async () => {
