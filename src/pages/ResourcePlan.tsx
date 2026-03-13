@@ -130,9 +130,9 @@ export default function ResourcePlan() {
   const [colorOverrides, setColorOverrides] = useState<Map<string, string>>(new Map());
 
   const technicianMap = useMemo(() => {
-    const map = new Map<string, { name: string; color: string | null }>();
+    const map = new Map<string, { name: string; color: string | null; avatarId?: string | null }>();
     for (const t of technicians) {
-      map.set(t.id, { name: t.name, color: colorOverrides.get(t.id) || t.color || null });
+      map.set(t.id, { name: t.name, color: colorOverrides.get(t.id) || t.color || null, avatarId: (t as any).avatar_id || null });
     }
     return map;
   }, [technicians, colorOverrides]);

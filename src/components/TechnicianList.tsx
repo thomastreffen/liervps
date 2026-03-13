@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { Users, Loader2, AlertTriangle } from "lucide-react";
+import { TechAvatar } from "@/components/TechAvatar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { TechNowStatus } from "@/hooks/useTechnicianNowStatus";
@@ -13,6 +14,7 @@ interface DBTechnician {
   email: string;
   user_id?: string | null;
   color?: string | null;
+  avatar_id?: string | null;
 }
 
 interface TechnicianListProps {
@@ -129,7 +131,7 @@ export function TechnicianList({
 
       const { data, error } = await supabase
         .from("technicians")
-        .select("id, name, email, user_id, color")
+        .select("id, name, email, user_id, color, avatar_id")
         .not("user_id", "is", null)
         .eq("is_plannable_resource", true)
         .is("archived_at", null)
@@ -233,12 +235,13 @@ export function TechnicianList({
                     className="relative cursor-pointer group"
                     onClick={(e) => { e.stopPropagation(); setColorPickerOpen(tech.id); }}
                   >
-                    <div
-                      className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold shrink-0 text-white transition-shadow group-hover:ring-2 group-hover:ring-offset-1"
-                      style={{ backgroundColor: techColor }}
-                    >
-                      {initial}
-                    </div>
+                    <TechAvatar
+                      name={tech.name}
+                      avatarId={tech.avatar_id}
+                      color={techColor}
+                      size={32}
+                      className="transition-shadow group-hover:ring-2 group-hover:ring-offset-1"
+                    />
                     {nowStatus && (
                       <span
                         className={cn(

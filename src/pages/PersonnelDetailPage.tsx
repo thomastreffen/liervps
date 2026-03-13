@@ -17,6 +17,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { differenceInDays, format } from "date-fns";
+import { AvatarPicker } from "@/components/AvatarPicker";
+import { TechAvatar } from "@/components/TechAvatar";
 
 interface TechnicianProfile {
   id: string;
@@ -31,6 +33,7 @@ interface TechnicianProfile {
   notes: string | null;
   archived_at: string | null;
   archived_by: string | null;
+  avatar_id: string | null;
 }
 
 interface UserDocument {
@@ -112,7 +115,7 @@ export default function PersonnelDetailPage() {
     const [techRes, docsRes] = await Promise.all([
       supabase
         .from("technicians")
-        .select("id, name, email, is_plannable_resource, birth_date, hms_card_number, hms_card_expires_at, trade_certificate_type, driver_license_classes, notes, archived_at, archived_by")
+        .select("id, name, email, is_plannable_resource, birth_date, hms_card_number, hms_card_expires_at, trade_certificate_type, driver_license_classes, notes, archived_at, archived_by, avatar_id")
         .eq("id", id)
         .single(),
       supabase
@@ -143,6 +146,7 @@ export default function PersonnelDetailPage() {
         trade_certificate_type: profile.trade_certificate_type || null,
         driver_license_classes: profile.driver_license_classes || null,
         notes: profile.notes || null,
+        avatar_id: profile.avatar_id || null,
       })
       .eq("id", profile.id);
     setSaving(false);
@@ -437,6 +441,18 @@ export default function PersonnelDetailPage() {
                 checked={profile.is_plannable_resource}
                 onCheckedChange={(v) => setProfile({ ...profile, is_plannable_resource: v })}
               />
+            </div>
+
+            <Separator />
+
+            <div className="flex items-center gap-4">
+              <TechAvatar name={profile.name} avatarId={profile.avatar_id} size={48} />
+              <div className="flex-1">
+                <AvatarPicker
+                  selectedId={profile.avatar_id}
+                  onSelect={(avatarId) => setProfile({ ...profile, avatar_id: avatarId })}
+                />
+              </div>
             </div>
 
             <Separator />

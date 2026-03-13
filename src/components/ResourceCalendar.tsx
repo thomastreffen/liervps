@@ -11,6 +11,7 @@ import type { DayCapacity } from "@/hooks/useCapacity";
 import type { ScheduleBlock } from "@/hooks/useScheduleBlocks";
 import { Lock, CalendarCheck, AlertTriangle, Globe, Monitor, MapPin, Moon, Users } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
+import { TechAvatar } from "@/components/TechAvatar";
 import { format } from "date-fns";
 import { nb } from "date-fns/locale";
 import { toast } from "sonner";
@@ -18,6 +19,7 @@ import { toast } from "sonner";
 interface TechLookup {
   name: string;
   color: string | null;
+  avatarId?: string | null;
 }
 
 interface ResourceCalendarProps {
@@ -219,6 +221,7 @@ export const ResourceCalendar = memo(function ResourceCalendar({
         const techColor = techColorMap.get(tech.id) || GCAL_PALETTE[0];
         const techFirstName = tech.name.split(" ")[0];
         const allTechNames = ev.technicians.map((t) => t.name.split(" ")[0]).join(", ");
+        const techInfo = technicianMap.get(tech.id);
 
         result.push({
           id: multiTech ? `${ev.id}__tech__${tech.id}` : ev.id,
@@ -234,6 +237,8 @@ export const ResourceCalendar = memo(function ResourceCalendar({
             status: ev.status,
             techNames: allTechNames,
             techName: techFirstName,
+            techFullName: tech.name,
+            techAvatarId: techInfo?.avatarId || null,
             baseColor: techColor,
             statusDot: statusDotColors[ev.status] || "#FFFFFF",
             isOvernight,
@@ -358,6 +363,8 @@ export const ResourceCalendar = memo(function ResourceCalendar({
           isExternalMasked: masked,
           matchState: block.match_state,
           techName: masked ? undefined : techName,
+          techFullName: masked ? undefined : block.technician_name,
+          techAvatarId: masked ? undefined : (technicianMap.get(block.technician_id)?.avatarId || null),
           projectTitle: masked ? undefined : block.project_title,
           sourceLabel,
           blockSource: block.source,
@@ -574,7 +581,11 @@ export const ResourceCalendar = memo(function ResourceCalendar({
                 <TooltipTrigger asChild>
                   <div className="px-2 py-1 overflow-hidden h-full cursor-pointer select-none">
                     <div className="flex items-center gap-1">
-                      <StateIcon className="h-3 w-3 shrink-0 opacity-80" />
+                      {props.techAvatarId ? (
+                        <TechAvatar name={props.techFullName || props.techName || ""} avatarId={props.techAvatarId} size={20} />
+                      ) : (
+                        <StateIcon className="h-3 w-3 shrink-0 opacity-80" />
+                      )}
                       <p className="text-[11px] font-bold leading-tight truncate">
                         {props.techName}
                       </p>
@@ -668,6 +679,9 @@ export const ResourceCalendar = memo(function ResourceCalendar({
                   className="fc-event-internal px-2 py-1 overflow-hidden h-full cursor-grab active:cursor-grabbing select-none"
                 >
                   <div className="flex items-center gap-1">
+                    {props.techAvatarId && (
+                      <TechAvatar name={props.techFullName || props.techName || ""} avatarId={props.techAvatarId} size={20} />
+                    )}
                     {props.isOvernight && (
                       <Moon className="h-2.5 w-2.5 shrink-0 text-white/80" />
                     )}

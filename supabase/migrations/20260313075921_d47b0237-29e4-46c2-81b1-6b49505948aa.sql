@@ -1,0 +1,1 @@
+ALTER TABLE public.technicians ADD COLUMN IF NOT EXISTS avatar_id text DEFAULT NULL;
