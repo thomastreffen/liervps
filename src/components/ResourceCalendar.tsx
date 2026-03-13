@@ -804,6 +804,7 @@ export const ResourceCalendar = memo(function ResourceCalendar({
           const eventTooltip = (
             <div className="space-y-1 text-xs max-w-[240px]">
               <p className="font-semibold">{arg.event.title}</p>
+              {props.jobNumber && <p className="font-mono text-[10px] text-white/80">{props.jobNumber}</p>}
               {props.customer && <p className="text-muted-foreground">Kunde: {props.customer}</p>}
               <p className="text-muted-foreground">{arg.timeText}</p>
               {props.techNames && <p>Montører: {props.techNames}</p>}
@@ -835,10 +836,17 @@ export const ResourceCalendar = memo(function ResourceCalendar({
                     {props.isMultiTech && (
                       <Users className="h-2.5 w-2.5 shrink-0 text-white/60" />
                     )}
-                    <span
-                      className="h-1.5 w-1.5 rounded-full shrink-0 ml-auto border border-white/30"
-                      style={{ backgroundColor: props.statusDot }}
-                    />
+                    {props.jobNumber && (
+                      <span className="text-[8px] font-mono font-semibold bg-white/20 text-white/90 rounded px-1 shrink-0 ml-auto">
+                        {props.jobNumber}
+                      </span>
+                    )}
+                    {!props.jobNumber && (
+                      <span
+                        className="h-1.5 w-1.5 rounded-full shrink-0 ml-auto border border-white/30"
+                        style={{ backgroundColor: props.statusDot }}
+                      />
+                    )}
                   </div>
                   <p className="text-[11px] font-semibold leading-tight truncate text-white">
                     {arg.event.title}
