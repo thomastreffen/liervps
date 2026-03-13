@@ -86,6 +86,7 @@ export function EventDrawer({
   open,
   onOpenChange,
   editEvent,
+  clickedTechId,
   preselectedStart,
   preselectedEnd,
   preselectedTechId,
