@@ -9,6 +9,8 @@ export interface TechnicianInfo {
   id: string;
   name: string;
   color: string | null;
+  eventTechnicianId?: string | null;
+  calendarEventId?: string | null;
 }
 
 export interface CalendarEvent extends Job {
