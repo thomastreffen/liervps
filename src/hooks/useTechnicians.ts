@@ -6,6 +6,7 @@ export interface TechnicianInfo {
   name: string;
   email: string;
   color?: string;
+  avatar_id?: string | null;
 }
 
 /**
