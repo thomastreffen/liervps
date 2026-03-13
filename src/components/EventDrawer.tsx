@@ -35,6 +35,7 @@ import {
   ListChecks,
   Moon,
   ArrowRight,
+  Users,
 } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel,
