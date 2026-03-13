@@ -330,9 +330,9 @@ export const ScheduleBlockDetailPanel = memo(function ScheduleBlockDetailPanel({
               </div>
             )}
             <p className="text-sm font-semibold truncate">{block.outlook_subject || block.title || "Uten tittel"}</p>
-            {(block as any).job_number && (
+            {block.job_number && (
               <span className="inline-block font-mono text-[10px] font-semibold bg-primary/10 text-primary rounded px-1.5 py-0.5 mt-0.5">
-                {(block as any).job_number}
+                {block.job_number}
               </span>
             )}
             <p className="text-xs text-muted-foreground">

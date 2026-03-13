@@ -35,6 +35,7 @@ export interface ScheduleBlock {
   technician_name?: string;
   technician_color?: string | null;
   project_title?: string | null;
+  job_number?: string | null;
 }
 
 function mapRow(row: any): ScheduleBlock {
@@ -45,6 +46,7 @@ function mapRow(row: any): ScheduleBlock {
     technician_name: row.technicians?.name,
     technician_color: row.technicians?.color,
     project_title: row.events?.title ?? null,
+    job_number: row.events?.job_number ?? null,
   };
 }
 
@@ -90,7 +92,7 @@ export function useScheduleBlocks(
         .select(`
           *,
           technicians!inner(name, color),
-          events!schedule_blocks_project_id_fkey(title)
+          events!schedule_blocks_project_id_fkey(title, job_number)
         `)
         .is("deleted_at", null)
         .lt("start_at", weekEnd.toISOString())
