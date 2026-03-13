@@ -123,6 +123,7 @@ export default function ResourcePlan() {
 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editEvent, setEditEvent] = useState<CalendarEvent | null>(null);
+  const [clickedTechId, setClickedTechId] = useState<string | null>(null);
   const [preselectedStart, setPreselectedStart] = useState<Date | null>(null);
   const [preselectedEnd, setPreselectedEnd] = useState<Date | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
