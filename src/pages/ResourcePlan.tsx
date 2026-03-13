@@ -169,6 +169,14 @@ export default function ResourcePlan() {
   const goToToday = useCallback(() => setReferenceDate(new Date()), []);
 
   const handleEventClick = useCallback((event: CalendarEvent) => {
+    console.info("[ResourcePlan][OpenEventDrawer]", {
+      open_handler: "event_drawer",
+      event_id: event.id,
+      technician_ids: event.technicianIds,
+      technician_names: event.technicians.map((t) => t.name),
+      start: event.start?.toISOString?.() ?? null,
+      end: event.end?.toISOString?.() ?? null,
+    });
     setEditEvent(event);
     setPreselectedStart(null);
     setPreselectedEnd(null);
