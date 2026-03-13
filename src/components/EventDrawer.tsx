@@ -571,27 +571,21 @@ export function EventDrawer({
 
           {/* ═══ SECTION: OPPDRAG (new event fields) ═══ */}
           {mode === "new" && !isEditing && !projectId && (
-            <section className="space-y-4">
-              <h3 className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Oppdrag</h3>
-              <div>
-                <Label className="text-xs">Tittel *</Label>
-                <Input value={title} onChange={(e) => setTitle(e.target.value)}
-                  placeholder={eventType === "task" ? "F.eks. Bestille materialer" : "F.eks. Kabellegging 3. etg"}
-                  className="mt-1" />
-              </div>
-              {eventType === "project" && (
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label className="text-xs">Kunde</Label>
-                    <Input value={customer} onChange={(e) => setCustomer(e.target.value)} placeholder="Kundenavn" className="mt-1" />
-                  </div>
-                  <div>
-                    <Label className="text-xs">Adresse</Label>
-                    <Input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Adresse" className="mt-1" />
-                  </div>
-                </div>
-              )}
-            </section>
+            <NewEventFields
+              title={title}
+              setTitle={setTitle}
+              customer={customer}
+              setCustomer={setCustomer}
+              address={address}
+              setAddress={setAddress}
+              eventType={eventType}
+              onLinkProject={(proj) => {
+                setMode("existing");
+                setSelectedJobId(proj.id);
+                setTitle(proj.title);
+                setCustomer(proj.customer || "");
+              }}
+            />
           )}
 
           {/* Edit mode: title editable */}
