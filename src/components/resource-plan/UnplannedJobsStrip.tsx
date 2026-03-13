@@ -36,7 +36,7 @@ export function UnplannedJobsStrip({ companyId }: UnplannedJobsStripProps) {
 
     let query = supabase
       .from("events")
-      .select("id, title, customer, address, internal_number, status, start_time, end_time, estimated_hours")
+      .select("id, title, customer, address, internal_number, status, start_time, end_time")
       .is("deleted_at", null)
       .is("archived_at", null)
       .eq("project_type", "project")
