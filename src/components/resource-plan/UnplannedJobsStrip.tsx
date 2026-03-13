@@ -16,7 +16,7 @@ interface UnplannedJob {
   status: string;
   start_time: string | null;
   end_time: string | null;
-  estimated_hours: number | null;
+  estimated_hours?: number | null;
   technician_names: string[];
 }
 
