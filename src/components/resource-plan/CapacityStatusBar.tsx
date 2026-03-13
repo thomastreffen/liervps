@@ -18,14 +18,14 @@ export const CapacityStatusBar = memo(function CapacityStatusBar({
   const counts = useMemo(() => {
     let free = 0, partial = 0, full = 0, overbooked = 0;
     for (const tc of techCapacities) {
-      const dayPercent = tc.days[todayDayIndex]?.percent ?? 0;
-      if (dayPercent > 100) overbooked++;
-      else if (dayPercent >= 90) full++;
-      else if (dayPercent >= 50) partial++;
+      const wp = tc.weekPercent;
+      if (wp > 100) overbooked++;
+      else if (wp >= 90) full++;
+      else if (wp >= 50) partial++;
       else free++;
     }
     return { free, partial, full, overbooked };
-  }, [techCapacities, todayDayIndex]);
+  }, [techCapacities]);
 
   const items = [
     {
