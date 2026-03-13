@@ -581,7 +581,11 @@ export const ResourceCalendar = memo(function ResourceCalendar({
                 <TooltipTrigger asChild>
                   <div className="px-2 py-1 overflow-hidden h-full cursor-pointer select-none">
                     <div className="flex items-center gap-1">
-                      <StateIcon className="h-3 w-3 shrink-0 opacity-80" />
+                      {props.techAvatarId ? (
+                        <TechAvatar name={props.techFullName || props.techName || ""} avatarId={props.techAvatarId} size={20} />
+                      ) : (
+                        <StateIcon className="h-3 w-3 shrink-0 opacity-80" />
+                      )}
                       <p className="text-[11px] font-bold leading-tight truncate">
                         {props.techName}
                       </p>
