@@ -113,7 +113,7 @@ export default function PersonnelDetailPage() {
     const [techRes, docsRes] = await Promise.all([
       supabase
         .from("technicians")
-        .select("id, name, email, is_plannable_resource, birth_date, hms_card_number, hms_card_expires_at, trade_certificate_type, driver_license_classes, notes, archived_at, archived_by")
+        .select("id, name, email, is_plannable_resource, birth_date, hms_card_number, hms_card_expires_at, trade_certificate_type, driver_license_classes, notes, archived_at, archived_by, avatar_id")
         .eq("id", id)
         .single(),
       supabase
