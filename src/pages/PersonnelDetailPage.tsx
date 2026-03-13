@@ -31,6 +31,7 @@ interface TechnicianProfile {
   notes: string | null;
   archived_at: string | null;
   archived_by: string | null;
+  avatar_id: string | null;
 }
 
 interface UserDocument {
