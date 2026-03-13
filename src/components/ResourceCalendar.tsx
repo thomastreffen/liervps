@@ -496,7 +496,7 @@ export const ResourceCalendar = memo(function ResourceCalendar({
           outlook_event_id: props.outlookEventId ?? scheduleBlock.outlook_event_id ?? null,
           display_name: props.displayName ?? scheduleBlock.technician_name ?? null,
         });
-        onEventClick?.(matchingAssignmentEvent);
+        onEventClick?.(matchingAssignmentEvent, scheduleBlock.technician_id);
         return;
       }
 
