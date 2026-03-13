@@ -242,7 +242,7 @@ export const ResourceCalendar = memo(function ResourceCalendar({
             displayName: tech.name,
             customer: ev.customer,
             status: ev.status,
-            jobNumber: ev.jobNumber || null,
+            jobNumber: ev.internalNumber || ev.jobNumber || null,
             techNames: allTechNames,
             techName: techFirstName,
             techFullName: tech.name,
