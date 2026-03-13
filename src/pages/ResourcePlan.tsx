@@ -108,7 +108,9 @@ export default function ResourcePlan() {
 
   const { syncUpdate, forceUpdate, acceptGraphVersion, conflict, dismissConflict } = useCalendarSync();
   const [selectedBlock, setSelectedBlock] = useState<ScheduleBlock | null>(null);
-  const [hideExternalEvents, setHideExternalEvents] = useState(false);
+  const [hideExternalEvents, setHideExternalEvents] = useState(() => {
+    try { return localStorage.getItem("resourceplan_hide_external") === "true"; } catch { return false; }
+  });
   const [dropPayload, setDropPayload] = useState<DropPayload | null>(null);
 
   useEffect(() => {
