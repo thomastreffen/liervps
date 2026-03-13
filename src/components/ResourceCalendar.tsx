@@ -423,14 +423,35 @@ export const ResourceCalendar = memo(function ResourceCalendar({
     );
 
     return result;
+  }, [calendarEvents, getBusySlotsForDay, technicianMap, techColorMap, referenceDate, effectiveCanWrite, effectiveCanViewExternal, hideExternalEvents, isMonthView, scheduleBlocks]);
 
   const handleEventClick = useCallback((info: EventClickArg) => {
-    const props = info.event.extendedProps;
+    const props = info.event.extendedProps as Record<string, any>;
+
+    console.info("[ResourceCalendar][Click]", {
+      render_key: props.renderKey ?? info.event.id,
+      source: props.source ?? "unknown",
+      event_id: props.eventId ?? null,
+      event_technician_id: props.eventTechnicianId ?? null,
+      technician_id: props.technicianId ?? props.assignedTechId ?? null,
+      calendar_event_id: props.calendarEventId ?? null,
+      display_name: props.displayName ?? props.techFullName ?? props.techName ?? null,
+      title: info.event.title,
+      start: info.event.start?.toISOString?.() ?? null,
+      end: info.event.end?.toISOString?.() ?? null,
+    });
 
     if (props.isExternalMasked) return;
 
     if (props.isScheduleBlock && props.scheduleBlock) {
-      onScheduleBlockClick?.(props.scheduleBlock as ScheduleBlock);
+      const scheduleBlock = props.scheduleBlock as ScheduleBlock;
+      console.info("[ResourceCalendar][Click->ScheduleBlock]", {
+        block_id: scheduleBlock.id,
+        technician_id: scheduleBlock.technician_id,
+        project_id: scheduleBlock.project_id,
+        source: scheduleBlock.source,
+      });
+      onScheduleBlockClick?.(scheduleBlock);
       return;
     }
 
@@ -446,6 +467,11 @@ export const ResourceCalendar = memo(function ResourceCalendar({
             sb.end_at.getTime() > busyStart
         );
         if (match) {
+          console.info("[ResourceCalendar][Click->BusyMatch]", {
+            busy_tech_id: busyTechId,
+            matched_block_id: match.id,
+            matched_technician_id: match.technician_id,
+          });
           onScheduleBlockClick?.(match);
           return;
         }
@@ -486,38 +512,46 @@ export const ResourceCalendar = memo(function ResourceCalendar({
       return;
     }
 
-    // Regular calendar event – extract real event ID (strip tech suffix if multi-tech)
     const calEvent = props.calendarEvent as CalendarEvent | undefined;
     if (calEvent) {
-      const clickedTechId = props.assignedTechId as string | undefined;
+      const clickedTechId = (props.assignedTechId as string | undefined) ?? (props.technicianId as string | undefined);
       const evStart = info.event.start?.getTime() ?? 0;
       const evEnd = info.event.end?.getTime() ?? evStart;
 
-      // First try to find a schedule_block for the specific clicked technician
-      let matchBlock: ScheduleBlock | undefined;
-      if (clickedTechId) {
-        matchBlock = scheduleBlocks.find(
-          (sb) =>
-            sb.technician_id === clickedTechId &&
-            sb.start_at.getTime() < evEnd &&
-            sb.end_at.getTime() > evStart &&
-            (sb.project_id === calEvent.id || sb.mcs_block_id === calEvent.id)
-        );
-      }
-      // Fallback: any matching block (single-tech events)
-      if (!matchBlock) {
-        matchBlock = scheduleBlocks.find(
-          (sb) =>
-            sb.start_at.getTime() < evEnd &&
-            sb.end_at.getTime() > evStart &&
-            (sb.project_id === calEvent.id || sb.mcs_block_id === calEvent.id)
-        );
-      }
+      const overlappingBlocks = scheduleBlocks.filter(
+        (sb) =>
+          sb.start_at.getTime() < evEnd &&
+          sb.end_at.getTime() > evStart &&
+          (sb.project_id === calEvent.id || sb.mcs_block_id === calEvent.id)
+      );
 
-      if (matchBlock) {
-        onScheduleBlockClick?.(matchBlock);
+      const assignmentMatch = clickedTechId
+        ? overlappingBlocks.find((sb) => sb.technician_id === clickedTechId)
+        : overlappingBlocks[0];
+
+      if (assignmentMatch) {
+        console.info("[ResourceCalendar][Click->AssignmentMatch]", {
+          clicked_technician_id: clickedTechId ?? null,
+          matched_block_id: assignmentMatch.id,
+          matched_technician_id: assignmentMatch.technician_id,
+          event_id: calEvent.id,
+        });
+        onScheduleBlockClick?.(assignmentMatch);
         return;
       }
+
+      if (clickedTechId && overlappingBlocks.length > 0) {
+        console.warn("[ResourceCalendar][Click->NoAssignmentMatch]", {
+          clicked_technician_id: clickedTechId,
+          event_id: calEvent.id,
+          overlapping_blocks: overlappingBlocks.map((sb) => ({
+            block_id: sb.id,
+            technician_id: sb.technician_id,
+            source: sb.source,
+          })),
+        });
+      }
+
       onEventClick?.(calEvent);
     }
   }, [onEventClick, onScheduleBlockClick, scheduleBlocks]);
