@@ -77,7 +77,7 @@ export function useTechnicians(companyId?: string | null) {
       } else {
         const { data } = await supabase
           .from("technicians")
-          .select("id, name, email, color")
+          .select("id, name, email, color, avatar_id")
           .eq("is_plannable_resource", true)
           .is("archived_at", null)
           .order("name");
