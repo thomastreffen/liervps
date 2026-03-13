@@ -26,6 +26,8 @@ export function TechnicianMultiSelect({ selectedIds, onChange }: TechnicianMulti
       .from("technicians")
       .select("id, name, user_id")
       .not("user_id", "is", null)
+      .eq("is_plannable_resource", true)
+      .is("archived_at", null)
       .order("name")
       .then(({ data }) => {
         const raw = data || [];
