@@ -123,6 +123,7 @@ export default function ResourcePlan() {
 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editEvent, setEditEvent] = useState<CalendarEvent | null>(null);
+  const [clickedTechId, setClickedTechId] = useState<string | null>(null);
   const [preselectedStart, setPreselectedStart] = useState<Date | null>(null);
   const [preselectedEnd, setPreselectedEnd] = useState<Date | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -174,16 +175,18 @@ export default function ResourcePlan() {
   }, [calendarView]);
   const goToToday = useCallback(() => setReferenceDate(new Date()), []);
 
-  const handleEventClick = useCallback((event: CalendarEvent) => {
+  const handleEventClick = useCallback((event: CalendarEvent, techId?: string) => {
     console.info("[ResourcePlan][OpenEventDrawer]", {
       open_handler: "event_drawer",
       event_id: event.id,
+      clicked_tech_id: techId ?? null,
       technician_ids: event.technicianIds,
       technician_names: event.technicians.map((t) => t.name),
       start: event.start?.toISOString?.() ?? null,
       end: event.end?.toISOString?.() ?? null,
     });
     setEditEvent(event);
+    setClickedTechId(techId ?? null);
     setPreselectedStart(null);
     setPreselectedEnd(null);
     setDrawerOpen(true);
@@ -699,6 +702,7 @@ export default function ResourcePlan() {
         open={drawerOpen}
         onOpenChange={setDrawerOpen}
         editEvent={editEvent}
+        clickedTechId={clickedTechId}
         preselectedStart={preselectedStart}
         preselectedEnd={preselectedEnd}
         preselectedTechId={selectedTechId}

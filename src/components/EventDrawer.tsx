@@ -35,6 +35,7 @@ import {
   ListChecks,
   Moon,
   ArrowRight,
+  Users,
 } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel,
@@ -72,6 +73,7 @@ interface EventDrawerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   editEvent?: CalendarEvent | null;
+  clickedTechId?: string | null;
   preselectedStart?: Date | null;
   preselectedEnd?: Date | null;
   preselectedTechId?: string | null;
@@ -85,6 +87,7 @@ export function EventDrawer({
   open,
   onOpenChange,
   editEvent,
+  clickedTechId,
   preselectedStart,
   preselectedEnd,
   preselectedTechId,
@@ -397,6 +400,14 @@ export function EventDrawer({
     JSON.stringify([...techIds].sort()) !== JSON.stringify(editEvent.technicians.map((t) => t.id).sort())
   ) : true;
 
+  const isMultiTech = isEditing && editEvent && editEvent.technicians.length > 1;
+  const clickedTechName = isEditing && clickedTechId
+    ? editEvent?.technicians.find((t) => t.id === clickedTechId)?.name ?? null
+    : null;
+  const otherTechNames = isMultiTech && clickedTechId
+    ? editEvent!.technicians.filter((t) => t.id !== clickedTechId).map((t) => t.name)
+    : [];
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="sm:max-w-[480px] flex flex-col overflow-y-auto">
@@ -415,6 +426,32 @@ export function EventDrawer({
               ? `Tildel tid og montører til ${projectTitle || "prosjektet"}`
               : "Opprett nytt oppdrag eller knytt til eksisterende prosjekt"}
           </SheetDescription>
+
+          {/* Multi-tech context banner */}
+          {isEditing && editEvent && (
+            <div className="space-y-1.5 pt-1">
+              {/* JOB-ID badge */}
+              {editEvent.jobNumber && (
+                <span className="inline-block font-mono text-[11px] font-semibold bg-primary/10 text-primary rounded-md px-2 py-0.5">
+                  {editEvent.jobNumber}
+                </span>
+              )}
+              {/* Clicked tech indicator */}
+              {clickedTechName && (
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <User className="h-3 w-3 shrink-0" />
+                  <span>Valgt montør: <span className="font-medium text-foreground">{clickedTechName}</span></span>
+                </div>
+              )}
+              {/* Other assigned techs */}
+              {isMultiTech && otherTechNames.length > 0 && (
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <Users className="h-3 w-3 shrink-0" />
+                  <span>Tildelt også: {otherTechNames.join(", ")}</span>
+                </div>
+              )}
+            </div>
+          )}
         </SheetHeader>
 
         <div className="flex-1 mt-3 space-y-6">

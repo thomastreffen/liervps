@@ -31,7 +31,7 @@ interface ResourceCalendarProps {
   getBusySlotsForDay?: (date: Date) => ExternalBusySlot[];
   dayCapacities?: DayCapacity[];
   scheduleBlocks?: ScheduleBlock[];
-  onEventClick?: (event: CalendarEvent) => void;
+  onEventClick?: (event: CalendarEvent, clickedTechId?: string) => void;
   onScheduleBlockClick?: (block: ScheduleBlock) => void;
   onDateSelect?: (start: Date, end: Date) => void;
   onEventDrop?: (eventId: string, newStart: Date, newEnd: Date) => void;
@@ -496,7 +496,7 @@ export const ResourceCalendar = memo(function ResourceCalendar({
           outlook_event_id: props.outlookEventId ?? scheduleBlock.outlook_event_id ?? null,
           display_name: props.displayName ?? scheduleBlock.technician_name ?? null,
         });
-        onEventClick?.(matchingAssignmentEvent);
+        onEventClick?.(matchingAssignmentEvent, scheduleBlock.technician_id);
         return;
       }
 
@@ -606,7 +606,8 @@ export const ResourceCalendar = memo(function ResourceCalendar({
         outlook_event_id: props.outlookEventId ?? null,
         display_name: props.displayName ?? props.techFullName ?? props.techName ?? null,
       });
-      onEventClick?.(calEvent);
+      const clickedTechId = (props.assignedTechId as string | undefined) ?? (props.technicianId as string | undefined) ?? undefined;
+      onEventClick?.(calEvent, clickedTechId);
     }
   }, [calendarEvents, onEventClick, onScheduleBlockClick, scheduleBlocks]);
 
@@ -678,6 +679,7 @@ export const ResourceCalendar = memo(function ResourceCalendar({
         eventResize={handleEventResize}
         slotEventOverlap={true}
         eventOverlap={true}
+        eventOrder="start,-duration,allDay,title"
         eventMaxStack={4}
         eventMinHeight={32}
         eventContent={(arg) => {
