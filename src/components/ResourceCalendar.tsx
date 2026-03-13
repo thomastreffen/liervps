@@ -31,7 +31,7 @@ interface ResourceCalendarProps {
   getBusySlotsForDay?: (date: Date) => ExternalBusySlot[];
   dayCapacities?: DayCapacity[];
   scheduleBlocks?: ScheduleBlock[];
-  onEventClick?: (event: CalendarEvent) => void;
+  onEventClick?: (event: CalendarEvent, clickedTechId?: string) => void;
   onScheduleBlockClick?: (block: ScheduleBlock) => void;
   onDateSelect?: (start: Date, end: Date) => void;
   onEventDrop?: (eventId: string, newStart: Date, newEnd: Date) => void;
