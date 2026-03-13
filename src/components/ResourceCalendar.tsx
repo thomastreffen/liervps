@@ -182,47 +182,43 @@ export const ResourceCalendar = memo(function ResourceCalendar({
   }, [technicianMap]);
 
   const fcEvents: EventInput[] = useMemo(() => {
-    const eventIdsWithScheduleBlock = new Set<string>();
-    const scheduleBlockTechsByEvent = new Map<string, Set<string>>();
-    for (const block of scheduleBlocks) {
-      if (block.project_id) {
-        eventIdsWithScheduleBlock.add(block.project_id);
-        const techSet = scheduleBlockTechsByEvent.get(block.project_id) || new Set();
-        techSet.add(block.technician_id);
-        scheduleBlockTechsByEvent.set(block.project_id, techSet);
-      }
-    }
-
     const calEventRangesByTech = new Map<string, Array<{ start: number; end: number }>>();
+    const assignmentMetaByEventTech = new Map<string, {
+      eventId: string;
+      technicianId: string;
+      eventTechnicianId: string | null;
+      calendarEventId: string | null;
+      start: number;
+      end: number;
+      displayName: string;
+    }>();
 
     const result: EventInput[] = [];
 
-    // ── Assignment-based rendering ──
-    // Always track time ranges for busy slot dedup even when schedule_blocks cover the event
+    // ── Assignment-based rendering (authoritative for internal/system jobs) ──
     for (const ev of calendarEvents) {
-      for (const t of ev.technicians) {
-        const ranges = calEventRangesByTech.get(t.id) || [];
-        ranges.push({ start: ev.start.getTime(), end: ev.end.getTime() });
-        calEventRangesByTech.set(t.id, ranges);
-      }
-
-      // Only render calendarEvent blocks for techs NOT covered by schedule_blocks
-      const sbTechs = scheduleBlockTechsByEvent.get(ev.id);
-      const techsToRender = sbTechs
-        ? ev.technicians.filter((t) => !sbTechs.has(t.id))
-        : ev.technicians;
-
-      if (techsToRender.length === 0) continue;
-
       const isOvernight = ev.start.toDateString() !== ev.end.toDateString();
       const multiTech = ev.technicians.length > 1;
 
-      for (const tech of techsToRender) {
+      for (const tech of ev.technicians) {
+        const ranges = calEventRangesByTech.get(tech.id) || [];
+        ranges.push({ start: ev.start.getTime(), end: ev.end.getTime() });
+        calEventRangesByTech.set(tech.id, ranges);
+
+        assignmentMetaByEventTech.set(`${ev.id}::${tech.id}`, {
+          eventId: ev.id,
+          technicianId: tech.id,
+          eventTechnicianId: tech.eventTechnicianId ?? null,
+          calendarEventId: tech.calendarEventId ?? null,
+          start: ev.start.getTime(),
+          end: ev.end.getTime(),
+          displayName: tech.name,
+        });
+
         const techColor = techColorMap.get(tech.id) || GCAL_PALETTE[0];
         const techFirstName = tech.name.split(" ")[0];
         const allTechNames = ev.technicians.map((t) => t.name.split(" ")[0]).join(", ");
         const techInfo = technicianMap.get(tech.id);
-
         const renderKey = multiTech ? `${ev.id}__tech__${tech.id}` : ev.id;
 
         result.push({
@@ -240,7 +236,9 @@ export const ResourceCalendar = memo(function ResourceCalendar({
             eventId: ev.id,
             eventTechnicianId: tech.eventTechnicianId ?? null,
             technicianId: tech.id,
+            scheduleBlockId: null,
             calendarEventId: tech.calendarEventId ?? null,
+            outlookEventId: null,
             displayName: tech.name,
             customer: ev.customer,
             status: ev.status,
