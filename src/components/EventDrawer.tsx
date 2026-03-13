@@ -72,6 +72,7 @@ interface EventDrawerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   editEvent?: CalendarEvent | null;
+  clickedTechId?: string | null;
   preselectedStart?: Date | null;
   preselectedEnd?: Date | null;
   preselectedTechId?: string | null;
