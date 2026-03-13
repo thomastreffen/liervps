@@ -416,6 +416,7 @@ export default function ResourcePlan() {
             nowStatusMap={canReadBusy ? nowStatusMap : undefined}
             onColorChange={handleTechColorChange}
             techDayPercents={canReadBusy ? techDayPercents : undefined}
+            techWeekCapacities={canReadBusy ? techWeekCapacities : undefined}
           />
         </aside>
       )}
