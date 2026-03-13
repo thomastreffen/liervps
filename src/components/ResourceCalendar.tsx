@@ -181,9 +181,13 @@ export const ResourceCalendar = memo(function ResourceCalendar({
 
   const fcEvents: EventInput[] = useMemo(() => {
     const eventIdsWithScheduleBlock = new Set<string>();
+    const scheduleBlockTechsByEvent = new Map<string, Set<string>>();
     for (const block of scheduleBlocks) {
       if (block.project_id) {
         eventIdsWithScheduleBlock.add(block.project_id);
+        const techSet = scheduleBlockTechsByEvent.get(block.project_id) || new Set();
+        techSet.add(block.technician_id);
+        scheduleBlockTechsByEvent.set(block.project_id, techSet);
       }
     }
 
@@ -191,23 +195,27 @@ export const ResourceCalendar = memo(function ResourceCalendar({
 
     const result: EventInput[] = [];
 
-    // ── KEY CHANGE: Assignment-based rendering ──
-    // Instead of one block per event, render one block PER technician assignment
+    // ── Assignment-based rendering ──
+    // Always track time ranges for busy slot dedup even when schedule_blocks cover the event
     for (const ev of calendarEvents) {
-      if (eventIdsWithScheduleBlock.has(ev.id)) continue;
-
-      const isOvernight = ev.start.toDateString() !== ev.end.toDateString();
-      const multiTech = ev.technicians.length > 1;
-
-      // Track time ranges for busy slot dedup
       for (const t of ev.technicians) {
         const ranges = calEventRangesByTech.get(t.id) || [];
         ranges.push({ start: ev.start.getTime(), end: ev.end.getTime() });
         calEventRangesByTech.set(t.id, ranges);
       }
 
-      // One block PER technician
-      for (const tech of ev.technicians) {
+      // Only render calendarEvent blocks for techs NOT covered by schedule_blocks
+      const sbTechs = scheduleBlockTechsByEvent.get(ev.id);
+      const techsToRender = sbTechs
+        ? ev.technicians.filter((t) => !sbTechs.has(t.id))
+        : ev.technicians;
+
+      if (techsToRender.length === 0) continue;
+
+      const isOvernight = ev.start.toDateString() !== ev.end.toDateString();
+      const multiTech = ev.technicians.length > 1;
+
+      for (const tech of techsToRender) {
         const techColor = techColorMap.get(tech.id) || GCAL_PALETTE[0];
         const techFirstName = tech.name.split(" ")[0];
         const allTechNames = ev.technicians.map((t) => t.name.split(" ")[0]).join(", ");
