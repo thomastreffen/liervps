@@ -363,6 +363,8 @@ export const ResourceCalendar = memo(function ResourceCalendar({
           isExternalMasked: masked,
           matchState: block.match_state,
           techName: masked ? undefined : techName,
+          techFullName: masked ? undefined : block.technician_name,
+          techAvatarId: masked ? undefined : (technicianMap.get(block.technician_id)?.avatarId || null),
           projectTitle: masked ? undefined : block.project_title,
           sourceLabel,
           blockSource: block.source,
