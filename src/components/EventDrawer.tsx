@@ -815,3 +815,56 @@ export function EventDrawer({
     </Sheet>
   );
 }
+
+/* ── Extracted: New event fields with project suggestions ── */
+function NewEventFields({
+  title, setTitle, customer, setCustomer, address, setAddress, eventType, onLinkProject,
+}: {
+  title: string;
+  setTitle: (v: string) => void;
+  customer: string;
+  setCustomer: (v: string) => void;
+  address: string;
+  setAddress: (v: string) => void;
+  eventType: "project" | "task";
+  onLinkProject: (proj: ProjectSuggestion) => void;
+}) {
+  const { suggestions, loading } = useProjectSuggestions(title, eventType === "project");
+
+  return (
+    <section className="space-y-4">
+      <h3 className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Oppdrag</h3>
+      <div>
+        <Label className="text-xs">Tittel *</Label>
+        <Input
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder={eventType === "task" ? "F.eks. Bestille materialer" : "F.eks. Kabellegging 3. etg"}
+          className="mt-1"
+        />
+      </div>
+
+      {/* Project suggestions */}
+      {eventType === "project" && (
+        <ProjectSuggestionList
+          suggestions={suggestions}
+          loading={loading}
+          onSelect={onLinkProject}
+        />
+      )}
+
+      {eventType === "project" && (
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <Label className="text-xs">Kunde</Label>
+            <Input value={customer} onChange={(e) => setCustomer(e.target.value)} placeholder="Kundenavn" className="mt-1" />
+          </div>
+          <div>
+            <Label className="text-xs">Adresse</Label>
+            <Input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Adresse" className="mt-1" />
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
