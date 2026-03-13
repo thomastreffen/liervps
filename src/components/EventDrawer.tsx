@@ -1,4 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
+import { useProjectSuggestions, type ProjectSuggestion } from "@/hooks/useProjectSuggestions";
+import { ProjectSuggestionList } from "./ProjectSuggestionList";
 import {
   Sheet,
   SheetContent,
