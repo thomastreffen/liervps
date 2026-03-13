@@ -40,7 +40,7 @@ export function UnplannedJobsStrip({ companyId }: UnplannedJobsStripProps) {
       .is("deleted_at", null)
       .is("archived_at", null)
       .eq("project_type", "project")
-      .in("status", ["requested", "approved", "planned"])
+      .in("status", ["requested", "approved"])
       .order("created_at", { ascending: false })
       .limit(30);
 
