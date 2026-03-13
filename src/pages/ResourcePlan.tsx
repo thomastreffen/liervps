@@ -645,6 +645,11 @@ export default function ResourcePlan() {
         {/* Unplanned projects warning */}
         {!isMobile && <UnplannedProjectsBanner count={unplannedCount} />}
 
+        {/* Draggable unplanned jobs */}
+        {!isMobile && canWriteEvents && (
+          <UnplannedJobsStrip companyId={effectiveCompanyId} />
+        )}
+
         {/* Unscheduled tasks strip */}
         <TaskResourceStrip
           technicianUserId={null}
