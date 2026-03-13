@@ -318,6 +318,13 @@ export const ResourceCalendar = memo(function ResourceCalendar({
               textColor: effectiveCanViewExternal ? busyTechColor : "#9CA3AF",
               editable: false,
               extendedProps: {
+                source: "busy_slot",
+                renderKey: `busy-${techId}-${slot.start.getTime()}`,
+                eventId: null,
+                eventTechnicianId: null,
+                technicianId: techId,
+                calendarEventId: null,
+                displayName,
                 isBusy: true,
                 techName: effectiveCanViewExternal ? displayName : undefined,
                 busyTechColor: effectiveCanViewExternal ? busyTechColor : BUSY_GRAY,
