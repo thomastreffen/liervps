@@ -229,7 +229,8 @@ export function TechnicianList({
         const nowStatus = nowStatusMap?.get(tech.id);
         const techColor = tech.color || "#039BE5";
         const dayPercent = techDayPercents?.get(tech.id) ?? 0;
-        const isOverbooked = dayPercent > 100;
+        const weekCap = techWeekCapacities?.get(tech.id);
+        const isOverbooked = weekCap ? weekCap.weekPercent > 100 : dayPercent > 100;
 
         return (
           <div key={tech.id} className="flex items-center gap-0">
