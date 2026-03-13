@@ -9,7 +9,7 @@ import { useCalendarEvents, type CalendarEvent } from "@/hooks/useCalendarEvents
 import type { ExternalBusySlot } from "@/hooks/useExternalBusy";
 import type { DayCapacity } from "@/hooks/useCapacity";
 import type { ScheduleBlock } from "@/hooks/useScheduleBlocks";
-import { Lock, CalendarCheck, AlertTriangle, Globe, Monitor, MapPin, Moon } from "lucide-react";
+import { Lock, CalendarCheck, AlertTriangle, Globe, Monitor, MapPin, Moon, Users } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { format } from "date-fns";
 import { nb } from "date-fns/locale";
@@ -35,29 +35,20 @@ interface ResourceCalendarProps {
   onEventDrop?: (eventId: string, newStart: Date, newEnd: Date) => void;
   onEventResize?: (eventId: string, newStart: Date, newEnd: Date) => void;
   onExternalDrop?: (info: { taskId: string; title: string; start: Date; end: Date; estimatedMinutes: number; priority: string; dropType: string }) => void;
-  /** @deprecated Use canWriteEvents instead */
   isAdmin?: boolean;
-  /** @deprecated Use canViewExternalDetails instead */
   isSuperAdmin?: boolean;
-  /** Permission: can write/edit calendar events */
   canWriteEvents?: boolean;
-  /** Permission: can see external calendar details (titles, locations) */
   canViewExternalDetails?: boolean;
-  /** Permission: can see busy/available status */
   canReadBusy?: boolean;
   hideExternalEvents?: boolean;
-  /** Operating hours config */
   slotMinTime?: string;
   slotMaxTime?: string;
   slotDuration?: string;
-  /** Start hour for night shading (e.g. 0 for industry) */
   operatingStartHour?: number;
-  /** End hour for night shading (e.g. 24 for industry) */
   operatingEndHour?: number;
   hasNightHours?: boolean;
 }
 
-/** Merge overlapping external slots into contiguous blocks */
 function mergeExternalSlots(slots: ExternalBusySlot[]): ExternalBusySlot[] {
   if (slots.length <= 1) return slots;
   const sorted = [...slots].sort((a, b) => a.start.getTime() - b.start.getTime());
@@ -73,7 +64,6 @@ function mergeExternalSlots(slots: ExternalBusySlot[]): ExternalBusySlot[] {
   return merged;
 }
 
-/** Vivid, distinct colors for each technician – Google Calendar style */
 const GCAL_PALETTE = [
   "#D50000", "#F4511E", "#E67C73", "#F09300",
   "#009688", "#0B8043", "#33B679", "#7CB342",
@@ -89,7 +79,6 @@ function hexToRgba(hex: string, alpha: number): string {
   return `rgba(${r},${g},${b},${alpha})`;
 }
 
-/** Status indicator dot colors */
 const statusDotColors: Record<string, string> = {
   planned: "#1E3A8A",
   requested: "#D97706",
@@ -100,7 +89,6 @@ const statusDotColors: Record<string, string> = {
   invoiced: "#9CA3AF",
 };
 
-/** Match state color map */
 const matchStateColors: Record<string, { bg: string; border: string; text: string }> = {
   auto: { bg: "#059669", border: "#059669", text: "#FFFFFF" },
   confirmed: { bg: "#059669", border: "#059669", text: "#FFFFFF" },
@@ -137,7 +125,6 @@ export const ResourceCalendar = memo(function ResourceCalendar({
   operatingEndHour = 16,
   hasNightHours = false,
 }: ResourceCalendarProps) {
-  // Resolve permission: prefer new props, fall back to legacy
   const effectiveCanWrite = canWriteEvents ?? isAdmin;
   const effectiveCanViewExternal = canViewExternalDetails ?? isSuperAdmin;
   const calendarRef = useRef<FullCalendar>(null);
@@ -157,18 +144,15 @@ export const ResourceCalendar = memo(function ResourceCalendar({
     }
   }, [referenceDate, calendarView]);
 
-  // Scroll to current time in time grid views
   useEffect(() => {
     if (isDayView || calendarView === "timeGridWeek") {
       const api = calendarRef.current?.getApi();
       if (api) {
-        // Small delay to ensure DOM is ready
         setTimeout(() => api.scrollToTime(new Date().toTimeString().slice(0, 8)), 100);
       }
     }
   }, [isDayView, calendarView, referenceDate]);
 
-  // Night shading class
   const [wrapperRef, setWrapperRef] = useState<HTMLDivElement | null>(null);
   useEffect(() => {
     if (!wrapperRef || !hasNightHours) return;
@@ -176,7 +160,6 @@ export const ResourceCalendar = memo(function ResourceCalendar({
     return () => { wrapperRef?.classList.remove("fc-night-shading"); };
   }, [hasNightHours, wrapperRef]);
 
-  // Listen for scroll-to events from parent
   useEffect(() => {
     const handler = (e: Event) => {
       const time = (e as CustomEvent).detail as string;
@@ -186,7 +169,6 @@ export const ResourceCalendar = memo(function ResourceCalendar({
     return () => window.removeEventListener("resource-calendar:scroll-to", handler);
   }, []);
 
-  // Build a stable color assignment per technician (Google Calendar style)
   const techColorMap = useMemo(() => {
     const map = new Map<string, string>();
     let idx = 0;
@@ -198,8 +180,6 @@ export const ResourceCalendar = memo(function ResourceCalendar({
   }, [technicianMap]);
 
   const fcEvents: EventInput[] = useMemo(() => {
-    // ── Dedup: Build sets to prevent the same job from appearing multiple times ──
-    // schedule_blocks linked to a project (event) should suppress that calendarEvent
     const eventIdsWithScheduleBlock = new Set<string>();
     for (const block of scheduleBlocks) {
       if (block.project_id) {
@@ -207,19 +187,17 @@ export const ResourceCalendar = memo(function ResourceCalendar({
       }
     }
 
-    // calendarEvent time ranges per technician – used to dedup busy slots
     const calEventRangesByTech = new Map<string, Array<{ start: number; end: number }>>();
 
     const result: EventInput[] = [];
 
+    // ── KEY CHANGE: Assignment-based rendering ──
+    // Instead of one block per event, render one block PER technician assignment
     for (const ev of calendarEvents) {
-      // Skip calendarEvent if a schedule_block already represents this project
       if (eventIdsWithScheduleBlock.has(ev.id)) continue;
 
-      const techNames = ev.technicians.map((t) => t.name.split(" ")[0]).join(", ");
-      const firstTechId = ev.technicians[0]?.id;
-      const baseColor = (firstTechId && techColorMap.get(firstTechId)) || GCAL_PALETTE[0];
       const isOvernight = ev.start.toDateString() !== ev.end.toDateString();
+      const multiTech = ev.technicians.length > 1;
 
       // Track time ranges for busy slot dedup
       for (const t of ev.technicians) {
@@ -228,32 +206,40 @@ export const ResourceCalendar = memo(function ResourceCalendar({
         calEventRangesByTech.set(t.id, ranges);
       }
 
-      result.push({
-        id: ev.id,
-        title: ev.title.replace("SERVICE – ", ""),
-        start: ev.start,
-        end: ev.end,
-        backgroundColor: baseColor,
-        borderColor: baseColor,
-        textColor: "#FFFFFF",
-        extendedProps: {
-          calendarEvent: ev,
-          customer: ev.customer,
-          status: ev.status,
-          techNames,
-          baseColor,
-          statusDot: statusDotColors[ev.status] || "#FFFFFF",
-          isOvernight,
-        },
-        editable: effectiveCanWrite,
-      });
+      // One block PER technician
+      for (const tech of ev.technicians) {
+        const techColor = techColorMap.get(tech.id) || GCAL_PALETTE[0];
+        const techFirstName = tech.name.split(" ")[0];
+        const allTechNames = ev.technicians.map((t) => t.name.split(" ")[0]).join(", ");
+
+        result.push({
+          id: multiTech ? `${ev.id}__tech__${tech.id}` : ev.id,
+          title: ev.title.replace("SERVICE – ", ""),
+          start: ev.start,
+          end: ev.end,
+          backgroundColor: techColor,
+          borderColor: techColor,
+          textColor: "#FFFFFF",
+          extendedProps: {
+            calendarEvent: ev,
+            customer: ev.customer,
+            status: ev.status,
+            techNames: allTechNames,
+            techName: techFirstName,
+            baseColor: techColor,
+            statusDot: statusDotColors[ev.status] || "#FFFFFF",
+            isOvernight,
+            isMultiTech: multiTech,
+            assignedTechId: tech.id,
+          },
+          editable: effectiveCanWrite,
+        });
+      }
     }
 
-    // External busy slots – merged and solid
-    // Skip entirely if hideExternalEvents is on
+    // External busy slots
     let missingNameCount = 0;
     if (getBusySlotsForDay && !hideExternalEvents) {
-      // Build a set of schedule_block time ranges per technician to deduplicate
       const sbRangesByTech = new Map<string, Array<{ start: number; end: number }>>();
       for (const block of scheduleBlocks) {
         const ranges = sbRangesByTech.get(block.technician_id) || [];
@@ -275,17 +261,12 @@ export const ResourceCalendar = memo(function ResourceCalendar({
           byTech.set(s.technicianId, arr);
         }
         for (const [techId, techSlots] of byTech) {
-          // Only show busy slots for technicians in the active plannable set
           const tech = technicianMap.get(techId);
-          if (!tech) {
-            console.debug(`[ResourceCalendar] Skipping ${techSlots.length} busy slot(s) for non-plannable techId=${techId}`);
-            continue;
-          }
+          if (!tech) continue;
           const merged = mergeExternalSlots(techSlots);
           const techSbRanges = sbRangesByTech.get(techId) || [];
 
           for (const slot of merged) {
-            // Deduplicate: skip busy slot if a schedule_block OR calendarEvent already covers this time range
             const slotStart = slot.start.getTime();
             const slotEnd = slot.end.getTime();
             const coveredBySb = techSbRanges.some(
@@ -300,15 +281,9 @@ export const ResourceCalendar = memo(function ResourceCalendar({
             if (coveredByCalEvent) continue;
 
             const techName = tech?.name?.trim();
-            const displayName = techName
-              ? techName.split(" ")[0]
-              : "Ukjent montør";
-            if (!techName) {
-              missingNameCount++;
-              console.warn(`[ResourceCalendar] Busy slot missing technician name – techId=${techId}, slot=${slot.start.toISOString()}`);
-            }
+            const displayName = techName ? techName.split(" ")[0] : "Ukjent montør";
+            if (!techName) missingNameCount++;
             const busyTechColor = techColorMap.get(techId) || GCAL_PALETTE[0];
-            // Privacy: use permission check, not role
             const maskedTitle = effectiveCanViewExternal ? `${displayName} – opptatt` : "Opptatt";
             const BUSY_GRAY = "#9CA3AF";
             result.push({
@@ -333,47 +308,25 @@ export const ResourceCalendar = memo(function ResourceCalendar({
       }
     }
 
-    if (missingNameCount > 0) {
-      console.warn(`[ResourceCalendar] ${missingNameCount} busy slot(s) rendered with missing technician displayName`);
-    }
-
-    // Schedule blocks (Outlook-synced)
+    // Schedule blocks
     const seenScheduleBlockKeys = new Set<string>();
     for (const block of scheduleBlocks) {
       const isExternal = block.source === "outlook" && !block.project_id;
-
-      // If hideExternalEvents is on AND block is unlinked external → skip entirely
       if (hideExternalEvents && isExternal) continue;
 
       const colors = matchStateColors[block.match_state] || matchStateColors.external;
       const techName = block.technician_name?.split(" ")[0] || "";
       const sourceLabel = block.source === "outlook" ? "Outlook" : "System";
-      // Use outlook_subject for display title when available
       const displayTitle = block.outlook_subject || block.title || "Outlook-blokk";
 
-      // Robust dedup for schedule_blocks: avoid duplicate ghost blocks from sync race
       const normalizedTitle = displayTitle.trim().toLowerCase();
       const dedupKey = block.project_id
         ? `linked|${block.source}|${block.technician_id}|${block.project_id}|${block.start_at.toISOString()}|${block.end_at.toISOString()}|${normalizedTitle}`
         : `external|${block.source}|${block.technician_id}|${block.outlook_event_id || "no_external_id"}|${block.start_at.toISOString()}|${block.end_at.toISOString()}`;
 
-      if (seenScheduleBlockKeys.has(dedupKey)) {
-        console.warn("[ResourceCalendar] Suppressed duplicate schedule_block", {
-          source: block.source,
-          schedule_block_id: block.id,
-          external_event_id: block.outlook_event_id,
-          project_id: block.project_id,
-          start: block.start_at.toISOString(),
-          end: block.end_at.toISOString(),
-          title: displayTitle,
-          technician_id: block.technician_id,
-          calendar_id: block.calendar_id,
-        });
-        continue;
-      }
+      if (seenScheduleBlockKeys.has(dedupKey)) continue;
       seenScheduleBlockKeys.add(dedupKey);
 
-      // Privacy: non-superadmins see masked external blocks
       const masked = isExternal && !effectiveCanViewExternal;
       const BUSY_GRAY = "#9CA3AF";
 
@@ -406,32 +359,23 @@ export const ResourceCalendar = memo(function ResourceCalendar({
       });
     }
 
-    if (eventIdsWithScheduleBlock.size > 0) {
-      console.log(`[ResourceCalendar] Dedup: ${eventIdsWithScheduleBlock.size} calendarEvent(s) suppressed by schedule_blocks`);
-    }
-
     return result;
   }, [calendarEvents, getBusySlotsForDay, technicianMap, techColorMap, referenceDate, effectiveCanWrite, effectiveCanViewExternal, hideExternalEvents, isMonthView, scheduleBlocks]);
 
   const handleEventClick = useCallback((info: EventClickArg) => {
     const props = info.event.extendedProps;
 
-    // Block clicks on masked external events for non-superadmins
     if (props.isExternalMasked) return;
 
-    // Schedule block click → always open side panel
     if (props.isScheduleBlock && props.scheduleBlock) {
-      toast.info(`Clicked block: sb-${(props.scheduleBlock as ScheduleBlock).id.slice(0, 8)}`);
       onScheduleBlockClick?.(props.scheduleBlock as ScheduleBlock);
       return;
     }
 
-    // Busy slot click → find matching schedule_block by technician + time overlap
     if (props.isBusy) {
       const busyStart = info.event.start?.getTime() ?? 0;
       const busyEnd = info.event.end?.getTime() ?? busyStart;
       const busyTechId = props.busyTechId as string | undefined;
-      toast.info(`Clicked busy slot: tech=${busyTechId?.slice(0,8)}, blocks=${scheduleBlocks.length}`);
       if (busyTechId && scheduleBlocks.length > 0) {
         const match = scheduleBlocks.find(
           (sb) =>
@@ -444,7 +388,6 @@ export const ResourceCalendar = memo(function ResourceCalendar({
           return;
         }
       }
-      // No matching schedule_block – open debug panel with synthetic block
       if (busyTechId && onScheduleBlockClick) {
         const debugBlock: ScheduleBlock = {
           id: `debug-${busyTechId}-${busyStart}`,
@@ -458,9 +401,9 @@ export const ResourceCalendar = memo(function ResourceCalendar({
           end_at: info.event.end || new Date(busyEnd),
           title: props.techName ? `${props.techName} – opptatt` : "Opptatt",
           location: null,
-          description: `NO_MATCH: ${scheduleBlocks.length} schedule_blocks vurdert, ingen traff for tech=${busyTechId}`,
+          description: `NO_MATCH: ${scheduleBlocks.length} schedule_blocks vurdert`,
           match_confidence: 0,
-          match_reason: `Debug: busy slot uten schedule_block. Checked ${scheduleBlocks.filter(sb => sb.technician_id === busyTechId).length} blocks for this tech.`,
+          match_reason: `Debug: busy slot uten schedule_block.`,
           match_state: "external",
           mcs_block_id: null,
           created_at: new Date().toISOString(),
@@ -481,10 +424,9 @@ export const ResourceCalendar = memo(function ResourceCalendar({
       return;
     }
 
-    // Regular calendar event → check if a schedule_block covers it first
+    // Regular calendar event – extract real event ID (strip tech suffix if multi-tech)
     const calEvent = props.calendarEvent as CalendarEvent | undefined;
     if (calEvent) {
-      toast.info(`Clicked event: ${calEvent.id.slice(0, 8)}`);
       const evStart = info.event.start?.getTime() ?? 0;
       const evEnd = info.event.end?.getTime() ?? evStart;
       const matchBlock = scheduleBlocks.find(
@@ -508,12 +450,17 @@ export const ResourceCalendar = memo(function ResourceCalendar({
 
   const handleEventDrop = useCallback((info: EventDropArg) => {
     if (info.event.extendedProps.isBusy) { info.revert(); return; }
-    onEventDrop?.(info.event.id, info.event.start!, info.event.end!);
+    // Extract real event ID from composite ID
+    const rawId = info.event.id;
+    const realId = rawId.includes("__tech__") ? rawId.split("__tech__")[0] : rawId;
+    onEventDrop?.(realId, info.event.start!, info.event.end!);
   }, [onEventDrop]);
 
   const handleEventResize = useCallback((info: any) => {
     if (info.event.extendedProps.isBusy) { info.revert(); return; }
-    onEventResize?.(info.event.id, info.event.start!, info.event.end!);
+    const rawId = info.event.id;
+    const realId = rawId.includes("__tech__") ? rawId.split("__tech__")[0] : rawId;
+    onEventResize?.(realId, info.event.start!, info.event.end!);
   }, [onEventResize]);
 
   const handleExternalDrop = useCallback((info: any) => {
@@ -542,7 +489,7 @@ export const ResourceCalendar = memo(function ResourceCalendar({
         height={800}
         scrollTimeReset={false}
         allDaySlot={false}
-  slotMinTime={slotMinTime}
+        slotMinTime={slotMinTime}
         slotMaxTime={slotMaxTime}
         slotDuration={slotDuration}
         slotLabelInterval="01:00:00"
@@ -564,12 +511,11 @@ export const ResourceCalendar = memo(function ResourceCalendar({
         eventResize={handleEventResize}
         slotEventOverlap={true}
         eventOverlap={true}
-        eventMaxStack={3}
-        eventMinHeight={36}
+        eventMaxStack={4}
+        eventMinHeight={32}
         eventContent={(arg) => {
           const props = arg.event.extendedProps;
 
-          // List view – simple text
           if (calendarView === "listWeek") return undefined;
 
           // Schedule block rendering
@@ -592,9 +538,6 @@ export const ResourceCalendar = memo(function ResourceCalendar({
                     {props.matchReason && <p className="text-muted-foreground italic">{props.matchReason}</p>}
                   </>
                 )}
-                {props.aiConfidence > 0 && (
-                  <p className="text-primary">✨ AI: {props.aiMatchReason || `${props.aiConfidence}%`}</p>
-                )}
               </div>
             );
 
@@ -614,22 +557,22 @@ export const ResourceCalendar = memo(function ResourceCalendar({
             return (
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <div className="px-2 py-1.5 overflow-hidden h-full cursor-pointer select-none">
-                    <div className="flex items-center gap-1.5">
+                  <div className="px-2 py-1 overflow-hidden h-full cursor-pointer select-none">
+                    <div className="flex items-center gap-1">
                       <StateIcon className="h-3 w-3 shrink-0 opacity-80" />
-                      <p className="text-[12px] font-bold leading-tight truncate">
+                      <p className="text-[11px] font-bold leading-tight truncate">
                         {props.techName}
                       </p>
-                      <span className="ml-auto flex items-center gap-0.5 text-[8px] font-semibold uppercase tracking-wider opacity-70 bg-white/15 rounded px-1 py-px shrink-0">
-                        <SourceIcon className="h-2.5 w-2.5" />
+                      <span className="ml-auto flex items-center gap-0.5 text-[7px] font-semibold uppercase tracking-wider opacity-60 bg-white/15 rounded px-1 shrink-0">
+                        <SourceIcon className="h-2 w-2" />
                         {props.sourceLabel}
                       </span>
                     </div>
-                    <p className="text-[11px] font-medium truncate mt-0.5">{arg.event.title}</p>
+                    <p className="text-[10px] font-medium truncate mt-0.5">{arg.event.title}</p>
                     {props.projectTitle && (
-                      <p className="text-[10px] opacity-75 truncate mt-0.5">{props.projectTitle}</p>
+                      <p className="text-[9px] opacity-70 truncate">{props.projectTitle}</p>
                     )}
-                    <span className="text-[9px] opacity-60 mt-0.5 block">{arg.timeText}</span>
+                    <span className="text-[8px] opacity-50 block">{arg.timeText}</span>
                   </div>
                 </TooltipTrigger>
                 <TooltipContent side="top">{tooltipContent}</TooltipContent>
@@ -654,12 +597,12 @@ export const ResourceCalendar = memo(function ResourceCalendar({
                   style={{ backgroundColor: props.baseColor }}
                 />
                 <span className="text-[10px] font-semibold truncate text-white">{arg.event.title}</span>
-                {props.techNames && <span className="text-[9px] opacity-60 truncate">· {props.techNames}</span>}
+                {props.techName && <span className="text-[9px] opacity-60 truncate">· {props.techName}</span>}
               </div>
             );
           }
 
-          // Day/Week view – detailed
+          // Day/Week view – busy slot
           if (props.isBusy) {
             const busyTooltip = (
               <div className="space-y-1 text-xs max-w-[220px]">
@@ -671,14 +614,14 @@ export const ResourceCalendar = memo(function ResourceCalendar({
             return (
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <div className="fc-event-external flex items-center gap-1.5 px-2 py-1.5 cursor-pointer select-none h-full">
+                  <div className="fc-event-external flex items-center gap-1.5 px-2 py-1 cursor-pointer select-none h-full">
                     <Lock className="h-3 w-3 opacity-50 shrink-0" />
                     <div className="min-w-0 flex-1">
                       {props.techName && (
-                        <p className="text-[11px] font-bold truncate">{props.techName}</p>
+                        <p className="text-[10px] font-bold truncate">{props.techName}</p>
                       )}
-                      <span className="text-[10px] font-medium truncate block">Opptatt</span>
-                      <span className="text-[9px] opacity-70">{arg.timeText}</span>
+                      <span className="text-[9px] font-medium truncate block">Opptatt</span>
+                      <span className="text-[8px] opacity-60">{arg.timeText}</span>
                     </div>
                   </div>
                 </TooltipTrigger>
@@ -687,7 +630,7 @@ export const ResourceCalendar = memo(function ResourceCalendar({
             );
           }
 
-          // Regular event tooltip
+          // ── Regular event – assignment-based block ──
           const eventTooltip = (
             <div className="space-y-1 text-xs max-w-[240px]">
               <p className="font-semibold">{arg.event.title}</p>
@@ -707,29 +650,30 @@ export const ResourceCalendar = memo(function ResourceCalendar({
             <Tooltip>
               <TooltipTrigger asChild>
                 <div
-                  className="fc-event-internal px-2 py-1.5 overflow-hidden h-full cursor-grab active:cursor-grabbing select-none"
+                  className="fc-event-internal px-2 py-1 overflow-hidden h-full cursor-grab active:cursor-grabbing select-none"
                 >
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-1">
                     {props.isOvernight && (
-                      <Moon className="h-3 w-3 shrink-0 text-white/80" />
+                      <Moon className="h-2.5 w-2.5 shrink-0 text-white/80" />
                     )}
-                    {props.techNames && (
-                      <p className="text-[12px] font-bold leading-tight truncate text-white/90">
-                        {props.techNames}
-                      </p>
+                    <p className="text-[11px] font-bold leading-tight truncate text-white/90">
+                      {props.techName}
+                    </p>
+                    {props.isMultiTech && (
+                      <Users className="h-2.5 w-2.5 shrink-0 text-white/60" />
                     )}
                     <span
-                      className="h-1.5 w-1.5 rounded-full shrink-0 border border-white/30"
+                      className="h-1.5 w-1.5 rounded-full shrink-0 ml-auto border border-white/30"
                       style={{ backgroundColor: props.statusDot }}
                     />
                   </div>
-                  <p className="text-[13px] font-semibold leading-tight truncate mt-0.5 text-white">
+                  <p className="text-[11px] font-semibold leading-tight truncate text-white">
                     {arg.event.title}
                   </p>
                   {props.customer && (
-                    <p className="text-[11px] text-white/75 truncate mt-0.5">{props.customer}</p>
+                    <p className="text-[9px] text-white/70 truncate">{props.customer}</p>
                   )}
-                  <span className="text-[10px] text-white/60 mt-0.5 block">{arg.timeText}</span>
+                  <span className="text-[8px] text-white/50 block">{arg.timeText}</span>
                 </div>
               </TooltipTrigger>
               <TooltipContent side="top">{eventTooltip}</TooltipContent>
@@ -742,16 +686,16 @@ export const ResourceCalendar = memo(function ResourceCalendar({
             (d) => d.date.toDateString() === arg.date.toDateString()
           );
           return (
-            <div className={`py-2 text-center ${isToday ? "text-primary font-bold" : ""}`}>
+            <div className={`py-1.5 text-center ${isToday ? "text-primary font-bold" : ""}`}>
               <div className="text-[10px] uppercase tracking-widest text-muted-foreground">
                 {arg.date.toLocaleDateString("nb-NO", { weekday: "short" })}
               </div>
-              <div className={`text-lg font-bold ${isToday ? "text-primary" : ""}`}>
+              <div className={`text-base font-bold ${isToday ? "text-primary" : ""}`}>
                 {arg.date.getDate()}
               </div>
               {dayCap && !isMonthView && (
-                <div className="mt-1 flex flex-col items-center gap-0.5">
-                  <div className="w-10 h-1.5 rounded-full bg-muted overflow-hidden">
+                <div className="mt-0.5 flex flex-col items-center gap-0.5">
+                  <div className="w-8 h-1 rounded-full bg-muted overflow-hidden">
                     <div
                       className="h-full rounded-full transition-all"
                       style={{
@@ -760,7 +704,7 @@ export const ResourceCalendar = memo(function ResourceCalendar({
                       }}
                     />
                   </div>
-                  <span className="text-[9px] font-semibold" style={{ color: dayCap.color }}>
+                  <span className="text-[8px] font-semibold" style={{ color: dayCap.color }}>
                     {dayCap.label}
                   </span>
                 </div>
