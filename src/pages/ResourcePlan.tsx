@@ -111,6 +111,10 @@ export default function ResourcePlan() {
   const [hideExternalEvents, setHideExternalEvents] = useState(() => {
     try { return localStorage.getItem("resourceplan_hide_external") === "true"; } catch { return false; }
   });
+  const handleHideExternalChange = useCallback((v: boolean) => {
+    setHideExternalEvents(v);
+    try { localStorage.setItem("resourceplan_hide_external", String(v)); } catch {}
+  }, []);
   const [dropPayload, setDropPayload] = useState<DropPayload | null>(null);
 
   useEffect(() => {
