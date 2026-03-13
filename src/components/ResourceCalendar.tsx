@@ -335,11 +335,33 @@ export const ResourceCalendar = memo(function ResourceCalendar({
       }
     }
 
-    // Schedule blocks – use technician color for project-linked blocks
+    // Schedule blocks – suppress mirrored variants when authoritative assignment exists
     const seenScheduleBlockKeys = new Set<string>();
     for (const block of scheduleBlocks) {
       const isExternal = block.source === "outlook" && !block.project_id;
       if (hideExternalEvents && isExternal) continue;
+
+      const assignmentMeta = block.project_id
+        ? assignmentMetaByEventTech.get(`${block.project_id}::${block.technician_id}`)
+        : null;
+      const overlapsAuthoritativeAssignment = !!assignmentMeta
+        && block.start_at.getTime() < assignmentMeta.end
+        && block.end_at.getTime() > assignmentMeta.start;
+
+      if (overlapsAuthoritativeAssignment) {
+        console.info("[ResourceCalendar][SuppressMirrorBlock]", {
+          source: block.source,
+          event_id: block.project_id,
+          event_technician_id: assignmentMeta?.eventTechnicianId ?? null,
+          technician_id: block.technician_id,
+          render_key: `sb-${block.id}`,
+          schedule_block_id: block.id,
+          calendar_event_id: assignmentMeta?.calendarEventId ?? null,
+          outlook_event_id: block.outlook_event_id ?? null,
+          display_name: assignmentMeta?.displayName ?? block.technician_name ?? null,
+        });
+        continue;
+      }
 
       const techName = block.technician_name?.split(" ")[0] || "";
       const sourceLabel = block.source === "outlook" ? "Outlook" : "System";
@@ -377,9 +399,11 @@ export const ResourceCalendar = memo(function ResourceCalendar({
           source: "schedule_block",
           renderKey,
           eventId: block.project_id,
-          eventTechnicianId: null,
+          eventTechnicianId: assignmentMeta?.eventTechnicianId ?? null,
           technicianId: block.technician_id,
-          calendarEventId: block.outlook_event_id || null,
+          scheduleBlockId: block.id,
+          calendarEventId: assignmentMeta?.calendarEventId ?? null,
+          outlookEventId: block.outlook_event_id || null,
           displayName: masked ? undefined : (block.technician_name || techName),
           isScheduleBlock: true,
           scheduleBlock: masked ? null : block,
