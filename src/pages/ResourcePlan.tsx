@@ -648,7 +648,21 @@ export default function ResourcePlan() {
           dayCapacities={canReadBusy ? aggregatedDays : undefined}
           scheduleBlocks={scheduleBlocks}
           onEventClick={handleEventClick}
-          onScheduleBlockClick={(block) => setSelectedBlock(block)}
+          onScheduleBlockClick={(block) => {
+            console.info("[ResourcePlan][OpenScheduleBlock]", {
+              block_id: block.id,
+              source: block.source,
+              event_id: block.project_id,
+              event_technician_id: null,
+              technician_id: block.technician_id,
+              calendar_event_id: block.outlook_event_id || block.calendar_id || null,
+              title: block.outlook_subject || block.title,
+              start: block.start_at?.toISOString?.() ?? null,
+              end: block.end_at?.toISOString?.() ?? null,
+              display_name: block.technician_name ?? null,
+            });
+            setSelectedBlock(block);
+          }}
           onDateSelect={canWriteEvents ? handleDateSelect : undefined}
           onEventDrop={canWriteEvents ? handleEventDrop : undefined}
           onEventResize={canWriteEvents ? handleEventResize : undefined}
