@@ -458,22 +458,58 @@ export const ResourceCalendar = memo(function ResourceCalendar({
       event_id: props.eventId ?? null,
       event_technician_id: props.eventTechnicianId ?? null,
       technician_id: props.technicianId ?? props.assignedTechId ?? null,
+      schedule_block_id: props.scheduleBlockId ?? null,
       calendar_event_id: props.calendarEventId ?? null,
+      outlook_event_id: props.outlookEventId ?? null,
       display_name: props.displayName ?? props.techFullName ?? props.techName ?? null,
       title: info.event.title,
       start: info.event.start?.toISOString?.() ?? null,
       end: info.event.end?.toISOString?.() ?? null,
+      open_handler: "pending",
     });
 
     if (props.isExternalMasked) return;
 
     if (props.isScheduleBlock && props.scheduleBlock) {
       const scheduleBlock = props.scheduleBlock as ScheduleBlock;
-      console.info("[ResourceCalendar][Click->ScheduleBlock]", {
-        block_id: scheduleBlock.id,
+      const matchingAssignmentEvent = scheduleBlock.project_id
+        ? calendarEvents.find(
+            (ev) =>
+              ev.id === scheduleBlock.project_id
+              && ev.technicians.some((t) => t.id === scheduleBlock.technician_id)
+              && ev.start.getTime() < scheduleBlock.end_at.getTime()
+              && ev.end.getTime() > scheduleBlock.start_at.getTime()
+          )
+        : undefined;
+
+      if (matchingAssignmentEvent) {
+        console.info("[ResourceCalendar][Click->EventDrawer]", {
+          open_handler: "event_drawer(authoritative_assignment)",
+          render_key: props.renderKey ?? info.event.id,
+          source: props.source ?? "unknown",
+          event_id: matchingAssignmentEvent.id,
+          event_technician_id: props.eventTechnicianId ?? null,
+          technician_id: scheduleBlock.technician_id,
+          schedule_block_id: scheduleBlock.id,
+          calendar_event_id: props.calendarEventId ?? null,
+          outlook_event_id: props.outlookEventId ?? scheduleBlock.outlook_event_id ?? null,
+          display_name: props.displayName ?? scheduleBlock.technician_name ?? null,
+        });
+        onEventClick?.(matchingAssignmentEvent);
+        return;
+      }
+
+      console.info("[ResourceCalendar][Click->ScheduleBlockDetail]", {
+        open_handler: "schedule_block_detail_panel",
+        render_key: props.renderKey ?? info.event.id,
+        source: props.source ?? "unknown",
+        event_id: scheduleBlock.project_id,
+        event_technician_id: props.eventTechnicianId ?? null,
         technician_id: scheduleBlock.technician_id,
-        project_id: scheduleBlock.project_id,
-        source: scheduleBlock.source,
+        schedule_block_id: scheduleBlock.id,
+        calendar_event_id: props.calendarEventId ?? null,
+        outlook_event_id: props.outlookEventId ?? scheduleBlock.outlook_event_id ?? null,
+        display_name: props.displayName ?? scheduleBlock.technician_name ?? null,
       });
       onScheduleBlockClick?.(scheduleBlock);
       return;
@@ -491,10 +527,17 @@ export const ResourceCalendar = memo(function ResourceCalendar({
             sb.end_at.getTime() > busyStart
         );
         if (match) {
-          console.info("[ResourceCalendar][Click->BusyMatch]", {
-            busy_tech_id: busyTechId,
-            matched_block_id: match.id,
-            matched_technician_id: match.technician_id,
+          console.info("[ResourceCalendar][Click->ScheduleBlockDetail]", {
+            open_handler: "schedule_block_detail_panel",
+            render_key: props.renderKey ?? info.event.id,
+            source: "busy_slot",
+            event_id: match.project_id,
+            event_technician_id: null,
+            technician_id: match.technician_id,
+            schedule_block_id: match.id,
+            calendar_event_id: null,
+            outlook_event_id: match.outlook_event_id ?? null,
+            display_name: match.technician_name ?? null,
           });
           onScheduleBlockClick?.(match);
           return;
@@ -531,6 +574,18 @@ export const ResourceCalendar = memo(function ResourceCalendar({
           technician_color: props.busyTechColor || null,
           project_title: null,
         };
+        console.info("[ResourceCalendar][Click->ScheduleBlockDetail]", {
+          open_handler: "schedule_block_detail_panel(debug_busy)",
+          render_key: props.renderKey ?? info.event.id,
+          source: "busy_slot",
+          event_id: null,
+          event_technician_id: null,
+          technician_id: debugBlock.technician_id,
+          schedule_block_id: debugBlock.id,
+          calendar_event_id: null,
+          outlook_event_id: null,
+          display_name: debugBlock.technician_name ?? null,
+        });
         onScheduleBlockClick(debugBlock);
       }
       return;
@@ -538,47 +593,21 @@ export const ResourceCalendar = memo(function ResourceCalendar({
 
     const calEvent = props.calendarEvent as CalendarEvent | undefined;
     if (calEvent) {
-      const clickedTechId = (props.assignedTechId as string | undefined) ?? (props.technicianId as string | undefined);
-      const evStart = info.event.start?.getTime() ?? 0;
-      const evEnd = info.event.end?.getTime() ?? evStart;
-
-      const overlappingBlocks = scheduleBlocks.filter(
-        (sb) =>
-          sb.start_at.getTime() < evEnd &&
-          sb.end_at.getTime() > evStart &&
-          (sb.project_id === calEvent.id || sb.mcs_block_id === calEvent.id)
-      );
-
-      const assignmentMatch = clickedTechId
-        ? overlappingBlocks.find((sb) => sb.technician_id === clickedTechId)
-        : overlappingBlocks[0];
-
-      if (assignmentMatch) {
-        console.info("[ResourceCalendar][Click->AssignmentMatch]", {
-          clicked_technician_id: clickedTechId ?? null,
-          matched_block_id: assignmentMatch.id,
-          matched_technician_id: assignmentMatch.technician_id,
-          event_id: calEvent.id,
-        });
-        onScheduleBlockClick?.(assignmentMatch);
-        return;
-      }
-
-      if (clickedTechId && overlappingBlocks.length > 0) {
-        console.warn("[ResourceCalendar][Click->NoAssignmentMatch]", {
-          clicked_technician_id: clickedTechId,
-          event_id: calEvent.id,
-          overlapping_blocks: overlappingBlocks.map((sb) => ({
-            block_id: sb.id,
-            technician_id: sb.technician_id,
-            source: sb.source,
-          })),
-        });
-      }
-
+      console.info("[ResourceCalendar][Click->EventDrawer]", {
+        open_handler: "event_drawer",
+        render_key: props.renderKey ?? info.event.id,
+        source: props.source ?? "calendar_event",
+        event_id: calEvent.id,
+        event_technician_id: props.eventTechnicianId ?? null,
+        technician_id: (props.assignedTechId as string | undefined) ?? (props.technicianId as string | undefined) ?? null,
+        schedule_block_id: props.scheduleBlockId ?? null,
+        calendar_event_id: props.calendarEventId ?? null,
+        outlook_event_id: props.outlookEventId ?? null,
+        display_name: props.displayName ?? props.techFullName ?? props.techName ?? null,
+      });
       onEventClick?.(calEvent);
     }
-  }, [onEventClick, onScheduleBlockClick, scheduleBlocks]);
+  }, [calendarEvents, onEventClick, onScheduleBlockClick, scheduleBlocks]);
 
   const handleDateSelect = useCallback((info: DateSelectArg) => {
     if (effectiveCanWrite) onDateSelect?.(info.start, info.end);
