@@ -131,7 +131,7 @@ export function TechnicianList({
 
       const { data, error } = await supabase
         .from("technicians")
-        .select("id, name, email, user_id, color")
+        .select("id, name, email, user_id, color, avatar_id")
         .not("user_id", "is", null)
         .eq("is_plannable_resource", true)
         .is("archived_at", null)
