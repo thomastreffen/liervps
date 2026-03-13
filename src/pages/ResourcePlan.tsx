@@ -321,6 +321,24 @@ export default function ResourcePlan() {
     return map;
   }, [techCapacities, todayDayIndex]);
 
+  const techWeekCapacities = useMemo(() => {
+    const map = new Map<string, import("@/components/TechnicianList").TechWeekCapacity>();
+    for (const tc of techCapacities) {
+      const todayDay = tc.days[todayDayIndex];
+      const todayMinutes = todayDay?.totalMinutes ?? 0;
+      const todayFreeMinutes = Math.max(0, operatingHours.workDayMinutes - todayMinutes);
+      map.set(tc.techId, {
+        weekPlannedHours: tc.weekPlannedHours,
+        weekCapacityHours: tc.weekCapacityHours,
+        overtimeHours: tc.overtimeHours,
+        weekPercent: tc.weekPercent,
+        todayMinutes,
+        todayFreeMinutes,
+      });
+    }
+    return map;
+  }, [techCapacities, todayDayIndex, operatingHours.workDayMinutes]);
+
   const handleCapacityFilterClick = useCallback((filter: "all" | "available" | "partial" | "full" | "overbooked") => {
     if (filter === "full" || filter === "overbooked") {
       const matchIds = techCapacities
@@ -398,6 +416,7 @@ export default function ResourcePlan() {
             nowStatusMap={canReadBusy ? nowStatusMap : undefined}
             onColorChange={handleTechColorChange}
             techDayPercents={canReadBusy ? techDayPercents : undefined}
+            techWeekCapacities={canReadBusy ? techWeekCapacities : undefined}
           />
         </aside>
       )}

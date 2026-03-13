@@ -17,6 +17,15 @@ interface DBTechnician {
   avatar_id?: string | null;
 }
 
+export interface TechWeekCapacity {
+  weekPlannedHours: number;
+  weekCapacityHours: number;
+  overtimeHours: number;
+  weekPercent: number;
+  todayMinutes: number;
+  todayFreeMinutes: number;
+}
+
 interface TechnicianListProps {
   selectedId: string | null;
   onSelect: (id: string | null) => void;
@@ -25,6 +34,7 @@ interface TechnicianListProps {
   nowStatusMap?: Map<string, TechNowStatus>;
   onColorChange?: (techId: string, color: string) => void;
   techDayPercents?: Map<string, number>;
+  techWeekCapacities?: Map<string, TechWeekCapacity>;
   technicians?: DBTechnician[];
   isGlobalScope?: boolean;
 }
@@ -70,41 +80,47 @@ function ColorPicker({ currentColor, onPick }: { currentColor: string | null; on
   );
 }
 
-function CapacityBar({ percent }: { percent: number }) {
-  const clampedPercent = Math.min(percent, 100);
-  const color = percent > 100
+function WeekCapacityInfo({ cap }: { cap: TechWeekCapacity }) {
+  const weekColor = cap.weekPercent > 100
     ? "hsl(var(--destructive))"
-    : percent >= 90
+    : cap.weekPercent >= 90
     ? "hsl(var(--destructive))"
-    : percent >= 50
+    : cap.weekPercent >= 70
     ? "hsl(var(--warning))"
     : "hsl(var(--success))";
 
-  const label = percent > 100
-    ? `${Math.round(percent)}%`
-    : percent >= 50
-    ? `${Math.round(percent)}%`
-    : null;
+  const clampedPercent = Math.min(cap.weekPercent, 100);
+  const dayHours = Math.round((cap.todayMinutes / 60) * 10) / 10;
+  const dayFreeHours = Math.round((cap.todayFreeMinutes / 60) * 10) / 10;
 
   return (
-    <div className="flex items-center gap-1.5 mt-1">
-      <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
-        <div
-          className="h-full rounded-full transition-all duration-300"
-          style={{
-            width: `${clampedPercent}%`,
-            backgroundColor: color,
-          }}
-        />
-      </div>
-      {label && (
-        <span className="text-[9px] font-bold tabular-nums shrink-0" style={{ color }}>
-          {label}
+    <div className="mt-1 space-y-0.5">
+      {/* Week bar */}
+      <div className="flex items-center gap-1.5">
+        <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
+          <div
+            className="h-full rounded-full transition-all duration-300"
+            style={{ width: `${clampedPercent}%`, backgroundColor: weekColor }}
+          />
+        </div>
+        <span className="text-[9px] font-bold tabular-nums shrink-0" style={{ color: weekColor }}>
+          {Math.round(cap.weekPlannedHours)}/{cap.weekCapacityHours}t
         </span>
-      )}
+      </div>
+      {/* Day detail + overtime */}
+      <div className="flex items-center gap-1 text-[9px] text-muted-foreground">
+        {dayHours > 0 && <span>{dayHours}t i dag</span>}
+        {dayFreeHours > 0 && dayHours > 0 && <span>·</span>}
+        {dayFreeHours > 0 && <span>{dayFreeHours}t ledig</span>}
+        {cap.overtimeHours > 0 && (
+          <span className="text-destructive font-semibold ml-auto">+{cap.overtimeHours}t overtid</span>
+        )}
+      </div>
     </div>
   );
 }
+
+
 
 export function TechnicianList({
   selectedId,
@@ -114,6 +130,7 @@ export function TechnicianList({
   nowStatusMap,
   onColorChange,
   techDayPercents,
+  techWeekCapacities,
   technicians: scopedTechnicians,
   isGlobalScope = false,
 }: TechnicianListProps) {
@@ -212,7 +229,8 @@ export function TechnicianList({
         const nowStatus = nowStatusMap?.get(tech.id);
         const techColor = tech.color || "#039BE5";
         const dayPercent = techDayPercents?.get(tech.id) ?? 0;
-        const isOverbooked = dayPercent > 100;
+        const weekCap = techWeekCapacities?.get(tech.id);
+        const isOverbooked = weekCap ? weekCap.weekPercent > 100 : dayPercent > 100;
 
         return (
           <div key={tech.id} className="flex items-center gap-0">
@@ -279,7 +297,7 @@ export function TechnicianList({
                     <NowBadge status={nowStatus} />
                   </div>
                 )}
-                <CapacityBar percent={dayPercent} />
+                {weekCap && <WeekCapacityInfo cap={weekCap} />}
               </div>
             </button>
           </div>

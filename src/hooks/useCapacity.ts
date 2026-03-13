@@ -3,13 +3,11 @@ import { startOfWeek, addDays } from "date-fns";
 import type { CalendarEvent } from "@/hooks/useCalendarEvents";
 import type { ExternalBusySlot } from "@/hooks/useExternalBusy";
 
-const DEFAULT_WORK_DAY_MINUTES = 480; // 8h (08:00–16:00)
+const DEFAULT_WEEKLY_MINUTES = 2400; // 40h
+const DEFAULT_WORK_DAY_MINUTES = 480; // 8h
 const MIRROR_TOLERANCE_MINUTES = 5;
 
-type Interval = {
-  startMs: number;
-  endMs: number;
-};
+type Interval = { startMs: number; endMs: number };
 
 export interface DayCapacity {
   date: Date;
@@ -25,13 +23,25 @@ export interface TechDayCapacity {
   techId: string;
   days: DayCapacity[];
   weekPercent: number;
+  /** Total planned minutes this week */
+  weekPlannedMinutes: number;
+  /** Weekly capacity in minutes (default 2400 = 40h) */
+  weekCapacityMinutes: number;
+  /** Overtime minutes (max(0, planned - capacity)) */
+  overtimeMinutes: number;
+  /** Planned hours this week (convenience) */
+  weekPlannedHours: number;
+  /** Weekly capacity in hours */
+  weekCapacityHours: number;
+  /** Overtime in hours */
+  overtimeHours: number;
 }
 
 function capacityColor(percent: number): string {
-  if (percent > 100) return "#7F1D1D"; // dark red
-  if (percent >= 90) return "#DC2626";  // red
-  if (percent >= 50) return "#F59E0B";  // yellow/amber
-  return "#22C55E"; // green
+  if (percent > 100) return "#7F1D1D";
+  if (percent >= 90) return "#DC2626";
+  if (percent >= 50) return "#F59E0B";
+  return "#22C55E";
 }
 
 function capacityLabel(percent: number): string {
@@ -52,35 +62,24 @@ function toDayKey(d: Date): string {
 function normalizeInterval(start: Date, end: Date): Interval {
   const startMs = start.getTime();
   let endMs = end.getTime();
-
-  if (endMs <= startMs) {
-    endMs += 24 * 60 * 60 * 1000;
-  }
-
+  if (endMs <= startMs) endMs += 24 * 60 * 60 * 1000;
   return { startMs, endMs };
 }
 
 function splitIntervalByDay(start: Date, end: Date): Array<{ dayKey: string; minutes: number }> {
   const normalized = normalizeInterval(start, end);
   const chunks: Array<{ dayKey: string; minutes: number }> = [];
-
   let cursor = normalized.startMs;
   while (cursor < normalized.endMs) {
     const cursorDate = new Date(cursor);
     const dayStart = new Date(cursorDate.getFullYear(), cursorDate.getMonth(), cursorDate.getDate());
     const dayEnd = new Date(dayStart);
     dayEnd.setDate(dayEnd.getDate() + 1);
-
     const segmentEnd = Math.min(normalized.endMs, dayEnd.getTime());
     const minutes = Math.max(0, Math.round((segmentEnd - cursor) / 60000));
-
-    if (minutes > 0) {
-      chunks.push({ dayKey: toDayKey(dayStart), minutes });
-    }
-
+    if (minutes > 0) chunks.push({ dayKey: toDayKey(dayStart), minutes });
     cursor = segmentEnd;
   }
-
   return chunks;
 }
 
@@ -98,14 +97,11 @@ function isLikelyMirrored(slot: Interval, internal: Interval): boolean {
   const slotMinutes = roundToMinute(slot.endMs - slot.startMs);
   const internalMinutes = roundToMinute(internal.endMs - internal.startMs);
   if (slotMinutes <= 0 || internalMinutes <= 0) return false;
-
   const overlap = overlapMinutes(slot, internal);
   const minDuration = Math.min(slotMinutes, internalMinutes);
   const overlapRatio = minDuration > 0 ? overlap / minDuration : 0;
-
   const closeStart = Math.abs(roundToMinute(slot.startMs - internal.startMs)) <= MIRROR_TOLERANCE_MINUTES;
   const closeEnd = Math.abs(roundToMinute(slot.endMs - internal.endMs)) <= MIRROR_TOLERANCE_MINUTES;
-
   return overlapRatio >= 0.95 || (closeStart && closeEnd);
 }
 
@@ -114,7 +110,8 @@ export function useCapacity(
   busySlots: ExternalBusySlot[],
   referenceDate: Date,
   technicianIds: string[],
-  workDayMinutes: number = DEFAULT_WORK_DAY_MINUTES
+  workDayMinutes: number = DEFAULT_WORK_DAY_MINUTES,
+  weeklyCapacityMinutes: number = DEFAULT_WEEKLY_MINUTES
 ) {
   return useMemo(() => {
     const weekStart = startOfWeek(referenceDate, { weekStartsOn: 1 });
@@ -124,25 +121,19 @@ export function useCapacity(
     const internalByTechByDay = new Map<string, Map<string, number>>();
     const internalIntervalsByTech = new Map<string, Interval[]>();
 
-    // 1) Deduplicated internal load, split by day
     const seenInternal = new Set<string>();
     for (const ev of events) {
       const normalized = normalizeInterval(ev.start, ev.end);
-
       for (const tech of ev.technicians) {
         const techId = tech.id;
         const internalKey = `${ev.id}|${techId}|${roundToMinute(normalized.startMs)}|${roundToMinute(normalized.endMs)}`;
         if (seenInternal.has(internalKey)) continue;
         seenInternal.add(internalKey);
-
         if (!internalByTechByDay.has(techId)) internalByTechByDay.set(techId, new Map());
         if (!internalIntervalsByTech.has(techId)) internalIntervalsByTech.set(techId, []);
-
         internalIntervalsByTech.get(techId)!.push(normalized);
-
         const chunks = splitIntervalByDay(ev.start, ev.end);
         const dayMap = internalByTechByDay.get(techId)!;
-
         for (const chunk of chunks) {
           if (!weekDayKeys.has(chunk.dayKey)) continue;
           dayMap.set(chunk.dayKey, (dayMap.get(chunk.dayKey) || 0) + chunk.minutes);
@@ -151,22 +142,16 @@ export function useCapacity(
     }
 
     const externalByTechByDay = new Map<string, Map<string, number>>();
-
-    // 2) Deduplicated external busy load, split by day, excluding mirrored internal events
     const seenExternal = new Set<string>();
     for (const slot of busySlots) {
       const normalized = normalizeInterval(slot.start, slot.end);
       const externalKey = `${slot.technicianId}|${roundToMinute(normalized.startMs)}|${roundToMinute(normalized.endMs)}`;
       if (seenExternal.has(externalKey)) continue;
       seenExternal.add(externalKey);
-
       const internalIntervals = internalIntervalsByTech.get(slot.technicianId) || [];
-      const mirrored = internalIntervals.some((internal) => isLikelyMirrored(normalized, internal));
-      if (mirrored) continue;
-
+      if (internalIntervals.some((internal) => isLikelyMirrored(normalized, internal))) continue;
       if (!externalByTechByDay.has(slot.technicianId)) externalByTechByDay.set(slot.technicianId, new Map());
       const dayMap = externalByTechByDay.get(slot.technicianId)!;
-
       const chunks = splitIntervalByDay(slot.start, slot.end);
       for (const chunk of chunks) {
         if (!weekDayKeys.has(chunk.dayKey)) continue;
@@ -174,10 +159,10 @@ export function useCapacity(
       }
     }
 
-    // Per-tech capacity
+    // Per-tech capacity with weekly totals
     const techCapacities: TechDayCapacity[] = technicianIds.map((techId) => {
       const days: DayCapacity[] = [];
-      let weekTotal = 0;
+      let weekPlannedMinutes = 0;
 
       const internalDayMap = internalByTechByDay.get(techId) || new Map<string, number>();
       const externalDayMap = externalByTechByDay.get(techId) || new Map<string, number>();
@@ -185,10 +170,8 @@ export function useCapacity(
       for (let i = 0; i < 7; i++) {
         const day = addDays(weekStart, i);
         const dayKey = toDayKey(day);
-
         const bookedMinutes = internalDayMap.get(dayKey) || 0;
         const externalMinutes = externalDayMap.get(dayKey) || 0;
-
         const totalMinutes = bookedMinutes + externalMinutes;
         const percent = (totalMinutes / workDayMinutes) * 100;
 
@@ -202,32 +185,38 @@ export function useCapacity(
           label: capacityLabel(percent),
         });
 
-        weekTotal += totalMinutes;
+        weekPlannedMinutes += totalMinutes;
       }
 
-      const weekPercent = (weekTotal / (5 * workDayMinutes)) * 100; // 5 work days
+      const weekPercent = (weekPlannedMinutes / weeklyCapacityMinutes) * 100;
+      const overtimeMinutes = Math.max(0, weekPlannedMinutes - weeklyCapacityMinutes);
 
-      return { techId, days, weekPercent };
+      return {
+        techId,
+        days,
+        weekPercent,
+        weekPlannedMinutes,
+        weekCapacityMinutes: weeklyCapacityMinutes,
+        overtimeMinutes,
+        weekPlannedHours: Math.round((weekPlannedMinutes / 60) * 10) / 10,
+        weekCapacityHours: weeklyCapacityMinutes / 60,
+        overtimeHours: Math.round((overtimeMinutes / 60) * 10) / 10,
+      };
     });
 
-    // Aggregated day capacity (all techs or filtered)
+    // Aggregated day capacity
     const aggregatedDays: DayCapacity[] = [];
     for (let i = 0; i < 7; i++) {
       const day = addDays(weekStart, i);
-
       let totalBooked = 0;
       let totalExternal = 0;
-
       for (const techCap of techCapacities) {
-        const d = techCap.days[i];
-        totalBooked += d.bookedMinutes;
-        totalExternal += d.externalMinutes;
+        totalBooked += techCap.days[i].bookedMinutes;
+        totalExternal += techCap.days[i].externalMinutes;
       }
-
       const totalMinutes = totalBooked + totalExternal;
       const totalCapacity = technicianIds.length * workDayMinutes;
       const percent = totalCapacity > 0 ? (totalMinutes / totalCapacity) * 100 : 0;
-
       aggregatedDays.push({
         date: day,
         bookedMinutes: totalBooked,
@@ -239,22 +228,11 @@ export function useCapacity(
       });
     }
 
-    // Filter helpers
     const availableTechIds = (dayIndex: number) =>
-      techCapacities
-        .filter((tc) => tc.days[dayIndex].percent < 50)
-        .map((tc) => tc.techId);
-
+      techCapacities.filter((tc) => tc.days[dayIndex].percent < 50).map((tc) => tc.techId);
     const partialTechIds = (dayIndex: number) =>
-      techCapacities
-        .filter((tc) => tc.days[dayIndex].percent >= 50 && tc.days[dayIndex].percent < 90)
-        .map((tc) => tc.techId);
+      techCapacities.filter((tc) => tc.days[dayIndex].percent >= 50 && tc.days[dayIndex].percent < 90).map((tc) => tc.techId);
 
-    return {
-      techCapacities,
-      aggregatedDays,
-      availableTechIds,
-      partialTechIds,
-    };
-  }, [events, busySlots, referenceDate, technicianIds, workDayMinutes]);
+    return { techCapacities, aggregatedDays, availableTechIds, partialTechIds };
+  }, [events, busySlots, referenceDate, technicianIds, workDayMinutes, weeklyCapacityMinutes]);
 }
