@@ -221,6 +221,7 @@ export const ResourceCalendar = memo(function ResourceCalendar({
         const techColor = techColorMap.get(tech.id) || GCAL_PALETTE[0];
         const techFirstName = tech.name.split(" ")[0];
         const allTechNames = ev.technicians.map((t) => t.name.split(" ")[0]).join(", ");
+        const techInfo = technicianMap.get(tech.id);
 
         result.push({
           id: multiTech ? `${ev.id}__tech__${tech.id}` : ev.id,
@@ -236,6 +237,8 @@ export const ResourceCalendar = memo(function ResourceCalendar({
             status: ev.status,
             techNames: allTechNames,
             techName: techFirstName,
+            techFullName: tech.name,
+            techAvatarId: techInfo?.avatarId || null,
             baseColor: techColor,
             statusDot: statusDotColors[ev.status] || "#FFFFFF",
             isOvernight,
