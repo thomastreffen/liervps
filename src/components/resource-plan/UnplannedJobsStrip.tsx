@@ -177,7 +177,7 @@ export function UnplannedJobsStrip({ companyId }: UnplannedJobsStripProps) {
                     <div className="flex items-center gap-1.5 mb-0.5">
                       {jobNum && (
                         <span className="text-[9px] font-mono font-bold bg-primary/15 text-primary rounded px-1 py-0.5 shrink-0">
-                          {jobNum}
+                          {jobNum.startsWith("JOB-") ? jobNum : `JOB-${jobNum}`}
                         </span>
                       )}
                       <Badge variant="outline" className="text-[9px] h-4 px-1 capitalize">
