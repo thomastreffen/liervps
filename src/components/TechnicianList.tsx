@@ -297,7 +297,7 @@ export function TechnicianList({
                     <NowBadge status={nowStatus} />
                   </div>
                 )}
-                <CapacityBar percent={dayPercent} />
+                {weekCap ? <WeekCapacityInfo cap={weekCap} /> : <CapacityBar percent={dayPercent} />}
               </div>
             </button>
           </div>
