@@ -235,12 +235,13 @@ export function TechnicianList({
                     className="relative cursor-pointer group"
                     onClick={(e) => { e.stopPropagation(); setColorPickerOpen(tech.id); }}
                   >
-                    <div
-                      className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold shrink-0 text-white transition-shadow group-hover:ring-2 group-hover:ring-offset-1"
-                      style={{ backgroundColor: techColor }}
-                    >
-                      {initial}
-                    </div>
+                    <TechAvatar
+                      name={tech.name}
+                      avatarId={tech.avatar_id}
+                      color={techColor}
+                      size={32}
+                      className="transition-shadow group-hover:ring-2 group-hover:ring-offset-1"
+                    />
                     {nowStatus && (
                       <span
                         className={cn(
