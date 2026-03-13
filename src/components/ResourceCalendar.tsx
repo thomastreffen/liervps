@@ -364,8 +364,10 @@ export const ResourceCalendar = memo(function ResourceCalendar({
       const fallbackColors = matchStateColors[block.match_state] || matchStateColors.external;
       const useTechColor = isLinkedToProject && techColor;
 
+      const renderKey = `sb-${block.id}`;
+
       result.push({
-        id: `sb-${block.id}`,
+        id: renderKey,
         title: masked ? "Opptatt" : (isLinkedToProject ? (block.project_title || block.title || displayTitle) : displayTitle),
         start: block.start_at,
         end: block.end_at,
@@ -374,6 +376,13 @@ export const ResourceCalendar = memo(function ResourceCalendar({
         textColor: masked ? "#9CA3AF" : (useTechColor ? "#FFFFFF" : fallbackColors.text),
         editable: false,
         extendedProps: {
+          source: "schedule_block",
+          renderKey,
+          eventId: block.project_id,
+          eventTechnicianId: null,
+          technicianId: block.technician_id,
+          calendarEventId: block.outlook_event_id || null,
+          displayName: masked ? undefined : (block.technician_name || techName),
           isScheduleBlock: true,
           scheduleBlock: masked ? null : block,
           isExternalMasked: masked,
