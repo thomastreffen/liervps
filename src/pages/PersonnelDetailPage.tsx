@@ -445,6 +445,18 @@ export default function PersonnelDetailPage() {
 
             <Separator />
 
+            <div className="flex items-center gap-4">
+              <TechAvatar name={profile.name} avatarId={profile.avatar_id} size={48} />
+              <div className="flex-1">
+                <AvatarPicker
+                  selectedId={profile.avatar_id}
+                  onSelect={(avatarId) => setProfile({ ...profile, avatar_id: avatarId })}
+                />
+              </div>
+            </div>
+
+            <Separator />
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <Label className="text-xs">Fødselsdato</Label>
