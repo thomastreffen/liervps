@@ -36,6 +36,7 @@ export interface ScheduleBlock {
   technician_color?: string | null;
   project_title?: string | null;
   job_number?: string | null;
+  internal_number?: string | null;
 }
 
 function mapRow(row: any): ScheduleBlock {
