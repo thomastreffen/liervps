@@ -108,7 +108,13 @@ export default function ResourcePlan() {
 
   const { syncUpdate, forceUpdate, acceptGraphVersion, conflict, dismissConflict } = useCalendarSync();
   const [selectedBlock, setSelectedBlock] = useState<ScheduleBlock | null>(null);
-  const [hideExternalEvents, setHideExternalEvents] = useState(false);
+  const [hideExternalEvents, setHideExternalEvents] = useState(() => {
+    try { return localStorage.getItem("resourceplan_hide_external") === "true"; } catch { return false; }
+  });
+  const handleHideExternalChange = useCallback((v: boolean) => {
+    setHideExternalEvents(v);
+    try { localStorage.setItem("resourceplan_hide_external", String(v)); } catch {}
+  }, []);
   const [dropPayload, setDropPayload] = useState<DropPayload | null>(null);
 
   useEffect(() => {
@@ -410,7 +416,7 @@ export default function ResourcePlan() {
             externalBlocksCapacity={externalBlocksCapacity}
             onExternalBlocksCapacityChange={setExternalBlocksCapacity}
             hideExternalEvents={hideExternalEvents}
-            onHideExternalEventsChange={setHideExternalEvents}
+            onHideExternalEventsChange={handleHideExternalChange}
             isSuperAdmin={canViewExternal}
             minFreeMinutes={canReadBusy ? minFreeMinutes : null}
             onMinFreeMinutesChange={canReadBusy ? setMinFreeMinutes : undefined}
@@ -540,7 +546,7 @@ export default function ResourcePlan() {
 
                 {canViewExternal && (
                   <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                    <Switch checked={hideExternalEvents} onCheckedChange={setHideExternalEvents} className="scale-[0.6]" />
+                    <Switch checked={hideExternalEvents} onCheckedChange={handleHideExternalChange} className="scale-[0.6]" />
                     <span className="whitespace-nowrap">Skjul eksterne</span>
                   </div>
                 )}
