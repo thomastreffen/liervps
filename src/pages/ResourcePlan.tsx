@@ -702,6 +702,7 @@ export default function ResourcePlan() {
         open={drawerOpen}
         onOpenChange={setDrawerOpen}
         editEvent={editEvent}
+        clickedTechId={clickedTechId}
         preselectedStart={preselectedStart}
         preselectedEnd={preselectedEnd}
         preselectedTechId={selectedTechId}
