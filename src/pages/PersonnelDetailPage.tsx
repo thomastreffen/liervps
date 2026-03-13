@@ -17,6 +17,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { differenceInDays, format } from "date-fns";
+import { AvatarPicker } from "@/components/AvatarPicker";
+import { TechAvatar } from "@/components/TechAvatar";
 
 interface TechnicianProfile {
   id: string;
