@@ -6715,6 +6715,7 @@ export type Database = {
         Row: {
           archived_at: string | null
           archived_by: string | null
+          avatar_id: string | null
           birth_date: string | null
           color: string | null
           created_at: string
@@ -6733,6 +6734,7 @@ export type Database = {
         Insert: {
           archived_at?: string | null
           archived_by?: string | null
+          avatar_id?: string | null
           birth_date?: string | null
           color?: string | null
           created_at?: string
@@ -6751,6 +6753,7 @@ export type Database = {
         Update: {
           archived_at?: string | null
           archived_by?: string | null
+          avatar_id?: string | null
           birth_date?: string | null
           color?: string | null
           created_at?: string
