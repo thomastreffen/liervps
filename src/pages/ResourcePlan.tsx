@@ -416,7 +416,7 @@ export default function ResourcePlan() {
             externalBlocksCapacity={externalBlocksCapacity}
             onExternalBlocksCapacityChange={setExternalBlocksCapacity}
             hideExternalEvents={hideExternalEvents}
-            onHideExternalEventsChange={setHideExternalEvents}
+            onHideExternalEventsChange={handleHideExternalChange}
             isSuperAdmin={canViewExternal}
             minFreeMinutes={canReadBusy ? minFreeMinutes : null}
             onMinFreeMinutesChange={canReadBusy ? setMinFreeMinutes : undefined}
