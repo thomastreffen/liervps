@@ -223,8 +223,10 @@ export const ResourceCalendar = memo(function ResourceCalendar({
         const allTechNames = ev.technicians.map((t) => t.name.split(" ")[0]).join(", ");
         const techInfo = technicianMap.get(tech.id);
 
+        const renderKey = multiTech ? `${ev.id}__tech__${tech.id}` : ev.id;
+
         result.push({
-          id: multiTech ? `${ev.id}__tech__${tech.id}` : ev.id,
+          id: renderKey,
           title: ev.title.replace("SERVICE – ", ""),
           start: ev.start,
           end: ev.end,
@@ -233,6 +235,13 @@ export const ResourceCalendar = memo(function ResourceCalendar({
           textColor: "#FFFFFF",
           extendedProps: {
             calendarEvent: ev,
+            source: "calendar_event",
+            renderKey,
+            eventId: ev.id,
+            eventTechnicianId: tech.eventTechnicianId ?? null,
+            technicianId: tech.id,
+            calendarEventId: tech.calendarEventId ?? null,
+            displayName: tech.name,
             customer: ev.customer,
             status: ev.status,
             techNames: allTechNames,
