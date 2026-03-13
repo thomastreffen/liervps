@@ -118,7 +118,7 @@ export function ProjectHeader({
           </h1>
           {jobNumber && (
             <span className="inline-block font-mono text-xs font-semibold bg-primary/10 text-primary rounded-md px-2 py-0.5 mt-1">
-              {jobNumber}
+              {jobNumber.startsWith("JOB-") ? jobNumber : `JOB-${jobNumber}`}
             </span>
           )}
 
