@@ -17,6 +17,15 @@ interface DBTechnician {
   avatar_id?: string | null;
 }
 
+export interface TechWeekCapacity {
+  weekPlannedHours: number;
+  weekCapacityHours: number;
+  overtimeHours: number;
+  weekPercent: number;
+  todayMinutes: number;
+  todayFreeMinutes: number;
+}
+
 interface TechnicianListProps {
   selectedId: string | null;
   onSelect: (id: string | null) => void;
@@ -25,6 +34,7 @@ interface TechnicianListProps {
   nowStatusMap?: Map<string, TechNowStatus>;
   onColorChange?: (techId: string, color: string) => void;
   techDayPercents?: Map<string, number>;
+  techWeekCapacities?: Map<string, TechWeekCapacity>;
   technicians?: DBTechnician[];
   isGlobalScope?: boolean;
 }
