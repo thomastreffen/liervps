@@ -316,13 +316,12 @@ export const ResourceCalendar = memo(function ResourceCalendar({
       }
     }
 
-    // Schedule blocks
+    // Schedule blocks – use technician color for project-linked blocks
     const seenScheduleBlockKeys = new Set<string>();
     for (const block of scheduleBlocks) {
       const isExternal = block.source === "outlook" && !block.project_id;
       if (hideExternalEvents && isExternal) continue;
 
-      const colors = matchStateColors[block.match_state] || matchStateColors.external;
       const techName = block.technician_name?.split(" ")[0] || "";
       const sourceLabel = block.source === "outlook" ? "Outlook" : "System";
       const displayTitle = block.outlook_subject || block.title || "Outlook-blokk";
@@ -338,14 +337,20 @@ export const ResourceCalendar = memo(function ResourceCalendar({
       const masked = isExternal && !effectiveCanViewExternal;
       const BUSY_GRAY = "#9CA3AF";
 
+      // Project-linked blocks inherit technician color for visual consistency
+      const isLinkedToProject = !!block.project_id;
+      const techColor = techColorMap.get(block.technician_id);
+      const fallbackColors = matchStateColors[block.match_state] || matchStateColors.external;
+      const useTechColor = isLinkedToProject && techColor;
+
       result.push({
         id: `sb-${block.id}`,
-        title: masked ? "Opptatt" : displayTitle,
+        title: masked ? "Opptatt" : (isLinkedToProject ? (block.project_title || block.title || displayTitle) : displayTitle),
         start: block.start_at,
         end: block.end_at,
-        backgroundColor: masked ? hexToRgba(BUSY_GRAY, 0.15) : hexToRgba(colors.bg, 0.85),
-        borderColor: masked ? hexToRgba(BUSY_GRAY, 0.35) : colors.border,
-        textColor: masked ? "#9CA3AF" : colors.text,
+        backgroundColor: masked ? hexToRgba(BUSY_GRAY, 0.15) : (useTechColor ? hexToRgba(techColor, 0.85) : hexToRgba(fallbackColors.bg, 0.85)),
+        borderColor: masked ? hexToRgba(BUSY_GRAY, 0.35) : (useTechColor ? techColor : fallbackColors.border),
+        textColor: masked ? "#9CA3AF" : (useTechColor ? "#FFFFFF" : fallbackColors.text),
         editable: false,
         extendedProps: {
           isScheduleBlock: true,
@@ -363,6 +368,8 @@ export const ResourceCalendar = memo(function ResourceCalendar({
           outlookLocation: masked ? undefined : block.outlook_location,
           aiConfidence: masked ? undefined : block.ai_confidence,
           aiMatchReason: masked ? undefined : block.ai_match_reason,
+          isLinkedToProject,
+          assignedTechId: block.technician_id,
         },
       });
     }
