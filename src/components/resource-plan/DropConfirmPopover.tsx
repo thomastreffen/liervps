@@ -1,6 +1,5 @@
 import { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter, SheetDescription } from "@/components/ui/sheet";
@@ -8,7 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format, addMinutes } from "date-fns";
 import { nb } from "date-fns/locale";
-import { Clock, MapPin, User, Loader2, Check } from "lucide-react";
+import { Clock, User, Loader2, Check, FolderKanban, ListTodo } from "lucide-react";
 
 export interface DropPayload {
   taskId?: string;
@@ -58,35 +57,89 @@ export function DropConfirmPopover({ payload, onClose, onCreated }: DropConfirmP
       // Look up company_id from technician
       const { data: techData } = await supabase
         .from("technicians")
-        .select("company_id")
+        .select("company_id, user_id")
         .eq("id", payload.technicianId)
         .single();
 
       const companyId = (techData as any)?.company_id;
 
-      // Create schedule block directly
-      const { error } = await (supabase as any).from("schedule_blocks").insert({
-        company_id: companyId,
-        technician_id: payload.technicianId,
-        project_id: payload.projectId || null,
-        source: "manual",
-        start_at: payload.dropTime.toISOString(),
-        end_at: endTime.toISOString(),
-        title: payload.taskTitle,
-        match_state: "manual",
-        match_confidence: 100,
-        match_reason: payload.type === "task" ? "Oppgave dratt til kalender" : "Prosjekt dratt til kalender",
-      });
+      if (payload.type === "project" && payload.taskId) {
+        // ── Project drop: assign technician + create schedule block ──
 
-      if (error) throw error;
+        // Update project times
+        await supabase
+          .from("events")
+          .update({
+            start_time: payload.dropTime.toISOString(),
+            end_time: endTime.toISOString(),
+            status: "scheduled" as any,
+          })
+          .eq("id", payload.taskId);
 
-      // If it's a task, update planned_start_at / planned_end_at
-      if (payload.taskId) {
-        await (supabase as any).from("tasks").update({
-          planned_start_at: payload.dropTime.toISOString(),
-          planned_end_at: endTime.toISOString(),
-          assigned_user_id: payload.technicianId,
-        }).eq("id", payload.taskId);
+        // Add technician assignment (idempotent via upsert-like check)
+        const { data: existingAssignment } = await supabase
+          .from("event_technicians")
+          .select("id")
+          .eq("event_id", payload.taskId)
+          .eq("technician_id", payload.technicianId)
+          .maybeSingle();
+
+        if (!existingAssignment) {
+          await supabase.from("event_technicians").insert({
+            event_id: payload.taskId,
+            technician_id: payload.technicianId,
+          });
+        }
+
+        // Create schedule block
+        const { error } = await (supabase as any).from("schedule_blocks").insert({
+          company_id: companyId,
+          technician_id: payload.technicianId,
+          project_id: payload.taskId,
+          source: "manual",
+          start_at: payload.dropTime.toISOString(),
+          end_at: endTime.toISOString(),
+          title: payload.taskTitle,
+          match_state: "manual",
+          match_confidence: 100,
+          match_reason: "Prosjekt dratt til kalender",
+        });
+
+        if (error) throw error;
+
+        // Log activity
+        await supabase.from("event_logs").insert({
+          event_id: payload.taskId,
+          action_type: "technician_assigned",
+          performed_by: userId || null,
+          change_summary: `${payload.technicianName || "Montør"} tildelt via drag-planlegging kl. ${format(payload.dropTime, "HH:mm")}–${format(endTime, "HH:mm")}`,
+        });
+
+      } else {
+        // ── Task drop: create schedule block directly ──
+        const { error } = await (supabase as any).from("schedule_blocks").insert({
+          company_id: companyId,
+          technician_id: payload.technicianId,
+          project_id: payload.projectId || null,
+          source: "manual",
+          start_at: payload.dropTime.toISOString(),
+          end_at: endTime.toISOString(),
+          title: payload.taskTitle,
+          match_state: "manual",
+          match_confidence: 100,
+          match_reason: payload.type === "task" ? "Oppgave dratt til kalender" : "Prosjekt dratt til kalender",
+        });
+
+        if (error) throw error;
+
+        // If it's a task, update planned_start_at / planned_end_at
+        if (payload.taskId) {
+          await (supabase as any).from("tasks").update({
+            planned_start_at: payload.dropTime.toISOString(),
+            planned_end_at: endTime.toISOString(),
+            assigned_user_id: payload.technicianId,
+          }).eq("id", payload.taskId);
+        }
       }
 
       toast.success("Planlagt!", {
@@ -105,20 +158,27 @@ export function DropConfirmPopover({ payload, onClose, onCreated }: DropConfirmP
   if (!payload) return null;
 
   const endTime = addMinutes(payload.dropTime, parseInt(duration, 10));
+  const isProject = payload.type === "project";
+  const TypeIcon = isProject ? FolderKanban : ListTodo;
 
   return (
     <Sheet open={!!payload} onOpenChange={(open) => !open && onClose()}>
-      <SheetContent side="bottom" className="max-h-[340px] rounded-t-2xl">
+      <SheetContent side="bottom" className="max-h-[360px] rounded-t-2xl">
         <SheetHeader>
           <SheetTitle className="text-base">Bekreft planlegging</SheetTitle>
-          <SheetDescription className="sr-only">Bekreft planlegging av oppgave</SheetDescription>
+          <SheetDescription className="sr-only">Bekreft planlegging av {isProject ? "jobb" : "oppgave"}</SheetDescription>
         </SheetHeader>
 
         <div className="space-y-4 py-4">
-          {/* Title */}
+          {/* Title with type indicator */}
           <div className="flex items-center gap-2">
-            <span className={`h-2.5 w-2.5 rounded-full shrink-0 ${payload.type === "task" ? "bg-primary" : "bg-accent"}`} />
+            <TypeIcon className={`h-4 w-4 shrink-0 ${isProject ? "text-primary" : "text-accent"}`} />
             <span className="font-semibold text-sm truncate">{payload.taskTitle}</span>
+            {isProject && (
+              <span className="text-[9px] font-mono font-bold bg-primary/15 text-primary rounded px-1.5 py-0.5 shrink-0">
+                Jobb
+              </span>
+            )}
           </div>
 
           {/* Time + Tech */}

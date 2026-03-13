@@ -36,6 +36,7 @@ import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/comp
 import { MobileResourceHeader } from "@/components/resource-plan/MobileResourceHeader";
 import { CapacityStatusBar } from "@/components/resource-plan/CapacityStatusBar";
 import { UnplannedProjectsBanner } from "@/components/resource-plan/UnplannedProjectsBanner";
+import { UnplannedJobsStrip } from "@/components/resource-plan/UnplannedJobsStrip";
 import { useUnplannedProjects } from "@/hooks/useUnplannedProjects";
 import { DropConfirmPopover, type DropPayload } from "@/components/resource-plan/DropConfirmPopover";
 import { useCompanyContext } from "@/hooks/useCompanyContext";
@@ -643,6 +644,11 @@ export default function ResourcePlan() {
 
         {/* Unplanned projects warning */}
         {!isMobile && <UnplannedProjectsBanner count={unplannedCount} />}
+
+        {/* Draggable unplanned jobs */}
+        {!isMobile && canWriteEvents && (
+          <UnplannedJobsStrip companyId={effectiveCompanyId} />
+        )}
 
         {/* Unscheduled tasks strip */}
         <TaskResourceStrip
