@@ -80,6 +80,46 @@ function ColorPicker({ currentColor, onPick }: { currentColor: string | null; on
   );
 }
 
+function WeekCapacityInfo({ cap }: { cap: TechWeekCapacity }) {
+  const weekColor = cap.weekPercent > 100
+    ? "hsl(var(--destructive))"
+    : cap.weekPercent >= 90
+    ? "hsl(var(--destructive))"
+    : cap.weekPercent >= 70
+    ? "hsl(var(--warning))"
+    : "hsl(var(--success))";
+
+  const clampedPercent = Math.min(cap.weekPercent, 100);
+  const dayHours = Math.round((cap.todayMinutes / 60) * 10) / 10;
+  const dayFreeHours = Math.round((cap.todayFreeMinutes / 60) * 10) / 10;
+
+  return (
+    <div className="mt-1 space-y-0.5">
+      {/* Week bar */}
+      <div className="flex items-center gap-1.5">
+        <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
+          <div
+            className="h-full rounded-full transition-all duration-300"
+            style={{ width: `${clampedPercent}%`, backgroundColor: weekColor }}
+          />
+        </div>
+        <span className="text-[9px] font-bold tabular-nums shrink-0" style={{ color: weekColor }}>
+          {Math.round(cap.weekPlannedHours)}/{cap.weekCapacityHours}t
+        </span>
+      </div>
+      {/* Day detail + overtime */}
+      <div className="flex items-center gap-1 text-[9px] text-muted-foreground">
+        {dayHours > 0 && <span>{dayHours}t i dag</span>}
+        {dayFreeHours > 0 && dayHours > 0 && <span>·</span>}
+        {dayFreeHours > 0 && <span>{dayFreeHours}t ledig</span>}
+        {cap.overtimeHours > 0 && (
+          <span className="text-destructive font-semibold ml-auto">+{cap.overtimeHours}t overtid</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function CapacityBar({ percent }: { percent: number }) {
   const clampedPercent = Math.min(percent, 100);
   const color = percent > 100
