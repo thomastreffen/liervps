@@ -449,15 +449,31 @@ export const ResourceCalendar = memo(function ResourceCalendar({
     // Regular calendar event – extract real event ID (strip tech suffix if multi-tech)
     const calEvent = props.calendarEvent as CalendarEvent | undefined;
     if (calEvent) {
+      const clickedTechId = props.assignedTechId as string | undefined;
       const evStart = info.event.start?.getTime() ?? 0;
       const evEnd = info.event.end?.getTime() ?? evStart;
-      const matchBlock = scheduleBlocks.find(
-        (sb) =>
-          sb.start_at.getTime() < evEnd &&
-          sb.end_at.getTime() > evStart &&
-          (sb.project_id === calEvent.id ||
-           sb.mcs_block_id === calEvent.id)
-      );
+
+      // First try to find a schedule_block for the specific clicked technician
+      let matchBlock: ScheduleBlock | undefined;
+      if (clickedTechId) {
+        matchBlock = scheduleBlocks.find(
+          (sb) =>
+            sb.technician_id === clickedTechId &&
+            sb.start_at.getTime() < evEnd &&
+            sb.end_at.getTime() > evStart &&
+            (sb.project_id === calEvent.id || sb.mcs_block_id === calEvent.id)
+        );
+      }
+      // Fallback: any matching block (single-tech events)
+      if (!matchBlock) {
+        matchBlock = scheduleBlocks.find(
+          (sb) =>
+            sb.start_at.getTime() < evEnd &&
+            sb.end_at.getTime() > evStart &&
+            (sb.project_id === calEvent.id || sb.mcs_block_id === calEvent.id)
+        );
+      }
+
       if (matchBlock) {
         onScheduleBlockClick?.(matchBlock);
         return;
