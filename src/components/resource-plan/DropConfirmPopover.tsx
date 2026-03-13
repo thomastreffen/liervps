@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -7,7 +7,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format, addMinutes } from "date-fns";
 import { nb } from "date-fns/locale";
-import { Clock, User, Loader2, Check, FolderKanban, ListTodo } from "lucide-react";
+import { Clock, Loader2, Check, FolderKanban, ListTodo } from "lucide-react";
+import { TechnicianMultiSelect } from "@/components/TechnicianMultiSelect";
 
 export interface DropPayload {
   taskId?: string;
@@ -41,109 +42,139 @@ export function DropConfirmPopover({ payload, onClose, onCreated }: DropConfirmP
   const [duration, setDuration] = useState<string>(
     payload?.estimatedMinutes?.toString() || "60"
   );
+  const [selectedTechIds, setSelectedTechIds] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
 
-  const handleConfirm = useCallback(async () => {
+  // Initialize selected technicians when payload changes
+  useEffect(() => {
     if (!payload) return;
+
+    // If project already has assigned technicians, preselect them + the dropped tech
+    if (payload.type === "project" && payload.taskId) {
+      supabase
+        .from("event_technicians")
+        .select("technician_id")
+        .eq("event_id", payload.taskId)
+        .then(({ data }) => {
+          const existing = (data || []).map((r) => r.technician_id);
+          const merged = new Set([...existing, payload.technicianId]);
+          setSelectedTechIds(Array.from(merged));
+        });
+    } else {
+      setSelectedTechIds([payload.technicianId]);
+    }
+  }, [payload?.taskId, payload?.technicianId, payload?.type]);
+
+  const handleConfirm = useCallback(async () => {
+    if (!payload || selectedTechIds.length === 0) return;
     setSaving(true);
 
     try {
       const durationMin = parseInt(duration, 10);
       const endTime = addMinutes(payload.dropTime, durationMin);
+      const startIso = payload.dropTime.toISOString();
+      const endIso = endTime.toISOString();
 
       const { data: session } = await supabase.auth.getSession();
       const userId = session?.session?.user?.id;
 
-      // Look up company_id from technician
+      // Look up company_id from the first selected technician
       const { data: techData } = await supabase
         .from("technicians")
-        .select("company_id, user_id")
-        .eq("id", payload.technicianId)
+        .select("company_id")
+        .eq("id", selectedTechIds[0])
         .single();
 
       const companyId = (techData as any)?.company_id;
 
-      if (payload.type === "project" && payload.taskId) {
-        // ── Project drop: assign technician + create schedule block ──
+      // Fetch names for toast
+      const { data: techNames } = await supabase
+        .from("technicians")
+        .select("id, name")
+        .in("id", selectedTechIds);
+      const nameMap = new Map((techNames || []).map((t) => [t.id, t.name]));
 
-        // Update project times
+      if (payload.type === "project" && payload.taskId) {
+        // ── Project drop: update event times ──
         await supabase
           .from("events")
           .update({
-            start_time: payload.dropTime.toISOString(),
-            end_time: endTime.toISOString(),
+            start_time: startIso,
+            end_time: endIso,
             status: "scheduled" as any,
           })
           .eq("id", payload.taskId);
 
-        // Add technician assignment (idempotent via upsert-like check)
-        const { data: existingAssignment } = await supabase
-          .from("event_technicians")
-          .select("id")
-          .eq("event_id", payload.taskId)
-          .eq("technician_id", payload.technicianId)
-          .maybeSingle();
+        // For each selected technician: assignment + schedule block
+        for (const techId of selectedTechIds) {
+          // Idempotent assignment
+          const { data: existing } = await supabase
+            .from("event_technicians")
+            .select("id")
+            .eq("event_id", payload.taskId)
+            .eq("technician_id", techId)
+            .maybeSingle();
 
-        if (!existingAssignment) {
-          await supabase.from("event_technicians").insert({
-            event_id: payload.taskId,
-            technician_id: payload.technicianId,
+          if (!existing) {
+            await supabase.from("event_technicians").insert({
+              event_id: payload.taskId,
+              technician_id: techId,
+            });
+          }
+
+          // Create schedule block per technician
+          await (supabase as any).from("schedule_blocks").insert({
+            company_id: companyId,
+            technician_id: techId,
+            project_id: payload.taskId,
+            source: "manual",
+            start_at: startIso,
+            end_at: endIso,
+            title: payload.taskTitle,
+            match_state: "manual",
+            match_confidence: 100,
+            match_reason: "Prosjekt dratt til kalender",
           });
         }
 
-        // Create schedule block
-        const { error } = await (supabase as any).from("schedule_blocks").insert({
-          company_id: companyId,
-          technician_id: payload.technicianId,
-          project_id: payload.taskId,
-          source: "manual",
-          start_at: payload.dropTime.toISOString(),
-          end_at: endTime.toISOString(),
-          title: payload.taskTitle,
-          match_state: "manual",
-          match_confidence: 100,
-          match_reason: "Prosjekt dratt til kalender",
-        });
-
-        if (error) throw error;
-
         // Log activity
+        const names = selectedTechIds.map((id) => nameMap.get(id) || "Montør").join(", ");
         await supabase.from("event_logs").insert({
           event_id: payload.taskId,
           action_type: "technician_assigned",
           performed_by: userId || null,
-          change_summary: `${payload.technicianName || "Montør"} tildelt via drag-planlegging kl. ${format(payload.dropTime, "HH:mm")}–${format(endTime, "HH:mm")}`,
+          change_summary: `${names} tildelt via drag-planlegging kl. ${format(payload.dropTime, "HH:mm")}–${format(endTime, "HH:mm")}`,
         });
 
       } else {
-        // ── Task drop: create schedule block directly ──
-        const { error } = await (supabase as any).from("schedule_blocks").insert({
-          company_id: companyId,
-          technician_id: payload.technicianId,
-          project_id: payload.projectId || null,
-          source: "manual",
-          start_at: payload.dropTime.toISOString(),
-          end_at: endTime.toISOString(),
-          title: payload.taskTitle,
-          match_state: "manual",
-          match_confidence: 100,
-          match_reason: payload.type === "task" ? "Oppgave dratt til kalender" : "Prosjekt dratt til kalender",
-        });
+        // ── Task drop: create schedule blocks for each technician ──
+        for (const techId of selectedTechIds) {
+          await (supabase as any).from("schedule_blocks").insert({
+            company_id: companyId,
+            technician_id: techId,
+            project_id: payload.projectId || null,
+            source: "manual",
+            start_at: startIso,
+            end_at: endIso,
+            title: payload.taskTitle,
+            match_state: "manual",
+            match_confidence: 100,
+            match_reason: payload.type === "task" ? "Oppgave dratt til kalender" : "Prosjekt dratt til kalender",
+          });
+        }
 
-        if (error) throw error;
-
-        // If it's a task, update planned_start_at / planned_end_at
         if (payload.taskId) {
           await (supabase as any).from("tasks").update({
-            planned_start_at: payload.dropTime.toISOString(),
-            planned_end_at: endTime.toISOString(),
-            assigned_user_id: payload.technicianId,
+            planned_start_at: startIso,
+            planned_end_at: endIso,
+            assigned_user_id: selectedTechIds[0],
           }).eq("id", payload.taskId);
         }
       }
 
+      const names = selectedTechIds.map((id) => nameMap.get(id) || "montør").join(", ");
       toast.success("Planlagt!", {
-        description: `${payload.taskTitle} → ${payload.technicianName || "montør"} kl. ${format(payload.dropTime, "HH:mm")}–${format(endTime, "HH:mm")}`,
+        description: `${payload.taskTitle} → ${names} kl. ${format(payload.dropTime, "HH:mm")}–${format(endTime, "HH:mm")}`,
       });
       onCreated();
       onClose();
@@ -153,7 +184,7 @@ export function DropConfirmPopover({ payload, onClose, onCreated }: DropConfirmP
     } finally {
       setSaving(false);
     }
-  }, [payload, duration, onClose, onCreated]);
+  }, [payload, duration, selectedTechIds, onClose, onCreated]);
 
   if (!payload) return null;
 
@@ -163,7 +194,7 @@ export function DropConfirmPopover({ payload, onClose, onCreated }: DropConfirmP
 
   return (
     <Sheet open={!!payload} onOpenChange={(open) => !open && onClose()}>
-      <SheetContent side="bottom" className="max-h-[360px] rounded-t-2xl">
+      <SheetContent side="bottom" className="max-h-[520px] rounded-t-2xl">
         <SheetHeader>
           <SheetTitle className="text-base">Bekreft planlegging</SheetTitle>
           <SheetDescription className="sr-only">Bekreft planlegging av {isProject ? "jobb" : "oppgave"}</SheetDescription>
@@ -181,25 +212,14 @@ export function DropConfirmPopover({ payload, onClose, onCreated }: DropConfirmP
             )}
           </div>
 
-          {/* Time + Tech */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground flex items-center gap-1">
-                <Clock className="h-3 w-3" /> Tidspunkt
-              </Label>
-              <p className="text-sm font-medium">
-                {format(payload.dropTime, "EEE d. MMM", { locale: nb })}
-              </p>
-              <p className="text-sm">
-                {format(payload.dropTime, "HH:mm")} – {format(endTime, "HH:mm")}
-              </p>
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground flex items-center gap-1">
-                <User className="h-3 w-3" /> Montør
-              </Label>
-              <p className="text-sm font-medium">{payload.technicianName || "Valgt montør"}</p>
-            </div>
+          {/* Time */}
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground flex items-center gap-1">
+              <Clock className="h-3 w-3" /> Tidspunkt
+            </Label>
+            <p className="text-sm font-medium">
+              {format(payload.dropTime, "EEE d. MMM", { locale: nb })} · {format(payload.dropTime, "HH:mm")} – {format(endTime, "HH:mm")}
+            </p>
           </div>
 
           {/* Duration selector */}
@@ -216,15 +236,25 @@ export function DropConfirmPopover({ payload, onClose, onCreated }: DropConfirmP
               </SelectContent>
             </Select>
           </div>
+
+          {/* Multi-technician selector */}
+          <TechnicianMultiSelect
+            selectedIds={selectedTechIds}
+            onChange={setSelectedTechIds}
+          />
         </div>
 
         <SheetFooter className="flex-row gap-2">
           <Button variant="outline" onClick={onClose} className="flex-1" disabled={saving}>
             Avbryt
           </Button>
-          <Button onClick={handleConfirm} className="flex-1 gap-1.5" disabled={saving}>
+          <Button
+            onClick={handleConfirm}
+            className="flex-1 gap-1.5"
+            disabled={saving || selectedTechIds.length === 0}
+          >
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-            Planlegg
+            Planlegg {selectedTechIds.length > 1 ? `(${selectedTechIds.length})` : ""}
           </Button>
         </SheetFooter>
       </SheetContent>
