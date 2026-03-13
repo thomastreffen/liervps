@@ -18,6 +18,7 @@ import { toast } from "sonner";
 interface TechLookup {
   name: string;
   color: string | null;
+  avatarId?: string | null;
 }
 
 interface ResourceCalendarProps {
