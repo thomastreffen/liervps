@@ -46,6 +46,7 @@ interface ProjectHeaderProps {
 }
 
 export function ProjectHeader({
+  jobNumber,
   title,
   customer,
   start,
