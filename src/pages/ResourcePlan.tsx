@@ -175,16 +175,18 @@ export default function ResourcePlan() {
   }, [calendarView]);
   const goToToday = useCallback(() => setReferenceDate(new Date()), []);
 
-  const handleEventClick = useCallback((event: CalendarEvent) => {
+  const handleEventClick = useCallback((event: CalendarEvent, techId?: string) => {
     console.info("[ResourcePlan][OpenEventDrawer]", {
       open_handler: "event_drawer",
       event_id: event.id,
+      clicked_tech_id: techId ?? null,
       technician_ids: event.technicianIds,
       technician_names: event.technicians.map((t) => t.name),
       start: event.start?.toISOString?.() ?? null,
       end: event.end?.toISOString?.() ?? null,
     });
     setEditEvent(event);
+    setClickedTechId(techId ?? null);
     setPreselectedStart(null);
     setPreselectedEnd(null);
     setDrawerOpen(true);
