@@ -436,11 +436,13 @@ export const ResourceCalendar = memo(function ResourceCalendar({
         event_id: (ev.extendedProps as any)?.eventId ?? null,
         event_technician_id: (ev.extendedProps as any)?.eventTechnicianId ?? null,
         technician_id: (ev.extendedProps as any)?.technicianId ?? null,
+        schedule_block_id: (ev.extendedProps as any)?.scheduleBlockId ?? null,
         calendar_event_id: (ev.extendedProps as any)?.calendarEventId ?? null,
+        outlook_event_id: (ev.extendedProps as any)?.outlookEventId ?? null,
+        display_name: (ev.extendedProps as any)?.displayName ?? null,
         title: ev.title,
         start: ev.start instanceof Date ? ev.start.toISOString() : ev.start,
         end: ev.end instanceof Date ? ev.end.toISOString() : ev.end,
-        display_name: (ev.extendedProps as any)?.displayName ?? null,
       }))
     );
 
