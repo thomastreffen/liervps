@@ -22,11 +22,8 @@ interface TechnicianListProps {
   filterIds?: Set<string> | null;
   nowStatusMap?: Map<string, TechNowStatus>;
   onColorChange?: (techId: string, color: string) => void;
-  /** Per-tech capacity for today – used for overbooking indicators */
   techDayPercents?: Map<string, number>;
-  /** Pre-filtered technicians from parent scope */
   technicians?: DBTechnician[];
-  /** Whether null-selection truly means cross-company global scope */
   isGlobalScope?: boolean;
 }
 
@@ -38,7 +35,7 @@ const COLOR_PRESETS = [
 ];
 
 function NowBadge({ status }: { status: TechNowStatus }) {
-  const base = "text-[10px] font-semibold px-1.5 py-0.5 rounded-full leading-none whitespace-nowrap";
+  const base = "text-[9px] font-semibold px-1.5 py-0.5 rounded-full leading-none whitespace-nowrap";
   if (status.state === "busy") {
     return (
       <span className={cn(base, "bg-destructive/10 text-destructive")}>
@@ -61,12 +58,48 @@ function ColorPicker({ currentColor, onPick }: { currentColor: string | null; on
           key={c}
           onClick={(e) => { e.stopPropagation(); onPick(c); }}
           className={cn(
-            "h-7 w-7 rounded-full border-2 transition-transform hover:scale-110",
+            "h-6 w-6 rounded-full border-2 transition-transform hover:scale-110",
             currentColor === c ? "border-foreground scale-110 ring-2 ring-foreground/20" : "border-transparent"
           )}
           style={{ backgroundColor: c }}
         />
       ))}
+    </div>
+  );
+}
+
+function CapacityBar({ percent }: { percent: number }) {
+  const clampedPercent = Math.min(percent, 100);
+  const color = percent > 100
+    ? "hsl(var(--destructive))"
+    : percent >= 90
+    ? "hsl(var(--destructive))"
+    : percent >= 50
+    ? "hsl(var(--warning))"
+    : "hsl(var(--success))";
+
+  const label = percent > 100
+    ? `${Math.round(percent)}%`
+    : percent >= 50
+    ? `${Math.round(percent)}%`
+    : null;
+
+  return (
+    <div className="flex items-center gap-1.5 mt-1">
+      <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
+        <div
+          className="h-full rounded-full transition-all duration-300"
+          style={{
+            width: `${clampedPercent}%`,
+            backgroundColor: color,
+          }}
+        />
+      </div>
+      {label && (
+        <span className="text-[9px] font-bold tabular-nums shrink-0" style={{ color }}>
+          {label}
+        </span>
+      )}
     </div>
   );
 }
@@ -114,7 +147,6 @@ export function TechnicianList({
   }, [scopedTechnicians]);
 
   const handleColorPick = useCallback(async (techId: string, color: string) => {
-    // Optimistic update
     setTechnicians((prev) => prev.map((t) => t.id === techId ? { ...t, color } : t));
     setColorPickerOpen(null);
     onColorChange?.(techId, color);
@@ -126,7 +158,6 @@ export function TechnicianList({
 
     if (error) {
       toast.error("Kunne ikke lagre farge");
-      console.error("Color update failed:", error);
     }
   }, [onColorChange]);
 
@@ -147,27 +178,27 @@ export function TechnicianList({
   }
 
   return (
-    <div className="flex flex-col gap-1">
-      <h2 className="px-3 pb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+    <div className="flex flex-col gap-0.5">
+      <h2 className="px-3 pb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
         Montører
       </h2>
 
-      {/* Scope-wide view button */}
+      {/* All technicians view */}
       <button
         onClick={() => onSelect(null)}
         className={cn(
-          "flex items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors",
+          "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors",
           selectedId === null
             ? "bg-accent/10 text-accent-foreground ring-1 ring-accent/20"
             : "hover:bg-secondary"
         )}
       >
-        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-primary">
-          <Users className="h-4 w-4" />
+        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary">
+          <Users className="h-3.5 w-3.5" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium">Alle montører</p>
-          <p className="text-xs text-muted-foreground">{isGlobalScope ? "Global oversikt" : "Innen valgt selskap"}</p>
+          <p className="text-xs font-medium">Alle montører</p>
+          <p className="text-[10px] text-muted-foreground">{isGlobalScope ? "Global" : "Selskap"}</p>
         </div>
       </button>
 
@@ -186,7 +217,7 @@ export function TechnicianList({
             <button
               onClick={() => onSelect(tech.id)}
               className={cn(
-                "flex-1 flex items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors min-w-0",
+                "flex-1 flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors min-w-0",
                 isSelected
                   ? "ring-1 ring-accent/20"
                   : "hover:bg-secondary"
@@ -203,15 +234,15 @@ export function TechnicianList({
                     onClick={(e) => { e.stopPropagation(); setColorPickerOpen(tech.id); }}
                   >
                     <div
-                      className="flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold shrink-0 text-white transition-shadow group-hover:ring-2 group-hover:ring-offset-1"
-                      style={{ backgroundColor: techColor, boxShadow: `0 0 0 0px ${techColor}` }}
+                      className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold shrink-0 text-white transition-shadow group-hover:ring-2 group-hover:ring-offset-1"
+                      style={{ backgroundColor: techColor }}
                     >
                       {initial}
                     </div>
                     {nowStatus && (
                       <span
                         className={cn(
-                          "absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-card",
+                          "absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-card",
                           nowStatus.state === "busy" ? "bg-destructive" : "bg-success"
                         )}
                       />
@@ -227,15 +258,15 @@ export function TechnicianList({
               </Popover>
 
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-1.5">
-                  <p className="text-sm font-bold truncate">{tech.name}</p>
+                <div className="flex items-center gap-1">
+                  <p className="text-xs font-bold truncate">{tech.name}</p>
                   {isOverbooked && (
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <AlertTriangle className="h-3.5 w-3.5 text-destructive shrink-0" />
+                        <AlertTriangle className="h-3 w-3 text-destructive shrink-0" />
                       </TooltipTrigger>
                       <TooltipContent side="right" className="text-xs">
-                        Overbooket ({Math.round(dayPercent)}% kapasitet)
+                        Overbooket ({Math.round(dayPercent)}%)
                       </TooltipContent>
                     </Tooltip>
                   )}
@@ -245,16 +276,7 @@ export function TechnicianList({
                     <NowBadge status={nowStatus} />
                   </div>
                 )}
-                <div className="mt-1 h-1.5 w-full rounded-full bg-muted overflow-hidden">
-                  <div
-                    className="h-full rounded-full transition-all"
-                    style={{
-                      width: `${Math.min(dayPercent, 100)}%`,
-                      backgroundColor: dayPercent > 100 ? "hsl(var(--destructive))" : dayPercent >= 90 ? "hsl(var(--destructive))" : dayPercent >= 50 ? "hsl(var(--warning))" : "hsl(var(--success))",
-                      opacity: 0.8,
-                    }}
-                  />
-                </div>
+                <CapacityBar percent={dayPercent} />
               </div>
             </button>
           </div>

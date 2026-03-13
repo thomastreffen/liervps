@@ -12,7 +12,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Plus, CalendarDays, ChevronLeft, ChevronRight, RotateCcw, UserCheck, UserMinus, Clock,
-  Calendar, List, Bell, Sun, Moon, Sunrise, ZoomIn,
+  Calendar, List, Bell, Sun, Moon, Sunrise, ZoomIn, Filter,
 } from "lucide-react";
 import { useOperatingHours, type ZoomLevel } from "@/hooks/useOperatingHours";
 import { setWorkHours } from "@/hooks/useTechnicianNowStatus";
@@ -64,7 +64,6 @@ export default function ResourcePlan() {
   const { isAdmin, isSuperAdmin } = useAuth();
   const { hasPermission } = usePermissions();
   const { activeCompanyId } = useCompanyContext();
-  // Permission-based access
   const canReadBusy = hasPermission("calendar.read_busy");
   const canViewExternal = hasPermission("calendar.view_external");
   const canWriteEvents = hasPermission("calendar.write_events");
@@ -73,8 +72,7 @@ export default function ResourcePlan() {
   const confirmationCount = useConfirmationCount();
   const syncHealth = useSyncHealth(isAdmin);
 
-  // Global company scope is the single source of truth — no local override
-  const effectiveCompanyId = activeCompanyId; // null = all companies
+  const effectiveCompanyId = activeCompanyId;
 
   const { technicians } = useTechnicians(effectiveCompanyId);
   const [selectedTechId, setSelectedTechId] = useState<string | null>(null);
@@ -83,7 +81,6 @@ export default function ResourcePlan() {
   const [minFreeMinutes, setMinFreeMinutes] = useState<number | null>(null);
   const [calendarView, setCalendarView] = useState<CalendarViewType>(getStoredView);
 
-  // Week navigation
   const [referenceDate, setReferenceDate] = useState<Date>(new Date());
 
   const scopedCompanyTechIds = useMemo(
@@ -96,7 +93,6 @@ export default function ResourcePlan() {
     [selectedTechId, scopedCompanyTechIds]
   );
 
-  // Reset selected technician when switching to a company where that tech is not present
   useEffect(() => {
     if (selectedTechId && !technicians.some((t) => t.id === selectedTechId)) {
       setSelectedTechId(null);
@@ -105,7 +101,6 @@ export default function ResourcePlan() {
 
   const unplannedCount = useUnplannedProjects(effectiveCompanyId);
 
-  // Only fetch external busy data if user has calendar.read_busy permission
   const { busySlots, getBusySlotsForDay, getExternalBusyMinutesForDay, refetch: refetchBusySlots } = useExternalBusy(
     canReadBusy ? selectedTechId : "__disabled__",
     { technicianIds: techIds, referenceDate }
@@ -116,12 +111,10 @@ export default function ResourcePlan() {
   const [hideExternalEvents, setHideExternalEvents] = useState(false);
   const [dropPayload, setDropPayload] = useState<DropPayload | null>(null);
 
-  // Persist view choice
   useEffect(() => {
     localStorage.setItem(VIEW_STORAGE_KEY, calendarView);
   }, [calendarView]);
 
-  // Drawer state
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editEvent, setEditEvent] = useState<CalendarEvent | null>(null);
   const [preselectedStart, setPreselectedStart] = useState<Date | null>(null);
@@ -159,7 +152,6 @@ export default function ResourcePlan() {
     ]);
   }, [refetchBlocks, refetchBusySlots, refetchCalendarEvents]);
 
-  // Navigation helpers – view-aware
   const goToPrev = useCallback(() => {
     setReferenceDate((d) => {
       if (calendarView === "timeGridDay") return addDays(d, -1);
@@ -198,7 +190,6 @@ export default function ResourcePlan() {
     setDrawerOpen(true);
   }, []);
 
-  // Listen for global FAB "Ny aktivitet" from MobileTabBar
   useEffect(() => {
     const handler = () => handleNewEvent();
     window.addEventListener("resource-plan:new-activity", handler);
@@ -220,7 +211,6 @@ export default function ResourcePlan() {
         performed_by: userId || null,
         change_summary: `Flyttet fra ${oldEvent ? format(oldEvent.start, "dd.MM HH:mm") + "–" + format(oldEvent.end, "HH:mm") : "ukjent"} til ${format(newStart, "dd.MM HH:mm")}–${format(newEnd, "HH:mm")}`,
       });
-      // Sync linked service_jobs + work_orders
       await supabase.from("service_jobs")
         .update({ starts_at: newStart.toISOString(), ends_at: newEnd.toISOString() } as any)
         .eq("project_id", eventId);
@@ -252,7 +242,6 @@ export default function ResourcePlan() {
         performed_by: userId || null,
         change_summary: `Varighet endret fra ${oldEvent ? format(oldEvent.start, "HH:mm") + "–" + format(oldEvent.end, "HH:mm") : "ukjent"} til ${format(newStart, "HH:mm")}–${format(newEnd, "HH:mm")}`,
       });
-      // Sync linked service_jobs + work_orders
       await supabase.from("service_jobs")
         .update({ starts_at: newStart.toISOString(), ends_at: newEnd.toISOString() } as any)
         .eq("project_id", eventId);
@@ -270,7 +259,6 @@ export default function ResourcePlan() {
   }, [syncUpdate, calEvents]);
   const operatingHours = useOperatingHours(effectiveCompanyId);
 
-  // Sync work hours to now-status module
   useEffect(() => {
     setWorkHours(operatingHours.startHour, operatingHours.endHour === 24 ? 23 : operatingHours.endHour);
   }, [operatingHours.startHour, operatingHours.endHour]);
@@ -279,9 +267,7 @@ export default function ResourcePlan() {
     calEvents, busySlots, referenceDate, techIds, operatingHours.workDayMinutes
   );
 
-  // Handle external drop from TaskResourceStrip
   const handleExternalDrop = useCallback((info: { taskId: string; title: string; start: Date; end: Date; estimatedMinutes: number; priority: string; dropType: string }) => {
-    // Determine technician: use selected tech or first available
     const techId = selectedTechId || (technicians.length > 0 ? technicians[0].id : null);
     if (!techId) {
       toast.error("Velg en montør først");
@@ -300,7 +286,6 @@ export default function ResourcePlan() {
     });
   }, [selectedTechId, technicians]);
 
-  // Only compute now-status if user has permission to see busy/available
   const nowStatusMap = useTechnicianNowStatus(calEvents, canReadBusy ? busySlots : [], techIds, externalBlocksCapacity);
 
   const todayDayIndex = useMemo(() => {
@@ -310,7 +295,6 @@ export default function ResourcePlan() {
     return diff >= 0 && diff < 7 ? diff : 0;
   }, [referenceDate]);
 
-  // Build per-tech day percent map for overbooking indicators
   const techDayPercents = useMemo(() => {
     const map = new Map<string, number>();
     for (const tc of techCapacities) {
@@ -319,10 +303,8 @@ export default function ResourcePlan() {
     return map;
   }, [techCapacities, todayDayIndex]);
 
-  // Extended capacity filter supporting "full" and "overbooked"
   const handleCapacityFilterClick = useCallback((filter: "all" | "available" | "partial" | "full" | "overbooked") => {
     if (filter === "full" || filter === "overbooked") {
-      // Filter to techs matching this category
       const matchIds = techCapacities
         .filter((tc) => {
           const p = tc.days[todayDayIndex]?.percent ?? 0;
@@ -330,7 +312,6 @@ export default function ResourcePlan() {
           return p >= 90 && p <= 100;
         })
         .map((tc) => tc.techId);
-      // Use the first matched tech to focus, or clear
       if (matchIds.length === 1) setSelectedTechId(matchIds[0]);
       else setSelectedTechId(null);
       setCapacityFilter("all");
@@ -339,7 +320,6 @@ export default function ResourcePlan() {
     setCapacityFilter(filter);
   }, [techCapacities, todayDayIndex]);
 
-  // Filter technicians: capacity + min free minutes
   const filteredTechForSidebar = useMemo(() => {
     let ids: string[] | null = null;
 
@@ -349,7 +329,6 @@ export default function ResourcePlan() {
       ids = partialTechIds(todayDayIndex);
     }
 
-    // Apply "min free minutes" filter
     if (minFreeMinutes) {
       const candidateIds = ids || techIds;
       ids = candidateIds.filter((techId) => {
@@ -362,7 +341,6 @@ export default function ResourcePlan() {
     return new Set(ids || []);
   }, [capacityFilter, availableTechIds, partialTechIds, todayDayIndex, minFreeMinutes, techIds, calEvents, busySlots, externalBlocksCapacity]);
 
-  // Swipe navigation for mobile
   const touchStartX = useRef<number | null>(null);
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     touchStartX.current = e.touches[0].clientX;
@@ -376,6 +354,17 @@ export default function ResourcePlan() {
       else goToNext();
     }
   }, [goToPrev, goToNext]);
+
+  // Period label
+  const periodLabel = calendarView === "dayGridMonth"
+    ? format(referenceDate, "MMMM yyyy", { locale: nb })
+    : calendarView === "timeGridDay"
+    ? format(referenceDate, "EEEE d. MMMM", { locale: nb })
+    : `Uke ${format(weekStart, "w", { locale: nb })}`;
+
+  const periodSub = (calendarView === "timeGridWeek" || calendarView === "listWeek")
+    ? `${format(weekStart, "d. MMM", { locale: nb })} – ${format(addWeeks(weekStart, 1), "d. MMM yyyy", { locale: nb })}`
+    : null;
 
   return (
     <div className="flex flex-1 overflow-hidden h-full">
@@ -395,8 +384,7 @@ export default function ResourcePlan() {
         </aside>
       )}
 
-      <div className="flex-1 overflow-y-auto p-2 sm:p-6 lg:p-8 relative">
-        {/* MOBILE HEADER – compact 2-row layout */}
+      <div className="flex-1 overflow-y-auto p-2 sm:p-4 lg:p-6 relative">
         {isMobile ? (
           <MobileResourceHeader
             technicians={technicians}
@@ -421,48 +409,108 @@ export default function ResourcePlan() {
           />
         ) : (
           <>
-            {/* DESKTOP HEADER – original layout */}
-            <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <div className="flex items-center gap-2.5">
-                  <h1 className="text-xl sm:text-2xl font-bold tracking-tight flex items-center gap-2.5">
-                    <CalendarDays className="h-6 w-6 text-primary" />
-                    Ressursplan
-                  </h1>
-                  {selectedTech && (
-                    <span
-                      className="inline-flex items-center gap-1.5 text-base font-semibold px-3 py-1 rounded-full"
-                      style={{
-                        backgroundColor: `${selectedTech.color || "#6366f1"}15`,
-                        color: selectedTech.color || "#6366f1",
-                      }}
-                    >
-                      <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: selectedTech.color || "#6366f1" }} />
-                      {selectedTech.name}
-                    </span>
-                  )}
-                </div>
-                <span className="text-[9px] font-mono text-muted-foreground/60 select-all">
-                  UI build: 2026-03-12 14:00
-                </span>
+            {/* ═══ PRIMARY ROW ═══ */}
+            <div className="flex items-center justify-between mb-2">
+              {/* Left: Title + selected tech */}
+              <div className="flex items-center gap-3 min-w-0">
+                <h1 className="text-lg font-bold tracking-tight flex items-center gap-2 shrink-0">
+                  <CalendarDays className="h-5 w-5 text-primary" />
+                  Ressursplan
+                </h1>
+                {selectedTech && (
+                  <span
+                    className="inline-flex items-center gap-1.5 text-sm font-semibold px-2.5 py-0.5 rounded-full shrink-0"
+                    style={{
+                      backgroundColor: `${selectedTech.color || "#6366f1"}15`,
+                      color: selectedTech.color || "#6366f1",
+                    }}
+                  >
+                    <span className="h-2 w-2 rounded-full" style={{ backgroundColor: selectedTech.color || "#6366f1" }} />
+                    {selectedTech.name}
+                  </span>
+                )}
               </div>
 
-              <div className="flex items-center gap-2 flex-wrap">
-                {/* Quick capacity filters */}
-                <div className="flex items-center gap-1 border border-border/40 rounded-lg p-0.5">
-                  <Button variant={capacityFilter === "all" ? "default" : "ghost"} size="sm" className="h-7 text-xs rounded-md px-2.5" onClick={() => setCapacityFilter("all")}>Alle</Button>
-                  <Button variant={capacityFilter === "available" ? "default" : "ghost"} size="sm" className="h-7 text-xs rounded-md px-2.5 gap-1" onClick={() => setCapacityFilter("available")}>
+              {/* Center: Nav + period + view */}
+              <div className="flex items-center gap-2">
+                <Button variant="ghost" size="icon" onClick={goToPrev} className="h-7 w-7 rounded-md">
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+
+                <div className="text-center min-w-[120px]">
+                  <p className="text-sm font-semibold text-foreground leading-tight">{periodLabel}</p>
+                  {periodSub && (
+                    <p className="text-[10px] text-muted-foreground leading-tight">{periodSub}</p>
+                  )}
+                </div>
+
+                <Button variant="ghost" size="icon" onClick={goToNext} className="h-7 w-7 rounded-md">
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+
+                {!isCurrentWeek && (
+                  <Button variant="outline" size="sm" onClick={goToToday} className="gap-1 rounded-md text-xs h-7 px-2">
+                    <RotateCcw className="h-3 w-3" />
+                    I dag
+                  </Button>
+                )}
+
+                <div className="flex items-center gap-0.5 border border-border/40 rounded-md p-0.5 ml-1">
+                  {VIEW_OPTIONS.map((v) => (
+                    <Button
+                      key={v.value}
+                      variant={calendarView === v.value ? "default" : "ghost"}
+                      size="sm"
+                      className="h-6 text-[11px] rounded px-2"
+                      onClick={() => setCalendarView(v.value)}
+                    >
+                      {v.label}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Right: Primary actions */}
+              <div className="flex items-center gap-2 shrink-0">
+                {confirmationCount > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1 rounded-lg relative h-8 text-xs"
+                    onClick={() => navigate("/calendar/confirmations")}
+                  >
+                    <Bell className="h-3.5 w-3.5" />
+                    {confirmationCount}
+                  </Button>
+                )}
+
+                {canWriteEvents && (
+                  <Button onClick={handleNewEvent} size="sm" className="gap-1.5 rounded-lg h-8">
+                    <Plus className="h-4 w-4" />
+                    Ny aktivitet
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            {/* ═══ SECONDARY ROW ═══ */}
+            <div className="flex items-center justify-between mb-3 gap-2 py-1.5 px-3 bg-muted/30 rounded-lg border border-border/20">
+              <div className="flex items-center gap-3 flex-wrap">
+                {/* Capacity filter chips */}
+                <div className="flex items-center gap-0.5 border border-border/30 rounded-md p-0.5">
+                  <Button variant={capacityFilter === "all" ? "default" : "ghost"} size="sm" className="h-6 text-[10px] rounded px-2" onClick={() => setCapacityFilter("all")}>Alle</Button>
+                  <Button variant={capacityFilter === "available" ? "default" : "ghost"} size="sm" className="h-6 text-[10px] rounded px-2 gap-0.5" onClick={() => setCapacityFilter("available")}>
                     <UserCheck className="h-3 w-3" />Ledige
                   </Button>
-                  <Button variant={capacityFilter === "partial" ? "default" : "ghost"} size="sm" className="h-7 text-xs rounded-md px-2.5 gap-1" onClick={() => setCapacityFilter("partial")}>
+                  <Button variant={capacityFilter === "partial" ? "default" : "ghost"} size="sm" className="h-6 text-[10px] rounded px-2 gap-0.5" onClick={() => setCapacityFilter("partial")}>
                     <UserMinus className="h-3 w-3" />Delvis
                   </Button>
                 </div>
 
-                {/* Min free minutes filter */}
+                {/* Min free minutes */}
                 <Select value={minFreeMinutes?.toString() || "none"} onValueChange={(v) => setMinFreeMinutes(v === "none" ? null : Number(v))}>
-                  <SelectTrigger className="w-[140px] h-7 text-xs rounded-lg border-border/40">
-                    <Clock className="h-3 w-3 mr-1 text-muted-foreground" />
+                  <SelectTrigger className="w-[120px] h-6 text-[10px] rounded-md border-border/30">
+                    <Clock className="h-3 w-3 mr-0.5 text-muted-foreground" />
                     <SelectValue placeholder="Min. ledig" />
                   </SelectTrigger>
                   <SelectContent>
@@ -474,34 +522,42 @@ export default function ResourcePlan() {
                   </SelectContent>
                 </Select>
 
-                {/* External blocks capacity toggle */}
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <Switch checked={externalBlocksCapacity} onCheckedChange={setExternalBlocksCapacity} className="scale-75" />
+                <div className="h-4 w-px bg-border/40" />
+
+                {/* Toggles */}
+                <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                  <Switch checked={externalBlocksCapacity} onCheckedChange={setExternalBlocksCapacity} className="scale-[0.6]" />
                   <span className="whitespace-nowrap">Ekstern blokkerer</span>
                 </div>
 
-                {/* Superadmin: toggle external event visibility */}
                 {canViewExternal && (
-                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                    <Switch checked={hideExternalEvents} onCheckedChange={setHideExternalEvents} className="scale-75" />
+                  <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                    <Switch checked={hideExternalEvents} onCheckedChange={setHideExternalEvents} className="scale-[0.6]" />
                     <span className="whitespace-nowrap">Skjul eksterne</span>
                   </div>
                 )}
 
+                <div className="h-4 w-px bg-border/40" />
+
+                <StatusLegend />
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                {/* Sync health */}
                 {hasPermission("admin.manage_settings") && (
                   <TooltipProvider delayDuration={200}>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <div className="flex items-center gap-1.5 text-xs cursor-default">
+                        <div className="flex items-center gap-1 text-[10px] cursor-default">
                           <span
-                            className="h-2 w-2 rounded-full shrink-0"
+                            className="h-1.5 w-1.5 rounded-full shrink-0"
                             style={{
                               backgroundColor: syncHealth.color === "green" ? "hsl(var(--success, 142 71% 45%))"
                                 : syncHealth.color === "yellow" ? "hsl(var(--accent, 38 92% 50%))"
                                 : "hsl(var(--destructive, 0 84% 60%))",
                             }}
                           />
-                          <span className="text-muted-foreground whitespace-nowrap">Synk: {syncHealth.label}</span>
+                          <span className="text-muted-foreground whitespace-nowrap">{syncHealth.label}</span>
                         </div>
                       </TooltipTrigger>
                       <TooltipContent side="bottom" className="text-xs">
@@ -513,125 +569,52 @@ export default function ResourcePlan() {
                   </TooltipProvider>
                 )}
 
-                <StatusLegend />
-
-                {confirmationCount > 0 && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="gap-1.5 rounded-xl relative"
-                    onClick={() => navigate("/calendar/confirmations")}
-                  >
-                    <Bell className="h-4 w-4" />
-                    <span>{confirmationCount} bekreftelser</span>
-                  </Button>
+                {/* Zoom + quick nav */}
+                {(calendarView === "timeGridDay" || calendarView === "timeGridWeek") && (
+                  <div className="flex items-center gap-0.5 border border-border/30 rounded-md p-0.5">
+                    {(["compact", "normal", "detailed"] as ZoomLevel[]).map((z) => (
+                      <Button
+                        key={z}
+                        variant={operatingHours.zoom === z ? "default" : "ghost"}
+                        size="sm"
+                        className="h-5 text-[9px] rounded px-1.5"
+                        onClick={() => operatingHours.setZoom(z)}
+                      >
+                        {z === "compact" ? "1t" : z === "normal" ? "30m" : "15m"}
+                      </Button>
+                    ))}
+                  </div>
                 )}
 
-                {canWriteEvents && (
-                  <Button onClick={handleNewEvent} size="sm" className="gap-1.5 rounded-xl">
-                    <Plus className="h-4 w-4" />
-                    Ny aktivitet
-                  </Button>
-                )}
-              </div>
-            </div>
-
-            {/* View switcher + navigation */}
-            <div className="flex items-center justify-between mb-4 bg-card/80 backdrop-blur-sm border border-border/30 rounded-xl px-4 py-2.5">
-              <Button variant="ghost" size="icon" onClick={goToPrev} className="h-8 w-8 rounded-lg">
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-0.5 border border-border/40 rounded-lg p-0.5">
-                  {VIEW_OPTIONS.map((v) => (
-                    <Button
-                      key={v.value}
-                      variant={calendarView === v.value ? "default" : "ghost"}
-                      size="sm"
-                      className="h-7 text-xs rounded-md px-2.5"
-                      onClick={() => setCalendarView(v.value)}
-                    >
-                      {v.label}
+                {(calendarView === "timeGridDay" || calendarView === "timeGridWeek") && (
+                  <div className="flex items-center gap-0.5 border border-border/30 rounded-md p-0.5">
+                    <Button variant="ghost" size="sm" className="h-5 text-[9px] rounded px-1.5 gap-0.5" onClick={() => {
+                      window.dispatchEvent(new CustomEvent("resource-calendar:scroll-to", { detail: "06:00:00" }));
+                    }}>
+                      <Sunrise className="h-2.5 w-2.5" /> Morgen
                     </Button>
-                  ))}
-                </div>
-
-                <div className="text-center">
-                  <p className="text-sm font-semibold text-foreground">
-                    {calendarView === "dayGridMonth"
-                      ? format(referenceDate, "MMMM yyyy", { locale: nb })
-                      : calendarView === "timeGridDay"
-                      ? format(referenceDate, "EEEE d. MMMM", { locale: nb })
-                      : `Uke ${format(weekStart, "w", { locale: nb })}`}
-                  </p>
-                  {(calendarView === "timeGridWeek" || calendarView === "listWeek") && (
-                    <p className="text-xs text-muted-foreground">
-                      {format(weekStart, "d. MMM", { locale: nb })} – {format(addWeeks(weekStart, 1), "d. MMM yyyy", { locale: nb })}
-                    </p>
-                  )}
-                </div>
-                {!isCurrentWeek && (
-                  <Button variant="outline" size="sm" onClick={goToToday} className="gap-1.5 rounded-lg text-xs h-7">
-                    <RotateCcw className="h-3 w-3" />
-                    I dag
-                  </Button>
-                )}
-              </div>
-              <Button variant="ghost" size="icon" onClick={goToNext} className="h-8 w-8 rounded-lg">
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
-
-            {/* Zoom + Quick nav row */}
-            <div className="flex items-center justify-between mb-4 gap-2">
-              {/* Zoom level */}
-              <div className="flex items-center gap-1.5">
-                <ZoomIn className="h-3.5 w-3.5 text-muted-foreground" />
-                <div className="flex items-center gap-0.5 border border-border/40 rounded-lg p-0.5">
-                  {(["compact", "normal", "detailed"] as ZoomLevel[]).map((z) => (
-                    <Button
-                      key={z}
-                      variant={operatingHours.zoom === z ? "default" : "ghost"}
-                      size="sm"
-                      className="h-6 text-[10px] rounded-md px-2"
-                      onClick={() => operatingHours.setZoom(z)}
-                    >
-                      {z === "compact" ? "Kompakt" : z === "normal" ? "Normal" : "Detaljert"}
+                    <Button variant="ghost" size="sm" className="h-5 text-[9px] rounded px-1.5 gap-0.5" onClick={() => {
+                      window.dispatchEvent(new CustomEvent("resource-calendar:scroll-to", { detail: "18:00:00" }));
+                    }}>
+                      <Sun className="h-2.5 w-2.5" /> Kveld
                     </Button>
-                  ))}
-                </div>
+                    <Button variant="ghost" size="sm" className="h-5 text-[9px] rounded px-1.5 gap-0.5" onClick={() => {
+                      window.dispatchEvent(new CustomEvent("resource-calendar:scroll-to", { detail: "00:00:00" }));
+                    }}>
+                      <Moon className="h-2.5 w-2.5" /> Natt
+                    </Button>
+                  </div>
+                )}
+
+                <Badge variant="outline" className="text-[9px] h-4 px-1.5">
+                  {operatingHours.profile === "office" ? "Kontor" : operatingHours.profile === "extended" ? "Utvidet" : "24/7"}
+                </Badge>
               </div>
-
-              {/* Quick time navigation – always available since calendar is 24h */}
-              {(calendarView === "timeGridDay" || calendarView === "timeGridWeek") && (
-                <div className="flex items-center gap-1 border border-border/40 rounded-lg p-0.5">
-                  <Button variant="ghost" size="sm" className="h-6 text-[10px] rounded-md px-2 gap-1" onClick={() => {
-                    window.dispatchEvent(new CustomEvent("resource-calendar:scroll-to", { detail: "06:00:00" }));
-                  }}>
-                    <Sunrise className="h-3 w-3" /> Morgen
-                  </Button>
-                  <Button variant="ghost" size="sm" className="h-6 text-[10px] rounded-md px-2 gap-1" onClick={() => {
-                    window.dispatchEvent(new CustomEvent("resource-calendar:scroll-to", { detail: "18:00:00" }));
-                  }}>
-                    <Sun className="h-3 w-3" /> Kveld
-                  </Button>
-                  <Button variant="ghost" size="sm" className="h-6 text-[10px] rounded-md px-2 gap-1" onClick={() => {
-                    window.dispatchEvent(new CustomEvent("resource-calendar:scroll-to", { detail: "00:00:00" }));
-                  }}>
-                    <Moon className="h-3 w-3" /> Natt
-                  </Button>
-                </div>
-              )}
-
-              {/* Operating profile badge – shows working hours profile, calendar is always 24h */}
-              <Badge variant="outline" className="text-[10px] h-5">
-                Driftsprofil: {operatingHours.profile === "office" ? "Kontor 08–16" : operatingHours.profile === "extended" ? "Utvidet 06–22" : "Industri 24/7"}
-              </Badge>
             </div>
           </>
         )}
 
-        {/* Capacity status bar (desktop only) – only shown if user can read busy */}
+        {/* Capacity status bar */}
         {!isMobile && canReadBusy && techCapacities.length > 0 && (
           <CapacityStatusBar
             techCapacities={techCapacities}
@@ -650,7 +633,7 @@ export default function ResourcePlan() {
           referenceDate={referenceDate}
         />
 
-        {/* Interactive FullCalendar – swipe on mobile */}
+        {/* Interactive FullCalendar */}
         <div onTouchStart={isMobile ? handleTouchStart : undefined} onTouchEnd={isMobile ? handleTouchEnd : undefined}>
         <ResourceCalendar
           key={refreshKey}
@@ -682,8 +665,6 @@ export default function ResourcePlan() {
           hasNightHours={operatingHours.hasNightHours}
         />
         </div>
-
-        {/* Mobile: tap on empty calendar slot handles creation via onDateSelect – no duplicate FAB needed */}
       </div>
 
       <EventDrawer
@@ -701,7 +682,6 @@ export default function ResourcePlan() {
             : null
         }
         onSaved={() => {
-          // Optimistic: remove all blocks linked to this event
           if (editEvent) {
             const linkedIds = scheduleBlocks
               .filter((sb) => sb.project_id === editEvent.id || sb.mcs_block_id === editEvent.id)
@@ -729,7 +709,6 @@ export default function ResourcePlan() {
           block={selectedBlock}
           onClose={() => setSelectedBlock(null)}
           onConfirmed={(deletedBlockIds) => {
-            // Optimistic removal – hide blocks instantly
             if (deletedBlockIds?.length) {
               for (const id of deletedBlockIds) removeBlockOptimistic(id);
             }

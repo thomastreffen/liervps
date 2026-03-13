@@ -34,6 +34,7 @@ import {
   FolderKanban,
   ListChecks,
   Moon,
+  ArrowRight,
 } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel,
@@ -70,19 +71,13 @@ interface ConflictInfo {
 interface EventDrawerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** If set, we're editing an existing event */
   editEvent?: CalendarEvent | null;
-  /** Pre-fill date/time for new event (from calendar select) */
   preselectedStart?: Date | null;
   preselectedEnd?: Date | null;
-  /** Pre-selected technician */
   preselectedTechId?: string | null;
-  /** If creating from a project context */
   projectId?: string | null;
   projectTitle?: string | null;
-  /** If this event has a linked schedule_block */
   scheduleBlockId?: string | null;
-  /** Callbacks */
   onSaved?: (eventId?: string) => void;
 }
 
@@ -148,7 +143,6 @@ export function EventDrawer({
       setTechIds(editEvent.technicians.map((t) => t.id));
       setMode("new");
     } else {
-      // New event
       const nextDate = preselectedStart ? format(preselectedStart, "yyyy-MM-dd") : "";
       const nextStartTime = preselectedStart ? format(preselectedStart, "HH:mm") : "08:00";
       const nextEndTime = preselectedEnd ? format(preselectedEnd, "HH:mm") : "16:00";
@@ -276,14 +270,12 @@ export function EventDrawer({
       const userId = session?.session?.user?.id;
 
       if (isEditing && editEvent) {
-        // Update existing event
         const { startISO, endISO } = normalizeOvernightDates(date, startTime, endDate, endTime);
 
         await supabase.from("events")
           .update({ start_time: startISO, end_time: endISO, title, customer, address, description })
           .eq("id", editEvent.id);
 
-        // Sync technicians
         const { data: existing } = await supabase
           .from("event_technicians").select("id, technician_id").eq("event_id", editEvent.id);
         const existingIds = new Set((existing || []).map((e) => e.technician_id));
@@ -300,13 +292,11 @@ export function EventDrawer({
           );
           await supabase.functions.invoke("create-approval", { body: { job_id: editEvent.id } });
         }
-        // Sync updated event to all assigned technicians' calendars
         syncUpdate(editEvent.id);
 
         toast.success("Hendelse oppdatert", { description: "Tid og ressurser er lagret." });
         onSaved?.(editEvent.id);
       } else if (mode === "existing" && selectedJobId) {
-        // Assign technicians to existing job
         if (date) {
           const { startISO, endISO } = normalizeOvernightDates(date, startTime, endDate, endTime);
           await supabase.from("events").update({ start_time: startISO, end_time: endISO }).eq("id", selectedJobId);
@@ -327,7 +317,6 @@ export function EventDrawer({
         toast.success("Montør(er) tildelt");
         onSaved?.(selectedJobId);
       } else {
-        // Create new event (project or task)
         const isTask = eventType === "task";
         if (!title.trim() || (!isTask && techIds.length === 0) || !date) {
           toast.error(isTask ? "Fyll inn tittel og dato" : "Fyll inn tittel, dato og minst én montør");
@@ -336,7 +325,6 @@ export function EventDrawer({
         }
         const { startISO, endISO } = normalizeOvernightDates(date, startTime, endDate, endTime);
 
-        // Idempotency: check if already created with this client_request_id
         const { data: existing } = await supabase
           .from("events")
           .select("id")
@@ -376,14 +364,10 @@ export function EventDrawer({
             );
 
             if (isTask) {
-              // Tasks: auto-schedule without approval flow
               await supabase.from("events").update({ status: "scheduled" } as any).eq("id", createdId);
-              // Sync to Outlook for assigned technicians (same as projects)
               syncCreate(createdId);
             } else {
-              // Projects: normal approval flow
               await supabase.functions.invoke("create-approval", { body: { job_id: createdId } });
-              // Sync to Outlook for assigned technicians
               syncCreate(createdId);
             }
           }
@@ -397,8 +381,6 @@ export function EventDrawer({
         setSubmitted(true);
         onSaved?.(createdId);
       }
-
-      // Don't auto-close per spec
     } catch (err: any) {
       toast.error("Feil ved lagring", { description: err?.message });
     } finally {
@@ -418,15 +400,15 @@ export function EventDrawer({
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="sm:max-w-[480px] flex flex-col overflow-y-auto">
-        <SheetHeader className="space-y-2">
-          <SheetTitle className="flex items-center gap-2">
+        <SheetHeader className="space-y-1">
+          <SheetTitle className="flex items-center gap-2 text-base">
             {isEditing ? (
-              <><Clock className="h-5 w-5 text-primary" />Rediger oppdrag</>
+              <><Clock className="h-4 w-4 text-primary" />Rediger oppdrag</>
             ) : (
-              <><CalendarPlus className="h-5 w-5 text-primary" />{projectId ? "Planlegg arbeid" : "Nytt oppdrag"}</>
+              <><CalendarPlus className="h-4 w-4 text-primary" />{projectId ? "Planlegg arbeid" : "Nytt oppdrag"}</>
             )}
           </SheetTitle>
-          <SheetDescription>
+          <SheetDescription className="text-xs">
             {isEditing
               ? "Endre tid, ressurser eller detaljer"
               : projectId
@@ -435,16 +417,18 @@ export function EventDrawer({
           </SheetDescription>
         </SheetHeader>
 
-        <div className="flex-1 mt-4 space-y-5">
-          {/* Type selector: Prosjekt vs Oppgave */}
+        <div className="flex-1 mt-3 space-y-6">
+
+          {/* ═══ SECTION: TYPE ═══ */}
           {!isEditing && !projectId && (
-            <div className="space-y-3">
+            <section className="space-y-3">
+              <h3 className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Type</h3>
               <div className="flex items-center gap-1 border border-border/40 rounded-lg p-0.5">
                 <Button
                   type="button"
                   variant={eventType === "project" ? "default" : "ghost"}
                   size="sm"
-                  className="h-8 text-xs rounded-md flex-1 gap-1.5"
+                  className="h-9 text-xs rounded-md flex-1 gap-1.5"
                   onClick={() => { setEventType("project"); setMode("new"); }}
                 >
                   <FolderKanban className="h-3.5 w-3.5" />
@@ -454,7 +438,7 @@ export function EventDrawer({
                   type="button"
                   variant={eventType === "task" ? "default" : "ghost"}
                   size="sm"
-                  className="h-8 text-xs rounded-md flex-1 gap-1.5"
+                  className="h-9 text-xs rounded-md flex-1 gap-1.5"
                   onClick={() => { setEventType("task"); setMode("new"); }}
                 >
                   <ListChecks className="h-3.5 w-3.5" />
@@ -462,25 +446,24 @@ export function EventDrawer({
                 </Button>
               </div>
 
-              {/* Sub-tabs for project mode */}
               {eventType === "project" && (
                 <Tabs value={mode} onValueChange={(v) => setMode(v as "new" | "existing")}>
-                  <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="new" className="gap-1.5 text-xs">
-                      <Plus className="h-3.5 w-3.5" />Nytt prosjekt
+                  <TabsList className="grid w-full grid-cols-2 h-8">
+                    <TabsTrigger value="new" className="gap-1 text-[11px] h-7">
+                      <Plus className="h-3 w-3" />Nytt prosjekt
                     </TabsTrigger>
-                    <TabsTrigger value="existing" className="gap-1.5 text-xs">
-                      <Link2 className="h-3.5 w-3.5" />Eksisterende prosjekt
+                    <TabsTrigger value="existing" className="gap-1 text-[11px] h-7">
+                      <Link2 className="h-3 w-3" />Eksisterende
                     </TabsTrigger>
                   </TabsList>
                 </Tabs>
               )}
-            </div>
+            </section>
           )}
 
-          {/* Existing job search */}
+          {/* ═══ SECTION: EXISTING JOB SEARCH ═══ */}
           {mode === "existing" && !isEditing && !projectId && (
-            <div className="space-y-3">
+            <section className="space-y-3">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -513,7 +496,7 @@ export function EventDrawer({
                   ))}
                 </div>
               )}
-            </div>
+            </section>
           )}
 
           {/* Project info banner */}
@@ -537,9 +520,10 @@ export function EventDrawer({
             </div>
           )}
 
-          {/* New event/task fields */}
+          {/* ═══ SECTION: OPPDRAG (new event fields) ═══ */}
           {mode === "new" && !isEditing && !projectId && (
-            <div className="space-y-3">
+            <section className="space-y-4">
+              <h3 className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Oppdrag</h3>
               <div>
                 <Label className="text-xs">Tittel *</Label>
                 <Input value={title} onChange={(e) => setTitle(e.target.value)}
@@ -558,74 +542,89 @@ export function EventDrawer({
                   </div>
                 </div>
               )}
-              <div>
-                <Label className="text-xs">Beskrivelse</Label>
-                <Textarea value={description} onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Detaljer..." className="mt-1 min-h-[60px] resize-none" rows={2} />
-              </div>
-            </div>
+            </section>
           )}
 
-          {/* Edit mode: title & description editable */}
+          {/* Edit mode: title editable */}
           {isEditing && (
-            <div className="space-y-3">
+            <section className="space-y-3">
+              <h3 className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Oppdrag</h3>
               <div>
                 <Label className="text-xs">Tittel</Label>
                 <Input value={title} onChange={(e) => setTitle(e.target.value)} className="mt-1" />
               </div>
-            </div>
+            </section>
           )}
 
-          {/* Date & Time */}
-          <div className="space-y-2">
-            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Tidspunkt</Label>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label className="text-xs">Start</Label>
-                <div className="flex gap-2 mt-1">
-                  <Input type="date" value={date} onChange={(e) => handleDateChange(e.target.value)} className="flex-1" />
-                  <TimeSelect value={startTime} onChange={handleStartTimeChange} className="w-[110px]" />
-                </div>
-              </div>
-              <div>
-                <Label className="text-xs">Slutt</Label>
-                <div className="flex gap-2 mt-1">
-                  <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="flex-1" />
-                  <TimeSelect value={endTime} onChange={handleEndTimeChange} className="w-[110px]" />
-                </div>
+          {/* ═══ SECTION: TIDSPUNKT ═══ */}
+          <section className="space-y-3">
+            <h3 className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Tidspunkt</h3>
+
+            {/* Fra */}
+            <div className="rounded-lg border border-border/40 bg-card p-3 space-y-2">
+              <Label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Fra</Label>
+              <div className="flex gap-2">
+                <Input type="date" value={date} onChange={(e) => handleDateChange(e.target.value)} className="flex-1 h-9" />
+                <TimeSelect value={startTime} onChange={handleStartTimeChange} className="w-[100px]" />
               </div>
             </div>
 
+            {/* Arrow indicator */}
+            <div className="flex justify-center">
+              <div className="flex items-center gap-1.5 text-muted-foreground">
+                <div className="h-px w-6 bg-border" />
+                <ArrowRight className="h-3.5 w-3.5" />
+                <div className="h-px w-6 bg-border" />
+              </div>
+            </div>
+
+            {/* Til */}
+            <div className="rounded-lg border border-border/40 bg-card p-3 space-y-2">
+              <Label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Til</Label>
+              <div className="flex gap-2">
+                <Input type="date" value={resolvedEndDate} onChange={(e) => setEndDate(e.target.value)} className="flex-1 h-9" />
+                <TimeSelect value={endTime} onChange={handleEndTimeChange} className="w-[100px]" />
+              </div>
+            </div>
+
+            {/* Overnight badge */}
             {overnight && (
               <div className="flex items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2">
                 <Moon className="h-4 w-4 text-primary shrink-0" />
-                <span className="text-sm font-medium text-primary">Går over midnatt – slutter neste dag</span>
+                <span className="text-xs font-medium text-primary">Går over midnatt – slutter neste dag</span>
               </div>
             )}
 
+            {/* Time summary */}
             {summaryLine && (
               <div className="rounded-lg bg-muted/50 px-3 py-2">
-                <p className="text-xs text-muted-foreground">Tidsrom</p>
-                <p className="text-sm font-medium">{summaryLine}</p>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Tidsrom</p>
+                <p className="text-sm font-semibold mt-0.5 flex items-center gap-1.5">
+                  {summaryLine}
+                  {overnight && <Moon className="h-3 w-3 text-primary" />}
+                </p>
               </div>
             )}
-          </div>
+          </section>
 
-          {/* Technicians (optional for tasks) */}
-          {(eventType === "project" || isEditing) && (
-            <div className="space-y-2">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Ressurser</Label>
-              <TechnicianMultiSelect selectedIds={techIds} onChange={setTechIds} />
-            </div>
-          )}
-          {eventType === "task" && !isEditing && (
-            <div className="space-y-2">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Tildel montør (valgfritt)</Label>
-              <TechnicianMultiSelect selectedIds={techIds} onChange={setTechIds} />
-            </div>
+          {/* ═══ SECTION: RESSURSER ═══ */}
+          <section className="space-y-3">
+            <h3 className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+              {eventType === "task" && !isEditing ? "Tildel montør (valgfritt)" : "Ressurser"}
+            </h3>
+            <TechnicianMultiSelect selectedIds={techIds} onChange={setTechIds} />
+          </section>
+
+          {/* ═══ SECTION: BESKRIVELSE ═══ */}
+          {(mode === "new" || isEditing) && (
+            <section className="space-y-3">
+              <h3 className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Beskrivelse</h3>
+              <Textarea value={description} onChange={(e) => setDescription(e.target.value)}
+                placeholder="Detaljer til montøren..." className="min-h-[60px] resize-none" rows={2} />
+            </section>
           )}
 
-          {/* Conflicts */}
+          {/* ═══ CONFLICTS ═══ */}
           {conflicts.length > 0 && (
             <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 space-y-1.5">
               <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400">
@@ -657,8 +656,6 @@ export function EventDrawer({
               disabled={saving || submitted || (isEditing && !hasChanges) || (eventType === "project" && !isEditing && techIds.length === 0)}>
               {saving ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : submitted ? (
-                <Save className="h-3.5 w-3.5" />
               ) : (
                 <Save className="h-3.5 w-3.5" />
               )}
@@ -670,7 +667,6 @@ export function EventDrawer({
             </Button>
           </div>
 
-          {/* Remove from plan button */}
           {isEditing && editEvent && (
             <Button
               variant="ghost" size="sm"
@@ -704,7 +700,6 @@ export function EventDrawer({
                   setDeleting(true);
                   try {
                     if (scheduleBlockId) {
-                      // Delete only the schedule block (handles Outlook cleanup)
                       const { error } = await supabase.functions.invoke("delete-schedule-block", {
                         body: { schedule_block_id: scheduleBlockId },
                       });
@@ -713,10 +708,8 @@ export function EventDrawer({
                         return;
                       }
                     } else if (editEvent) {
-                      // Delete Outlook calendar event linked to this job (microsoft_event_id)
                       await syncDelete(editEvent.id);
 
-                      // Delete any linked schedule blocks first
                       const { data: linkedBlocks } = await supabase
                         .from("schedule_blocks")
                         .select("id")
@@ -732,13 +725,11 @@ export function EventDrawer({
                         }
                       }
 
-                      // Remove technician assignments
                       await supabase
                         .from("event_technicians")
                         .delete()
                         .eq("event_id", editEvent.id);
 
-                      // Check if this is a task (not a project) – tasks should be fully soft-deleted
                       const { data: eventRow } = await supabase
                         .from("events")
                         .select("project_type")
@@ -748,13 +739,11 @@ export function EventDrawer({
                       const isTaskEvent = (eventRow as any)?.project_type === "task";
 
                       if (isTaskEvent) {
-                        // Soft-delete the task event entirely
                         await supabase
                           .from("events")
                           .update({ deleted_at: new Date().toISOString(), status: "cancelled" } as any)
                           .eq("id", editEvent.id);
                       } else {
-                        // Projects: keep event, just reset status
                         await supabase
                           .from("events")
                           .update({ status: "requested" } as any)
