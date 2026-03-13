@@ -406,8 +406,23 @@ export const ResourceCalendar = memo(function ResourceCalendar({
       });
     }
 
+    console.info(
+      "[ResourceCalendar][RenderMap]",
+      result.map((ev) => ({
+        render_key: ev.id,
+        source: (ev.extendedProps as any)?.source ?? "unknown",
+        event_id: (ev.extendedProps as any)?.eventId ?? null,
+        event_technician_id: (ev.extendedProps as any)?.eventTechnicianId ?? null,
+        technician_id: (ev.extendedProps as any)?.technicianId ?? null,
+        calendar_event_id: (ev.extendedProps as any)?.calendarEventId ?? null,
+        title: ev.title,
+        start: ev.start instanceof Date ? ev.start.toISOString() : ev.start,
+        end: ev.end instanceof Date ? ev.end.toISOString() : ev.end,
+        display_name: (ev.extendedProps as any)?.displayName ?? null,
+      }))
+    );
+
     return result;
-  }, [calendarEvents, getBusySlotsForDay, technicianMap, techColorMap, referenceDate, effectiveCanWrite, effectiveCanViewExternal, hideExternalEvents, isMonthView, scheduleBlocks]);
 
   const handleEventClick = useCallback((info: EventClickArg) => {
     const props = info.event.extendedProps;
