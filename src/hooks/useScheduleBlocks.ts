@@ -46,6 +46,7 @@ function mapRow(row: any): ScheduleBlock {
     technician_name: row.technicians?.name,
     technician_color: row.technicians?.color,
     project_title: row.events?.title ?? null,
+    job_number: row.events?.job_number ?? null,
   };
 }
 
