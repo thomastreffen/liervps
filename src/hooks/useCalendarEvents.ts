@@ -9,6 +9,8 @@ export interface TechnicianInfo {
   id: string;
   name: string;
   color: string | null;
+  eventTechnicianId?: string | null;
+  calendarEventId?: string | null;
 }
 
 export interface CalendarEvent extends Job {
@@ -48,7 +50,9 @@ export function useCalendarEvents(technicianId: string | null, referenceDate?: D
           updated_at,
           attachments,
           event_technicians (
+            id,
             technician_id,
+            calendar_event_id,
             technicians (
               id,
               name,
@@ -112,6 +116,8 @@ export function useCalendarEvents(technicianId: string | null, referenceDate?: D
             id: et.technicians.id,
             name: et.technicians.name,
             color: et.technicians.color,
+            eventTechnicianId: et.id ?? null,
+            calendarEventId: et.calendar_event_id ?? null,
           }));
 
         return {
