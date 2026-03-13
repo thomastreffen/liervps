@@ -546,7 +546,7 @@ export default function ResourcePlan() {
 
                 {canViewExternal && (
                   <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                    <Switch checked={hideExternalEvents} onCheckedChange={setHideExternalEvents} className="scale-[0.6]" />
+                    <Switch checked={hideExternalEvents} onCheckedChange={handleHideExternalChange} className="scale-[0.6]" />
                     <span className="whitespace-nowrap">Skjul eksterne</span>
                   </div>
                 )}
