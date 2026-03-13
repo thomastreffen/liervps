@@ -144,6 +144,7 @@ export default function PersonnelDetailPage() {
         trade_certificate_type: profile.trade_certificate_type || null,
         driver_license_classes: profile.driver_license_classes || null,
         notes: profile.notes || null,
+        avatar_id: profile.avatar_id || null,
       })
       .eq("id", profile.id);
     setSaving(false);
