@@ -130,6 +130,7 @@ export function TechnicianList({
   nowStatusMap,
   onColorChange,
   techDayPercents,
+  techWeekCapacities,
   technicians: scopedTechnicians,
   isGlobalScope = false,
 }: TechnicianListProps) {
