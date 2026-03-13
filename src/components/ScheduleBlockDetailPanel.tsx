@@ -330,9 +330,12 @@ export const ScheduleBlockDetailPanel = memo(function ScheduleBlockDetailPanel({
               </div>
             )}
             <p className="text-sm font-semibold truncate">{block.outlook_subject || block.title || "Uten tittel"}</p>
-            {block.job_number && (
+            {(block.internal_number || block.job_number) && (
               <span className="inline-block font-mono text-[10px] font-semibold bg-primary/10 text-primary rounded px-1.5 py-0.5 mt-0.5">
-                {block.job_number.startsWith("JOB-") ? block.job_number : `JOB-${block.job_number}`}
+                {(() => {
+                  const num = block.internal_number || block.job_number || "";
+                  return num.startsWith("JOB-") ? num : `JOB-${num}`;
+                })()}
               </span>
             )}
             <p className="text-xs text-muted-foreground">

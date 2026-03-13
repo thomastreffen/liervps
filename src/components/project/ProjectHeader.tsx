@@ -116,9 +116,12 @@ export function ProjectHeader({
           <h1 className="text-xl sm:text-3xl font-extrabold text-foreground tracking-tight">
             {title}
           </h1>
-          {jobNumber && (
+          {(internalNumber || jobNumber) && (
             <span className="inline-block font-mono text-xs font-semibold bg-primary/10 text-primary rounded-md px-2 py-0.5 mt-1">
-              {jobNumber.startsWith("JOB-") ? jobNumber : `JOB-${jobNumber}`}
+              {(() => {
+                const num = internalNumber || jobNumber || "";
+                return num.startsWith("JOB-") ? num : `JOB-${num}`;
+              })()}
             </span>
           )}
 
