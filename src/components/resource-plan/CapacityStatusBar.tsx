@@ -88,7 +88,7 @@ export const CapacityStatusBar = memo(function CapacityStatusBar({
           );
         })}
       <span className="text-xs text-muted-foreground ml-1">
-        av {techCapacities.length} montører i dag
+        av {techCapacities.length} montører denne uken
       </span>
     </div>
   );
