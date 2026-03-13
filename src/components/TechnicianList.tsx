@@ -120,41 +120,7 @@ function WeekCapacityInfo({ cap }: { cap: TechWeekCapacity }) {
   );
 }
 
-function CapacityBar({ percent }: { percent: number }) {
-  const clampedPercent = Math.min(percent, 100);
-  const color = percent > 100
-    ? "hsl(var(--destructive))"
-    : percent >= 90
-    ? "hsl(var(--destructive))"
-    : percent >= 50
-    ? "hsl(var(--warning))"
-    : "hsl(var(--success))";
 
-  const label = percent > 100
-    ? `${Math.round(percent)}%`
-    : percent >= 50
-    ? `${Math.round(percent)}%`
-    : null;
-
-  return (
-    <div className="flex items-center gap-1.5 mt-1">
-      <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
-        <div
-          className="h-full rounded-full transition-all duration-300"
-          style={{
-            width: `${clampedPercent}%`,
-            backgroundColor: color,
-          }}
-        />
-      </div>
-      {label && (
-        <span className="text-[9px] font-bold tabular-nums shrink-0" style={{ color }}>
-          {label}
-        </span>
-      )}
-    </div>
-  );
-}
 
 export function TechnicianList({
   selectedId,
