@@ -285,6 +285,22 @@ export function EventDrawer({
     }
   })() : null;
 
+  // Upload files to storage and return attachment metadata
+  const uploadFiles = async (eventId: string, filesToUpload: File[]): Promise<Attachment[]> => {
+    const uploaded: Attachment[] = [];
+    for (const file of filesToUpload) {
+      const filePath = `${eventId}/${Date.now()}-${file.name}`;
+      const { error: uploadError } = await supabase.storage.from("job-attachments").upload(filePath, file);
+      if (uploadError) {
+        toast.error(`Kunne ikke laste opp ${file.name}`);
+        continue;
+      }
+      const { data: urlData } = supabase.storage.from("job-attachments").getPublicUrl(filePath);
+      uploaded.push({ name: file.name, url: urlData.publicUrl, size: file.size });
+    }
+    return uploaded;
+  };
+
   // Save: create or update
   const handleSave = async () => {
     if (saving || submitted) return;
