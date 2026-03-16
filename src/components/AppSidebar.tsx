@@ -44,10 +44,10 @@ import { Badge } from "@/components/ui/badge";
 
 const mainNav = [
   { title: "Hjem", url: "/overview", icon: Home, moduleKey: "overview" },
-  { title: "Prosjekter", url: "/projects", icon: FolderKanban, moduleKey: "projects" },
-  { title: "Ressursplan", url: "/projects/plan", icon: CalendarDays, moduleKey: "resource_plan" },
-  { title: "Fakturagrunnlag", url: "/invoice-basis", icon: Receipt, moduleKey: "invoice_basis" },
-  { title: "Fagstøtte", url: "/fag", icon: BookOpen, moduleKey: "fag" },
+  { title: "Prosjekter", url: "/projects", icon: FolderKanban, moduleKey: "projects", requiredPermission: "jobs.view" },
+  { title: "Ressursplan", url: "/projects/plan", icon: CalendarDays, moduleKey: "resource_plan", requiredPermission: "resourceplan.view" },
+  { title: "Fakturagrunnlag", url: "/invoice-basis", icon: Receipt, moduleKey: "invoice_basis", requiredPermission: "jobs.view_pricing" },
+  { title: "Fagstøtte", url: "/fag", icon: BookOpen, moduleKey: "fag", requiredPermission: "regulation.review" },
 ];
 
 const adminItems = [
