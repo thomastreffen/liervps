@@ -38,7 +38,7 @@ import { CapacityStatusBar } from "@/components/resource-plan/CapacityStatusBar"
 import { UnplannedProjectsBanner } from "@/components/resource-plan/UnplannedProjectsBanner";
 import { UnplannedJobsStrip } from "@/components/resource-plan/UnplannedJobsStrip";
 import { useUnplannedProjects } from "@/hooks/useUnplannedProjects";
-import { DropConfirmPopover, type DropPayload } from "@/components/resource-plan/DropConfirmPopover";
+import { addMinutes } from "date-fns";
 import { useCompanyContext } from "@/hooks/useCompanyContext";
 
 type CalendarViewType = "timeGridDay" | "timeGridWeek" | "dayGridMonth" | "listWeek";
