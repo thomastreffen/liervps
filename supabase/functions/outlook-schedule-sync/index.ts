@@ -142,7 +142,10 @@ Deno.serve(async (req) => {
 
         while (currentUrl) {
           const calRes = await fetch(currentUrl, {
-            headers: { Authorization: `Bearer ${graphToken}` },
+            headers: {
+              Authorization: `Bearer ${graphToken}`,
+              "Prefer": 'outlook.timezone="UTC"',
+            },
           });
 
           if (!calRes.ok) {
