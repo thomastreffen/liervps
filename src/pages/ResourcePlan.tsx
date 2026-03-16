@@ -40,6 +40,7 @@ import { UnplannedJobsStrip } from "@/components/resource-plan/UnplannedJobsStri
 import { useUnplannedProjects } from "@/hooks/useUnplannedProjects";
 import { addMinutes } from "date-fns";
 import { useCompanyContext } from "@/hooks/useCompanyContext";
+import { QuickProjectSearch } from "@/components/resource-plan/QuickProjectSearch";
 
 type CalendarViewType = "timeGridDay" | "timeGridWeek" | "dayGridMonth" | "listWeek";
 
