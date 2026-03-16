@@ -236,7 +236,7 @@ export function AppSidebar() {
                {isAdmin && (
                  <NavItem item={{ title: "Lederoversikt", url: "/management", icon: Gauge }} isActive={isActive} collapsed={collapsed} />
                )}
-               {isModuleVisible("customers") && (
+               {isModuleVisible("customers") && (isAdmin || hasPermission("jobs.view")) && (
                 <NavItem item={{ title: "Kunder", url: "/customers", icon: Users }} isActive={isActive} collapsed={collapsed} />
               )}
             </SidebarMenu>
