@@ -44,10 +44,10 @@ import { Badge } from "@/components/ui/badge";
 
 const mainNav = [
   { title: "Hjem", url: "/overview", icon: Home, moduleKey: "overview" },
-  { title: "Prosjekter", url: "/projects", icon: FolderKanban, moduleKey: "projects" },
-  { title: "Ressursplan", url: "/projects/plan", icon: CalendarDays, moduleKey: "resource_plan" },
-  { title: "Fakturagrunnlag", url: "/invoice-basis", icon: Receipt, moduleKey: "invoice_basis" },
-  { title: "Fagstøtte", url: "/fag", icon: BookOpen, moduleKey: "fag" },
+  { title: "Prosjekter", url: "/projects", icon: FolderKanban, moduleKey: "projects", requiredPermission: "jobs.view" },
+  { title: "Ressursplan", url: "/projects/plan", icon: CalendarDays, moduleKey: "resource_plan", requiredPermission: "resourceplan.view" },
+  { title: "Fakturagrunnlag", url: "/invoice-basis", icon: Receipt, moduleKey: "invoice_basis", requiredPermission: "jobs.view_pricing" },
+  { title: "Fagstøtte", url: "/fag", icon: BookOpen, moduleKey: "fag", requiredPermission: "regulation.review" },
 ];
 
 const adminItems = [
@@ -152,7 +152,12 @@ export function AppSidebar() {
   const hasPostkontor = isAdmin || hasPermission("postkontor.view");
   const hasPostkontorAdmin = isAdmin || hasPermission("postkontor.admin");
 
-  const visibleMainNav = mainNav.filter((item) => isModuleVisible(item.moduleKey));
+  const visibleMainNav = mainNav.filter((item) => {
+    if (!isModuleVisible(item.moduleKey)) return false;
+    // Permission-based filtering: admins bypass, others need the permission
+    if (item.requiredPermission && !isAdmin && !hasPermission(item.requiredPermission)) return false;
+    return true;
+  });
 
   const filteredAdmin = adminItems.filter((item) => {
     if (!isModuleVisible(item.moduleKey)) return false;
@@ -231,7 +236,7 @@ export function AppSidebar() {
                {isAdmin && (
                  <NavItem item={{ title: "Lederoversikt", url: "/management", icon: Gauge }} isActive={isActive} collapsed={collapsed} />
                )}
-               {isModuleVisible("customers") && (
+               {isModuleVisible("customers") && (isAdmin || hasPermission("jobs.view")) && (
                 <NavItem item={{ title: "Kunder", url: "/customers", icon: Users }} isActive={isActive} collapsed={collapsed} />
               )}
             </SidebarMenu>
