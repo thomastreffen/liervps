@@ -347,9 +347,11 @@ export const ResourceCalendar = memo(function ResourceCalendar({
       const assignmentMeta = block.project_id
         ? assignmentMetaByEventTech.get(`${block.project_id}::${block.technician_id}`)
         : null;
+      // Use wider tolerance (65min) to suppress timezone-shifted mirror blocks
+      const TZ_TOLERANCE_MIRROR = 65 * 60000;
       const overlapsAuthoritativeAssignment = !!assignmentMeta
-        && block.start_at.getTime() < assignmentMeta.end
-        && block.end_at.getTime() > assignmentMeta.start;
+        && block.start_at.getTime() < assignmentMeta.end + TZ_TOLERANCE_MIRROR
+        && block.end_at.getTime() > assignmentMeta.start - TZ_TOLERANCE_MIRROR;
 
       if (overlapsAuthoritativeAssignment) {
         console.info("[ResourceCalendar][SuppressMirrorBlock]", {
