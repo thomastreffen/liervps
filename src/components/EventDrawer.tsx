@@ -334,6 +334,13 @@ export function EventDrawer({
         }
         syncUpdate(editEvent.id);
 
+        // Upload new attachments
+        if (files.length > 0) {
+          const newUploads = await uploadFiles(editEvent.id, files);
+          const allAttachments = [...existingAttachments, ...newUploads];
+          await supabase.from("events").update({ attachments: allAttachments as any }).eq("id", editEvent.id);
+        }
+
         toast.success("Hendelse oppdatert", { description: "Tid og ressurser er lagret." });
         onSaved?.(editEvent.id);
       } else if (mode === "existing" && selectedJobId) {
