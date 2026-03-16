@@ -152,7 +152,12 @@ export function AppSidebar() {
   const hasPostkontor = isAdmin || hasPermission("postkontor.view");
   const hasPostkontorAdmin = isAdmin || hasPermission("postkontor.admin");
 
-  const visibleMainNav = mainNav.filter((item) => isModuleVisible(item.moduleKey));
+  const visibleMainNav = mainNav.filter((item) => {
+    if (!isModuleVisible(item.moduleKey)) return false;
+    // Permission-based filtering: admins bypass, others need the permission
+    if (item.requiredPermission && !isAdmin && !hasPermission(item.requiredPermission)) return false;
+    return true;
+  });
 
   const filteredAdmin = adminItems.filter((item) => {
     if (!isModuleVisible(item.moduleKey)) return false;
