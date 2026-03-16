@@ -38,7 +38,7 @@ import { CapacityStatusBar } from "@/components/resource-plan/CapacityStatusBar"
 import { UnplannedProjectsBanner } from "@/components/resource-plan/UnplannedProjectsBanner";
 import { UnplannedJobsStrip } from "@/components/resource-plan/UnplannedJobsStrip";
 import { useUnplannedProjects } from "@/hooks/useUnplannedProjects";
-import { DropConfirmPopover, type DropPayload } from "@/components/resource-plan/DropConfirmPopover";
+import { addMinutes } from "date-fns";
 import { useCompanyContext } from "@/hooks/useCompanyContext";
 
 type CalendarViewType = "timeGridDay" | "timeGridWeek" | "dayGridMonth" | "listWeek";
@@ -116,7 +116,8 @@ export default function ResourcePlan() {
     setHideExternalEvents(v);
     try { localStorage.setItem("resourceplan_hide_external", String(v)); } catch {}
   }, []);
-  const [dropPayload, setDropPayload] = useState<DropPayload | null>(null);
+  const [dropProjectId, setDropProjectId] = useState<string | null>(null);
+  const [dropProjectTitle, setDropProjectTitle] = useState<string | null>(null);
 
   useEffect(() => {
     localStorage.setItem(VIEW_STORAGE_KEY, calendarView);
@@ -190,6 +191,8 @@ export default function ResourcePlan() {
     setClickedTechId(techId ?? null);
     setPreselectedStart(null);
     setPreselectedEnd(null);
+    setDropProjectId(null);
+    setDropProjectTitle(null);
     setDrawerOpen(true);
   }, []);
 
@@ -198,6 +201,8 @@ export default function ResourcePlan() {
     setEditEvent(null);
     setPreselectedStart(start);
     setPreselectedEnd(end);
+    setDropProjectId(null);
+    setDropProjectTitle(null);
     setDrawerOpen(true);
   }, [canWriteEvents]);
 
@@ -205,6 +210,8 @@ export default function ResourcePlan() {
     setEditEvent(null);
     setPreselectedStart(null);
     setPreselectedEnd(null);
+    setDropProjectId(null);
+    setDropProjectTitle(null);
     setDrawerOpen(true);
   }, []);
 
@@ -291,17 +298,14 @@ export default function ResourcePlan() {
       toast.error("Velg en montør først");
       return;
     }
-    const tech = technicians.find((t) => t.id === techId);
-    setDropPayload({
-      taskId: info.taskId,
-      taskTitle: info.title,
-      estimatedMinutes: info.estimatedMinutes,
-      priority: info.priority,
-      type: info.dropType as "task" | "project",
-      technicianId: techId,
-      technicianName: tech?.name,
-      dropTime: info.start,
-    });
+    // Open EventDrawer with drop context
+    setEditEvent(null);
+    setClickedTechId(techId);
+    setPreselectedStart(info.start);
+    setPreselectedEnd(info.end || addMinutes(info.start, info.estimatedMinutes || 480));
+    setDropProjectId(info.taskId || null);
+    setDropProjectTitle(info.title || null);
+    setDrawerOpen(true);
   }, [selectedTechId, technicians]);
 
   const nowStatusMap = useTechnicianNowStatus(calEvents, canReadBusy ? busySlots : [], techIds, externalBlocksCapacity);
@@ -725,12 +729,20 @@ export default function ResourcePlan() {
 
       <EventDrawer
         open={drawerOpen}
-        onOpenChange={setDrawerOpen}
+        onOpenChange={(open) => {
+          setDrawerOpen(open);
+          if (!open) {
+            setDropProjectId(null);
+            setDropProjectTitle(null);
+          }
+        }}
         editEvent={editEvent}
         clickedTechId={clickedTechId}
         preselectedStart={preselectedStart}
         preselectedEnd={preselectedEnd}
         preselectedTechId={selectedTechId}
+        projectId={dropProjectId}
+        projectTitle={dropProjectTitle}
         scheduleBlockId={
           editEvent
             ? scheduleBlocks.find(
@@ -745,6 +757,8 @@ export default function ResourcePlan() {
               .map((sb) => sb.id);
             for (const id of linkedIds) removeBlockOptimistic(id);
           }
+          setDropProjectId(null);
+          setDropProjectTitle(null);
           void refreshPlanData();
         }}
       />
@@ -775,13 +789,6 @@ export default function ResourcePlan() {
         />
       )}
 
-      <DropConfirmPopover
-        payload={dropPayload}
-        onClose={() => setDropPayload(null)}
-        onCreated={() => {
-          void refreshPlanData();
-        }}
-      />
     </div>
   );
 }
