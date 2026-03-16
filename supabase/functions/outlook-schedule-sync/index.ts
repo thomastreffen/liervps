@@ -152,7 +152,10 @@ Deno.serve(async (req) => {
             if (calRes.status === 410 && syncState?.delta_link) {
               const fullUrl = `https://graph.microsoft.com/v1.0/users/${email}/calendarView/delta?startDateTime=${now.toISOString()}&endDateTime=${fourWeeks.toISOString()}&$select=id,subject,start,end,location,lastModifiedDateTime,body,bodyPreview,webLink,organizer,categories`;
               const retryRes = await fetch(fullUrl, {
-                headers: { Authorization: `Bearer ${graphToken}` },
+                headers: {
+                  Authorization: `Bearer ${graphToken}`,
+                  "Prefer": 'outlook.timezone="UTC"',
+                },
               });
               if (!retryRes.ok) {
                 errors.push(`${tech.name}: Graph ${retryRes.status} on full resync`);
