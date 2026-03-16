@@ -292,17 +292,14 @@ export default function ResourcePlan() {
       toast.error("Velg en montør først");
       return;
     }
-    const tech = technicians.find((t) => t.id === techId);
-    setDropPayload({
-      taskId: info.taskId,
-      taskTitle: info.title,
-      estimatedMinutes: info.estimatedMinutes,
-      priority: info.priority,
-      type: info.dropType as "task" | "project",
-      technicianId: techId,
-      technicianName: tech?.name,
-      dropTime: info.start,
-    });
+    // Open EventDrawer with drop context
+    setEditEvent(null);
+    setClickedTechId(techId);
+    setPreselectedStart(info.start);
+    setPreselectedEnd(info.end || addMinutes(info.start, info.estimatedMinutes || 480));
+    setDropProjectId(info.taskId || null);
+    setDropProjectTitle(info.title || null);
+    setDrawerOpen(true);
   }, [selectedTechId, technicians]);
 
   const nowStatusMap = useTechnicianNowStatus(calEvents, canReadBusy ? busySlots : [], techIds, externalBlocksCapacity);
