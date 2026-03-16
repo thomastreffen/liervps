@@ -76,8 +76,27 @@ function buildApprovalEmail(
   const approveUrl = `${APP_URL}/approval/${token}?action=approve`;
   const rescheduleUrl = `${APP_URL}/approval/${token}?action=reschedule`;
   const rejectUrl = `${APP_URL}/approval/${token}?action=reject`;
+  const jobUrl = `${APP_URL}/jobs/${job.id}`;
 
   const subject = `Jobbforespørsel: ${displayNumber} – ${job.title}`;
+
+  // Build description section
+  const descriptionHtml = job.description
+    ? `<tr><td style="padding: 8px 0; color: #64748b;">Beskrivelse</td><td style="padding: 8px 0;">${job.description}</td></tr>`
+    : "";
+
+  // Build attachments section
+  const attachments = Array.isArray(job.attachments) ? job.attachments : [];
+  let attachmentsHtml = "";
+  if (attachments.length > 0) {
+    attachmentsHtml = `
+    <div style="margin: 16px 0; padding: 12px; background: #f8fafc; border-radius: 6px; border: 1px solid #e2e8f0;">
+      <p style="margin: 0 0 8px; font-weight: 600; color: #64748b; font-size: 13px;">📎 Vedlegg</p>
+      <ul style="margin: 0; padding-left: 20px;">
+        ${attachments.map((a: any) => `<li style="margin-bottom: 4px;"><a href="${a.url || "#"}" style="color: #2563eb; text-decoration: none;">${a.name || "Vedlegg"}</a></li>`).join("")}
+      </ul>
+    </div>`;
+  }
 
   const body = `
 <!DOCTYPE html>
@@ -98,13 +117,18 @@ function buildApprovalEmail(
       <tr><td style="padding: 8px 0; color: #64748b;">Adresse</td><td style="padding: 8px 0;">${job.address || "—"}</td></tr>
       <tr><td style="padding: 8px 0; color: #64748b;">Dato</td><td style="padding: 8px 0;">${startDate}</td></tr>
       <tr><td style="padding: 8px 0; color: #64748b;">Tid</td><td style="padding: 8px 0;">${startTime} – ${endTime}</td></tr>
+      ${descriptionHtml}
     </table>
+    
+    ${attachmentsHtml}
     
     <div style="margin: 24px 0; text-align: center;">
       <a href="${approveUrl}" style="display: inline-block; background: #22c55e; color: white; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: 600; margin: 4px;">✓ Godkjenn</a>
       <a href="${rescheduleUrl}" style="display: inline-block; background: #3b82f6; color: white; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: 600; margin: 4px;">⏰ Foreslå nytt tidspunkt</a>
       <a href="${rejectUrl}" style="display: inline-block; background: #ef4444; color: white; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: 600; margin: 4px;">✕ Avslå</a>
     </div>
+    
+    <p style="margin-top: 16px;"><a href="${jobUrl}" style="color: #2563eb; text-decoration: none; font-size: 13px;">🔗 Se jobben i MCS Ressurs</a></p>
     
     <p style="font-size: 12px; color: #94a3b8; margin-top: 24px;">Denne lenken er gyldig i 48 timer. Du trenger ikke å logge inn for å svare.</p>
   </div>
