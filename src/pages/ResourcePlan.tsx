@@ -116,7 +116,8 @@ export default function ResourcePlan() {
     setHideExternalEvents(v);
     try { localStorage.setItem("resourceplan_hide_external", String(v)); } catch {}
   }, []);
-  const [dropPayload, setDropPayload] = useState<DropPayload | null>(null);
+  const [dropProjectId, setDropProjectId] = useState<string | null>(null);
+  const [dropProjectTitle, setDropProjectTitle] = useState<string | null>(null);
 
   useEffect(() => {
     localStorage.setItem(VIEW_STORAGE_KEY, calendarView);
