@@ -361,6 +361,14 @@ export function EventDrawer({
           await supabase.functions.invoke("create-approval", { body: { job_id: selectedJobId } });
         }
 
+        // Upload attachments for existing job
+        if (files.length > 0) {
+          const { data: evtRow } = await supabase.from("events").select("attachments").eq("id", selectedJobId).single();
+          const prevAtts = (evtRow?.attachments && Array.isArray(evtRow.attachments) ? evtRow.attachments : []) as unknown as Attachment[];
+          const newUploads = await uploadFiles(selectedJobId, files);
+          await supabase.from("events").update({ attachments: [...prevAtts, ...newUploads] as any }).eq("id", selectedJobId);
+        }
+
         toast.success("Montør(er) tildelt");
         onSaved?.(selectedJobId);
       } else {
