@@ -1,6 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
 import { useProjectSuggestions, type ProjectSuggestion } from "@/hooks/useProjectSuggestions";
 import { ProjectSuggestionList } from "./ProjectSuggestionList";
+import { FileUpload } from "./FileUpload";
+import { AttachmentList } from "./AttachmentList";
+import type { Attachment } from "@/lib/mock-data";
 import {
   Sheet,
   SheetContent,
@@ -33,6 +36,7 @@ import {
   Search,
   Plus,
   Trash2,
+  Paperclip,
   FolderKanban,
   ListChecks,
   Moon,
@@ -132,6 +136,10 @@ export function EventDrawer({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
+  // Attachments
+  const [files, setFiles] = useState<File[]>([]);
+  const [existingAttachments, setExistingAttachments] = useState<Attachment[]>([]);
+
   // Populate form from props
   useEffect(() => {
     if (!open) return;
@@ -170,6 +178,17 @@ export function EventDrawer({
     setSearchResults([]);
     setSubmitted(false);
     setClientRequestId(crypto.randomUUID());
+    setFiles([]);
+    setExistingAttachments([]);
+
+    // Load existing attachments for edit mode
+    if (editEvent) {
+      supabase.from("events").select("attachments").eq("id", editEvent.id).single().then(({ data }) => {
+        if (data?.attachments && Array.isArray(data.attachments)) {
+          setExistingAttachments(data.attachments as unknown as Attachment[]);
+        }
+      });
+    }
   }, [open, editEvent, preselectedStart, preselectedEnd, preselectedTechId, projectId, projectTitle]);
 
   // Search existing jobs
@@ -266,6 +285,22 @@ export function EventDrawer({
     }
   })() : null;
 
+  // Upload files to storage and return attachment metadata
+  const uploadFiles = async (eventId: string, filesToUpload: File[]): Promise<Attachment[]> => {
+    const uploaded: Attachment[] = [];
+    for (const file of filesToUpload) {
+      const filePath = `${eventId}/${Date.now()}-${file.name}`;
+      const { error: uploadError } = await supabase.storage.from("job-attachments").upload(filePath, file);
+      if (uploadError) {
+        toast.error(`Kunne ikke laste opp ${file.name}`);
+        continue;
+      }
+      const { data: urlData } = supabase.storage.from("job-attachments").getPublicUrl(filePath);
+      uploaded.push({ name: file.name, url: urlData.publicUrl, size: file.size });
+    }
+    return uploaded;
+  };
+
   // Save: create or update
   const handleSave = async () => {
     if (saving || submitted) return;
@@ -299,6 +334,13 @@ export function EventDrawer({
         }
         syncUpdate(editEvent.id);
 
+        // Upload new attachments
+        if (files.length > 0) {
+          const newUploads = await uploadFiles(editEvent.id, files);
+          const allAttachments = [...existingAttachments, ...newUploads];
+          await supabase.from("events").update({ attachments: allAttachments as any }).eq("id", editEvent.id);
+        }
+
         toast.success("Hendelse oppdatert", { description: "Tid og ressurser er lagret." });
         onSaved?.(editEvent.id);
       } else if (mode === "existing" && selectedJobId) {
@@ -317,6 +359,14 @@ export function EventDrawer({
             newTechs.map((tid) => ({ event_id: selectedJobId, technician_id: tid }))
           );
           await supabase.functions.invoke("create-approval", { body: { job_id: selectedJobId } });
+        }
+
+        // Upload attachments for existing job
+        if (files.length > 0) {
+          const { data: evtRow } = await supabase.from("events").select("attachments").eq("id", selectedJobId).single();
+          const prevAtts = (evtRow?.attachments && Array.isArray(evtRow.attachments) ? evtRow.attachments : []) as unknown as Attachment[];
+          const newUploads = await uploadFiles(selectedJobId, files);
+          await supabase.from("events").update({ attachments: [...prevAtts, ...newUploads] as any }).eq("id", selectedJobId);
         }
 
         toast.success("Montør(er) tildelt");
@@ -376,6 +426,12 @@ export function EventDrawer({
               syncCreate(createdId);
             }
           }
+        }
+
+        // Upload attachments for new event
+        if (files.length > 0) {
+          const newUploads = await uploadFiles(createdId, files);
+          await supabase.from("events").update({ attachments: newUploads as any }).eq("id", createdId);
         }
 
         toast.success(isTask ? "Oppgave opprettet" : "Hendelse opprettet og planlagt", {
@@ -666,6 +722,27 @@ export function EventDrawer({
                 placeholder="Detaljer til montøren..." className="min-h-[60px] resize-none" rows={2} />
             </section>
           )}
+
+          {/* ═══ SECTION: VEDLEGG ═══ */}
+          <section className="space-y-3">
+            <h3 className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
+              <Paperclip className="h-3 w-3" />
+              Vedlegg
+            </h3>
+            {existingAttachments.length > 0 && (
+              <AttachmentList
+                attachments={existingAttachments}
+                onRemove={(name) => {
+                  const updated = existingAttachments.filter((a) => a.name !== name);
+                  setExistingAttachments(updated);
+                  if (isEditing && editEvent) {
+                    supabase.from("events").update({ attachments: updated as any }).eq("id", editEvent.id);
+                  }
+                }}
+              />
+            )}
+            <FileUpload files={files} onChange={setFiles} />
+          </section>
 
           {/* ═══ CONFLICTS ═══ */}
           {conflicts.length > 0 && (
