@@ -1,6 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
 import { useProjectSuggestions, type ProjectSuggestion } from "@/hooks/useProjectSuggestions";
 import { ProjectSuggestionList } from "./ProjectSuggestionList";
+import { FileUpload } from "./FileUpload";
+import { AttachmentList } from "./AttachmentList";
+import type { Attachment } from "@/lib/mock-data";
 import {
   Sheet,
   SheetContent,
