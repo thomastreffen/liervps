@@ -15,8 +15,10 @@ interface SearchResult {
   job_number: string | null;
   address: string | null;
   status: string;
-  external_tripletex_number: string | null;
+  project_number: string | null;
+  external_tripletex_id: string | null;
   technicians: { id: string; name: string }[];
+  sortScore: number;
 }
 
 interface QuickProjectSearchProps {
@@ -31,8 +33,8 @@ export function QuickProjectSearch({ onPlanProject }: QuickProjectSearchProps) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  // Close on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
@@ -42,6 +44,21 @@ export function QuickProjectSearch({ onPlanProject }: QuickProjectSearchProps) {
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
+
+  const computeSortScore = (row: any, q: string): number => {
+    const lq = q.toLowerCase();
+    if (row.internal_number?.toLowerCase() === lq) return 0;
+    if (row.job_number?.toLowerCase() === lq) return 1;
+    if (row.internal_number?.toLowerCase().includes(lq)) return 2;
+    if (row.job_number?.toLowerCase().includes(lq)) return 3;
+    if (row.title?.toLowerCase().includes(lq)) return 4;
+    if (row.customer?.toLowerCase().includes(lq)) return 5;
+    if (row.address?.toLowerCase().includes(lq)) return 6;
+    if (row.project_number?.toLowerCase().includes(lq)) return 7;
+    if (row.external_tripletex_id?.toLowerCase().includes(lq)) return 8;
+    if (row.description?.toLowerCase().includes(lq)) return 9;
+    return 10;
+  };
 
   const doSearch = useCallback(async (q: string) => {
     if (q.length < 2) {
@@ -54,15 +71,16 @@ export function QuickProjectSearch({ onPlanProject }: QuickProjectSearchProps) {
       const { data } = await supabase
         .from("events")
         .select(`
-          id, title, customer, internal_number, job_number, address, status, external_tripletex_number,
+          id, title, customer, internal_number, job_number, address, status,
+          project_number, external_tripletex_id, description,
           event_technicians ( technician_id, technicians ( id, name ) )
         `)
         .is("deleted_at", null)
         .or(
-          `title.ilike.%${q}%,customer.ilike.%${q}%,internal_number.ilike.%${q}%,job_number.ilike.%${q}%,address.ilike.%${q}%,external_tripletex_number.ilike.%${q}%`
+          `title.ilike.%${q}%,customer.ilike.%${q}%,internal_number.ilike.%${q}%,job_number.ilike.%${q}%,address.ilike.%${q}%,project_number.ilike.%${q}%,external_tripletex_id.ilike.%${q}%,description.ilike.%${q}%`
         )
         .order("updated_at", { ascending: false })
-        .limit(8);
+        .limit(20);
 
       const mapped: SearchResult[] = (data || []).map((e: any) => ({
         id: e.id,
@@ -72,12 +90,16 @@ export function QuickProjectSearch({ onPlanProject }: QuickProjectSearchProps) {
         job_number: e.job_number,
         address: e.address,
         status: e.status,
-        external_tripletex_number: e.external_tripletex_number,
+        project_number: e.project_number,
+        external_tripletex_id: e.external_tripletex_id,
         technicians: (e.event_technicians || [])
           .filter((et: any) => et.technicians)
           .map((et: any) => ({ id: et.technicians.id, name: et.technicians.name })),
+        sortScore: computeSortScore(e, q),
       }));
-      setResults(mapped);
+
+      mapped.sort((a, b) => a.sortScore - b.sortScore);
+      setResults(mapped.slice(0, 10));
       setOpen(true);
     } catch (err) {
       console.error("[QuickSearch] error:", err);
@@ -98,6 +120,19 @@ export function QuickProjectSearch({ onPlanProject }: QuickProjectSearchProps) {
     setOpen(false);
   }, []);
 
+  const handlePlan = useCallback((r: SearchResult) => {
+    setOpen(false);
+    setQuery("");
+    onPlanProject(r.id, r.title);
+  }, [onPlanProject]);
+
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && results.length > 0) {
+      e.preventDefault();
+      handlePlan(results[0]);
+    }
+  }, [results, handlePlan]);
+
   const statusLabel = (s: string) => {
     const map: Record<string, string> = {
       scheduled: "Planlagt",
@@ -115,9 +150,11 @@ export function QuickProjectSearch({ onPlanProject }: QuickProjectSearchProps) {
       <div className="relative flex items-center">
         <Search className="absolute left-2.5 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
         <Input
+          ref={inputRef}
           value={query}
           onChange={(e) => handleChange(e.target.value)}
           onFocus={() => { if (results.length > 0) setOpen(true); }}
+          onKeyDown={handleKeyDown}
           placeholder="Søk prosjekt, kunde eller JOB-ID..."
           className="h-8 pl-8 pr-8 text-xs w-[260px] rounded-lg border-border/40 bg-background"
         />
@@ -161,8 +198,11 @@ export function QuickProjectSearch({ onPlanProject }: QuickProjectSearchProps) {
                       {r.job_number && (
                         <span className="text-[9px] text-muted-foreground">#{r.job_number}</span>
                       )}
-                      {r.external_tripletex_number && (
-                        <span className="text-[9px] text-muted-foreground">TX:{r.external_tripletex_number}</span>
+                      {r.project_number && (
+                        <span className="text-[9px] text-muted-foreground">P:{r.project_number}</span>
+                      )}
+                      {r.external_tripletex_id && (
+                        <span className="text-[9px] text-muted-foreground">TX:{r.external_tripletex_id}</span>
                       )}
                       {r.technicians.length > 0 && (
                         <span className="text-[9px] text-muted-foreground flex items-center gap-0.5">
@@ -191,11 +231,7 @@ export function QuickProjectSearch({ onPlanProject }: QuickProjectSearchProps) {
                   <Button
                     size="sm"
                     className="h-6 text-[10px] px-2 rounded gap-0.5"
-                    onClick={() => {
-                      setOpen(false);
-                      setQuery("");
-                      onPlanProject(r.id, r.title);
-                    }}
+                    onClick={() => handlePlan(r)}
                   >
                     <CalendarPlus className="h-3 w-3" />
                     Planlegg
@@ -208,8 +244,8 @@ export function QuickProjectSearch({ onPlanProject }: QuickProjectSearchProps) {
       )}
 
       {open && query.length >= 2 && results.length === 0 && !loading && (
-        <div className="absolute top-full left-0 mt-1 w-[300px] rounded-lg border border-border bg-popover shadow-lg z-50 p-4 text-center">
-          <p className="text-xs text-muted-foreground">Ingen treff for «{query}»</p>
+        <div className="absolute top-full left-0 mt-1 w-[340px] rounded-lg border border-border bg-popover shadow-lg z-50 p-4 text-center">
+          <p className="text-xs text-muted-foreground">Ingen treff – prøv JOB-ID, kunde eller prosjektnavn</p>
         </div>
       )}
     </div>
