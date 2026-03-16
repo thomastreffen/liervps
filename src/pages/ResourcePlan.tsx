@@ -723,12 +723,20 @@ export default function ResourcePlan() {
 
       <EventDrawer
         open={drawerOpen}
-        onOpenChange={setDrawerOpen}
+        onOpenChange={(open) => {
+          setDrawerOpen(open);
+          if (!open) {
+            setDropProjectId(null);
+            setDropProjectTitle(null);
+          }
+        }}
         editEvent={editEvent}
         clickedTechId={clickedTechId}
         preselectedStart={preselectedStart}
         preselectedEnd={preselectedEnd}
         preselectedTechId={selectedTechId}
+        projectId={dropProjectId}
+        projectTitle={dropProjectTitle}
         scheduleBlockId={
           editEvent
             ? scheduleBlocks.find(
@@ -743,6 +751,8 @@ export default function ResourcePlan() {
               .map((sb) => sb.id);
             for (const id of linkedIds) removeBlockOptimistic(id);
           }
+          setDropProjectId(null);
+          setDropProjectTitle(null);
           void refreshPlanData();
         }}
       />
