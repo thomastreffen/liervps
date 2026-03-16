@@ -36,6 +36,7 @@ import {
   Search,
   Plus,
   Trash2,
+  Paperclip,
   FolderKanban,
   ListChecks,
   Moon,
