@@ -783,13 +783,6 @@ export default function ResourcePlan() {
         />
       )}
 
-      <DropConfirmPopover
-        payload={dropPayload}
-        onClose={() => setDropPayload(null)}
-        onCreated={() => {
-          void refreshPlanData();
-        }}
-      />
     </div>
   );
 }
