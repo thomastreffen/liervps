@@ -76,8 +76,9 @@ export function useExternalBusy(technicianId: string | null, options?: UseExtern
       const userIds = techs.map((t: any) => t.user_id).filter(Boolean);
       const userToTech = new Map(techs.map((t: any) => [t.user_id, t.id]));
 
-      const startISO = format(weekStart, "yyyy-MM-dd'T'HH:mm:ss");
-      const endISO = format(weekEnd, "yyyy-MM-dd'T'HH:mm:ss");
+      // Send as UTC since ms-calendar now uses UTC timezone for Graph API
+      const startISO = weekStart.toISOString().replace("Z", "");
+      const endISO = weekEnd.toISOString().replace("Z", "");
 
       const { data, error: fnError } = await supabase.functions.invoke("ms-calendar", {
         body: {
