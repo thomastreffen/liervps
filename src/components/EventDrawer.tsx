@@ -136,6 +136,10 @@ export function EventDrawer({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
+  // Attachments
+  const [files, setFiles] = useState<File[]>([]);
+  const [existingAttachments, setExistingAttachments] = useState<Attachment[]>([]);
+
   // Populate form from props
   useEffect(() => {
     if (!open) return;
