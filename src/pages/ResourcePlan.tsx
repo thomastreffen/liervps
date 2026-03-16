@@ -512,8 +512,22 @@ export default function ResourcePlan() {
                 </div>
               </div>
 
-              {/* Right: Primary actions */}
+              {/* Right: Search + Primary actions */}
               <div className="flex items-center gap-2 shrink-0">
+                {canWriteEvents && (
+                  <QuickProjectSearch
+                    onPlanProject={(projectId, projectTitle) => {
+                      setEditEvent(null);
+                      setDropProjectId(projectId);
+                      setDropProjectTitle(projectTitle);
+                      // Use last date-selected range if available, otherwise no time
+                      setClickedTechId(selectedTechId || null);
+                      // Keep preselectedStart/End as-is (from last calendar selection)
+                      setDrawerOpen(true);
+                    }}
+                  />
+                )}
+
                 {confirmationCount > 0 && (
                   <Button
                     variant="outline"
