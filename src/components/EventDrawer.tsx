@@ -178,6 +178,17 @@ export function EventDrawer({
     setSearchResults([]);
     setSubmitted(false);
     setClientRequestId(crypto.randomUUID());
+    setFiles([]);
+    setExistingAttachments([]);
+
+    // Load existing attachments for edit mode
+    if (editEvent) {
+      supabase.from("events").select("attachments").eq("id", editEvent.id).single().then(({ data }) => {
+        if (data?.attachments && Array.isArray(data.attachments)) {
+          setExistingAttachments(data.attachments as unknown as Attachment[]);
+        }
+      });
+    }
   }, [open, editEvent, preselectedStart, preselectedEnd, preselectedTechId, projectId, projectTitle]);
 
   // Search existing jobs
