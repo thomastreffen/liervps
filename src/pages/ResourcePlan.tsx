@@ -191,6 +191,8 @@ export default function ResourcePlan() {
     setClickedTechId(techId ?? null);
     setPreselectedStart(null);
     setPreselectedEnd(null);
+    setDropProjectId(null);
+    setDropProjectTitle(null);
     setDrawerOpen(true);
   }, []);
 
