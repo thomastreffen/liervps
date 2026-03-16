@@ -201,6 +201,8 @@ export default function ResourcePlan() {
     setEditEvent(null);
     setPreselectedStart(start);
     setPreselectedEnd(end);
+    setDropProjectId(null);
+    setDropProjectTitle(null);
     setDrawerOpen(true);
   }, [canWriteEvents]);
 
