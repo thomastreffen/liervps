@@ -338,6 +338,21 @@ export const ResourceCalendar = memo(function ResourceCalendar({
       }
     }
 
+    // Build index of internal (non-outlook) schedule blocks per technician for dedup
+    const TZ_TOLERANCE_DEDUP = 65 * 60000;
+    const internalBlocksByTech = new Map<string, Array<{ start: number; end: number; projectId: string | null; jobNumber: string | null }>>();
+    for (const block of scheduleBlocks) {
+      if (block.source === "outlook") continue;
+      const arr = internalBlocksByTech.get(block.technician_id) || [];
+      arr.push({
+        start: block.start_at.getTime(),
+        end: block.end_at.getTime(),
+        projectId: block.project_id,
+        jobNumber: block.job_number ?? null,
+      });
+      internalBlocksByTech.set(block.technician_id, arr);
+    }
+
     // Schedule blocks – suppress mirrored variants when authoritative assignment exists
     const seenScheduleBlockKeys = new Set<string>();
     for (const block of scheduleBlocks) {
@@ -347,11 +362,9 @@ export const ResourceCalendar = memo(function ResourceCalendar({
       const assignmentMeta = block.project_id
         ? assignmentMetaByEventTech.get(`${block.project_id}::${block.technician_id}`)
         : null;
-      // Use wider tolerance (65min) to suppress timezone-shifted mirror blocks
-      const TZ_TOLERANCE_MIRROR = 65 * 60000;
       const overlapsAuthoritativeAssignment = !!assignmentMeta
-        && block.start_at.getTime() < assignmentMeta.end + TZ_TOLERANCE_MIRROR
-        && block.end_at.getTime() > assignmentMeta.start - TZ_TOLERANCE_MIRROR;
+        && block.start_at.getTime() < assignmentMeta.end + TZ_TOLERANCE_DEDUP
+        && block.end_at.getTime() > assignmentMeta.start - TZ_TOLERANCE_DEDUP;
 
       if (overlapsAuthoritativeAssignment) {
         console.info("[ResourceCalendar][SuppressMirrorBlock]", {
@@ -366,6 +379,28 @@ export const ResourceCalendar = memo(function ResourceCalendar({
           display_name: assignmentMeta?.displayName ?? block.technician_name ?? null,
         });
         continue;
+      }
+
+      // Suppress Outlook blocks that mirror an internal block for same tech + same project/job + start within ±65min
+      if (block.source === "outlook" && block.project_id) {
+        const internals = internalBlocksByTech.get(block.technician_id) || [];
+        const blockStart = block.start_at.getTime();
+        const matchesInternal = internals.some((ib) => {
+          const sameProject = ib.projectId && ib.projectId === block.project_id;
+          const sameJob = ib.jobNumber && block.job_number && ib.jobNumber === block.job_number;
+          const startClose = Math.abs(ib.start - blockStart) <= TZ_TOLERANCE_DEDUP;
+          return (sameProject || sameJob) && startClose;
+        });
+        if (matchesInternal) {
+          console.info("[ResourceCalendar][SuppressOutlookDuplicate]", {
+            technician_id: block.technician_id,
+            project_id: block.project_id,
+            job_number: block.job_number,
+            outlook_start: block.start_at.toISOString(),
+            block_id: block.id,
+          });
+          continue;
+        }
       }
 
       const techName = block.technician_name?.split(" ")[0] || "";
