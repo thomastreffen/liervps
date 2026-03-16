@@ -177,6 +177,23 @@ function buildGraphBody(event: any, customer?: any) {
     html += `<p style="margin: 0 0 16px; font-size: 15px;">${contactParts.join("<br/>")}</p>`;
   }
 
+  // Attachments section
+  const attachments = Array.isArray(event.attachments) ? event.attachments : [];
+  if (attachments.length > 0) {
+    html += `<p style="margin: 0 0 4px; font-size: 13px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px;">Vedlegg</p>`;
+    html += `<ul style="margin: 0 0 16px; padding-left: 20px;">`;
+    for (const att of attachments) {
+      const name = att.name || "Vedlegg";
+      const url = att.url || "#";
+      html += `<li style="margin-bottom: 4px;"><a href="${url}" style="color: #2563eb; text-decoration: none;">📎 ${name}</a></li>`;
+    }
+    html += `</ul>`;
+  }
+
+  // Link to job in system
+  const jobUrl = `https://mcsressurs.lovable.app/jobs/${event.id}`;
+  html += `<p style="margin: 16px 0 0;"><a href="${jobUrl}" style="color: #2563eb; text-decoration: none; font-size: 13px;">🔗 Åpne i MCS Ressurs</a></p>`;
+
   html += `</div>`;
 
   const body: any = {
