@@ -142,14 +142,20 @@ Deno.serve(async (req) => {
 
         while (currentUrl) {
           const calRes = await fetch(currentUrl, {
-            headers: { Authorization: `Bearer ${graphToken}` },
+            headers: {
+              Authorization: `Bearer ${graphToken}`,
+              "Prefer": 'outlook.timezone="UTC"',
+            },
           });
 
           if (!calRes.ok) {
             if (calRes.status === 410 && syncState?.delta_link) {
               const fullUrl = `https://graph.microsoft.com/v1.0/users/${email}/calendarView/delta?startDateTime=${now.toISOString()}&endDateTime=${fourWeeks.toISOString()}&$select=id,subject,start,end,location,lastModifiedDateTime,body,bodyPreview,webLink,organizer,categories`;
               const retryRes = await fetch(fullUrl, {
-                headers: { Authorization: `Bearer ${graphToken}` },
+                headers: {
+                  Authorization: `Bearer ${graphToken}`,
+                  "Prefer": 'outlook.timezone="UTC"',
+                },
               });
               if (!retryRes.ok) {
                 errors.push(`${tech.name}: Graph ${retryRes.status} on full resync`);
@@ -213,8 +219,14 @@ Deno.serve(async (req) => {
 
           if (ev.categories?.includes("MCS")) continue;
 
-          const startAt = new Date(ev.start.dateTime + "Z");
-          const endAt = new Date(ev.end.dateTime + "Z");
+          // Graph returns dateTime in UTC (via Prefer: outlook.timezone="UTC" header)
+          // Append Z only if not already present to ensure correct UTC parsing
+          const rawStart = ev.start.dateTime;
+          const rawEnd = ev.end.dateTime;
+          const startAt = new Date(rawStart.endsWith("Z") ? rawStart : rawStart + "Z");
+          const endAt = new Date(rawEnd.endsWith("Z") ? rawEnd : rawEnd + "Z");
+
+          console.log(`[outlook-schedule-sync] ${tech.name}: ${ev.subject} | raw start=${rawStart} tz=${ev.start.timeZone} → parsed=${startAt.toISOString()} | raw end=${rawEnd} tz=${ev.end.timeZone} → parsed=${endAt.toISOString()}`);
 
           const bodyContent = ev.body?.content || "";
           const mcsMatch = bodyContent.match(/MCS_BLOCK_ID:([a-f0-9-]+)/);

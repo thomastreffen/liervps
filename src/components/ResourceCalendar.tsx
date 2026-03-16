@@ -290,14 +290,16 @@ export const ResourceCalendar = memo(function ResourceCalendar({
           for (const slot of merged) {
             const slotStart = slot.start.getTime();
             const slotEnd = slot.end.getTime();
+            // Widen tolerance to 65 minutes to catch timezone-shifted duplicates (±1h for CET/CEST)
+            const TZ_TOLERANCE = 65 * 60000;
             const coveredBySb = techSbRanges.some(
-              (r) => r.start <= slotStart + 60000 && r.end >= slotEnd - 60000
+              (r) => r.start <= slotStart + TZ_TOLERANCE && r.end >= slotEnd - TZ_TOLERANCE
             );
             if (coveredBySb) continue;
 
             const calRanges = calEventRangesByTech.get(techId) || [];
             const coveredByCalEvent = calRanges.some(
-              (r) => r.start <= slotStart + 60000 && r.end >= slotEnd - 60000
+              (r) => r.start <= slotStart + TZ_TOLERANCE && r.end >= slotEnd - TZ_TOLERANCE
             );
             if (coveredByCalEvent) continue;
 
@@ -345,9 +347,11 @@ export const ResourceCalendar = memo(function ResourceCalendar({
       const assignmentMeta = block.project_id
         ? assignmentMetaByEventTech.get(`${block.project_id}::${block.technician_id}`)
         : null;
+      // Use wider tolerance (65min) to suppress timezone-shifted mirror blocks
+      const TZ_TOLERANCE_MIRROR = 65 * 60000;
       const overlapsAuthoritativeAssignment = !!assignmentMeta
-        && block.start_at.getTime() < assignmentMeta.end
-        && block.end_at.getTime() > assignmentMeta.start;
+        && block.start_at.getTime() < assignmentMeta.end + TZ_TOLERANCE_MIRROR
+        && block.end_at.getTime() > assignmentMeta.start - TZ_TOLERANCE_MIRROR;
 
       if (overlapsAuthoritativeAssignment) {
         console.info("[ResourceCalendar][SuppressMirrorBlock]", {
