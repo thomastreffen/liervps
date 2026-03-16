@@ -723,6 +723,27 @@ export function EventDrawer({
             </section>
           )}
 
+          {/* ═══ SECTION: VEDLEGG ═══ */}
+          <section className="space-y-3">
+            <h3 className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
+              <Paperclip className="h-3 w-3" />
+              Vedlegg
+            </h3>
+            {existingAttachments.length > 0 && (
+              <AttachmentList
+                attachments={existingAttachments}
+                onRemove={(name) => {
+                  const updated = existingAttachments.filter((a) => a.name !== name);
+                  setExistingAttachments(updated);
+                  if (isEditing && editEvent) {
+                    supabase.from("events").update({ attachments: updated as any }).eq("id", editEvent.id);
+                  }
+                }}
+              />
+            )}
+            <FileUpload files={files} onChange={setFiles} />
+          </section>
+
           {/* ═══ CONFLICTS ═══ */}
           {conflicts.length > 0 && (
             <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 space-y-1.5">
