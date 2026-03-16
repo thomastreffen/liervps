@@ -428,6 +428,12 @@ export function EventDrawer({
           }
         }
 
+        // Upload attachments for new event
+        if (files.length > 0) {
+          const newUploads = await uploadFiles(createdId, files);
+          await supabase.from("events").update({ attachments: newUploads as any }).eq("id", createdId);
+        }
+
         toast.success(isTask ? "Oppgave opprettet" : "Hendelse opprettet og planlagt", {
           description: isTask
             ? `${title} er lagt til som oppgave.`
