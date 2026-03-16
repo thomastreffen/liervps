@@ -306,11 +306,12 @@ Deno.serve(async (req) => {
         headers: {
           Authorization: `Bearer ${msToken}`,
           "Content-Type": "application/json",
+          "Prefer": 'outlook.timezone="UTC"',
         },
         body: JSON.stringify({
           schedules: techEmails,
-          startTime: { dateTime: start, timeZone: "Europe/Oslo" },
-          endTime: { dateTime: end, timeZone: "Europe/Oslo" },
+          startTime: { dateTime: start, timeZone: "UTC" },
+          endTime: { dateTime: end, timeZone: "UTC" },
           availabilityViewInterval: 15,
         }),
       });
