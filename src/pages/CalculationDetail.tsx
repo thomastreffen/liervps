@@ -814,22 +814,18 @@ export default function CalculationDetail() {
           </div>
         )}
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="grid grid-cols-3 gap-3">
           <div className="rounded-xl border border-border/40 bg-card p-3 text-center">
-            <p className="text-xs text-muted-foreground">Materialer</p>
-            <p className="text-lg font-bold font-mono">kr {Number(calc.total_material).toLocaleString("nb-NO")}</p>
+            <p className="text-xs text-muted-foreground">Sum eks. mva</p>
+            <p className="text-lg font-bold text-primary font-mono">kr {displayTotalExVat.toLocaleString("nb-NO", { minimumFractionDigits: 2 })}</p>
           </div>
           <div className="rounded-xl border border-border/40 bg-card p-3 text-center">
-            <p className="text-xs text-muted-foreground">Arbeid</p>
-            <p className="text-lg font-bold font-mono">kr {Number(calc.total_labor).toLocaleString("nb-NO")}</p>
+            <p className="text-xs text-muted-foreground">MVA (25%)</p>
+            <p className="text-lg font-bold font-mono">kr {displayTotalVat.toLocaleString("nb-NO", { minimumFractionDigits: 2 })}</p>
           </div>
           <div className="rounded-xl border border-border/40 bg-card p-3 text-center">
-            <p className="text-xs text-muted-foreground">Totalt eks. MVA</p>
-            <p className="text-lg font-bold text-primary font-mono">kr {Number(calc.total_price).toLocaleString("nb-NO")}</p>
-          </div>
-          <div className="rounded-xl border border-border/40 bg-card p-3 text-center">
-            <p className="text-xs text-muted-foreground">Totalt inkl. MVA</p>
-            <p className="text-lg font-bold font-mono">kr {(Number(calc.total_price) * 1.25).toLocaleString("nb-NO")}</p>
+            <p className="text-xs text-muted-foreground">Totalt inkl. mva</p>
+            <p className="text-lg font-bold font-mono">kr {displayTotalIncVat.toLocaleString("nb-NO", { minimumFractionDigits: 2 })}</p>
           </div>
         </div>
 
