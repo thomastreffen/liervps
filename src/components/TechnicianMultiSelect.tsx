@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { User, Loader2, Search, Check } from "lucide-react";
+import { useCompanyContext } from "@/hooks/useCompanyContext";
 
 interface DBTech {
   id: string;
@@ -17,30 +18,68 @@ interface TechnicianMultiSelectProps {
 }
 
 export function TechnicianMultiSelect({ selectedIds, onChange }: TechnicianMultiSelectProps) {
+  const { activeCompanyId } = useCompanyContext();
   const [technicians, setTechnicians] = useState<DBTech[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
 
   useEffect(() => {
-    supabase
-      .from("technicians")
-      .select("id, name, user_id")
-      .not("user_id", "is", null)
-      .eq("is_plannable_resource", true)
-      .is("archived_at", null)
-      .order("name")
-      .then(({ data }) => {
-        const raw = data || [];
-        const seen = new Set<string>();
-        const unique = raw.filter((t) => {
-          if (!t.id || !t.user_id || seen.has(t.id)) return false;
-          seen.add(t.id);
-          return true;
-        });
-        setTechnicians(unique);
+    setLoading(true);
+    async function load() {
+      // Get plannable person_ids from employment_profiles for active company
+      let epQuery = supabase
+        .from("employment_profiles")
+        .select("person_id")
+        .eq("is_plannable_resource", true)
+        .is("archived_at", null);
+
+      if (activeCompanyId) {
+        epQuery = epQuery.eq("company_id", activeCompanyId);
+      }
+
+      const { data: profiles } = await epQuery;
+      if (!profiles || profiles.length === 0) {
+        setTechnicians([]);
         setLoading(false);
+        return;
+      }
+
+      const personIds = [...new Set(profiles.map((p: any) => p.person_id))];
+
+      const { data: accounts } = await supabase
+        .from("user_accounts")
+        .select("auth_user_id")
+        .in("person_id", personIds)
+        .eq("is_active", true);
+
+      const authUserIds = (accounts || []).map((a: any) => a.auth_user_id).filter(Boolean);
+
+      if (authUserIds.length === 0) {
+        setTechnicians([]);
+        setLoading(false);
+        return;
+      }
+
+      const { data } = await supabase
+        .from("technicians")
+        .select("id, name, user_id")
+        .not("user_id", "is", null)
+        .is("archived_at", null)
+        .in("user_id", authUserIds)
+        .order("name");
+
+      const raw = data || [];
+      const seen = new Set<string>();
+      const unique = raw.filter((t) => {
+        if (!t.id || !t.user_id || seen.has(t.id)) return false;
+        seen.add(t.id);
+        return true;
       });
-  }, []);
+      setTechnicians(unique);
+      setLoading(false);
+    }
+    load();
+  }, [activeCompanyId]);
 
   const safeSelectedIds = Array.isArray(selectedIds) ? selectedIds : [];
 
@@ -49,20 +88,12 @@ export function TechnicianMultiSelect({ selectedIds, onChange }: TechnicianMulti
     const next = safePrev.includes(id)
       ? safePrev.filter(x => x !== id)
       : [...safePrev, id];
-    console.log("Toggle technician:", id, "Selected IDs will be:", next);
     onChange(next);
   };
 
   const safeTechnicians = Array.isArray(technicians)
-    ? technicians
-        .filter(t => t && typeof t.id === "string" && t.id.length > 0)
-        .filter((t, index, arr) =>
-          arr.findIndex(x => x.id === t.id) === index
-        )
+    ? technicians.filter(t => t && typeof t.id === "string" && t.id.length > 0)
     : [];
-
-  console.log("RAW technicians:", technicians);
-  console.log("SAFE technicians:", safeTechnicians);
 
   const filtered = search
     ? safeTechnicians.filter((t) => t.name?.toLowerCase().includes(search.toLowerCase()))
