@@ -122,6 +122,7 @@ export function EventDrawer({
   const [saving, setSaving] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [clientRequestId, setClientRequestId] = useState(() => crypto.randomUUID());
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
 
   // Existing job search
   const [searchQuery, setSearchQuery] = useState("");
