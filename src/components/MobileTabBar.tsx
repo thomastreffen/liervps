@@ -55,7 +55,7 @@ const baseQuickActions: QuickAction[] = [
     label: "Nytt tilbud",
     description: "Lag et nytt kundetilbud",
     icon: FileText,
-    path: "/offers/new",
+    path: "/sales/offers/new",
     permission: "offers.create",
   },
   {
