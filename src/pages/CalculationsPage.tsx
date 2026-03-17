@@ -9,6 +9,7 @@ import { format } from "date-fns";
 import { nb } from "date-fns/locale";
 import { Plus, Search, Loader2, ChevronLeft, ChevronRight, Calculator } from "lucide-react";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useCompanyContext } from "@/hooks/useCompanyContext";
 import {
   CALCULATION_STATUS_CONFIG,
   ALL_CALCULATION_STATUSES,
