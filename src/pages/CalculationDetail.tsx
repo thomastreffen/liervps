@@ -61,6 +61,7 @@ interface Calculation {
   created_at: string;
   updated_at: string;
   lead_id: string | null;
+  company_id: string | null;
 }
 
 interface Offer {
