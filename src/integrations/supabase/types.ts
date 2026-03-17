@@ -2860,6 +2860,7 @@ export type Database = {
           allow_clients: boolean
           archived_at: string | null
           archived_by: string | null
+          assignment_notes: string | null
           attachments: Json | null
           calendar_dirty: boolean
           calendar_last_synced_at: string | null
@@ -2930,6 +2931,7 @@ export type Database = {
           allow_clients?: boolean
           archived_at?: string | null
           archived_by?: string | null
+          assignment_notes?: string | null
           attachments?: Json | null
           calendar_dirty?: boolean
           calendar_last_synced_at?: string | null
@@ -3000,6 +3002,7 @@ export type Database = {
           allow_clients?: boolean
           archived_at?: string | null
           archived_by?: string | null
+          assignment_notes?: string | null
           attachments?: Json | null
           calendar_dirty?: boolean
           calendar_last_synced_at?: string | null
