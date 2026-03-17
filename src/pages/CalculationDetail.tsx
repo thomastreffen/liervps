@@ -467,14 +467,6 @@ export default function CalculationDetail() {
   // Company mismatch detection
   const companyMismatch = !isAllCompanies && !!activeCompanyId && !!calc.company_id && calc.company_id !== activeCompanyId;
   const missingCompany = !calc.company_id;
-
-  // Redirect if user switches company while viewing a mismatched offer
-  useEffect(() => {
-    if (calc && companyMismatch) {
-      // Don't auto-redirect, show banner instead
-    }
-  }, [activeCompanyId, calc, companyMismatch]);
-
   if (companyMismatch) {
     return (
       <div className="mx-auto max-w-[1920px] p-4 sm:p-6 pb-24 space-y-6">
