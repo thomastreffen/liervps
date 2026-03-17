@@ -104,6 +104,7 @@ const STATUS_ICONS: Record<CalculationStatus, React.ReactNode> = {
   draft: <Clock className="h-3.5 w-3.5" />,
   generated: <FileDown className="h-3.5 w-3.5" />,
   sent: <Send className="h-3.5 w-3.5" />,
+  in_dialogue: <History className="h-3.5 w-3.5" />,
   accepted: <CheckCircle2 className="h-3.5 w-3.5" />,
   rejected: <XCircle className="h-3.5 w-3.5" />,
   converted: <ArrowRightLeft className="h-3.5 w-3.5" />,
