@@ -525,6 +525,34 @@ export function EventDrawer({
 
         <div className="flex-1 mt-3 space-y-6">
 
+          {/* ═══ SECTION: SELSKAP ═══ */}
+          {!isEditing && isAllCompanies && companies.length > 1 && (
+            <section className="space-y-2">
+              <h3 className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Selskap</h3>
+              <p className="text-[11px] text-muted-foreground">
+                Du oppretter fra «Alle selskaper» – velg hvilket selskap oppdraget tilhører.
+              </p>
+              <select
+                value={selectedCompanyId || ""}
+                onChange={(e) => setSelectedCompanyId(e.target.value || null)}
+                className="w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring"
+              >
+                <option value="">Velg selskap…</option>
+                {companies.map((c) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+            </section>
+          )}
+
+          {/* Company badge (when known) */}
+          {!isEditing && !isAllCompanies && activeCompanyId && (
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Building className="h-3 w-3 shrink-0" />
+              <span>Selskap: <span className="font-medium text-foreground">{companies.find(c => c.id === activeCompanyId)?.name || "—"}</span></span>
+            </div>
+          )}
+
           {/* ═══ SECTION: TYPE ═══ */}
           {!isEditing && !projectId && (
             <section className="space-y-3">
