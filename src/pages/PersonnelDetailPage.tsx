@@ -25,7 +25,6 @@ interface TechnicianProfile {
   id: string;
   name: string;
   email: string;
-  is_plannable_resource: boolean;
   birth_date: string | null;
   hms_card_number: string | null;
   hms_card_expires_at: string | null;
@@ -116,7 +115,7 @@ export default function PersonnelDetailPage() {
     const [techRes, docsRes] = await Promise.all([
       supabase
         .from("technicians")
-        .select("id, name, email, is_plannable_resource, birth_date, hms_card_number, hms_card_expires_at, trade_certificate_type, driver_license_classes, notes, archived_at, archived_by, avatar_id")
+        .select("id, name, email, birth_date, hms_card_number, hms_card_expires_at, trade_certificate_type, driver_license_classes, notes, archived_at, archived_by, avatar_id")
         .eq("id", id)
         .single(),
       supabase
@@ -404,9 +403,6 @@ export default function PersonnelDetailPage() {
               <Badge variant="destructive" className="text-[10px]">Arkivert</Badge>
             ) : (
               <Badge variant="outline" className="text-[10px]">Aktiv</Badge>
-            )}
-            {profile.is_plannable_resource && (
-              <Badge variant="success" className="text-[10px]">Planleggbar</Badge>
             )}
           </div>
           <p className="text-sm text-muted-foreground">{profile.email}</p>

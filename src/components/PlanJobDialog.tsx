@@ -37,7 +37,7 @@ export function PlanJobDialog({
   existingProjectId,
   onPlanned,
 }: PlanJobDialogProps) {
-  const { technicians } = useTechnicians();
+  const { technicians } = useTechnicians(companyId);
   const [techId, setTechId] = useState("");
   const [date, setDate] = useState("");
   const [startTime, setStartTime] = useState("08:00");

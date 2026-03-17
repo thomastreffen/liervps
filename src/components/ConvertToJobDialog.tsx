@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useCompanyContext } from "@/hooks/useCompanyContext";
+import { useTechnicians } from "@/hooks/useTechnicians";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,10 +20,6 @@ import { nb } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
-interface TechOption {
-  id: string;
-  name: string;
-}
 
 interface Props {
   open: boolean;
@@ -50,7 +47,7 @@ export function ConvertToJobDialog({
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
   const [projectLeader, setProjectLeader] = useState<string>("");
   const [createWorkPackages, setCreateWorkPackages] = useState(false);
-  const [technicians, setTechnicians] = useState<TechOption[]>([]);
+  const { technicians } = useTechnicians(activeCompanyId);
 
   // Reset form when opened
   useEffect(() => {
@@ -61,17 +58,6 @@ export function ConvertToJobDialog({
       setCreateWorkPackages(false);
     }
   }, [open, defaultTitle]);
-
-  // Load technicians for project leader dropdown
-  useEffect(() => {
-    supabase
-      .from("technicians")
-      .select("id, name")
-      .eq("is_plannable_resource", true)
-      .is("archived_at", null)
-      .order("name")
-      .then(({ data }) => setTechnicians(data || []));
-  }, []);
 
   const handleCreate = async () => {
     if (!title.trim()) { toast.error("Prosjektnavn er påkrevd"); return; }
