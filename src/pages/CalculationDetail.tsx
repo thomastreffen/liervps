@@ -702,31 +702,7 @@ export default function CalculationDetail() {
                   AI-analyse
                 </Button>
                 <Button
-                  onClick={async () => {
-                    setPreviewOpen(true);
-                    setPreviewLoading(true);
-                    setPreviewUrl(null);
-                    setPreviewError(null);
-                    try {
-                      const { data, error } = await supabase.functions.invoke("generate-offer-pdf", {
-                        body: { calculation_id: calc.id, created_by: user?.id, preview_only: true },
-                      });
-                      if (error) throw error;
-                      const signedUrl = data?.pdf_url || data?.generated_pdf_url || null;
-                      if (!signedUrl) {
-                        setPreviewError("Ingen forhåndsvisning tilgjengelig");
-                        return;
-                      }
-                      // Fetch as blob to avoid X-Frame-Options blocking
-                      const { fetchPdfAsBlobUrl } = await import("@/lib/pdf-url");
-                      const blobUrl = await fetchPdfAsBlobUrl(signedUrl);
-                      setPreviewUrl(blobUrl);
-                    } catch (e: any) {
-                      console.error("[Preview error]", e);
-                      setPreviewError("Kunne ikke generere forhåndsvisning akkurat nå");
-                    }
-                    finally { setPreviewLoading(false); }
-                  }}
+                  onClick={() => setPreviewOpen(true)}
                   variant="outline" size="sm" className="gap-1.5 rounded-lg"
                   disabled={(hasOrderLines ? orderLines.length === 0 : items.length === 0)}
                 >
