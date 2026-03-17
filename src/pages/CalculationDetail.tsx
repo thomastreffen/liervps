@@ -24,6 +24,8 @@ import { AI_MODE_CONFIG, ALL_AI_MODES, detectAiMode, type AiMode } from "@/lib/a
 import { ExecutiveSummary } from "@/components/offer/ExecutiveSummary";
 import { OfferActivityTimeline } from "@/components/offer/OfferActivityTimeline";
 import { OfferFollowupSection } from "@/components/offer/OfferFollowupSection";
+import { OrderLineEditor, calcTotals, type OrderLine } from "@/components/offer/OrderLineEditor";
+import { PdfPreviewDialog } from "@/components/offer/PdfPreviewDialog";
 import { ConvertToJobDialog } from "@/components/ConvertToJobDialog";
 import {
   ArrowLeft, Loader2, Sparkles, FileDown, ArrowRightLeft, Plus, Trash2, Save,
@@ -117,6 +119,7 @@ export default function CalculationDetail() {
 
   const [calc, setCalc] = useState<Calculation | null>(null);
   const [items, setItems] = useState<CalcItem[]>([]);
+  const [orderLines, setOrderLines] = useState<OrderLine[]>([]);
   const [offers, setOffers] = useState<Offer[]>([]);
   const [loading, setLoading] = useState(true);
   const [aiLoading, setAiLoading] = useState(false);
@@ -137,14 +140,20 @@ export default function CalculationDetail() {
   const [calcCompanyName, setCalcCompanyName] = useState<string | null>(null);
   const [contactPerson, setContactPerson] = useState<ContactPersonInfo | null>(null);
 
+  // PDF preview
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+
   const fetchCalc = useCallback(async () => {
     if (!id) return;
     setLoading(true);
-    const [calcRes, itemsRes, settingsRes, offersRes] = await Promise.all([
+    const [calcRes, itemsRes, settingsRes, offersRes, orderLinesRes] = await Promise.all([
       supabase.from("calculations").select("*, internal_companies(name), customer_contacts(id, name, email, phone, role)").eq("id", id).single(),
       supabase.from("calculation_items").select("*").eq("calculation_id", id).order("type").order("title"),
       supabase.from("settings").select("key, value"),
       supabase.from("offers").select("*").eq("calculation_id", id).order("created_at", { ascending: false }),
+      supabase.from("order_lines").select("*").eq("calculation_id", id).order("sort_order" as any),
     ]);
     if (calcRes.data) {
       setCalc(calcRes.data as unknown as Calculation);
@@ -155,6 +164,20 @@ export default function CalculationDetail() {
     }
     if (itemsRes.data) setItems(itemsRes.data as CalcItem[]);
     if (offersRes.data) setOffers(offersRes.data as unknown as Offer[]);
+    if (orderLinesRes.data) {
+      setOrderLines((orderLinesRes.data as any[]).map((ol: any) => ({
+        id: ol.id,
+        sort_order: ol.sort_order ?? 0,
+        line_type: ol.line_type || "product",
+        description: ol.description || "",
+        quantity: Number(ol.quantity) || 0,
+        unit: ol.unit || "stk",
+        unit_price: Number(ol.unit_price) || 0,
+        discount_percent: Number(ol.discount_percent) || 0,
+        vat_rate: Number(ol.vat_rate) || 25,
+        suggested_by_ai: ol.suggested_by_ai || false,
+      })));
+    }
     if (settingsRes.data) {
       const s: any = { material_multiplier: 2.0, default_hour_rate: 1080 };
       settingsRes.data.forEach((row: any) => {
@@ -466,9 +489,16 @@ export default function CalculationDetail() {
   const analysis = calc.ai_analysis;
   const attachments = Array.isArray(calc.attachments) ? calc.attachments : [];
 
+  // Prefer order_lines if available, fall back to legacy items
+  const hasOrderLines = orderLines.length > 0;
+  const olTotals = calcTotals(orderLines);
+
   const totalCost = materials.reduce((s, i) => s + getCostPrice(i) * i.quantity, 0) + Number(calc.total_labor);
-  const totalMargin = Number(calc.total_price) - totalCost;
-  const marginPercent = Number(calc.total_price) > 0 ? (totalMargin / Number(calc.total_price)) * 100 : 0;
+  const displayTotalExVat = hasOrderLines ? olTotals.totalExVat : Number(calc.total_price);
+  const displayTotalIncVat = hasOrderLines ? olTotals.totalIncVat : Number(calc.total_price) * 1.25;
+  const displayTotalVat = hasOrderLines ? olTotals.totalVat : Number(calc.total_price) * 0.25;
+  const totalMargin = displayTotalExVat - totalCost;
+  const marginPercent = displayTotalExVat > 0 ? (totalMargin / displayTotalExVat) * 100 : 0;
 
   const confidenceColor = (level: string) => {
     if (level === "high") return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200";
@@ -622,6 +652,25 @@ export default function CalculationDetail() {
                 <Button onClick={handleAiGenerate} disabled={aiLoading} variant="outline" size="sm" className="gap-1.5 rounded-lg">
                   {aiLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
                   AI-analyse
+                </Button>
+                <Button
+                  onClick={async () => {
+                    setPreviewOpen(true);
+                    setPreviewLoading(true);
+                    setPreviewUrl(null);
+                    try {
+                      const { data, error } = await supabase.functions.invoke("generate-offer-pdf", {
+                        body: { calculation_id: calc.id, created_by: user?.id, preview_only: true },
+                      });
+                      if (error) throw error;
+                      setPreviewUrl(data?.pdf_url || data?.generated_pdf_url || null);
+                    } catch { toast.error("Kunne ikke generere forhåndsvisning"); }
+                    finally { setPreviewLoading(false); }
+                  }}
+                  variant="outline" size="sm" className="gap-1.5 rounded-lg"
+                  disabled={(hasOrderLines ? orderLines.length === 0 : items.length === 0)}
+                >
+                  <Eye className="h-3.5 w-3.5" /> Forhåndsvis
                 </Button>
                 <Button onClick={handleGenerateOffer} disabled={pdfLoading || items.length === 0} size="sm" className="gap-1.5 rounded-lg">
                   {pdfLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileDown className="h-3.5 w-3.5" />}
@@ -784,22 +833,18 @@ export default function CalculationDetail() {
           </div>
         )}
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="grid grid-cols-3 gap-3">
           <div className="rounded-xl border border-border/40 bg-card p-3 text-center">
-            <p className="text-xs text-muted-foreground">Materialer</p>
-            <p className="text-lg font-bold font-mono">kr {Number(calc.total_material).toLocaleString("nb-NO")}</p>
+            <p className="text-xs text-muted-foreground">Sum eks. mva</p>
+            <p className="text-lg font-bold text-primary font-mono">kr {displayTotalExVat.toLocaleString("nb-NO", { minimumFractionDigits: 2 })}</p>
           </div>
           <div className="rounded-xl border border-border/40 bg-card p-3 text-center">
-            <p className="text-xs text-muted-foreground">Arbeid</p>
-            <p className="text-lg font-bold font-mono">kr {Number(calc.total_labor).toLocaleString("nb-NO")}</p>
+            <p className="text-xs text-muted-foreground">MVA (25%)</p>
+            <p className="text-lg font-bold font-mono">kr {displayTotalVat.toLocaleString("nb-NO", { minimumFractionDigits: 2 })}</p>
           </div>
           <div className="rounded-xl border border-border/40 bg-card p-3 text-center">
-            <p className="text-xs text-muted-foreground">Totalt eks. MVA</p>
-            <p className="text-lg font-bold text-primary font-mono">kr {Number(calc.total_price).toLocaleString("nb-NO")}</p>
-          </div>
-          <div className="rounded-xl border border-border/40 bg-card p-3 text-center">
-            <p className="text-xs text-muted-foreground">Totalt inkl. MVA</p>
-            <p className="text-lg font-bold font-mono">kr {(Number(calc.total_price) * 1.25).toLocaleString("nb-NO")}</p>
+            <p className="text-xs text-muted-foreground">Totalt inkl. mva</p>
+            <p className="text-lg font-bold font-mono">kr {displayTotalIncVat.toLocaleString("nb-NO", { minimumFractionDigits: 2 })}</p>
           </div>
         </div>
 
@@ -826,7 +871,7 @@ export default function CalculationDetail() {
       <Tabs defaultValue="overview">
         <TabsList className="w-full sm:w-auto flex overflow-x-auto rounded-xl">
           <TabsTrigger value="overview" className="gap-1.5 rounded-lg"><FileText className="h-3.5 w-3.5" />Oversikt</TabsTrigger>
-          <TabsTrigger value="items" className="gap-1.5 rounded-lg"><Package className="h-3.5 w-3.5" />Kalkyle ({items.length})</TabsTrigger>
+          <TabsTrigger value="items" className="gap-1.5 rounded-lg"><Package className="h-3.5 w-3.5" />Ordrelinjer ({hasOrderLines ? orderLines.length : items.length})</TabsTrigger>
           <TabsTrigger value="versions" className="gap-1.5 rounded-lg"><ReceiptText className="h-3.5 w-3.5" />Versjoner ({offers.length})</TabsTrigger>
           <TabsTrigger value="attachments" className="gap-1.5 rounded-lg"><Paperclip className="h-3.5 w-3.5" />Vedlegg {attachments.length > 0 && `(${attachments.length})`}</TabsTrigger>
           <TabsTrigger value="history" className="gap-1.5 rounded-lg"><History className="h-3.5 w-3.5" />Historikk</TabsTrigger>
@@ -949,13 +994,7 @@ export default function CalculationDetail() {
             </div>
           )}
 
-          {/* No AI analysis yet */}
-          {!analysis && isAdmin && (
-            <div className="rounded-xl border border-dashed bg-card p-6 text-center space-y-2">
-              <Sparkles className="h-8 w-8 mx-auto text-muted-foreground" />
-              <p className="text-sm text-muted-foreground">Ingen AI-analyse ennå. Kjør analyse fra handlingsraden over.</p>
-            </div>
-          )}
+          {/* AI analysis is optional — only show if present */}
 
           {analysis && analysis.status === "insufficient_data" && (
             <div className="rounded-xl border border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-950 p-4 space-y-3">
@@ -980,107 +1019,87 @@ export default function CalculationDetail() {
           )}
         </TabsContent>
 
-        {/* ===== Calculation Lines Tab ===== */}
-        <TabsContent value="items" className="space-y-6 pt-4">
-          {isAdmin && items.length > 0 && (
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-1.5">
-                <Switch checked={showCost} onCheckedChange={setShowCost} id="cost-toggle" />
-                <label htmlFor="cost-toggle" className="text-xs text-muted-foreground flex items-center gap-1 cursor-pointer">
-                  {showCost ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
-                  {showCost ? "Vis kost & margin" : "Skjul kost & margin"}
-                </label>
+        {/* ===== Order Lines Tab ===== */}
+        <TabsContent value="items" className="space-y-4 pt-4">
+          {hasOrderLines ? (
+            <OrderLineEditor
+              lines={orderLines}
+              onChange={async (newLines) => {
+                setOrderLines(newLines);
+                // Save to DB
+                if (calc) {
+                  await supabase.from("order_lines").delete().eq("calculation_id", calc.id);
+                  if (newLines.length > 0) {
+                    const payloads = newLines.map((l, idx) => ({
+                      calculation_id: calc.id,
+                      sort_order: idx,
+                      line_type: l.line_type,
+                      description: l.description,
+                      quantity: l.quantity,
+                      unit: l.unit || "stk",
+                      unit_price: l.unit_price,
+                      discount_percent: l.discount_percent,
+                      vat_rate: l.vat_rate,
+                      suggested_by_ai: l.suggested_by_ai,
+                    }));
+                    await supabase.from("order_lines").insert(payloads as any);
+                  }
+                  // Update calc totals
+                  const newTotals = calcTotals(newLines);
+                  await supabase.from("calculations").update({ total_price: newTotals.totalExVat }).eq("id", calc.id);
+                  toast.success("Ordrelinjer lagret");
+                }
+              }}
+              readOnly={!isAdmin}
+              companyId={calc.company_id}
+            />
+          ) : items.length > 0 ? (
+            <div className="space-y-4">
+              <div className="rounded-lg border border-dashed bg-muted/20 p-3 flex items-center gap-2">
+                <AlertCircle className="h-4 w-4 text-muted-foreground shrink-0" />
+                <p className="text-xs text-muted-foreground">
+                  Dette tilbudet bruker eldre kalkyleformat. Ordrelinjer vil bli brukt for nye tilbud.
+                </p>
+              </div>
+              {/* Legacy items display */}
+              <div className="rounded-xl border border-border/40 overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Beskrivelse</TableHead>
+                      <TableHead className="w-[80px]">Antall</TableHead>
+                      <TableHead className="w-[70px]">Enhet</TableHead>
+                      <TableHead className="w-[100px]">Enhetspris</TableHead>
+                      <TableHead className="w-[100px] text-right">Sum</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {items.map((item) => (
+                      <TableRow key={item.id}>
+                        <TableCell>
+                          <Badge variant="outline" className="text-[10px]">{item.type === "material" ? "Materiale" : "Arbeid"}</Badge>
+                        </TableCell>
+                        <TableCell className="text-sm">{item.title}</TableCell>
+                        <TableCell className="text-sm">{item.quantity}</TableCell>
+                        <TableCell className="text-sm">{item.unit}</TableCell>
+                        <TableCell className="text-sm">kr {item.unit_price.toLocaleString("nb-NO")}</TableCell>
+                        <TableCell className="text-right font-mono text-sm font-medium">kr {item.total_price.toLocaleString("nb-NO")}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               </div>
             </div>
+          ) : (
+            <div className="rounded-xl border border-dashed bg-card p-8 text-center space-y-3">
+              <Package className="h-10 w-10 mx-auto text-muted-foreground" />
+              <h3 className="text-lg font-medium">Ingen ordrelinjer</h3>
+              <p className="text-sm text-muted-foreground">
+                Tilbudet har ingen ordrelinjer ennå.
+              </p>
+            </div>
           )}
-
-          {/* Materials */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Materialer</h3>
-              {isAdmin && <Button variant="outline" size="sm" onClick={() => addItem("material")} className="gap-1 rounded-lg"><Plus className="h-3 w-3" /> Legg til</Button>}
-            </div>
-            <div className="rounded-xl border border-border/40 overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Beskrivelse</TableHead>
-                    <TableHead className="w-[80px]">Antall</TableHead>
-                    <TableHead className="w-[70px]">Enhet</TableHead>
-                    {showCost && <TableHead className="w-[90px]">Kost</TableHead>}
-                    <TableHead className="w-[100px]">Salgspris</TableHead>
-                    <TableHead className="w-[100px] text-right">Sum</TableHead>
-                    {showCost && <TableHead className="w-[90px] text-right">Margin</TableHead>}
-                    {isAdmin && <TableHead className="w-[50px]" />}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {materials.length === 0 ? (
-                    <TableRow><TableCell colSpan={showCost ? 8 : 6} className="text-center text-muted-foreground py-4">Ingen materialer</TableCell></TableRow>
-                  ) : materials.map((item) => (
-                    <TableRow key={item.id}>
-                      <TableCell>
-                        {isAdmin ? <Input value={item.title} onChange={(e) => handleItemChange(item.id, "title", e.target.value)} className="h-8 text-sm" /> : <span className="text-sm">{item.title}</span>}
-                        {item.suggested_by_ai && <Badge variant="outline" className="ml-1.5 text-[10px]">AI</Badge>}
-                      </TableCell>
-                      <TableCell>
-                        {isAdmin ? <Input type="number" value={item.quantity} onChange={(e) => handleItemChange(item.id, "quantity", Number(e.target.value))} className="h-8 text-sm w-20" /> : item.quantity}
-                      </TableCell>
-                      <TableCell className="text-sm">{item.unit}</TableCell>
-                      {showCost && <TableCell className="text-sm font-mono text-muted-foreground">kr {getCostPrice(item).toLocaleString("nb-NO", { maximumFractionDigits: 0 })}</TableCell>}
-                      <TableCell>
-                        {isAdmin ? <Input type="number" value={item.unit_price} onChange={(e) => handleItemChange(item.id, "unit_price", Number(e.target.value))} className="h-8 text-sm w-24" /> : `kr ${item.unit_price}`}
-                      </TableCell>
-                      <TableCell className="text-right font-mono text-sm font-medium">kr {item.total_price.toLocaleString("nb-NO")}</TableCell>
-                      {showCost && <TableCell className="text-right font-mono text-sm text-primary">kr {getMargin(item).toLocaleString("nb-NO", { maximumFractionDigits: 0 })}</TableCell>}
-                      {isAdmin && <TableCell><Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => deleteItem(item.id)}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button></TableCell>}
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </div>
-
-          {/* Labor */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Arbeid</h3>
-              {isAdmin && <Button variant="outline" size="sm" onClick={() => addItem("labor")} className="gap-1 rounded-lg"><Plus className="h-3 w-3" /> Legg til</Button>}
-            </div>
-            <div className="rounded-xl border border-border/40 overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Beskrivelse</TableHead>
-                    <TableHead className="w-[80px]">Timer</TableHead>
-                    <TableHead className="w-[100px]">Timepris</TableHead>
-                    <TableHead className="w-[100px] text-right">Sum</TableHead>
-                    {isAdmin && <TableHead className="w-[50px]" />}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {labor.length === 0 ? (
-                    <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-4">Ingen arbeidsposter</TableCell></TableRow>
-                  ) : labor.map((item) => (
-                    <TableRow key={item.id}>
-                      <TableCell>
-                        {isAdmin ? <Input value={item.title} onChange={(e) => handleItemChange(item.id, "title", e.target.value)} className="h-8 text-sm" /> : <span className="text-sm">{item.title}</span>}
-                        {item.suggested_by_ai && <Badge variant="outline" className="ml-1.5 text-[10px]">AI</Badge>}
-                      </TableCell>
-                      <TableCell>
-                        {isAdmin ? <Input type="number" value={item.quantity} onChange={(e) => handleItemChange(item.id, "quantity", Number(e.target.value))} className="h-8 text-sm w-20" /> : item.quantity}
-                      </TableCell>
-                      <TableCell>
-                        {isAdmin ? <Input type="number" value={item.unit_price} onChange={(e) => handleItemChange(item.id, "unit_price", Number(e.target.value))} className="h-8 text-sm w-24" /> : `kr ${item.unit_price}`}
-                      </TableCell>
-                      <TableCell className="text-right font-mono text-sm font-medium">kr {item.total_price.toLocaleString("nb-NO")}</TableCell>
-                      {isAdmin && <TableCell><Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => deleteItem(item.id)}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button></TableCell>}
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </div>
         </TabsContent>
 
         {/* ===== Versions Tab (punkt 5 — replaces "Tilbud") ===== */}
@@ -1319,6 +1338,12 @@ export default function CalculationDetail() {
           }
           fetchCalc();
         }}
+      />
+      <PdfPreviewDialog
+        open={previewOpen}
+        onOpenChange={setPreviewOpen}
+        pdfUrl={previewUrl}
+        loading={previewLoading}
       />
     </div>
   );

@@ -234,10 +234,10 @@ export function OrderLineEditor({
                       line.suggested_by_ai && "bg-primary/5 border-l-2 border-l-primary/30"
                     )}
                   >
-                    <TableCell className="text-center text-xs text-muted-foreground font-mono py-3">
+                    <TableCell className="text-center text-xs text-muted-foreground font-mono py-4">
                       {idx + 1}
                     </TableCell>
-                    <TableCell className="py-3">
+                    <TableCell className="py-4">
                       {line.line_type === "text" ? (
                         readOnly ? (
                           <p className="text-sm italic text-muted-foreground">{line.description}</p>
@@ -253,7 +253,7 @@ export function OrderLineEditor({
                       ) : readOnly ? (
                         <p className="text-sm">{line.description}</p>
                       ) : (
-                        <div className="space-y-1">
+                        <div className="space-y-1.5">
                           <Input
                             value={line.description}
                             onChange={e => updateLine(line.id, "description", e.target.value)}
@@ -261,14 +261,16 @@ export function OrderLineEditor({
                             className="h-9 text-sm border-0 bg-transparent shadow-none px-1 focus-visible:ring-1 focus-visible:ring-primary/30 rounded"
                           />
                           {line.description.trim().length > 2 && (
-                            <button
+                            <Button
                               type="button"
-                              className="text-[11px] text-primary/70 hover:text-primary hover:underline flex items-center gap-1"
+                              variant="outline"
+                              size="sm"
+                              className="h-7 text-[11px] gap-1 rounded-md px-2 border-dashed"
                               onClick={() => openCreateProductForLine(line.id, line.description)}
                             >
                               <Plus className="h-3 w-3" />
-                              Lagre som nytt produkt
-                            </button>
+                              Opprett produkt
+                            </Button>
                           )}
                         </div>
                       )}
@@ -288,7 +290,7 @@ export function OrderLineEditor({
                       </>
                     ) : (
                       <>
-                        <TableCell className="py-3">
+                        <TableCell className="py-4">
                           {readOnly ? (
                             <span className="text-sm text-right block">{formatQuantity(line.quantity, line.unit)}</span>
                           ) : (
@@ -305,7 +307,7 @@ export function OrderLineEditor({
                             />
                           )}
                         </TableCell>
-                        <TableCell className="py-3">
+                        <TableCell className="py-4">
                           {readOnly ? (
                             <span className="text-sm">{line.unit}</span>
                           ) : (
@@ -324,7 +326,7 @@ export function OrderLineEditor({
                             </Select>
                           )}
                         </TableCell>
-                        <TableCell className="py-3">
+                        <TableCell className="py-4">
                           {readOnly ? (
                             <span className="text-sm text-right block">{formatPrice(line.unit_price)}</span>
                           ) : (
@@ -338,7 +340,7 @@ export function OrderLineEditor({
                             />
                           )}
                         </TableCell>
-                        <TableCell className="py-3">
+                        <TableCell className="py-4">
                           {readOnly ? (
                             <span className="text-sm text-right block">{line.discount_percent}%</span>
                           ) : (
@@ -353,13 +355,13 @@ export function OrderLineEditor({
                             />
                           )}
                         </TableCell>
-                        <TableCell className="text-right font-medium text-sm py-3">
+                        <TableCell className="text-right font-medium text-sm py-4">
                           {formatPrice(calcLineExVat(line))}
                         </TableCell>
                       </>
                     )}
                     {!readOnly && (
-                      <TableCell className="py-3">
+                      <TableCell className="py-4">
                         <Button
                           type="button"
                           variant="ghost"
