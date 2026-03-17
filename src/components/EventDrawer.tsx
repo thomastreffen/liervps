@@ -188,10 +188,12 @@ export function EventDrawer({
 
     // Load existing attachments for edit mode
     if (editEvent) {
-      supabase.from("events").select("attachments").eq("id", editEvent.id).single().then(({ data }) => {
+      supabase.from("events").select("attachments, company_id, internal_companies(name)").eq("id", editEvent.id).single().then(({ data }) => {
         if (data?.attachments && Array.isArray(data.attachments)) {
           setExistingAttachments(data.attachments as unknown as Attachment[]);
         }
+        const compName = (data as any)?.internal_companies?.name;
+        if (compName) setEditCompanyName(compName);
       });
     }
   }, [open, editEvent, preselectedStart, preselectedEnd, preselectedTechId, projectId, projectTitle, isAllCompanies, activeCompanyId, companies]);
