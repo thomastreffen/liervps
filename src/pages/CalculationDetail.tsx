@@ -144,6 +144,7 @@ export default function CalculationDetail() {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
 
   const fetchCalc = useCallback(async () => {
     if (!id) return;
@@ -188,9 +189,11 @@ export default function CalculationDetail() {
     }
     if (calcRes.data && offersRes.data && offersRes.data.length > 0) {
       const lastOffer = offersRes.data[0];
-      const calcUpdated = new Date(calcRes.data.updated_at);
-      const offerCreated = new Date(lastOffer.created_at);
-      setCalcChangedSinceOffer(calcUpdated > offerCreated);
+      const calcUpdated = new Date(calcRes.data.updated_at).getTime();
+      const offerCreated = new Date(lastOffer.created_at).getTime();
+      // Use 30-second tolerance: generating an offer updates the calc status/updated_at
+      // so we need to account for the time between offer creation and calc status update
+      setCalcChangedSinceOffer(calcUpdated > offerCreated + 30000);
     } else {
       setCalcChangedSinceOffer(false);
     }
@@ -658,13 +661,20 @@ export default function CalculationDetail() {
                     setPreviewOpen(true);
                     setPreviewLoading(true);
                     setPreviewUrl(null);
+                    setPreviewError(null);
                     try {
                       const { data, error } = await supabase.functions.invoke("generate-offer-pdf", {
                         body: { calculation_id: calc.id, created_by: user?.id, preview_only: true },
                       });
                       if (error) throw error;
                       setPreviewUrl(data?.pdf_url || data?.generated_pdf_url || null);
-                    } catch { toast.error("Kunne ikke generere forhåndsvisning"); }
+                      if (!data?.pdf_url && !data?.generated_pdf_url) {
+                        setPreviewError("Ingen forhåndsvisning tilgjengelig");
+                      }
+                    } catch (e: any) {
+                      console.error("[Preview error]", e);
+                      setPreviewError("Kunne ikke generere forhåndsvisning akkurat nå");
+                    }
                     finally { setPreviewLoading(false); }
                   }}
                   variant="outline" size="sm" className="gap-1.5 rounded-lg"
@@ -1344,6 +1354,22 @@ export default function CalculationDetail() {
         onOpenChange={setPreviewOpen}
         pdfUrl={previewUrl}
         loading={previewLoading}
+        error={previewError}
+        onRetry={async () => {
+          if (!calc) return;
+          setPreviewLoading(true);
+          setPreviewUrl(null);
+          setPreviewError(null);
+          try {
+            const { data, error } = await supabase.functions.invoke("generate-offer-pdf", {
+              body: { calculation_id: calc.id, created_by: user?.id, preview_only: true },
+            });
+            if (error) throw error;
+            setPreviewUrl(data?.pdf_url || null);
+            if (!data?.pdf_url) setPreviewError("Ingen forhåndsvisning tilgjengelig");
+          } catch { setPreviewError("Kunne ikke generere forhåndsvisning akkurat nå"); }
+          finally { setPreviewLoading(false); }
+        }}
       />
     </div>
   );

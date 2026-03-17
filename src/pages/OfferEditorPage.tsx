@@ -12,6 +12,7 @@ import { ContactPersonSelect } from "@/components/offer/ContactPersonSelect";
 import { OrderLineEditor, calcTotals, type OrderLine } from "@/components/offer/OrderLineEditor";
 import { AiSuggestionsPreview } from "@/components/offer/AiSuggestionsPreview";
 import { PdfPreviewDialog } from "@/components/offer/PdfPreviewDialog";
+import { Switch } from "@/components/ui/switch";
 import {
   ArrowLeft, Save, Loader2, FileDown, ReceiptText, Eye,
 } from "lucide-react";
@@ -41,10 +42,14 @@ export default function OfferEditorPage() {
   const [aiLoading, setAiLoading] = useState(false);
   const [aiSuggestions, setAiSuggestions] = useState<OrderLine[]>([]);
 
+  // Discount toggle
+  const [showDiscountInOffer, setShowDiscountInOffer] = useState(false);
+
   // PDF preview
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
 
   // Pre-fill from query params
   useEffect(() => {
@@ -84,6 +89,7 @@ export default function OfferEditorPage() {
         total_material: 0,
         total_labor: 0,
         company_id: activeCompanyId || null,
+        show_discount_in_offer: showDiscountInOffer,
       };
 
       if (cId) {
@@ -129,7 +135,7 @@ export default function OfferEditorPage() {
     } finally {
       setSaving(false);
     }
-  }, [calcId, projectTitle, customerName, customerEmail, selectedCustomerId, selectedContactId, comment, lines, totals, user, activeCompanyId]);
+  }, [calcId, projectTitle, customerName, customerEmail, selectedCustomerId, selectedContactId, comment, lines, totals, user, activeCompanyId, showDiscountInOffer]);
 
   const generatePdf = async () => {
     const savedId = await saveOffer(true);
@@ -186,6 +192,7 @@ export default function OfferEditorPage() {
     setPreviewOpen(true);
     setPreviewLoading(true);
     setPreviewUrl(null);
+    setPreviewError(null);
     try {
       const { data, error } = await supabase.functions.invoke("generate-offer-pdf", {
         body: { calculation_id: savedId, created_by: user?.id, preview_only: true },
@@ -196,10 +203,11 @@ export default function OfferEditorPage() {
       } else if (data?.generated_pdf_url) {
         setPreviewUrl(data.generated_pdf_url);
       } else {
-        toast.info("Forhåndsvisning ikke tilgjengelig");
+        setPreviewError("Ingen forhåndsvisning tilgjengelig");
       }
     } catch (err: any) {
-      toast.error("Kunne ikke generere forhåndsvisning");
+      console.error("[Preview error]", err);
+      setPreviewError("Kunne ikke generere forhåndsvisning akkurat nå");
     } finally {
       setPreviewLoading(false);
     }
@@ -382,9 +390,21 @@ export default function OfferEditorPage() {
         />
       )}
 
-      {/* Order Lines */}
+      {/* Discount toggle + Order Lines */}
       <div className="space-y-3">
-        <h2 className="text-lg font-semibold">Ordrelinjer</h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold">Ordrelinjer</h2>
+          <div className="flex items-center gap-2">
+            <label htmlFor="show-discount" className="text-sm text-muted-foreground cursor-pointer">
+              Vis rabatt i tilbud
+            </label>
+            <Switch
+              id="show-discount"
+              checked={showDiscountInOffer}
+              onCheckedChange={setShowDiscountInOffer}
+            />
+          </div>
+        </div>
         <OrderLineEditor
           lines={lines}
           onChange={setLines}
@@ -401,6 +421,8 @@ export default function OfferEditorPage() {
         onOpenChange={setPreviewOpen}
         pdfUrl={previewUrl}
         loading={previewLoading}
+        error={previewError}
+        onRetry={handlePreviewPdf}
       />
     </div>
   );
