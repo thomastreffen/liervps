@@ -148,11 +148,12 @@ export default function CalculationDetail() {
   const fetchCalc = useCallback(async () => {
     if (!id) return;
     setLoading(true);
-    const [calcRes, itemsRes, settingsRes, offersRes] = await Promise.all([
+    const [calcRes, itemsRes, settingsRes, offersRes, orderLinesRes] = await Promise.all([
       supabase.from("calculations").select("*, internal_companies(name), customer_contacts(id, name, email, phone, role)").eq("id", id).single(),
       supabase.from("calculation_items").select("*").eq("calculation_id", id).order("type").order("title"),
       supabase.from("settings").select("key, value"),
       supabase.from("offers").select("*").eq("calculation_id", id).order("created_at", { ascending: false }),
+      supabase.from("order_lines").select("*").eq("calculation_id", id).order("sort_order" as any),
     ]);
     if (calcRes.data) {
       setCalc(calcRes.data as unknown as Calculation);
@@ -163,6 +164,20 @@ export default function CalculationDetail() {
     }
     if (itemsRes.data) setItems(itemsRes.data as CalcItem[]);
     if (offersRes.data) setOffers(offersRes.data as unknown as Offer[]);
+    if (orderLinesRes.data) {
+      setOrderLines((orderLinesRes.data as any[]).map((ol: any) => ({
+        id: ol.id,
+        sort_order: ol.sort_order ?? 0,
+        line_type: ol.line_type || "product",
+        description: ol.description || "",
+        quantity: Number(ol.quantity) || 0,
+        unit: ol.unit || "stk",
+        unit_price: Number(ol.unit_price) || 0,
+        discount_percent: Number(ol.discount_percent) || 0,
+        vat_rate: Number(ol.vat_rate) || 25,
+        suggested_by_ai: ol.suggested_by_ai || false,
+      })));
+    }
     if (settingsRes.data) {
       const s: any = { material_multiplier: 2.0, default_hour_rate: 1080 };
       settingsRes.data.forEach((row: any) => {
