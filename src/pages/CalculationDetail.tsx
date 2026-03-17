@@ -1354,6 +1354,22 @@ export default function CalculationDetail() {
         onOpenChange={setPreviewOpen}
         pdfUrl={previewUrl}
         loading={previewLoading}
+        error={previewError}
+        onRetry={async () => {
+          if (!calc) return;
+          setPreviewLoading(true);
+          setPreviewUrl(null);
+          setPreviewError(null);
+          try {
+            const { data, error } = await supabase.functions.invoke("generate-offer-pdf", {
+              body: { calculation_id: calc.id, created_by: user?.id, preview_only: true },
+            });
+            if (error) throw error;
+            setPreviewUrl(data?.pdf_url || null);
+            if (!data?.pdf_url) setPreviewError("Ingen forhåndsvisning tilgjengelig");
+          } catch { setPreviewError("Kunne ikke generere forhåndsvisning akkurat nå"); }
+          finally { setPreviewLoading(false); }
+        }}
       />
     </div>
   );
