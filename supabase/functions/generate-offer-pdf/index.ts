@@ -260,64 +260,124 @@ serve(async (req) => {
       y += descH + 6;
     }
 
-    // ── MATERIALS TABLE ──
-    if (materials.length > 0) {
-      checkPage(20);
-      doc.setFontSize(11);
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(51, 65, 85);
-      doc.text("MATERIALER", marginL, y);
-      y += 2;
+    if (useOrderLines) {
+      // ── ORDER LINES TABLE ──
+      const productLines = orderLines.filter((l: any) => l.line_type === "product");
+      const textLines = orderLines.filter((l: any) => l.line_type === "text");
 
-      (doc as any).autoTable({
-        startY: y,
-        margin: { left: marginL, right: marginR },
-        head: [["Beskrivelse", "Antall", "Enhet", "Pris", "Sum"]],
-        body: materials.map((m: any) => [
-          m.title, String(m.quantity), m.unit || "stk",
-          formatPrice(m.unit_price), formatPrice(m.total_price),
-        ]),
-        styles: { fontSize: 9, cellPadding: 3, textColor: [26, 26, 46], lineColor: [241, 245, 249], lineWidth: 0.3 },
-        headStyles: { fillColor: [241, 245, 249], textColor: [100, 116, 139], fontStyle: "bold", fontSize: 8 },
-        columnStyles: {
-          0: { cellWidth: "auto" },
-          1: { halign: "right", cellWidth: 18 },
-          2: { halign: "right", cellWidth: 18 },
-          3: { halign: "right", cellWidth: 28 },
-          4: { halign: "right", cellWidth: 28, fontStyle: "bold" },
-        },
-        alternateRowStyles: { fillColor: [248, 250, 252] },
-      });
-      y = (doc as any).lastAutoTable.finalY + 8;
-    }
+      // Text lines first (headings/comments)
+      for (const tl of textLines) {
+        if (tl.sort_order < (productLines[0]?.sort_order || 999)) {
+          checkPage(8);
+          doc.setFontSize(10);
+          doc.setFont("helvetica", "italic");
+          doc.setTextColor(100, 116, 139);
+          doc.text(tl.description, marginL, y);
+          y += 6;
+        }
+      }
 
-    // ── LABOR TABLE ──
-    if (labor.length > 0) {
-      checkPage(20);
-      doc.setFontSize(11);
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(51, 65, 85);
-      doc.text("ARBEID", marginL, y);
-      y += 2;
+      if (productLines.length > 0) {
+        checkPage(20);
+        doc.setFontSize(11);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(51, 65, 85);
+        doc.text("ORDRELINJER", marginL, y);
+        y += 2;
 
-      (doc as any).autoTable({
-        startY: y,
-        margin: { left: marginL, right: marginR },
-        head: [["Beskrivelse", "Timer", "Timepris", "Sum"]],
-        body: labor.map((l: any) => [
-          l.title, String(l.quantity), formatPrice(l.unit_price), formatPrice(l.total_price),
-        ]),
-        styles: { fontSize: 9, cellPadding: 3, textColor: [26, 26, 46], lineColor: [241, 245, 249], lineWidth: 0.3 },
-        headStyles: { fillColor: [241, 245, 249], textColor: [100, 116, 139], fontStyle: "bold", fontSize: 8 },
-        columnStyles: {
-          0: { cellWidth: "auto" },
-          1: { halign: "right", cellWidth: 20 },
-          2: { halign: "right", cellWidth: 28 },
-          3: { halign: "right", cellWidth: 28, fontStyle: "bold" },
-        },
-        alternateRowStyles: { fillColor: [248, 250, 252] },
-      });
-      y = (doc as any).lastAutoTable.finalY + 8;
+        (doc as any).autoTable({
+          startY: y,
+          margin: { left: marginL, right: marginR },
+          head: [["Beskrivelse", "Antall", "Enhet", "Enhetspris", "Rabatt", "Sum eks. mva"]],
+          body: orderLines
+            .sort((a: any, b: any) => a.sort_order - b.sort_order)
+            .map((l: any) => {
+              if (l.line_type === "text") {
+                return [{ content: l.description, colSpan: 6, styles: { fontStyle: "italic", textColor: [100, 116, 139] } }];
+              }
+              return [
+                l.description,
+                String(l.quantity),
+                l.unit || "stk",
+                formatPrice(Number(l.unit_price)),
+                l.discount_percent > 0 ? `${l.discount_percent}%` : "–",
+                formatPrice(Number(l.total_ex_vat)),
+              ];
+            }),
+          styles: { fontSize: 9, cellPadding: 3, textColor: [26, 26, 46], lineColor: [241, 245, 249], lineWidth: 0.3 },
+          headStyles: { fillColor: [241, 245, 249], textColor: [100, 116, 139], fontStyle: "bold", fontSize: 8 },
+          columnStyles: {
+            0: { cellWidth: "auto" },
+            1: { halign: "right", cellWidth: 18 },
+            2: { halign: "right", cellWidth: 18 },
+            3: { halign: "right", cellWidth: 28 },
+            4: { halign: "right", cellWidth: 20 },
+            5: { halign: "right", cellWidth: 28, fontStyle: "bold" },
+          },
+          alternateRowStyles: { fillColor: [248, 250, 252] },
+        });
+        y = (doc as any).lastAutoTable.finalY + 8;
+      }
+    } else {
+      // ── LEGACY: MATERIALS TABLE ──
+      if (materials.length > 0) {
+        checkPage(20);
+        doc.setFontSize(11);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(51, 65, 85);
+        doc.text("MATERIALER", marginL, y);
+        y += 2;
+
+        (doc as any).autoTable({
+          startY: y,
+          margin: { left: marginL, right: marginR },
+          head: [["Beskrivelse", "Antall", "Enhet", "Pris", "Sum"]],
+          body: materials.map((m: any) => [
+            m.title, String(m.quantity), m.unit || "stk",
+            formatPrice(m.unit_price), formatPrice(m.total_price),
+          ]),
+          styles: { fontSize: 9, cellPadding: 3, textColor: [26, 26, 46], lineColor: [241, 245, 249], lineWidth: 0.3 },
+          headStyles: { fillColor: [241, 245, 249], textColor: [100, 116, 139], fontStyle: "bold", fontSize: 8 },
+          columnStyles: {
+            0: { cellWidth: "auto" },
+            1: { halign: "right", cellWidth: 18 },
+            2: { halign: "right", cellWidth: 18 },
+            3: { halign: "right", cellWidth: 28 },
+            4: { halign: "right", cellWidth: 28, fontStyle: "bold" },
+          },
+          alternateRowStyles: { fillColor: [248, 250, 252] },
+        });
+        y = (doc as any).lastAutoTable.finalY + 8;
+      }
+
+      // ── LEGACY: LABOR TABLE ──
+      if (labor.length > 0) {
+        checkPage(20);
+        doc.setFontSize(11);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(51, 65, 85);
+        doc.text("ARBEID", marginL, y);
+        y += 2;
+
+        (doc as any).autoTable({
+          startY: y,
+          margin: { left: marginL, right: marginR },
+          head: [["Beskrivelse", "Timer", "Timepris", "Sum"]],
+          body: labor.map((l: any) => [
+            l.title, String(l.quantity), formatPrice(l.unit_price), formatPrice(l.total_price),
+          ]),
+          styles: { fontSize: 9, cellPadding: 3, textColor: [26, 26, 46], lineColor: [241, 245, 249], lineWidth: 0.3 },
+          headStyles: { fillColor: [241, 245, 249], textColor: [100, 116, 139], fontStyle: "bold", fontSize: 8 },
+          columnStyles: {
+            0: { cellWidth: "auto" },
+            1: { halign: "right", cellWidth: 20 },
+            2: { halign: "right", cellWidth: 28 },
+            3: { halign: "right", cellWidth: 28, fontStyle: "bold" },
+          },
+          alternateRowStyles: { fillColor: [248, 250, 252] },
+        });
+        y = (doc as any).lastAutoTable.finalY + 8;
+      }
     }
 
     // ── TOTALS ──
@@ -327,12 +387,18 @@ serve(async (req) => {
     doc.line(pageW - marginR - 80, y, pageW - marginR, y);
     y += 6;
 
-    const totalRows = [
-      ["Materialer", `kr ${formatPrice(Number(calc.total_material))}`],
-      ["Arbeid", `kr ${formatPrice(Number(calc.total_labor))}`],
-      ["Sum eks. MVA", `kr ${formatPrice(totalExVat)}`],
-      ["MVA (25%)", `kr ${formatPrice(totalExVat * 0.25)}`],
-    ];
+    const vatAmount = totalIncVat - totalExVat;
+    const totalRows = useOrderLines
+      ? [
+          ["Sum eks. MVA", `kr ${formatPrice(totalExVat)}`],
+          ["MVA (25%)", `kr ${formatPrice(vatAmount)}`],
+        ]
+      : [
+          ["Materialer", `kr ${formatPrice(Number(calc.total_material))}`],
+          ["Arbeid", `kr ${formatPrice(Number(calc.total_labor))}`],
+          ["Sum eks. MVA", `kr ${formatPrice(totalExVat)}`],
+          ["MVA (25%)", `kr ${formatPrice(totalExVat * 0.25)}`],
+        ];
     doc.setFontSize(10);
     doc.setFont("helvetica", "normal");
     doc.setTextColor(51, 65, 85);
