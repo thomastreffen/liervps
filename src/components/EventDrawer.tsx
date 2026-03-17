@@ -115,6 +115,7 @@ export function EventDrawer({
   const [customer, setCustomer] = useState("");
   const [address, setAddress] = useState("");
   const [description, setDescription] = useState("");
+  const [assignmentNotes, setAssignmentNotes] = useState("");
   const [date, setDate] = useState("");
   const [startTime, setStartTime] = useState("08:00");
   const [endDate, setEndDate] = useState("");
@@ -167,6 +168,7 @@ export function EventDrawer({
       setCustomer("");
       setAddress("");
       setDescription("");
+      setAssignmentNotes("");
       setDate(nextDate);
       setStartTime(nextStartTime);
       setEndTime(nextEndTime);
@@ -351,9 +353,17 @@ export function EventDrawer({
         toast.success("Hendelse oppdatert", { description: "Tid og ressurser er lagret." });
         onSaved?.(editEvent.id);
       } else if (mode === "existing" && selectedJobId) {
+        const updatePayload: Record<string, any> = {};
         if (date) {
           const { startISO, endISO } = normalizeOvernightDates(date, startTime, endDate, endTime);
-          await supabase.from("events").update({ start_time: startISO, end_time: endISO }).eq("id", selectedJobId);
+          updatePayload.start_time = startISO;
+          updatePayload.end_time = endISO;
+        }
+        if (assignmentNotes.trim()) {
+          updatePayload.assignment_notes = assignmentNotes.trim();
+        }
+        if (Object.keys(updatePayload).length > 0) {
+          await (supabase as any).from("events").update(updatePayload).eq("id", selectedJobId);
         }
 
         const { data: existing } = await supabase
@@ -767,6 +777,23 @@ export function EventDrawer({
               <h3 className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Beskrivelse</h3>
               <Textarea value={description} onChange={(e) => setDescription(e.target.value)}
                 placeholder="Detaljer til montøren..." className="min-h-[60px] resize-none" rows={2} />
+            </section>
+          )}
+
+          {/* ═══ SECTION: OPPDRAGSINSTRUKS (existing project mode) ═══ */}
+          {mode === "existing" && !isEditing && (
+            <section className="space-y-3">
+              <h3 className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Instruks for dette oppdraget</h3>
+              <p className="text-[11px] text-muted-foreground">
+                Prosjektet gir grunninfo. Feltet under gjelder denne konkrete tildelingen.
+              </p>
+              <Textarea
+                value={assignmentNotes}
+                onChange={(e) => setAssignmentNotes(e.target.value)}
+                placeholder="Spesifikke instrukser for denne tildelingen…"
+                className="min-h-[60px] resize-none"
+                rows={2}
+              />
             </section>
           )}
 
