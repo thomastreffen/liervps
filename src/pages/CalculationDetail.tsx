@@ -925,16 +925,52 @@ export default function CalculationDetail() {
         )}
       </header>
 
-      {/* ── Tabs (punkt 5 — simplified) ── */}
-      <Tabs defaultValue="overview">
+      {/* ── Sales Pipeline Bar ── */}
+      <SalesPipelineBar
+        currentStatus={calc.status}
+        onStatusChange={isAdmin ? handleStatusChange : undefined}
+        disabled={!isAdmin}
+      />
+
+      {/* ── Next Step + Responsible ── */}
+      <div className="grid grid-cols-1 md:grid-cols-[1fr_200px] gap-3">
+        <NextStepSection
+          nextStep={calc.next_step}
+          nextStepAt={calc.next_step_at}
+          onSave={handleNextStepSave}
+          readOnly={!isAdmin}
+        />
+        <OfferResponsibleSelect
+          value={calc.responsible_user_id}
+          onChange={handleResponsibleChange}
+          companyId={calc.company_id}
+        />
+      </div>
+
+      {/* ── Tabs ── */}
+      <Tabs defaultValue="workspace">
         <TabsList className="w-full sm:w-auto flex overflow-x-auto rounded-xl">
+          <TabsTrigger value="workspace" className="gap-1.5 rounded-lg"><MessageCircle className="h-3.5 w-3.5" />Arbeidsrom</TabsTrigger>
           <TabsTrigger value="overview" className="gap-1.5 rounded-lg"><FileText className="h-3.5 w-3.5" />Oversikt</TabsTrigger>
           <TabsTrigger value="items" className="gap-1.5 rounded-lg"><Package className="h-3.5 w-3.5" />Ordrelinjer ({hasOrderLines ? orderLines.length : items.length})</TabsTrigger>
           <TabsTrigger value="versions" className="gap-1.5 rounded-lg"><ReceiptText className="h-3.5 w-3.5" />Versjoner ({offers.length})</TabsTrigger>
           <TabsTrigger value="attachments" className="gap-1.5 rounded-lg"><Paperclip className="h-3.5 w-3.5" />Vedlegg {attachments.length > 0 && `(${attachments.length})`}</TabsTrigger>
-          <TabsTrigger value="history" className="gap-1.5 rounded-lg"><History className="h-3.5 w-3.5" />Historikk</TabsTrigger>
-          <TabsTrigger value="activity" className="gap-1.5 rounded-lg"><Eye className="h-3.5 w-3.5" />Aktivitet</TabsTrigger>
+          <TabsTrigger value="activity" className="gap-1.5 rounded-lg"><Eye className="h-3.5 w-3.5" />Kundeaktivitet</TabsTrigger>
         </TabsList>
+
+        {/* ===== Workspace Tab (CRM) ===== */}
+        <TabsContent value="workspace" className="space-y-4 pt-4">
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-4">
+            {/* Main: Comment feed */}
+            <OfferCommentFeed calculationId={calc.id} companyId={calc.company_id} />
+
+            {/* Sidebar: Follow-up + Customer activity */}
+            <div className="space-y-4">
+              <OfferFollowupSection offerId={calc.id} />
+              <OfferActivityTimeline offerId={calc.id} />
+            </div>
+          </div>
+        </TabsContent>
 
         {/* ===== Overview Tab ===== */}
         <TabsContent value="overview" className="space-y-4 pt-4">
