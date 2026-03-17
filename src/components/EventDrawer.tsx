@@ -141,6 +141,7 @@ export function EventDrawer({
   // Attachments
   const [files, setFiles] = useState<File[]>([]);
   const [existingAttachments, setExistingAttachments] = useState<Attachment[]>([]);
+  const [editCompanyName, setEditCompanyName] = useState<string | null>(null);
 
   // Populate form from props
   useEffect(() => {
@@ -182,14 +183,17 @@ export function EventDrawer({
     setClientRequestId(crypto.randomUUID());
     setFiles([]);
     setExistingAttachments([]);
+    setEditCompanyName(null);
     setSelectedCompanyId(isAllCompanies ? (companies.length === 1 ? companies[0].id : null) : activeCompanyId);
 
     // Load existing attachments for edit mode
     if (editEvent) {
-      supabase.from("events").select("attachments").eq("id", editEvent.id).single().then(({ data }) => {
+      supabase.from("events").select("attachments, company_id, internal_companies(name)").eq("id", editEvent.id).single().then(({ data }) => {
         if (data?.attachments && Array.isArray(data.attachments)) {
           setExistingAttachments(data.attachments as unknown as Attachment[]);
         }
+        const compName = (data as any)?.internal_companies?.name;
+        if (compName) setEditCompanyName(compName);
       });
     }
   }, [open, editEvent, preselectedStart, preselectedEnd, preselectedTechId, projectId, projectTitle, isAllCompanies, activeCompanyId, companies]);
@@ -376,8 +380,8 @@ export function EventDrawer({
         onSaved?.(selectedJobId);
       } else {
         const isTask = eventType === "task";
-        // Resolve company_id: explicit selection > active company > first company
-        const resolvedCompanyId = selectedCompanyId || activeCompanyId || (companies.length > 0 ? companies[0].id : null);
+        // Resolve company_id: explicit selection > active company (non-global) > block
+        const resolvedCompanyId = selectedCompanyId || (isAllCompanies ? null : activeCompanyId) || null;
 
         if (!resolvedCompanyId) {
           toast.error("Velg selskap før du oppretter oppdraget");
@@ -654,6 +658,9 @@ export function EventDrawer({
                 </span>
               )}
               <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
+                {editCompanyName && (
+                  <span className="flex items-center gap-1.5"><Building className="h-3.5 w-3.5" />{editCompanyName}</span>
+                )}
                 {editEvent.customer && (
                   <span className="flex items-center gap-1.5"><User className="h-3.5 w-3.5" />{editEvent.customer}</span>
                 )}
