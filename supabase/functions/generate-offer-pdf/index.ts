@@ -21,9 +21,10 @@ serve(async (req) => {
     );
 
     // Fetch all data in parallel
-    const [calcRes, itemsRes, settingsRes, companyRes, countRes] = await Promise.all([
+    const [calcRes, itemsRes, orderLinesRes, settingsRes, companyRes, countRes] = await Promise.all([
       supabase.from("calculations").select("*").eq("id", calculation_id).single(),
       supabase.from("calculation_items").select("*").eq("calculation_id", calculation_id).order("type").order("title"),
+      supabase.from("order_lines").select("*").eq("calculation_id", calculation_id).order("sort_order"),
       supabase.from("settings").select("key, value"),
       supabase.from("company_settings").select("*").limit(1).single(),
       supabase.from("offers").select("id", { count: "exact", head: true }).eq("calculation_id", calculation_id),
@@ -32,15 +33,22 @@ serve(async (req) => {
     const calc = calcRes.data;
     if (calcRes.error || !calc) throw new Error("Kalkulasjon ikke funnet");
 
-    const items = itemsRes.data || [];
+    const legacyItems = itemsRes.data || [];
+    const orderLines = orderLinesRes.data || [];
+    const useOrderLines = orderLines.length > 0;
     const company = companyRes.data;
     const version = (countRes.count || 0) + 1;
 
     // Content hash for deduplication
-    const hashSource = JSON.stringify({
-      items: items.map((i: any) => ({ t: i.title, q: i.quantity, u: i.unit_price, tp: i.type })),
-      total: calc.total_price, customer: calc.customer_name, project: calc.project_title,
-    });
+    const hashSource = useOrderLines
+      ? JSON.stringify({
+          orderLines: orderLines.map((l: any) => ({ d: l.description, q: l.quantity, u: l.unit_price, dp: l.discount_percent })),
+          customer: calc.customer_name, project: calc.project_title,
+        })
+      : JSON.stringify({
+          items: legacyItems.map((i: any) => ({ t: i.title, q: i.quantity, u: i.unit_price, tp: i.type })),
+          total: calc.total_price, customer: calc.customer_name, project: calc.project_title,
+        });
     const hashBuffer = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(hashSource));
     const contentHash = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, "0")).join("");
 
@@ -67,10 +75,22 @@ serve(async (req) => {
       });
     }
 
-    const materials = items.filter((i: any) => i.type === "material");
-    const labor = items.filter((i: any) => i.type === "labor");
-    const totalExVat = Number(calc.total_price);
-    const totalIncVat = totalExVat * 1.25;
+    // Calculate totals based on data source
+    let totalExVat: number;
+    let totalIncVat: number;
+    let materials: any[] = [];
+    let labor: any[] = [];
+
+    if (useOrderLines) {
+      const productLines = orderLines.filter((l: any) => l.line_type === "product");
+      totalExVat = productLines.reduce((s: number, l: any) => s + Number(l.total_ex_vat || 0), 0);
+      totalIncVat = productLines.reduce((s: number, l: any) => s + Number(l.total_inc_vat || 0), 0);
+    } else {
+      totalExVat = Number(calc.total_price);
+      totalIncVat = totalExVat * 1.25;
+      materials = legacyItems.filter((i: any) => i.type === "material");
+      labor = legacyItems.filter((i: any) => i.type === "labor");
+    }
     const today = new Date();
     const validDays = company?.default_offer_valid_days || 30;
     const validUntil = new Date(today.getTime() + validDays * 24 * 60 * 60 * 1000);
