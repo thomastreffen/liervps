@@ -587,6 +587,14 @@ export default function CalculationDetail() {
               )}
               <span className="flex items-center gap-1.5"><Building2 className="h-3.5 w-3.5" />{calc.customer_name}</span>
               {calc.customer_email && <span className="flex items-center gap-1.5"><Mail className="h-3.5 w-3.5" />{calc.customer_email}</span>}
+              {contactPerson && (
+                <span className="flex items-center gap-1.5 text-xs font-medium bg-primary/10 text-primary px-2 py-0.5 rounded-md">
+                  👤 {contactPerson.name}
+                  {contactPerson.role && <span className="text-muted-foreground">({contactPerson.role})</span>}
+                  {contactPerson.email && <span className="text-muted-foreground">• {contactPerson.email}</span>}
+                  {contactPerson.phone && <span className="text-muted-foreground">• {contactPerson.phone}</span>}
+                </span>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-2">
