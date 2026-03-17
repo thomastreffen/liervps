@@ -5,6 +5,7 @@ import { nb } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useCompanyContext } from "@/hooks/useCompanyContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -61,6 +62,7 @@ interface Calculation {
   created_at: string;
   updated_at: string;
   lead_id: string | null;
+  company_id: string | null;
 }
 
 interface Offer {
@@ -98,6 +100,7 @@ export default function CalculationDetail() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { hasPermission } = usePermissions();
+  const { activeCompanyId, isAllCompanies, companies, setActiveCompanyId } = useCompanyContext();
   const isAdmin = hasPermission("calculations.edit");
 
   const [calc, setCalc] = useState<Calculation | null>(null);
@@ -119,17 +122,22 @@ export default function CalculationDetail() {
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [regulationOpen, setRegulationOpen] = useState(false);
+  const [calcCompanyName, setCalcCompanyName] = useState<string | null>(null);
 
   const fetchCalc = useCallback(async () => {
     if (!id) return;
     setLoading(true);
     const [calcRes, itemsRes, settingsRes, offersRes] = await Promise.all([
-      supabase.from("calculations").select("*").eq("id", id).single(),
+      supabase.from("calculations").select("*, internal_companies(name)").eq("id", id).single(),
       supabase.from("calculation_items").select("*").eq("calculation_id", id).order("type").order("title"),
       supabase.from("settings").select("key, value"),
       supabase.from("offers").select("*").eq("calculation_id", id).order("created_at", { ascending: false }),
     ]);
-    if (calcRes.data) setCalc(calcRes.data as unknown as Calculation);
+    if (calcRes.data) {
+      setCalc(calcRes.data as unknown as Calculation);
+      const companyRel = (calcRes.data as any).internal_companies;
+      setCalcCompanyName(companyRel?.name || null);
+    }
     if (itemsRes.data) setItems(itemsRes.data as CalcItem[]);
     if (offersRes.data) setOffers(offersRes.data as unknown as Offer[]);
     if (settingsRes.data) {
@@ -456,6 +464,57 @@ export default function CalculationDetail() {
   const latestOffer = offers.length > 0 ? offers[0] : null;
   const latestAcceptedOffer = offers.find((o) => o.status === "accepted");
 
+  // Company mismatch detection
+  const companyMismatch = !isAllCompanies && !!activeCompanyId && !!calc.company_id && calc.company_id !== activeCompanyId;
+  const missingCompany = !calc.company_id;
+  if (companyMismatch) {
+    return (
+      <div className="mx-auto max-w-[1920px] p-4 sm:p-6 pb-24 space-y-6">
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="sm" onClick={() => navigate("/sales/offers")} className="gap-1.5 -ml-2">
+            <ArrowLeft className="h-4 w-4" /> Tilbake til tilbudsoversikt
+          </Button>
+        </div>
+        <div className="rounded-xl border-2 border-orange-300 dark:border-orange-700 bg-orange-50 dark:bg-orange-950/50 p-6 space-y-4">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="h-6 w-6 text-orange-600 dark:text-orange-400 shrink-0 mt-0.5" />
+            <div className="space-y-2">
+              <h2 className="text-lg font-semibold text-orange-900 dark:text-orange-100">
+                Selskapskontekst stemmer ikke
+              </h2>
+              <p className="text-sm text-orange-800 dark:text-orange-200">
+                Dette tilbudet tilhører <strong>{calcCompanyName || "et annet selskap"}</strong>, men du ser på{" "}
+                <strong>{companies.find(c => c.id === activeCompanyId)?.name || "et annet selskap"}</strong>.
+              </p>
+              <p className="text-sm text-orange-700 dark:text-orange-300">
+                Bytt til riktig selskap for å se og redigere tilbudet.
+              </p>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <Button
+              onClick={() => {
+                if (calc.company_id) setActiveCompanyId(calc.company_id);
+              }}
+              size="sm"
+              className="gap-1.5 rounded-lg"
+            >
+              <Building2 className="h-3.5 w-3.5" /> Bytt til {calcCompanyName || "riktig selskap"}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => navigate("/sales/offers")}
+              size="sm"
+              className="gap-1.5 rounded-lg"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" /> Tilbake til listen
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="mx-auto max-w-[1920px] p-4 sm:p-6 pb-24 space-y-6">
       {/* ── Navigation row ── */}
@@ -470,6 +529,16 @@ export default function CalculationDetail() {
         )}
         {lastSaved && <span className="ml-auto text-xs text-muted-foreground">Sist lagret {format(lastSaved, "HH:mm")}</span>}
       </div>
+
+      {/* ── Missing company warning ── */}
+      {missingCompany && (
+        <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 flex items-center gap-2">
+          <AlertTriangle className="h-4 w-4 text-destructive shrink-0" />
+          <p className="text-sm text-destructive">
+            Dette tilbudet mangler selskapstilknytning. Kontakt administrator for å rette dette.
+          </p>
+        </div>
+      )}
 
       {/* ── Header: title + status badge ── */}
       <header className="space-y-4">
@@ -496,6 +565,11 @@ export default function CalculationDetail() {
               </Select>
             </div>
             <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
+              {calcCompanyName && (
+                <span className="flex items-center gap-1.5 text-xs font-medium bg-muted px-2 py-0.5 rounded-md">
+                  <Building2 className="h-3 w-3 text-primary" />{calcCompanyName}
+                </span>
+              )}
               <span className="flex items-center gap-1.5"><Building2 className="h-3.5 w-3.5" />{calc.customer_name}</span>
               {calc.customer_email && <span className="flex items-center gap-1.5"><Mail className="h-3.5 w-3.5" />{calc.customer_email}</span>}
             </div>
