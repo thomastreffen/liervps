@@ -149,11 +149,11 @@ export default function CalculationDetail() {
   const [calcCompanyName, setCalcCompanyName] = useState<string | null>(null);
   const [contactPerson, setContactPerson] = useState<ContactPersonInfo | null>(null);
 
-  // PDF preview
+  // HTML preview
   const [previewOpen, setPreviewOpen] = useState(false);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [previewLoading, setPreviewLoading] = useState(false);
-  const [previewError, setPreviewError] = useState<string | null>(null);
+
+  // Company settings for preview
+  const [companySettings, setCompanySettings] = useState<any>(null);
 
   const fetchCalc = useCallback(async () => {
     if (!id) return;
