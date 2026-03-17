@@ -1325,59 +1325,8 @@ export default function CalculationDetail() {
           )}
         </TabsContent>
 
-        {/* ===== History Tab (punkt 5) ===== */}
-        <TabsContent value="history" className="space-y-4 pt-4">
-          <div className="rounded-xl border border-border/40 bg-card p-4 space-y-3">
-            <h3 className="text-sm font-medium flex items-center gap-1.5"><History className="h-4 w-4 text-muted-foreground" /> Hendelseslogg</h3>
-            <div className="space-y-2">
-              {/* Calculation created */}
-              <div className="flex items-start gap-3 text-sm">
-                <div className="w-1.5 h-1.5 rounded-full bg-primary mt-2 shrink-0" />
-                <div>
-                  <p className="font-medium">Tilbud opprettet</p>
-                  <p className="text-xs text-muted-foreground">{format(new Date(calc.created_at), "d. MMM yyyy HH:mm", { locale: nb })}</p>
-                </div>
-              </div>
-              {/* AI analysis */}
-              {analysis && (
-                <div className="flex items-start gap-3 text-sm">
-                  <div className="w-1.5 h-1.5 rounded-full bg-primary mt-2 shrink-0" />
-                  <div>
-                    <p className="font-medium">AI-analyse kjørt</p>
-                    <p className="text-xs text-muted-foreground">
-                      {analysis.confidence_level ? `Konfidens: ${analysis.confidence_level}` : "Status: " + (analysis.status || "fullført")}
-                    </p>
-                  </div>
-                </div>
-              )}
-              {/* Offer versions */}
-              {[...offers].reverse().map((offer) => (
-                <div key={offer.id} className="flex items-start gap-3 text-sm">
-                  <div className="w-1.5 h-1.5 rounded-full bg-primary mt-2 shrink-0" />
-                  <div>
-                    <p className="font-medium">Tilbud {offer.offer_number} v{offer.version} generert</p>
-                    <p className="text-xs text-muted-foreground">
-                      {format(new Date(offer.created_at), "d. MMM yyyy HH:mm", { locale: nb })}
-                      {offer.sent_at && ` • Sendt ${format(new Date(offer.sent_at), "d. MMM yyyy", { locale: nb })}`}
-                    </p>
-                  </div>
-                </div>
-              ))}
-              {/* Last updated */}
-              <div className="flex items-start gap-3 text-sm">
-                <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground/30 mt-2 shrink-0" />
-                <div>
-                  <p className="text-muted-foreground">Sist oppdatert</p>
-                  <p className="text-xs text-muted-foreground">{format(new Date(calc.updated_at), "d. MMM yyyy HH:mm", { locale: nb })}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </TabsContent>
-
-        {/* ===== Activity Tab ===== */}
+        {/* ===== Activity Tab (Customer tracking) ===== */}
         <TabsContent value="activity" className="space-y-4 pt-4">
-          <OfferFollowupSection offerId={calc.id} />
           <OfferActivityTimeline offerId={calc.id} />
         </TabsContent>
       </Tabs>
