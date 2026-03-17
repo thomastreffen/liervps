@@ -975,13 +975,7 @@ export default function CalculationDetail() {
             </div>
           )}
 
-          {/* No AI analysis yet */}
-          {!analysis && isAdmin && (
-            <div className="rounded-xl border border-dashed bg-card p-6 text-center space-y-2">
-              <Sparkles className="h-8 w-8 mx-auto text-muted-foreground" />
-              <p className="text-sm text-muted-foreground">Ingen AI-analyse ennå. Kjør analyse fra handlingsraden over.</p>
-            </div>
-          )}
+          {/* AI analysis is optional — only show if present */}
 
           {analysis && analysis.status === "insufficient_data" && (
             <div className="rounded-xl border border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-950 p-4 space-y-3">
