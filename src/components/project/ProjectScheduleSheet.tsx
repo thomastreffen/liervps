@@ -124,7 +124,7 @@ export function ProjectScheduleSheet({
 
   useEffect(() => {
     if (open && date) fetchTechs(date);
-  }, [open, date, fetchTechs]);
+  }, [open, date, fetchTechs, technicians]);
 
   // Auto-select first available tech
   useEffect(() => {
