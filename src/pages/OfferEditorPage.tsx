@@ -143,15 +143,35 @@ export default function OfferEditorPage() {
       const { data, error } = await supabase.functions.invoke("generate-offer-pdf", {
         body: { calculation_id: savedId, created_by: user?.id },
       });
-      if (error) throw error;
+      // 409 = no changes since last offer – not a fatal error
+      if (error) {
+        // Try to parse the context body for a known 409-style message
+        const msg = typeof error === 'object' && 'context' in error
+          ? (error as any).context?.body
+          : null;
+        let parsed: any = null;
+        if (msg) {
+          try { parsed = typeof msg === 'string' ? JSON.parse(msg) : msg; } catch {}
+        }
+        if (parsed?.error) {
+          toast.info(parsed.error);
+          // Redirect to the offer anyway so user doesn't land on blank page
+          navigate(`/sales/offers/${savedId}`, { replace: true });
+          return;
+        }
+        throw error;
+      }
       if (data?.error) {
         toast.info(data.error);
+        navigate(`/sales/offers/${savedId}`, { replace: true });
       } else {
         toast.success("Tilbud generert!");
         navigate(`/sales/offers/${savedId}`, { replace: true });
       }
     } catch (err: any) {
       toast.error("Feil ved generering: " + (err.message || "Ukjent feil"));
+      // Still navigate so user doesn't get a blank page
+      navigate(`/sales/offers/${savedId}`, { replace: true });
     } finally {
       setGenerating(false);
     }
