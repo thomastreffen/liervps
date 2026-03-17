@@ -200,6 +200,17 @@ export default function ContractsPage() {
                         <span className="text-xs text-muted-foreground">Nei</span>
                       )}
                     </TableCell>
+                    <TableCell className="w-10" onClick={(e) => e.stopPropagation()}>
+                      <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                        <SoftDeleteRowButton
+                          table="contracts"
+                          id={c.id}
+                          entityLabel="Kontrakt"
+                          entityName={c.title}
+                          onDeleted={() => {/* refetch handled by react-query */}}
+                        />
+                      </div>
+                    </TableCell>
                   </TableRow>
                 );
               })}
