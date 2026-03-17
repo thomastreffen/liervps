@@ -2104,6 +2104,112 @@ export type Database = {
           },
         ]
       }
+      customer_tag_relations: {
+        Row: {
+          created_at: string
+          customer_id: string
+          id: string
+          tag_id: string
+        }
+        Insert: {
+          created_at?: string
+          customer_id: string
+          id?: string
+          tag_id: string
+        }
+        Update: {
+          created_at?: string
+          customer_id?: string
+          id?: string
+          tag_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_tag_relations_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_tag_relations_tag_id_fkey"
+            columns: ["tag_id"]
+            isOneToOne: false
+            referencedRelation: "customer_tags"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      customer_tags: {
+        Row: {
+          color: string
+          company_id: string
+          created_at: string
+          id: string
+          name: string
+        }
+        Insert: {
+          color?: string
+          company_id: string
+          created_at?: string
+          id?: string
+          name: string
+        }
+        Update: {
+          color?: string
+          company_id?: string
+          created_at?: string
+          id?: string
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_tags_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "internal_companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      customer_value_levels: {
+        Row: {
+          code: string
+          color: string
+          company_id: string
+          created_at: string
+          id: string
+          label: string
+          sort_order: number
+        }
+        Insert: {
+          code: string
+          color?: string
+          company_id: string
+          created_at?: string
+          id?: string
+          label: string
+          sort_order?: number
+        }
+        Update: {
+          code?: string
+          color?: string
+          company_id?: string
+          created_at?: string
+          id?: string
+          label?: string
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_value_levels_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "internal_companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customers: {
         Row: {
           billing_address: string | null
@@ -2112,6 +2218,7 @@ export type Database = {
           company_id: string | null
           created_at: string
           created_by: string | null
+          customer_value: string | null
           external_tripletex_id: string | null
           id: string
           main_email: string | null
@@ -2119,6 +2226,7 @@ export type Database = {
           name: string
           notes: string | null
           org_number: string | null
+          products_of_interest: string[] | null
           updated_at: string
         }
         Insert: {
@@ -2128,6 +2236,7 @@ export type Database = {
           company_id?: string | null
           created_at?: string
           created_by?: string | null
+          customer_value?: string | null
           external_tripletex_id?: string | null
           id?: string
           main_email?: string | null
@@ -2135,6 +2244,7 @@ export type Database = {
           name: string
           notes?: string | null
           org_number?: string | null
+          products_of_interest?: string[] | null
           updated_at?: string
         }
         Update: {
@@ -2144,6 +2254,7 @@ export type Database = {
           company_id?: string | null
           created_at?: string
           created_by?: string | null
+          customer_value?: string | null
           external_tripletex_id?: string | null
           id?: string
           main_email?: string | null
@@ -2151,6 +2262,7 @@ export type Database = {
           name?: string
           notes?: string | null
           org_number?: string | null
+          products_of_interest?: string[] | null
           updated_at?: string
         }
         Relationships: [
