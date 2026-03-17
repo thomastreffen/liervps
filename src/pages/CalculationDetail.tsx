@@ -24,6 +24,8 @@ import { AI_MODE_CONFIG, ALL_AI_MODES, detectAiMode, type AiMode } from "@/lib/a
 import { ExecutiveSummary } from "@/components/offer/ExecutiveSummary";
 import { OfferActivityTimeline } from "@/components/offer/OfferActivityTimeline";
 import { OfferFollowupSection } from "@/components/offer/OfferFollowupSection";
+import { OrderLineEditor, calcTotals, type OrderLine } from "@/components/offer/OrderLineEditor";
+import { PdfPreviewDialog } from "@/components/offer/PdfPreviewDialog";
 import { ConvertToJobDialog } from "@/components/ConvertToJobDialog";
 import {
   ArrowLeft, Loader2, Sparkles, FileDown, ArrowRightLeft, Plus, Trash2, Save,
