@@ -44,6 +44,7 @@ const STEPS = [
 export default function NewOfferWizard() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { activeCompanyId } = useCompanyContext();
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
   const [generating, setGenerating] = useState(false);
@@ -54,6 +55,9 @@ export default function NewOfferWizard() {
   const [projectTitle, setProjectTitle] = useState("");
   const [description, setDescription] = useState("");
   const [calcId, setCalcId] = useState<string | null>(null);
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
+  const [selectedContactId, setSelectedContactId] = useState<string | null>(null);
+  const [selectedContact, setSelectedContact] = useState<ContactPerson | null>(null);
 
   // Step 2: Line items
   const [items, setItems] = useState<LineItem[]>([]);
