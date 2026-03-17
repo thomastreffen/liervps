@@ -161,6 +161,7 @@ export default function ContractsPage() {
                 <TableHead className="text-xs font-semibold uppercase tracking-wider">Risiko</TableHead>
                 <TableHead className="hidden lg:table-cell text-xs font-semibold uppercase tracking-wider">Sluttdato</TableHead>
                 <TableHead className="hidden lg:table-cell text-xs font-semibold uppercase tracking-wider">Dagbot</TableHead>
+                <TableHead className="w-10" />
               </TableRow>
             </TableHeader>
             <TableBody>
