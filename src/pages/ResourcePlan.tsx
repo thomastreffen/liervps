@@ -761,16 +761,12 @@ export default function ResourcePlan() {
         projectTitle={dropProjectTitle}
         scheduleBlockId={
           editEvent
-            ? scheduleBlocks.find(
-                (sb) => sb.project_id === editEvent.id || sb.mcs_block_id === editEvent.id
-              )?.id ?? null
+            ? findScheduleBlockForAssignment(scheduleBlocks, editEvent.id, clickedTechId)?.id ?? null
             : null
         }
         onSaved={() => {
           if (editEvent) {
-            const linkedIds = scheduleBlocks
-              .filter((sb) => sb.project_id === editEvent.id || sb.mcs_block_id === editEvent.id)
-              .map((sb) => sb.id);
+            const linkedIds = findLinkedScheduleBlockIds(scheduleBlocks, editEvent.id, clickedTechId);
             for (const id of linkedIds) removeBlockOptimistic(id);
           }
           setDropProjectId(null);

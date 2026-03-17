@@ -545,11 +545,14 @@ Deno.serve(async (req) => {
       });
     };
 
-    const graphBody = buildGraphBody(event, customer);
-
     // ── Sync for EACH technician independently ──
     const results: any[] = [];
     for (const { eventTechRow, tech } of techRows) {
+      const graphBody = buildGraphBody(event, customer, {
+        eventTechnicianId: eventTechRow.id,
+        technicianId: tech.id,
+        techName: tech.name,
+      });
       const result = await syncForTechnician(
         supabaseAdmin, tech, eventTechRow, event, customer,
         graphBody, action, callerUserId, logAction
