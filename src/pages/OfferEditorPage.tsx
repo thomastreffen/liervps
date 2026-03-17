@@ -45,11 +45,17 @@ export default function OfferEditorPage() {
   // Discount toggle
   const [showDiscountInOffer, setShowDiscountInOffer] = useState(false);
 
-  // PDF preview
+  // HTML preview
   const [previewOpen, setPreviewOpen] = useState(false);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [previewLoading, setPreviewLoading] = useState(false);
-  const [previewError, setPreviewError] = useState<string | null>(null);
+
+  // Company settings for preview
+  const [companySettings, setCompanySettings] = useState<any>(null);
+
+  useEffect(() => {
+    supabase.from("company_settings").select("*").limit(1).single().then(({ data }) => {
+      if (data) setCompanySettings(data);
+    });
+  }, []);
 
   // Pre-fill from query params
   useEffect(() => {
