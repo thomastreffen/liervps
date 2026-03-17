@@ -153,17 +153,13 @@ export function ProjectScheduleSheet({
     }
     setSaving(true);
     try {
-      // Get company_id from technician
-      const { data: techData } = await supabase
-        .from("technicians")
-        .select("company_id")
-        .eq("id", selectedTechId)
-        .single();
-
-      const companyId = (techData as any)?.company_id;
+      if (!activeCompanyId) {
+        toast.error("Velg et selskap før du planlegger");
+        return;
+      }
 
       const { error } = await (supabase as any).from("schedule_blocks").insert({
-        company_id: companyId,
+        company_id: activeCompanyId,
         technician_id: selectedTechId,
         project_id: projectId,
         source: "manual",
