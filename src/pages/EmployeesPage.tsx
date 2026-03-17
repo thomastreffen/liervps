@@ -146,7 +146,7 @@ export default function EmployeesPage() {
                     </span>
                   </TableCell>
                   <TableCell className="text-center">
-                    {tech.is_plannable_resource ? (
+                    {tech.is_plannable_in_company ? (
                       <Badge variant="success" className="text-[10px]">Ja</Badge>
                     ) : (
                       <Badge variant="secondary" className="text-[10px]">Nei</Badge>
