@@ -354,9 +354,43 @@ export default function CalculationDetail() {
 
   const handleStatusChange = async (status: CalculationStatus) => {
     if (!calc) return;
-    await supabase.from("calculations").update({ status }).eq("id", calc.id);
+    const oldStatus = calc.status;
+    await supabase.from("calculations").update({ status, last_activity_at: new Date().toISOString() } as any).eq("id", calc.id);
     setCalc((prev) => prev ? { ...prev, status } : null);
     toast.success(`Status endret til ${CALCULATION_STATUS_CONFIG[status].label}`);
+    // Log status change as comment
+    if (oldStatus !== status) {
+      logOfferComment(calc.id, calc.company_id, user?.id || null, "status_change",
+        `Status endret fra ${CALCULATION_STATUS_CONFIG[oldStatus]?.label || oldStatus} til ${CALCULATION_STATUS_CONFIG[status].label}`);
+    }
+  };
+
+  const handleNextStepSave = async (step: string, date: string | null) => {
+    if (!calc) return;
+    await supabase.from("calculations").update({
+      next_step: step || null,
+      next_step_at: date,
+      last_activity_at: new Date().toISOString(),
+    } as any).eq("id", calc.id);
+    setCalc(prev => prev ? { ...prev, next_step: step || null, next_step_at: date } : null);
+    if (step) {
+      toast.success("Neste steg oppdatert");
+      logOfferComment(calc.id, calc.company_id, user?.id || null, "system",
+        `Neste steg satt: "${step}"${date ? ` (frist: ${new Date(date).toLocaleDateString("nb-NO")})` : ""}`);
+    } else {
+      toast.success("Neste steg fullført");
+      logOfferComment(calc.id, calc.company_id, user?.id || null, "system", "Neste steg markert som fullført");
+    }
+  };
+
+  const handleResponsibleChange = async (userId: string | null) => {
+    if (!calc) return;
+    await supabase.from("calculations").update({
+      responsible_user_id: userId,
+      last_activity_at: new Date().toISOString(),
+    } as any).eq("id", calc.id);
+    setCalc(prev => prev ? { ...prev, responsible_user_id: userId } : null);
+    toast.success("Ansvarlig oppdatert");
   };
 
   const handleGenerateOffer = async () => {
