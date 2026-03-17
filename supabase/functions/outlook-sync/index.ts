@@ -114,10 +114,11 @@ async function createOutlookEvent(
     subject,
     body: {
       contentType: "HTML",
-      content: `<b>Kunde:</b> ${event.customer || "Ikke angitt"}<br/><b>Adresse:</b> ${event.address || "Ikke angitt"}${event.description ? `<br/><b>Beskrivelse:</b> ${event.description}` : ""}`,
+      content: `<b>Kunde:</b> ${event.customer || "Ikke angitt"}<br/><b>Adresse:</b> ${event.address || "Ikke angitt"}${event.description ? `<br/><b>Beskrivelse:</b> ${event.description}` : ""}<!-- MCS_SOURCE:true MCS_EVENT_ID:${event.id} -->`,
     },
     start: { dateTime: toLocalDateTimeString(event.start_time), timeZone: "Europe/Oslo" },
     end: { dateTime: toLocalDateTimeString(event.end_time), timeZone: "Europe/Oslo" },
+    categories: ["MCS"],
   };
 
   if (event.address) {
