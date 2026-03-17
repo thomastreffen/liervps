@@ -6,42 +6,89 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, FolderOpen, Users, Archive } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
+import { useCompanyContext } from "@/hooks/useCompanyContext";
 
 interface TechRow {
   id: string;
   name: string;
   email: string;
   trade_certificate_type: string | null;
-  is_plannable_resource: boolean;
+  is_plannable_in_company: boolean;
   archived_at: string | null;
 }
 
 export default function EmployeesPage() {
   const navigate = useNavigate();
+  const { activeCompanyId } = useCompanyContext();
   const [technicians, setTechnicians] = useState<TechRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [showArchived, setShowArchived] = useState(false);
 
   const fetchTechnicians = async () => {
     setLoading(true);
-    let query = supabase
+
+    let techQuery = supabase
       .from("technicians")
-      .select("id, name, email, trade_certificate_type, is_plannable_resource, archived_at")
+      .select("id, name, email, user_id, trade_certificate_type, archived_at")
       .not("user_id", "is", null)
       .order("name");
 
     if (!showArchived) {
-      query = query.is("archived_at", null);
+      techQuery = techQuery.is("archived_at", null);
     }
 
-    const { data } = await query;
-    setTechnicians(data || []);
+    const { data: techs } = await techQuery;
+    if (!techs || techs.length === 0) {
+      setTechnicians([]);
+      setLoading(false);
+      return;
+    }
+
+    // Build plannable lookup from employment_profiles scoped to active company
+    const authUserIds = techs.map((t: any) => t.user_id).filter(Boolean);
+    const { data: accounts } = await supabase
+      .from("user_accounts")
+      .select("auth_user_id, person_id")
+      .in("auth_user_id", authUserIds)
+      .eq("is_active", true);
+
+    const personIds = [...new Set((accounts || []).map((a: any) => a.person_id).filter(Boolean))];
+    const authToPersonMap = new Map((accounts || []).map((a: any) => [a.auth_user_id, a.person_id]));
+
+    let epQuery = supabase
+      .from("employment_profiles")
+      .select("person_id, is_plannable_resource")
+      .is("archived_at", null);
+
+    if (activeCompanyId) {
+      epQuery = epQuery.eq("company_id", activeCompanyId);
+    }
+
+    if (personIds.length > 0) {
+      epQuery = epQuery.in("person_id", personIds);
+    }
+
+    const { data: eps } = await epQuery;
+    const plannablePersonIds = new Set(
+      (eps || []).filter((ep: any) => ep.is_plannable_resource).map((ep: any) => ep.person_id)
+    );
+
+    setTechnicians(
+      techs.map((t: any) => ({
+        id: t.id,
+        name: t.name,
+        email: t.email,
+        trade_certificate_type: t.trade_certificate_type,
+        is_plannable_in_company: plannablePersonIds.has(authToPersonMap.get(t.user_id)),
+        archived_at: t.archived_at,
+      }))
+    );
     setLoading(false);
   };
 
   useEffect(() => {
     fetchTechnicians();
-  }, [showArchived]);
+  }, [showArchived, activeCompanyId]);
 
   return (
     <div className="p-4 sm:p-6 space-y-6 max-w-5xl mx-auto">
@@ -99,7 +146,7 @@ export default function EmployeesPage() {
                     </span>
                   </TableCell>
                   <TableCell className="text-center">
-                    {tech.is_plannable_resource ? (
+                    {tech.is_plannable_in_company ? (
                       <Badge variant="success" className="text-[10px]">Ja</Badge>
                     ) : (
                       <Badge variant="secondary" className="text-[10px]">Nei</Badge>

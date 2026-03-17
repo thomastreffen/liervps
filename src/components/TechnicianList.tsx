@@ -139,30 +139,12 @@ export function TechnicianList({
   const [colorPickerOpen, setColorPickerOpen] = useState<string | null>(null);
 
   useEffect(() => {
-    async function fetchTechnicians() {
-      if (scopedTechnicians) {
-        setTechnicians(scopedTechnicians);
-        setLoading(false);
-        return;
-      }
-
-      const { data, error } = await supabase
-        .from("technicians")
-        .select("id, name, email, user_id, color, avatar_id")
-        .not("user_id", "is", null)
-        .eq("is_plannable_resource", true)
-        .is("archived_at", null)
-        .order("name");
-
-      if (error) {
-        console.error("Failed to fetch technicians:", error.message);
-      } else {
-        setTechnicians(data || []);
-      }
-      setLoading(false);
+    if (scopedTechnicians) {
+      setTechnicians(scopedTechnicians);
+    } else {
+      setTechnicians([]);
     }
-
-    fetchTechnicians();
+    setLoading(false);
   }, [scopedTechnicians]);
 
   const handleColorPick = useCallback(async (techId: string, color: string) => {
