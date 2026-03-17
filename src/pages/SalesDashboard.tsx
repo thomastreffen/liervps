@@ -6,35 +6,28 @@ import { type OfferStatus } from "@/lib/offer-status";
 import { type LeadStatus } from "@/lib/lead-status";
 import { useAuth } from "@/hooks/useAuth";
 import { useCompanyContext } from "@/hooks/useCompanyContext";
-import { SalesPulse } from "@/components/dashboard/SalesPulse";
 import { SalesHeader } from "@/components/dashboard/SalesHeader";
 import { SalesActionRequired, buildActionItems, type ActionItem } from "@/components/dashboard/SalesActionRequired";
-import { SalesRecommendations, buildRecommendations, type Recommendation } from "@/components/dashboard/SalesRecommendations";
-import { RecentOffersList, RecentLeadsList, type RecentOffer, type RecentLead } from "@/components/dashboard/SalesRecentLists";
-import { OfferSummaryCard, STATUS_WEIGHTS } from "@/components/dashboard/OfferSummaryCard";
-import { MyOffersFollowup } from "@/components/dashboard/MyOffersFollowup";
-import { DashboardFollowupTasks } from "@/components/dashboard/DashboardFollowupTasks";
-import { SalesTeamOverview } from "@/components/dashboard/SalesTeamOverview";
+import { RecentOffersList, type RecentOffer } from "@/components/dashboard/SalesRecentLists";
+import {
+  FileText, Send, AlertTriangle, Clock, ChevronRight, ArrowRight, TrendingUp,
+} from "lucide-react";
+
+interface KpiItem {
+  label: string;
+  value: string | number;
+  icon: React.ReactNode;
+  route: string;
+  highlight?: boolean;
+}
 
 export default function SalesDashboard() {
   const nav = useNavigate();
-  const { isAdmin } = useAuth();
   const { activeCompanyId } = useCompanyContext();
   const [recentOffers, setRecentOffers] = useState<RecentOffer[]>([]);
-  const [recentLeads, setRecentLeads] = useState<RecentLead[]>([]);
   const [actions, setActions] = useState<ActionItem[]>([]);
-  const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [loading, setLoading] = useState(true);
-  const [offerStats, setOfferStats] = useState({
-    totalActive: 0,
-    readyToSend: 0,
-    openPipeline: 0,
-    weightedPipeline: 0,
-    biggestOffer: null as { id: string; customer: string; amount: number } | null,
-    needsFollowup: 0,
-    activeCustomers24h: 0,
-    acceptedCount: 0,
-  });
+  const [kpis, setKpis] = useState<KpiItem[]>([]);
 
   useEffect(() => {
     (async () => {
@@ -43,21 +36,20 @@ export default function SalesDashboard() {
 
       const leadsRes = await fetchActiveLeads("id, company_name, status, lead_ref_code, updated_at, next_action_date, next_action_type", activeCompanyId);
       let calcsQuery = supabase
-          .from("calculations")
-          .select("id, project_title, customer_name, status, total_price, created_at, lead_id")
-          .is("deleted_at", null)
-          .order("created_at", { ascending: false })
-          .limit(20);
+        .from("calculations")
+        .select("id, project_title, customer_name, status, total_price, created_at, lead_id")
+        .is("deleted_at", null)
+        .order("created_at", { ascending: false })
+        .limit(20);
       if (activeCompanyId) calcsQuery = calcsQuery.eq("company_id", activeCompanyId);
-      const [calcsRes] = await Promise.all([calcsQuery]);
+      const calcsRes = await calcsQuery;
 
       const leads = leadsRes.data || [];
       const calcs = calcsRes.data || [];
 
-      // Recent offers (from calculations table — matches /sales/offers/:id route)
-      const recentCalcs = calcs.slice(0, 6);
+      // Recent offers (max 5)
       setRecentOffers(
-        recentCalcs.map((c: any) => ({
+        calcs.slice(0, 5).map((c: any) => ({
           id: c.id,
           offer_number: c.project_title || "Uten tittel",
           status: (c.status || "draft") as OfferStatus,
@@ -67,66 +59,64 @@ export default function SalesDashboard() {
         }))
       );
 
-      // Offer summary stats
+      // KPIs — max 4
       const activeCalcs = calcs.filter((c: any) => !["accepted", "rejected", "converted"].includes(c.status));
-      const readyToSend = calcs.filter((c: any) => c.status === "draft").length;
-      const acceptedCalcs = calcs.filter((c: any) => c.status === "accepted");
       const openPipeline = activeCalcs.reduce((s: number, c: any) => s + Number(c.total_price || 0), 0);
-      const weightedPipeline = activeCalcs.reduce((s: number, c: any) => {
-        const w = STATUS_WEIGHTS[c.status as string] ?? 0.1;
-        return s + Number(c.total_price || 0) * w;
-      }, 0);
-
-      // Biggest open offer
-      const sorted = [...activeCalcs].sort((a: any, b: any) => Number(b.total_price || 0) - Number(a.total_price || 0));
-      const biggest = sorted[0];
-      const biggestOffer = biggest && Number(biggest.total_price || 0) > 0
-        ? { id: biggest.id, customer: biggest.customer_name || "Ukjent", amount: Number(biggest.total_price) }
-        : null;
-
-      // Needs follow-up: sent > 5 days ago
-      const needsFollowup = calcs.filter((c: any) => {
-        if (c.status !== "sent") return false;
+      const sentOffers = calcs.filter((c: any) => c.status === "sent");
+      const needsFollowup = sentOffers.filter((c: any) => {
         const age = (now.getTime() - new Date(c.created_at).getTime()) / 86400000;
         return age > 5;
       }).length;
 
-      // Count active customers in last 24h
-      const d24h = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
-      const { count: activeCount } = await supabase
-        .from("offer_activity_events" as any)
-        .select("offer_id", { count: "exact", head: true })
-        .in("actor_type", ["customer"])
-        .gte("event_at", d24h);
-
-      setOfferStats({ totalActive: activeCalcs.length, readyToSend, openPipeline, weightedPipeline, biggestOffer, needsFollowup, activeCustomers24h: activeCount || 0, acceptedCount: acceptedCalcs.length });
-
-      // Recent leads
-      setRecentLeads(
-        leads
-          .sort((a: any, b: any) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
-          .slice(0, 6)
-          .map((l: any) => ({
-            id: l.id,
-            company_name: l.company_name,
-            status: l.status as LeadStatus,
-            ref_code: l.lead_ref_code,
-            updated_at: l.updated_at,
-          }))
-      );
+      const fmt = (v: number) =>
+        v >= 1_000_000
+          ? `${(v / 1_000_000).toLocaleString("nb-NO", { maximumFractionDigits: 1 })}M`
+          : v >= 1_000
+            ? `${(v / 1_000).toLocaleString("nb-NO", { maximumFractionDigits: 0 })}k`
+            : v.toLocaleString("nb-NO", { maximumFractionDigits: 0 });
 
       // Build action items
       const activeLeads = leads.filter((l: any) => !["won", "lost"].includes(l.status));
       const inactiveLeads = activeLeads.filter((l: any) => !l.updated_at || new Date(l.updated_at) < new Date(d7)).length;
-      const sentCalcs = calcs.filter((c: any) => c.status === "sent");
-      const offersWithoutFollowup = sentCalcs.filter((c: any) => (now.getTime() - new Date(c.created_at).getTime()) / 86400000 > 5).length;
+      const offersWithoutFollowup = needsFollowup;
       const leadsWithoutNextStep = activeLeads.filter((l: any) => !l.next_action_type && !l.next_action_date).length;
       const befaringLeads = activeLeads.filter((l: any) => l.status === "befaring");
       const befaringWithoutFollowup = befaringLeads.filter((l: any) => !l.updated_at || new Date(l.updated_at) < new Date(d7)).length;
+      const acceptedCalcs = calcs.filter((c: any) => c.status === "accepted");
       const leadsWithCalcNoOffer = leads.filter((l: any) => {
-        const hasCalc = calcs.some((c: any) => c.lead_id === l.id && ["generated", "sent"].includes(c.status));
-        return hasCalc;
+        return calcs.some((c: any) => c.lead_id === l.id && ["generated", "sent"].includes(c.status));
       }).length;
+
+      const actionCount = inactiveLeads + offersWithoutFollowup + leadsWithoutNextStep;
+
+      setKpis([
+        {
+          label: "Aktive tilbud",
+          value: activeCalcs.length,
+          icon: <FileText className="h-4 w-4 text-primary" />,
+          route: "/sales/offers",
+        },
+        {
+          label: "Pipeline-verdi",
+          value: openPipeline > 0 ? `kr ${fmt(openPipeline)}` : "—",
+          icon: <TrendingUp className="h-4 w-4 text-primary" />,
+          route: "/sales/pipeline",
+        },
+        {
+          label: "Krever handling",
+          value: actionCount,
+          icon: <AlertTriangle className="h-4 w-4 text-warning" />,
+          route: "#actions",
+          highlight: actionCount > 0,
+        },
+        {
+          label: "Uten oppfølging",
+          value: offersWithoutFollowup,
+          icon: <Clock className="h-4 w-4 text-destructive" />,
+          route: "/sales/offers?filter=no_followup",
+          highlight: offersWithoutFollowup > 0,
+        },
+      ]);
 
       setActions(buildActionItems({
         inactiveLeads,
@@ -137,71 +127,57 @@ export default function SalesDashboard() {
         acceptedOffers: acceptedCalcs.length,
       }));
 
-      // Build recommendations
-      const newLeadsCount = activeLeads.filter((l: any) => l.status === "new").length;
-      const befaringDoneCount = befaringLeads.length;
-
-      setRecommendations(buildRecommendations({
-        inactiveLeads,
-        newLeadsCount,
-        befaringDoneCount,
-        leadsWithoutNextStep,
-        offersWithoutFollowup,
-      }));
-
       setLoading(false);
     })();
   }, [activeCompanyId]);
 
   return (
-    <div className="space-y-4 max-w-[1920px] mx-auto pb-8">
-      {/* Header with title + segmented tabs */}
+    <div className="space-y-6 max-w-[1100px] mx-auto pb-8">
+      {/* Header */}
       <SalesHeader />
 
-      {/* Offer summary card + KPI Gauges */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 px-4 sm:px-6">
-        <OfferSummaryCard
-          totalActive={offerStats.totalActive}
-          readyToSend={offerStats.readyToSend}
-          openPipeline={offerStats.openPipeline}
-          weightedPipeline={offerStats.weightedPipeline}
-          biggestOffer={offerStats.biggestOffer}
-          needsFollowup={offerStats.needsFollowup}
-          activeCustomers24h={offerStats.activeCustomers24h}
-          loading={loading}
-        />
-        <div className="lg:col-span-3">
-          <SalesPulse />
-        </div>
+      {/* KPI row — max 4 */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 px-4 sm:px-6">
+        {loading
+          ? Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="rounded-xl border border-border/30 bg-card p-4 animate-pulse">
+                <div className="h-6 w-12 bg-muted/40 rounded mb-1" />
+                <div className="h-3 w-20 bg-muted/30 rounded" />
+              </div>
+            ))
+          : kpis.map((kpi) => (
+              <button
+                key={kpi.label}
+                onClick={() => {
+                  if (kpi.route === "#actions") {
+                    document.getElementById("actions-section")?.scrollIntoView({ behavior: "smooth" });
+                  } else {
+                    nav(kpi.route);
+                  }
+                }}
+                className={`rounded-xl border bg-card p-4 text-left
+                  hover:shadow-card-hover transition-all duration-200 group cursor-pointer
+                  ${kpi.highlight ? "border-destructive/30" : "border-border/30"}`}
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  {kpi.icon}
+                  <span className={`text-xl font-bold ${kpi.highlight ? "text-destructive" : "text-foreground"}`}>
+                    {kpi.value}
+                  </span>
+                </div>
+                <p className="text-[11px] text-muted-foreground/60">{kpi.label}</p>
+              </button>
+            ))}
       </div>
 
-      {/* Personal follow-up */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 px-4 sm:px-6">
-        <MyOffersFollowup />
-        <DashboardFollowupTasks />
+      {/* Main: Krever handling */}
+      <div className="px-4 sm:px-6" id="actions-section">
+        <SalesActionRequired actions={actions} loading={loading} />
       </div>
 
-      {/* Team overview — admin/leader only */}
-      {isAdmin && (
-        <div className="px-4 sm:px-6">
-          <SalesTeamOverview />
-        </div>
-      )}
-
-      {/* Action-driven sections */}
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 px-4 sm:px-6">
-        <div className="lg:col-span-3 space-y-4">
-          <SalesRecommendations recommendations={recommendations} loading={loading} />
-        </div>
-        <div className="lg:col-span-2">
-          <SalesActionRequired actions={actions} loading={loading} />
-        </div>
-      </div>
-
-      {/* Recent offers + leads */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 px-4 sm:px-6">
+      {/* Secondary: Siste tilbud */}
+      <div className="px-4 sm:px-6">
         <RecentOffersList offers={recentOffers} loading={loading} />
-        <RecentLeadsList leads={recentLeads} loading={loading} />
       </div>
     </div>
   );
