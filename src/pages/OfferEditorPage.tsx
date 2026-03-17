@@ -192,6 +192,7 @@ export default function OfferEditorPage() {
     setPreviewOpen(true);
     setPreviewLoading(true);
     setPreviewUrl(null);
+    setPreviewError(null);
     try {
       const { data, error } = await supabase.functions.invoke("generate-offer-pdf", {
         body: { calculation_id: savedId, created_by: user?.id, preview_only: true },
@@ -202,10 +203,11 @@ export default function OfferEditorPage() {
       } else if (data?.generated_pdf_url) {
         setPreviewUrl(data.generated_pdf_url);
       } else {
-        toast.info("Forhåndsvisning ikke tilgjengelig");
+        setPreviewError("Ingen forhåndsvisning tilgjengelig");
       }
     } catch (err: any) {
-      toast.error("Kunne ikke generere forhåndsvisning");
+      console.error("[Preview error]", err);
+      setPreviewError("Kunne ikke generere forhåndsvisning akkurat nå");
     } finally {
       setPreviewLoading(false);
     }
