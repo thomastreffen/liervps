@@ -37,6 +37,7 @@ import NotFound from "./pages/NotFound";
 import ApprovalPage from "./pages/ApprovalPage";
 import OffersPage from "./pages/OffersPage";
 import NewOfferWizard from "./pages/NewOfferWizard";
+import OfferEditorPage from "./pages/OfferEditorPage";
 import LeadsPage from "./pages/LeadsPage";
 import LeadDetail from "./pages/LeadDetail";
 import PipelinePage from "./pages/PipelinePage";
@@ -240,6 +241,14 @@ const App = () => (
               />
               <Route
                 path="/sales/offers/new"
+                element={
+                  <ProtectedRoute requiredRoles={["admin", "super_admin"]}>
+                    <OfferEditorPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/sales/offers/wizard"
                 element={
                   <ProtectedRoute requiredRoles={["admin", "super_admin"]}>
                     <NewCalculation />

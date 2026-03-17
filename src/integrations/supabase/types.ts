@@ -5801,6 +5801,68 @@ export type Database = {
           },
         ]
       }
+      order_lines: {
+        Row: {
+          calculation_id: string
+          created_at: string
+          description: string
+          discount_percent: number
+          id: string
+          line_type: string
+          quantity: number
+          sort_order: number
+          suggested_by_ai: boolean
+          total_ex_vat: number | null
+          total_inc_vat: number | null
+          unit: string | null
+          unit_price: number
+          updated_at: string
+          vat_rate: number
+        }
+        Insert: {
+          calculation_id: string
+          created_at?: string
+          description?: string
+          discount_percent?: number
+          id?: string
+          line_type?: string
+          quantity?: number
+          sort_order?: number
+          suggested_by_ai?: boolean
+          total_ex_vat?: number | null
+          total_inc_vat?: number | null
+          unit?: string | null
+          unit_price?: number
+          updated_at?: string
+          vat_rate?: number
+        }
+        Update: {
+          calculation_id?: string
+          created_at?: string
+          description?: string
+          discount_percent?: number
+          id?: string
+          line_type?: string
+          quantity?: number
+          sort_order?: number
+          suggested_by_ai?: boolean
+          total_ex_vat?: number | null
+          total_inc_vat?: number | null
+          unit?: string | null
+          unit_price?: number
+          updated_at?: string
+          vat_rate?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_lines_calculation_id_fkey"
+            columns: ["calculation_id"]
+            isOneToOne: false
+            referencedRelation: "calculations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       people: {
         Row: {
           created_at: string
