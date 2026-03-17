@@ -199,6 +199,9 @@ function buildGraphBody(event: any, customer?: any) {
   const jobUrl = `https://mcsressurs.lovable.app/jobs/${event.id}`;
   html += `<p style="margin: 16px 0 0;"><a href="${jobUrl}" style="color: #2563eb; text-decoration: none; font-size: 13px;">🔗 Åpne i MCS Ressurs</a></p>`;
 
+  // Hidden marker for dedup – outlook-schedule-sync checks for this
+  html += `<!-- MCS_SOURCE:true MCS_EVENT_ID:${event.id} -->`;
+
   html += `</div>`;
 
   const body: any = {
