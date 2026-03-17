@@ -12,7 +12,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { calculation_id, created_by } = await req.json();
+    const { calculation_id, created_by, preview_only } = await req.json();
     if (!calculation_id) throw new Error("calculation_id is required");
 
     const supabase = createClient(
@@ -38,6 +38,7 @@ serve(async (req) => {
     const useOrderLines = orderLines.length > 0;
     const company = companyRes.data;
     const version = (countRes.count || 0) + 1;
+    const showDiscount = calc.show_discount_in_offer === true;
 
     // Content hash for deduplication
     const hashSource = useOrderLines
@@ -52,19 +53,21 @@ serve(async (req) => {
     const hashBuffer = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(hashSource));
     const contentHash = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, "0")).join("");
 
-    // Check if latest offer has same hash - skip if unchanged
-    const { data: latestOffer } = await supabase
-      .from("offers")
-      .select("content_hash")
-      .eq("calculation_id", calculation_id)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .single();
+    // Skip dedup check for preview_only
+    if (!preview_only) {
+      const { data: latestOffer } = await supabase
+        .from("offers")
+        .select("content_hash")
+        .eq("calculation_id", calculation_id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .single();
 
-    if (latestOffer?.content_hash === contentHash) {
-      return new Response(JSON.stringify({ error: "Ingen endringer i kalkylen siden forrige tilbud. Ny versjon er ikke nødvendig." }), {
-        status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      if (latestOffer?.content_hash === contentHash) {
+        return new Response(JSON.stringify({ error: "Ingen endringer i kalkylen siden forrige tilbud. Ny versjon er ikke nødvendig." }), {
+          status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
     }
 
     // Settings
@@ -83,8 +86,15 @@ serve(async (req) => {
 
     if (useOrderLines) {
       const productLines = orderLines.filter((l: any) => l.line_type === "product");
-      totalExVat = productLines.reduce((s: number, l: any) => s + Number(l.total_ex_vat || 0), 0);
-      totalIncVat = productLines.reduce((s: number, l: any) => s + Number(l.total_inc_vat || 0), 0);
+      totalExVat = productLines.reduce((s: number, l: any) => {
+        const lineEx = Number(l.quantity) * Number(l.unit_price) * (1 - Number(l.discount_percent || 0) / 100);
+        return s + Math.round(lineEx * 100) / 100;
+      }, 0);
+      totalIncVat = productLines.reduce((s: number, l: any) => {
+        const lineEx = Number(l.quantity) * Number(l.unit_price) * (1 - Number(l.discount_percent || 0) / 100);
+        const lineExRounded = Math.round(lineEx * 100) / 100;
+        return s + lineExRounded + lineExRounded * (Number(l.vat_rate || 25) / 100);
+      }, 0);
     } else {
       totalExVat = Number(calc.total_price);
       totalIncVat = totalExVat * 1.25;
@@ -131,7 +141,13 @@ serve(async (req) => {
         if (logoRes.ok) {
           const logoBuffer = await logoRes.arrayBuffer();
           const logoBytes = new Uint8Array(logoBuffer);
-          const base64 = btoa(String.fromCharCode(...logoBytes));
+          // Safe base64 encoding for large arrays
+          let binary = '';
+          const chunkSize = 8192;
+          for (let i = 0; i < logoBytes.length; i += chunkSize) {
+            binary += String.fromCharCode(...logoBytes.subarray(i, i + chunkSize));
+          }
+          const base64 = btoa(binary);
           const ext = logoUrl.toLowerCase().includes(".png") ? "PNG" : "JPEG";
           logoImageData = `data:image/${ext.toLowerCase()};base64,${base64}`;
         }
@@ -195,13 +211,14 @@ serve(async (req) => {
     }
 
     // Right side: Offer title
+    const displayVersion = preview_only ? (version > 1 ? version - 1 : 1) : version;
     doc.setFontSize(10);
     doc.setTextColor(100, 116, 139);
     doc.text("TILBUD", pageW - marginR, 20, { align: "right" });
     doc.setFontSize(14);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(26, 26, 46);
-    doc.text(`v${version}`, pageW - marginR, 27, { align: "right" });
+    doc.text(preview_only ? "UTKAST" : `v${displayVersion}`, pageW - marginR, 27, { align: "right" });
     doc.setFontSize(9);
     doc.setFont("helvetica", "normal");
     doc.setTextColor(100, 116, 139);
@@ -224,7 +241,7 @@ serve(async (req) => {
     doc.setTextColor(148, 163, 184);
     doc.setFont("helvetica", "bold");
     doc.text("KUNDE", marginL + 4, y + 6);
-    doc.text("PROSJEKT", marginL + contentW / 2 + 8, y + 6);
+    doc.text("TILBUD", marginL + contentW / 2 + 8, y + 6);
 
     doc.setFontSize(11);
     doc.setTextColor(26, 26, 46);
@@ -285,35 +302,63 @@ serve(async (req) => {
         doc.text("ORDRELINJER", marginL, y);
         y += 2;
 
-        (doc as any).autoTable({
-          startY: y,
-          margin: { left: marginL, right: marginR },
-          head: [["Beskrivelse", "Antall", "Enhet", "Enhetspris", "Rabatt", "Sum eks. mva"]],
-          body: orderLines
-            .sort((a: any, b: any) => a.sort_order - b.sort_order)
-            .map((l: any) => {
-              if (l.line_type === "text") {
-                return [{ content: l.description, colSpan: 6, styles: { fontStyle: "italic", textColor: [100, 116, 139] } }];
-              }
+        // Build columns based on showDiscount
+        const headRow = showDiscount
+          ? [["Beskrivelse", "Antall", "Enhet", "Enhetspris", "Rabatt", "Sum eks. mva"]]
+          : [["Beskrivelse", "Antall", "Enhet", "Enhetspris", "Sum eks. mva"]];
+
+        const bodyRows = orderLines
+          .sort((a: any, b: any) => a.sort_order - b.sort_order)
+          .map((l: any) => {
+            if (l.line_type === "text") {
+              const colSpan = showDiscount ? 6 : 5;
+              return [{ content: l.description, colSpan, styles: { fontStyle: "italic", textColor: [100, 116, 139] } }];
+            }
+            const lineEx = Math.round(Number(l.quantity) * Number(l.unit_price) * (1 - Number(l.discount_percent || 0) / 100) * 100) / 100;
+            if (showDiscount) {
               return [
                 l.description,
                 String(l.quantity),
                 l.unit || "stk",
                 formatPrice(Number(l.unit_price)),
                 l.discount_percent > 0 ? `${l.discount_percent}%` : "–",
-                formatPrice(Number(l.total_ex_vat)),
+                formatPrice(lineEx),
               ];
-            }),
+            }
+            return [
+              l.description,
+              String(l.quantity),
+              l.unit || "stk",
+              formatPrice(Number(l.unit_price)),
+              formatPrice(lineEx),
+            ];
+          });
+
+        const columnStyles = showDiscount
+          ? {
+              0: { cellWidth: "auto" },
+              1: { halign: "right", cellWidth: 18 },
+              2: { halign: "right", cellWidth: 18 },
+              3: { halign: "right", cellWidth: 28 },
+              4: { halign: "right", cellWidth: 20 },
+              5: { halign: "right", cellWidth: 28, fontStyle: "bold" },
+            }
+          : {
+              0: { cellWidth: "auto" },
+              1: { halign: "right", cellWidth: 18 },
+              2: { halign: "right", cellWidth: 18 },
+              3: { halign: "right", cellWidth: 28 },
+              4: { halign: "right", cellWidth: 28, fontStyle: "bold" },
+            };
+
+        (doc as any).autoTable({
+          startY: y,
+          margin: { left: marginL, right: marginR },
+          head: headRow,
+          body: bodyRows,
           styles: { fontSize: 9, cellPadding: 3, textColor: [26, 26, 46], lineColor: [241, 245, 249], lineWidth: 0.3 },
           headStyles: { fillColor: [241, 245, 249], textColor: [100, 116, 139], fontStyle: "bold", fontSize: 8 },
-          columnStyles: {
-            0: { cellWidth: "auto" },
-            1: { halign: "right", cellWidth: 18 },
-            2: { halign: "right", cellWidth: 18 },
-            3: { halign: "right", cellWidth: 28 },
-            4: { halign: "right", cellWidth: 20 },
-            5: { halign: "right", cellWidth: 28, fontStyle: "bold" },
-          },
+          columnStyles,
           alternateRowStyles: { fillColor: [248, 250, 252] },
         });
         y = (doc as any).lastAutoTable.finalY + 8;
@@ -531,14 +576,34 @@ serve(async (req) => {
     const pdfArrayBuffer = doc.output("arraybuffer");
     const pdfBytes = new Uint8Array(pdfArrayBuffer);
 
-    // Also build the HTML snapshot for preview
+    // ── PREVIEW ONLY: upload to temp path and return signed URL ──
+    if (preview_only) {
+      const previewPath = `${calculation_id}/preview-${Date.now()}.pdf`;
+      const { error: uploadErr } = await supabase.storage.from("calculation-attachments").upload(previewPath, pdfBytes, {
+        contentType: "application/pdf",
+        upsert: true,
+      });
+      if (uploadErr) {
+        console.error("Preview upload error:", uploadErr);
+        throw new Error("Kunne ikke laste opp forhåndsvisning");
+      }
+      const { data: signedData, error: signErr } = await supabase.storage.from("calculation-attachments").createSignedUrl(previewPath, 600);
+      if (signErr || !signedData?.signedUrl) {
+        console.error("Signed URL error:", signErr);
+        throw new Error("Kunne ikke generere forhåndsvisnings-URL");
+      }
+      return new Response(JSON.stringify({ pdf_url: signedData.signedUrl }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // ── FULL GENERATION: create offer record ──
     const html = buildOfferHtml({
       calc, materials, labor, today, validUntil,
       formatDate, formatPrice, assumptions, riskNotes,
-      totalExVat, totalIncVat, version, company,
+      totalExVat, totalIncVat, version: version, company,
     });
 
-    // Create offer record
     const validUntilStr = validUntil.toISOString().split("T")[0];
     const { data: offer, error: offerErr } = await supabase
       .from("offers")
@@ -568,21 +633,23 @@ serve(async (req) => {
       upsert: true,
     });
 
-    const { data: urlData } = supabase.storage.from("calculation-attachments").getPublicUrl(storagePath);
+    // Use signed URL (bucket is private)
+    const { data: signedUrlData } = await supabase.storage.from("calculation-attachments").createSignedUrl(storagePath, 86400 * 365);
+    const pdfUrl = signedUrlData?.signedUrl || "";
 
     // Update offer with PDF URL
     await supabase.from("offers").update({
-      generated_pdf_url: urlData.publicUrl,
+      generated_pdf_url: pdfUrl,
     }).eq("id", offer.id);
 
-    // Update calculation status
+    // Update calculation status and updated_at to match offer creation time
     await supabase.from("calculations").update({ status: "generated" }).eq("id", calculation_id);
 
     return new Response(JSON.stringify({
       offer_id: offer.id,
       offer_number: offer.offer_number,
       version,
-      pdf_url: urlData.publicUrl,
+      pdf_url: pdfUrl,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
@@ -661,7 +728,7 @@ function buildOfferHtml(params: any) {
     ${calc.customer_email ? `<div style="font-size:12px;color:#64748b;margin-top:2px">${calc.customer_email}</div>` : ""}
   </div>
   <div class="meta-box">
-    <div class="meta-label">Prosjekt</div>
+    <div class="meta-label">Tilbud</div>
     <div class="meta-value">${calc.project_title}</div>
   </div>
 </div>
@@ -683,9 +750,8 @@ ${labor.length > 0 ? `
   </tbody>
 </table>` : ""}
 <div class="total-section">
-  <div class="total-row"><span>Materialer</span><span>${formatPrice(Number(calc.total_material))}</span></div>
-  <div class="total-row"><span>Arbeid</span><span>${formatPrice(Number(calc.total_labor))}</span></div>
-  <div class="total-row"><span>MVA (25%)</span><span>${formatPrice(totalExVat * 0.25)}</span></div>
+  <div class="total-row"><span>Sum eks. MVA</span><span>${formatPrice(totalExVat)}</span></div>
+  <div class="total-row"><span>MVA (25%)</span><span>${formatPrice(totalIncVat - totalExVat)}</span></div>
   <div class="total-row grand"><span>Totalt inkl. MVA</span><span>kr ${formatPrice(totalIncVat)}</span></div>
 </div>
 ${assumptions.length > 0 ? `<div class="assumptions"><h4>Forutsetninger</h4>${assumptions.map((a: string) => `<p>• ${a}</p>`).join("")}</div>` : ""}
