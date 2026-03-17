@@ -661,13 +661,20 @@ export default function CalculationDetail() {
                     setPreviewOpen(true);
                     setPreviewLoading(true);
                     setPreviewUrl(null);
+                    setPreviewError(null);
                     try {
                       const { data, error } = await supabase.functions.invoke("generate-offer-pdf", {
                         body: { calculation_id: calc.id, created_by: user?.id, preview_only: true },
                       });
                       if (error) throw error;
                       setPreviewUrl(data?.pdf_url || data?.generated_pdf_url || null);
-                    } catch { toast.error("Kunne ikke generere forhåndsvisning"); }
+                      if (!data?.pdf_url && !data?.generated_pdf_url) {
+                        setPreviewError("Ingen forhåndsvisning tilgjengelig");
+                      }
+                    } catch (e: any) {
+                      console.error("[Preview error]", e);
+                      setPreviewError("Kunne ikke generere forhåndsvisning akkurat nå");
+                    }
                     finally { setPreviewLoading(false); }
                   }}
                   variant="outline" size="sm" className="gap-1.5 rounded-lg"
