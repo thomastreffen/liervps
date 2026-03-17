@@ -433,16 +433,7 @@ export default function PersonnelDetailPage() {
         {/* Profile Tab */}
         <TabsContent value="profile">
           <div className="rounded-lg border p-4 sm:p-6 space-y-5 max-w-2xl">
-            <div className="flex items-center justify-between">
-              <div>
-                <Label className="text-sm font-medium">Planleggbar ressurs</Label>
-                <p className="text-[11px] text-muted-foreground">Vises i ressursplanen</p>
-              </div>
-              <Switch
-                checked={profile.is_plannable_resource}
-                onCheckedChange={(v) => setProfile({ ...profile, is_plannable_resource: v })}
-              />
-            </div>
+            <CompanyPlannableSection technicianId={profile.id} />
 
             <Separator />
 
