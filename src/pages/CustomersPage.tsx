@@ -304,7 +304,7 @@ export default function CustomersPage() {
                     return (
                       <TableRow
                         key={c.id}
-                        className="cursor-pointer hover:bg-secondary/40 transition-colors"
+                        className="cursor-pointer hover:bg-secondary/40 transition-colors group"
                         onClick={() => navigate(`/customers/${c.id}`)}
                       >
                         <TableCell>
