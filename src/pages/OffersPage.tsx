@@ -159,7 +159,7 @@ export default function OffersPage() {
                   paged.map((calc) => (
                     <TableRow
                       key={calc.id}
-                      className="cursor-pointer hover:bg-secondary/40 transition-colors"
+                      className="cursor-pointer hover:bg-secondary/40 transition-colors group"
                       onClick={() => navigate(`/sales/offers/${calc.id}`)}
                     >
                       <TableCell>
