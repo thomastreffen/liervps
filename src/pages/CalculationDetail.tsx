@@ -128,12 +128,16 @@ export default function CalculationDetail() {
     if (!id) return;
     setLoading(true);
     const [calcRes, itemsRes, settingsRes, offersRes] = await Promise.all([
-      supabase.from("calculations").select("*").eq("id", id).single(),
+      supabase.from("calculations").select("*, internal_companies(name)").eq("id", id).single(),
       supabase.from("calculation_items").select("*").eq("calculation_id", id).order("type").order("title"),
       supabase.from("settings").select("key, value"),
       supabase.from("offers").select("*").eq("calculation_id", id).order("created_at", { ascending: false }),
     ]);
-    if (calcRes.data) setCalc(calcRes.data as unknown as Calculation);
+    if (calcRes.data) {
+      setCalc(calcRes.data as unknown as Calculation);
+      const companyRel = (calcRes.data as any).internal_companies;
+      setCalcCompanyName(companyRel?.name || null);
+    }
     if (itemsRes.data) setItems(itemsRes.data as CalcItem[]);
     if (offersRes.data) setOffers(offersRes.data as unknown as Offer[]);
     if (settingsRes.data) {
