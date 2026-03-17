@@ -89,6 +89,7 @@ export default function OfferEditorPage() {
         total_material: 0,
         total_labor: 0,
         company_id: activeCompanyId || null,
+        show_discount_in_offer: showDiscountInOffer,
       };
 
       if (cId) {
