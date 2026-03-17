@@ -191,6 +191,20 @@ export default function OffersPage() {
                           ? `kr ${Number(calc.total_price).toLocaleString("nb-NO", { minimumFractionDigits: 0 })}`
                           : "—"}
                       </TableCell>
+                      <TableCell className="w-10" onClick={(e) => e.stopPropagation()}>
+                        <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                          <SoftDeleteButton
+                            entityLabel="Tilbud"
+                            entityName={calc.project_title}
+                            onConfirm={async () => {
+                              setDeletingId(calc.id);
+                              await softDelete(calc.id);
+                              setDeletingId(null);
+                            }}
+                            isDeleting={isDeleting && deletingId === calc.id}
+                          />
+                        </div>
+                      </TableCell>
                     </TableRow>
                   ))
                 )}
