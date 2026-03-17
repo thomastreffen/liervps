@@ -42,6 +42,7 @@ import {
   Moon,
   ArrowRight,
   Users,
+  Building,
 } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel,
@@ -104,7 +105,7 @@ export function EventDrawer({
 }: EventDrawerProps) {
   const navigate = useNavigate();
   const { syncCreate, syncUpdate, syncDelete } = useCalendarSync();
-  const { activeCompanyId } = useCompanyContext();
+  const { activeCompanyId, isAllCompanies, companies } = useCompanyContext();
   const isEditing = !!editEvent;
 
   // Form state
@@ -122,6 +123,7 @@ export function EventDrawer({
   const [saving, setSaving] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [clientRequestId, setClientRequestId] = useState(() => crypto.randomUUID());
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
 
   // Existing job search
   const [searchQuery, setSearchQuery] = useState("");
@@ -180,6 +182,7 @@ export function EventDrawer({
     setClientRequestId(crypto.randomUUID());
     setFiles([]);
     setExistingAttachments([]);
+    setSelectedCompanyId(isAllCompanies ? (companies.length === 1 ? companies[0].id : null) : activeCompanyId);
 
     // Load existing attachments for edit mode
     if (editEvent) {
@@ -189,7 +192,7 @@ export function EventDrawer({
         }
       });
     }
-  }, [open, editEvent, preselectedStart, preselectedEnd, preselectedTechId, projectId, projectTitle]);
+  }, [open, editEvent, preselectedStart, preselectedEnd, preselectedTechId, projectId, projectTitle, isAllCompanies, activeCompanyId, companies]);
 
   // Search existing jobs
   useEffect(() => {
@@ -373,6 +376,15 @@ export function EventDrawer({
         onSaved?.(selectedJobId);
       } else {
         const isTask = eventType === "task";
+        // Resolve company_id: explicit selection > active company > first company
+        const resolvedCompanyId = selectedCompanyId || activeCompanyId || (companies.length > 0 ? companies[0].id : null);
+
+        if (!resolvedCompanyId) {
+          toast.error("Velg selskap før du oppretter oppdraget");
+          setSaving(false);
+          return;
+        }
+
         if (!title.trim() || (!isTask && techIds.length === 0) || !date) {
           toast.error(isTask ? "Fyll inn tittel og dato" : "Fyll inn tittel, dato og minst én montør");
           setSaving(false);
@@ -403,7 +415,7 @@ export function EventDrawer({
             created_by: userId || null,
             client_request_id: clientRequestId,
             project_type: isTask ? "task" : "project",
-            company_id: activeCompanyId,
+            company_id: resolvedCompanyId,
           } as any).select("id").single();
 
           if (error || !created) {
@@ -513,6 +525,34 @@ export function EventDrawer({
         </SheetHeader>
 
         <div className="flex-1 mt-3 space-y-6">
+
+          {/* ═══ SECTION: SELSKAP ═══ */}
+          {!isEditing && isAllCompanies && companies.length > 1 && (
+            <section className="space-y-2">
+              <h3 className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Selskap</h3>
+              <p className="text-[11px] text-muted-foreground">
+                Du oppretter fra «Alle selskaper» – velg hvilket selskap oppdraget tilhører.
+              </p>
+              <select
+                value={selectedCompanyId || ""}
+                onChange={(e) => setSelectedCompanyId(e.target.value || null)}
+                className="w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring"
+              >
+                <option value="">Velg selskap…</option>
+                {companies.map((c) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+            </section>
+          )}
+
+          {/* Company badge (when known) */}
+          {!isEditing && !isAllCompanies && activeCompanyId && (
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Building className="h-3 w-3 shrink-0" />
+              <span>Selskap: <span className="font-medium text-foreground">{companies.find(c => c.id === activeCompanyId)?.name || "—"}</span></span>
+            </div>
+          )}
 
           {/* ═══ SECTION: TYPE ═══ */}
           {!isEditing && !projectId && (
