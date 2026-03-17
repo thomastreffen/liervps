@@ -25,7 +25,7 @@ import { ExecutiveSummary } from "@/components/offer/ExecutiveSummary";
 import { OfferActivityTimeline } from "@/components/offer/OfferActivityTimeline";
 import { OfferFollowupSection } from "@/components/offer/OfferFollowupSection";
 import { OrderLineEditor, calcTotals, type OrderLine } from "@/components/offer/OrderLineEditor";
-import { PdfPreviewDialog } from "@/components/offer/PdfPreviewDialog";
+import { OfferPreviewDialog } from "@/components/offer/OfferPreviewDialog";
 import { ConvertToJobDialog } from "@/components/ConvertToJobDialog";
 import { SalesPipelineBar } from "@/components/offer/SalesPipelineBar";
 import { NextStepSection } from "@/components/offer/NextStepSection";
