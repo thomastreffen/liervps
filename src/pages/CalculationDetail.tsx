@@ -1339,6 +1339,12 @@ export default function CalculationDetail() {
           fetchCalc();
         }}
       />
+      <PdfPreviewDialog
+        open={previewOpen}
+        onOpenChange={setPreviewOpen}
+        pdfUrl={previewUrl}
+        loading={previewLoading}
+      />
     </div>
   );
 }
