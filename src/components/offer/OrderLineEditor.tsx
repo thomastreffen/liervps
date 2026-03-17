@@ -361,7 +361,7 @@ export function OrderLineEditor({
                       </>
                     )}
                     {!readOnly && (
-                      <TableCell className="py-3">
+                      <TableCell className="py-4">
                         <Button
                           type="button"
                           variant="ghost"
