@@ -852,7 +852,7 @@ export default function CalculationDetail() {
       <Tabs defaultValue="overview">
         <TabsList className="w-full sm:w-auto flex overflow-x-auto rounded-xl">
           <TabsTrigger value="overview" className="gap-1.5 rounded-lg"><FileText className="h-3.5 w-3.5" />Oversikt</TabsTrigger>
-          <TabsTrigger value="items" className="gap-1.5 rounded-lg"><Package className="h-3.5 w-3.5" />Kalkyle ({items.length})</TabsTrigger>
+          <TabsTrigger value="items" className="gap-1.5 rounded-lg"><Package className="h-3.5 w-3.5" />Ordrelinjer ({hasOrderLines ? orderLines.length : items.length})</TabsTrigger>
           <TabsTrigger value="versions" className="gap-1.5 rounded-lg"><ReceiptText className="h-3.5 w-3.5" />Versjoner ({offers.length})</TabsTrigger>
           <TabsTrigger value="attachments" className="gap-1.5 rounded-lg"><Paperclip className="h-3.5 w-3.5" />Vedlegg {attachments.length > 0 && `(${attachments.length})`}</TabsTrigger>
           <TabsTrigger value="history" className="gap-1.5 rounded-lg"><History className="h-3.5 w-3.5" />Historikk</TabsTrigger>
