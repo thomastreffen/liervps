@@ -82,25 +82,16 @@ export function ProjectScheduleSheet({
     const dayStart = startOfDay(targetDate).toISOString();
     const dayEnd = new Date(startOfDay(targetDate).getTime() + 86400000).toISOString();
 
-    const [techRes, blocksRes] = await Promise.all([
-      supabase
-        .from("technicians")
-        .select("id, name, color")
-        .eq("is_plannable_resource", true)
-        .is("archived_at", null)
-        .order("name"),
-      supabase
-        .from("schedule_blocks")
-        .select("technician_id, start_at, end_at")
-        .is("deleted_at", null)
-        .lt("start_at", dayEnd)
-        .gt("end_at", dayStart),
-    ]);
+    const { data: blocksRes } = await supabase
+      .from("schedule_blocks")
+      .select("technician_id, start_at, end_at")
+      .is("deleted_at", null)
+      .lt("start_at", dayEnd)
+      .gt("end_at", dayStart);
 
-    const techList = (techRes.data || []) as Array<{ id: string; name: string; color?: string }>;
-    const blocks = (blocksRes.data || []) as Array<{ technician_id: string; start_at: string; end_at: string }>;
+    const techList = technicians;
+    const blocks = (blocksRes || []) as Array<{ technician_id: string; start_at: string; end_at: string }>;
 
-    // Calculate busy minutes per tech
     const busyMap = new Map<string, number>();
     for (const b of blocks) {
       const mins = (new Date(b.end_at).getTime() - new Date(b.start_at).getTime()) / 60000;
@@ -112,12 +103,16 @@ export function ProjectScheduleSheet({
       const pct = (busy / 480) * 100;
       let status: TechAvailability["status"] = "available";
       let label = "Ledig";
-      if (pct >= 90) { status = "full"; label = "Fullbooket"; }
-      else if (pct >= 40) { status = "partial"; label = `${Math.round(100 - pct)}% ledig`; }
+      if (pct >= 90) {
+        status = "full";
+        label = "Fullbooket";
+      } else if (pct >= 40) {
+        status = "partial";
+        label = `${Math.round(100 - pct)}% ledig`;
+      }
       return { id: t.id, name: t.name, color: t.color, status, label };
     });
 
-    // Sort: available first, then partial, then full
     result.sort((a, b) => {
       const order = { available: 0, partial: 1, full: 2 };
       return order[a.status] - order[b.status];
@@ -125,7 +120,7 @@ export function ProjectScheduleSheet({
 
     setTechs(result);
     setLoadingTechs(false);
-  }, []);
+  }, [technicians]);
 
   useEffect(() => {
     if (open && date) fetchTechs(date);
