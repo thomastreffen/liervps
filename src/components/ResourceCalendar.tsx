@@ -601,7 +601,7 @@ export const ResourceCalendar = memo(function ResourceCalendar({
           end_at: info.event.end || new Date(busyEnd),
           title: props.techName ? `${props.techName} – opptatt` : "Opptatt",
           location: null,
-          description: `NO_MATCH: ${scheduleBlocks.length} schedule_blocks vurdert`,
+          description: `NO_MATCH: ${visibleScheduleBlocks.length} schedule_blocks vurdert`,
           match_confidence: 0,
           match_reason: `Debug: busy slot uten schedule_block.`,
           match_state: "external",
