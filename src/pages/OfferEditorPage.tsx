@@ -189,36 +189,12 @@ export default function OfferEditorPage() {
     }
   };
 
-  const handlePreviewPdf = async () => {
-    const savedId = await saveOffer(true);
-    if (!savedId) {
-      toast.error("Lagre tilbudet først for å forhåndsvise.");
+  const handlePreviewOffer = () => {
+    if (lines.length === 0) {
+      toast.info("Legg til ordrelinjer for å forhåndsvise");
       return;
     }
     setPreviewOpen(true);
-    setPreviewLoading(true);
-    setPreviewUrl(null);
-    setPreviewError(null);
-    try {
-      const { data, error } = await supabase.functions.invoke("generate-offer-pdf", {
-        body: { calculation_id: savedId, created_by: user?.id, preview_only: true },
-      });
-      if (error) throw error;
-      const signedUrl = data?.pdf_url || data?.generated_pdf_url || null;
-      if (!signedUrl) {
-        setPreviewError("Ingen forhåndsvisning tilgjengelig");
-        return;
-      }
-      // Fetch as blob to avoid X-Frame-Options blocking in iframe
-      const { fetchPdfAsBlobUrl } = await import("@/lib/pdf-url");
-      const blobUrl = await fetchPdfAsBlobUrl(signedUrl);
-      setPreviewUrl(blobUrl);
-    } catch (err: any) {
-      console.error("[Preview error]", err);
-      setPreviewError("Kunne ikke generere forhåndsvisning akkurat nå");
-    } finally {
-      setPreviewLoading(false);
-    }
   };
 
   const handleSaveAndStay = async () => {
