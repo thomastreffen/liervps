@@ -206,7 +206,7 @@ function buildGraphBody(event: any, customer?: any) {
     body: { contentType: "HTML", content: html },
     start: { dateTime: toLocalDateTimeString(normalizedStart), timeZone: "Europe/Oslo" },
     end: { dateTime: toLocalDateTimeString(normalizedEnd), timeZone: "Europe/Oslo" },
-    categories: ["Arbeid"],
+    categories: ["MCS"],
   };
 
   if (event.address) {
