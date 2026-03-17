@@ -653,6 +653,25 @@ export default function CalculationDetail() {
                   {aiLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
                   AI-analyse
                 </Button>
+                <Button
+                  onClick={async () => {
+                    setPreviewOpen(true);
+                    setPreviewLoading(true);
+                    setPreviewUrl(null);
+                    try {
+                      const { data, error } = await supabase.functions.invoke("generate-offer-pdf", {
+                        body: { calculation_id: calc.id, created_by: user?.id, preview_only: true },
+                      });
+                      if (error) throw error;
+                      setPreviewUrl(data?.pdf_url || data?.generated_pdf_url || null);
+                    } catch { toast.error("Kunne ikke generere forhåndsvisning"); }
+                    finally { setPreviewLoading(false); }
+                  }}
+                  variant="outline" size="sm" className="gap-1.5 rounded-lg"
+                  disabled={(hasOrderLines ? orderLines.length === 0 : items.length === 0)}
+                >
+                  <Eye className="h-3.5 w-3.5" /> Forhåndsvis
+                </Button>
                 <Button onClick={handleGenerateOffer} disabled={pdfLoading || items.length === 0} size="sm" className="gap-1.5 rounded-lg">
                   {pdfLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileDown className="h-3.5 w-3.5" />}
                   Generer tilbud
