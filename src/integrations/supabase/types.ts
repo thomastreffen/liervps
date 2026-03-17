@@ -293,6 +293,7 @@ export type Database = {
           ai_analysis: Json | null
           attachments: Json | null
           company_id: string | null
+          contact_person_id: string | null
           created_at: string
           created_by: string
           customer_email: string | null
@@ -318,6 +319,7 @@ export type Database = {
           ai_analysis?: Json | null
           attachments?: Json | null
           company_id?: string | null
+          contact_person_id?: string | null
           created_at?: string
           created_by: string
           customer_email?: string | null
@@ -343,6 +345,7 @@ export type Database = {
           ai_analysis?: Json | null
           attachments?: Json | null
           company_id?: string | null
+          contact_person_id?: string | null
           created_at?: string
           created_by?: string
           customer_email?: string | null
@@ -370,6 +373,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "internal_companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "calculations_contact_person_id_fkey"
+            columns: ["contact_person_id"]
+            isOneToOne: false
+            referencedRelation: "customer_contacts"
             referencedColumns: ["id"]
           },
           {
