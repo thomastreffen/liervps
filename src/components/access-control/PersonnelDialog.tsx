@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
+
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -19,7 +19,6 @@ interface TechnicianProfile {
   id: string;
   name: string;
   email: string;
-  is_plannable_resource: boolean;
   birth_date: string | null;
   hms_card_number: string | null;
   hms_card_expires_at: string | null;
@@ -113,7 +112,7 @@ export function PersonnelDialog({ technicianId, open, onOpenChange, onSaved }: P
     const [techRes, docsRes] = await Promise.all([
       supabase
         .from("technicians")
-        .select("id, name, email, is_plannable_resource, birth_date, hms_card_number, hms_card_expires_at, trade_certificate_type, driver_license_classes, notes, archived_at, archived_by")
+        .select("id, name, email, birth_date, hms_card_number, hms_card_expires_at, trade_certificate_type, driver_license_classes, notes, archived_at, archived_by")
         .eq("id", technicianId)
         .single(),
       supabase
@@ -140,7 +139,6 @@ export function PersonnelDialog({ technicianId, open, onOpenChange, onSaved }: P
     const { error } = await supabase
       .from("technicians")
       .update({
-        is_plannable_resource: profile.is_plannable_resource,
         birth_date: profile.birth_date || null,
         hms_card_number: profile.hms_card_number || null,
         hms_card_expires_at: profile.hms_card_expires_at || null,
@@ -412,17 +410,6 @@ export function PersonnelDialog({ technicianId, open, onOpenChange, onSaved }: P
             <TabsContent value="info">
               <ScrollArea className="h-[420px] pr-3">
                 <div className="space-y-4 py-2">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <Label className="text-sm font-medium">Planleggbar ressurs</Label>
-                      <p className="text-[11px] text-muted-foreground">Vises i ressursplanen</p>
-                    </div>
-                    <Switch
-                      checked={profile.is_plannable_resource}
-                      onCheckedChange={(v) => setProfile({ ...profile, is_plannable_resource: v })}
-                    />
-                  </div>
-
                   <Separator />
 
                   <div className="grid grid-cols-2 gap-3">

@@ -23,6 +23,8 @@ import {
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useCompanyContext } from "@/hooks/useCompanyContext";
+import { useTechnicians } from "@/hooks/useTechnicians";
 
 /* ── Types ── */
 
@@ -62,6 +64,8 @@ export function ProjectScheduleSheet({
   suggestedDate, onCreated,
 }: ProjectScheduleSheetProps) {
   const isMobile = useIsMobile();
+  const { activeCompanyId } = useCompanyContext();
+  const { technicians } = useTechnicians(activeCompanyId);
   const [date, setDate] = useState<Date | undefined>(suggestedDate || new Date());
   const [startTime, setStartTime] = useState("08:00");
   const [duration, setDuration] = useState("120");
@@ -78,25 +82,16 @@ export function ProjectScheduleSheet({
     const dayStart = startOfDay(targetDate).toISOString();
     const dayEnd = new Date(startOfDay(targetDate).getTime() + 86400000).toISOString();
 
-    const [techRes, blocksRes] = await Promise.all([
-      supabase
-        .from("technicians")
-        .select("id, name, color")
-        .eq("is_plannable_resource", true)
-        .is("archived_at", null)
-        .order("name"),
-      supabase
-        .from("schedule_blocks")
-        .select("technician_id, start_at, end_at")
-        .is("deleted_at", null)
-        .lt("start_at", dayEnd)
-        .gt("end_at", dayStart),
-    ]);
+    const { data: blocksRes } = await supabase
+      .from("schedule_blocks")
+      .select("technician_id, start_at, end_at")
+      .is("deleted_at", null)
+      .lt("start_at", dayEnd)
+      .gt("end_at", dayStart);
 
-    const techList = (techRes.data || []) as Array<{ id: string; name: string; color?: string }>;
-    const blocks = (blocksRes.data || []) as Array<{ technician_id: string; start_at: string; end_at: string }>;
+    const techList = technicians;
+    const blocks = (blocksRes || []) as Array<{ technician_id: string; start_at: string; end_at: string }>;
 
-    // Calculate busy minutes per tech
     const busyMap = new Map<string, number>();
     for (const b of blocks) {
       const mins = (new Date(b.end_at).getTime() - new Date(b.start_at).getTime()) / 60000;
@@ -108,12 +103,16 @@ export function ProjectScheduleSheet({
       const pct = (busy / 480) * 100;
       let status: TechAvailability["status"] = "available";
       let label = "Ledig";
-      if (pct >= 90) { status = "full"; label = "Fullbooket"; }
-      else if (pct >= 40) { status = "partial"; label = `${Math.round(100 - pct)}% ledig`; }
+      if (pct >= 90) {
+        status = "full";
+        label = "Fullbooket";
+      } else if (pct >= 40) {
+        status = "partial";
+        label = `${Math.round(100 - pct)}% ledig`;
+      }
       return { id: t.id, name: t.name, color: t.color, status, label };
     });
 
-    // Sort: available first, then partial, then full
     result.sort((a, b) => {
       const order = { available: 0, partial: 1, full: 2 };
       return order[a.status] - order[b.status];
@@ -121,11 +120,11 @@ export function ProjectScheduleSheet({
 
     setTechs(result);
     setLoadingTechs(false);
-  }, []);
+  }, [technicians]);
 
   useEffect(() => {
     if (open && date) fetchTechs(date);
-  }, [open, date, fetchTechs]);
+  }, [open, date, fetchTechs, technicians]);
 
   // Auto-select first available tech
   useEffect(() => {
@@ -154,17 +153,13 @@ export function ProjectScheduleSheet({
     }
     setSaving(true);
     try {
-      // Get company_id from technician
-      const { data: techData } = await supabase
-        .from("technicians")
-        .select("company_id")
-        .eq("id", selectedTechId)
-        .single();
-
-      const companyId = (techData as any)?.company_id;
+      if (!activeCompanyId) {
+        toast.error("Velg et selskap før du planlegger");
+        return;
+      }
 
       const { error } = await (supabase as any).from("schedule_blocks").insert({
-        company_id: companyId,
+        company_id: activeCompanyId,
         technician_id: selectedTechId,
         project_id: projectId,
         source: "manual",
@@ -190,7 +185,7 @@ export function ProjectScheduleSheet({
     } finally {
       setSaving(false);
     }
-  }, [selectedTechId, date, computedStart, computedEnd, projectId, projectTitle, address, selectedTech, onCreated, onOpenChange]);
+  }, [selectedTechId, date, computedStart, computedEnd, projectId, projectTitle, address, selectedTech, onCreated, onOpenChange, activeCompanyId]);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>

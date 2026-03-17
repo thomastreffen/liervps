@@ -6,7 +6,7 @@ import { Loader2, Building } from "lucide-react";
 import { toast } from "sonner";
 
 interface CompanyPlannable {
-  ep_id: string;
+  person_id: string;
   company_id: string;
   company_name: string;
   department_name: string | null;
@@ -22,7 +22,6 @@ export function CompanyPlannableSection({ technicianId }: Props) {
   const [loading, setLoading] = useState(true);
 
   const fetchData = useCallback(async () => {
-    // Get person_id from technician -> user_accounts
     const { data: tech } = await supabase
       .from("technicians")
       .select("user_id")
@@ -51,7 +50,7 @@ export function CompanyPlannableSection({ technicianId }: Props) {
     const [{ data: profiles }, { data: companies }, { data: departments }] = await Promise.all([
       supabase
         .from("employment_profiles")
-        .select("id, company_id, department_id, is_plannable_resource")
+        .select("company_id, department_id, is_plannable_resource")
         .eq("person_id", ua.person_id)
         .is("archived_at", null),
       supabase.from("internal_companies").select("id, name").eq("is_active", true),
@@ -63,7 +62,7 @@ export function CompanyPlannableSection({ technicianId }: Props) {
 
     setItems(
       (profiles || []).map((ep: any) => ({
-        ep_id: ep.id,
+        person_id: ua.person_id,
         company_id: ep.company_id,
         company_name: compMap.get(ep.company_id) || "Ukjent",
         department_name: ep.department_id ? deptMap.get(ep.department_id) || null : null,
@@ -77,19 +76,27 @@ export function CompanyPlannableSection({ technicianId }: Props) {
     fetchData();
   }, [fetchData]);
 
-  const togglePlannable = async (ep_id: string, current: boolean) => {
+  const togglePlannable = async (personId: string, companyId: string, current: boolean) => {
+    const nextValue = !current;
+
     const { error } = await supabase
       .from("employment_profiles")
-      .update({ is_plannable_resource: !current })
-      .eq("id", ep_id);
+      .update({ is_plannable_resource: nextValue })
+      .eq("person_id", personId)
+      .eq("company_id", companyId);
 
     if (error) {
       toast.error("Feil ved oppdatering");
       return;
     }
-    toast.success(!current ? "Satt som planleggbar" : "Fjernet fra planleggbar");
+
+    toast.success(nextValue ? "Satt som planleggbar" : "Fjernet fra planleggbar");
     setItems((prev) =>
-      prev.map((i) => (i.ep_id === ep_id ? { ...i, is_plannable_resource: !current } : i))
+      prev.map((item) =>
+        item.person_id === personId && item.company_id === companyId
+          ? { ...item, is_plannable_resource: nextValue }
+          : item
+      )
     );
   };
 
@@ -117,7 +124,7 @@ export function CompanyPlannableSection({ technicianId }: Props) {
       </div>
       <div className="rounded-lg border divide-y">
         {items.map((item) => (
-          <div key={item.ep_id} className="flex items-center justify-between px-4 py-3">
+          <div key={`${item.person_id}-${item.company_id}`} className="flex items-center justify-between px-4 py-3">
             <div className="flex items-center gap-3">
               <Building className="h-4 w-4 text-muted-foreground" />
               <div>
@@ -135,7 +142,7 @@ export function CompanyPlannableSection({ technicianId }: Props) {
               )}
               <Switch
                 checked={item.is_plannable_resource}
-                onCheckedChange={() => togglePlannable(item.ep_id, item.is_plannable_resource)}
+                onCheckedChange={() => togglePlannable(item.person_id, item.company_id, item.is_plannable_resource)}
               />
             </div>
           </div>
