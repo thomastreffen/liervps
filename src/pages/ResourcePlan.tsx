@@ -41,6 +41,7 @@ import { useUnplannedProjects } from "@/hooks/useUnplannedProjects";
 import { addMinutes } from "date-fns";
 import { useCompanyContext } from "@/hooks/useCompanyContext";
 import { QuickProjectSearch } from "@/components/resource-plan/QuickProjectSearch";
+import { findLinkedScheduleBlockIds, findScheduleBlockForAssignment } from "@/lib/resource-plan-assignment-identity";
 
 type CalendarViewType = "timeGridDay" | "timeGridWeek" | "dayGridMonth" | "listWeek";
 
@@ -760,16 +761,12 @@ export default function ResourcePlan() {
         projectTitle={dropProjectTitle}
         scheduleBlockId={
           editEvent
-            ? scheduleBlocks.find(
-                (sb) => sb.project_id === editEvent.id || sb.mcs_block_id === editEvent.id
-              )?.id ?? null
+            ? findScheduleBlockForAssignment(scheduleBlocks, editEvent.id, clickedTechId)?.id ?? null
             : null
         }
         onSaved={() => {
           if (editEvent) {
-            const linkedIds = scheduleBlocks
-              .filter((sb) => sb.project_id === editEvent.id || sb.mcs_block_id === editEvent.id)
-              .map((sb) => sb.id);
+            const linkedIds = findLinkedScheduleBlockIds(scheduleBlocks, editEvent.id, clickedTechId);
             for (const id of linkedIds) removeBlockOptimistic(id);
           }
           setDropProjectId(null);

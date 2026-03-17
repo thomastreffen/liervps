@@ -9,6 +9,10 @@ import { useCalendarEvents, type CalendarEvent } from "@/hooks/useCalendarEvents
 import type { ExternalBusySlot } from "@/hooks/useExternalBusy";
 import type { DayCapacity } from "@/hooks/useCapacity";
 import type { ScheduleBlock } from "@/hooks/useScheduleBlocks";
+import {
+  filterScheduleBlocksByTechnician,
+  getRenderableAssignments,
+} from "@/lib/resource-plan-assignment-identity";
 import { Lock, CalendarCheck, AlertTriangle, Globe, Monitor, MapPin, Moon, Users } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { TechAvatar } from "@/components/TechAvatar";
@@ -181,6 +185,11 @@ export const ResourceCalendar = memo(function ResourceCalendar({
     return map;
   }, [technicianMap]);
 
+  const visibleScheduleBlocks = useMemo(
+    () => filterScheduleBlocksByTechnician(scheduleBlocks, technicianId),
+    [scheduleBlocks, technicianId]
+  );
+
   const fcEvents: EventInput[] = useMemo(() => {
     const calEventRangesByTech = new Map<string, Array<{ start: number; end: number }>>();
     const assignmentMetaByEventTech = new Map<string, {
@@ -194,79 +203,76 @@ export const ResourceCalendar = memo(function ResourceCalendar({
     }>();
 
     const result: EventInput[] = [];
+    const renderableAssignments = getRenderableAssignments(calendarEvents, technicianId);
 
-    // ── Assignment-based rendering (authoritative for internal/system jobs) ──
-    for (const ev of calendarEvents) {
+    for (const assignment of renderableAssignments) {
+      const ev = assignment.event;
+      const tech = assignment.technician;
       const isOvernight = ev.start.toDateString() !== ev.end.toDateString();
-      const multiTech = ev.technicians.length > 1;
+      const techColor = techColorMap.get(tech.id) || GCAL_PALETTE[0];
+      const techFirstName = tech.name.split(" ")[0];
+      const techInfo = technicianMap.get(tech.id);
+      const renderKey = assignment.assignmentKey;
 
-      for (const tech of ev.technicians) {
-        const ranges = calEventRangesByTech.get(tech.id) || [];
-        ranges.push({ start: ev.start.getTime(), end: ev.end.getTime() });
-        calEventRangesByTech.set(tech.id, ranges);
+      const ranges = calEventRangesByTech.get(tech.id) || [];
+      ranges.push({ start: ev.start.getTime(), end: ev.end.getTime() });
+      calEventRangesByTech.set(tech.id, ranges);
 
-        assignmentMetaByEventTech.set(`${ev.id}::${tech.id}`, {
+      assignmentMetaByEventTech.set(`${ev.id}::${tech.id}`, {
+        eventId: ev.id,
+        technicianId: tech.id,
+        eventTechnicianId: tech.eventTechnicianId ?? null,
+        calendarEventId: tech.calendarEventId ?? null,
+        start: ev.start.getTime(),
+        end: ev.end.getTime(),
+        displayName: tech.name,
+      });
+
+      result.push({
+        id: renderKey,
+        title: ev.title.replace("SERVICE – ", ""),
+        start: ev.start,
+        end: ev.end,
+        backgroundColor: techColor,
+        borderColor: techColor,
+        textColor: "#FFFFFF",
+        extendedProps: {
+          calendarEvent: ev,
+          source: "calendar_event",
+          renderKey,
           eventId: ev.id,
-          technicianId: tech.id,
           eventTechnicianId: tech.eventTechnicianId ?? null,
+          technicianId: tech.id,
+          scheduleBlockId: null,
           calendarEventId: tech.calendarEventId ?? null,
-          start: ev.start.getTime(),
-          end: ev.end.getTime(),
+          outlookEventId: null,
           displayName: tech.name,
-        });
-
-        const techColor = techColorMap.get(tech.id) || GCAL_PALETTE[0];
-        const techFirstName = tech.name.split(" ")[0];
-        const allTechNames = ev.technicians.map((t) => t.name.split(" ")[0]).join(", ");
-        const techInfo = technicianMap.get(tech.id);
-        const renderKey = multiTech ? `${ev.id}__tech__${tech.id}` : ev.id;
-
-        result.push({
-          id: renderKey,
-          title: ev.title.replace("SERVICE – ", ""),
-          start: ev.start,
-          end: ev.end,
-          backgroundColor: techColor,
-          borderColor: techColor,
-          textColor: "#FFFFFF",
-          extendedProps: {
-            calendarEvent: ev,
-            source: "calendar_event",
-            renderKey,
-            eventId: ev.id,
-            eventTechnicianId: tech.eventTechnicianId ?? null,
-            technicianId: tech.id,
-            scheduleBlockId: null,
-            calendarEventId: tech.calendarEventId ?? null,
-            outlookEventId: null,
-            displayName: tech.name,
-            customer: ev.customer,
-            status: ev.status,
-            jobNumber: ev.internalNumber || ev.jobNumber || null,
-            techNames: allTechNames,
-            techName: techFirstName,
-            techFullName: tech.name,
-            techAvatarId: techInfo?.avatarId || null,
-            baseColor: techColor,
-            statusDot: statusDotColors[ev.status] || "#FFFFFF",
-            isOvernight,
-            isMultiTech: multiTech,
-            assignedTechId: tech.id,
-          },
-          editable: effectiveCanWrite,
-        });
-      }
+          customer: ev.customer,
+          status: ev.status,
+          jobNumber: ev.internalNumber || ev.jobNumber || null,
+          techNames: assignment.technicianNames,
+          techName: techFirstName,
+          techFullName: tech.name,
+          techAvatarId: techInfo?.avatarId || null,
+          baseColor: techColor,
+          statusDot: statusDotColors[ev.status] || "#FFFFFF",
+          isOvernight,
+          isMultiTech: assignment.isMultiTech,
+          assignedTechId: tech.id,
+        },
+        editable: effectiveCanWrite,
+      });
     }
 
     // External busy slots
     let missingNameCount = 0;
-    if (getBusySlotsForDay && !hideExternalEvents) {
-      const sbRangesByTech = new Map<string, Array<{ start: number; end: number }>>();
-      for (const block of scheduleBlocks) {
-        const ranges = sbRangesByTech.get(block.technician_id) || [];
-        ranges.push({ start: block.start_at.getTime(), end: block.end_at.getTime() });
-        sbRangesByTech.set(block.technician_id, ranges);
-      }
+      if (getBusySlotsForDay && !hideExternalEvents) {
+        const sbRangesByTech = new Map<string, Array<{ start: number; end: number }>>();
+        for (const block of visibleScheduleBlocks) {
+          const ranges = sbRangesByTech.get(block.technician_id) || [];
+          ranges.push({ start: block.start_at.getTime(), end: block.end_at.getTime() });
+          sbRangesByTech.set(block.technician_id, ranges);
+        }
 
       const weekStart = new Date(referenceDate);
       weekStart.setDate(weekStart.getDate() - weekStart.getDay() + 1);
@@ -341,7 +347,7 @@ export const ResourceCalendar = memo(function ResourceCalendar({
     // Build index of internal (non-outlook) schedule blocks per technician for dedup
     const TZ_TOLERANCE_DEDUP = 65 * 60000;
     const internalBlocksByTech = new Map<string, Array<{ start: number; end: number; projectId: string | null; jobNumber: string | null }>>();
-    for (const block of scheduleBlocks) {
+    for (const block of visibleScheduleBlocks) {
       if (block.source === "outlook") continue;
       const arr = internalBlocksByTech.get(block.technician_id) || [];
       arr.push({
@@ -353,9 +359,8 @@ export const ResourceCalendar = memo(function ResourceCalendar({
       internalBlocksByTech.set(block.technician_id, arr);
     }
 
-    // Schedule blocks – suppress mirrored variants when authoritative assignment exists
     const seenScheduleBlockKeys = new Set<string>();
-    for (const block of scheduleBlocks) {
+    for (const block of visibleScheduleBlocks) {
       const isExternal = block.source === "outlook" && !block.project_id;
       if (hideExternalEvents && isExternal) continue;
 
@@ -487,7 +492,7 @@ export const ResourceCalendar = memo(function ResourceCalendar({
     );
 
     return result;
-  }, [calendarEvents, getBusySlotsForDay, technicianMap, techColorMap, referenceDate, effectiveCanWrite, effectiveCanViewExternal, hideExternalEvents, isMonthView, scheduleBlocks]);
+  }, [calendarEvents, getBusySlotsForDay, technicianId, technicianMap, techColorMap, referenceDate, effectiveCanWrite, effectiveCanViewExternal, hideExternalEvents, visibleScheduleBlocks, isMonthView]);
 
   const handleEventClick = useCallback((info: EventClickArg) => {
     const props = info.event.extendedProps as Record<string, any>;
@@ -559,8 +564,8 @@ export const ResourceCalendar = memo(function ResourceCalendar({
       const busyStart = info.event.start?.getTime() ?? 0;
       const busyEnd = info.event.end?.getTime() ?? busyStart;
       const busyTechId = props.busyTechId as string | undefined;
-      if (busyTechId && scheduleBlocks.length > 0) {
-        const match = scheduleBlocks.find(
+      if (busyTechId && visibleScheduleBlocks.length > 0) {
+        const match = visibleScheduleBlocks.find(
           (sb) =>
             sb.technician_id === busyTechId &&
             sb.start_at.getTime() < busyEnd &&
@@ -596,7 +601,7 @@ export const ResourceCalendar = memo(function ResourceCalendar({
           end_at: info.event.end || new Date(busyEnd),
           title: props.techName ? `${props.techName} – opptatt` : "Opptatt",
           location: null,
-          description: `NO_MATCH: ${scheduleBlocks.length} schedule_blocks vurdert`,
+          description: `NO_MATCH: ${visibleScheduleBlocks.length} schedule_blocks vurdert`,
           match_confidence: 0,
           match_reason: `Debug: busy slot uten schedule_block.`,
           match_state: "external",
@@ -648,7 +653,7 @@ export const ResourceCalendar = memo(function ResourceCalendar({
       const clickedTechId = (props.assignedTechId as string | undefined) ?? (props.technicianId as string | undefined) ?? undefined;
       onEventClick?.(calEvent, clickedTechId);
     }
-  }, [calendarEvents, onEventClick, onScheduleBlockClick, scheduleBlocks]);
+  }, [calendarEvents, onEventClick, onScheduleBlockClick, visibleScheduleBlocks]);
 
   const handleDateSelect = useCallback((info: DateSelectArg) => {
     if (effectiveCanWrite) onDateSelect?.(info.start, info.end);
