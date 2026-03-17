@@ -23,6 +23,8 @@ import {
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useCompanyContext } from "@/hooks/useCompanyContext";
+import { useTechnicians } from "@/hooks/useTechnicians";
 
 /* ── Types ── */
 
