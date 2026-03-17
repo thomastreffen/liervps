@@ -115,6 +115,7 @@ export function EventDrawer({
   const [customer, setCustomer] = useState("");
   const [address, setAddress] = useState("");
   const [description, setDescription] = useState("");
+  const [assignmentNotes, setAssignmentNotes] = useState("");
   const [date, setDate] = useState("");
   const [startTime, setStartTime] = useState("08:00");
   const [endDate, setEndDate] = useState("");
