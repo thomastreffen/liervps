@@ -110,22 +110,20 @@ export function useCalendarEvents(technicianId: string | null, referenceDate?: D
       }
 
       const mapped: CalendarEvent[] = Array.from(uniqueMap.values()).map((e: any) => {
-        const scopedAssignments = (e.event_technicians ?? []).filter(
-          (et: any) => et.technicians && (!technicianId || et.technician_id === technicianId)
-        );
-
-        const technicians: TechnicianInfo[] = scopedAssignments.map((et: any) => ({
-          id: et.technicians.id,
-          name: et.technicians.name,
-          color: et.technicians.color,
-          eventTechnicianId: et.id ?? null,
-          calendarEventId: et.calendar_event_id ?? null,
-        }));
+        const technicians: TechnicianInfo[] = (e.event_technicians ?? [])
+          .filter((et: any) => et.technicians)
+          .map((et: any) => ({
+            id: et.technicians.id,
+            name: et.technicians.name,
+            color: et.technicians.color,
+            eventTechnicianId: et.id ?? null,
+            calendarEventId: et.calendar_event_id ?? null,
+          }));
 
         return {
           id: e.id,
           microsoftEventId: e.microsoft_event_id ?? "",
-          technicianIds: scopedAssignments.map((et: any) => et.technician_id),
+          technicianIds: (e.event_technicians ?? []).map((et: any) => et.technician_id),
           attendeeStatuses: [],
           title: e.title,
           customer: e.customer ?? "",

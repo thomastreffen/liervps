@@ -653,7 +653,7 @@ export const ResourceCalendar = memo(function ResourceCalendar({
       const clickedTechId = (props.assignedTechId as string | undefined) ?? (props.technicianId as string | undefined) ?? undefined;
       onEventClick?.(calEvent, clickedTechId);
     }
-  }, [calendarEvents, onEventClick, onScheduleBlockClick, scheduleBlocks]);
+  }, [calendarEvents, onEventClick, onScheduleBlockClick, visibleScheduleBlocks]);
 
   const handleDateSelect = useCallback((info: DateSelectArg) => {
     if (effectiveCanWrite) onDateSelect?.(info.start, info.end);
