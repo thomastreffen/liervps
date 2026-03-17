@@ -503,6 +503,8 @@ export type Database = {
           company_id: string
           created_at: string
           customer_id: string | null
+          deleted_at: string | null
+          deleted_by: string | null
           due_at: string | null
           id: string
           last_activity_at: string | null
@@ -537,6 +539,8 @@ export type Database = {
           company_id: string
           created_at?: string
           customer_id?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
           due_at?: string | null
           id?: string
           last_activity_at?: string | null
@@ -571,6 +575,8 @@ export type Database = {
           company_id?: string
           created_at?: string
           customer_id?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
           due_at?: string | null
           id?: string
           last_activity_at?: string | null
@@ -1898,6 +1904,8 @@ export type Database = {
           company_id: string | null
           created_at: string
           customer_id: string | null
+          deleted_at: string | null
+          deleted_by: string | null
           id: string
           name: string
           org_number: string | null
@@ -1907,6 +1915,8 @@ export type Database = {
           company_id?: string | null
           created_at?: string
           customer_id?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
           id?: string
           name: string
           org_number?: string | null
@@ -1916,6 +1926,8 @@ export type Database = {
           company_id?: string | null
           created_at?: string
           customer_id?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
           id?: string
           name?: string
           org_number?: string | null
@@ -2219,6 +2231,8 @@ export type Database = {
           created_at: string
           created_by: string | null
           customer_value: string | null
+          deleted_at: string | null
+          deleted_by: string | null
           external_tripletex_id: string | null
           id: string
           main_email: string | null
@@ -2237,6 +2251,8 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           customer_value?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
           external_tripletex_id?: string | null
           id?: string
           main_email?: string | null
@@ -2255,6 +2271,8 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           customer_value?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
           external_tripletex_id?: string | null
           id?: string
           main_email?: string | null
@@ -6834,6 +6852,8 @@ export type Database = {
           birth_date: string | null
           color: string | null
           created_at: string
+          deleted_at: string | null
+          deleted_by: string | null
           driver_license_classes: string | null
           email: string
           hms_card_expires_at: string | null
@@ -6853,6 +6873,8 @@ export type Database = {
           birth_date?: string | null
           color?: string | null
           created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
           driver_license_classes?: string | null
           email: string
           hms_card_expires_at?: string | null
@@ -6872,6 +6894,8 @@ export type Database = {
           birth_date?: string | null
           color?: string | null
           created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
           driver_license_classes?: string | null
           email?: string
           hms_card_expires_at?: string | null
