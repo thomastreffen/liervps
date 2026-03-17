@@ -158,13 +158,15 @@ export default function CalculationDetail() {
   const fetchCalc = useCallback(async () => {
     if (!id) return;
     setLoading(true);
-    const [calcRes, itemsRes, settingsRes, offersRes, orderLinesRes] = await Promise.all([
+    const [calcRes, itemsRes, settingsRes, offersRes, orderLinesRes, companySettingsRes] = await Promise.all([
       supabase.from("calculations").select("*, internal_companies(name), customer_contacts(id, name, email, phone, role)").eq("id", id).single(),
       supabase.from("calculation_items").select("*").eq("calculation_id", id).order("type").order("title"),
       supabase.from("settings").select("key, value"),
       supabase.from("offers").select("*").eq("calculation_id", id).order("created_at", { ascending: false }),
       supabase.from("order_lines").select("*").eq("calculation_id", id).order("sort_order" as any),
+      supabase.from("company_settings").select("*").limit(1).single(),
     ]);
+    if (companySettingsRes.data) setCompanySettings(companySettingsRes.data);
     if (calcRes.data) {
       setCalc(calcRes.data as unknown as Calculation);
       const companyRel = (calcRes.data as any).internal_companies;
