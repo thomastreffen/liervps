@@ -33,8 +33,7 @@ import {
 import {
   Tooltip, TooltipContent, TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { SoftDeleteButton } from "@/components/shared/SoftDeleteButton";
-import { useSoftDelete } from "@/hooks/useSoftDelete";
+import { SoftDeleteRowButton } from "@/components/shared/SoftDeleteRowButton";
 
 interface JobRow {
   id: string;
