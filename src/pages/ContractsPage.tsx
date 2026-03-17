@@ -14,6 +14,7 @@ import { Plus, Search, FileText, AlertTriangle, FolderKanban, UserPlus, Globe } 
 import { format } from "date-fns";
 import { nb } from "date-fns/locale";
 import type { Contract } from "@/hooks/useContracts";
+import { SoftDeleteRowButton } from "@/components/shared/SoftDeleteRowButton";
 
 const STATUS_LABELS: Record<string, string> = {
   draft: "Utkast",
