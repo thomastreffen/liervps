@@ -27,6 +27,10 @@ import { OfferFollowupSection } from "@/components/offer/OfferFollowupSection";
 import { OrderLineEditor, calcTotals, type OrderLine } from "@/components/offer/OrderLineEditor";
 import { PdfPreviewDialog } from "@/components/offer/PdfPreviewDialog";
 import { ConvertToJobDialog } from "@/components/ConvertToJobDialog";
+import { SalesPipelineBar } from "@/components/offer/SalesPipelineBar";
+import { NextStepSection } from "@/components/offer/NextStepSection";
+import { OfferCommentFeed, logOfferComment } from "@/components/offer/OfferCommentFeed";
+import { OfferResponsibleSelect } from "@/components/offer/OfferResponsibleSelect";
 import {
   ArrowLeft, Loader2, Sparkles, FileDown, ArrowRightLeft, Plus, Trash2, Save,
   Building2, Mail, FileText, Brain, Package, Upload, X, Image as ImageIcon,
