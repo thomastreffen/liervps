@@ -6023,6 +6023,56 @@ export type Database = {
           },
         ]
       }
+      products: {
+        Row: {
+          company_id: string | null
+          created_at: string
+          created_by: string | null
+          default_unit: string
+          default_unit_price: number
+          default_vat_rate: number
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          company_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          default_unit?: string
+          default_unit_price?: number
+          default_vat_rate?: number
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          default_unit?: string
+          default_unit_price?: number
+          default_vat_rate?: number
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "products_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "internal_companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_members: {
         Row: {
           created_at: string
