@@ -390,9 +390,21 @@ export default function OfferEditorPage() {
         />
       )}
 
-      {/* Order Lines */}
+      {/* Discount toggle + Order Lines */}
       <div className="space-y-3">
-        <h2 className="text-lg font-semibold">Ordrelinjer</h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold">Ordrelinjer</h2>
+          <div className="flex items-center gap-2">
+            <label htmlFor="show-discount" className="text-sm text-muted-foreground cursor-pointer">
+              Vis rabatt i tilbud
+            </label>
+            <Switch
+              id="show-discount"
+              checked={showDiscountInOffer}
+              onCheckedChange={setShowDiscountInOffer}
+            />
+          </div>
+        </div>
         <OrderLineEditor
           lines={lines}
           onChange={setLines}
