@@ -464,6 +464,65 @@ export default function CalculationDetail() {
   const latestOffer = offers.length > 0 ? offers[0] : null;
   const latestAcceptedOffer = offers.find((o) => o.status === "accepted");
 
+  // Company mismatch detection
+  const companyMismatch = !isAllCompanies && !!activeCompanyId && !!calc.company_id && calc.company_id !== activeCompanyId;
+  const missingCompany = !calc.company_id;
+
+  // Redirect if user switches company while viewing a mismatched offer
+  useEffect(() => {
+    if (calc && companyMismatch) {
+      // Don't auto-redirect, show banner instead
+    }
+  }, [activeCompanyId, calc, companyMismatch]);
+
+  if (companyMismatch) {
+    return (
+      <div className="mx-auto max-w-[1920px] p-4 sm:p-6 pb-24 space-y-6">
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="sm" onClick={() => navigate("/sales/offers")} className="gap-1.5 -ml-2">
+            <ArrowLeft className="h-4 w-4" /> Tilbake til tilbudsoversikt
+          </Button>
+        </div>
+        <div className="rounded-xl border-2 border-orange-300 dark:border-orange-700 bg-orange-50 dark:bg-orange-950/50 p-6 space-y-4">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="h-6 w-6 text-orange-600 dark:text-orange-400 shrink-0 mt-0.5" />
+            <div className="space-y-2">
+              <h2 className="text-lg font-semibold text-orange-900 dark:text-orange-100">
+                Selskapskontekst stemmer ikke
+              </h2>
+              <p className="text-sm text-orange-800 dark:text-orange-200">
+                Dette tilbudet tilhører <strong>{calcCompanyName || "et annet selskap"}</strong>, men du ser på{" "}
+                <strong>{companies.find(c => c.id === activeCompanyId)?.name || "et annet selskap"}</strong>.
+              </p>
+              <p className="text-sm text-orange-700 dark:text-orange-300">
+                Bytt til riktig selskap for å se og redigere tilbudet.
+              </p>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <Button
+              onClick={() => {
+                if (calc.company_id) setActiveCompanyId(calc.company_id);
+              }}
+              size="sm"
+              className="gap-1.5 rounded-lg"
+            >
+              <Building2 className="h-3.5 w-3.5" /> Bytt til {calcCompanyName || "riktig selskap"}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => navigate("/sales/offers")}
+              size="sm"
+              className="gap-1.5 rounded-lg"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" /> Tilbake til listen
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="mx-auto max-w-[1920px] p-4 sm:p-6 pb-24 space-y-6">
       {/* ── Navigation row ── */}
