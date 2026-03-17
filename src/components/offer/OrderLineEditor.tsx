@@ -290,7 +290,7 @@ export function OrderLineEditor({
                       </>
                     ) : (
                       <>
-                        <TableCell className="py-3">
+                        <TableCell className="py-4">
                           {readOnly ? (
                             <span className="text-sm text-right block">{formatQuantity(line.quantity, line.unit)}</span>
                           ) : (
