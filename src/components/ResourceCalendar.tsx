@@ -9,6 +9,10 @@ import { useCalendarEvents, type CalendarEvent } from "@/hooks/useCalendarEvents
 import type { ExternalBusySlot } from "@/hooks/useExternalBusy";
 import type { DayCapacity } from "@/hooks/useCapacity";
 import type { ScheduleBlock } from "@/hooks/useScheduleBlocks";
+import {
+  filterScheduleBlocksByTechnician,
+  getRenderableAssignments,
+} from "@/lib/resource-plan-assignment-identity";
 import { Lock, CalendarCheck, AlertTriangle, Globe, Monitor, MapPin, Moon, Users } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { TechAvatar } from "@/components/TechAvatar";
