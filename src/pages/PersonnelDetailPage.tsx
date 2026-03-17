@@ -15,6 +15,7 @@ import {
   Archive, ArchiveRestore, Sparkles, CheckCircle2, XCircle,
   ArrowLeft, User, FolderOpen, GraduationCap,
 } from "lucide-react";
+import { CompanyPlannableSection } from "@/components/personnel/CompanyPlannableSection";
 import { toast } from "sonner";
 import { differenceInDays, format } from "date-fns";
 import { AvatarPicker } from "@/components/AvatarPicker";
@@ -139,7 +140,6 @@ export default function PersonnelDetailPage() {
     const { error } = await supabase
       .from("technicians")
       .update({
-        is_plannable_resource: profile.is_plannable_resource,
         birth_date: profile.birth_date || null,
         hms_card_number: profile.hms_card_number || null,
         hms_card_expires_at: profile.hms_card_expires_at || null,
@@ -432,16 +432,7 @@ export default function PersonnelDetailPage() {
         {/* Profile Tab */}
         <TabsContent value="profile">
           <div className="rounded-lg border p-4 sm:p-6 space-y-5 max-w-2xl">
-            <div className="flex items-center justify-between">
-              <div>
-                <Label className="text-sm font-medium">Planleggbar ressurs</Label>
-                <p className="text-[11px] text-muted-foreground">Vises i ressursplanen</p>
-              </div>
-              <Switch
-                checked={profile.is_plannable_resource}
-                onCheckedChange={(v) => setProfile({ ...profile, is_plannable_resource: v })}
-              />
-            </div>
+            <CompanyPlannableSection technicianId={profile.id} />
 
             <Separator />
 

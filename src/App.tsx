@@ -78,6 +78,7 @@ import InvoiceBasisPage from "./pages/InvoiceBasisPage";
 import ModuleManagementPage from "./pages/ModuleManagementPage";
 import TripletexImportPage from "./pages/TripletexImportPage";
 import ManagementPage from "./pages/ManagementPage";
+import AbsencePage from "./pages/AbsencePage";
 import MyDayPage from "./pages/MyDayPage";
 import CompanyMigrationPage from "./pages/CompanyMigrationPage";
 import HelpCenterPage from "./pages/HelpCenterPage";
@@ -157,6 +158,7 @@ const App = () => (
               <Route path="/projects/:id/conversations/:threadId" element={<ConversationDetailPage />} />
               <Route path="/projects/plan" element={<ResourcePlan />} />
               <Route path="/calendar/confirmations" element={<ConfirmationsPage />} />
+              <Route path="/absence" element={<AbsencePage />} />
               <Route path="/admin/ai-matcher" element={
                 <ProtectedRoute requiredRoles={["admin", "super_admin"]}>
                   <AiMatcherReportPage />

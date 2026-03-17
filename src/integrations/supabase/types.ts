@@ -14,6 +14,88 @@ export type Database = {
   }
   public: {
     Tables: {
+      absence_requests: {
+        Row: {
+          absence_type: string
+          approved_at: string | null
+          approved_by: string | null
+          comment: string | null
+          company_id: string
+          created_at: string
+          end_date: string
+          end_time: string | null
+          id: string
+          is_full_day: boolean
+          person_id: string
+          rejection_reason: string | null
+          requested_by: string | null
+          start_date: string
+          start_time: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          absence_type: string
+          approved_at?: string | null
+          approved_by?: string | null
+          comment?: string | null
+          company_id: string
+          created_at?: string
+          end_date: string
+          end_time?: string | null
+          id?: string
+          is_full_day?: boolean
+          person_id: string
+          rejection_reason?: string | null
+          requested_by?: string | null
+          start_date: string
+          start_time?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          absence_type?: string
+          approved_at?: string | null
+          approved_by?: string | null
+          comment?: string | null
+          company_id?: string
+          created_at?: string
+          end_date?: string
+          end_time?: string | null
+          id?: string
+          is_full_day?: boolean
+          person_id?: string
+          rejection_reason?: string | null
+          requested_by?: string | null
+          start_date?: string
+          start_time?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "absence_requests_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "internal_companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "absence_requests_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "absence_requests_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "technicians_v"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       activity_log: {
         Row: {
           action: string
