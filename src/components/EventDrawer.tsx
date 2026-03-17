@@ -141,6 +141,7 @@ export function EventDrawer({
   // Attachments
   const [files, setFiles] = useState<File[]>([]);
   const [existingAttachments, setExistingAttachments] = useState<Attachment[]>([]);
+  const [editCompanyName, setEditCompanyName] = useState<string | null>(null);
 
   // Populate form from props
   useEffect(() => {
