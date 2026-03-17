@@ -633,14 +633,17 @@ serve(async (req) => {
       upsert: true,
     });
 
-    // Use signed URL (bucket is private)
-    const { data: signedUrlData } = await supabase.storage.from("calculation-attachments").createSignedUrl(storagePath, 86400 * 365);
-    const pdfUrl = signedUrlData?.signedUrl || "";
+    // Store the storage path (not a signed URL) so we can generate fresh signed URLs on demand
+    const pdfStoragePath = storagePath;
 
-    // Update offer with PDF URL
+    // Update offer with storage path
     await supabase.from("offers").update({
-      generated_pdf_url: pdfUrl,
+      generated_pdf_url: pdfStoragePath,
     }).eq("id", offer.id);
+
+    // Generate a fresh signed URL for immediate use
+    const { data: signedUrlData } = await supabase.storage.from("calculation-attachments").createSignedUrl(storagePath, 3600);
+    const pdfUrl = signedUrlData?.signedUrl || "";
 
     // Update calculation status and updated_at to match offer creation time
     await supabase.from("calculations").update({ status: "generated" }).eq("id", calculation_id);
