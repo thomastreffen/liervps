@@ -42,10 +42,14 @@ export default function OfferEditorPage() {
   const [aiLoading, setAiLoading] = useState(false);
   const [aiSuggestions, setAiSuggestions] = useState<OrderLine[]>([]);
 
+  // Discount toggle
+  const [showDiscountInOffer, setShowDiscountInOffer] = useState(false);
+
   // PDF preview
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
 
   // Pre-fill from query params
   useEffect(() => {
