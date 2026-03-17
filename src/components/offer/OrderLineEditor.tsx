@@ -253,7 +253,7 @@ export function OrderLineEditor({
                       ) : readOnly ? (
                         <p className="text-sm">{line.description}</p>
                       ) : (
-                        <div className="space-y-1">
+                        <div className="space-y-1.5">
                           <Input
                             value={line.description}
                             onChange={e => updateLine(line.id, "description", e.target.value)}
@@ -261,14 +261,16 @@ export function OrderLineEditor({
                             className="h-9 text-sm border-0 bg-transparent shadow-none px-1 focus-visible:ring-1 focus-visible:ring-primary/30 rounded"
                           />
                           {line.description.trim().length > 2 && (
-                            <button
+                            <Button
                               type="button"
-                              className="text-[11px] text-primary/70 hover:text-primary hover:underline flex items-center gap-1"
+                              variant="outline"
+                              size="sm"
+                              className="h-7 text-[11px] gap-1 rounded-md px-2 border-dashed"
                               onClick={() => openCreateProductForLine(line.id, line.description)}
                             >
                               <Plus className="h-3 w-3" />
-                              Lagre som nytt produkt
-                            </button>
+                              Opprett produkt
+                            </Button>
                           )}
                         </div>
                       )}
