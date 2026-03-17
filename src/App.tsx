@@ -243,6 +243,14 @@ const App = () => (
                 path="/sales/offers/new"
                 element={
                   <ProtectedRoute requiredRoles={["admin", "super_admin"]}>
+                    <OfferEditorPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/sales/offers/wizard"
+                element={
+                  <ProtectedRoute requiredRoles={["admin", "super_admin"]}>
                     <NewCalculation />
                   </ProtectedRoute>
                 }
