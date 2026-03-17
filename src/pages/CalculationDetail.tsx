@@ -33,6 +33,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { NewRegulationQueryDialog } from "@/components/regulation/NewRegulationQueryDialog";
+import { ContactPersonSelect, type ContactPerson } from "@/components/offer/ContactPersonSelect";
+import { CustomerSelect } from "@/components/offer/CustomerSelect";
 
 interface CalcItem {
   id: string;
