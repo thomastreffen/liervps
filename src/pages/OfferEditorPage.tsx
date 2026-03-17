@@ -10,8 +10,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { CustomerSelect, type CustomerOption } from "@/components/offer/CustomerSelect";
 import { ContactPersonSelect } from "@/components/offer/ContactPersonSelect";
 import { OrderLineEditor, calcTotals, type OrderLine } from "@/components/offer/OrderLineEditor";
+import { AiSuggestionsPreview } from "@/components/offer/AiSuggestionsPreview";
+import { PdfPreviewDialog } from "@/components/offer/PdfPreviewDialog";
 import {
-  ArrowLeft, Save, Loader2, FileDown, ReceiptText,
+  ArrowLeft, Save, Loader2, FileDown, ReceiptText, Eye,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -37,6 +39,12 @@ export default function OfferEditorPage() {
   // Order lines
   const [lines, setLines] = useState<OrderLine[]>([]);
   const [aiLoading, setAiLoading] = useState(false);
+  const [aiSuggestions, setAiSuggestions] = useState<OrderLine[]>([]);
+
+  // PDF preview
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
 
   // Pre-fill from query params
   useEffect(() => {
@@ -53,7 +61,7 @@ export default function OfferEditorPage() {
   const saveOffer = useCallback(async (silent = false): Promise<string | null> => {
     if (!user) return null;
     if (!projectTitle.trim()) {
-      if (!silent) toast.error("Prosjekttittel er påkrevd");
+      if (!silent) toast.error("Tilbudstittel er påkrevd");
       return null;
     }
     if (!customerName.trim()) {
@@ -140,7 +148,6 @@ export default function OfferEditorPage() {
         toast.info(data.error);
       } else {
         toast.success("Tilbud generert!");
-        // Navigate to the offer detail page
         navigate(`/sales/offers/${savedId}`, { replace: true });
       }
     } catch (err: any) {
@@ -150,17 +157,44 @@ export default function OfferEditorPage() {
     }
   };
 
+  const handlePreviewPdf = async () => {
+    const savedId = await saveOffer(true);
+    if (!savedId) {
+      toast.error("Lagre tilbudet først for å forhåndsvise.");
+      return;
+    }
+    setPreviewOpen(true);
+    setPreviewLoading(true);
+    setPreviewUrl(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-offer-pdf", {
+        body: { calculation_id: savedId, created_by: user?.id, preview_only: true },
+      });
+      if (error) throw error;
+      if (data?.pdf_url) {
+        setPreviewUrl(data.pdf_url);
+      } else if (data?.generated_pdf_url) {
+        setPreviewUrl(data.generated_pdf_url);
+      } else {
+        toast.info("Forhåndsvisning ikke tilgjengelig");
+      }
+    } catch (err: any) {
+      toast.error("Kunne ikke generere forhåndsvisning");
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
   const handleSaveAndStay = async () => {
     const savedId = await saveOffer();
     if (savedId && !calcId) {
-      // First save - update URL without full navigation to avoid blank page
       window.history.replaceState(null, "", `/sales/offers/new?saved=${savedId}`);
     }
   };
 
   const requestAiSuggestions = async () => {
     if (!comment.trim() && !projectTitle.trim()) {
-      toast.info("Skriv en beskrivelse eller prosjekttittel for å få AI-forslag");
+      toast.info("Skriv en beskrivelse eller tilbudstittel for å få AI-forslag");
       return;
     }
     setAiLoading(true);
@@ -173,7 +207,7 @@ export default function OfferEditorPage() {
         },
       });
       if (error) throw error;
-      if (data?.suggestions && Array.isArray(data.suggestions)) {
+      if (data?.suggestions && Array.isArray(data.suggestions) && data.suggestions.length > 0) {
         const maxSort = lines.length > 0 ? Math.max(...lines.map(l => l.sort_order)) : 0;
         const newLines: OrderLine[] = data.suggestions.map((s: any, i: number) => ({
           id: crypto.randomUUID(),
@@ -187,8 +221,9 @@ export default function OfferEditorPage() {
           vat_rate: 25,
           suggested_by_ai: true,
         }));
-        setLines(prev => [...prev, ...newLines]);
-        toast.success(`${newLines.length} AI-forslag lagt til`);
+        // Show as preview instead of auto-inserting
+        setAiSuggestions(newLines);
+        toast.success(`${newLines.length} AI-forslag klare for gjennomgang`);
       } else {
         toast.info("Ingen forslag fra AI");
       }
@@ -197,6 +232,23 @@ export default function OfferEditorPage() {
     } finally {
       setAiLoading(false);
     }
+  };
+
+  const handleAcceptAiAll = () => {
+    setLines(prev => [...prev, ...aiSuggestions]);
+    setAiSuggestions([]);
+    toast.success("Alle AI-forslag lagt til");
+  };
+
+  const handleAcceptAiSelected = (selected: OrderLine[]) => {
+    setLines(prev => [...prev, ...selected]);
+    setAiSuggestions(prev => prev.filter(s => !selected.some(sel => sel.id === s.id)));
+    toast.success(`${selected.length} forslag lagt til`);
+  };
+
+  const handleDismissAi = () => {
+    setAiSuggestions([]);
+    toast.info("AI-forslag forkastet");
   };
 
   return (
@@ -224,6 +276,15 @@ export default function OfferEditorPage() {
             Lagre utkast
           </Button>
           <Button
+            variant="outline"
+            onClick={handlePreviewPdf}
+            disabled={lines.length === 0}
+            className="gap-1.5 rounded-lg"
+          >
+            <Eye className="h-4 w-4" />
+            Forhåndsvis
+          </Button>
+          <Button
             onClick={generatePdf}
             disabled={generating || lines.length === 0}
             className="gap-1.5 rounded-lg"
@@ -238,7 +299,7 @@ export default function OfferEditorPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 rounded-xl border bg-card">
         <div className="space-y-3">
           <div className="space-y-1.5">
-            <Label>Prosjekttittel *</Label>
+            <Label>Tilbudstittel *</Label>
             <Input
               value={projectTitle}
               onChange={e => setProjectTitle(e.target.value)}
@@ -291,6 +352,16 @@ export default function OfferEditorPage() {
         </div>
       </div>
 
+      {/* AI Suggestions Preview */}
+      {aiSuggestions.length > 0 && (
+        <AiSuggestionsPreview
+          suggestions={aiSuggestions}
+          onAcceptAll={handleAcceptAiAll}
+          onAcceptSelected={handleAcceptAiSelected}
+          onDismiss={handleDismissAi}
+        />
+      )}
+
       {/* Order Lines */}
       <div className="space-y-3">
         <h2 className="text-lg font-semibold">Ordrelinjer</h2>
@@ -303,6 +374,14 @@ export default function OfferEditorPage() {
           hasDescriptionOrAttachment={hasDescriptionOrAttachment}
         />
       </div>
+
+      {/* PDF Preview Dialog */}
+      <PdfPreviewDialog
+        open={previewOpen}
+        onOpenChange={setPreviewOpen}
+        pdfUrl={previewUrl}
+        loading={previewLoading}
+      />
     </div>
   );
 }
