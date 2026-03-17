@@ -188,15 +188,12 @@ export default function OffersPage() {
                       </TableCell>
                       <TableCell className="w-10" onClick={(e) => e.stopPropagation()}>
                         <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                          <SoftDeleteButton
+                          <SoftDeleteRowButton
+                            table="calculations"
+                            id={calc.id}
                             entityLabel="Tilbud"
                             entityName={calc.project_title}
-                            onConfirm={async () => {
-                              setDeletingId(calc.id);
-                              await softDelete(calc.id);
-                              setDeletingId(null);
-                            }}
-                            isDeleting={isDeleting && deletingId === calc.id}
+                            onDeleted={() => setCalcs((prev) => prev.filter((c) => c.id !== calc.id))}
                           />
                         </div>
                       </TableCell>
