@@ -23,19 +23,21 @@ export function CustomerActivityList({ customerId }: Props) {
 
   const fetchActivity = useCallback(async () => {
     // Fetch offers linked to customer
-    const { data: offers } = await (supabase
+    const offersQuery = supabase
       .from("calculations")
-      .select("id, project_title, status, created_at")
-      .eq("customer_name", customerId) as any)
+      .select("id, project_title, status, created_at") as any;
+    const { data: offers } = await offersQuery
+      .eq("customer_name", customerId)
       .is("deleted_at", null)
       .order("created_at", { ascending: false })
       .limit(10);
 
     // Fetch leads linked to customer
-    const { data: leads } = await (supabase
+    const leadsQuery = supabase
       .from("leads")
-      .select("id, title, status, created_at")
-      .eq("customer_id", customerId) as any)
+      .select("id, title, status, created_at") as any;
+    const { data: leads } = await leadsQuery
+      .eq("customer_id", customerId)
       .is("deleted_at", null)
       .order("created_at", { ascending: false })
       .limit(10);
