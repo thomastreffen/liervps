@@ -132,7 +132,11 @@ function normalizeEventTimes(event: any): { startTime: string; endTime: string }
 }
 
 /* ── Build Graph event body ── */
-function buildGraphBody(event: any, customer?: any) {
+function buildGraphBody(
+  event: any,
+  customer?: any,
+  assignment?: { eventTechnicianId?: string | null; technicianId?: string | null; techName?: string | null }
+) {
   const { startTime: normalizedStart, endTime: normalizedEnd } = normalizeEventTimes(event);
 
   const typeLabel = PROJECT_TYPE_LABELS[event.project_type] || event.project_type || "Arbeid";
@@ -156,6 +160,11 @@ function buildGraphBody(event: any, customer?: any) {
 
   html += `<p style="margin: 0 0 4px; font-size: 13px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px;">Oppdrag</p>`;
   html += `<p style="margin: 0 0 ${event.assignment_notes ? "8" : "16"}px; font-size: 15px;">${event.title || typeLabel}${event.description ? `<br/><span style="color: #6b7280;">${event.description}</span>` : ""}${isOvernight ? '<br/><span style="color: #7c3aed;">🌙 Nattoppdrag</span>' : ""}</p>`;
+
+  if (assignment?.techName) {
+    html += `<p style="margin: 0 0 4px; font-size: 13px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px;">Tildelt montør</p>`;
+    html += `<p style="margin: 0 0 16px; font-size: 15px; color: #1a1a1a;">${assignment.techName}</p>`;
+  }
 
   if (event.assignment_notes) {
     html += `<p style="margin: 0 0 4px; font-size: 13px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px;">Instruks for denne tildelingen</p>`;
@@ -182,7 +191,6 @@ function buildGraphBody(event: any, customer?: any) {
     html += `<p style="margin: 0 0 16px; font-size: 15px;">${contactParts.join("<br/>")}</p>`;
   }
 
-  // Attachments section
   const attachments = Array.isArray(event.attachments) ? event.attachments : [];
   if (attachments.length > 0) {
     html += `<p style="margin: 0 0 4px; font-size: 13px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px;">Vedlegg</p>`;
@@ -195,12 +203,10 @@ function buildGraphBody(event: any, customer?: any) {
     html += `</ul>`;
   }
 
-  // Link to job in system
   const jobUrl = `https://mcsressurs.lovable.app/jobs/${event.id}`;
   html += `<p style="margin: 16px 0 0;"><a href="${jobUrl}" style="color: #2563eb; text-decoration: none; font-size: 13px;">🔗 Åpne i MCS Ressurs</a></p>`;
 
-  // Hidden marker for dedup – outlook-schedule-sync checks for this
-  html += `<!-- MCS_SOURCE:true MCS_EVENT_ID:${event.id} -->`;
+  html += `<!-- MCS_SOURCE:true MCS_EVENT_ID:${event.id}${assignment?.eventTechnicianId ? ` MCS_ASSIGNMENT_ID:${assignment.eventTechnicianId}` : ""}${assignment?.technicianId ? ` MCS_TECHNICIAN_ID:${assignment.technicianId}` : ""} -->`;
 
   html += `</div>`;
 
