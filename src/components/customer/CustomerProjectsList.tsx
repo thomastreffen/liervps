@@ -36,7 +36,7 @@ export function CustomerProjectsList({ projects, customerId }: Props) {
             <Button size="sm" onClick={() => navigate(`/projects/new?customer=${customerId}`)} className="gap-1.5 rounded-xl">
               <Plus className="h-3.5 w-3.5" /> Opprett prosjekt
             </Button>
-            <Button size="sm" variant="outline" onClick={() => navigate(`/leads/new?customer=${customerId}`)} className="gap-1.5 rounded-xl">
+            <Button size="sm" variant="outline" onClick={() => navigate(`/sales/leads/new?customer=${customerId}`)} className="gap-1.5 rounded-xl">
               <Plus className="h-3.5 w-3.5" /> Opprett lead
             </Button>
           </div>

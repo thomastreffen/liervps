@@ -20,7 +20,7 @@ export function CustomerActionRequired({ customerId, customerName, leadCount, of
     actions.push({
       icon: TrendingUp,
       text: "Opprett lead",
-      action: () => navigate(`/leads/new?customer=${customerId}`),
+      action: () => navigate(`/sales/leads/new?customer=${customerId}`),
       variant: "default",
     });
   }
