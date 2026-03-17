@@ -347,6 +347,17 @@ export default function CustomersPage() {
                             ? new Date(c.lastActivity).toLocaleDateString("nb-NO", { day: "numeric", month: "short" })
                             : "—"}
                         </TableCell>
+                        <TableCell className="w-10" onClick={(e) => e.stopPropagation()}>
+                          <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                            <SoftDeleteRowButton
+                              table="customers"
+                              id={c.id}
+                              entityLabel="Kunde"
+                              entityName={c.name}
+                              onDeleted={() => setCustomers((prev) => prev.filter((x) => x.id !== c.id))}
+                            />
+                          </div>
+                        </TableCell>
                       </TableRow>
                     );
                   })

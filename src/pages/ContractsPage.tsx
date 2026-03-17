@@ -168,7 +168,7 @@ export default function ContractsPage() {
               {filtered.map((c) => {
                 const link = getLinkInfo(c);
                 return (
-                  <TableRow key={c.id} className="cursor-pointer hover:bg-secondary/40 transition-colors" onClick={() => navigate(`/contracts/${c.id}`)}>
+                  <TableRow key={c.id} className="cursor-pointer hover:bg-secondary/40 transition-colors group" onClick={() => navigate(`/contracts/${c.id}`)}>
                     <TableCell className="font-medium">{c.title}</TableCell>
                     <TableCell className="hidden md:table-cell text-muted-foreground/70">{c.counterparty_name || "—"}</TableCell>
                     <TableCell>
