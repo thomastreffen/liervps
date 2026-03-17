@@ -135,6 +135,7 @@ export default function CalculationDetail() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [regulationOpen, setRegulationOpen] = useState(false);
   const [calcCompanyName, setCalcCompanyName] = useState<string | null>(null);
+  const [contactPerson, setContactPerson] = useState<ContactPersonInfo | null>(null);
 
   const fetchCalc = useCallback(async () => {
     if (!id) return;
