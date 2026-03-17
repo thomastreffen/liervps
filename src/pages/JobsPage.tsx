@@ -33,6 +33,7 @@ import {
 import {
   Tooltip, TooltipContent, TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { SoftDeleteRowButton } from "@/components/shared/SoftDeleteRowButton";
 
 interface JobRow {
   id: string;
@@ -428,6 +429,7 @@ export default function JobsPage() {
                               <TooltipContent>Send godkjenning</TooltipContent>
                             </Tooltip>
                           )}
+                          <SoftDeleteRowButton table="events" id={job.id} entityLabel="Prosjekt" entityName={job.title} onDeleted={() => setJobs((prev) => prev.filter((j) => j.id !== job.id))} />
                         </div>
                       </TableCell>
                     </TableRow>

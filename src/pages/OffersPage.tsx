@@ -20,6 +20,7 @@ import {
   type CalculationStatus,
 } from "@/lib/calculation-status";
 import { Search, ReceiptText, Loader2, Plus, ChevronLeft, ChevronRight } from "lucide-react";
+import { SoftDeleteRowButton } from "@/components/shared/SoftDeleteRowButton";
 
 interface CalcRow {
   id: string;
@@ -42,6 +43,8 @@ export default function OffersPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [page, setPage] = useState(0);
+
+
 
   const fetchCalcs = async () => {
     setLoading(true);
@@ -136,12 +139,13 @@ export default function OffersPage() {
                    <TableHead className="text-xs font-semibold uppercase tracking-wider">Status</TableHead>
                    <TableHead className="hidden lg:table-cell text-xs font-semibold uppercase tracking-wider">Aktivitet</TableHead>
                    <TableHead className="text-right text-xs font-semibold uppercase tracking-wider">Totalpris</TableHead>
+                   <TableHead className="w-10" />
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {paged.length === 0 ? (
                   <TableRow>
-                     <TableCell colSpan={6} className="text-center text-muted-foreground py-12">
+                     <TableCell colSpan={7} className="text-center text-muted-foreground py-12">
                       <ReceiptText className="h-8 w-8 mx-auto mb-2 opacity-30" />
                       Ingen tilbud funnet.
                     </TableCell>
@@ -150,7 +154,7 @@ export default function OffersPage() {
                   paged.map((calc) => (
                     <TableRow
                       key={calc.id}
-                      className="cursor-pointer hover:bg-secondary/40 transition-colors"
+                      className="cursor-pointer hover:bg-secondary/40 transition-colors group"
                       onClick={() => navigate(`/sales/offers/${calc.id}`)}
                     >
                       <TableCell>
@@ -181,6 +185,17 @@ export default function OffersPage() {
                         {Number(calc.total_price) > 0
                           ? `kr ${Number(calc.total_price).toLocaleString("nb-NO", { minimumFractionDigits: 0 })}`
                           : "—"}
+                      </TableCell>
+                      <TableCell className="w-10" onClick={(e) => e.stopPropagation()}>
+                        <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                          <SoftDeleteRowButton
+                            table="calculations"
+                            id={calc.id}
+                            entityLabel="Tilbud"
+                            entityName={calc.project_title}
+                            onDeleted={() => setCalcs((prev) => prev.filter((c) => c.id !== calc.id))}
+                          />
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))

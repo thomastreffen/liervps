@@ -14,6 +14,7 @@ import { Plus, Search, FileText, AlertTriangle, FolderKanban, UserPlus, Globe } 
 import { format } from "date-fns";
 import { nb } from "date-fns/locale";
 import type { Contract } from "@/hooks/useContracts";
+import { SoftDeleteRowButton } from "@/components/shared/SoftDeleteRowButton";
 
 const STATUS_LABELS: Record<string, string> = {
   draft: "Utkast",
@@ -160,13 +161,14 @@ export default function ContractsPage() {
                 <TableHead className="text-xs font-semibold uppercase tracking-wider">Risiko</TableHead>
                 <TableHead className="hidden lg:table-cell text-xs font-semibold uppercase tracking-wider">Sluttdato</TableHead>
                 <TableHead className="hidden lg:table-cell text-xs font-semibold uppercase tracking-wider">Dagbot</TableHead>
+                <TableHead className="w-10" />
               </TableRow>
             </TableHeader>
             <TableBody>
               {filtered.map((c) => {
                 const link = getLinkInfo(c);
                 return (
-                  <TableRow key={c.id} className="cursor-pointer hover:bg-secondary/40 transition-colors" onClick={() => navigate(`/contracts/${c.id}`)}>
+                  <TableRow key={c.id} className="cursor-pointer hover:bg-secondary/40 transition-colors group" onClick={() => navigate(`/contracts/${c.id}`)}>
                     <TableCell className="font-medium">{c.title}</TableCell>
                     <TableCell className="hidden md:table-cell text-muted-foreground/70">{c.counterparty_name || "—"}</TableCell>
                     <TableCell>
@@ -197,6 +199,17 @@ export default function ContractsPage() {
                       ) : (
                         <span className="text-xs text-muted-foreground">Nei</span>
                       )}
+                    </TableCell>
+                    <TableCell className="w-10" onClick={(e) => e.stopPropagation()}>
+                      <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                        <SoftDeleteRowButton
+                          table="contracts"
+                          id={c.id}
+                          entityLabel="Kontrakt"
+                          entityName={c.title}
+                          onDeleted={() => {/* refetch handled by react-query */}}
+                        />
+                      </div>
                     </TableCell>
                   </TableRow>
                 );

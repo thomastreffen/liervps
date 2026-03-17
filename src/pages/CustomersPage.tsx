@@ -16,6 +16,7 @@ import {
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
+import { SoftDeleteRowButton } from "@/components/shared/SoftDeleteRowButton";
 
 interface CustomerRow {
   id: string;
@@ -286,12 +287,13 @@ export default function CustomersPage() {
                     </button>
                   </TableHead>
                   <TableHead className="text-xs font-semibold uppercase tracking-wider">Sist aktiv</TableHead>
+                  <TableHead className="w-10" />
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {paged.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center text-muted-foreground py-12">
+                    <TableCell colSpan={7} className="text-center text-muted-foreground py-12">
                       Ingen kunder funnet.
                     </TableCell>
                   </TableRow>
@@ -302,7 +304,7 @@ export default function CustomersPage() {
                     return (
                       <TableRow
                         key={c.id}
-                        className="cursor-pointer hover:bg-secondary/40 transition-colors"
+                        className="cursor-pointer hover:bg-secondary/40 transition-colors group"
                         onClick={() => navigate(`/customers/${c.id}`)}
                       >
                         <TableCell>
@@ -344,6 +346,17 @@ export default function CustomersPage() {
                           {c.lastActivity
                             ? new Date(c.lastActivity).toLocaleDateString("nb-NO", { day: "numeric", month: "short" })
                             : "—"}
+                        </TableCell>
+                        <TableCell className="w-10" onClick={(e) => e.stopPropagation()}>
+                          <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                            <SoftDeleteRowButton
+                              table="customers"
+                              id={c.id}
+                              entityLabel="Kunde"
+                              entityName={c.name}
+                              onDeleted={() => setCustomers((prev) => prev.filter((x) => x.id !== c.id))}
+                            />
+                          </div>
                         </TableCell>
                       </TableRow>
                     );
