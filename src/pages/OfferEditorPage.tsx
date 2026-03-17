@@ -421,6 +421,8 @@ export default function OfferEditorPage() {
         onOpenChange={setPreviewOpen}
         pdfUrl={previewUrl}
         loading={previewLoading}
+        error={previewError}
+        onRetry={handlePreviewPdf}
       />
     </div>
   );
