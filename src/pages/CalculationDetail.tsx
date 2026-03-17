@@ -119,6 +119,7 @@ export default function CalculationDetail() {
 
   const [calc, setCalc] = useState<Calculation | null>(null);
   const [items, setItems] = useState<CalcItem[]>([]);
+  const [orderLines, setOrderLines] = useState<OrderLine[]>([]);
   const [offers, setOffers] = useState<Offer[]>([]);
   const [loading, setLoading] = useState(true);
   const [aiLoading, setAiLoading] = useState(false);
@@ -138,6 +139,11 @@ export default function CalculationDetail() {
   const [regulationOpen, setRegulationOpen] = useState(false);
   const [calcCompanyName, setCalcCompanyName] = useState<string | null>(null);
   const [contactPerson, setContactPerson] = useState<ContactPersonInfo | null>(null);
+
+  // PDF preview
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
 
   const fetchCalc = useCallback(async () => {
     if (!id) return;
