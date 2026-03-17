@@ -47,6 +47,8 @@ function suggestMapping(header: string): string {
   if (/post\s?n|zip|postn/.test(h)) return "billing_zip";
   if (/by|city|sted/.test(h)) return "billing_city";
   if (/notat|note|komment/.test(h)) return "notes";
+  if (/verdi|value|klasse|kategori/.test(h)) return "customer_value";
+  if (/tag|segment|merke/.test(h)) return "tags";
   return "skip";
 }
 
