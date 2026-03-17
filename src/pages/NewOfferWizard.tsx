@@ -281,6 +281,31 @@ export default function NewOfferWizard() {
               </div>
             )}
             <div className="grid gap-4 sm:grid-cols-2">
+              <CustomerSelect
+                value={selectedCustomerId}
+                companyId={activeCompanyId}
+                onChange={(id, customer) => {
+                  setSelectedCustomerId(id);
+                  if (customer) {
+                    setCustomerName(customer.name);
+                    if (customer.main_email) setCustomerEmail(customer.main_email);
+                  }
+                  // Reset contact when customer changes
+                  setSelectedContactId(null);
+                  setSelectedContact(null);
+                }}
+              />
+              <ContactPersonSelect
+                customerId={selectedCustomerId}
+                value={selectedContactId}
+                onChange={(id, contact) => {
+                  setSelectedContactId(id);
+                  setSelectedContact(contact);
+                  if (contact?.email) setCustomerEmail(contact.email);
+                }}
+              />
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <Label>Kundenavn *</Label>
                 <Input value={customerName} onChange={e => setCustomerName(e.target.value)} placeholder="Firma eller person" />
