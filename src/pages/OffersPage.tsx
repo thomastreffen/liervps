@@ -44,11 +44,7 @@ export default function OffersPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [page, setPage] = useState(0);
 
-  const { softDelete, isDeleting } = useSoftDelete({
-    table: "calculations",
-    onSuccess: () => setCalcs((prev) => prev.filter((c) => c.id !== deletingId)),
-  });
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+
 
   const fetchCalcs = async () => {
     setLoading(true);
