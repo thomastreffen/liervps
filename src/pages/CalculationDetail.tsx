@@ -73,6 +73,10 @@ interface Calculation {
   company_id: string | null;
   customer_id: string | null;
   contact_person_id: string | null;
+  responsible_user_id: string | null;
+  next_step: string | null;
+  next_step_at: string | null;
+  last_activity_at: string | null;
 }
 
 interface ContactPersonInfo {
