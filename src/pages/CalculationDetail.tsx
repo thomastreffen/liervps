@@ -33,6 +33,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { NewRegulationQueryDialog } from "@/components/regulation/NewRegulationQueryDialog";
+import { ContactPersonSelect, type ContactPerson } from "@/components/offer/ContactPersonSelect";
+import { CustomerSelect } from "@/components/offer/CustomerSelect";
 
 interface CalcItem {
   id: string;
@@ -63,6 +65,16 @@ interface Calculation {
   updated_at: string;
   lead_id: string | null;
   company_id: string | null;
+  customer_id: string | null;
+  contact_person_id: string | null;
+}
+
+interface ContactPersonInfo {
+  id: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  role: string | null;
 }
 
 interface Offer {
@@ -123,12 +135,13 @@ export default function CalculationDetail() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [regulationOpen, setRegulationOpen] = useState(false);
   const [calcCompanyName, setCalcCompanyName] = useState<string | null>(null);
+  const [contactPerson, setContactPerson] = useState<ContactPersonInfo | null>(null);
 
   const fetchCalc = useCallback(async () => {
     if (!id) return;
     setLoading(true);
     const [calcRes, itemsRes, settingsRes, offersRes] = await Promise.all([
-      supabase.from("calculations").select("*, internal_companies(name)").eq("id", id).single(),
+      supabase.from("calculations").select("*, internal_companies(name), customer_contacts(id, name, email, phone, role)").eq("id", id).single(),
       supabase.from("calculation_items").select("*").eq("calculation_id", id).order("type").order("title"),
       supabase.from("settings").select("key, value"),
       supabase.from("offers").select("*").eq("calculation_id", id).order("created_at", { ascending: false }),
@@ -137,6 +150,8 @@ export default function CalculationDetail() {
       setCalc(calcRes.data as unknown as Calculation);
       const companyRel = (calcRes.data as any).internal_companies;
       setCalcCompanyName(companyRel?.name || null);
+      const contactRel = (calcRes.data as any).customer_contacts;
+      setContactPerson(contactRel || null);
     }
     if (itemsRes.data) setItems(itemsRes.data as CalcItem[]);
     if (offersRes.data) setOffers(offersRes.data as unknown as Offer[]);
@@ -572,6 +587,14 @@ export default function CalculationDetail() {
               )}
               <span className="flex items-center gap-1.5"><Building2 className="h-3.5 w-3.5" />{calc.customer_name}</span>
               {calc.customer_email && <span className="flex items-center gap-1.5"><Mail className="h-3.5 w-3.5" />{calc.customer_email}</span>}
+              {contactPerson && (
+                <span className="flex items-center gap-1.5 text-xs font-medium bg-primary/10 text-primary px-2 py-0.5 rounded-md">
+                  👤 {contactPerson.name}
+                  {contactPerson.role && <span className="text-muted-foreground">({contactPerson.role})</span>}
+                  {contactPerson.email && <span className="text-muted-foreground">• {contactPerson.email}</span>}
+                  {contactPerson.phone && <span className="text-muted-foreground">• {contactPerson.phone}</span>}
+                </span>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -837,6 +860,47 @@ export default function CalculationDetail() {
               <p className="text-sm text-muted-foreground whitespace-pre-wrap">{calc.description}</p>
             </div>
           )}
+          {/* Contact person editor */}
+          {isAdmin && (
+            <div className="rounded-xl border border-border/40 bg-card p-4 space-y-3">
+              <h3 className="text-sm font-medium">Kunde & kontaktperson</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <CustomerSelect
+                  value={calc.customer_id}
+                  companyId={calc.company_id}
+                  onChange={async (customerId, customer) => {
+                    await supabase.from("calculations").update({
+                      customer_id: customerId,
+                      ...(customer ? { customer_name: customer.name, customer_email: customer.main_email } : {}),
+                      contact_person_id: null,
+                    } as any).eq("id", calc.id);
+                    setCalc(prev => prev ? {
+                      ...prev,
+                      customer_id: customerId,
+                      ...(customer ? { customer_name: customer.name, customer_email: customer.main_email } : {}),
+                      contact_person_id: null,
+                    } : null);
+                    setContactPerson(null);
+                    toast.success("Kunde oppdatert");
+                  }}
+                />
+                <ContactPersonSelect
+                  customerId={calc.customer_id}
+                  value={calc.contact_person_id}
+                  onChange={async (contactId, contact) => {
+                    await supabase.from("calculations").update({
+                      contact_person_id: contactId,
+                      ...(contact?.email ? { customer_email: contact.email } : {}),
+                    } as any).eq("id", calc.id);
+                    setCalc(prev => prev ? { ...prev, contact_person_id: contactId } : null);
+                    setContactPerson(contact ? { id: contact.id, name: contact.name, email: contact.email, phone: contact.phone, role: contact.role } : null);
+                    toast.success("Kontaktperson oppdatert");
+                  }}
+                />
+              </div>
+            </div>
+          )}
+
           <div className="rounded-xl border border-border/40 bg-card p-4 space-y-2">
             <h3 className="text-sm font-medium">Detaljer</h3>
             <div className="grid grid-cols-2 gap-2 text-sm">

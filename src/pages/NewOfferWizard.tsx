@@ -2,7 +2,10 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useCompanyContext } from "@/hooks/useCompanyContext";
 import { Button } from "@/components/ui/button";
+import { CustomerSelect, type CustomerOption } from "@/components/offer/CustomerSelect";
+import { ContactPersonSelect, type ContactPerson } from "@/components/offer/ContactPersonSelect";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -41,6 +44,7 @@ const STEPS = [
 export default function NewOfferWizard() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { activeCompanyId } = useCompanyContext();
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
   const [generating, setGenerating] = useState(false);
@@ -51,6 +55,9 @@ export default function NewOfferWizard() {
   const [projectTitle, setProjectTitle] = useState("");
   const [description, setDescription] = useState("");
   const [calcId, setCalcId] = useState<string | null>(null);
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
+  const [selectedContactId, setSelectedContactId] = useState<string | null>(null);
+  const [selectedContact, setSelectedContact] = useState<ContactPerson | null>(null);
 
   // Step 2: Line items
   const [items, setItems] = useState<LineItem[]>([]);
@@ -132,7 +139,9 @@ export default function NewOfferWizard() {
       project_title: projectTitle.trim(),
       description: description.trim() || null,
       created_by: user!.id,
-    }).select("id").single();
+      customer_id: selectedCustomerId || null,
+      contact_person_id: selectedContactId || null,
+    } as any).select("id").single();
     setSaving(false);
     if (error) { toast.error("Feil", { description: error.message }); return null; }
     setCalcId(data.id);
@@ -271,6 +280,31 @@ export default function NewOfferWizard() {
                 </div>
               </div>
             )}
+            <div className="grid gap-4 sm:grid-cols-2">
+              <CustomerSelect
+                value={selectedCustomerId}
+                companyId={activeCompanyId}
+                onChange={(id, customer) => {
+                  setSelectedCustomerId(id);
+                  if (customer) {
+                    setCustomerName(customer.name);
+                    if (customer.main_email) setCustomerEmail(customer.main_email);
+                  }
+                  // Reset contact when customer changes
+                  setSelectedContactId(null);
+                  setSelectedContact(null);
+                }}
+              />
+              <ContactPersonSelect
+                customerId={selectedCustomerId}
+                value={selectedContactId}
+                onChange={(id, contact) => {
+                  setSelectedContactId(id);
+                  setSelectedContact(contact);
+                  if (contact?.email) setCustomerEmail(contact.email);
+                }}
+              />
+            </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <Label>Kundenavn *</Label>
