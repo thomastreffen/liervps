@@ -185,7 +185,7 @@ export function ProjectScheduleSheet({
     } finally {
       setSaving(false);
     }
-  }, [selectedTechId, date, computedStart, computedEnd, projectId, projectTitle, address, selectedTech, onCreated, onOpenChange]);
+  }, [selectedTechId, date, computedStart, computedEnd, projectId, projectTitle, address, selectedTech, onCreated, onOpenChange, activeCompanyId]);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
