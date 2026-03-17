@@ -564,8 +564,8 @@ export const ResourceCalendar = memo(function ResourceCalendar({
       const busyStart = info.event.start?.getTime() ?? 0;
       const busyEnd = info.event.end?.getTime() ?? busyStart;
       const busyTechId = props.busyTechId as string | undefined;
-      if (busyTechId && scheduleBlocks.length > 0) {
-        const match = scheduleBlocks.find(
+      if (busyTechId && visibleScheduleBlocks.length > 0) {
+        const match = visibleScheduleBlocks.find(
           (sb) =>
             sb.technician_id === busyTechId &&
             sb.start_at.getTime() < busyEnd &&
