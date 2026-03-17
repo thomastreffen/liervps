@@ -64,6 +64,8 @@ export function ProjectScheduleSheet({
   suggestedDate, onCreated,
 }: ProjectScheduleSheetProps) {
   const isMobile = useIsMobile();
+  const { activeCompanyId } = useCompanyContext();
+  const { technicians } = useTechnicians(activeCompanyId);
   const [date, setDate] = useState<Date | undefined>(suggestedDate || new Date());
   const [startTime, setStartTime] = useState("08:00");
   const [duration, setDuration] = useState("120");
