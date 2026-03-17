@@ -234,7 +234,7 @@ export function OrderLineEditor({
                       line.suggested_by_ai && "bg-primary/5 border-l-2 border-l-primary/30"
                     )}
                   >
-                    <TableCell className="text-center text-xs text-muted-foreground font-mono py-3">
+                    <TableCell className="text-center text-xs text-muted-foreground font-mono py-4">
                       {idx + 1}
                     </TableCell>
                     <TableCell className="py-3">
