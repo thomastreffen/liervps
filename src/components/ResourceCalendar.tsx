@@ -185,6 +185,11 @@ export const ResourceCalendar = memo(function ResourceCalendar({
     return map;
   }, [technicianMap]);
 
+  const visibleScheduleBlocks = useMemo(
+    () => filterScheduleBlocksByTechnician(scheduleBlocks, technicianId),
+    [scheduleBlocks, technicianId]
+  );
+
   const fcEvents: EventInput[] = useMemo(() => {
     const calEventRangesByTech = new Map<string, Array<{ start: number; end: number }>>();
     const assignmentMetaByEventTech = new Map<string, {
@@ -198,68 +203,65 @@ export const ResourceCalendar = memo(function ResourceCalendar({
     }>();
 
     const result: EventInput[] = [];
+    const renderableAssignments = getRenderableAssignments(calendarEvents, technicianId);
 
-    // ── Assignment-based rendering (authoritative for internal/system jobs) ──
-    for (const ev of calendarEvents) {
+    for (const assignment of renderableAssignments) {
+      const ev = assignment.event;
+      const tech = assignment.technician;
       const isOvernight = ev.start.toDateString() !== ev.end.toDateString();
-      const multiTech = ev.technicians.length > 1;
+      const techColor = techColorMap.get(tech.id) || GCAL_PALETTE[0];
+      const techFirstName = tech.name.split(" ")[0];
+      const techInfo = technicianMap.get(tech.id);
+      const renderKey = assignment.assignmentKey;
 
-      for (const tech of ev.technicians) {
-        const ranges = calEventRangesByTech.get(tech.id) || [];
-        ranges.push({ start: ev.start.getTime(), end: ev.end.getTime() });
-        calEventRangesByTech.set(tech.id, ranges);
+      const ranges = calEventRangesByTech.get(tech.id) || [];
+      ranges.push({ start: ev.start.getTime(), end: ev.end.getTime() });
+      calEventRangesByTech.set(tech.id, ranges);
 
-        assignmentMetaByEventTech.set(`${ev.id}::${tech.id}`, {
+      assignmentMetaByEventTech.set(`${ev.id}::${tech.id}`, {
+        eventId: ev.id,
+        technicianId: tech.id,
+        eventTechnicianId: tech.eventTechnicianId ?? null,
+        calendarEventId: tech.calendarEventId ?? null,
+        start: ev.start.getTime(),
+        end: ev.end.getTime(),
+        displayName: tech.name,
+      });
+
+      result.push({
+        id: renderKey,
+        title: ev.title.replace("SERVICE – ", ""),
+        start: ev.start,
+        end: ev.end,
+        backgroundColor: techColor,
+        borderColor: techColor,
+        textColor: "#FFFFFF",
+        extendedProps: {
+          calendarEvent: ev,
+          source: "calendar_event",
+          renderKey,
           eventId: ev.id,
-          technicianId: tech.id,
           eventTechnicianId: tech.eventTechnicianId ?? null,
+          technicianId: tech.id,
+          scheduleBlockId: null,
           calendarEventId: tech.calendarEventId ?? null,
-          start: ev.start.getTime(),
-          end: ev.end.getTime(),
+          outlookEventId: null,
           displayName: tech.name,
-        });
-
-        const techColor = techColorMap.get(tech.id) || GCAL_PALETTE[0];
-        const techFirstName = tech.name.split(" ")[0];
-        const allTechNames = ev.technicians.map((t) => t.name.split(" ")[0]).join(", ");
-        const techInfo = technicianMap.get(tech.id);
-        const renderKey = multiTech ? `${ev.id}__tech__${tech.id}` : ev.id;
-
-        result.push({
-          id: renderKey,
-          title: ev.title.replace("SERVICE – ", ""),
-          start: ev.start,
-          end: ev.end,
-          backgroundColor: techColor,
-          borderColor: techColor,
-          textColor: "#FFFFFF",
-          extendedProps: {
-            calendarEvent: ev,
-            source: "calendar_event",
-            renderKey,
-            eventId: ev.id,
-            eventTechnicianId: tech.eventTechnicianId ?? null,
-            technicianId: tech.id,
-            scheduleBlockId: null,
-            calendarEventId: tech.calendarEventId ?? null,
-            outlookEventId: null,
-            displayName: tech.name,
-            customer: ev.customer,
-            status: ev.status,
-            jobNumber: ev.internalNumber || ev.jobNumber || null,
-            techNames: allTechNames,
-            techName: techFirstName,
-            techFullName: tech.name,
-            techAvatarId: techInfo?.avatarId || null,
-            baseColor: techColor,
-            statusDot: statusDotColors[ev.status] || "#FFFFFF",
-            isOvernight,
-            isMultiTech: multiTech,
-            assignedTechId: tech.id,
-          },
-          editable: effectiveCanWrite,
-        });
-      }
+          customer: ev.customer,
+          status: ev.status,
+          jobNumber: ev.internalNumber || ev.jobNumber || null,
+          techNames: assignment.technicianNames,
+          techName: techFirstName,
+          techFullName: tech.name,
+          techAvatarId: techInfo?.avatarId || null,
+          baseColor: techColor,
+          statusDot: statusDotColors[ev.status] || "#FFFFFF",
+          isOvernight,
+          isMultiTech: assignment.isMultiTech,
+          assignedTechId: tech.id,
+        },
+        editable: effectiveCanWrite,
+      });
     }
 
     // External busy slots
