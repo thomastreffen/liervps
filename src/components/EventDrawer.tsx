@@ -780,6 +780,23 @@ export function EventDrawer({
             </section>
           )}
 
+          {/* ═══ SECTION: OPPDRAGSINSTRUKS (existing project mode) ═══ */}
+          {mode === "existing" && !isEditing && (
+            <section className="space-y-3">
+              <h3 className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Instruks for dette oppdraget</h3>
+              <p className="text-[11px] text-muted-foreground">
+                Prosjektet gir grunninfo. Feltet under gjelder denne konkrete tildelingen.
+              </p>
+              <Textarea
+                value={assignmentNotes}
+                onChange={(e) => setAssignmentNotes(e.target.value)}
+                placeholder="Spesifikke instrukser for denne tildelingen…"
+                className="min-h-[60px] resize-none"
+                rows={2}
+              />
+            </section>
+          )}
+
           {/* ═══ SECTION: VEDLEGG ═══ */}
           <section className="space-y-3">
             <h3 className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
