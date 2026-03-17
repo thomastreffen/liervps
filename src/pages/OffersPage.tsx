@@ -20,6 +20,8 @@ import {
   type CalculationStatus,
 } from "@/lib/calculation-status";
 import { Search, ReceiptText, Loader2, Plus, ChevronLeft, ChevronRight } from "lucide-react";
+import { SoftDeleteButton } from "@/components/shared/SoftDeleteButton";
+import { useSoftDelete } from "@/hooks/useSoftDelete";
 
 interface CalcRow {
   id: string;
