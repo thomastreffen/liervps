@@ -375,6 +375,15 @@ export function EventDrawer({
         onSaved?.(selectedJobId);
       } else {
         const isTask = eventType === "task";
+        // Resolve company_id: explicit selection > active company > first company
+        const resolvedCompanyId = selectedCompanyId || activeCompanyId || (companies.length > 0 ? companies[0].id : null);
+
+        if (!resolvedCompanyId) {
+          toast.error("Velg selskap før du oppretter oppdraget");
+          setSaving(false);
+          return;
+        }
+
         if (!title.trim() || (!isTask && techIds.length === 0) || !date) {
           toast.error(isTask ? "Fyll inn tittel og dato" : "Fyll inn tittel, dato og minst én montør");
           setSaving(false);
@@ -405,7 +414,7 @@ export function EventDrawer({
             created_by: userId || null,
             client_request_id: clientRequestId,
             project_type: isTask ? "task" : "project",
-            company_id: activeCompanyId,
+            company_id: resolvedCompanyId,
           } as any).select("id").single();
 
           if (error || !created) {
