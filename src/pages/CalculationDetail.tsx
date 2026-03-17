@@ -860,6 +860,47 @@ export default function CalculationDetail() {
               <p className="text-sm text-muted-foreground whitespace-pre-wrap">{calc.description}</p>
             </div>
           )}
+          {/* Contact person editor */}
+          {isAdmin && (
+            <div className="rounded-xl border border-border/40 bg-card p-4 space-y-3">
+              <h3 className="text-sm font-medium">Kunde & kontaktperson</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <CustomerSelect
+                  value={calc.customer_id}
+                  companyId={calc.company_id}
+                  onChange={async (customerId, customer) => {
+                    await supabase.from("calculations").update({
+                      customer_id: customerId,
+                      ...(customer ? { customer_name: customer.name, customer_email: customer.main_email } : {}),
+                      contact_person_id: null,
+                    } as any).eq("id", calc.id);
+                    setCalc(prev => prev ? {
+                      ...prev,
+                      customer_id: customerId,
+                      ...(customer ? { customer_name: customer.name, customer_email: customer.main_email } : {}),
+                      contact_person_id: null,
+                    } : null);
+                    setContactPerson(null);
+                    toast.success("Kunde oppdatert");
+                  }}
+                />
+                <ContactPersonSelect
+                  customerId={calc.customer_id}
+                  value={calc.contact_person_id}
+                  onChange={async (contactId, contact) => {
+                    await supabase.from("calculations").update({
+                      contact_person_id: contactId,
+                      ...(contact?.email ? { customer_email: contact.email } : {}),
+                    } as any).eq("id", calc.id);
+                    setCalc(prev => prev ? { ...prev, contact_person_id: contactId } : null);
+                    setContactPerson(contact ? { id: contact.id, name: contact.name, email: contact.email, phone: contact.phone, role: contact.role } : null);
+                    toast.success("Kontaktperson oppdatert");
+                  }}
+                />
+              </div>
+            </div>
+          )}
+
           <div className="rounded-xl border border-border/40 bg-card p-4 space-y-2">
             <h3 className="text-sm font-medium">Detaljer</h3>
             <div className="grid grid-cols-2 gap-2 text-sm">

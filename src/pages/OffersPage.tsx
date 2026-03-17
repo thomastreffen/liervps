@@ -162,6 +162,9 @@ export default function OffersPage() {
                       </TableCell>
                       <TableCell>
                         <p className="text-sm truncate max-w-[200px]">{calc.customer_name}</p>
+                        {(calc as any).customer_contacts?.name && (
+                          <p className="text-xs text-primary/70 truncate">👤 {(calc as any).customer_contacts.name}</p>
+                        )}
                         {calc.customer_email && (
                           <p className="text-xs text-muted-foreground/60 truncate">{calc.customer_email}</p>
                         )}
