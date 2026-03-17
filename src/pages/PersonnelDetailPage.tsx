@@ -140,7 +140,6 @@ export default function PersonnelDetailPage() {
     const { error } = await supabase
       .from("technicians")
       .update({
-        is_plannable_resource: profile.is_plannable_resource,
         birth_date: profile.birth_date || null,
         hms_card_number: profile.hms_card_number || null,
         hms_card_expires_at: profile.hms_card_expires_at || null,
