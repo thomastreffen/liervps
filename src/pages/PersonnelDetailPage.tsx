@@ -15,6 +15,7 @@ import {
   Archive, ArchiveRestore, Sparkles, CheckCircle2, XCircle,
   ArrowLeft, User, FolderOpen, GraduationCap,
 } from "lucide-react";
+import { CompanyPlannableSection } from "@/components/personnel/CompanyPlannableSection";
 import { toast } from "sonner";
 import { differenceInDays, format } from "date-fns";
 import { AvatarPicker } from "@/components/AvatarPicker";
