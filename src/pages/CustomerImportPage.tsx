@@ -32,6 +32,8 @@ const TARGET_FIELDS = [
   { value: "billing_zip", label: "Postnr" },
   { value: "billing_city", label: "By" },
   { value: "notes", label: "Notater" },
+  { value: "customer_value", label: "Kundeverdi (A/B/C/D)" },
+  { value: "tags", label: "Tags (kommaseparert)" },
 ];
 
 // Simple AI-like heuristic for column mapping
