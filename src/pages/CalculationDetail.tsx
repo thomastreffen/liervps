@@ -144,6 +144,7 @@ export default function CalculationDetail() {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
 
   const fetchCalc = useCallback(async () => {
     if (!id) return;
