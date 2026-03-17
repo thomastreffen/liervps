@@ -1000,107 +1000,87 @@ export default function CalculationDetail() {
           )}
         </TabsContent>
 
-        {/* ===== Calculation Lines Tab ===== */}
-        <TabsContent value="items" className="space-y-6 pt-4">
-          {isAdmin && items.length > 0 && (
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-1.5">
-                <Switch checked={showCost} onCheckedChange={setShowCost} id="cost-toggle" />
-                <label htmlFor="cost-toggle" className="text-xs text-muted-foreground flex items-center gap-1 cursor-pointer">
-                  {showCost ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
-                  {showCost ? "Vis kost & margin" : "Skjul kost & margin"}
-                </label>
+        {/* ===== Order Lines Tab ===== */}
+        <TabsContent value="items" className="space-y-4 pt-4">
+          {hasOrderLines ? (
+            <OrderLineEditor
+              lines={orderLines}
+              onChange={async (newLines) => {
+                setOrderLines(newLines);
+                // Save to DB
+                if (calc) {
+                  await supabase.from("order_lines").delete().eq("calculation_id", calc.id);
+                  if (newLines.length > 0) {
+                    const payloads = newLines.map((l, idx) => ({
+                      calculation_id: calc.id,
+                      sort_order: idx,
+                      line_type: l.line_type,
+                      description: l.description,
+                      quantity: l.quantity,
+                      unit: l.unit || "stk",
+                      unit_price: l.unit_price,
+                      discount_percent: l.discount_percent,
+                      vat_rate: l.vat_rate,
+                      suggested_by_ai: l.suggested_by_ai,
+                    }));
+                    await supabase.from("order_lines").insert(payloads as any);
+                  }
+                  // Update calc totals
+                  const newTotals = calcTotals(newLines);
+                  await supabase.from("calculations").update({ total_price: newTotals.totalExVat }).eq("id", calc.id);
+                  toast.success("Ordrelinjer lagret");
+                }
+              }}
+              readOnly={!isAdmin}
+              companyId={calc.company_id}
+            />
+          ) : items.length > 0 ? (
+            <div className="space-y-4">
+              <div className="rounded-lg border border-dashed bg-muted/20 p-3 flex items-center gap-2">
+                <AlertCircle className="h-4 w-4 text-muted-foreground shrink-0" />
+                <p className="text-xs text-muted-foreground">
+                  Dette tilbudet bruker eldre kalkyleformat. Ordrelinjer vil bli brukt for nye tilbud.
+                </p>
+              </div>
+              {/* Legacy items display */}
+              <div className="rounded-xl border border-border/40 overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Beskrivelse</TableHead>
+                      <TableHead className="w-[80px]">Antall</TableHead>
+                      <TableHead className="w-[70px]">Enhet</TableHead>
+                      <TableHead className="w-[100px]">Enhetspris</TableHead>
+                      <TableHead className="w-[100px] text-right">Sum</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {items.map((item) => (
+                      <TableRow key={item.id}>
+                        <TableCell>
+                          <Badge variant="outline" className="text-[10px]">{item.type === "material" ? "Materiale" : "Arbeid"}</Badge>
+                        </TableCell>
+                        <TableCell className="text-sm">{item.title}</TableCell>
+                        <TableCell className="text-sm">{item.quantity}</TableCell>
+                        <TableCell className="text-sm">{item.unit}</TableCell>
+                        <TableCell className="text-sm">kr {item.unit_price.toLocaleString("nb-NO")}</TableCell>
+                        <TableCell className="text-right font-mono text-sm font-medium">kr {item.total_price.toLocaleString("nb-NO")}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               </div>
             </div>
+          ) : (
+            <div className="rounded-xl border border-dashed bg-card p-8 text-center space-y-3">
+              <Package className="h-10 w-10 mx-auto text-muted-foreground" />
+              <h3 className="text-lg font-medium">Ingen ordrelinjer</h3>
+              <p className="text-sm text-muted-foreground">
+                Tilbudet har ingen ordrelinjer ennå.
+              </p>
+            </div>
           )}
-
-          {/* Materials */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Materialer</h3>
-              {isAdmin && <Button variant="outline" size="sm" onClick={() => addItem("material")} className="gap-1 rounded-lg"><Plus className="h-3 w-3" /> Legg til</Button>}
-            </div>
-            <div className="rounded-xl border border-border/40 overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Beskrivelse</TableHead>
-                    <TableHead className="w-[80px]">Antall</TableHead>
-                    <TableHead className="w-[70px]">Enhet</TableHead>
-                    {showCost && <TableHead className="w-[90px]">Kost</TableHead>}
-                    <TableHead className="w-[100px]">Salgspris</TableHead>
-                    <TableHead className="w-[100px] text-right">Sum</TableHead>
-                    {showCost && <TableHead className="w-[90px] text-right">Margin</TableHead>}
-                    {isAdmin && <TableHead className="w-[50px]" />}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {materials.length === 0 ? (
-                    <TableRow><TableCell colSpan={showCost ? 8 : 6} className="text-center text-muted-foreground py-4">Ingen materialer</TableCell></TableRow>
-                  ) : materials.map((item) => (
-                    <TableRow key={item.id}>
-                      <TableCell>
-                        {isAdmin ? <Input value={item.title} onChange={(e) => handleItemChange(item.id, "title", e.target.value)} className="h-8 text-sm" /> : <span className="text-sm">{item.title}</span>}
-                        {item.suggested_by_ai && <Badge variant="outline" className="ml-1.5 text-[10px]">AI</Badge>}
-                      </TableCell>
-                      <TableCell>
-                        {isAdmin ? <Input type="number" value={item.quantity} onChange={(e) => handleItemChange(item.id, "quantity", Number(e.target.value))} className="h-8 text-sm w-20" /> : item.quantity}
-                      </TableCell>
-                      <TableCell className="text-sm">{item.unit}</TableCell>
-                      {showCost && <TableCell className="text-sm font-mono text-muted-foreground">kr {getCostPrice(item).toLocaleString("nb-NO", { maximumFractionDigits: 0 })}</TableCell>}
-                      <TableCell>
-                        {isAdmin ? <Input type="number" value={item.unit_price} onChange={(e) => handleItemChange(item.id, "unit_price", Number(e.target.value))} className="h-8 text-sm w-24" /> : `kr ${item.unit_price}`}
-                      </TableCell>
-                      <TableCell className="text-right font-mono text-sm font-medium">kr {item.total_price.toLocaleString("nb-NO")}</TableCell>
-                      {showCost && <TableCell className="text-right font-mono text-sm text-primary">kr {getMargin(item).toLocaleString("nb-NO", { maximumFractionDigits: 0 })}</TableCell>}
-                      {isAdmin && <TableCell><Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => deleteItem(item.id)}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button></TableCell>}
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </div>
-
-          {/* Labor */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Arbeid</h3>
-              {isAdmin && <Button variant="outline" size="sm" onClick={() => addItem("labor")} className="gap-1 rounded-lg"><Plus className="h-3 w-3" /> Legg til</Button>}
-            </div>
-            <div className="rounded-xl border border-border/40 overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Beskrivelse</TableHead>
-                    <TableHead className="w-[80px]">Timer</TableHead>
-                    <TableHead className="w-[100px]">Timepris</TableHead>
-                    <TableHead className="w-[100px] text-right">Sum</TableHead>
-                    {isAdmin && <TableHead className="w-[50px]" />}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {labor.length === 0 ? (
-                    <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-4">Ingen arbeidsposter</TableCell></TableRow>
-                  ) : labor.map((item) => (
-                    <TableRow key={item.id}>
-                      <TableCell>
-                        {isAdmin ? <Input value={item.title} onChange={(e) => handleItemChange(item.id, "title", e.target.value)} className="h-8 text-sm" /> : <span className="text-sm">{item.title}</span>}
-                        {item.suggested_by_ai && <Badge variant="outline" className="ml-1.5 text-[10px]">AI</Badge>}
-                      </TableCell>
-                      <TableCell>
-                        {isAdmin ? <Input type="number" value={item.quantity} onChange={(e) => handleItemChange(item.id, "quantity", Number(e.target.value))} className="h-8 text-sm w-20" /> : item.quantity}
-                      </TableCell>
-                      <TableCell>
-                        {isAdmin ? <Input type="number" value={item.unit_price} onChange={(e) => handleItemChange(item.id, "unit_price", Number(e.target.value))} className="h-8 text-sm w-24" /> : `kr ${item.unit_price}`}
-                      </TableCell>
-                      <TableCell className="text-right font-mono text-sm font-medium">kr {item.total_price.toLocaleString("nb-NO")}</TableCell>
-                      {isAdmin && <TableCell><Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => deleteItem(item.id)}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button></TableCell>}
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </div>
         </TabsContent>
 
         {/* ===== Versions Tab (punkt 5 — replaces "Tilbud") ===== */}
