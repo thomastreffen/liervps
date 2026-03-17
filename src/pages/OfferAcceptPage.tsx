@@ -351,7 +351,11 @@ export default function OfferAcceptPage() {
           <Button
             variant="outline"
             className="w-full gap-2 rounded-xl h-11"
-            onClick={() => window.open(offer.generated_pdf_url!, "_blank")}
+            onClick={async () => {
+              const { getOfferPdfUrl } = await import("@/lib/pdf-url");
+              const url = await getOfferPdfUrl(offer.generated_pdf_url!);
+              if (url) window.open(url, "_blank");
+            }}
           >
             <Download className="h-4 w-4" />
             Last ned tilbud som PDF

@@ -1152,7 +1152,12 @@ export default function CalculationDetail() {
                       <TableCell className="text-right font-mono text-sm">kr {Number(offer.total_inc_vat).toLocaleString("nb-NO")}</TableCell>
                       <TableCell>
                         {offer.generated_pdf_url && (
-                          <Button variant="ghost" size="sm" className="gap-1 h-7 text-xs rounded-lg" onClick={() => window.open(offer.generated_pdf_url!, "_blank")}>
+                          <Button variant="ghost" size="sm" className="gap-1 h-7 text-xs rounded-lg" onClick={async () => {
+                            const { getOfferPdfUrl } = await import("@/lib/pdf-url");
+                            const url = await getOfferPdfUrl(offer.generated_pdf_url!);
+                            if (url) window.open(url, "_blank");
+                            else toast.error("Kunne ikke åpne PDF");
+                          }}>
                             <ExternalLink className="h-3 w-3" /> Åpne
                           </Button>
                         )}
