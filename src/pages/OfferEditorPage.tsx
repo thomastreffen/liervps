@@ -11,7 +11,7 @@ import { CustomerSelect, type CustomerOption } from "@/components/offer/Customer
 import { ContactPersonSelect } from "@/components/offer/ContactPersonSelect";
 import { OrderLineEditor, calcTotals, type OrderLine } from "@/components/offer/OrderLineEditor";
 import { AiSuggestionsPreview } from "@/components/offer/AiSuggestionsPreview";
-import { PdfPreviewDialog } from "@/components/offer/PdfPreviewDialog";
+import { OfferPreviewDialog } from "@/components/offer/OfferPreviewDialog";
 import { Switch } from "@/components/ui/switch";
 import {
   ArrowLeft, Save, Loader2, FileDown, ReceiptText, Eye,
