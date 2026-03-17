@@ -78,6 +78,7 @@ import InvoiceBasisPage from "./pages/InvoiceBasisPage";
 import ModuleManagementPage from "./pages/ModuleManagementPage";
 import TripletexImportPage from "./pages/TripletexImportPage";
 import ManagementPage from "./pages/ManagementPage";
+import AbsencePage from "./pages/AbsencePage";
 import MyDayPage from "./pages/MyDayPage";
 import CompanyMigrationPage from "./pages/CompanyMigrationPage";
 import HelpCenterPage from "./pages/HelpCenterPage";
