@@ -50,12 +50,12 @@ export default function OffersPage() {
     setLoading(true);
     let query = supabase
       .from("calculations")
-      .select("id, customer_name, customer_email, project_title, status, total_price, created_at")
+      .select("id, customer_name, customer_email, project_title, status, total_price, created_at, contact_person_id, customer_contacts(name, email, phone)")
       .is("deleted_at", null)
       .order("created_at", { ascending: false });
     if (activeCompanyId) query = query.eq("company_id", activeCompanyId);
     const { data } = await query;
-    if (data) setCalcs(data as CalcRow[]);
+    if (data) setCalcs(data as any[]);
     setLoading(false);
   };
 
