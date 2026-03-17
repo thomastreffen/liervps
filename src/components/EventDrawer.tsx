@@ -168,6 +168,7 @@ export function EventDrawer({
       setCustomer("");
       setAddress("");
       setDescription("");
+      setAssignmentNotes("");
       setDate(nextDate);
       setStartTime(nextStartTime);
       setEndTime(nextEndTime);
