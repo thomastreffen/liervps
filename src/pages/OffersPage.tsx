@@ -144,6 +144,7 @@ export default function OffersPage() {
                    <TableHead className="text-xs font-semibold uppercase tracking-wider">Status</TableHead>
                    <TableHead className="hidden lg:table-cell text-xs font-semibold uppercase tracking-wider">Aktivitet</TableHead>
                    <TableHead className="text-right text-xs font-semibold uppercase tracking-wider">Totalpris</TableHead>
+                   <TableHead className="w-10" />
                 </TableRow>
               </TableHeader>
               <TableBody>
