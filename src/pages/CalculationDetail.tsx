@@ -25,7 +25,7 @@ import { ExecutiveSummary } from "@/components/offer/ExecutiveSummary";
 import { OfferActivityTimeline } from "@/components/offer/OfferActivityTimeline";
 import { OfferFollowupSection } from "@/components/offer/OfferFollowupSection";
 import { OrderLineEditor, calcTotals, type OrderLine } from "@/components/offer/OrderLineEditor";
-import { PdfPreviewDialog } from "@/components/offer/PdfPreviewDialog";
+import { OfferPreviewDialog } from "@/components/offer/OfferPreviewDialog";
 import { ConvertToJobDialog } from "@/components/ConvertToJobDialog";
 import { SalesPipelineBar } from "@/components/offer/SalesPipelineBar";
 import { NextStepSection } from "@/components/offer/NextStepSection";
@@ -149,22 +149,24 @@ export default function CalculationDetail() {
   const [calcCompanyName, setCalcCompanyName] = useState<string | null>(null);
   const [contactPerson, setContactPerson] = useState<ContactPersonInfo | null>(null);
 
-  // PDF preview
+  // HTML preview
   const [previewOpen, setPreviewOpen] = useState(false);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [previewLoading, setPreviewLoading] = useState(false);
-  const [previewError, setPreviewError] = useState<string | null>(null);
+
+  // Company settings for preview
+  const [companySettings, setCompanySettings] = useState<any>(null);
 
   const fetchCalc = useCallback(async () => {
     if (!id) return;
     setLoading(true);
-    const [calcRes, itemsRes, settingsRes, offersRes, orderLinesRes] = await Promise.all([
+    const [calcRes, itemsRes, settingsRes, offersRes, orderLinesRes, companySettingsRes] = await Promise.all([
       supabase.from("calculations").select("*, internal_companies(name), customer_contacts(id, name, email, phone, role)").eq("id", id).single(),
       supabase.from("calculation_items").select("*").eq("calculation_id", id).order("type").order("title"),
       supabase.from("settings").select("key, value"),
       supabase.from("offers").select("*").eq("calculation_id", id).order("created_at", { ascending: false }),
       supabase.from("order_lines").select("*").eq("calculation_id", id).order("sort_order" as any),
+      supabase.from("company_settings").select("*").limit(1).single(),
     ]);
+    if (companySettingsRes.data) setCompanySettings(companySettingsRes.data);
     if (calcRes.data) {
       setCalc(calcRes.data as unknown as Calculation);
       const companyRel = (calcRes.data as any).internal_companies;
@@ -700,31 +702,7 @@ export default function CalculationDetail() {
                   AI-analyse
                 </Button>
                 <Button
-                  onClick={async () => {
-                    setPreviewOpen(true);
-                    setPreviewLoading(true);
-                    setPreviewUrl(null);
-                    setPreviewError(null);
-                    try {
-                      const { data, error } = await supabase.functions.invoke("generate-offer-pdf", {
-                        body: { calculation_id: calc.id, created_by: user?.id, preview_only: true },
-                      });
-                      if (error) throw error;
-                      const signedUrl = data?.pdf_url || data?.generated_pdf_url || null;
-                      if (!signedUrl) {
-                        setPreviewError("Ingen forhåndsvisning tilgjengelig");
-                        return;
-                      }
-                      // Fetch as blob to avoid X-Frame-Options blocking
-                      const { fetchPdfAsBlobUrl } = await import("@/lib/pdf-url");
-                      const blobUrl = await fetchPdfAsBlobUrl(signedUrl);
-                      setPreviewUrl(blobUrl);
-                    } catch (e: any) {
-                      console.error("[Preview error]", e);
-                      setPreviewError("Kunne ikke generere forhåndsvisning akkurat nå");
-                    }
-                    finally { setPreviewLoading(false); }
-                  }}
+                  onClick={() => setPreviewOpen(true)}
                   variant="outline" size="sm" className="gap-1.5 rounded-lg"
                   disabled={(hasOrderLines ? orderLines.length === 0 : items.length === 0)}
                 >
@@ -1387,30 +1365,21 @@ export default function CalculationDetail() {
           fetchCalc();
         }}
       />
-      <PdfPreviewDialog
+      <OfferPreviewDialog
         open={previewOpen}
         onOpenChange={setPreviewOpen}
-        pdfUrl={previewUrl}
-        loading={previewLoading}
-        error={previewError}
-        onRetry={async () => {
-          if (!calc) return;
-          setPreviewLoading(true);
-          setPreviewUrl(null);
-          setPreviewError(null);
-          try {
-            const { data, error } = await supabase.functions.invoke("generate-offer-pdf", {
-              body: { calculation_id: calc.id, created_by: user?.id, preview_only: true },
-            });
-            if (error) throw error;
-            const signedUrl = data?.pdf_url || null;
-            if (!signedUrl) { setPreviewError("Ingen forhåndsvisning tilgjengelig"); return; }
-            const { fetchPdfAsBlobUrl } = await import("@/lib/pdf-url");
-            const blobUrl = await fetchPdfAsBlobUrl(signedUrl);
-            setPreviewUrl(blobUrl);
-          } catch { setPreviewError("Kunne ikke generere forhåndsvisning akkurat nå"); }
-          finally { setPreviewLoading(false); }
-        }}
+        projectTitle={calc.project_title}
+        customerName={calc.customer_name}
+        customerEmail={calc.customer_email}
+        contactPersonName={contactPerson?.name}
+        contactPersonEmail={contactPerson?.email}
+        contactPersonPhone={contactPerson?.phone}
+        description={calc.description}
+        lines={hasOrderLines ? orderLines : []}
+        showDiscount={Boolean((calc as any).show_discount_in_offer)}
+        company={companySettings}
+        offerNumber={latestOffer?.offer_number}
+        createdAt={calc.created_at}
       />
     </div>
   );

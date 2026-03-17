@@ -11,7 +11,7 @@ import { CustomerSelect, type CustomerOption } from "@/components/offer/Customer
 import { ContactPersonSelect } from "@/components/offer/ContactPersonSelect";
 import { OrderLineEditor, calcTotals, type OrderLine } from "@/components/offer/OrderLineEditor";
 import { AiSuggestionsPreview } from "@/components/offer/AiSuggestionsPreview";
-import { PdfPreviewDialog } from "@/components/offer/PdfPreviewDialog";
+import { OfferPreviewDialog } from "@/components/offer/OfferPreviewDialog";
 import { Switch } from "@/components/ui/switch";
 import {
   ArrowLeft, Save, Loader2, FileDown, ReceiptText, Eye,
@@ -45,11 +45,17 @@ export default function OfferEditorPage() {
   // Discount toggle
   const [showDiscountInOffer, setShowDiscountInOffer] = useState(false);
 
-  // PDF preview
+  // HTML preview
   const [previewOpen, setPreviewOpen] = useState(false);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [previewLoading, setPreviewLoading] = useState(false);
-  const [previewError, setPreviewError] = useState<string | null>(null);
+
+  // Company settings for preview
+  const [companySettings, setCompanySettings] = useState<any>(null);
+
+  useEffect(() => {
+    supabase.from("company_settings").select("*").limit(1).single().then(({ data }) => {
+      if (data) setCompanySettings(data);
+    });
+  }, []);
 
   // Pre-fill from query params
   useEffect(() => {
@@ -183,36 +189,12 @@ export default function OfferEditorPage() {
     }
   };
 
-  const handlePreviewPdf = async () => {
-    const savedId = await saveOffer(true);
-    if (!savedId) {
-      toast.error("Lagre tilbudet først for å forhåndsvise.");
+  const handlePreviewOffer = () => {
+    if (lines.length === 0) {
+      toast.info("Legg til ordrelinjer for å forhåndsvise");
       return;
     }
     setPreviewOpen(true);
-    setPreviewLoading(true);
-    setPreviewUrl(null);
-    setPreviewError(null);
-    try {
-      const { data, error } = await supabase.functions.invoke("generate-offer-pdf", {
-        body: { calculation_id: savedId, created_by: user?.id, preview_only: true },
-      });
-      if (error) throw error;
-      const signedUrl = data?.pdf_url || data?.generated_pdf_url || null;
-      if (!signedUrl) {
-        setPreviewError("Ingen forhåndsvisning tilgjengelig");
-        return;
-      }
-      // Fetch as blob to avoid X-Frame-Options blocking in iframe
-      const { fetchPdfAsBlobUrl } = await import("@/lib/pdf-url");
-      const blobUrl = await fetchPdfAsBlobUrl(signedUrl);
-      setPreviewUrl(blobUrl);
-    } catch (err: any) {
-      console.error("[Preview error]", err);
-      setPreviewError("Kunne ikke generere forhåndsvisning akkurat nå");
-    } finally {
-      setPreviewLoading(false);
-    }
   };
 
   const handleSaveAndStay = async () => {
@@ -307,7 +289,7 @@ export default function OfferEditorPage() {
           </Button>
           <Button
             variant="outline"
-            onClick={handlePreviewPdf}
+            onClick={handlePreviewOffer}
             disabled={lines.length === 0}
             className="gap-1.5 rounded-lg"
           >
@@ -417,14 +399,17 @@ export default function OfferEditorPage() {
         />
       </div>
 
-      {/* PDF Preview Dialog */}
-      <PdfPreviewDialog
+      {/* HTML Preview Dialog */}
+      <OfferPreviewDialog
         open={previewOpen}
         onOpenChange={setPreviewOpen}
-        pdfUrl={previewUrl}
-        loading={previewLoading}
-        error={previewError}
-        onRetry={handlePreviewPdf}
+        projectTitle={projectTitle}
+        customerName={customerName}
+        customerEmail={customerEmail}
+        description={comment}
+        lines={lines}
+        showDiscount={showDiscountInOffer}
+        company={companySettings}
       />
     </div>
   );
