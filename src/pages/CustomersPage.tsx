@@ -16,6 +16,7 @@ import {
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
+import { SoftDeleteRowButton } from "@/components/shared/SoftDeleteRowButton";
 
 interface CustomerRow {
   id: string;
