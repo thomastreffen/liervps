@@ -237,7 +237,7 @@ export function OrderLineEditor({
                     <TableCell className="text-center text-xs text-muted-foreground font-mono py-4">
                       {idx + 1}
                     </TableCell>
-                    <TableCell className="py-3">
+                    <TableCell className="py-4">
                       {line.line_type === "text" ? (
                         readOnly ? (
                           <p className="text-sm italic text-muted-foreground">{line.description}</p>
