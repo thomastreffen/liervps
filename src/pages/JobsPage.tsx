@@ -430,6 +430,7 @@ export default function JobsPage() {
                               <TooltipContent>Send godkjenning</TooltipContent>
                             </Tooltip>
                           )}
+                          <SoftDeleteJobButton jobId={job.id} jobTitle={job.title} onDeleted={() => setJobs((prev) => prev.filter((j) => j.id !== job.id))} />
                         </div>
                       </TableCell>
                     </TableRow>
