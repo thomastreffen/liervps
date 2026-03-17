@@ -530,6 +530,16 @@ export default function CalculationDetail() {
         {lastSaved && <span className="ml-auto text-xs text-muted-foreground">Sist lagret {format(lastSaved, "HH:mm")}</span>}
       </div>
 
+      {/* ── Missing company warning ── */}
+      {missingCompany && (
+        <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 flex items-center gap-2">
+          <AlertTriangle className="h-4 w-4 text-destructive shrink-0" />
+          <p className="text-sm text-destructive">
+            Dette tilbudet mangler selskapstilknytning. Kontakt administrator for å rette dette.
+          </p>
+        </div>
+      )}
+
       {/* ── Header: title + status badge ── */}
       <header className="space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
