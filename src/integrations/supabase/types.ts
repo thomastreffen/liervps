@@ -297,6 +297,7 @@ export type Database = {
           created_at: string
           created_by: string
           customer_email: string | null
+          customer_id: string | null
           customer_name: string
           delete_reason: string | null
           deleted_at: string | null
@@ -323,6 +324,7 @@ export type Database = {
           created_at?: string
           created_by: string
           customer_email?: string | null
+          customer_id?: string | null
           customer_name: string
           delete_reason?: string | null
           deleted_at?: string | null
@@ -349,6 +351,7 @@ export type Database = {
           created_at?: string
           created_by?: string
           customer_email?: string | null
+          customer_id?: string | null
           customer_name?: string
           delete_reason?: string | null
           deleted_at?: string | null
@@ -380,6 +383,13 @@ export type Database = {
             columns: ["contact_person_id"]
             isOneToOne: false
             referencedRelation: "customer_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "calculations_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
             referencedColumns: ["id"]
           },
           {
