@@ -135,7 +135,7 @@ export default function OfferEditorPage() {
     } finally {
       setSaving(false);
     }
-  }, [calcId, projectTitle, customerName, customerEmail, selectedCustomerId, selectedContactId, comment, lines, totals, user, activeCompanyId]);
+  }, [calcId, projectTitle, customerName, customerEmail, selectedCustomerId, selectedContactId, comment, lines, totals, user, activeCompanyId, showDiscountInOffer]);
 
   const generatePdf = async () => {
     const savedId = await saveOffer(true);
