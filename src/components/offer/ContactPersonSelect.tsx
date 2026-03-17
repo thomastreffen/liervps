@@ -4,9 +4,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Plus, Loader2, User, Mail, Phone } from "lucide-react";
 import { toast } from "sonner";
+import { useContactTags, type ContactTag } from "@/hooks/useContactTags";
 
 export interface ContactPerson {
   id: string;
@@ -33,6 +35,9 @@ export function ContactPersonSelect({ customerId, value, onChange, disabled }: P
   const [newRole, setNewRole] = useState("");
   const [saving, setSaving] = useState(false);
 
+  const { tags: allTags, getContactsTagIds } = useContactTags();
+  const [contactTagMap, setContactTagMap] = useState<Record<string, string[]>>({});
+
   useEffect(() => {
     if (!customerId) {
       setContacts([]);
@@ -45,10 +50,20 @@ export function ContactPersonSelect({ customerId, value, onChange, disabled }: P
       .eq("customer_id", customerId)
       .order("name")
       .then(({ data }) => {
-        setContacts((data as ContactPerson[]) || []);
+        const list = (data as ContactPerson[]) || [];
+        setContacts(list);
         setLoading(false);
+        // Fetch tags for all contacts
+        if (list.length > 0) {
+          getContactsTagIds(list.map(c => c.id)).then(setContactTagMap);
+        }
       });
-  }, [customerId]);
+  }, [customerId, getContactsTagIds]);
+
+  const getTagsForContact = (contactId: string): ContactTag[] => {
+    const ids = contactTagMap[contactId] || [];
+    return allTags.filter(t => ids.includes(t.id));
+  };
 
   const handleCreateContact = async () => {
     if (!customerId || !newName.trim()) return;
@@ -81,6 +96,7 @@ export function ContactPersonSelect({ customerId, value, onChange, disabled }: P
   };
 
   const selected = contacts.find((c) => c.id === value) || null;
+  const selectedTags = selected ? getTagsForContact(selected.id) : [];
 
   if (!customerId) {
     return (
@@ -112,15 +128,27 @@ export function ContactPersonSelect({ customerId, value, onChange, disabled }: P
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="none">Ingen valgt</SelectItem>
-            {contacts.map((c) => (
-              <SelectItem key={c.id} value={c.id}>
-                <span className="flex items-center gap-2">
-                  <User className="h-3 w-3 text-muted-foreground" />
-                  {c.name}
-                  {c.role && <span className="text-muted-foreground text-xs">({c.role})</span>}
-                </span>
-              </SelectItem>
-            ))}
+            {contacts.map((c) => {
+              const cTags = getTagsForContact(c.id);
+              return (
+                <SelectItem key={c.id} value={c.id}>
+                  <span className="flex items-center gap-2">
+                    <User className="h-3 w-3 text-muted-foreground" />
+                    {c.name}
+                    {c.role && <span className="text-muted-foreground text-xs">({c.role})</span>}
+                    {cTags.map(tag => (
+                      <span
+                        key={tag.id}
+                        className="inline-flex text-[9px] px-1.5 py-0 rounded-full font-medium"
+                        style={{ backgroundColor: tag.color + "20", color: tag.color }}
+                      >
+                        {tag.name}
+                      </span>
+                    ))}
+                  </span>
+                </SelectItem>
+              );
+            })}
           </SelectContent>
         </Select>
         <Button
@@ -137,18 +165,33 @@ export function ContactPersonSelect({ customerId, value, onChange, disabled }: P
       </div>
 
       {selected && (
-        <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1 flex-wrap">
-          {selected.email && (
-            <span className="flex items-center gap-1">
-              <Mail className="h-3 w-3" />
-              {selected.email}
-            </span>
-          )}
-          {selected.phone && (
-            <span className="flex items-center gap-1">
-              <Phone className="h-3 w-3" />
-              {selected.phone}
-            </span>
+        <div className="space-y-1 mt-1">
+          <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
+            {selected.email && (
+              <span className="flex items-center gap-1">
+                <Mail className="h-3 w-3" />
+                {selected.email}
+              </span>
+            )}
+            {selected.phone && (
+              <span className="flex items-center gap-1">
+                <Phone className="h-3 w-3" />
+                {selected.phone}
+              </span>
+            )}
+          </div>
+          {selectedTags.length > 0 && (
+            <div className="flex items-center gap-1 flex-wrap">
+              {selectedTags.map(tag => (
+                <Badge
+                  key={tag.id}
+                  className="text-[10px] rounded-lg pl-2 pr-2"
+                  style={{ backgroundColor: tag.color + "20", color: tag.color, borderColor: tag.color + "40" }}
+                >
+                  {tag.name}
+                </Badge>
+              ))}
+            </div>
           )}
         </div>
       )}

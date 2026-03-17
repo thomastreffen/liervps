@@ -3,7 +3,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Mail, Phone, Plus, Trash2, UserPlus, Loader2 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { ContactTagBadges } from "@/components/customer/ContactTagBadges";
+import { useContactTags, type ContactTag } from "@/hooks/useContactTags";
 
 interface Contact {
   id: string;
@@ -27,12 +29,44 @@ export function CustomerContactsTab({ contacts, isAdmin, onAdd, onDelete }: Prop
   const [role, setRole] = useState("");
   const [adding, setAdding] = useState(false);
 
+  const { tags: allTags, createTag, addTagToContact, removeTagFromContact, getContactsTagIds } = useContactTags();
+  const [contactTagMap, setContactTagMap] = useState<Record<string, string[]>>({});
+
+  useEffect(() => {
+    const ids = contacts.map(c => c.id);
+    if (ids.length === 0) { setContactTagMap({}); return; }
+    getContactsTagIds(ids).then(setContactTagMap);
+  }, [contacts, getContactsTagIds]);
+
   const handleSubmit = async () => {
     if (!name.trim()) return;
     setAdding(true);
     await onAdd({ name: name.trim(), email: email.trim(), phone: phone.trim(), role: role.trim() });
     setName(""); setEmail(""); setPhone(""); setRole("");
     setAdding(false);
+  };
+
+  const handleAddTag = async (contactId: string, tagId: string) => {
+    await addTagToContact(contactId, tagId);
+    setContactTagMap(prev => ({ ...prev, [contactId]: [...(prev[contactId] || []), tagId] }));
+  };
+
+  const handleRemoveTag = async (contactId: string, tagId: string) => {
+    await removeTagFromContact(contactId, tagId);
+    setContactTagMap(prev => ({ ...prev, [contactId]: (prev[contactId] || []).filter(id => id !== tagId) }));
+  };
+
+  const handleCreateTag = async (contactId: string, name: string, color: string) => {
+    const tag = await createTag(name, color);
+    if (tag) {
+      await addTagToContact(contactId, tag.id);
+      setContactTagMap(prev => ({ ...prev, [contactId]: [...(prev[contactId] || []), tag.id] }));
+    }
+  };
+
+  const getAssignedTags = (contactId: string): ContactTag[] => {
+    const ids = contactTagMap[contactId] || [];
+    return allTags.filter(t => ids.includes(t.id));
   };
 
   return (
@@ -44,9 +78,9 @@ export function CustomerContactsTab({ contacts, isAdmin, onAdd, onDelete }: Prop
       {contacts.map(c => (
         <Card key={c.id} className="rounded-2xl">
           <CardContent className="flex items-center justify-between py-3 px-4">
-            <div className="min-w-0">
+            <div className="min-w-0 space-y-1">
               <p className="text-sm font-medium">{c.name}</p>
-              <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5 flex-wrap">
+              <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
                 {c.role && <span className="text-foreground/70">{c.role}</span>}
                 {c.email && (
                   <a href={`mailto:${c.email}`} className="flex items-center gap-1 hover:text-foreground transition-colors">
@@ -59,6 +93,14 @@ export function CustomerContactsTab({ contacts, isAdmin, onAdd, onDelete }: Prop
                   </a>
                 )}
               </div>
+              <ContactTagBadges
+                assignedTags={getAssignedTags(c.id)}
+                allTags={allTags}
+                onAdd={(tagId) => handleAddTag(c.id, tagId)}
+                onRemove={(tagId) => handleRemoveTag(c.id, tagId)}
+                onCreate={(name, color) => handleCreateTag(c.id, name, color)}
+                editable={isAdmin}
+              />
             </div>
             {isAdmin && (
               <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => onDelete(c.id)}>
