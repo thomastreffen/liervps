@@ -399,14 +399,17 @@ export default function OfferEditorPage() {
         />
       </div>
 
-      {/* PDF Preview Dialog */}
-      <PdfPreviewDialog
+      {/* HTML Preview Dialog */}
+      <OfferPreviewDialog
         open={previewOpen}
         onOpenChange={setPreviewOpen}
-        pdfUrl={previewUrl}
-        loading={previewLoading}
-        error={previewError}
-        onRetry={handlePreviewPdf}
+        projectTitle={projectTitle}
+        customerName={customerName}
+        customerEmail={customerEmail}
+        description={comment}
+        lines={lines}
+        showDiscount={showDiscountInOffer}
+        company={companySettings}
       />
     </div>
   );
