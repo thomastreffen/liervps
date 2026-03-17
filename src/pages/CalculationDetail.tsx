@@ -1375,8 +1375,11 @@ export default function CalculationDetail() {
               body: { calculation_id: calc.id, created_by: user?.id, preview_only: true },
             });
             if (error) throw error;
-            setPreviewUrl(data?.pdf_url || null);
-            if (!data?.pdf_url) setPreviewError("Ingen forhåndsvisning tilgjengelig");
+            const signedUrl = data?.pdf_url || null;
+            if (!signedUrl) { setPreviewError("Ingen forhåndsvisning tilgjengelig"); return; }
+            const { fetchPdfAsBlobUrl } = await import("@/lib/pdf-url");
+            const blobUrl = await fetchPdfAsBlobUrl(signedUrl);
+            setPreviewUrl(blobUrl);
           } catch { setPreviewError("Kunne ikke generere forhåndsvisning akkurat nå"); }
           finally { setPreviewLoading(false); }
         }}

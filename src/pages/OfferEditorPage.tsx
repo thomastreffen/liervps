@@ -198,13 +198,15 @@ export default function OfferEditorPage() {
         body: { calculation_id: savedId, created_by: user?.id, preview_only: true },
       });
       if (error) throw error;
-      if (data?.pdf_url) {
-        setPreviewUrl(data.pdf_url);
-      } else if (data?.generated_pdf_url) {
-        setPreviewUrl(data.generated_pdf_url);
-      } else {
+      const signedUrl = data?.pdf_url || data?.generated_pdf_url || null;
+      if (!signedUrl) {
         setPreviewError("Ingen forhåndsvisning tilgjengelig");
+        return;
       }
+      // Fetch as blob to avoid X-Frame-Options blocking in iframe
+      const { fetchPdfAsBlobUrl } = await import("@/lib/pdf-url");
+      const blobUrl = await fetchPdfAsBlobUrl(signedUrl);
+      setPreviewUrl(blobUrl);
     } catch (err: any) {
       console.error("[Preview error]", err);
       setPreviewError("Kunne ikke generere forhåndsvisning akkurat nå");
