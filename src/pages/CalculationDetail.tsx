@@ -1365,30 +1365,21 @@ export default function CalculationDetail() {
           fetchCalc();
         }}
       />
-      <PdfPreviewDialog
+      <OfferPreviewDialog
         open={previewOpen}
         onOpenChange={setPreviewOpen}
-        pdfUrl={previewUrl}
-        loading={previewLoading}
-        error={previewError}
-        onRetry={async () => {
-          if (!calc) return;
-          setPreviewLoading(true);
-          setPreviewUrl(null);
-          setPreviewError(null);
-          try {
-            const { data, error } = await supabase.functions.invoke("generate-offer-pdf", {
-              body: { calculation_id: calc.id, created_by: user?.id, preview_only: true },
-            });
-            if (error) throw error;
-            const signedUrl = data?.pdf_url || null;
-            if (!signedUrl) { setPreviewError("Ingen forhåndsvisning tilgjengelig"); return; }
-            const { fetchPdfAsBlobUrl } = await import("@/lib/pdf-url");
-            const blobUrl = await fetchPdfAsBlobUrl(signedUrl);
-            setPreviewUrl(blobUrl);
-          } catch { setPreviewError("Kunne ikke generere forhåndsvisning akkurat nå"); }
-          finally { setPreviewLoading(false); }
-        }}
+        projectTitle={calc.project_title}
+        customerName={calc.customer_name}
+        customerEmail={calc.customer_email}
+        contactPersonName={contactPerson?.name}
+        contactPersonEmail={contactPerson?.email}
+        contactPersonPhone={contactPerson?.phone}
+        description={calc.description}
+        lines={hasOrderLines ? orderLines : []}
+        showDiscount={Boolean((calc as any).show_discount_in_offer)}
+        company={companySettings}
+        offerNumber={latestOffer?.offer_number}
+        createdAt={calc.created_at}
       />
     </div>
   );
