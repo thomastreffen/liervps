@@ -188,9 +188,11 @@ export default function CalculationDetail() {
     }
     if (calcRes.data && offersRes.data && offersRes.data.length > 0) {
       const lastOffer = offersRes.data[0];
-      const calcUpdated = new Date(calcRes.data.updated_at);
-      const offerCreated = new Date(lastOffer.created_at);
-      setCalcChangedSinceOffer(calcUpdated > offerCreated);
+      const calcUpdated = new Date(calcRes.data.updated_at).getTime();
+      const offerCreated = new Date(lastOffer.created_at).getTime();
+      // Use 30-second tolerance: generating an offer updates the calc status/updated_at
+      // so we need to account for the time between offer creation and calc status update
+      setCalcChangedSinceOffer(calcUpdated > offerCreated + 30000);
     } else {
       setCalcChangedSinceOffer(false);
     }
