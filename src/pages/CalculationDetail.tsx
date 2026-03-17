@@ -555,6 +555,11 @@ export default function CalculationDetail() {
               </Select>
             </div>
             <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
+              {calcCompanyName && (
+                <span className="flex items-center gap-1.5 text-xs font-medium bg-muted px-2 py-0.5 rounded-md">
+                  <Building2 className="h-3 w-3 text-primary" />{calcCompanyName}
+                </span>
+              )}
               <span className="flex items-center gap-1.5"><Building2 className="h-3.5 w-3.5" />{calc.customer_name}</span>
               {calc.customer_email && <span className="flex items-center gap-1.5"><Mail className="h-3.5 w-3.5" />{calc.customer_email}</span>}
             </div>
