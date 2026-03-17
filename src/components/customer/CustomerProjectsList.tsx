@@ -26,12 +26,23 @@ export function CustomerProjectsList({ projects, customerId }: Props) {
   if (projects.length === 0) {
     return (
       <Card className="rounded-2xl border-dashed">
-        <CardContent className="flex flex-col items-center py-12 text-center space-y-3">
+        <CardContent className="flex flex-col items-center py-12 text-center space-y-4">
           <FolderKanban className="h-10 w-10 text-muted-foreground/30" />
-          <p className="text-sm text-muted-foreground">Ingen prosjekter knyttet til denne kunden ennå.</p>
-          <Button size="sm" onClick={() => navigate(`/projects/new?customer=${customerId}`)} className="gap-1.5 rounded-xl">
-            <Plus className="h-3.5 w-3.5" /> Opprett prosjekt
-          </Button>
+          <div>
+            <p className="text-sm font-medium">Denne kunden har ingen aktivitet ennå.</p>
+            <p className="text-xs text-muted-foreground mt-1">Start med å opprette et prosjekt, lead eller tilbud.</p>
+          </div>
+          <div className="flex gap-2 flex-wrap justify-center">
+            <Button size="sm" onClick={() => navigate(`/projects/new?customer=${customerId}`)} className="gap-1.5 rounded-xl">
+              <Plus className="h-3.5 w-3.5" /> Opprett prosjekt
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => navigate(`/leads/new?customer=${customerId}`)} className="gap-1.5 rounded-xl">
+              <Plus className="h-3.5 w-3.5" /> Opprett lead
+            </Button>
+          </div>
+          <p className="text-[10px] text-muted-foreground mt-2">
+            💡 Tips: Legg til tags og kundeverdi under «Oversikt» for bedre oppfølging.
+          </p>
         </CardContent>
       </Card>
     );
