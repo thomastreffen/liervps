@@ -293,7 +293,7 @@ export default function CustomersPage() {
               <TableBody>
                 {paged.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center text-muted-foreground py-12">
+                    <TableCell colSpan={7} className="text-center text-muted-foreground py-12">
                       Ingen kunder funnet.
                     </TableCell>
                   </TableRow>
