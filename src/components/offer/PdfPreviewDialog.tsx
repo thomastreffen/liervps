@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
@@ -14,6 +15,21 @@ interface PdfPreviewDialogProps {
 }
 
 export function PdfPreviewDialog({ open, onOpenChange, pdfUrl, loading, error, onRetry }: PdfPreviewDialogProps) {
+  // Clean up blob URLs when dialog closes
+  useEffect(() => {
+    return () => {
+      if (pdfUrl && pdfUrl.startsWith("blob:")) {
+        URL.revokeObjectURL(pdfUrl);
+      }
+    };
+  }, [pdfUrl]);
+
+  const handleOpenExternal = async () => {
+    if (!pdfUrl) return;
+    // For blob URLs, open directly; for signed URLs, also open directly
+    window.open(pdfUrl, "_blank");
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl h-[85vh] flex flex-col p-0">
@@ -25,7 +41,7 @@ export function PdfPreviewDialog({ open, onOpenChange, pdfUrl, loading, error, o
                 variant="outline"
                 size="sm"
                 className="gap-1.5 rounded-lg"
-                onClick={() => window.open(pdfUrl, "_blank")}
+                onClick={handleOpenExternal}
               >
                 <ExternalLink className="h-3.5 w-3.5" />
                 Åpne i nytt vindu
