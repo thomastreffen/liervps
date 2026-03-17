@@ -32,10 +32,10 @@ export function CustomerActivityList({ customerId }: Props) {
       .limit(10);
 
     // Fetch leads linked to customer
-    const { data: leads } = await supabase
+    const { data: leads } = await (supabase
       .from("leads")
       .select("id, title, status, created_at")
-      .eq("customer_id", customerId)
+      .eq("customer_id", customerId) as any)
       .is("deleted_at", null)
       .order("created_at", { ascending: false })
       .limit(10);
