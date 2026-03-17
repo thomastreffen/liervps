@@ -42,6 +42,7 @@ import {
   Moon,
   ArrowRight,
   Users,
+  Building,
 } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel,
