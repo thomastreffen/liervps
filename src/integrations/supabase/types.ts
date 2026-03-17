@@ -306,8 +306,12 @@ export type Database = {
           description: string | null
           external_tripletex_number: string | null
           id: string
+          last_activity_at: string | null
           lead_id: string | null
+          next_step: string | null
+          next_step_at: string | null
           project_title: string
+          responsible_user_id: string | null
           show_discount_in_offer: boolean
           source_case_id: string | null
           source_case_item_id: string | null
@@ -334,8 +338,12 @@ export type Database = {
           description?: string | null
           external_tripletex_number?: string | null
           id?: string
+          last_activity_at?: string | null
           lead_id?: string | null
+          next_step?: string | null
+          next_step_at?: string | null
           project_title: string
+          responsible_user_id?: string | null
           show_discount_in_offer?: boolean
           source_case_id?: string | null
           source_case_item_id?: string | null
@@ -362,8 +370,12 @@ export type Database = {
           description?: string | null
           external_tripletex_number?: string | null
           id?: string
+          last_activity_at?: string | null
           lead_id?: string | null
+          next_step?: string | null
+          next_step_at?: string | null
           project_title?: string
+          responsible_user_id?: string | null
           show_discount_in_offer?: boolean
           source_case_id?: string | null
           source_case_item_id?: string | null
@@ -5572,6 +5584,57 @@ export type Database = {
           },
         ]
       }
+      offer_comments: {
+        Row: {
+          author_id: string | null
+          calculation_id: string
+          comment_type: string
+          company_id: string | null
+          content: string
+          created_at: string
+          id: string
+          metadata: Json | null
+          updated_at: string
+        }
+        Insert: {
+          author_id?: string | null
+          calculation_id: string
+          comment_type?: string
+          company_id?: string | null
+          content: string
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          updated_at?: string
+        }
+        Update: {
+          author_id?: string | null
+          calculation_id?: string
+          comment_type?: string
+          company_id?: string | null
+          content?: string
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "offer_comments_calculation_id_fkey"
+            columns: ["calculation_id"]
+            isOneToOne: false
+            referencedRelation: "calculations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "offer_comments_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "internal_companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       offer_followup_tasks: {
         Row: {
           assigned_to: string | null
@@ -7817,6 +7880,7 @@ export type Database = {
         | "draft"
         | "generated"
         | "sent"
+        | "in_dialogue"
         | "accepted"
         | "rejected"
         | "converted"
@@ -8048,6 +8112,7 @@ export const Constants = {
         "draft",
         "generated",
         "sent",
+        "in_dialogue",
         "accepted",
         "rejected",
         "converted",

@@ -27,11 +27,15 @@ import { OfferFollowupSection } from "@/components/offer/OfferFollowupSection";
 import { OrderLineEditor, calcTotals, type OrderLine } from "@/components/offer/OrderLineEditor";
 import { PdfPreviewDialog } from "@/components/offer/PdfPreviewDialog";
 import { ConvertToJobDialog } from "@/components/ConvertToJobDialog";
+import { SalesPipelineBar } from "@/components/offer/SalesPipelineBar";
+import { NextStepSection } from "@/components/offer/NextStepSection";
+import { OfferCommentFeed, logOfferComment } from "@/components/offer/OfferCommentFeed";
+import { OfferResponsibleSelect } from "@/components/offer/OfferResponsibleSelect";
 import {
   ArrowLeft, Loader2, Sparkles, FileDown, ArrowRightLeft, Plus, Trash2, Save,
   Building2, Mail, FileText, Brain, Package, Upload, X, Image as ImageIcon,
   AlertTriangle, Paperclip, Eye, EyeOff, ExternalLink, AlertCircle, ReceiptText, BookOpen,
-  Clock, CheckCircle2, XCircle, Send, RefreshCw, History,
+  Clock, CheckCircle2, XCircle, Send, RefreshCw, History, MessageCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { NewRegulationQueryDialog } from "@/components/regulation/NewRegulationQueryDialog";
@@ -69,6 +73,10 @@ interface Calculation {
   company_id: string | null;
   customer_id: string | null;
   contact_person_id: string | null;
+  responsible_user_id: string | null;
+  next_step: string | null;
+  next_step_at: string | null;
+  last_activity_at: string | null;
 }
 
 interface ContactPersonInfo {
@@ -104,6 +112,7 @@ const STATUS_ICONS: Record<CalculationStatus, React.ReactNode> = {
   draft: <Clock className="h-3.5 w-3.5" />,
   generated: <FileDown className="h-3.5 w-3.5" />,
   sent: <Send className="h-3.5 w-3.5" />,
+  in_dialogue: <History className="h-3.5 w-3.5" />,
   accepted: <CheckCircle2 className="h-3.5 w-3.5" />,
   rejected: <XCircle className="h-3.5 w-3.5" />,
   converted: <ArrowRightLeft className="h-3.5 w-3.5" />,
@@ -345,9 +354,43 @@ export default function CalculationDetail() {
 
   const handleStatusChange = async (status: CalculationStatus) => {
     if (!calc) return;
-    await supabase.from("calculations").update({ status }).eq("id", calc.id);
+    const oldStatus = calc.status;
+    await supabase.from("calculations").update({ status, last_activity_at: new Date().toISOString() } as any).eq("id", calc.id);
     setCalc((prev) => prev ? { ...prev, status } : null);
     toast.success(`Status endret til ${CALCULATION_STATUS_CONFIG[status].label}`);
+    // Log status change as comment
+    if (oldStatus !== status) {
+      logOfferComment(calc.id, calc.company_id, user?.id || null, "status_change",
+        `Status endret fra ${CALCULATION_STATUS_CONFIG[oldStatus]?.label || oldStatus} til ${CALCULATION_STATUS_CONFIG[status].label}`);
+    }
+  };
+
+  const handleNextStepSave = async (step: string, date: string | null) => {
+    if (!calc) return;
+    await supabase.from("calculations").update({
+      next_step: step || null,
+      next_step_at: date,
+      last_activity_at: new Date().toISOString(),
+    } as any).eq("id", calc.id);
+    setCalc(prev => prev ? { ...prev, next_step: step || null, next_step_at: date } : null);
+    if (step) {
+      toast.success("Neste steg oppdatert");
+      logOfferComment(calc.id, calc.company_id, user?.id || null, "system",
+        `Neste steg satt: "${step}"${date ? ` (frist: ${new Date(date).toLocaleDateString("nb-NO")})` : ""}`);
+    } else {
+      toast.success("Neste steg fullført");
+      logOfferComment(calc.id, calc.company_id, user?.id || null, "system", "Neste steg markert som fullført");
+    }
+  };
+
+  const handleResponsibleChange = async (userId: string | null) => {
+    if (!calc) return;
+    await supabase.from("calculations").update({
+      responsible_user_id: userId,
+      last_activity_at: new Date().toISOString(),
+    } as any).eq("id", calc.id);
+    setCalc(prev => prev ? { ...prev, responsible_user_id: userId } : null);
+    toast.success("Ansvarlig oppdatert");
   };
 
   const handleGenerateOffer = async () => {
@@ -882,16 +925,52 @@ export default function CalculationDetail() {
         )}
       </header>
 
-      {/* ── Tabs (punkt 5 — simplified) ── */}
-      <Tabs defaultValue="overview">
+      {/* ── Sales Pipeline Bar ── */}
+      <SalesPipelineBar
+        currentStatus={calc.status}
+        onStatusChange={isAdmin ? handleStatusChange : undefined}
+        disabled={!isAdmin}
+      />
+
+      {/* ── Next Step + Responsible ── */}
+      <div className="grid grid-cols-1 md:grid-cols-[1fr_200px] gap-3">
+        <NextStepSection
+          nextStep={calc.next_step}
+          nextStepAt={calc.next_step_at}
+          onSave={handleNextStepSave}
+          readOnly={!isAdmin}
+        />
+        <OfferResponsibleSelect
+          value={calc.responsible_user_id}
+          onChange={handleResponsibleChange}
+          companyId={calc.company_id}
+        />
+      </div>
+
+      {/* ── Tabs ── */}
+      <Tabs defaultValue="workspace">
         <TabsList className="w-full sm:w-auto flex overflow-x-auto rounded-xl">
+          <TabsTrigger value="workspace" className="gap-1.5 rounded-lg"><MessageCircle className="h-3.5 w-3.5" />Arbeidsrom</TabsTrigger>
           <TabsTrigger value="overview" className="gap-1.5 rounded-lg"><FileText className="h-3.5 w-3.5" />Oversikt</TabsTrigger>
           <TabsTrigger value="items" className="gap-1.5 rounded-lg"><Package className="h-3.5 w-3.5" />Ordrelinjer ({hasOrderLines ? orderLines.length : items.length})</TabsTrigger>
           <TabsTrigger value="versions" className="gap-1.5 rounded-lg"><ReceiptText className="h-3.5 w-3.5" />Versjoner ({offers.length})</TabsTrigger>
           <TabsTrigger value="attachments" className="gap-1.5 rounded-lg"><Paperclip className="h-3.5 w-3.5" />Vedlegg {attachments.length > 0 && `(${attachments.length})`}</TabsTrigger>
-          <TabsTrigger value="history" className="gap-1.5 rounded-lg"><History className="h-3.5 w-3.5" />Historikk</TabsTrigger>
-          <TabsTrigger value="activity" className="gap-1.5 rounded-lg"><Eye className="h-3.5 w-3.5" />Aktivitet</TabsTrigger>
+          <TabsTrigger value="activity" className="gap-1.5 rounded-lg"><Eye className="h-3.5 w-3.5" />Kundeaktivitet</TabsTrigger>
         </TabsList>
+
+        {/* ===== Workspace Tab (CRM) ===== */}
+        <TabsContent value="workspace" className="space-y-4 pt-4">
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-4">
+            {/* Main: Comment feed */}
+            <OfferCommentFeed calculationId={calc.id} companyId={calc.company_id} />
+
+            {/* Sidebar: Follow-up + Customer activity */}
+            <div className="space-y-4">
+              <OfferFollowupSection offerId={calc.id} />
+              <OfferActivityTimeline offerId={calc.id} />
+            </div>
+          </div>
+        </TabsContent>
 
         {/* ===== Overview Tab ===== */}
         <TabsContent value="overview" className="space-y-4 pt-4">
@@ -1246,59 +1325,8 @@ export default function CalculationDetail() {
           )}
         </TabsContent>
 
-        {/* ===== History Tab (punkt 5) ===== */}
-        <TabsContent value="history" className="space-y-4 pt-4">
-          <div className="rounded-xl border border-border/40 bg-card p-4 space-y-3">
-            <h3 className="text-sm font-medium flex items-center gap-1.5"><History className="h-4 w-4 text-muted-foreground" /> Hendelseslogg</h3>
-            <div className="space-y-2">
-              {/* Calculation created */}
-              <div className="flex items-start gap-3 text-sm">
-                <div className="w-1.5 h-1.5 rounded-full bg-primary mt-2 shrink-0" />
-                <div>
-                  <p className="font-medium">Tilbud opprettet</p>
-                  <p className="text-xs text-muted-foreground">{format(new Date(calc.created_at), "d. MMM yyyy HH:mm", { locale: nb })}</p>
-                </div>
-              </div>
-              {/* AI analysis */}
-              {analysis && (
-                <div className="flex items-start gap-3 text-sm">
-                  <div className="w-1.5 h-1.5 rounded-full bg-primary mt-2 shrink-0" />
-                  <div>
-                    <p className="font-medium">AI-analyse kjørt</p>
-                    <p className="text-xs text-muted-foreground">
-                      {analysis.confidence_level ? `Konfidens: ${analysis.confidence_level}` : "Status: " + (analysis.status || "fullført")}
-                    </p>
-                  </div>
-                </div>
-              )}
-              {/* Offer versions */}
-              {[...offers].reverse().map((offer) => (
-                <div key={offer.id} className="flex items-start gap-3 text-sm">
-                  <div className="w-1.5 h-1.5 rounded-full bg-primary mt-2 shrink-0" />
-                  <div>
-                    <p className="font-medium">Tilbud {offer.offer_number} v{offer.version} generert</p>
-                    <p className="text-xs text-muted-foreground">
-                      {format(new Date(offer.created_at), "d. MMM yyyy HH:mm", { locale: nb })}
-                      {offer.sent_at && ` • Sendt ${format(new Date(offer.sent_at), "d. MMM yyyy", { locale: nb })}`}
-                    </p>
-                  </div>
-                </div>
-              ))}
-              {/* Last updated */}
-              <div className="flex items-start gap-3 text-sm">
-                <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground/30 mt-2 shrink-0" />
-                <div>
-                  <p className="text-muted-foreground">Sist oppdatert</p>
-                  <p className="text-xs text-muted-foreground">{format(new Date(calc.updated_at), "d. MMM yyyy HH:mm", { locale: nb })}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </TabsContent>
-
-        {/* ===== Activity Tab ===== */}
+        {/* ===== Activity Tab (Customer tracking) ===== */}
         <TabsContent value="activity" className="space-y-4 pt-4">
-          <OfferFollowupSection offerId={calc.id} />
           <OfferActivityTimeline offerId={calc.id} />
         </TabsContent>
       </Tabs>
