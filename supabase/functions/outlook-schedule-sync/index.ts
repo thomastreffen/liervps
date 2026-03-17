@@ -217,7 +217,13 @@ Deno.serve(async (req) => {
             continue;
           }
 
-          if (ev.categories?.includes("MCS")) continue;
+          // Skip MCS-created events: check category tag OR hidden body marker
+          const isMcsCreated = ev.categories?.includes("MCS")
+            || (ev.body?.content || "").includes("MCS_SOURCE:true");
+          if (isMcsCreated) {
+            console.log(`[outlook-schedule-sync] Skipping MCS-created event: ${ev.subject} (${ev.id})`);
+            continue;
+          }
 
           // Graph returns dateTime in UTC (via Prefer: outlook.timezone="UTC" header)
           // Append Z only if not already present to ensure correct UTC parsing
