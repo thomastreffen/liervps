@@ -266,13 +266,13 @@ export const ResourceCalendar = memo(function ResourceCalendar({
 
     // External busy slots
     let missingNameCount = 0;
-    if (getBusySlotsForDay && !hideExternalEvents) {
-      const sbRangesByTech = new Map<string, Array<{ start: number; end: number }>>();
-      for (const block of scheduleBlocks) {
-        const ranges = sbRangesByTech.get(block.technician_id) || [];
-        ranges.push({ start: block.start_at.getTime(), end: block.end_at.getTime() });
-        sbRangesByTech.set(block.technician_id, ranges);
-      }
+      if (getBusySlotsForDay && !hideExternalEvents) {
+        const sbRangesByTech = new Map<string, Array<{ start: number; end: number }>>();
+        for (const block of visibleScheduleBlocks) {
+          const ranges = sbRangesByTech.get(block.technician_id) || [];
+          ranges.push({ start: block.start_at.getTime(), end: block.end_at.getTime() });
+          sbRangesByTech.set(block.technician_id, ranges);
+        }
 
       const weekStart = new Date(referenceDate);
       weekStart.setDate(weekStart.getDate() - weekStart.getDay() + 1);
