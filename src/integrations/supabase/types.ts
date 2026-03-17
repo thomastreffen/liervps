@@ -308,6 +308,7 @@ export type Database = {
           id: string
           lead_id: string | null
           project_title: string
+          show_discount_in_offer: boolean
           source_case_id: string | null
           source_case_item_id: string | null
           status: Database["public"]["Enums"]["calculation_status"]
@@ -335,6 +336,7 @@ export type Database = {
           id?: string
           lead_id?: string | null
           project_title: string
+          show_discount_in_offer?: boolean
           source_case_id?: string | null
           source_case_item_id?: string | null
           status?: Database["public"]["Enums"]["calculation_status"]
@@ -362,6 +364,7 @@ export type Database = {
           id?: string
           lead_id?: string | null
           project_title?: string
+          show_discount_in_offer?: boolean
           source_case_id?: string | null
           source_case_item_id?: string | null
           status?: Database["public"]["Enums"]["calculation_status"]
