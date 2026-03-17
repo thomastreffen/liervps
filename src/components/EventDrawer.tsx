@@ -181,6 +181,7 @@ export function EventDrawer({
     setClientRequestId(crypto.randomUUID());
     setFiles([]);
     setExistingAttachments([]);
+    setSelectedCompanyId(isAllCompanies ? (companies.length === 1 ? companies[0].id : null) : activeCompanyId);
 
     // Load existing attachments for edit mode
     if (editEvent) {
