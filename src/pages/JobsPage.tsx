@@ -429,7 +429,7 @@ export default function JobsPage() {
                               <TooltipContent>Send godkjenning</TooltipContent>
                             </Tooltip>
                           )}
-                          <SoftDeleteInlineButton table="events" id={job.id} label="Prosjekt" name={job.title} onDeleted={() => setJobs((prev) => prev.filter((j) => j.id !== job.id))} />
+                          <SoftDeleteRowButton table="events" id={job.id} entityLabel="Prosjekt" entityName={job.title} onDeleted={() => setJobs((prev) => prev.filter((j) => j.id !== job.id))} />
                         </div>
                       </TableCell>
                     </TableRow>
