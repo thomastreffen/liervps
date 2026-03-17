@@ -139,7 +139,9 @@ export default function NewOfferWizard() {
       project_title: projectTitle.trim(),
       description: description.trim() || null,
       created_by: user!.id,
-    }).select("id").single();
+      customer_id: selectedCustomerId || null,
+      contact_person_id: selectedContactId || null,
+    } as any).select("id").single();
     setSaving(false);
     if (error) { toast.error("Feil", { description: error.message }); return null; }
     setCalcId(data.id);
