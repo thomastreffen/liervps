@@ -353,9 +353,17 @@ export function EventDrawer({
         toast.success("Hendelse oppdatert", { description: "Tid og ressurser er lagret." });
         onSaved?.(editEvent.id);
       } else if (mode === "existing" && selectedJobId) {
+        const updatePayload: Record<string, any> = {};
         if (date) {
           const { startISO, endISO } = normalizeOvernightDates(date, startTime, endDate, endTime);
-          await supabase.from("events").update({ start_time: startISO, end_time: endISO }).eq("id", selectedJobId);
+          updatePayload.start_time = startISO;
+          updatePayload.end_time = endISO;
+        }
+        if (assignmentNotes.trim()) {
+          updatePayload.assignment_notes = assignmentNotes.trim();
+        }
+        if (Object.keys(updatePayload).length > 0) {
+          await (supabase as any).from("events").update(updatePayload).eq("id", selectedJobId);
         }
 
         const { data: existing } = await supabase
