@@ -347,7 +347,7 @@ export const ResourceCalendar = memo(function ResourceCalendar({
     // Build index of internal (non-outlook) schedule blocks per technician for dedup
     const TZ_TOLERANCE_DEDUP = 65 * 60000;
     const internalBlocksByTech = new Map<string, Array<{ start: number; end: number; projectId: string | null; jobNumber: string | null }>>();
-    for (const block of scheduleBlocks) {
+    for (const block of visibleScheduleBlocks) {
       if (block.source === "outlook") continue;
       const arr = internalBlocksByTech.get(block.technician_id) || [];
       arr.push({
@@ -359,9 +359,8 @@ export const ResourceCalendar = memo(function ResourceCalendar({
       internalBlocksByTech.set(block.technician_id, arr);
     }
 
-    // Schedule blocks – suppress mirrored variants when authoritative assignment exists
     const seenScheduleBlockKeys = new Set<string>();
-    for (const block of scheduleBlocks) {
+    for (const block of visibleScheduleBlocks) {
       const isExternal = block.source === "outlook" && !block.project_id;
       if (hideExternalEvents && isExternal) continue;
 
