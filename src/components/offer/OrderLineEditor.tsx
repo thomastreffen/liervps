@@ -340,7 +340,7 @@ export function OrderLineEditor({
                             />
                           )}
                         </TableCell>
-                        <TableCell className="py-3">
+                        <TableCell className="py-4">
                           {readOnly ? (
                             <span className="text-sm text-right block">{line.discount_percent}%</span>
                           ) : (
