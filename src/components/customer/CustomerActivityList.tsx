@@ -23,10 +23,10 @@ export function CustomerActivityList({ customerId }: Props) {
 
   const fetchActivity = useCallback(async () => {
     // Fetch offers linked to customer
-    const { data: offers } = await supabase
+    const { data: offers } = await (supabase
       .from("calculations")
       .select("id, project_title, status, created_at")
-      .eq("customer_name", customerId)
+      .eq("customer_name", customerId) as any)
       .is("deleted_at", null)
       .order("created_at", { ascending: false })
       .limit(10);
