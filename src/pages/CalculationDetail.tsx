@@ -35,7 +35,7 @@ import {
   ArrowLeft, Loader2, Sparkles, FileDown, ArrowRightLeft, Plus, Trash2, Save,
   Building2, Mail, FileText, Brain, Package, Upload, X, Image as ImageIcon,
   AlertTriangle, Paperclip, Eye, EyeOff, ExternalLink, AlertCircle, ReceiptText, BookOpen,
-  Clock, CheckCircle2, XCircle, Send, RefreshCw, History,
+  Clock, CheckCircle2, XCircle, Send, RefreshCw, History, MessageCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { NewRegulationQueryDialog } from "@/components/regulation/NewRegulationQueryDialog";
