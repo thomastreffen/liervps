@@ -489,9 +489,16 @@ export default function CalculationDetail() {
   const analysis = calc.ai_analysis;
   const attachments = Array.isArray(calc.attachments) ? calc.attachments : [];
 
+  // Prefer order_lines if available, fall back to legacy items
+  const hasOrderLines = orderLines.length > 0;
+  const olTotals = calcTotals(orderLines);
+
   const totalCost = materials.reduce((s, i) => s + getCostPrice(i) * i.quantity, 0) + Number(calc.total_labor);
-  const totalMargin = Number(calc.total_price) - totalCost;
-  const marginPercent = Number(calc.total_price) > 0 ? (totalMargin / Number(calc.total_price)) * 100 : 0;
+  const displayTotalExVat = hasOrderLines ? olTotals.totalExVat : Number(calc.total_price);
+  const displayTotalIncVat = hasOrderLines ? olTotals.totalIncVat : Number(calc.total_price) * 1.25;
+  const displayTotalVat = hasOrderLines ? olTotals.totalVat : Number(calc.total_price) * 0.25;
+  const totalMargin = displayTotalExVat - totalCost;
+  const marginPercent = displayTotalExVat > 0 ? (totalMargin / displayTotalExVat) * 100 : 0;
 
   const confidenceColor = (level: string) => {
     if (level === "high") return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200";
