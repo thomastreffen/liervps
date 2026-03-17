@@ -100,6 +100,7 @@ export default function CalculationDetail() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { hasPermission } = usePermissions();
+  const { activeCompanyId, isAllCompanies, companies, setActiveCompanyId } = useCompanyContext();
   const isAdmin = hasPermission("calculations.edit");
 
   const [calc, setCalc] = useState<Calculation | null>(null);
