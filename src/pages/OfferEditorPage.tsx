@@ -7,9 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
 import { CustomerSelect, type CustomerOption } from "@/components/offer/CustomerSelect";
-import { ContactPersonSelect, type ContactPerson } from "@/components/offer/ContactPersonSelect";
+import { ContactPersonSelect } from "@/components/offer/ContactPersonSelect";
 import { OrderLineEditor, calcTotals, type OrderLine } from "@/components/offer/OrderLineEditor";
 import {
   ArrowLeft, Save, Loader2, FileDown, ReceiptText,
@@ -49,7 +48,9 @@ export default function OfferEditorPage() {
 
   const totals = useMemo(() => calcTotals(lines), [lines]);
 
-  const saveOffer = useCallback(async (silent = false) => {
+  const hasDescriptionOrAttachment = Boolean(comment.trim() || projectTitle.trim());
+
+  const saveOffer = useCallback(async (silent = false): Promise<string | null> => {
     if (!user) return null;
     if (!projectTitle.trim()) {
       if (!silent) toast.error("Prosjekttittel er påkrevd");
@@ -78,7 +79,8 @@ export default function OfferEditorPage() {
       };
 
       if (cId) {
-        await supabase.from("calculations").update(calcPayload).eq("id", cId);
+        const { error } = await supabase.from("calculations").update(calcPayload).eq("id", cId);
+        if (error) throw error;
       } else {
         calcPayload.created_by = user.id;
         calcPayload.status = "draft";
@@ -123,7 +125,10 @@ export default function OfferEditorPage() {
 
   const generatePdf = async () => {
     const savedId = await saveOffer(true);
-    if (!savedId) return;
+    if (!savedId) {
+      toast.error("Tilbudet må lagres først. Fyll ut påkrevde felter.");
+      return;
+    }
 
     setGenerating(true);
     try {
@@ -135,12 +140,21 @@ export default function OfferEditorPage() {
         toast.info(data.error);
       } else {
         toast.success("Tilbud generert!");
-        navigate(`/sales/offers/${savedId}`);
+        // Navigate to the offer detail page
+        navigate(`/sales/offers/${savedId}`, { replace: true });
       }
     } catch (err: any) {
       toast.error("Feil ved generering: " + (err.message || "Ukjent feil"));
     } finally {
       setGenerating(false);
+    }
+  };
+
+  const handleSaveAndStay = async () => {
+    const savedId = await saveOffer();
+    if (savedId && !calcId) {
+      // First save - update URL without full navigation to avoid blank page
+      window.history.replaceState(null, "", `/sales/offers/new?saved=${savedId}`);
     }
   };
 
@@ -202,7 +216,7 @@ export default function OfferEditorPage() {
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
-            onClick={() => saveOffer()}
+            onClick={handleSaveAndStay}
             disabled={saving}
             className="gap-1.5 rounded-lg"
           >
@@ -278,13 +292,15 @@ export default function OfferEditorPage() {
       </div>
 
       {/* Order Lines */}
-      <div className="space-y-2">
+      <div className="space-y-3">
         <h2 className="text-lg font-semibold">Ordrelinjer</h2>
         <OrderLineEditor
           lines={lines}
           onChange={setLines}
           onRequestAiSuggestions={requestAiSuggestions}
           aiLoading={aiLoading}
+          companyId={activeCompanyId}
+          hasDescriptionOrAttachment={hasDescriptionOrAttachment}
         />
       </div>
     </div>
