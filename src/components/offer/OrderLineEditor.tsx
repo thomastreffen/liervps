@@ -355,7 +355,7 @@ export function OrderLineEditor({
                             />
                           )}
                         </TableCell>
-                        <TableCell className="text-right font-medium text-sm py-3">
+                        <TableCell className="text-right font-medium text-sm py-4">
                           {formatPrice(calcLineExVat(line))}
                         </TableCell>
                       </>
