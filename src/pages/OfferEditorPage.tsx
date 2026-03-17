@@ -289,7 +289,7 @@ export default function OfferEditorPage() {
           </Button>
           <Button
             variant="outline"
-            onClick={handlePreviewPdf}
+            onClick={handlePreviewOffer}
             disabled={lines.length === 0}
             className="gap-1.5 rounded-lg"
           >
