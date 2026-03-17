@@ -287,6 +287,7 @@ export default function CustomersPage() {
                     </button>
                   </TableHead>
                   <TableHead className="text-xs font-semibold uppercase tracking-wider">Sist aktiv</TableHead>
+                  <TableHead className="w-10" />
                 </TableRow>
               </TableHeader>
               <TableBody>
