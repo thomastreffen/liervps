@@ -63,6 +63,16 @@ interface Calculation {
   updated_at: string;
   lead_id: string | null;
   company_id: string | null;
+  customer_id: string | null;
+  contact_person_id: string | null;
+}
+
+interface ContactPersonInfo {
+  id: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  role: string | null;
 }
 
 interface Offer {
