@@ -29,7 +29,7 @@ export function CustomerActionRequired({ customerId, customerName, leadCount, of
     actions.push({
       icon: FileText,
       text: "Lag tilbud",
-      action: () => navigate(`/offers/new?customer=${customerId}&customerName=${encodeURIComponent(customerName)}`),
+      action: () => navigate(`/sales/offers/new?customer=${customerId}&customerName=${encodeURIComponent(customerName)}`),
       variant: "default",
     });
   }
