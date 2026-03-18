@@ -4,6 +4,7 @@ import { ProjectSuggestionList } from "./ProjectSuggestionList";
 import { FileUpload } from "./FileUpload";
 import { AttachmentList } from "./AttachmentList";
 import type { Attachment } from "@/lib/mock-data";
+import { TaskThreadPanel } from "@/components/task-thread";
 import {
   Sheet,
   SheetContent,
