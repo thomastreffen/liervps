@@ -9,18 +9,15 @@ interface Props {
   companyId: string;
 }
 
-/**
- * Main container for the per-task messaging thread.
- * Handles permissions, rendering feed + composer.
- */
 export function TaskThreadPanel({ taskId, companyId }: Props) {
   const { user } = useAuth();
   const { hasPermission } = usePermissions();
-  const { messages, loading, sending, sendMessage } = useTaskThread(taskId, companyId);
+  const { messages, loading, sending, sendMessage, sendEmailMessage } = useTaskThread(taskId, companyId);
 
   const canView = hasPermission("task_thread.view") || hasPermission("admin.manage_users");
   const canComment = hasPermission("task_thread.comment_internal") || hasPermission("admin.manage_users");
   const canUpload = hasPermission("task_thread.upload_attachments") || hasPermission("admin.manage_users");
+  const canEmail = hasPermission("task_thread.email_external") || hasPermission("admin.manage_users");
 
   if (!canView) return null;
 
@@ -34,8 +31,11 @@ export function TaskThreadPanel({ taskId, companyId }: Props) {
       {canComment && (
         <TaskThreadComposer
           onSend={sendMessage}
+          onSendEmail={canEmail ? sendEmailMessage : undefined}
           sending={sending}
           canUpload={canUpload}
+          canEmail={canEmail}
+          taskId={taskId}
         />
       )}
     </div>

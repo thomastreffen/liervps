@@ -1,0 +1,355 @@
+/**
+ * task-thread-email-send
+ * 
+ * Sends an email from a task thread to assigned technicians.
+ * Uses Microsoft Graph API via the system mailbox (postkontoret@mcsservice.no).
+ * 
+ * Threading strategy:
+ * - reply-to: task-thread+{thread_token}@mcsservice.no
+ * - X-MCS-Task-Thread-Token header for robust inbound matching
+ * - Message-ID / In-Reply-To / References for standard email threading
+ * - Subject contains [TASK-{internal_number}] for fallback matching
+ */
+
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
+  "Content-Type": "application/json",
+};
+
+const MAILBOX = "postkontoret@mcsservice.no";
+const DOMAIN = "mcsservice.no";
+
+function json(data: any, status = 200) {
+  return new Response(JSON.stringify(data), { status, headers: corsHeaders });
+}
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const body = await req.json();
+    const { task_id, body_text, attachment_paths } = body;
+    // attachment_paths: array of { file_path, file_name, mime_type, file_size }
+
+    if (!task_id) return json({ error: "task_id required" }, 400);
+    if (!body_text?.trim()) return json({ error: "body_text required" }, 400);
+
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, serviceKey);
+
+    // ── Authenticate caller ──
+    const authHeader = req.headers.get("authorization") || "";
+    const jwt = authHeader.replace("Bearer ", "");
+    const { data: { user }, error: authErr } = await supabase.auth.getUser(jwt);
+    if (authErr || !user) return json({ error: "Unauthorized" }, 401);
+
+    // ── Check permission ──
+    const { data: canEmail } = await supabase.rpc("check_permission_v2", {
+      _auth_user_id: user.id,
+      _perm: "task_thread.email_external",
+    });
+    if (!canEmail) return json({ error: "Missing permission: task_thread.email_external" }, 403);
+
+    // ── Get task (event) details ──
+    const { data: task } = await supabase
+      .from("events")
+      .select("id, title, customer, address, start_time, end_time, internal_number, company_id, parent_project_id")
+      .eq("id", task_id)
+      .is("deleted_at", null)
+      .single();
+    if (!task) return json({ error: "Task not found" }, 404);
+
+    // ── Get assigned technicians with emails ──
+    const { data: techLinks } = await supabase
+      .from("event_technicians")
+      .select("technician_id, technicians(id, name, email)")
+      .eq("event_id", task_id);
+
+    const recipients: { name: string; email: string }[] = [];
+    for (const link of (techLinks || []) as any[]) {
+      const tech = link.technicians;
+      if (tech?.email) {
+        recipients.push({ name: tech.name, email: tech.email });
+      }
+    }
+
+    if (recipients.length === 0) {
+      return json({ error: "Ingen tildelte montører med e-postadresse" }, 400);
+    }
+
+    // ── Get or create thread ──
+    let { data: thread } = await supabase
+      .from("task_threads")
+      .select("id, thread_token, company_id")
+      .eq("task_id", task_id)
+      .maybeSingle();
+
+    if (!thread) {
+      const { data: newThread, error: tErr } = await supabase
+        .from("task_threads")
+        .insert({
+          task_id,
+          company_id: task.company_id,
+          created_by: user.id,
+        })
+        .select("id, thread_token, company_id")
+        .single();
+      if (tErr) return json({ error: "Failed to create thread: " + tErr.message }, 500);
+      thread = newThread;
+    }
+
+    // ── Get author name ──
+    const { data: authorData } = await supabase
+      .from("user_accounts")
+      .select("people(full_name)")
+      .eq("auth_user_id", user.id)
+      .eq("is_active", true)
+      .maybeSingle();
+    const authorName = (authorData as any)?.people?.full_name || user.email || "MCS";
+
+    // ── Build email ──
+    const taskRef = task.internal_number || task_id.slice(0, 8);
+    const subject = `[${taskRef}] ${task.title || "Oppgave"}`;
+    const replyToAddress = `task-thread+${thread!.thread_token}@${DOMAIN}`;
+
+    const startStr = task.start_time
+      ? new Date(task.start_time).toLocaleDateString("nb-NO", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })
+      : "";
+    const endStr = task.end_time
+      ? new Date(task.end_time).toLocaleTimeString("nb-NO", { hour: "2-digit", minute: "2-digit" })
+      : "";
+
+    const bodyHtml = `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; padding: 20px;">
+        <div style="background: #f8f9fa; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+          <h3 style="margin: 0 0 8px 0; color: #1a1a1a;">${task.title || "Oppgave"}</h3>
+          ${task.customer ? `<p style="margin: 4px 0; color: #555;"><strong>Kunde:</strong> ${task.customer}</p>` : ""}
+          ${task.address ? `<p style="margin: 4px 0; color: #555;"><strong>Adresse:</strong> ${task.address}</p>` : ""}
+          ${startStr ? `<p style="margin: 4px 0; color: #555;"><strong>Tid:</strong> ${startStr}${endStr ? ` – ${endStr}` : ""}</p>` : ""}
+          ${taskRef ? `<p style="margin: 4px 0; color: #888; font-size: 12px;">Ref: ${taskRef}</p>` : ""}
+        </div>
+        <div style="white-space: pre-wrap; color: #1a1a1a; line-height: 1.6;">
+${body_text}
+        </div>
+        <hr style="border: none; border-top: 1px solid #e5e5e5; margin: 24px 0;" />
+        <p style="color: #888; font-size: 12px;">
+          Sendt fra MCS Ressurs av ${authorName}.<br/>
+          Svar på denne e-posten for å legge svaret direkte i oppgavens tråd.
+        </p>
+      </div>`;
+
+    // ── Get Graph token ──
+    const tokenResult = await getGraphToken();
+    if (tokenResult.error) return json({ error: "Graph token feil: " + tokenResult.error }, 500);
+
+    // ── Find previous outbound message for In-Reply-To threading ──
+    const { data: lastOutbound } = await supabase
+      .from("task_messages")
+      .select("external_message_id")
+      .eq("thread_id", thread!.id)
+      .eq("message_type", "external_email")
+      .not("external_message_id", "is", null)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const emailHeaders: Array<{ name: string; value: string }> = [
+      { name: "X-MCS-Task-Thread-Token", value: thread!.thread_token },
+      { name: "X-MCS-Entity", value: "task_thread" },
+      { name: "X-MCS-ID", value: thread!.id },
+    ];
+    if (lastOutbound?.external_message_id) {
+      emailHeaders.push({ name: "In-Reply-To", value: lastOutbound.external_message_id });
+      emailHeaders.push({ name: "References", value: lastOutbound.external_message_id });
+    }
+
+    // ── Send email via Graph ──
+    const recipientEmails = recipients.map(r => r.email);
+    const sendResult = await sendMailViaGraph(tokenResult.token!, {
+      subject,
+      bodyHtml,
+      recipients: recipientEmails,
+      mailbox: MAILBOX,
+      saveToSentItems: true,
+      replyTo: replyToAddress,
+      replyToName: `MCS Oppgave ${taskRef}`,
+      headers: emailHeaders,
+    });
+
+    if (sendResult.error) {
+      console.error("TASK_THREAD_EMAIL_SEND_FAILED", sendResult);
+      return json({ error: "E-post sending feilet: " + sendResult.error }, 500);
+    }
+
+    // ── Verify in sent items ──
+    const verification = await verifySentItems(tokenResult.token!, MAILBOX, subject, recipientEmails);
+
+    // ── Save outbound message ──
+    const { data: msg, error: msgErr } = await supabase
+      .from("task_messages")
+      .insert({
+        thread_id: thread!.id,
+        task_id,
+        company_id: task.company_id,
+        message_type: "external_email",
+        direction: "outbound",
+        body: body_text,
+        body_html: bodyHtml,
+        subject,
+        author_user_id: user.id,
+        author_name: authorName,
+        author_email: user.email,
+        external_message_id: verification.internetMessageId || null,
+        recipients: recipients.map(r => ({ name: r.name, email: r.email })),
+        email_status: sendResult.error ? "failed" : "sent",
+        reply_to_address: replyToAddress,
+        metadata: {
+          graph_request_id: sendResult.requestId,
+          duration_ms: sendResult.durationMs,
+          verified: verification.verified,
+        },
+      })
+      .select("id")
+      .single();
+
+    if (msgErr) {
+      console.error("TASK_THREAD_EMAIL_MSG_INSERT_ERROR", msgErr);
+      return json({ error: "E-post sendt, men lagring feilet" }, 500);
+    }
+
+    // ── Handle attachments ──
+    if (attachment_paths && attachment_paths.length > 0) {
+      for (const att of attachment_paths) {
+        await supabase.from("task_message_attachments").insert({
+          company_id: task.company_id,
+          message_id: msg!.id,
+          file_name: att.file_name,
+          file_path: att.file_path,
+          file_size: att.file_size || null,
+          mime_type: att.mime_type || null,
+          uploaded_by: user.id,
+        });
+      }
+    }
+
+    console.log("TASK_THREAD_EMAIL_SENT", {
+      task_id,
+      thread_id: thread!.id,
+      message_id: msg!.id,
+      recipients: recipientEmails,
+      verified: verification.verified,
+    });
+
+    return json({
+      sent: true,
+      message_id: msg!.id,
+      recipients: recipientEmails,
+      verified: verification.verified,
+    });
+  } catch (err: any) {
+    console.error("task-thread-email-send error:", err);
+    return json({ error: err.message || "Internal error" }, 500);
+  }
+});
+
+// ═══════════════════════════════════════════
+// Graph API helpers (shared pattern)
+// ═══════════════════════════════════════════
+
+async function getGraphToken(): Promise<{ token?: string; error?: string }> {
+  const tenantId = Deno.env.get("AZURE_TENANT_ID");
+  const clientId = Deno.env.get("AZURE_CLIENT_ID");
+  const clientSecret = Deno.env.get("AZURE_CLIENT_SECRET");
+  if (!tenantId || !clientId || !clientSecret) {
+    return { error: "Missing Azure credentials" };
+  }
+  const resp = await fetch(
+    `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        client_id: clientId, client_secret: clientSecret,
+        scope: "https://graph.microsoft.com/.default", grant_type: "client_credentials",
+      }),
+    }
+  );
+  const data = await resp.json();
+  if (!data.access_token) {
+    return { error: `Token failed (${resp.status}): ${data.error_description || data.error}` };
+  }
+  return { token: data.access_token };
+}
+
+interface SendMailOptions {
+  subject: string;
+  bodyHtml: string;
+  recipients: string[];
+  mailbox: string;
+  saveToSentItems: boolean;
+  replyTo?: string;
+  replyToName?: string;
+  headers?: Array<{ name: string; value: string }>;
+}
+
+async function sendMailViaGraph(token: string, opts: SendMailOptions) {
+  const start = Date.now();
+  const endpoint = `https://graph.microsoft.com/v1.0/users/${opts.mailbox}/sendMail`;
+
+  const messagePayload: any = {
+    subject: opts.subject,
+    body: { contentType: "HTML", content: opts.bodyHtml },
+    toRecipients: opts.recipients.map(e => ({ emailAddress: { address: e } })),
+  };
+
+  if (opts.replyTo) {
+    messagePayload.replyTo = [{ emailAddress: { address: opts.replyTo, name: opts.replyToName || opts.replyTo } }];
+  }
+  if (opts.headers?.length) {
+    messagePayload.internetMessageHeaders = opts.headers;
+  }
+
+  try {
+    const resp = await fetch(endpoint, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ message: messagePayload, saveToSentItems: opts.saveToSentItems }),
+    });
+    const durationMs = Date.now() - start;
+    const requestId = resp.headers.get("request-id") || undefined;
+
+    if (resp.status === 202 || resp.ok) {
+      return { durationMs, requestId };
+    }
+
+    const errBody = await resp.text();
+    return { error: `Graph ${resp.status}: ${errBody}`, statusCode: resp.status, durationMs, requestId };
+  } catch (e) {
+    return { error: `Network: ${String(e)}`, durationMs: Date.now() - start };
+  }
+}
+
+async function verifySentItems(token: string, mailbox: string, subject: string, recipients: string[]) {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    if (attempt > 0) await new Promise(r => setTimeout(r, 2500));
+    try {
+      const twoMinAgo = new Date(Date.now() - 2 * 60 * 1000).toISOString();
+      const filter = `subject eq '${subject.replace(/'/g, "''")}' and sentDateTime ge ${twoMinAgo}`;
+      const endpoint = `https://graph.microsoft.com/v1.0/users/${mailbox}/mailFolders/SentItems/messages?$filter=${encodeURIComponent(filter)}&$top=5&$select=id,subject,internetMessageId,webLink,sentDateTime`;
+      const resp = await fetch(endpoint, { headers: { Authorization: `Bearer ${token}` } });
+      if (!resp.ok) { await resp.text(); continue; }
+      const data = await resp.json();
+      if (data?.value?.length > 0) {
+        return { verified: true, internetMessageId: data.value[0].internetMessageId, webLink: data.value[0].webLink };
+      }
+    } catch { /* retry */ }
+  }
+  return { verified: false };
+}
