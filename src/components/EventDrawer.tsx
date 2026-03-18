@@ -592,11 +592,16 @@ export function EventDrawer({
               type="button"
               variant={drawerTab === "thread" ? "default" : "ghost"}
               size="sm"
-              className="h-8 text-xs rounded-md flex-1 gap-1.5"
+              className="h-8 text-xs rounded-md flex-1 gap-1.5 relative"
               onClick={() => setDrawerTab("thread")}
             >
               <MessageSquare className="h-3.5 w-3.5" />
               Tråd
+              {threadUnreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground">
+                  {threadUnreadCount > 9 ? "9+" : threadUnreadCount}
+                </span>
+              )}
             </Button>
           </div>
         )}
