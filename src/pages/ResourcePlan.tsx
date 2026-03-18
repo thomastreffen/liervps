@@ -230,19 +230,18 @@ export default function ResourcePlan() {
 
         const calEvent: CalendarEvent = {
           id: task.id,
+          microsoftEventId: "",
           title: task.title || "",
           customer: task.customer || "",
           address: task.address || "",
           description: task.description || "",
           start: task.start_time ? new Date(task.start_time) : new Date(),
           end: task.end_time ? new Date(task.end_time) : new Date(),
+          status: "Planlagt" as any,
           technicianIds,
+          attendeeStatuses: [],
           technicians: techniciansList,
           internalNumber: task.internal_number || null,
-          parentProjectId: task.parent_project_id || null,
-          projectType: task.project_type || "project",
-          assignmentNotes: task.assignment_notes || "",
-          companyId: task.company_id || null,
         };
 
         if (targetTab) setDeepLinkTab(targetTab);
