@@ -225,6 +225,7 @@ export default function ResourcePlan() {
         const techniciansList = (techLinks || []).map((l: any) => ({
           id: l.technicians?.id || l.technician_id,
           name: l.technicians?.name || "Ukjent",
+          color: l.technicians?.color || null,
         }));
 
         const calEvent: CalendarEvent = {
