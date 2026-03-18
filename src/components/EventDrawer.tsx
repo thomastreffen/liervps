@@ -571,6 +571,42 @@ export function EventDrawer({
           )}
         </SheetHeader>
 
+        {/* Tab switcher for edit mode */}
+        {isEditing && editEvent && (
+          <div className="flex items-center gap-1 border border-border/40 rounded-lg p-0.5 mt-3">
+            <Button
+              type="button"
+              variant={drawerTab === "details" ? "default" : "ghost"}
+              size="sm"
+              className="h-8 text-xs rounded-md flex-1 gap-1.5"
+              onClick={() => setDrawerTab("details")}
+            >
+              <Clock className="h-3.5 w-3.5" />
+              Detaljer
+            </Button>
+            <Button
+              type="button"
+              variant={drawerTab === "thread" ? "default" : "ghost"}
+              size="sm"
+              className="h-8 text-xs rounded-md flex-1 gap-1.5"
+              onClick={() => setDrawerTab("thread")}
+            >
+              <MessageSquare className="h-3.5 w-3.5" />
+              Tråd
+            </Button>
+          </div>
+        )}
+
+        {/* Thread tab content */}
+        {isEditing && editEvent && drawerTab === "thread" ? (
+          <div className="flex-1 mt-3 flex flex-col min-h-0">
+            <TaskThreadPanel
+              taskId={editEvent.id}
+              companyId={editCompanyId || activeCompanyId || ""}
+            />
+          </div>
+        ) : (
+
         <div className="flex-1 mt-3 space-y-6">
 
           {/* ═══ SECTION: SELSKAP ═══ */}
