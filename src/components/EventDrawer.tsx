@@ -148,6 +148,10 @@ export function EventDrawer({
   const [files, setFiles] = useState<File[]>([]);
   const [existingAttachments, setExistingAttachments] = useState<Attachment[]>([]);
   const [editCompanyName, setEditCompanyName] = useState<string | null>(null);
+  const [editCompanyId, setEditCompanyId] = useState<string | null>(null);
+
+  // Drawer tab state (detaljer vs tråd)
+  const [drawerTab, setDrawerTab] = useState<"details" | "thread">("details");
 
   // Populate form from props
   useEffect(() => {
