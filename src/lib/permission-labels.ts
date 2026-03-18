@@ -154,6 +154,13 @@ export const PERMISSION_LABELS: Record<string, PermissionMeta> = {
   "sharepoint.delete": { label: "Slette fra SharePoint", description: "Kan slette filer i SharePoint.", category: "SharePoint" },
   "sharepoint.link_job": { label: "Koble jobb til SharePoint", description: "Kan koble en jobb til en SharePoint-mappe.", category: "SharePoint" },
   "sharepoint.admin": { label: "Administrere SharePoint-konfig", description: "Kan kjøre self-heal og endre SharePoint-tilkobling for selskapet.", category: "SharePoint" },
+
+  // ── Oppgavetråd ──
+  "task_thread.view": { label: "Se oppgavetråd", description: "Kan se meldinger og tråd på oppgaver.", category: "Oppgavetråd" },
+  "task_thread.comment_internal": { label: "Skrive interne meldinger", description: "Kan sende interne meldinger i oppgavetråden.", category: "Oppgavetråd" },
+  "task_thread.upload_attachments": { label: "Laste opp vedlegg i tråd", description: "Kan legge ved filer i oppgavetrådens meldinger.", category: "Oppgavetråd" },
+  "task_thread.email_external": { label: "Sende ekstern e-post", description: "Kan sende e-post til eksterne mottakere fra oppgavetråden.", category: "Oppgavetråd" },
+  "task_thread.manage": { label: "Administrere oppgavetråd", description: "Kan slette meldinger og administrere tråden.", category: "Oppgavetråd" },
 };
 
 /**
