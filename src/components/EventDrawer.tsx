@@ -321,6 +321,23 @@ export function EventDrawer({
       const { data: session } = await supabase.auth.getSession();
       const userId = session?.session?.user?.id;
 
+      // Backend permission validation
+      if (userId) {
+        const { data: canPlan } = await supabase.rpc("check_permission_v2", {
+          _auth_user_id: userId,
+          _perm: "resource_plan.plan_resources",
+        });
+        const { data: canPlanLegacy } = await supabase.rpc("check_permission_v2", {
+          _auth_user_id: userId,
+          _perm: "resourceplan.schedule",
+        });
+        if (!canPlan && !canPlanLegacy) {
+          toast.error("Mangler rettighet", { description: "Du har ikke tillatelse til å planlegge ressurser." });
+          setSaving(false);
+          return;
+        }
+      }
+
       if (isEditing && editEvent) {
         const { startISO, endISO } = normalizeOvernightDates(date, startTime, endDate, endTime);
 
