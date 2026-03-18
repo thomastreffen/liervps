@@ -7143,12 +7143,17 @@ export type Database = {
           deleted_at: string | null
           direction: string | null
           edited_at: string | null
+          email_status: string | null
           external_in_reply_to: string | null
           external_message_id: string | null
           external_references: string[] | null
           id: string
+          inbound_received_at: string | null
           message_type: string
           metadata: Json
+          raw_headers: Json | null
+          recipients: Json | null
+          reply_to_address: string | null
           subject: string | null
           task_id: string
           thread_id: string
@@ -7164,12 +7169,17 @@ export type Database = {
           deleted_at?: string | null
           direction?: string | null
           edited_at?: string | null
+          email_status?: string | null
           external_in_reply_to?: string | null
           external_message_id?: string | null
           external_references?: string[] | null
           id?: string
+          inbound_received_at?: string | null
           message_type?: string
           metadata?: Json
+          raw_headers?: Json | null
+          recipients?: Json | null
+          reply_to_address?: string | null
           subject?: string | null
           task_id: string
           thread_id: string
@@ -7185,12 +7195,17 @@ export type Database = {
           deleted_at?: string | null
           direction?: string | null
           edited_at?: string | null
+          email_status?: string | null
           external_in_reply_to?: string | null
           external_message_id?: string | null
           external_references?: string[] | null
           id?: string
+          inbound_received_at?: string | null
           message_type?: string
           metadata?: Json
+          raw_headers?: Json | null
+          recipients?: Json | null
+          reply_to_address?: string | null
           subject?: string | null
           task_id?: string
           thread_id?: string
@@ -7227,6 +7242,7 @@ export type Database = {
           id: string
           last_message_at: string | null
           task_id: string
+          thread_token: string | null
           updated_at: string
         }
         Insert: {
@@ -7236,6 +7252,7 @@ export type Database = {
           id?: string
           last_message_at?: string | null
           task_id: string
+          thread_token?: string | null
           updated_at?: string
         }
         Update: {
@@ -7245,6 +7262,7 @@ export type Database = {
           id?: string
           last_message_at?: string | null
           task_id?: string
+          thread_token?: string | null
           updated_at?: string
         }
         Relationships: [
