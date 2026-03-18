@@ -256,6 +256,11 @@ export const PERMISSION_CATEGORIES: { category: string; description: string; key
     description: "Tilgang til SharePoint-integrasjonen.",
     keys: ["sharepoint.view", "sharepoint.upload", "sharepoint.delete", "sharepoint.link_job", "sharepoint.admin"],
   },
+  {
+    category: "Oppgavetråd",
+    description: "Meldinger og kommunikasjon direkte på oppgaver.",
+    keys: ["task_thread.view", "task_thread.comment_internal", "task_thread.upload_attachments", "task_thread.email_external", "task_thread.manage"],
+  },
 ];
 
 /** Scope options for the dropdown */
