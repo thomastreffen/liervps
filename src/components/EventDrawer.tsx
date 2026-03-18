@@ -110,6 +110,7 @@ export function EventDrawer({
   scheduleBlockId,
   onSaved,
   readOnly = false,
+  initialTab,
 }: EventDrawerProps) {
   const navigate = useNavigate();
   const { syncCreate, syncUpdate, syncDelete } = useCalendarSync();
