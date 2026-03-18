@@ -12,6 +12,14 @@ import {
   ScrollText,
   CalendarPlus,
   Sun,
+  MoreHorizontal,
+  TrendingUp,
+  Target,
+  CalendarOff,
+  Receipt,
+  BookOpen,
+  Gauge,
+  Inbox,
 } from "lucide-react";
 import { useNotifications } from "@/hooks/useNotifications";
 import { useActionRequired } from "@/hooks/useActionRequired";
@@ -75,16 +83,40 @@ const planAction: QuickAction = {
   onAction: () => window.dispatchEvent(new CustomEvent("resource-plan:new-activity")),
 };
 
+/* ── "More" menu items derived from same module model as desktop sidebar ── */
+interface MoreMenuItem {
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  path: string;
+  moduleKey: string;
+  modulePermission?: string;
+  requiredPermission?: string;
+}
+
+const moreMenuItems: MoreMenuItem[] = [
+  { label: "Fravær", icon: CalendarOff, path: "/absence", moduleKey: "absence", modulePermission: "module.absence" },
+  { label: "Fakturagrunnlag", icon: Receipt, path: "/invoice-basis", moduleKey: "invoice_basis", modulePermission: "module.invoice_basis", requiredPermission: "jobs.view_pricing" },
+  { label: "Fagstøtte", icon: BookOpen, path: "/fag", moduleKey: "fag", modulePermission: "module.fag", requiredPermission: "regulation.review" },
+  { label: "Salg", icon: TrendingUp, path: "/sales", moduleKey: "sales", modulePermission: "module.sales" },
+  { label: "Leads", icon: Target, path: "/sales/leads", moduleKey: "sales", modulePermission: "module.sales" },
+  { label: "Tilbud", icon: FileText, path: "/sales/offers", moduleKey: "sales", modulePermission: "module.sales" },
+  { label: "Kunder", icon: Users, path: "/customers", moduleKey: "customers", modulePermission: "module.customers", requiredPermission: "jobs.view" },
+  { label: "Lederoversikt", icon: Gauge, path: "/management", moduleKey: "management", modulePermission: "module.management" },
+  { label: "Postkontoret", icon: Inbox, path: "/inbox", moduleKey: "inbox", modulePermission: "module.inbox" },
+];
+
 export function MobileTabBar() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
   const { hasPermission } = usePermissions();
   const { isModuleVisible } = useModuleVisibility();
+  const isAdmin = user?.role === "super_admin" || user?.role === "admin";
   const isMontør = user?.role === "montør";
   const { unreadCount } = useNotifications();
   const actionRequiredCount = useActionRequired();
   const [fabOpen, setFabOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
 
   const jobsDot = actionRequiredCount > 0;
   const isOnPlan = location.pathname === "/projects/plan";
@@ -95,14 +127,32 @@ export function MobileTabBar() {
 
   const availableActions = quickActions.filter((action) => {
     if (!action.permission) return true;
-    if (user?.role === "super_admin" || user?.role === "admin") return true;
+    if (isAdmin) return true;
     return hasPermission(action.permission);
+  });
+
+  /** Same two-layer check as desktop sidebar */
+  const canAccessModule = (moduleKey: string, modulePermission?: string) => {
+    if (!isModuleVisible(moduleKey)) return false;
+    if (modulePermission && !isAdmin && !hasPermission(modulePermission)) return false;
+    return true;
+  };
+
+  const visibleMoreItems = moreMenuItems.filter((item) => {
+    if (!canAccessModule(item.moduleKey, item.modulePermission)) return false;
+    if (item.requiredPermission && !isAdmin && !hasPermission(item.requiredPermission)) return false;
+    return true;
   });
 
   const isActive = (path: string) =>
     path === "/"
       ? location.pathname === "/"
       : location.pathname.startsWith(path);
+
+  // Primary tabs: always from same module model
+  const showOverview = !isMontør && canAccessModule("overview", "module.overview");
+  const showProjects = canAccessModule("projects", "module.projects") && (isAdmin || hasPermission("jobs.view"));
+  const showPlan = canAccessModule("resource_plan", "module.resource_plan") && (isAdmin || hasPermission("resourceplan.view"));
 
   return (
     <>
@@ -118,7 +168,7 @@ export function MobileTabBar() {
             />
           )}
 
-          {isModuleVisible("overview") && !isMontør && (
+          {showOverview && (
             <TabButton
               label="Oversikt"
               icon={LayoutDashboard}
@@ -127,11 +177,11 @@ export function MobileTabBar() {
             />
           )}
 
-          {isModuleVisible("projects") && (
+          {showProjects && (
             <TabButton
               label="Prosjekter"
               icon={FolderKanban}
-              active={isActive("/projects")}
+              active={isActive("/projects") && !isActive("/projects/plan")}
               onClick={() => navigate("/projects")}
               dot={jobsDot}
             />
@@ -148,7 +198,7 @@ export function MobileTabBar() {
             </span>
           </button>
 
-          {isModuleVisible("resource_plan") && (
+          {showPlan && (
             <TabButton
               label="Plan"
               icon={CalendarDays}
@@ -157,12 +207,12 @@ export function MobileTabBar() {
             />
           )}
 
-          {/* Varsler */}
+          {/* More – replaces Varsler as 5th tab, gives access to all other modules */}
           <TabButton
-            label="Varsler"
-            icon={Bell}
-            active={isActive("/notifications")}
-            onClick={() => navigate("/notifications")}
+            label="Mer"
+            icon={MoreHorizontal}
+            active={moreOpen}
+            onClick={() => setMoreOpen(true)}
             badge={unreadCount}
           />
         </div>
@@ -195,6 +245,58 @@ export function MobileTabBar() {
                     <p className="text-sm font-medium text-foreground">{action.label}</p>
                     <p className="text-xs text-muted-foreground truncate">{action.description}</p>
                   </div>
+                </button>
+              </DrawerClose>
+            ))}
+          </div>
+        </DrawerContent>
+      </Drawer>
+
+      {/* "More" Drawer – shows all modules user has access to */}
+      <Drawer open={moreOpen} onOpenChange={setMoreOpen}>
+        <DrawerContent>
+          <DrawerHeader className="pb-2">
+            <DrawerTitle className="text-base">Moduler</DrawerTitle>
+          </DrawerHeader>
+          <div className="flex flex-col gap-0.5 px-4 pb-6">
+            {/* Notifications always available */}
+            <DrawerClose asChild>
+              <button
+                onClick={() => { setMoreOpen(false); navigate("/notifications"); }}
+                className="flex items-center gap-3 rounded-lg px-3 py-3 text-left transition-colors hover:bg-secondary active:bg-secondary/80"
+              >
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary relative">
+                  <Bell className="h-5 w-5" />
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-0.5 text-[9px] font-bold text-destructive-foreground">
+                      {unreadCount > 9 ? "9+" : unreadCount}
+                    </span>
+                  )}
+                </span>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-foreground">Varsler</p>
+                  {unreadCount > 0 && <p className="text-xs text-muted-foreground">{unreadCount} ulest</p>}
+                </div>
+              </button>
+            </DrawerClose>
+
+            {visibleMoreItems.length > 0 && (
+              <div className="h-px bg-border/50 my-1" />
+            )}
+
+            {visibleMoreItems.map((item) => (
+              <DrawerClose key={item.path} asChild>
+                <button
+                  onClick={() => { setMoreOpen(false); navigate(item.path); }}
+                  className={cn(
+                    "flex items-center gap-3 rounded-lg px-3 py-3 text-left transition-colors hover:bg-secondary active:bg-secondary/80",
+                    isActive(item.path) && "bg-primary/10"
+                  )}
+                >
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                    <item.icon className="h-5 w-5" />
+                  </span>
+                  <p className="text-sm font-medium text-foreground">{item.label}</p>
                 </button>
               </DrawerClose>
             ))}
