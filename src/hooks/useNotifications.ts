@@ -2,17 +2,24 @@ import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
+export type NotificationPriority = "critical" | "important" | "info";
+
 export interface Notification {
   id: string;
   event_id: string | null;
   type: string;
+  priority: NotificationPriority;
   title: string;
   message: string | null;
   link_url: string | null;
   read: boolean;
+  read_at: string | null;
   created_at: string;
   entity_type?: string | null;
   entity_id?: string | null;
+  actor_user_id?: string | null;
+  actor_name?: string | null;
+  company_id?: string | null;
 }
 
 export function useNotifications() {
@@ -32,8 +39,12 @@ export function useNotifications() {
         .limit(50);
 
       if (!error && data) {
-        setNotifications(data as Notification[]);
-        setUnreadCount(data.filter((n: any) => !n.read).length);
+        const mapped = (data as any[]).map((n) => ({
+          ...n,
+          priority: n.priority || "info",
+        })) as Notification[];
+        setNotifications(mapped);
+        setUnreadCount(mapped.filter((n) => !n.read).length);
       }
     } finally {
       setLoading(false);
@@ -43,11 +54,11 @@ export function useNotifications() {
   const markAsRead = useCallback(async (id: string) => {
     await supabase
       .from("notifications")
-      .update({ read: true })
+      .update({ read: true, read_at: new Date().toISOString() } as any)
       .eq("id", id);
 
     setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, read: true } : n))
+      prev.map((n) => (n.id === id ? { ...n, read: true, read_at: new Date().toISOString() } : n))
     );
     setUnreadCount((prev) => Math.max(0, prev - 1));
   }, []);
@@ -56,10 +67,10 @@ export function useNotifications() {
     if (!user) return;
     await supabase
       .from("notifications")
-      .update({ read: true })
+      .update({ read: true, read_at: new Date().toISOString() } as any)
       .eq("read", false);
 
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    setNotifications((prev) => prev.map((n) => ({ ...n, read: true, read_at: new Date().toISOString() })));
     setUnreadCount(0);
   }, [user]);
 

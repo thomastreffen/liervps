@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { nb } from "date-fns/locale";
@@ -10,11 +11,13 @@ import {
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { JobStatusBadge } from "@/components/JobStatusBadge";
-import { Bell, CheckCheck, Clock, AlertTriangle, XCircle, CalendarCheck, Plug, AtSign } from "lucide-react";
+import {
+  Bell, CheckCheck, Clock, AlertTriangle, XCircle, CalendarCheck,
+  Plug, AtSign, MessageSquare, Mail, UserPlus, FileWarning,
+  FilePlus, Receipt, CalendarX, Filter,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { Notification } from "@/hooks/useNotifications";
-import type { JobStatus } from "@/lib/job-status";
+import type { Notification, NotificationPriority } from "@/hooks/useNotifications";
 
 interface NotificationDrawerProps {
   open: boolean;
@@ -33,12 +36,26 @@ const TYPE_ICONS: Record<string, React.ElementType> = {
   mention: AtSign,
   assignment: CalendarCheck,
   triage: AlertTriangle,
+  task_thread_message: MessageSquare,
+  task_thread_inbound_email: Mail,
+  task_assigned: UserPlus,
+  task_changed: Clock,
+  deviation_created: FileWarning,
+  addition_created: FilePlus,
+  offer_followup: Receipt,
+  absence_approval: CalendarX,
 };
 
-const TYPE_STATUS_MAP: Record<string, JobStatus> = {
-  time_change_proposed: "time_change_proposed",
-  approval_pending: "requested",
-  rejected: "rejected",
+const PRIORITY_STYLES: Record<NotificationPriority, string> = {
+  critical: "border-l-4 border-l-destructive",
+  important: "border-l-4 border-l-amber-500",
+  info: "",
+};
+
+const PRIORITY_DOT: Record<NotificationPriority, string> = {
+  critical: "bg-destructive",
+  important: "bg-amber-500",
+  info: "bg-primary",
 };
 
 export function NotificationDrawer({
@@ -49,13 +66,14 @@ export function NotificationDrawer({
   onMarkAllAsRead,
 }: NotificationDrawerProps) {
   const navigate = useNavigate();
+  const [filter, setFilter] = useState<"all" | "unread">("all");
   const unread = notifications.filter((n) => !n.read);
+  const displayed = filter === "unread" ? unread : notifications;
 
   const handleClick = (notification: Notification) => {
     if (!notification.read) {
       onMarkAsRead(notification.id);
     }
-    // Use link_url if available (e.g. task notifications)
     if (notification.link_url) {
       navigate(notification.link_url);
       onOpenChange(false);
@@ -74,8 +92,8 @@ export function NotificationDrawer({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full sm:max-w-md">
-        <SheetHeader>
+      <SheetContent className="w-full sm:max-w-md p-0 flex flex-col">
+        <SheetHeader className="px-4 pt-4 pb-0">
           <SheetTitle className="flex items-center gap-2">
             <Bell className="h-5 w-5" />
             Varsler
@@ -83,38 +101,63 @@ export function NotificationDrawer({
           <SheetDescription className="sr-only">Varslinger og handlinger som krever oppmerksomhet</SheetDescription>
         </SheetHeader>
 
-        <div className="mt-4 flex items-center justify-between">
-          <p className="text-sm text-muted-foreground">
-            {unread.length > 0
-              ? `${unread.length} ulest${unread.length !== 1 ? "e" : ""}`
-              : "Ingen uleste varsler"}
-          </p>
+        <div className="px-4 pt-3 pb-2 flex items-center justify-between border-b border-border/40">
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setFilter("all")}
+              className={cn(
+                "px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
+                filter === "all"
+                  ? "bg-primary/10 text-primary"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted"
+              )}
+            >
+              Alle ({notifications.length})
+            </button>
+            <button
+              onClick={() => setFilter("unread")}
+              className={cn(
+                "px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
+                filter === "unread"
+                  ? "bg-primary/10 text-primary"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted"
+              )}
+            >
+              Uleste ({unread.length})
+            </button>
+          </div>
           {unread.length > 0 && (
-            <Button variant="ghost" size="sm" onClick={onMarkAllAsRead} className="gap-1.5 text-xs">
+            <Button variant="ghost" size="sm" onClick={onMarkAllAsRead} className="gap-1.5 text-xs h-7">
               <CheckCheck className="h-3.5 w-3.5" />
-              Merk alle som lest
+              Merk alle
             </Button>
           )}
         </div>
 
-        <ScrollArea className="mt-3 h-[calc(100vh-160px)]">
-          <div className="space-y-1 pr-4">
-            {notifications.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12 text-center">
+        <ScrollArea className="flex-1">
+          <div className="p-2 space-y-1">
+            {displayed.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16 text-center">
                 <Bell className="h-10 w-10 text-muted-foreground/30 mb-3" />
-                <p className="text-sm text-muted-foreground">Ingen varsler ennå</p>
+                <p className="text-sm text-muted-foreground">
+                  {filter === "unread" ? "Ingen uleste varsler" : "Ingen varsler ennå"}
+                </p>
+                <p className="text-xs text-muted-foreground/60 mt-1">
+                  Du får varsler når det skjer noe viktig.
+                </p>
               </div>
             ) : (
-              notifications.map((n) => {
+              displayed.map((n) => {
                 const Icon = TYPE_ICONS[n.type] || Bell;
-                const statusForBadge = TYPE_STATUS_MAP[n.type];
+                const priority = n.priority || "info";
 
                 return (
                   <button
                     key={n.id}
                     onClick={() => handleClick(n)}
                     className={cn(
-                      "w-full rounded-lg border p-3 text-left transition-colors",
+                      "w-full rounded-lg border p-3 text-left transition-all hover:shadow-sm",
+                      PRIORITY_STYLES[priority],
                       !n.read
                         ? "bg-accent/50 border-accent-foreground/10"
                         : "bg-card hover:bg-secondary/50 border-transparent"
@@ -135,7 +178,7 @@ export function NotificationDrawer({
                             {n.title}
                           </p>
                           {!n.read && (
-                            <span className="h-2 w-2 shrink-0 rounded-full bg-primary" />
+                            <span className={cn("h-2 w-2 shrink-0 rounded-full", PRIORITY_DOT[priority])} />
                           )}
                         </div>
                         {n.message && (
@@ -144,7 +187,11 @@ export function NotificationDrawer({
                           </p>
                         )}
                         <div className="flex items-center gap-2 mt-1.5">
-                          {statusForBadge && <JobStatusBadge status={statusForBadge} />}
+                          {n.actor_name && (
+                            <span className="text-[10px] text-muted-foreground/80 font-medium">
+                              {n.actor_name}
+                            </span>
+                          )}
                           <span className="text-[10px] text-muted-foreground">
                             {format(new Date(n.created_at), "d. MMM HH:mm", { locale: nb })}
                           </span>
