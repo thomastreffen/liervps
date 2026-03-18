@@ -813,7 +813,7 @@ export function EventDrawer({
             {existingAttachments.length > 0 && (
               <AttachmentList
                 attachments={existingAttachments}
-                onRemove={(name) => {
+                onRemove={readOnly ? undefined : (name) => {
                   const updated = existingAttachments.filter((a) => a.name !== name);
                   setExistingAttachments(updated);
                   if (isEditing && editEvent) {
@@ -822,7 +822,7 @@ export function EventDrawer({
                 }}
               />
             )}
-            <FileUpload files={files} onChange={setFiles} />
+            {!readOnly && <FileUpload files={files} onChange={setFiles} />}
           </section>
 
           {/* ═══ CONFLICTS ═══ */}
