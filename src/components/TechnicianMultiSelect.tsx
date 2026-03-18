@@ -15,9 +15,10 @@ interface DBTech {
 interface TechnicianMultiSelectProps {
   selectedIds: string[];
   onChange: (ids: string[]) => void;
+  disabled?: boolean;
 }
 
-export function TechnicianMultiSelect({ selectedIds, onChange }: TechnicianMultiSelectProps) {
+export function TechnicianMultiSelect({ selectedIds, onChange, disabled }: TechnicianMultiSelectProps) {
   const { activeCompanyId } = useCompanyContext();
   const [technicians, setTechnicians] = useState<DBTech[]>([]);
   const [loading, setLoading] = useState(true);
