@@ -783,7 +783,7 @@ export function EventDrawer({
             <section className="space-y-3">
               <h3 className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Beskrivelse</h3>
               <Textarea value={description} onChange={(e) => setDescription(e.target.value)}
-                placeholder="Detaljer til montøren..." className="min-h-[60px] resize-none" rows={2} />
+                placeholder="Detaljer til montøren..." className="min-h-[60px] resize-none" rows={2} disabled={readOnly} />
             </section>
           )}
 
