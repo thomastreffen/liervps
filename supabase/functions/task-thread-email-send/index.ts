@@ -534,3 +534,39 @@ async function verifySentItems(token: string, mailbox: string, subject: string, 
   }
   return { verified: false };
 }
+
+// ═══════════════════════════════════════════
+// Attachment helpers
+// ═══════════════════════════════════════════
+
+async function generateSignedUrl(supabase: any, filePath: string): Promise<string | null> {
+  try {
+    const SEVEN_DAYS = 7 * 24 * 60 * 60; // seconds
+    const { data, error } = await supabase.storage
+      .from("task-thread-files")
+      .createSignedUrl(filePath, SEVEN_DAYS);
+    if (error || !data?.signedUrl) {
+      console.error("SIGNED_URL_FAILED", filePath, error?.message);
+      return null;
+    }
+    return data.signedUrl;
+  } catch (e: any) {
+    console.error("SIGNED_URL_ERROR", filePath, e?.message);
+    return null;
+  }
+}
+
+function formatFileSize(bytes: number): string {
+  if (!bytes || bytes === 0) return "ukjent størrelse";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
