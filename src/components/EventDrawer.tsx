@@ -606,7 +606,7 @@ export function EventDrawer({
             />
           </div>
         ) : (
-
+        <>
         <div className="flex-1 mt-3 space-y-6">
 
           {/* ═══ SECTION: SELSKAP ═══ */}
