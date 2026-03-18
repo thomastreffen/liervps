@@ -160,14 +160,17 @@ ${body_text}
       .limit(1)
       .maybeSingle();
 
+    // NOTE: Microsoft Graph internetMessageHeaders only allows headers starting with "x-" or "X-".
+    // Standard RFC headers like In-Reply-To and References cannot be set via internetMessageHeaders.
+    // Graph handles email threading internally via conversationId.
     const emailHeaders: Array<{ name: string; value: string }> = [
       { name: "X-MCS-Task-Thread-Token", value: thread!.thread_token },
       { name: "X-MCS-Entity", value: "task_thread" },
       { name: "X-MCS-ID", value: thread!.id },
     ];
     if (lastOutbound?.external_message_id) {
-      emailHeaders.push({ name: "In-Reply-To", value: lastOutbound.external_message_id });
-      emailHeaders.push({ name: "References", value: lastOutbound.external_message_id });
+      emailHeaders.push({ name: "X-MCS-In-Reply-To", value: lastOutbound.external_message_id });
+      emailHeaders.push({ name: "X-MCS-References", value: lastOutbound.external_message_id });
     }
 
     // ── Send email via Graph ──
