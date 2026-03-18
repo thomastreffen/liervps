@@ -188,7 +188,7 @@ export function TaskThreadComposer({ onSend, onSendEmail, sending, canUpload, ca
           disabled={sending}
         />
 
-        <div className="flex items-center gap-1 shrink-0">
+        <div className="flex flex-col items-end gap-1 shrink-0">
           {canUpload && (
             <>
               <Button
