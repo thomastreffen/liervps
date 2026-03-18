@@ -315,7 +315,7 @@ export function EventDrawer({
 
   // Save: create or update
   const handleSave = async () => {
-    if (saving || submitted) return;
+    if (saving || submitted || readOnly) return;
     setSaving(true);
     try {
       const { data: session } = await supabase.auth.getSession();
