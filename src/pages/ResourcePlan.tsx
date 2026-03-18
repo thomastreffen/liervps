@@ -179,6 +179,93 @@ export default function ResourcePlan() {
     ]);
   }, [refetchBlocks, refetchBusySlots, refetchCalendarEvents]);
 
+  // ── Deep link handler: ?openTask=...&companyId=...&tab=...&date=... ──
+  useEffect(() => {
+    if (deepLinkHandled) return;
+    const openTaskId = searchParams.get("openTask");
+    if (!openTaskId) return;
+
+    const targetTab = searchParams.get("tab") as "details" | "thread" | null;
+    const targetDate = searchParams.get("date");
+
+    // Navigate calendar to the correct date
+    if (targetDate) {
+      const parsed = new Date(targetDate + "T12:00:00");
+      if (!isNaN(parsed.getTime())) {
+        setReferenceDate(parsed);
+      }
+    }
+
+    // Fetch the event from DB to build a CalendarEvent for the drawer
+    const openDeepLinkedTask = async () => {
+      try {
+        const { data: task, error } = await supabase
+          .from("events")
+          .select("id, title, customer, address, description, start_time, end_time, internal_number, company_id, parent_project_id, project_type, assignment_notes")
+          .eq("id", openTaskId)
+          .is("deleted_at", null)
+          .single();
+
+        if (error || !task) {
+          toast.error("Kunne ikke åpne oppgaven", {
+            description: "Oppgaven ble ikke funnet eller er slettet.",
+          });
+          setSearchParams({}, { replace: true });
+          setDeepLinkHandled(true);
+          return;
+        }
+
+        // Fetch technician assignments
+        const { data: techLinks } = await supabase
+          .from("event_technicians")
+          .select("technician_id, technicians(id, name, color)")
+          .eq("event_id", openTaskId);
+
+        const technicianIds = (techLinks || []).map((l: any) => l.technician_id);
+        const techniciansList = (techLinks || []).map((l: any) => ({
+          id: l.technicians?.id || l.technician_id,
+          name: l.technicians?.name || "Ukjent",
+        }));
+
+        const calEvent: CalendarEvent = {
+          id: task.id,
+          title: task.title || "",
+          customer: task.customer || "",
+          address: task.address || "",
+          description: task.description || "",
+          start: task.start_time ? new Date(task.start_time) : new Date(),
+          end: task.end_time ? new Date(task.end_time) : new Date(),
+          technicianIds,
+          technicians: techniciansList,
+          internalNumber: task.internal_number || null,
+          parentProjectId: task.parent_project_id || null,
+          projectType: task.project_type || "project",
+          assignmentNotes: task.assignment_notes || "",
+          companyId: task.company_id || null,
+        };
+
+        if (targetTab) setDeepLinkTab(targetTab);
+        setEditEvent(calEvent);
+        setClickedTechId(technicianIds[0] || null);
+        setPreselectedStart(null);
+        setPreselectedEnd(null);
+        setDrawerOpen(true);
+
+        // Clean URL params
+        setSearchParams({}, { replace: true });
+      } catch (err) {
+        console.error("[ResourcePlan][DeepLink] Error opening task:", err);
+        toast.error("Noe gikk galt", {
+          description: "Kunne ikke åpne oppgaven fra lenken.",
+        });
+        setSearchParams({}, { replace: true });
+      }
+      setDeepLinkHandled(true);
+    };
+
+    openDeepLinkedTask();
+  }, [searchParams, deepLinkHandled, setSearchParams]);
+
   const goToPrev = useCallback(() => {
     setReferenceDate((d) => {
       if (calendarView === "timeGridDay") return addDays(d, -1);
