@@ -80,6 +80,16 @@ export default function ResourcePlan() {
 
   const effectiveCompanyId = activeCompanyId;
 
+  // Debug: log which companyId is being used for data fetching
+  useEffect(() => {
+    console.info("[ResourcePlan][CompanyContext]", {
+      activeCompanyId,
+      effectiveCompanyId,
+      isAllCompanies: !activeCompanyId,
+      source: "useCompanyContext (global source of truth)",
+    });
+  }, [activeCompanyId]);
+
   const { technicians } = useTechnicians(effectiveCompanyId);
   const [selectedTechId, setSelectedTechId] = useState<string | null>(null);
   const [capacityFilter, setCapacityFilter] = useState<"all" | "available" | "partial">("all");
