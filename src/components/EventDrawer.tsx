@@ -88,6 +88,8 @@ interface EventDrawerProps {
   projectTitle?: string | null;
   scheduleBlockId?: string | null;
   onSaved?: (eventId?: string) => void;
+  /** When true, drawer opens in view-only mode (no editing) */
+  readOnly?: boolean;
 }
 
 export function EventDrawer({
@@ -102,6 +104,7 @@ export function EventDrawer({
   projectTitle,
   scheduleBlockId,
   onSaved,
+  readOnly = false,
 }: EventDrawerProps) {
   const navigate = useNavigate();
   const { syncCreate, syncUpdate, syncDelete } = useCalendarSync();
@@ -312,11 +315,28 @@ export function EventDrawer({
 
   // Save: create or update
   const handleSave = async () => {
-    if (saving || submitted) return;
+    if (saving || submitted || readOnly) return;
     setSaving(true);
     try {
       const { data: session } = await supabase.auth.getSession();
       const userId = session?.session?.user?.id;
+
+      // Backend permission validation
+      if (userId) {
+        const { data: canPlan } = await supabase.rpc("check_permission_v2", {
+          _auth_user_id: userId,
+          _perm: "resource_plan.plan_resources",
+        });
+        const { data: canPlanLegacy } = await supabase.rpc("check_permission_v2", {
+          _auth_user_id: userId,
+          _perm: "resourceplan.schedule",
+        });
+        if (!canPlan && !canPlanLegacy) {
+          toast.error("Mangler rettighet", { description: "Du har ikke tillatelse til å planlegge ressurser." });
+          setSaving(false);
+          return;
+        }
+      }
 
       if (isEditing && editEvent) {
         const { startISO, endISO } = normalizeOvernightDates(date, startTime, endDate, endTime);
@@ -498,14 +518,18 @@ export function EventDrawer({
         <SheetHeader className="space-y-1">
           <SheetTitle className="flex items-center gap-2 text-base">
             {isEditing ? (
-              <><Clock className="h-4 w-4 text-primary" />Rediger oppdrag</>
+              readOnly
+                ? <><Clock className="h-4 w-4 text-muted-foreground" />Oppdragsdetaljer</>
+                : <><Clock className="h-4 w-4 text-primary" />Rediger oppdrag</>
             ) : (
               <><CalendarPlus className="h-4 w-4 text-primary" />{projectId ? "Planlegg arbeid" : "Nytt oppdrag"}</>
             )}
           </SheetTitle>
           <SheetDescription className="text-xs">
             {isEditing
-              ? "Endre tid, ressurser eller detaljer"
+              ? readOnly
+                ? "Viser detaljer for oppdraget (kun lesemodus)"
+                : "Endre tid, ressurser eller detaljer"
               : projectId
               ? `Tildel tid og montører til ${projectTitle || "prosjektet"}`
               : "Opprett nytt oppdrag eller knytt til eksisterende prosjekt"}
@@ -707,7 +731,7 @@ export function EventDrawer({
               <h3 className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Oppdrag</h3>
               <div>
                 <Label className="text-xs">Tittel</Label>
-                <Input value={title} onChange={(e) => setTitle(e.target.value)} className="mt-1" />
+                <Input value={title} onChange={(e) => setTitle(e.target.value)} className="mt-1" disabled={readOnly} />
               </div>
             </section>
           )}
@@ -720,8 +744,8 @@ export function EventDrawer({
             <div className="rounded-lg border border-border/40 bg-card p-3 space-y-2">
               <Label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Fra</Label>
               <div className="flex gap-2">
-                <Input type="date" value={date} onChange={(e) => handleDateChange(e.target.value)} className="flex-1 h-9" />
-                <TimeSelect value={startTime} onChange={handleStartTimeChange} className="w-[100px]" />
+                <Input type="date" value={date} onChange={(e) => handleDateChange(e.target.value)} className="flex-1 h-9" disabled={readOnly} />
+                <TimeSelect value={startTime} onChange={handleStartTimeChange} className="w-[100px]" disabled={readOnly} />
               </div>
             </div>
 
@@ -738,8 +762,8 @@ export function EventDrawer({
             <div className="rounded-lg border border-border/40 bg-card p-3 space-y-2">
               <Label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Til</Label>
               <div className="flex gap-2">
-                <Input type="date" value={resolvedEndDate} onChange={(e) => setEndDate(e.target.value)} className="flex-1 h-9" />
-                <TimeSelect value={endTime} onChange={handleEndTimeChange} className="w-[100px]" />
+                <Input type="date" value={resolvedEndDate} onChange={(e) => setEndDate(e.target.value)} className="flex-1 h-9" disabled={readOnly} />
+                <TimeSelect value={endTime} onChange={handleEndTimeChange} className="w-[100px]" disabled={readOnly} />
               </div>
             </div>
 
@@ -768,7 +792,7 @@ export function EventDrawer({
             <h3 className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
               {eventType === "task" && !isEditing ? "Tildel montør (valgfritt)" : "Ressurser"}
             </h3>
-            <TechnicianMultiSelect selectedIds={techIds} onChange={setTechIds} />
+            <TechnicianMultiSelect selectedIds={techIds} onChange={setTechIds} disabled={readOnly} />
           </section>
 
           {/* ═══ SECTION: BESKRIVELSE ═══ */}
@@ -776,7 +800,7 @@ export function EventDrawer({
             <section className="space-y-3">
               <h3 className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Beskrivelse</h3>
               <Textarea value={description} onChange={(e) => setDescription(e.target.value)}
-                placeholder="Detaljer til montøren..." className="min-h-[60px] resize-none" rows={2} />
+                placeholder="Detaljer til montøren..." className="min-h-[60px] resize-none" rows={2} disabled={readOnly} />
             </section>
           )}
 
@@ -806,7 +830,7 @@ export function EventDrawer({
             {existingAttachments.length > 0 && (
               <AttachmentList
                 attachments={existingAttachments}
-                onRemove={(name) => {
+                onRemove={readOnly ? undefined : (name) => {
                   const updated = existingAttachments.filter((a) => a.name !== name);
                   setExistingAttachments(updated);
                   if (isEditing && editEvent) {
@@ -815,7 +839,7 @@ export function EventDrawer({
                 }}
               />
             )}
-            <FileUpload files={files} onChange={setFiles} />
+            {!readOnly && <FileUpload files={files} onChange={setFiles} />}
           </section>
 
           {/* ═══ CONFLICTS ═══ */}
@@ -846,22 +870,24 @@ export function EventDrawer({
                 Åpne prosjekt
               </Button>
             )}
-            <Button className="flex-1 gap-1.5" onClick={handleSave}
-              disabled={saving || submitted || (isEditing && !hasChanges) || (eventType === "project" && !isEditing && techIds.length === 0)}>
-              {saving ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <Save className="h-3.5 w-3.5" />
-              )}
-              {saving ? "Oppretter…" :
-               submitted ? "Opprettet ✓" :
-               isEditing ? (conflicts.length > 0 ? "Lagre likevel" : "Lagre endringer") :
-               eventType === "task" ? "Opprett oppgave" :
-               conflicts.length > 0 ? "Lagre likevel" : "Opprett og planlegg"}
-            </Button>
+            {!readOnly && (
+              <Button className="flex-1 gap-1.5" onClick={handleSave}
+                disabled={saving || submitted || (isEditing && !hasChanges) || (eventType === "project" && !isEditing && techIds.length === 0)}>
+                {saving ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Save className="h-3.5 w-3.5" />
+                )}
+                {saving ? "Oppretter…" :
+                 submitted ? "Opprettet ✓" :
+                 isEditing ? (conflicts.length > 0 ? "Lagre likevel" : "Lagre endringer") :
+                 eventType === "task" ? "Opprett oppgave" :
+                 conflicts.length > 0 ? "Lagre likevel" : "Opprett og planlegg"}
+              </Button>
+            )}
           </div>
 
-          {isEditing && editEvent && (
+          {!readOnly && isEditing && editEvent && (
             <Button
               variant="ghost" size="sm"
               className="h-8 text-xs gap-1.5 w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10"
