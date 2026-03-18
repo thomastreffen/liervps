@@ -175,17 +175,82 @@ ${body_text}
       emailHeaders.push({ name: "X-MCS-References", value: lastOutbound.external_message_id });
     }
 
+    // ── Prepare attachments for Graph ──
+    const graphAttachments: Array<{ "@odata.type": string; name: string; contentType: string; contentBytes: string }> = [];
+    const linkFallbackAttachments: Array<{ file_name: string; file_path: string }> = [];
+
+    if (attachment_paths && attachment_paths.length > 0) {
+      for (const att of attachment_paths) {
+        try {
+          const fileSize = att.file_size || 0;
+          if (fileSize > MAX_ATTACHMENT_SIZE) {
+            // Too large for inline — will include as link
+            linkFallbackAttachments.push({ file_name: att.file_name, file_path: att.file_path });
+            continue;
+          }
+
+          const { data: fileData, error: dlErr } = await supabase.storage
+            .from("task-thread-files")
+            .download(att.file_path);
+
+          if (dlErr || !fileData) {
+            console.error("ATTACHMENT_DOWNLOAD_FAILED", att.file_path, dlErr?.message);
+            linkFallbackAttachments.push({ file_name: att.file_name, file_path: att.file_path });
+            continue;
+          }
+
+          const arrayBuffer = await fileData.arrayBuffer();
+          // Double-check actual size
+          if (arrayBuffer.byteLength > MAX_ATTACHMENT_SIZE) {
+            linkFallbackAttachments.push({ file_name: att.file_name, file_path: att.file_path });
+            continue;
+          }
+
+          const base64 = btoa(
+            new Uint8Array(arrayBuffer).reduce((data, byte) => data + String.fromCharCode(byte), "")
+          );
+
+          graphAttachments.push({
+            "@odata.type": "#microsoft.graph.fileAttachment",
+            name: att.file_name,
+            contentType: att.mime_type || "application/octet-stream",
+            contentBytes: base64,
+          });
+        } catch (attErr: any) {
+          console.error("ATTACHMENT_PROCESS_ERROR", att.file_name, attErr?.message);
+          linkFallbackAttachments.push({ file_name: att.file_name, file_path: att.file_path });
+        }
+      }
+    }
+
+    // ── Append fallback links to email body if any files were too large or failed ──
+    let finalBodyHtml = bodyHtml;
+    if (linkFallbackAttachments.length > 0) {
+      const linkSection = linkFallbackAttachments.map(att => {
+        return `<li>${att.file_name} <em>(for stor for e-postvedlegg – tilgjengelig i MCS)</em></li>`;
+      }).join("");
+      finalBodyHtml = bodyHtml.replace(
+        `<hr style="border: none; border-top: 1px solid #e5e5e5; margin: 24px 0;" />`,
+        `<div style="background: #fffbeb; border: 1px solid #fbbf24; border-radius: 6px; padding: 12px; margin: 16px 0;">
+          <p style="margin: 0 0 4px; font-weight: 600; color: #92400e; font-size: 13px;">Vedlegg kun tilgjengelig i MCS:</p>
+          <ul style="margin: 4px 0 0; padding-left: 20px; color: #92400e; font-size: 13px;">${linkSection}</ul>
+        </div>
+        <hr style="border: none; border-top: 1px solid #e5e5e5; margin: 24px 0;" />`
+      );
+    }
+
     // ── Send email via Graph ──
     const recipientEmails = recipients.map(r => r.email);
     const sendResult = await sendMailViaGraph(tokenResult.token!, {
       subject,
-      bodyHtml,
+      bodyHtml: finalBodyHtml,
       recipients: recipientEmails,
       mailbox: MAILBOX,
       saveToSentItems: true,
       replyTo: replyToAddress,
       replyToName: `MCS Oppgave ${taskRef}`,
       headers: emailHeaders,
+      attachments: graphAttachments.length > 0 ? graphAttachments : undefined,
     });
 
     if (sendResult.error) {
@@ -206,7 +271,7 @@ ${body_text}
         message_type: "external_email",
         direction: "outbound",
         body: body_text,
-        body_html: bodyHtml,
+        body_html: finalBodyHtml,
         subject,
         author_user_id: user.id,
         author_name: authorName,
@@ -219,6 +284,8 @@ ${body_text}
           graph_request_id: sendResult.requestId,
           duration_ms: sendResult.durationMs,
           verified: verification.verified,
+          attachments_inline: graphAttachments.length,
+          attachments_fallback: linkFallbackAttachments.length,
         },
       })
       .select("id")
@@ -229,7 +296,7 @@ ${body_text}
       return json({ error: "E-post sendt, men lagring feilet" }, 500);
     }
 
-    // ── Handle attachments ──
+    // ── Save attachment records ──
     if (attachment_paths && attachment_paths.length > 0) {
       for (const att of attachment_paths) {
         await supabase.from("task_message_attachments").insert({
@@ -250,6 +317,8 @@ ${body_text}
       message_id: msg!.id,
       recipients: recipientEmails,
       verified: verification.verified,
+      attachments_inline: graphAttachments.length,
+      attachments_fallback: linkFallbackAttachments.length,
     });
 
     return json({
@@ -257,6 +326,8 @@ ${body_text}
       message_id: msg!.id,
       recipients: recipientEmails,
       verified: verification.verified,
+      attachments_inline: graphAttachments.length,
+      attachments_fallback: linkFallbackAttachments.length,
     });
   } catch (err: any) {
     console.error("task-thread-email-send error:", err);
