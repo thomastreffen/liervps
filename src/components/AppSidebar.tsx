@@ -43,13 +43,21 @@ import {
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 
+/**
+ * TWO-LAYER MODULE ACCESS:
+ *   1. module_settings (global toggle) – is the module enabled for the tenant?
+ *   2. module.* permission (user/role) – does this user have access to the module?
+ *
+ * Both must be true for the module to show in the sidebar.
+ */
+
 const mainNav = [
-  { title: "Hjem", url: "/overview", icon: Home, moduleKey: "overview" },
-  { title: "Prosjekter", url: "/projects", icon: FolderKanban, moduleKey: "projects", requiredPermission: "jobs.view" },
-  { title: "Ressursplan", url: "/projects/plan", icon: CalendarDays, moduleKey: "resource_plan", requiredPermission: "resourceplan.view" },
-  { title: "Fravær", url: "/absence", icon: CalendarOff, moduleKey: "absence" },
-  { title: "Fakturagrunnlag", url: "/invoice-basis", icon: Receipt, moduleKey: "invoice_basis", requiredPermission: "jobs.view_pricing" },
-  { title: "Fagstøtte", url: "/fag", icon: BookOpen, moduleKey: "fag", requiredPermission: "regulation.review" },
+  { title: "Hjem", url: "/overview", icon: Home, moduleKey: "overview", modulePermission: "module.overview" },
+  { title: "Prosjekter", url: "/projects", icon: FolderKanban, moduleKey: "projects", modulePermission: "module.projects", requiredPermission: "jobs.view" },
+  { title: "Ressursplan", url: "/projects/plan", icon: CalendarDays, moduleKey: "resource_plan", modulePermission: "module.resource_plan", requiredPermission: "resourceplan.view" },
+  { title: "Fravær", url: "/absence", icon: CalendarOff, moduleKey: "absence", modulePermission: "module.absence" },
+  { title: "Fakturagrunnlag", url: "/invoice-basis", icon: Receipt, moduleKey: "invoice_basis", modulePermission: "module.invoice_basis", requiredPermission: "jobs.view_pricing" },
+  { title: "Fagstøtte", url: "/fag", icon: BookOpen, moduleKey: "fag", modulePermission: "module.fag", requiredPermission: "regulation.review" },
 ];
 
 const adminItems = [
@@ -151,12 +159,25 @@ export function AppSidebar() {
   const isActive = (url: string) =>
     url === "/overview" ? location.pathname === "/overview" : location.pathname.startsWith(url);
 
-  const hasPostkontor = isAdmin || hasPermission("postkontor.view");
-  const hasPostkontorAdmin = isAdmin || hasPermission("postkontor.admin");
+  /**
+   * Two-layer check:
+   *   1. isModuleVisible(moduleKey) – global tenant toggle (module_settings)
+   *   2. hasPermission(modulePermission) – user/role level (module.* permission)
+   */
+  const canAccessModule = (moduleKey: string, modulePermission?: string) => {
+    // Layer 1: global toggle
+    if (!isModuleVisible(moduleKey)) return false;
+    // Layer 2: user permission (if defined). Admins bypass this check.
+    if (modulePermission && !isAdmin && !hasPermission(modulePermission)) return false;
+    return true;
+  };
+
+  const hasPostkontor = hasPermission("postkontor.view") || isAdmin;
+  const hasPostkontorAdmin = hasPermission("postkontor.admin") || isAdmin;
 
   const visibleMainNav = mainNav.filter((item) => {
-    if (!isModuleVisible(item.moduleKey)) return false;
-    // Permission-based filtering: admins bypass, others need the permission
+    if (!canAccessModule(item.moduleKey, item.modulePermission)) return false;
+    // Additional action-level permission check
     if (item.requiredPermission && !isAdmin && !hasPermission(item.requiredPermission)) return false;
     return true;
   });
@@ -174,6 +195,9 @@ export function AppSidebar() {
     if (url === "/projects") return projectCount > 0 ? projectCount : undefined;
     return undefined;
   };
+
+  // Show admin section if user has module.admin permission or legacy isAdmin
+  const showAdmin = isAdmin || hasPermission("module.admin");
 
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border">
@@ -197,7 +221,7 @@ export function AppSidebar() {
               {visibleMainNav.map((item) => (
                 <NavItem key={item.url} item={item} isActive={isActive} collapsed={collapsed} badge={getBadge(item.url)} />
               ))}
-              {hasPostkontor && isModuleVisible("inbox") && (
+              {hasPostkontor && canAccessModule("inbox", "module.inbox") && (
                 <NavItem
                   item={{ title: "Postkontoret", url: "/inbox", icon: Inbox }}
                   isActive={isActive}
@@ -205,7 +229,7 @@ export function AppSidebar() {
                   badge={inboxCount > 0 ? inboxCount : undefined}
                 />
               )}
-               {isAdmin && isModuleVisible("sales") && (
+               {canAccessModule("sales", "module.sales") && (
                  <>
                    <SidebarMenuItem>
                      <Collapsible defaultOpen={isActive("/sales")}>
@@ -235,17 +259,17 @@ export function AppSidebar() {
                    </SidebarMenuItem>
                  </>
                )}
-               {isAdmin && (
+               {canAccessModule("management" /* no moduleKey in module_settings yet */, "module.management") && (
                  <NavItem item={{ title: "Lederoversikt", url: "/management", icon: Gauge }} isActive={isActive} collapsed={collapsed} />
                )}
-               {isModuleVisible("customers") && (isAdmin || hasPermission("jobs.view")) && (
+               {canAccessModule("customers", "module.customers") && (hasPermission("jobs.view") || isAdmin) && (
                 <NavItem item={{ title: "Kunder", url: "/customers", icon: Users }} isActive={isActive} collapsed={collapsed} />
               )}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {isAdmin && (
+        {showAdmin && (
           <SidebarGroup className="mt-6 pt-4 border-t border-sidebar-border/60">
             <Collapsible defaultOpen={adminActive}>
               <CollapsibleTrigger className="flex w-full items-center justify-between px-3 py-1.5 text-[11px] font-medium uppercase tracking-wider text-sidebar-foreground/40 hover:text-sidebar-foreground/60 transition-colors">

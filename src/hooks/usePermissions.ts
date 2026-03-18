@@ -23,6 +23,12 @@ export interface PermissionState {
   refetch: () => void;
 }
 
+/**
+ * Permissions hook – DB is the SINGLE SOURCE OF TRUTH.
+ * No hardcoded admin defaults. All permissions come from:
+ *   1. role_permissions (via user_role_assignments)
+ *   2. user_permission_overrides
+ */
 export function usePermissions(): PermissionState {
   const { user } = useAuth();
   const preview = useContext(PreviewPermissionCtx);
@@ -39,12 +45,33 @@ export function usePermissions(): PermissionState {
     }
 
     try {
+      // Fetch from v1 assignments (user_role_assignments)
       const { data: assignments } = await supabase
         .from("user_role_assignments")
         .select("role_id")
         .eq("user_id", user.id);
 
       const roleIds = assignments?.map((a: any) => a.role_id) || [];
+
+      // Also fetch from v2 assignments (user_roles_v2 via user_accounts)
+      const { data: ua } = await supabase
+        .from("user_accounts")
+        .select("id")
+        .eq("auth_user_id", user.id)
+        .eq("is_active", true)
+        .maybeSingle();
+
+      if (ua) {
+        const { data: v2Roles } = await supabase
+          .from("user_roles_v2")
+          .select("role_id")
+          .eq("user_account_id", ua.id);
+        for (const r of v2Roles || []) {
+          if (!roleIds.includes((r as any).role_id)) {
+            roleIds.push((r as any).role_id);
+          }
+        }
+      }
 
       let rolePerms: Record<string, boolean> = {};
       if (roleIds.length > 0) {
@@ -62,6 +89,7 @@ export function usePermissions(): PermissionState {
         }
       }
 
+      // Fetch v1 overrides
       const { data: overrides } = await supabase
         .from("user_permission_overrides")
         .select("permission_key, allowed")
@@ -72,25 +100,16 @@ export function usePermissions(): PermissionState {
         merged[(o as any).permission_key] = (o as any).allowed;
       }
 
-      const adminKeys = [
-        "scope.view.all", "admin.manage_companies", "admin.manage_departments",
-        "admin.manage_users", "admin.manage_roles", "admin.manage_settings",
-        "calendar.read_busy", "calendar.view_external", "calendar.write_events", "calendar.delete_events",
-        "documents.upload", "documents.delete", "documents.analyze",
-        "change_orders.create", "change_orders.send", "change_orders.cancel", "change_orders.mark_invoiced",
-        "contracts.create", "contracts.analyze", "contracts.upload_document",
-        "calculations.create", "calculations.edit", "calculations.ai_generate", "calculations.create_offer",
-        "projects.edit_plan", "projects.delete_attachment", "admin.data_integrity",
-        "resourceplan.view", "resourceplan.view_busy", "resourceplan.view_external_blocks",
-        "resourceplan.view_external_titles", "resourceplan.view_external_details",
-        "resourceplan.schedule", "resourceplan.edit_others", "resourceplan.cross_company",
-      ];
-      if (user.role === "super_admin") {
-        for (const k of adminKeys) merged[k] = merged[k] ?? true;
-      } else if (user.role === "admin") {
-        merged["scope.view.company"] = merged["scope.view.company"] ?? true;
-        const adminSubset = adminKeys.filter(k => k !== "scope.view.all" && k !== "admin.data_integrity");
-        for (const k of adminSubset) merged[k] = merged[k] ?? true;
+      // Fetch v2 overrides if user_account exists
+      if (ua) {
+        const { data: v2Overrides } = await supabase
+          .from("user_permission_overrides_v2")
+          .select("permission_key, mode")
+          .eq("user_account_id", ua.id);
+
+        for (const o of v2Overrides || []) {
+          merged[(o as any).permission_key] = (o as any).mode === "allow";
+        }
       }
 
       setPermissions(merged);

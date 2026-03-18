@@ -42,13 +42,36 @@ export function PreviewModeProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(false);
   const [effectiveRole, setEffectiveRole] = useState<AppRole | null>(null);
 
+  /**
+   * Fetch permissions purely from DB – NO hardcoded admin defaults.
+   * This ensures preview shows the REAL effective access.
+   */
   const fetchUserPermissions = useCallback(async (authUserId: string) => {
-    const { data: assignments } = await supabase
+    // Get role assignments from both v1 and v2
+    const { data: v1Assignments } = await supabase
       .from("user_role_assignments")
       .select("role_id")
       .eq("user_id", authUserId);
 
-    const roleIds = (assignments || []).map((a: any) => a.role_id);
+    const roleIds = (v1Assignments || []).map((a: any) => a.role_id);
+
+    // Also check v2
+    const { data: ua } = await supabase
+      .from("user_accounts")
+      .select("id")
+      .eq("auth_user_id", authUserId)
+      .eq("is_active", true)
+      .maybeSingle();
+
+    if (ua) {
+      const { data: v2Roles } = await supabase
+        .from("user_roles_v2")
+        .select("role_id")
+        .eq("user_account_id", ua.id);
+      for (const r of v2Roles || []) {
+        if (!roleIds.includes((r as any).role_id)) roleIds.push((r as any).role_id);
+      }
+    }
 
     let roleNames: Record<string, string> = {};
     if (roleIds.length > 0) {
@@ -82,6 +105,7 @@ export function PreviewModeProvider({ children }: { children: ReactNode }) {
       }
     }
 
+    // v1 overrides
     const { data: overrides } = await supabase
       .from("user_permission_overrides")
       .select("permission_key, allowed")
@@ -94,6 +118,20 @@ export function PreviewModeProvider({ children }: { children: ReactNode }) {
       details.push({ key: pk, allowed: (o as any).allowed, source: "override" });
     }
 
+    // v2 overrides
+    if (ua) {
+      const { data: v2Overrides } = await supabase
+        .from("user_permission_overrides_v2")
+        .select("permission_key, mode")
+        .eq("user_account_id", ua.id);
+      for (const o of v2Overrides || []) {
+        const pk = (o as any).permission_key;
+        merged[pk] = (o as any).mode === "allow";
+        details.push({ key: pk, allowed: (o as any).mode === "allow", source: "override" });
+      }
+    }
+
+    // Derive effective role from legacy table (for sidebar admin checks)
     const { data: legacyRole } = await supabase
       .from("user_roles")
       .select("role")
@@ -101,24 +139,6 @@ export function PreviewModeProvider({ children }: { children: ReactNode }) {
       .maybeSingle();
 
     const appRole = (legacyRole?.role as AppRole) || "montør";
-
-    const adminKeys = [
-      "scope.view.all", "admin.manage_companies", "admin.manage_departments",
-      "admin.manage_users", "admin.manage_roles", "admin.manage_settings",
-      "calendar.read_busy", "calendar.view_external", "calendar.write_events", "calendar.delete_events",
-      "documents.upload", "documents.delete", "documents.analyze",
-      "change_orders.create", "change_orders.send", "change_orders.cancel", "change_orders.mark_invoiced",
-      "contracts.create", "contracts.analyze", "contracts.upload_document",
-      "calculations.create", "calculations.edit", "calculations.ai_generate", "calculations.create_offer",
-      "projects.edit_plan", "projects.delete_attachment", "admin.data_integrity",
-    ];
-    if (appRole === "super_admin") {
-      for (const k of adminKeys) merged[k] = merged[k] ?? true;
-    } else if (appRole === "admin") {
-      merged["scope.view.company"] = merged["scope.view.company"] ?? true;
-      const adminSubset = adminKeys.filter(k => k !== "scope.view.all" && k !== "admin.data_integrity");
-      for (const k of adminSubset) merged[k] = merged[k] ?? true;
-    }
 
     return { permissions: merged, details, appRole };
   }, []);
@@ -154,6 +174,12 @@ export function PreviewModeProvider({ children }: { children: ReactNode }) {
         appRole = r.appRole;
       } else {
         result = await fetchRolePermissions(newTarget.id);
+        // Derive effective role from module.admin permission
+        if (result.permissions["scope.view.all"] && result.permissions["module.admin"]) {
+          appRole = "super_admin";
+        } else if (result.permissions["module.admin"]) {
+          appRole = "admin";
+        }
       }
 
       setPermissions(result.permissions);
