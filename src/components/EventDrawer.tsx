@@ -4,6 +4,7 @@ import { ProjectSuggestionList } from "./ProjectSuggestionList";
 import { FileUpload } from "./FileUpload";
 import { AttachmentList } from "./AttachmentList";
 import type { Attachment } from "@/lib/mock-data";
+import { TaskThreadPanel } from "@/components/task-thread";
 import {
   Sheet,
   SheetContent,
@@ -43,6 +44,7 @@ import {
   ArrowRight,
   Users,
   Building,
+  MessageSquare,
 } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel,
@@ -146,6 +148,10 @@ export function EventDrawer({
   const [files, setFiles] = useState<File[]>([]);
   const [existingAttachments, setExistingAttachments] = useState<Attachment[]>([]);
   const [editCompanyName, setEditCompanyName] = useState<string | null>(null);
+  const [editCompanyId, setEditCompanyId] = useState<string | null>(null);
+
+  // Drawer tab state (detaljer vs tråd)
+  const [drawerTab, setDrawerTab] = useState<"details" | "thread">("details");
 
   // Populate form from props
   useEffect(() => {
@@ -189,6 +195,8 @@ export function EventDrawer({
     setFiles([]);
     setExistingAttachments([]);
     setEditCompanyName(null);
+    setEditCompanyId(null);
+    setDrawerTab("details");
     setSelectedCompanyId(isAllCompanies ? (companies.length === 1 ? companies[0].id : null) : activeCompanyId);
 
     // Load existing attachments for edit mode
@@ -199,6 +207,7 @@ export function EventDrawer({
         }
         const compName = (data as any)?.internal_companies?.name;
         if (compName) setEditCompanyName(compName);
+        if (data?.company_id) setEditCompanyId(data.company_id as string);
       });
     }
   }, [open, editEvent, preselectedStart, preselectedEnd, preselectedTechId, projectId, projectTitle, isAllCompanies, activeCompanyId, companies]);
@@ -562,6 +571,42 @@ export function EventDrawer({
           )}
         </SheetHeader>
 
+        {/* Tab switcher for edit mode */}
+        {isEditing && editEvent && (
+          <div className="flex items-center gap-1 border border-border/40 rounded-lg p-0.5 mt-3">
+            <Button
+              type="button"
+              variant={drawerTab === "details" ? "default" : "ghost"}
+              size="sm"
+              className="h-8 text-xs rounded-md flex-1 gap-1.5"
+              onClick={() => setDrawerTab("details")}
+            >
+              <Clock className="h-3.5 w-3.5" />
+              Detaljer
+            </Button>
+            <Button
+              type="button"
+              variant={drawerTab === "thread" ? "default" : "ghost"}
+              size="sm"
+              className="h-8 text-xs rounded-md flex-1 gap-1.5"
+              onClick={() => setDrawerTab("thread")}
+            >
+              <MessageSquare className="h-3.5 w-3.5" />
+              Tråd
+            </Button>
+          </div>
+        )}
+
+        {/* Thread tab content */}
+        {isEditing && editEvent && drawerTab === "thread" ? (
+          <div className="flex-1 mt-3 flex flex-col min-h-0">
+            <TaskThreadPanel
+              taskId={editEvent.id}
+              companyId={editCompanyId || activeCompanyId || ""}
+            />
+          </div>
+        ) : (
+        <>
         <div className="flex-1 mt-3 space-y-6">
 
           {/* ═══ SECTION: SELSKAP ═══ */}
@@ -870,7 +915,7 @@ export function EventDrawer({
                 Åpne prosjekt
               </Button>
             )}
-            {!readOnly && (
+            {!readOnly && drawerTab === "details" && (
               <Button className="flex-1 gap-1.5" onClick={handleSave}
                 disabled={saving || submitted || (isEditing && !hasChanges) || (eventType === "project" && !isEditing && techIds.length === 0)}>
                 {saving ? (
@@ -887,7 +932,7 @@ export function EventDrawer({
             )}
           </div>
 
-          {!readOnly && isEditing && editEvent && (
+          {!readOnly && drawerTab === "details" && isEditing && editEvent && (
             <Button
               variant="ghost" size="sm"
               className="h-8 text-xs gap-1.5 w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10"
@@ -899,6 +944,8 @@ export function EventDrawer({
             </Button>
           )}
         </SheetFooter>
+        </>
+        )}
 
         {/* Delete confirmation */}
         <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>

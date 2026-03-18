@@ -7080,6 +7080,190 @@ export type Database = {
           },
         ]
       }
+      task_message_attachments: {
+        Row: {
+          company_id: string
+          created_at: string
+          file_name: string
+          file_path: string
+          file_size: number | null
+          id: string
+          message_id: string
+          mime_type: string | null
+          uploaded_by: string | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          file_name: string
+          file_path: string
+          file_size?: number | null
+          id?: string
+          message_id: string
+          mime_type?: string | null
+          uploaded_by?: string | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          file_name?: string
+          file_path?: string
+          file_size?: number | null
+          id?: string
+          message_id?: string
+          mime_type?: string | null
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_message_attachments_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "internal_companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_message_attachments_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "task_messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      task_messages: {
+        Row: {
+          author_email: string | null
+          author_name: string | null
+          author_user_id: string | null
+          body: string | null
+          body_html: string | null
+          company_id: string
+          created_at: string
+          deleted_at: string | null
+          direction: string | null
+          edited_at: string | null
+          external_in_reply_to: string | null
+          external_message_id: string | null
+          external_references: string[] | null
+          id: string
+          message_type: string
+          metadata: Json
+          subject: string | null
+          task_id: string
+          thread_id: string
+        }
+        Insert: {
+          author_email?: string | null
+          author_name?: string | null
+          author_user_id?: string | null
+          body?: string | null
+          body_html?: string | null
+          company_id: string
+          created_at?: string
+          deleted_at?: string | null
+          direction?: string | null
+          edited_at?: string | null
+          external_in_reply_to?: string | null
+          external_message_id?: string | null
+          external_references?: string[] | null
+          id?: string
+          message_type?: string
+          metadata?: Json
+          subject?: string | null
+          task_id: string
+          thread_id: string
+        }
+        Update: {
+          author_email?: string | null
+          author_name?: string | null
+          author_user_id?: string | null
+          body?: string | null
+          body_html?: string | null
+          company_id?: string
+          created_at?: string
+          deleted_at?: string | null
+          direction?: string | null
+          edited_at?: string | null
+          external_in_reply_to?: string | null
+          external_message_id?: string | null
+          external_references?: string[] | null
+          id?: string
+          message_type?: string
+          metadata?: Json
+          subject?: string | null
+          task_id?: string
+          thread_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_messages_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "internal_companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_messages_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_messages_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "task_threads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      task_threads: {
+        Row: {
+          company_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          last_message_at: string | null
+          task_id: string
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          last_message_at?: string | null
+          task_id: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          last_message_at?: string | null
+          task_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_threads_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "internal_companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_threads_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: true
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tasks: {
         Row: {
           ai_confidence: number | null
