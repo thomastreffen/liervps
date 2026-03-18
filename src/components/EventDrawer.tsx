@@ -195,6 +195,8 @@ export function EventDrawer({
     setFiles([]);
     setExistingAttachments([]);
     setEditCompanyName(null);
+    setEditCompanyId(null);
+    setDrawerTab("details");
     setSelectedCompanyId(isAllCompanies ? (companies.length === 1 ? companies[0].id : null) : activeCompanyId);
 
     // Load existing attachments for edit mode
@@ -205,6 +207,7 @@ export function EventDrawer({
         }
         const compName = (data as any)?.internal_companies?.name;
         if (compName) setEditCompanyName(compName);
+        if (data?.company_id) setEditCompanyId(data.company_id as string);
       });
     }
   }, [open, editEvent, preselectedStart, preselectedEnd, preselectedTechId, projectId, projectTitle, isAllCompanies, activeCompanyId, companies]);
