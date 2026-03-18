@@ -37,6 +37,8 @@ Deno.serve(async (req) => {
     const { task_id, body_text, attachment_paths } = body;
     // attachment_paths: array of { file_path, file_name, mime_type, file_size }
 
+    const MAX_ATTACHMENT_SIZE = 3 * 1024 * 1024; // 3 MB per file — Graph limit for inline is ~4MB but we keep margin
+
     if (!task_id) return json({ error: "task_id required" }, 400);
     if (!body_text?.trim()) return json({ error: "body_text required" }, 400);
 
