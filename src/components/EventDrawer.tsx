@@ -944,6 +944,7 @@ export function EventDrawer({
             </Button>
           )}
         </SheetFooter>
+        </>
         )}
 
         {/* Delete confirmation */}
