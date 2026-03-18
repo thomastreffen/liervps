@@ -853,6 +853,7 @@ export default function ResourcePlan() {
           if (!open) {
             setDropProjectId(null);
             setDropProjectTitle(null);
+            setDeepLinkTab(undefined);
           }
         }}
         editEvent={editEvent}
@@ -863,6 +864,7 @@ export default function ResourcePlan() {
         projectId={dropProjectId}
         projectTitle={dropProjectTitle}
         readOnly={editEvent ? drawerReadOnly : false}
+        initialTab={deepLinkTab}
         scheduleBlockId={
           editEvent
             ? findScheduleBlockForAssignment(scheduleBlocks, editEvent.id, clickedTechId)?.id ?? null
