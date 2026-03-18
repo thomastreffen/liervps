@@ -100,6 +100,30 @@ export function TechnicianMultiSelect({ selectedIds, onChange, disabled }: Techn
     ? safeTechnicians.filter((t) => t.name?.toLowerCase().includes(search.toLowerCase()))
     : safeTechnicians;
 
+  if (disabled) {
+    // Read-only mode: just show selected technicians
+    const selectedTechs = safeTechnicians.filter(t => safeSelectedIds.includes(t.id));
+    return (
+      <div className="space-y-1.5">
+        <Label>Montør(er)</Label>
+        <div className="rounded-md border bg-muted/30 p-2 space-y-1">
+          {selectedTechs.length === 0 ? (
+            <p className="text-xs text-muted-foreground py-1">Ingen montører tildelt</p>
+          ) : (
+            selectedTechs.map((tech) => (
+              <div key={tech.id} className="flex items-center gap-2 px-2 py-1.5 text-sm">
+                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-primary">
+                  <User className="h-3 w-3" />
+                </div>
+                <span>{tech.name}</span>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-1.5">
       <Label>Montør(er)</Label>
