@@ -44,6 +44,7 @@ import {
   ArrowRight,
   Users,
   Building,
+  MessageSquare,
 } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel,
