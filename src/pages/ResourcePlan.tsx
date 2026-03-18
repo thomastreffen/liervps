@@ -201,7 +201,7 @@ export default function ResourcePlan() {
       try {
         const { data: task, error } = await supabase
           .from("events")
-          .select("id, title, customer, address, description, start_time, end_time, internal_number, company_id, parent_project_id, project_type, assignment_notes")
+          .select("id, title, customer, address, description, start_time, end_time, internal_number, company_id")
           .eq("id", openTaskId)
           .is("deleted_at", null)
           .single();
