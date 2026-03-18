@@ -5434,6 +5434,8 @@ export type Database = {
       }
       notifications: {
         Row: {
+          actor_name: string | null
+          actor_user_id: string | null
           company_id: string | null
           created_at: string
           entity_id: string | null
@@ -5442,6 +5444,9 @@ export type Database = {
           id: string
           link_url: string | null
           message: string | null
+          priority: string
+          push_sent_at: string | null
+          push_status: string
           read: boolean
           read_at: string | null
           title: string
@@ -5449,6 +5454,8 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          actor_name?: string | null
+          actor_user_id?: string | null
           company_id?: string | null
           created_at?: string
           entity_id?: string | null
@@ -5457,6 +5464,9 @@ export type Database = {
           id?: string
           link_url?: string | null
           message?: string | null
+          priority?: string
+          push_sent_at?: string | null
+          push_status?: string
           read?: boolean
           read_at?: string | null
           title: string
@@ -5464,6 +5474,8 @@ export type Database = {
           user_id: string
         }
         Update: {
+          actor_name?: string | null
+          actor_user_id?: string | null
           company_id?: string | null
           created_at?: string
           entity_id?: string | null
@@ -5472,6 +5484,9 @@ export type Database = {
           id?: string
           link_url?: string | null
           message?: string | null
+          priority?: string
+          push_sent_at?: string | null
+          push_status?: string
           read?: boolean
           read_at?: string | null
           title?: string
@@ -7227,6 +7242,48 @@ export type Database = {
           },
           {
             foreignKeyName: "task_messages_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "task_threads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      task_thread_reads: {
+        Row: {
+          created_at: string
+          id: string
+          last_read_at: string
+          last_read_message_id: string | null
+          thread_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          last_read_at?: string
+          last_read_message_id?: string | null
+          thread_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          last_read_at?: string
+          last_read_message_id?: string | null
+          thread_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_thread_reads_last_read_message_id_fkey"
+            columns: ["last_read_message_id"]
+            isOneToOne: false
+            referencedRelation: "task_messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_thread_reads_thread_id_fkey"
             columns: ["thread_id"]
             isOneToOne: false
             referencedRelation: "task_threads"
