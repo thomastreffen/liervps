@@ -155,7 +155,14 @@ export function EventDrawer({
   const [editCompanyId, setEditCompanyId] = useState<string | null>(null);
 
   // Drawer tab state (detaljer vs tråd)
-  const [drawerTab, setDrawerTab] = useState<"details" | "thread">("details");
+  const [drawerTab, setDrawerTab] = useState<"details" | "thread">(initialTab || "details");
+
+  // Sync initialTab when it changes (e.g. deep link opens drawer)
+  useEffect(() => {
+    if (initialTab && open) {
+      setDrawerTab(initialTab);
+    }
+  }, [initialTab, open]);
 
   // Thread unread tracking
   const { unreadCount: threadUnreadCount } = useTaskThreadReads(editEvent?.id);
