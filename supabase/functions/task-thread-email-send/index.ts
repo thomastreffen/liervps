@@ -246,7 +246,14 @@ ${body_text}
 
     // ── Build attachment section for email HTML ──
     const appBaseUrl = "https://mcsressurs.lovable.app";
-    const taskDeepLink = `${appBaseUrl}/projects/plan?openTask=${task_id}`;
+    const taskDate = task.start_time ? new Date(task.start_time).toISOString().slice(0, 10) : "";
+    const deepLinkParams = new URLSearchParams({
+      openTask: task_id,
+      companyId: task.company_id,
+      tab: "thread",
+      ...(taskDate ? { date: taskDate } : {}),
+    });
+    const taskDeepLink = `${appBaseUrl}/projects/plan?${deepLinkParams.toString()}`;
     let finalBodyHtml = bodyHtml;
 
     const hasInline = graphAttachments.length > 0;

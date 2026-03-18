@@ -93,6 +93,8 @@ interface EventDrawerProps {
   onSaved?: (eventId?: string) => void;
   /** When true, drawer opens in view-only mode (no editing) */
   readOnly?: boolean;
+  /** Initial tab to open (e.g. "thread" from deep link) */
+  initialTab?: "details" | "thread";
 }
 
 export function EventDrawer({
