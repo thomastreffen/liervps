@@ -103,7 +103,9 @@ export const PERMISSION_LABELS: Record<string, PermissionMeta> = {
   "resourceplan.view_external_titles": { label: "Se titler på eksterne avtaler", description: "Kan se tittel på eksterne Outlook-avtaler i stedet for anonymisert 'Opptatt'.", category: "Ressursplan" },
   "resourceplan.view_external_details": { label: "Se detaljer i eksterne avtaler", description: "Kan se lokasjon, organisator og andre detaljer på eksterne kalenderavtaler.", category: "Ressursplan" },
   "resourceplan.schedule": { label: "Planlegge ressurser", description: "Kan dra og slippe prosjekter og oppgaver inn i ressursplanen.", category: "Ressursplan" },
+  "resource_plan.plan_resources": { label: "Planlegge ressurser (v3)", description: "Kan opprette, redigere og flytte planlagte aktiviteter i ressursplanen.", category: "Ressursplan" },
   "resourceplan.edit_others": { label: "Endre andres planlagte aktiviteter", description: "Kan flytte og endre varighet på aktiviteter planlagt av andre.", category: "Ressursplan" },
+  "resource_plan.edit_others": { label: "Endre andres aktiviteter (v3)", description: "Kan endre og flytte aktiviteter planlagt av andre brukere.", category: "Ressursplan" },
   "resourceplan.cross_company": { label: "Se ressursplan på tvers av selskaper", description: "Kan se ressurser og aktiviteter fra alle selskaper i ressursplanen.", category: "Ressursplan" },
 
   // ── Absence ──
