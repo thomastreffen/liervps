@@ -143,6 +143,9 @@ export default function ResourcePlan() {
   const [clickedTechId, setClickedTechId] = useState<string | null>(null);
   const [preselectedStart, setPreselectedStart] = useState<Date | null>(null);
   const [preselectedEnd, setPreselectedEnd] = useState<Date | null>(null);
+  const [deepLinkTab, setDeepLinkTab] = useState<"details" | "thread" | undefined>(undefined);
+  const [deepLinkHandled, setDeepLinkHandled] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
   const [refreshKey, setRefreshKey] = useState(0);
 
   const { blocks: scheduleBlocks, refetch: refetchBlocks, removeBlockOptimistic } = useScheduleBlocks(referenceDate, selectedTechId, undefined, effectiveCompanyId);
