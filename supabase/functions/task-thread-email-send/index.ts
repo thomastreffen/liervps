@@ -373,6 +373,7 @@ interface SendMailOptions {
   replyTo?: string;
   replyToName?: string;
   headers?: Array<{ name: string; value: string }>;
+  attachments?: Array<{ "@odata.type": string; name: string; contentType: string; contentBytes: string }>;
 }
 
 async function sendMailViaGraph(token: string, opts: SendMailOptions) {
@@ -390,6 +391,9 @@ async function sendMailViaGraph(token: string, opts: SendMailOptions) {
   }
   if (opts.headers?.length) {
     messagePayload.internetMessageHeaders = opts.headers;
+  }
+  if (opts.attachments?.length) {
+    messagePayload.attachments = opts.attachments;
   }
 
   try {
