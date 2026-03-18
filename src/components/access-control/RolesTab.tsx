@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Loader2, ChevronRight, Copy, Trash2, Users, Info, Search } from "lucide-react";
+import { Plus, Loader2, ChevronRight, Copy, Trash2, Users, Info, Search, LayoutGrid, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -13,7 +13,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { PERMISSION_CATEGORIES, SCOPE_OPTIONS, getPermLabel, getPermDescription } from "@/lib/permission-labels";
+import { Separator } from "@/components/ui/separator";
+import { PERMISSION_CATEGORIES, MODULE_PERMISSION_KEYS, SCOPE_OPTIONS, getPermLabel, getPermDescription } from "@/lib/permission-labels";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -178,9 +179,20 @@ export function RolesTab() {
     return "Egne prosjekter";
   };
 
-  const getPermCount = (r: Role) => Object.values(r.permissions).filter(Boolean).length;
+  const getModuleCount = (r: Role) =>
+    MODULE_PERMISSION_KEYS.filter((k) => r.permissions[k]).length;
 
-  const activePermCount = Object.values(form.permissions).filter(Boolean).length;
+  const getActionCount = (r: Role) =>
+    Object.entries(r.permissions).filter(([k, v]) => v && !k.startsWith("module.") && !k.startsWith("scope.")).length;
+
+  const activeModuleCount = MODULE_PERMISSION_KEYS.filter((k) => form.permissions[k]).length;
+  const activePermCount = Object.entries(form.permissions).filter(([k, v]) => v && !k.startsWith("module.") && !k.startsWith("scope.")).length;
+
+  const filteredModuleKeys = MODULE_PERMISSION_KEYS.filter((key) => {
+    if (!permSearch) return true;
+    const q = permSearch.toLowerCase();
+    return getPermLabel(key).toLowerCase().includes(q) || key.toLowerCase().includes(q);
+  });
 
   const filteredPermCategories = PERMISSION_CATEGORIES.map((cat) => ({
     ...cat,
@@ -201,10 +213,16 @@ export function RolesTab() {
         {/* Info box */}
         <div className="rounded-lg border border-border bg-muted/30 p-3 flex gap-2">
           <Info className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
-          <p className="text-xs text-muted-foreground">
-            <strong>Roller</strong> er standardpakker med rettigheter. Tildel roller til brukere for å gi dem en samlet tilgangsprofil.
-            For individuelle avvik, bruk overstyringer på brukerens Rettigheter-fane.
-          </p>
+          <div className="text-xs text-muted-foreground space-y-1">
+            <p>
+              <strong>Roller</strong> er standardpakker med rettigheter. Tildel roller til brukere for å gi dem en samlet tilgangsprofil.
+            </p>
+            <p>
+              <strong>Modultilgang</strong> (🟦) styrer hvilke menypunkter brukeren ser.{" "}
+              <strong>Handlingstillatelser</strong> (🟧) styrer hva brukeren kan gjøre inni modulen.{" "}
+              Globale modultoggles i <em>Moduler</em>-panelet overstyrer alt.
+            </p>
+          </div>
         </div>
 
         <div className="flex items-center justify-between">
@@ -230,7 +248,15 @@ export function RolesTab() {
                 <div className="flex items-center gap-3 mt-1.5 text-xs text-muted-foreground">
                   <span>{getScopeLabel(r)}</span>
                   <span>·</span>
-                  <span>{getPermCount(r)} rettigheter</span>
+                  <span className="flex items-center gap-1">
+                    <LayoutGrid className="h-3 w-3" />
+                    {getModuleCount(r)} moduler
+                  </span>
+                  <span>·</span>
+                  <span className="flex items-center gap-1">
+                    <Zap className="h-3 w-3" />
+                    {getActionCount(r)} handlinger
+                  </span>
                   <span>·</span>
                   <span className="flex items-center gap-1">
                     <Users className="h-3 w-3" />
@@ -312,24 +338,55 @@ export function RolesTab() {
                 </Select>
               </div>
 
-              {/* Permission search + count */}
-              <div className="flex items-center justify-between">
-                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Rettigheter ({activePermCount} valgt)
-                </Label>
-                <div className="relative w-[180px]">
-                  <Search className="absolute left-2 top-2 h-3.5 w-3.5 text-muted-foreground" />
-                  <Input
-                    placeholder="Søk…"
-                    value={permSearch}
-                    onChange={(e) => setPermSearch(e.target.value)}
-                    className="pl-7 h-8 text-xs"
-                  />
-                </div>
+              {/* Search */}
+              <div className="relative">
+                <Search className="absolute left-2 top-2 h-3.5 w-3.5 text-muted-foreground" />
+                <Input
+                  placeholder="Søk i moduler og rettigheter…"
+                  value={permSearch}
+                  onChange={(e) => setPermSearch(e.target.value)}
+                  className="pl-7 h-8 text-xs"
+                />
               </div>
 
-              <ScrollArea className="h-[320px] pr-4">
+              <ScrollArea className="h-[360px] pr-4">
                 <div className="space-y-5">
+                  {/* ── MODULE ACCESS SECTION ── */}
+                  {filteredModuleKeys.length > 0 && (
+                    <div>
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <LayoutGrid className="h-3.5 w-3.5 text-blue-500" />
+                        <p className="text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wider">
+                          Modultilgang ({activeModuleCount} valgt)
+                        </p>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground mb-2">
+                        Styrer hvilke moduler brukeren ser i menyen. Krever at modulen også er aktivert globalt.
+                      </p>
+                      <div className="grid grid-cols-2 gap-1">
+                        {filteredModuleKeys.map((key) => (
+                          <label key={key} className="flex items-center gap-2 cursor-pointer text-sm py-0.5">
+                            <Checkbox
+                              checked={form.permissions[key] || false}
+                              onCheckedChange={() => togglePerm(key)}
+                            />
+                            <span className="text-xs">{getPermLabel(key)}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <Separator />
+
+                  {/* ── ACTION PERMISSIONS SECTION ── */}
+                  <div className="flex items-center gap-1.5">
+                    <Zap className="h-3.5 w-3.5 text-amber-500" />
+                    <p className="text-xs font-semibold text-amber-600 dark:text-amber-400 uppercase tracking-wider">
+                      Handlingstillatelser ({activePermCount} valgt)
+                    </p>
+                  </div>
+
                   {filteredPermCategories.map((group) => (
                     <div key={group.category}>
                       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{group.category}</p>
@@ -358,7 +415,7 @@ export function RolesTab() {
                       </div>
                     </div>
                   ))}
-                  {filteredPermCategories.length === 0 && (
+                  {filteredPermCategories.length === 0 && filteredModuleKeys.length === 0 && (
                     <p className="text-sm text-muted-foreground text-center py-4">Ingen rettigheter matcher søket.</p>
                   )}
                 </div>
