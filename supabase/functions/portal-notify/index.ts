@@ -54,9 +54,17 @@ Deno.serve(async (req) => {
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-    // Auth check: must be system admin or service role call
+    // Auth check: must have Authorization header
     const authHeader = req.headers.get("Authorization");
-    if (authHeader && !authHeader.includes(serviceRoleKey)) {
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Allow service role calls through, otherwise validate JWT and check admin role
+    if (!authHeader.includes(serviceRoleKey)) {
       const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
       const callerClient = createClient(supabaseUrl, anonKey, {
         global: { headers: { Authorization: authHeader } },
