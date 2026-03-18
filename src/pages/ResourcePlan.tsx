@@ -69,9 +69,12 @@ export default function ResourcePlan() {
   const { activeCompanyId } = useCompanyContext();
   const canReadBusy = hasPermission("calendar.read_busy");
   const canViewExternal = hasPermission("calendar.view_external");
-  const canWriteEvents = hasPermission("calendar.write_events");
+  const canPlanResources = hasPermission("resource_plan.plan_resources") || hasPermission("resourceplan.schedule");
+  const canWriteEvents = canPlanResources || hasPermission("calendar.write_events");
   const canDeleteEvents = hasPermission("calendar.delete_events");
+  const canEditOthers = hasPermission("resource_plan.edit_others") || hasPermission("resourceplan.edit_others");
   const canCrossCompany = hasPermission("resourceplan.cross_company") || hasPermission("scope.view.all");
+  const drawerReadOnly = !canPlanResources;
   const confirmationCount = useConfirmationCount();
   const syncHealth = useSyncHealth(isAdmin);
 
