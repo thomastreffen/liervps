@@ -88,6 +88,8 @@ interface EventDrawerProps {
   projectTitle?: string | null;
   scheduleBlockId?: string | null;
   onSaved?: (eventId?: string) => void;
+  /** When true, drawer opens in view-only mode (no editing) */
+  readOnly?: boolean;
 }
 
 export function EventDrawer({
@@ -102,6 +104,7 @@ export function EventDrawer({
   projectTitle,
   scheduleBlockId,
   onSaved,
+  readOnly = false,
 }: EventDrawerProps) {
   const navigate = useNavigate();
   const { syncCreate, syncUpdate, syncDelete } = useCalendarSync();
