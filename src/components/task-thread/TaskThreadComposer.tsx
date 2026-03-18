@@ -71,7 +71,7 @@ export function TaskThreadComposer({ onSend, onSendEmail, sending, canUpload, ca
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
+    if (e.key === "Enter" && (e.ctrlKey || e.metaKey) && !e.nativeEvent.isComposing) {
       e.preventDefault();
       handleSend();
     }
