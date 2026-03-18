@@ -269,7 +269,35 @@ Deno.serve(async (req) => {
           }
         }
 
-        // ── Process message ──
+        // ── Try task thread matching first ──
+        // Check if this email is a reply to a task thread (task-thread+{token}@domain)
+        let isTaskThread = false;
+        try {
+          const taskThreadMatch = await tryMatchTaskThread(message, supabase);
+          if (taskThreadMatch.matched) {
+            console.log("TASK_THREAD_INBOUND_MATCH", {
+              thread_id: taskThreadMatch.thread_id,
+              task_id: taskThreadMatch.task_id,
+              strategy: taskThreadMatch.match_strategy,
+              sender: message.from?.emailAddress?.address,
+            });
+            await processTaskThreadInbound(
+              message,
+              taskThreadMatch,
+              supabase,
+              accessToken,
+              resourceUrl,
+            );
+            isTaskThread = true;
+            processed++;
+            continue; // Skip conversation thread processing
+          }
+        } catch (taskErr) {
+          console.error("TASK_THREAD_INBOUND_ERROR", { error: String(taskErr) });
+          // Fall through to conversation matching
+        }
+
+        // ── Process as conversation message ──
         const result = await processMessage(message, supabase, companyId);
 
         if (result.skipped) {
