@@ -177,15 +177,22 @@ ${body_text}
 
     // ── Prepare attachments for Graph ──
     const graphAttachments: Array<{ "@odata.type": string; name: string; contentType: string; contentBytes: string }> = [];
-    const linkFallbackAttachments: Array<{ file_name: string; file_path: string }> = [];
+    const linkFallbackAttachments: Array<{ file_name: string; file_path: string; file_size: number; mime_type: string; signed_url?: string }> = [];
 
     if (attachment_paths && attachment_paths.length > 0) {
       for (const att of attachment_paths) {
         try {
           const fileSize = att.file_size || 0;
           if (fileSize > MAX_ATTACHMENT_SIZE) {
-            // Too large for inline — will include as link
-            linkFallbackAttachments.push({ file_name: att.file_name, file_path: att.file_path });
+            // Too large for inline — generate signed URL
+            const signed = await generateSignedUrl(supabase, att.file_path);
+            linkFallbackAttachments.push({
+              file_name: att.file_name,
+              file_path: att.file_path,
+              file_size: fileSize,
+              mime_type: att.mime_type || "application/octet-stream",
+              signed_url: signed || undefined,
+            });
             continue;
           }
 
@@ -195,14 +202,23 @@ ${body_text}
 
           if (dlErr || !fileData) {
             console.error("ATTACHMENT_DOWNLOAD_FAILED", att.file_path, dlErr?.message);
-            linkFallbackAttachments.push({ file_name: att.file_name, file_path: att.file_path });
+            const signed = await generateSignedUrl(supabase, att.file_path);
+            linkFallbackAttachments.push({
+              file_name: att.file_name, file_path: att.file_path,
+              file_size: fileSize, mime_type: att.mime_type || "application/octet-stream",
+              signed_url: signed || undefined,
+            });
             continue;
           }
 
           const arrayBuffer = await fileData.arrayBuffer();
-          // Double-check actual size
           if (arrayBuffer.byteLength > MAX_ATTACHMENT_SIZE) {
-            linkFallbackAttachments.push({ file_name: att.file_name, file_path: att.file_path });
+            const signed = await generateSignedUrl(supabase, att.file_path);
+            linkFallbackAttachments.push({
+              file_name: att.file_name, file_path: att.file_path,
+              file_size: arrayBuffer.byteLength, mime_type: att.mime_type || "application/octet-stream",
+              signed_url: signed || undefined,
+            });
             continue;
           }
 
@@ -218,24 +234,109 @@ ${body_text}
           });
         } catch (attErr: any) {
           console.error("ATTACHMENT_PROCESS_ERROR", att.file_name, attErr?.message);
-          linkFallbackAttachments.push({ file_name: att.file_name, file_path: att.file_path });
+          const signed = await generateSignedUrl(supabase, att.file_path);
+          linkFallbackAttachments.push({
+            file_name: att.file_name, file_path: att.file_path,
+            file_size: att.file_size || 0, mime_type: att.mime_type || "application/octet-stream",
+            signed_url: signed || undefined,
+          });
         }
       }
     }
 
-    // ── Append fallback links to email body if any files were too large or failed ──
+    // ── Build attachment section for email HTML ──
+    const appBaseUrl = "https://mcsressurs.lovable.app";
+    const taskDeepLink = `${appBaseUrl}/projects/plan?openTask=${task_id}`;
     let finalBodyHtml = bodyHtml;
-    if (linkFallbackAttachments.length > 0) {
-      const linkSection = linkFallbackAttachments.map(att => {
-        return `<li>${att.file_name} <em>(for stor for e-postvedlegg – tilgjengelig i MCS)</em></li>`;
-      }).join("");
+
+    const hasInline = graphAttachments.length > 0;
+    const hasFallback = linkFallbackAttachments.length > 0;
+
+    if (hasInline || hasFallback) {
+      let attachmentHtml = `
+        <div style="margin: 20px 0;">
+          <table cellpadding="0" cellspacing="0" width="100%" style="border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden;">
+            <tr>
+              <td style="background: #f9fafb; padding: 12px 16px; border-bottom: 1px solid #e5e7eb;">
+                <p style="margin: 0; font-weight: 600; color: #1a1a1a; font-size: 14px;">📎 Vedlegg</p>`;
+
+      // Summary line
+      const parts: string[] = [];
+      if (hasInline) parts.push(`${graphAttachments.length} ${graphAttachments.length === 1 ? "fil vedlagt" : "filer vedlagt"} i e-posten`);
+      if (hasFallback) parts.push(`${linkFallbackAttachments.length} ${linkFallbackAttachments.length === 1 ? "fil" : "filer"} tilgjengelig via sikre lenker`);
+      attachmentHtml += `
+                <p style="margin: 4px 0 0; color: #6b7280; font-size: 12px;">${parts.join(" · ")}</p>
+              </td>
+            </tr>`;
+
+      // List inline attachments
+      if (hasInline) {
+        for (const att of graphAttachments) {
+          attachmentHtml += `
+            <tr>
+              <td style="padding: 10px 16px; border-bottom: 1px solid #f3f4f6;">
+                <table cellpadding="0" cellspacing="0" width="100%"><tr>
+                  <td style="color: #374151; font-size: 13px;">
+                    📄 ${escapeHtml(att.name)}
+                  </td>
+                  <td align="right" style="color: #9ca3af; font-size: 12px;">
+                    Vedlagt i e-posten
+                  </td>
+                </tr></table>
+              </td>
+            </tr>`;
+        }
+      }
+
+      // List fallback attachments with signed links
+      if (hasFallback) {
+        if (hasInline) {
+          // Separator note
+          attachmentHtml += `
+            <tr>
+              <td style="padding: 10px 16px; border-bottom: 1px solid #f3f4f6; background: #fffbeb;">
+                <p style="margin: 0; color: #92400e; font-size: 12px;">
+                  Noen vedlegg er for store til å sendes direkte på e-post, men kan åpnes trygt via lenkene nedenfor.
+                </p>
+              </td>
+            </tr>`;
+        }
+
+        for (const att of linkFallbackAttachments) {
+          const sizeStr = formatFileSize(att.file_size);
+          const linkUrl = att.signed_url || taskDeepLink;
+          const linkLabel = att.signed_url ? "Åpne" : "Åpne i MCS";
+          attachmentHtml += `
+            <tr>
+              <td style="padding: 10px 16px; border-bottom: 1px solid #f3f4f6;">
+                <table cellpadding="0" cellspacing="0" width="100%"><tr>
+                  <td style="color: #374151; font-size: 13px;">
+                    📎 ${escapeHtml(att.file_name)}
+                    <span style="color: #9ca3af; font-size: 12px; margin-left: 6px;">(${sizeStr})</span>
+                  </td>
+                  <td align="right">
+                    <a href="${linkUrl}" target="_blank" style="display: inline-block; background: #2563eb; color: #ffffff; font-size: 12px; font-weight: 600; padding: 5px 14px; border-radius: 6px; text-decoration: none;">${linkLabel}</a>
+                  </td>
+                </tr></table>
+              </td>
+            </tr>`;
+        }
+      }
+
+      // Deep link to task
+      attachmentHtml += `
+            <tr>
+              <td style="padding: 12px 16px; background: #f9fafb; text-align: center;">
+                <a href="${taskDeepLink}" target="_blank" style="color: #2563eb; font-size: 13px; font-weight: 600; text-decoration: none;">Åpne oppgaven i MCS →</a>
+              </td>
+            </tr>
+          </table>
+        </div>`;
+
+      // Insert before the footer hr
       finalBodyHtml = bodyHtml.replace(
         `<hr style="border: none; border-top: 1px solid #e5e5e5; margin: 24px 0;" />`,
-        `<div style="background: #fffbeb; border: 1px solid #fbbf24; border-radius: 6px; padding: 12px; margin: 16px 0;">
-          <p style="margin: 0 0 4px; font-weight: 600; color: #92400e; font-size: 13px;">Vedlegg kun tilgjengelig i MCS:</p>
-          <ul style="margin: 4px 0 0; padding-left: 20px; color: #92400e; font-size: 13px;">${linkSection}</ul>
-        </div>
-        <hr style="border: none; border-top: 1px solid #e5e5e5; margin: 24px 0;" />`
+        attachmentHtml + `<hr style="border: none; border-top: 1px solid #e5e5e5; margin: 24px 0;" />`
       );
     }
 
@@ -432,4 +533,40 @@ async function verifySentItems(token: string, mailbox: string, subject: string, 
     } catch { /* retry */ }
   }
   return { verified: false };
+}
+
+// ═══════════════════════════════════════════
+// Attachment helpers
+// ═══════════════════════════════════════════
+
+async function generateSignedUrl(supabase: any, filePath: string): Promise<string | null> {
+  try {
+    const SEVEN_DAYS = 7 * 24 * 60 * 60; // seconds
+    const { data, error } = await supabase.storage
+      .from("task-thread-files")
+      .createSignedUrl(filePath, SEVEN_DAYS);
+    if (error || !data?.signedUrl) {
+      console.error("SIGNED_URL_FAILED", filePath, error?.message);
+      return null;
+    }
+    return data.signedUrl;
+  } catch (e: any) {
+    console.error("SIGNED_URL_ERROR", filePath, e?.message);
+    return null;
+  }
+}
+
+function formatFileSize(bytes: number): string {
+  if (!bytes || bytes === 0) return "ukjent størrelse";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }
