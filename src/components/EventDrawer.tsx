@@ -775,7 +775,7 @@ export function EventDrawer({
             <h3 className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
               {eventType === "task" && !isEditing ? "Tildel montør (valgfritt)" : "Ressurser"}
             </h3>
-            <TechnicianMultiSelect selectedIds={techIds} onChange={setTechIds} />
+            <TechnicianMultiSelect selectedIds={techIds} onChange={setTechIds} disabled={readOnly} />
           </section>
 
           {/* ═══ SECTION: BESKRIVELSE ═══ */}
