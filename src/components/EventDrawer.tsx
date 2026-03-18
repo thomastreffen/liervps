@@ -853,22 +853,24 @@ export function EventDrawer({
                 Åpne prosjekt
               </Button>
             )}
-            <Button className="flex-1 gap-1.5" onClick={handleSave}
-              disabled={saving || submitted || (isEditing && !hasChanges) || (eventType === "project" && !isEditing && techIds.length === 0)}>
-              {saving ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <Save className="h-3.5 w-3.5" />
-              )}
-              {saving ? "Oppretter…" :
-               submitted ? "Opprettet ✓" :
-               isEditing ? (conflicts.length > 0 ? "Lagre likevel" : "Lagre endringer") :
-               eventType === "task" ? "Opprett oppgave" :
-               conflicts.length > 0 ? "Lagre likevel" : "Opprett og planlegg"}
-            </Button>
+            {!readOnly && (
+              <Button className="flex-1 gap-1.5" onClick={handleSave}
+                disabled={saving || submitted || (isEditing && !hasChanges) || (eventType === "project" && !isEditing && techIds.length === 0)}>
+                {saving ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Save className="h-3.5 w-3.5" />
+                )}
+                {saving ? "Oppretter…" :
+                 submitted ? "Opprettet ✓" :
+                 isEditing ? (conflicts.length > 0 ? "Lagre likevel" : "Lagre endringer") :
+                 eventType === "task" ? "Opprett oppgave" :
+                 conflicts.length > 0 ? "Lagre likevel" : "Opprett og planlegg"}
+              </Button>
+            )}
           </div>
 
-          {isEditing && editEvent && (
+          {!readOnly && isEditing && editEvent && (
             <Button
               variant="ghost" size="sm"
               className="h-8 text-xs gap-1.5 w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10"
