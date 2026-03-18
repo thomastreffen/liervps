@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { addWeeks, addDays, startOfWeek, startOfMonth, addMonths, format, isSameWeek } from "date-fns";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { nb } from "date-fns/locale";
 import { TechnicianList } from "@/components/TechnicianList";
 import { StatusLegend } from "@/components/StatusLegend";
@@ -143,6 +143,9 @@ export default function ResourcePlan() {
   const [clickedTechId, setClickedTechId] = useState<string | null>(null);
   const [preselectedStart, setPreselectedStart] = useState<Date | null>(null);
   const [preselectedEnd, setPreselectedEnd] = useState<Date | null>(null);
+  const [deepLinkTab, setDeepLinkTab] = useState<"details" | "thread" | undefined>(undefined);
+  const [deepLinkHandled, setDeepLinkHandled] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
   const [refreshKey, setRefreshKey] = useState(0);
 
   const { blocks: scheduleBlocks, refetch: refetchBlocks, removeBlockOptimistic } = useScheduleBlocks(referenceDate, selectedTechId, undefined, effectiveCompanyId);
@@ -175,6 +178,93 @@ export default function ResourcePlan() {
       Promise.resolve(refetchCalendarEvents()),
     ]);
   }, [refetchBlocks, refetchBusySlots, refetchCalendarEvents]);
+
+  // ── Deep link handler: ?openTask=...&companyId=...&tab=...&date=... ──
+  useEffect(() => {
+    if (deepLinkHandled) return;
+    const openTaskId = searchParams.get("openTask");
+    if (!openTaskId) return;
+
+    const targetTab = searchParams.get("tab") as "details" | "thread" | null;
+    const targetDate = searchParams.get("date");
+
+    // Navigate calendar to the correct date
+    if (targetDate) {
+      const parsed = new Date(targetDate + "T12:00:00");
+      if (!isNaN(parsed.getTime())) {
+        setReferenceDate(parsed);
+      }
+    }
+
+    // Fetch the event from DB to build a CalendarEvent for the drawer
+    const openDeepLinkedTask = async () => {
+      try {
+        const { data: task, error } = await supabase
+          .from("events")
+          .select("id, title, customer, address, description, start_time, end_time, internal_number, company_id")
+          .eq("id", openTaskId)
+          .is("deleted_at", null)
+          .single();
+
+        if (error || !task) {
+          toast.error("Kunne ikke åpne oppgaven", {
+            description: "Oppgaven ble ikke funnet eller er slettet.",
+          });
+          setSearchParams({}, { replace: true });
+          setDeepLinkHandled(true);
+          return;
+        }
+
+        // Fetch technician assignments
+        const { data: techLinks } = await supabase
+          .from("event_technicians")
+          .select("technician_id, technicians(id, name, color)")
+          .eq("event_id", openTaskId);
+
+        const technicianIds = (techLinks || []).map((l: any) => l.technician_id);
+        const techniciansList = (techLinks || []).map((l: any) => ({
+          id: l.technicians?.id || l.technician_id,
+          name: l.technicians?.name || "Ukjent",
+          color: l.technicians?.color || null,
+        }));
+
+        const calEvent: CalendarEvent = {
+          id: task.id,
+          microsoftEventId: "",
+          title: task.title || "",
+          customer: task.customer || "",
+          address: task.address || "",
+          description: task.description || "",
+          start: task.start_time ? new Date(task.start_time) : new Date(),
+          end: task.end_time ? new Date(task.end_time) : new Date(),
+          status: "Planlagt" as any,
+          technicianIds,
+          attendeeStatuses: [],
+          technicians: techniciansList,
+          internalNumber: task.internal_number || null,
+        };
+
+        if (targetTab) setDeepLinkTab(targetTab);
+        setEditEvent(calEvent);
+        setClickedTechId(technicianIds[0] || null);
+        setPreselectedStart(null);
+        setPreselectedEnd(null);
+        setDrawerOpen(true);
+
+        // Clean URL params
+        setSearchParams({}, { replace: true });
+      } catch (err) {
+        console.error("[ResourcePlan][DeepLink] Error opening task:", err);
+        toast.error("Noe gikk galt", {
+          description: "Kunne ikke åpne oppgaven fra lenken.",
+        });
+        setSearchParams({}, { replace: true });
+      }
+      setDeepLinkHandled(true);
+    };
+
+    openDeepLinkedTask();
+  }, [searchParams, deepLinkHandled, setSearchParams]);
 
   const goToPrev = useCallback(() => {
     setReferenceDate((d) => {
@@ -763,6 +853,7 @@ export default function ResourcePlan() {
           if (!open) {
             setDropProjectId(null);
             setDropProjectTitle(null);
+            setDeepLinkTab(undefined);
           }
         }}
         editEvent={editEvent}
@@ -773,6 +864,7 @@ export default function ResourcePlan() {
         projectId={dropProjectId}
         projectTitle={dropProjectTitle}
         readOnly={editEvent ? drawerReadOnly : false}
+        initialTab={deepLinkTab}
         scheduleBlockId={
           editEvent
             ? findScheduleBlockForAssignment(scheduleBlocks, editEvent.id, clickedTechId)?.id ?? null

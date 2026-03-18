@@ -93,6 +93,8 @@ interface EventDrawerProps {
   onSaved?: (eventId?: string) => void;
   /** When true, drawer opens in view-only mode (no editing) */
   readOnly?: boolean;
+  /** Initial tab to open (e.g. "thread" from deep link) */
+  initialTab?: "details" | "thread";
 }
 
 export function EventDrawer({
@@ -108,6 +110,7 @@ export function EventDrawer({
   scheduleBlockId,
   onSaved,
   readOnly = false,
+  initialTab,
 }: EventDrawerProps) {
   const navigate = useNavigate();
   const { syncCreate, syncUpdate, syncDelete } = useCalendarSync();
@@ -152,7 +155,14 @@ export function EventDrawer({
   const [editCompanyId, setEditCompanyId] = useState<string | null>(null);
 
   // Drawer tab state (detaljer vs tråd)
-  const [drawerTab, setDrawerTab] = useState<"details" | "thread">("details");
+  const [drawerTab, setDrawerTab] = useState<"details" | "thread">(initialTab || "details");
+
+  // Sync initialTab when it changes (e.g. deep link opens drawer)
+  useEffect(() => {
+    if (initialTab && open) {
+      setDrawerTab(initialTab);
+    }
+  }, [initialTab, open]);
 
   // Thread unread tracking
   const { unreadCount: threadUnreadCount } = useTaskThreadReads(editEvent?.id);
