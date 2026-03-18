@@ -501,14 +501,18 @@ export function EventDrawer({
         <SheetHeader className="space-y-1">
           <SheetTitle className="flex items-center gap-2 text-base">
             {isEditing ? (
-              <><Clock className="h-4 w-4 text-primary" />Rediger oppdrag</>
+              readOnly
+                ? <><Clock className="h-4 w-4 text-muted-foreground" />Oppdragsdetaljer</>
+                : <><Clock className="h-4 w-4 text-primary" />Rediger oppdrag</>
             ) : (
               <><CalendarPlus className="h-4 w-4 text-primary" />{projectId ? "Planlegg arbeid" : "Nytt oppdrag"}</>
             )}
           </SheetTitle>
           <SheetDescription className="text-xs">
             {isEditing
-              ? "Endre tid, ressurser eller detaljer"
+              ? readOnly
+                ? "Viser detaljer for oppdraget (kun lesemodus)"
+                : "Endre tid, ressurser eller detaljer"
               : projectId
               ? `Tildel tid og montører til ${projectTitle || "prosjektet"}`
               : "Opprett nytt oppdrag eller knytt til eksisterende prosjekt"}
