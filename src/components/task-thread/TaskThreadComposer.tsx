@@ -231,6 +231,9 @@ export function TaskThreadComposer({ onSend, onSendEmail, sending, canUpload, ca
           </Button>
         </div>
       </div>
+      <p className="text-[10px] text-muted-foreground select-none hidden sm:block">
+        Enter for ny linje • {navigator.platform?.includes("Mac") ? "⌘" : "Ctrl"}+Enter for å sende
+      </p>
     </div>
   );
 }
