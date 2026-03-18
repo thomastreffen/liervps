@@ -762,6 +762,7 @@ export default function ResourcePlan() {
         preselectedTechId={selectedTechId}
         projectId={dropProjectId}
         projectTitle={dropProjectTitle}
+        readOnly={editEvent ? drawerReadOnly : false}
         scheduleBlockId={
           editEvent
             ? findScheduleBlockForAssignment(scheduleBlocks, editEvent.id, clickedTechId)?.id ?? null
