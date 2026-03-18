@@ -745,8 +745,8 @@ export function EventDrawer({
             <div className="rounded-lg border border-border/40 bg-card p-3 space-y-2">
               <Label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Til</Label>
               <div className="flex gap-2">
-                <Input type="date" value={resolvedEndDate} onChange={(e) => setEndDate(e.target.value)} className="flex-1 h-9" />
-                <TimeSelect value={endTime} onChange={handleEndTimeChange} className="w-[100px]" />
+                <Input type="date" value={resolvedEndDate} onChange={(e) => setEndDate(e.target.value)} className="flex-1 h-9" disabled={readOnly} />
+                <TimeSelect value={endTime} onChange={handleEndTimeChange} className="w-[100px]" disabled={readOnly} />
               </div>
             </div>
 
