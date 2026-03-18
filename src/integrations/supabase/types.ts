@@ -7249,6 +7249,47 @@ export type Database = {
           },
         ]
       }
+      task_thread_digest_deliveries: {
+        Row: {
+          company_id: string | null
+          digest_type: string
+          id: string
+          item_count: number
+          metadata: Json | null
+          sent_at: string
+          summary_date: string
+          user_id: string
+        }
+        Insert: {
+          company_id?: string | null
+          digest_type?: string
+          id?: string
+          item_count?: number
+          metadata?: Json | null
+          sent_at?: string
+          summary_date: string
+          user_id: string
+        }
+        Update: {
+          company_id?: string | null
+          digest_type?: string
+          id?: string
+          item_count?: number
+          metadata?: Json | null
+          sent_at?: string
+          summary_date?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_thread_digest_deliveries_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "internal_companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       task_thread_reads: {
         Row: {
           created_at: string
