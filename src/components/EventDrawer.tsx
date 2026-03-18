@@ -714,7 +714,7 @@ export function EventDrawer({
               <h3 className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Oppdrag</h3>
               <div>
                 <Label className="text-xs">Tittel</Label>
-                <Input value={title} onChange={(e) => setTitle(e.target.value)} className="mt-1" />
+                <Input value={title} onChange={(e) => setTitle(e.target.value)} className="mt-1" disabled={readOnly} />
               </div>
             </section>
           )}
