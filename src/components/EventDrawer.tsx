@@ -154,6 +154,9 @@ export function EventDrawer({
   // Drawer tab state (detaljer vs tråd)
   const [drawerTab, setDrawerTab] = useState<"details" | "thread">("details");
 
+  // Thread unread tracking
+  const { unreadCount: threadUnreadCount } = useTaskThreadReads(editEvent?.id);
+
   // Populate form from props
   useEffect(() => {
     if (!open) return;
