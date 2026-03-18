@@ -915,7 +915,7 @@ export function EventDrawer({
                 Åpne prosjekt
               </Button>
             )}
-            {!readOnly && (
+            {!readOnly && drawerTab === "details" && (
               <Button className="flex-1 gap-1.5" onClick={handleSave}
                 disabled={saving || submitted || (isEditing && !hasChanges) || (eventType === "project" && !isEditing && techIds.length === 0)}>
                 {saving ? (
@@ -932,7 +932,7 @@ export function EventDrawer({
             )}
           </div>
 
-          {!readOnly && isEditing && editEvent && (
+          {!readOnly && drawerTab === "details" && isEditing && editEvent && (
             <Button
               variant="ghost" size="sm"
               className="h-8 text-xs gap-1.5 w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10"
@@ -944,6 +944,7 @@ export function EventDrawer({
             </Button>
           )}
         </SheetFooter>
+        )}
 
         {/* Delete confirmation */}
         <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
