@@ -10,6 +10,7 @@ export interface Recipient {
   name: string;
   email: string;
   technicianId: string;
+  isResponsible?: boolean;
 }
 
 interface Props {
