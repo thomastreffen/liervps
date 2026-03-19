@@ -214,6 +214,28 @@ function MessageTypeBadge({ message, isOutbound, isInbound }: { message: TaskMes
   return null;
 }
 
+/* ── Priority Badge ── */
+
+function PriorityBadge({ priority }: { priority: string }) {
+  if (priority === "urgent") {
+    return (
+      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium bg-destructive/15 text-destructive">
+        <AlertCircle className="h-2.5 w-2.5" />
+        Haster
+      </span>
+    );
+  }
+  if (priority === "important") {
+    return (
+      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300">
+        <AlertTriangle className="h-2.5 w-2.5" />
+        Viktig
+      </span>
+    );
+  }
+  return null;
+}
+
 /* ── Inline Image Grid ── */
 
 function InlineImageGrid({ images, onDownload }: {
