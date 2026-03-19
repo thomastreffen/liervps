@@ -84,6 +84,8 @@ import ManagementPage from "./pages/ManagementPage";
 import AbsencePage from "./pages/AbsencePage";
 import MyDayPage from "./pages/MyDayPage";
 import CompanyMigrationPage from "./pages/CompanyMigrationPage";
+import ProductsPage from "./pages/ProductsPage";
+import ProductDetailPage from "./pages/ProductDetailPage";
 import HelpCenterPage from "./pages/HelpCenterPage";
 import { CompanyProvider } from "@/hooks/useCompanyContext";
 import { PreviewModeProvider } from "@/hooks/usePreviewMode";
@@ -432,7 +434,11 @@ const App = () => (
                     <SupplierDetailPage />
                   </ProtectedRoute>
                 }
-              />
+               />
+
+              {/* Product module */}
+              <Route path="/products" element={<ProductsPage />} />
+              <Route path="/products/:id" element={<ProductDetailPage />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />
