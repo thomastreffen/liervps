@@ -76,17 +76,6 @@ export function useSupplierActions(supplierId: string | undefined) {
   const [runningSyncType, setRunningSyncType] = useState<string | null>(null);
   const [savingPassword, setSavingPassword] = useState(false);
 
-  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const pollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Cleanup polling on unmount
-  useEffect(() => {
-    return () => {
-      if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
-      if (pollTimeoutRef.current) clearTimeout(pollTimeoutRef.current);
-    };
-  }, []);
-
   const [fileListResult, setFileListResult] = useState<FileListData | null>(null);
   const [testResult, setTestResult] = useState<ActionResult | null>(null);
 
