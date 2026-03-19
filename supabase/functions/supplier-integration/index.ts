@@ -255,8 +255,10 @@ async function createSftpAdapter(config: IntegrationConfig, password: string): P
     async download(remotePath: string): Promise<string> {
       const buffer = await client.get(remotePath);
       if (typeof buffer === "string") return buffer;
-      if (buffer instanceof Uint8Array || (typeof Buffer !== "undefined" && buffer instanceof Buffer)) return new TextDecoder("utf-8").decode(buffer);
-      return String(buffer);
+      const raw = buffer instanceof Uint8Array ? buffer : (typeof Buffer !== "undefined" && buffer instanceof Buffer) ? new Uint8Array(buffer) : new TextEncoder().encode(String(buffer));
+      let text = new TextDecoder("utf-8").decode(raw);
+      if (text.includes("\ufffd")) text = new TextDecoder("latin1").decode(raw);
+      return text;
     },
     async disconnect() { await client.end(); },
   };
