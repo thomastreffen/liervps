@@ -50,6 +50,7 @@ export interface SendMessageOptions {
   replyToMessageId?: string;
   sendEmail: boolean;
   emailRecipients?: Recipient[];
+  priority?: MessagePriority;
 }
 
 export interface UseTaskThreadReturn {
