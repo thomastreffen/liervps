@@ -7175,6 +7175,7 @@ export type Database = {
           inbound_received_at: string | null
           message_type: string
           metadata: Json
+          priority: string
           raw_headers: Json | null
           recipients: Json | null
           reply_to_address: string | null
@@ -7202,6 +7203,7 @@ export type Database = {
           inbound_received_at?: string | null
           message_type?: string
           metadata?: Json
+          priority?: string
           raw_headers?: Json | null
           recipients?: Json | null
           reply_to_address?: string | null
@@ -7229,6 +7231,7 @@ export type Database = {
           inbound_received_at?: string | null
           message_type?: string
           metadata?: Json
+          priority?: string
           raw_headers?: Json | null
           recipients?: Json | null
           reply_to_address?: string | null

@@ -6,6 +6,8 @@ import type { Recipient } from "@/components/task-thread/TaskThreadComposer";
 
 /* ── Types ── */
 
+export type MessagePriority = "normal" | "important" | "urgent";
+
 export interface TaskMessage {
   id: string;
   thread_id: string;
@@ -26,6 +28,7 @@ export interface TaskMessage {
   email_status: string | null;
   metadata: Record<string, any>;
   reply_to_message_id: string | null;
+  priority: MessagePriority;
   created_at: string;
   edited_at: string | null;
   deleted_at: string | null;
@@ -47,6 +50,7 @@ export interface SendMessageOptions {
   replyToMessageId?: string;
   sendEmail: boolean;
   emailRecipients?: Recipient[];
+  priority?: MessagePriority;
 }
 
 export interface UseTaskThreadReturn {
@@ -211,6 +215,7 @@ export function useTaskThread(taskId: string | null | undefined, companyId: stri
             attachment_paths: uploadedAttachments.length > 0 ? uploadedAttachments : undefined,
             recipient_emails: options.emailRecipients.map(r => r.email),
             reply_to_message_id: options.replyToMessageId || undefined,
+            priority: options.priority || "normal",
           },
         });
 
@@ -226,6 +231,7 @@ export function useTaskThread(taskId: string | null | undefined, companyId: stri
           message_type: "internal_message", direction: "internal",
           body: body.trim() || null,
           author_user_id: user.id, author_name: authorName, author_email: user.email,
+          priority: options.priority || "normal",
         };
         if (options.replyToMessageId) insertPayload.reply_to_message_id = options.replyToMessageId;
 

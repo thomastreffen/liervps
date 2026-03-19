@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { nb } from "date-fns/locale";
-import { User, Paperclip, Download, Mail, ArrowUpRight, ArrowDownLeft, ChevronDown, ChevronUp, Image as ImageIcon, Reply } from "lucide-react";
+import { User, Paperclip, Download, Mail, ArrowUpRight, ArrowDownLeft, ChevronDown, ChevronUp, Image as ImageIcon, Reply, AlertTriangle, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { TaskMessage } from "@/hooks/useTaskThread";
 import { cn } from "@/lib/utils";
@@ -22,6 +22,7 @@ export function TaskThreadMessageItem({ message, isOwnMessage, onReply, onScroll
   const isOutbound = message.direction === "outbound";
   const isInbound = message.direction === "inbound";
   const alignRight = isExternalEmail ? isOutbound : isOwnMessage;
+  const priority = message.priority || "normal";
 
   // Email body cleanup for inbound
   const isInboundEmail = isExternalEmail && isInbound;
@@ -56,7 +57,12 @@ export function TaskThreadMessageItem({ message, isOwnMessage, onReply, onScroll
 
   return (
     <div
-      className={cn("flex gap-2.5 group", alignRight && "flex-row-reverse")}
+      className={cn(
+        "flex gap-2.5 group",
+        alignRight && "flex-row-reverse",
+        priority === "urgent" && "pl-2 border-l-2 border-destructive/60",
+        priority === "important" && "pl-2 border-l-2 border-amber-400 dark:border-amber-600"
+      )}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
@@ -88,6 +94,7 @@ export function TaskThreadMessageItem({ message, isOwnMessage, onReply, onScroll
           </span>
           <span>{time}</span>
           <MessageTypeBadge message={message} isOutbound={isOutbound} isInbound={isInbound} />
+          <PriorityBadge priority={priority} />
 
           {/* Reply button */}
           {onReply && hovered && (
@@ -201,6 +208,28 @@ function MessageTypeBadge({ message, isOutbound, isInbound }: { message: TaskMes
       <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300">
         <ArrowDownLeft className="h-2.5 w-2.5" />
         E-post mottatt
+      </span>
+    );
+  }
+  return null;
+}
+
+/* ── Priority Badge ── */
+
+function PriorityBadge({ priority }: { priority: string }) {
+  if (priority === "urgent") {
+    return (
+      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium bg-destructive/15 text-destructive">
+        <AlertCircle className="h-2.5 w-2.5" />
+        Haster
+      </span>
+    );
+  }
+  if (priority === "important") {
+    return (
+      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300">
+        <AlertTriangle className="h-2.5 w-2.5" />
+        Viktig
       </span>
     );
   }

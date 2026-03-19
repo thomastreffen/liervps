@@ -84,7 +84,7 @@ Deno.serve(async (req) => {
     // Get all relevant unread messages (not system_event, not too fresh)
     const { data: allMessages } = await supabase
       .from("task_messages")
-      .select("id, thread_id, task_id, company_id, message_type, direction, author_user_id, author_name, body, created_at")
+      .select("id, thread_id, task_id, company_id, message_type, direction, author_user_id, author_name, body, created_at, priority")
       .in("thread_id", threadIds)
       .in("message_type", ["internal_message", "external_email"])
       .is("deleted_at", null)
@@ -238,28 +238,27 @@ Deno.serve(async (req) => {
           lastActivity: string;
           lastAuthor: string;
           lastMessageType: string;
+          maxPriority: string;
         };
 
         const unreadByTask = new Map<string, UnreadTask>();
+        const priorityRank: Record<string, number> = { urgent: 3, important: 2, normal: 1 };
 
         for (const msg of eligibleMessages) {
           const threadInfo = threadMap.get(msg.thread_id);
           if (!threadInfo) continue;
 
-          // User must have access to this task
           if (!candidate.taskIds.has(threadInfo.taskId)) continue;
-
-          // Skip own messages
           if (msg.author_user_id === userId) continue;
 
-          // Check if unread: message created_at > user's last_read_at
           const readKey = `${userId}:${msg.thread_id}`;
           const lastReadAt = readMap.get(readKey);
           if (lastReadAt && new Date(msg.created_at) <= new Date(lastReadAt)) continue;
 
-          // This message is unread for this user
           const taskInfo = taskInfoMap.get(threadInfo.taskId);
           if (!taskInfo) continue;
+
+          const msgPriority = (msg as any).priority || "normal";
 
           if (!unreadByTask.has(threadInfo.taskId)) {
             unreadByTask.set(threadInfo.taskId, {
@@ -273,11 +272,15 @@ Deno.serve(async (req) => {
               lastActivity: msg.created_at,
               lastAuthor: msg.author_name || "Ukjent",
               lastMessageType: msg.message_type,
+              maxPriority: msgPriority,
             });
           }
 
           const entry = unreadByTask.get(threadInfo.taskId)!;
           entry.unreadCount++;
+          if ((priorityRank[msgPriority] || 1) > (priorityRank[entry.maxPriority] || 1)) {
+            entry.maxPriority = msgPriority;
+          }
           if (new Date(msg.created_at) > new Date(entry.lastActivity)) {
             entry.lastActivity = msg.created_at;
             entry.lastAuthor = msg.author_name || "Ukjent";
@@ -290,10 +293,13 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        // Build and send email
-        const taskSummaries = [...unreadByTask.values()].sort(
-          (a, b) => new Date(b.lastActivity).getTime() - new Date(a.lastActivity).getTime()
-        );
+        // Sort: urgent first, then important, then normal, then by last activity
+        const taskSummaries = [...unreadByTask.values()].sort((a, b) => {
+          const pa = priorityRank[a.maxPriority] || 1;
+          const pb = priorityRank[b.maxPriority] || 1;
+          if (pa !== pb) return pb - pa;
+          return new Date(b.lastActivity).getTime() - new Date(a.lastActivity).getTime();
+        });
         const totalUnread = taskSummaries.reduce((sum, t) => sum + t.unreadCount, 0);
 
         const html = buildDigestHtml(candidate.name, taskSummaries, totalUnread);
@@ -366,6 +372,7 @@ interface TaskSummary {
   lastActivity: string;
   lastAuthor: string;
   lastMessageType: string;
+  maxPriority: string;
 }
 
 function buildDigestHtml(userName: string, tasks: TaskSummary[], totalUnread: number): string {
@@ -397,14 +404,20 @@ function buildDigestHtml(userName: string, tasks: TaskSummary[], totalUnread: nu
       });
       const deepLink = `${APP_BASE_URL}/projects/plan?${deepLinkParams.toString()}`;
 
+      const priorityBadge = t.maxPriority === 'urgent'
+        ? '<span style="display:inline-block;background:#fee2e2;color:#dc2626;font-size:11px;font-weight:600;padding:2px 8px;border-radius:4px;margin-left:8px;">🔴 HASTER</span>'
+        : t.maxPriority === 'important'
+        ? '<span style="display:inline-block;background:#fef3c7;color:#b45309;font-size:11px;font-weight:600;padding:2px 8px;border-radius:4px;margin-left:8px;">⚠️ Viktig</span>'
+        : '';
+
       return `
         <tr>
-          <td style="padding: 16px 20px; border-bottom: 1px solid #f3f4f6;">
+          <td style="padding: 16px 20px; border-bottom: 1px solid #f3f4f6;${t.maxPriority === 'urgent' ? ' border-left: 3px solid #dc2626;' : t.maxPriority === 'important' ? ' border-left: 3px solid #f59e0b;' : ''}">
             <table cellpadding="0" cellspacing="0" width="100%">
               <tr>
                 <td>
                   <p style="margin: 0 0 4px; font-weight: 600; color: #1a1a1a; font-size: 14px;">
-                    ${escapeHtml(titleDisplay)}
+                    ${escapeHtml(titleDisplay)}${priorityBadge}
                   </p>
                   <p style="margin: 0; color: #6b7280; font-size: 13px;">
                     ${t.unreadCount} ${t.unreadCount === 1 ? "ulest melding" : "uleste meldinger"}
