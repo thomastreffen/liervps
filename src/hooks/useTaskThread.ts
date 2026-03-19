@@ -231,6 +231,7 @@ export function useTaskThread(taskId: string | null | undefined, companyId: stri
           message_type: "internal_message", direction: "internal",
           body: body.trim() || null,
           author_user_id: user.id, author_name: authorName, author_email: user.email,
+          priority: options.priority || "normal",
         };
         if (options.replyToMessageId) insertPayload.reply_to_message_id = options.replyToMessageId;
 
