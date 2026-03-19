@@ -211,7 +211,7 @@ export function TaskThreadComposer({ onSend, sending, canUpload, canEmail, taskI
                 </>
               ) : (
                 <>
-                  <MailOff className="h-3 w-3" />
+                  <MailX className="h-3 w-3" />
                   <span>E-post av</span>
                 </>
               )}
