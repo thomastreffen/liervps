@@ -198,7 +198,7 @@ function categorizeFiles(
   files: RemoteFile[],
   config: IntegrationConfig,
 ): {
-  all_files: RemoteFile[];
+  all_files: (RemoteFile & { categories: string[] })[];
   matched: { catalog: RemoteFile[]; price: RemoteFile[]; discount: RemoteFile[]; invoice: RemoteFile[] };
   warnings: string[];
 } {
@@ -211,20 +211,27 @@ function categorizeFiles(
   };
   const warnings: string[] = [];
 
-  for (const f of onlyFiles) {
+  // Build tagged list with categories per file
+  const tagged = onlyFiles.map((f) => {
+    const categories: string[] = [];
     if (config.catalog_file_pattern && matchGlob(config.catalog_file_pattern, f.name)) {
       matched.catalog.push(f);
+      categories.push("catalog");
     }
     if (config.price_file_pattern && matchGlob(config.price_file_pattern, f.name)) {
       matched.price.push(f);
+      categories.push("price");
     }
     if (config.discount_file_pattern && matchGlob(config.discount_file_pattern, f.name)) {
       matched.discount.push(f);
+      categories.push("discount");
     }
     if (config.invoice_file_pattern && matchGlob(config.invoice_file_pattern, f.name)) {
       matched.invoice.push(f);
+      categories.push("invoice");
     }
-  }
+    return { ...f, categories };
+  });
 
   if (config.catalog_file_pattern && matched.catalog.length === 0) {
     warnings.push(`Ingen filer matchet katalogmønsteret: ${config.catalog_file_pattern}`);
@@ -235,8 +242,11 @@ function categorizeFiles(
   if (config.discount_file_pattern && matched.discount.length === 0) {
     warnings.push(`Ingen filer matchet rabattmønsteret: ${config.discount_file_pattern}`);
   }
+  if (config.invoice_file_pattern && matched.invoice.length === 0) {
+    warnings.push(`Ingen filer matchet fakturamønsteret: ${config.invoice_file_pattern}`);
+  }
 
-  return { all_files: onlyFiles, matched, warnings };
+  return { all_files: tagged, matched, warnings };
 }
 
 // ===== Timeout helper =====
