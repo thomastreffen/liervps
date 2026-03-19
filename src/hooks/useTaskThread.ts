@@ -6,6 +6,8 @@ import type { Recipient } from "@/components/task-thread/TaskThreadComposer";
 
 /* ── Types ── */
 
+export type MessagePriority = "normal" | "important" | "urgent";
+
 export interface TaskMessage {
   id: string;
   thread_id: string;
@@ -26,6 +28,7 @@ export interface TaskMessage {
   email_status: string | null;
   metadata: Record<string, any>;
   reply_to_message_id: string | null;
+  priority: MessagePriority;
   created_at: string;
   edited_at: string | null;
   deleted_at: string | null;
