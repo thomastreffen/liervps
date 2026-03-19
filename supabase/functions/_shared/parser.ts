@@ -1,6 +1,8 @@
 /**
  * Parser framework and import services for supplier product imports.
  * Supports: CSV/delimited files AND EFONELFO (Norwegian standard) format.
+ * 
+ * OPTIMIZED: Uses batch DB operations to avoid memory exhaustion on large files.
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
@@ -15,19 +17,14 @@ export function detectDelimiter(lines: string[]): string {
   const sample = lines.slice(0, Math.min(10, lines.length));
   let best = ";";
   let bestScore = 0;
-
   for (const d of DELIMITERS) {
     const counts = sample.map((l) => l.split(d).length - 1);
     if (counts.length === 0) continue;
     const consistent = counts.every((c) => c === counts[0] && c > 0);
     const avgCount = counts.reduce((a, b) => a + b, 0) / counts.length;
     const score = consistent ? avgCount * 10 : avgCount;
-    if (score > bestScore) {
-      bestScore = score;
-      best = d;
-    }
+    if (score > bestScore) { bestScore = score; best = d; }
   }
-  console.log(`[parser] Detected delimiter: "${best === "\t" ? "TAB" : best}" (score: ${bestScore})`);
   return best;
 }
 
@@ -66,21 +63,13 @@ function cleanString(raw: string | undefined | null): string | null {
 
 // ===== EFONELFO Format Detection & Parsing =====
 
-/**
- * EFONELFO is a Norwegian EDI standard for product/price files.
- * Record types: VH (header), VL (product line), PH (price header), PL (price line),
- * RH (discount header), RL (discount line), etc.
- * Fields are semicolon-delimited with fixed record-type prefixes.
- */
 function isEfonelfoFormat(lines: string[]): boolean {
-  // Check if first non-empty line starts with a known EFONELFO record type
   for (const line of lines.slice(0, 5)) {
     const trimmed = line.trim();
     if (!trimmed) continue;
     const fields = trimmed.split(";");
     const recordType = fields[0]?.toUpperCase().trim();
     if (["VH", "PH", "RH", "IH"].includes(recordType)) return true;
-    // Also check if second field is "EFONELFO" (common header indicator)
     if (fields[1]?.toUpperCase().trim() === "EFONELFO") return true;
   }
   return false;
@@ -102,104 +91,58 @@ interface EfonelfoProduct {
 
 function parseEfonelfoFile(lines: string[]): EfonelfoProduct[] {
   const products = new Map<string, EfonelfoProduct>();
-
   for (const line of lines) {
     const fields = line.split(";").map(f => f.trim());
     const recordType = fields[0]?.toUpperCase();
-
     if (recordType === "VL") {
-      // VL = Varelinje (product line)
-      // Typical EFONELFO VL: VL;artikkelnr;elnr;ean;tekst1;tekst2;enhet;merke;gruppe;...
-      // Positions vary but common layout:
-      // [0]=VL [1]=supplier_sku [2]=el_number [3]=ean [4]=name [5]=description [6]=unit [7]=brand [8]=category
       const sku = cleanString(fields[1]);
-      if (!sku) continue;
-
-      const existing = products.get(sku);
-      if (existing) continue; // already have this product
-
+      if (!sku || products.has(sku)) continue;
       products.set(sku, {
-        supplier_sku: sku,
-        el_number: cleanString(fields[2]),
-        ean: cleanString(fields[3]),
-        product_name: cleanString(fields[4]),
-        description: cleanString(fields[5]),
-        unit: cleanString(fields[6]),
-        brand: cleanString(fields[7]),
-        category: cleanString(fields[8]),
-        list_price: null,
-        discount_percent: null,
-        net_price: null,
+        supplier_sku: sku, el_number: cleanString(fields[2]), ean: cleanString(fields[3]),
+        product_name: cleanString(fields[4]), description: cleanString(fields[5]),
+        unit: cleanString(fields[6]), brand: cleanString(fields[7]), category: cleanString(fields[8]),
+        list_price: null, discount_percent: null, net_price: null,
       });
     } else if (recordType === "PL") {
-      // PL = Prislinje (price line)
-      // [0]=PL [1]=artikkelnr [2]=bruttopris [3]=nettopris [4]=rabatt% [5]=enhet [6]=valuta
       const sku = cleanString(fields[1]);
       if (!sku) continue;
-
-      const listPrice = parseNumber(fields[2]);
-      const netPrice = parseNumber(fields[3]);
-      const discPct = parseNumber(fields[4]);
-
       const existing = products.get(sku);
       if (existing) {
-        existing.list_price = listPrice ?? existing.list_price;
-        existing.net_price = netPrice ?? existing.net_price;
-        existing.discount_percent = discPct ?? existing.discount_percent;
+        existing.list_price = parseNumber(fields[2]) ?? existing.list_price;
+        existing.net_price = parseNumber(fields[3]) ?? existing.net_price;
+        existing.discount_percent = parseNumber(fields[4]) ?? existing.discount_percent;
       } else {
-        // Price line without product line - create minimal entry
         products.set(sku, {
-          supplier_sku: sku,
-          el_number: null, ean: null,
-          product_name: null, description: null,
-          unit: cleanString(fields[5]),
-          brand: null, category: null,
-          list_price: listPrice,
-          discount_percent: discPct,
-          net_price: netPrice,
+          supplier_sku: sku, el_number: null, ean: null, product_name: null, description: null,
+          unit: cleanString(fields[5]), brand: null, category: null,
+          list_price: parseNumber(fields[2]), discount_percent: parseNumber(fields[4]), net_price: parseNumber(fields[3]),
         });
       }
     } else if (recordType === "RL") {
-      // RL = Rabattlinje (discount line)
-      // [0]=RL [1]=artikkelnr [2]=rabatt% [3]=nettopris
       const sku = cleanString(fields[1]);
       if (!sku) continue;
-
-      const discPct = parseNumber(fields[2]);
-      const netPrice = parseNumber(fields[3]);
-
       const existing = products.get(sku);
       if (existing) {
-        existing.discount_percent = discPct ?? existing.discount_percent;
+        existing.discount_percent = parseNumber(fields[2]) ?? existing.discount_percent;
+        const netPrice = parseNumber(fields[3]);
         if (netPrice != null) existing.net_price = netPrice;
       }
     }
   }
-
-  // Calculate net_price where missing
   for (const p of products.values()) {
     if (p.net_price == null && p.list_price != null && p.discount_percent != null) {
       p.net_price = Math.round(p.list_price * (1 - p.discount_percent / 100) * 100) / 100;
     }
   }
-
   return Array.from(products.values());
 }
 
 // ===== Supplier mapping profiles =====
 
 interface ColumnMapping {
-  supplier_sku?: string[];
-  el_number?: string[];
-  ean?: string[];
-  product_name?: string[];
-  description?: string[];
-  brand?: string[];
-  unit?: string[];
-  category?: string[];
-  list_price?: string[];
-  discount_percent?: string[];
-  net_price?: string[];
+  supplier_sku?: string[]; el_number?: string[]; ean?: string[]; product_name?: string[];
+  description?: string[]; brand?: string[]; unit?: string[]; category?: string[];
+  list_price?: string[]; discount_percent?: string[]; net_price?: string[];
 }
 
 const GENERIC_MAPPING: ColumnMapping = {
@@ -237,29 +180,15 @@ function getSupplierMapping(supplierCode: string | null): ColumnMapping {
 // ===== Column resolver =====
 
 function resolveColumn(headers: string[], candidates: string[]): number {
-  for (const candidate of candidates) {
-    const idx = headers.indexOf(candidate);
-    if (idx !== -1) return idx;
-  }
-  for (const candidate of candidates) {
-    const idx = headers.findIndex((h) => h.includes(candidate));
-    if (idx !== -1) return idx;
-  }
+  for (const c of candidates) { const idx = headers.indexOf(c); if (idx !== -1) return idx; }
+  for (const c of candidates) { const idx = headers.findIndex((h) => h.includes(c)); if (idx !== -1) return idx; }
   return -1;
 }
 
 interface ResolvedColumns {
-  supplier_sku: number;
-  el_number: number;
-  ean: number;
-  product_name: number;
-  description: number;
-  brand: number;
-  unit: number;
-  category: number;
-  list_price: number;
-  discount_percent: number;
-  net_price: number;
+  supplier_sku: number; el_number: number; ean: number; product_name: number;
+  description: number; brand: number; unit: number; category: number;
+  list_price: number; discount_percent: number; net_price: number;
 }
 
 function resolveAllColumns(headers: string[], mapping: ColumnMapping): { columns: ResolvedColumns; missing: string[] } {
@@ -286,186 +215,353 @@ function resolveAllColumns(headers: string[], mapping: ColumnMapping): { columns
 // ===== Row parser =====
 
 interface ParsedRow {
-  supplier_sku: string | null;
-  el_number: string | null;
-  ean: string | null;
-  product_name: string | null;
-  description: string | null;
-  brand: string | null;
-  unit: string | null;
-  category: string | null;
-  list_price: number | null;
-  discount_percent: number | null;
-  net_price: number | null;
-  raw_fields: Record<string, string>;
+  supplier_sku: string | null; el_number: string | null; ean: string | null;
+  product_name: string | null; description: string | null; brand: string | null;
+  unit: string | null; category: string | null; list_price: number | null;
+  discount_percent: number | null; net_price: number | null;
 }
 
-function parseRow(fields: string[], columns: ResolvedColumns, headers: string[]): ParsedRow {
+function parseRow(fields: string[], columns: ResolvedColumns): ParsedRow {
   const get = (idx: number) => (idx >= 0 && idx < fields.length ? fields[idx]?.trim().replace(/^"|"$/g, "") : null);
-  const rawFields: Record<string, string> = {};
-  headers.forEach((h, i) => { if (i < fields.length) rawFields[h] = fields[i]?.trim() ?? ""; });
-
   let listPrice = parseNumber(get(columns.list_price));
   let discountPct = parseNumber(get(columns.discount_percent));
   let netPrice = parseNumber(get(columns.net_price));
-
   if (netPrice === null && listPrice !== null && discountPct !== null) {
     netPrice = Math.round(listPrice * (1 - discountPct / 100) * 100) / 100;
   }
-
   return {
-    supplier_sku: cleanString(get(columns.supplier_sku)),
-    el_number: cleanString(get(columns.el_number)),
-    ean: cleanString(get(columns.ean)),
-    product_name: cleanString(get(columns.product_name)),
-    description: cleanString(get(columns.description)),
-    brand: cleanString(get(columns.brand)),
-    unit: cleanString(get(columns.unit)),
-    category: cleanString(get(columns.category)),
-    list_price: listPrice,
-    discount_percent: discountPct,
-    net_price: netPrice,
-    raw_fields: rawFields,
+    supplier_sku: cleanString(get(columns.supplier_sku)), el_number: cleanString(get(columns.el_number)),
+    ean: cleanString(get(columns.ean)), product_name: cleanString(get(columns.product_name)),
+    description: cleanString(get(columns.description)), brand: cleanString(get(columns.brand)),
+    unit: cleanString(get(columns.unit)), category: cleanString(get(columns.category)),
+    list_price: listPrice, discount_percent: discountPct, net_price: netPrice,
   };
 }
 
-// ===== Import services =====
+// ===== BATCH Import Services =====
+// Process rows in chunks to stay within edge function memory limits.
 
-async function upsertSupplierProduct(
-  supabaseAdmin: SupabaseAdmin, companyId: string, supplierId: string, row: ParsedRow,
-): Promise<{ id: string; isNew: boolean }> {
-  const { data: existing } = await supabaseAdmin
-    .from("supplier_products").select("id")
-    .eq("company_id", companyId).eq("supplier_id", supplierId).eq("supplier_sku", row.supplier_sku!)
-    .maybeSingle();
+const BATCH_SIZE = 100;
+
+/**
+ * Batch upsert supplier_products. Returns map of supplier_sku → { id, isNew }.
+ */
+async function batchUpsertSupplierProducts(
+  sa: SupabaseAdmin, companyId: string, supplierId: string, rows: ParsedRow[],
+): Promise<Map<string, { id: string; isNew: boolean }>> {
+  const result = new Map<string, { id: string; isNew: boolean }>();
+  const skus = rows.map(r => r.supplier_sku!).filter(Boolean);
+  if (skus.length === 0) return result;
+
+  // Fetch existing in one query (batched if >200 skus)
+  const existingMap = new Map<string, string>();
+  for (let i = 0; i < skus.length; i += 200) {
+    const batch = skus.slice(i, i + 200);
+    const { data } = await sa.from("supplier_products").select("id, supplier_sku")
+      .eq("company_id", companyId).eq("supplier_id", supplierId).in("supplier_sku", batch);
+    for (const d of data ?? []) existingMap.set(d.supplier_sku, d.id);
+  }
 
   const now = new Date().toISOString();
-  if (existing) {
-    await supabaseAdmin.from("supplier_products").update({
-      supplier_product_name: row.product_name, supplier_product_description: row.description,
-      raw_category: row.category, raw_brand: row.brand, raw_unit: row.unit,
-      raw_payload: row.raw_fields, last_seen_at: now, updated_at: now,
-    }).eq("id", existing.id);
-    return { id: existing.id, isNew: false };
+  const toInsert: any[] = [];
+  const toUpdate: { id: string; row: ParsedRow }[] = [];
+
+  for (const row of rows) {
+    if (!row.supplier_sku) continue;
+    const existingId = existingMap.get(row.supplier_sku);
+    if (existingId) {
+      toUpdate.push({ id: existingId, row });
+      result.set(row.supplier_sku, { id: existingId, isNew: false });
+    } else {
+      toInsert.push({
+        company_id: companyId, supplier_id: supplierId, supplier_sku: row.supplier_sku,
+        supplier_product_name: row.product_name, supplier_product_description: row.description,
+        raw_category: row.category, raw_brand: row.brand, raw_unit: row.unit,
+        last_seen_at: now,
+      });
+    }
   }
 
-  const { data: inserted, error } = await supabaseAdmin.from("supplier_products").insert({
-    company_id: companyId, supplier_id: supplierId, supplier_sku: row.supplier_sku!,
-    supplier_product_name: row.product_name, supplier_product_description: row.description,
-    raw_category: row.category, raw_brand: row.brand, raw_unit: row.unit,
-    raw_payload: row.raw_fields, last_seen_at: now,
-  }).select("id").single();
+  // Batch insert new products
+  if (toInsert.length > 0) {
+    for (let i = 0; i < toInsert.length; i += BATCH_SIZE) {
+      const batch = toInsert.slice(i, i + BATCH_SIZE);
+      const { data, error } = await sa.from("supplier_products").insert(batch).select("id, supplier_sku");
+      if (error) {
+        console.error(`[batch] Insert supplier_products error: ${error.message}`);
+        // Fall back to individual inserts for this batch
+        for (const item of batch) {
+          try {
+            const { data: single } = await sa.from("supplier_products").insert(item).select("id, supplier_sku").single();
+            if (single) result.set(single.supplier_sku, { id: single.id, isNew: true });
+          } catch {}
+        }
+        continue;
+      }
+      for (const d of data ?? []) result.set(d.supplier_sku, { id: d.id, isNew: true });
+    }
+  }
 
-  if (error) throw new Error(`Upsert supplier_product: ${error.message}`);
-  return { id: inserted.id, isNew: true };
+  // Batch update existing (just touch last_seen_at, lighter than per-row)
+  if (toUpdate.length > 0) {
+    const updateIds = toUpdate.map(u => u.id);
+    for (let i = 0; i < updateIds.length; i += 200) {
+      const batch = updateIds.slice(i, i + 200);
+      await sa.from("supplier_products").update({ last_seen_at: now, updated_at: now }).in("id", batch);
+    }
+  }
+
+  return result;
 }
 
-async function matchCatalogProduct(supabaseAdmin: SupabaseAdmin, companyId: string, row: ParsedRow): Promise<string | null> {
-  // 1. Exact el_number match
-  if (row.el_number) {
-    const { data } = await supabaseAdmin.from("supplier_catalog_products").select("id")
-      .eq("company_id", companyId).eq("el_number", row.el_number).limit(1).maybeSingle();
-    if (data) return data.id;
+/**
+ * Batch match catalog products by el_number and EAN.
+ * Returns map of supplier_sku → catalog_product_id.
+ */
+async function batchMatchCatalogProducts(
+  sa: SupabaseAdmin, companyId: string, rows: ParsedRow[],
+): Promise<Map<string, string>> {
+  const result = new Map<string, string>();
+  
+  // Collect all el_numbers and EANs
+  const elNumbers = rows.filter(r => r.el_number).map(r => r.el_number!);
+  const eans = rows.filter(r => r.ean).map(r => r.ean!);
+  
+  // Batch lookup by el_number
+  const elMap = new Map<string, string>();
+  if (elNumbers.length > 0) {
+    for (let i = 0; i < elNumbers.length; i += 200) {
+      const batch = [...new Set(elNumbers.slice(i, i + 200))];
+      const { data } = await sa.from("supplier_catalog_products").select("id, el_number")
+        .eq("company_id", companyId).in("el_number", batch);
+      for (const d of data ?? []) if (d.el_number) elMap.set(d.el_number, d.id);
+    }
   }
-  // 2. Exact EAN match
-  if (row.ean) {
-    const { data } = await supabaseAdmin.from("supplier_catalog_products").select("id")
-      .eq("company_id", companyId).eq("ean", row.ean).limit(1).maybeSingle();
-    if (data) return data.id;
+  
+  // Batch lookup by EAN
+  const eanMap = new Map<string, string>();
+  if (eans.length > 0) {
+    for (let i = 0; i < eans.length; i += 200) {
+      const batch = [...new Set(eans.slice(i, i + 200))];
+      const { data } = await sa.from("supplier_catalog_products").select("id, ean")
+        .eq("company_id", companyId).in("ean", batch);
+      for (const d of data ?? []) if (d.ean) eanMap.set(d.ean, d.id);
+    }
   }
-  // 3. supplier_independent_sku match (if sku looks like a standard code)
-  if (row.supplier_sku && row.supplier_sku.length >= 5) {
-    const { data } = await supabaseAdmin.from("supplier_catalog_products").select("id")
-      .eq("company_id", companyId).eq("supplier_independent_sku", row.supplier_sku).limit(1).maybeSingle();
-    if (data) return data.id;
+  
+  // Assign matches: el_number first, then EAN
+  for (const row of rows) {
+    if (!row.supplier_sku) continue;
+    if (row.el_number && elMap.has(row.el_number)) {
+      result.set(row.supplier_sku, elMap.get(row.el_number)!);
+    } else if (row.ean && eanMap.has(row.ean)) {
+      result.set(row.supplier_sku, eanMap.get(row.ean)!);
+    }
   }
-  return null;
+  
+  return result;
 }
 
-async function autoCreateCatalogProduct(supabaseAdmin: SupabaseAdmin, companyId: string, row: ParsedRow): Promise<string | null> {
-  // Need a name AND at least one strong identifier, OR just a name + SKU if name is good
-  const hasName = !!row.product_name && row.product_name.length >= 3;
-  const hasStrongId = !!row.el_number || !!row.ean;
-  const hasSkuIdentity = !!row.supplier_sku && row.supplier_sku.length >= 3;
+/**
+ * Batch auto-create catalog products for unmatched rows.
+ * Returns map of supplier_sku → new catalog_product_id.
+ */
+async function batchAutoCreateCatalogProducts(
+  sa: SupabaseAdmin, companyId: string, unmatchedRows: ParsedRow[],
+): Promise<Map<string, string>> {
+  const result = new Map<string, string>();
+  const toCreate: { row: ParsedRow; payload: any }[] = [];
 
-  if (!hasName && !hasSkuIdentity) return null;
-  if (!hasName && !hasStrongId) return null;
+  // Deduplicate by el_number/ean to avoid creating duplicate masters
+  const seenElNumbers = new Set<string>();
+  const seenEans = new Set<string>();
 
-  const name = row.product_name || row.supplier_sku || "Ukjent produkt";
+  for (const row of unmatchedRows) {
+    if (!row.supplier_sku) continue;
+    const hasName = !!row.product_name && row.product_name.length >= 3;
+    const hasStrongId = !!row.el_number || !!row.ean;
+    const hasSkuIdentity = !!row.supplier_sku && row.supplier_sku.length >= 3;
+    if (!hasName && !hasSkuIdentity) continue;
+    if (!hasName && !hasStrongId) continue;
 
-  const { data, error } = await supabaseAdmin.from("supplier_catalog_products").insert({
-    company_id: companyId, name, el_number: row.el_number,
-    ean: row.ean, brand: row.brand, unit: row.unit, category: row.category,
-    description: row.description, is_active: true,
-  }).select("id").single();
-  if (error) { console.warn(`[catalog] Auto-create failed: ${error.message}`); return null; }
-  console.log(`[catalog] Auto-created master product: ${name} (${data.id})`);
-  return data.id;
+    // Skip duplicates within this batch
+    if (row.el_number && seenElNumbers.has(row.el_number)) continue;
+    if (row.ean && seenEans.has(row.ean)) continue;
+
+    if (row.el_number) seenElNumbers.add(row.el_number);
+    if (row.ean) seenEans.add(row.ean);
+
+    toCreate.push({
+      row,
+      payload: {
+        company_id: companyId, name: row.product_name || row.supplier_sku || "Ukjent produkt",
+        el_number: row.el_number, ean: row.ean, brand: row.brand,
+        unit: row.unit, category: row.category, description: row.description, is_active: true,
+      },
+    });
+  }
+
+  // Batch insert
+  for (let i = 0; i < toCreate.length; i += BATCH_SIZE) {
+    const batch = toCreate.slice(i, i + BATCH_SIZE);
+    const payloads = batch.map(b => b.payload);
+    const { data, error } = await sa.from("supplier_catalog_products").insert(payloads).select("id, el_number, ean, name");
+    if (error) {
+      console.warn(`[batch] Auto-create catalog error: ${error.message}, falling back to individual`);
+      for (const item of batch) {
+        try {
+          const { data: single } = await sa.from("supplier_catalog_products").insert(item.payload).select("id").single();
+          if (single) result.set(item.row.supplier_sku!, single.id);
+        } catch {}
+      }
+      continue;
+    }
+    // Map back to rows by position (insert order preserved)
+    for (let j = 0; j < (data ?? []).length; j++) {
+      const created = data![j];
+      const srcRow = batch[j].row;
+      result.set(srcRow.supplier_sku!, created.id);
+    }
+  }
+
+  return result;
 }
 
-async function upsertSupplierPrice(
-  supabaseAdmin: SupabaseAdmin, companyId: string, supplierId: string,
-  supplierProductId: string, row: ParsedRow, fileName: string,
+/**
+ * Batch insert supplier_prices.
+ */
+async function batchInsertPrices(
+  sa: SupabaseAdmin, companyId: string, supplierId: string,
+  priceRows: Array<{ supplierProductId: string; row: ParsedRow; fileName: string }>,
 ): Promise<void> {
-  if (row.list_price === null && row.net_price === null) return;
-  await supabaseAdmin.from("supplier_prices").insert({
-    company_id: companyId, supplier_id: supplierId, supplier_product_id: supplierProductId,
-    list_price: row.list_price ?? 0, discount_percent: row.discount_percent,
-    net_price: row.net_price, currency: "NOK", source_file_name: fileName,
-    imported_at: new Date().toISOString(),
-  });
+  const now = new Date().toISOString();
+  const payloads = priceRows
+    .filter(p => p.row.list_price !== null || p.row.net_price !== null)
+    .map(p => ({
+      company_id: companyId, supplier_id: supplierId, supplier_product_id: p.supplierProductId,
+      list_price: p.row.list_price ?? 0, discount_percent: p.row.discount_percent,
+      net_price: p.row.net_price, currency: "NOK", source_file_name: p.fileName,
+      imported_at: now,
+    }));
+
+  for (let i = 0; i < payloads.length; i += BATCH_SIZE) {
+    const batch = payloads.slice(i, i + BATCH_SIZE);
+    const { error } = await sa.from("supplier_prices").insert(batch);
+    if (error) console.error(`[batch] Insert prices error: ${error.message}`);
+  }
+}
+
+/**
+ * Batch insert import rows for audit trail.
+ */
+async function batchInsertImportRows(
+  sa: SupabaseAdmin, companyId: string, importJobId: string, fileType: string,
+  rows: Array<{ rowNumber: number; parseStatus: string; errorMessage: string | null; linkedProductId: string | null; linkedSupplierProductId: string | null }>,
+): Promise<void> {
+  const payloads = rows.map(r => ({
+    company_id: companyId, import_job_id: importJobId, row_number: r.rowNumber,
+    row_type: fileType, raw_data: {}, parse_status: r.parseStatus,
+    error_message: r.errorMessage, linked_product_id: r.linkedProductId,
+    linked_supplier_product_id: r.linkedSupplierProductId,
+  }));
+
+  for (let i = 0; i < payloads.length; i += BATCH_SIZE) {
+    const batch = payloads.slice(i, i + BATCH_SIZE);
+    try {
+      await sa.from("product_import_rows").insert(batch);
+    } catch (e) {
+      console.error(`[batch] Insert import_rows error: ${(e as Error).message}`);
+    }
+  }
+}
+
+/**
+ * Batch link supplier_products to catalog products.
+ */
+async function batchLinkProducts(
+  sa: SupabaseAdmin, links: Array<{ supplierProductId: string; catalogProductId: string }>,
+): Promise<void> {
+  // Group by catalogProductId for efficient updates
+  const byProduct = new Map<string, string[]>();
+  for (const l of links) {
+    const arr = byProduct.get(l.catalogProductId) ?? [];
+    arr.push(l.supplierProductId);
+    byProduct.set(l.catalogProductId, arr);
+  }
+  for (const [catalogId, spIds] of byProduct) {
+    for (let i = 0; i < spIds.length; i += 200) {
+      const batch = spIds.slice(i, i + 200);
+      await sa.from("supplier_products").update({ product_id: catalogId }).in("id", batch);
+    }
+  }
 }
 
 // ===== Price cache recalculation =====
 
-export async function rebuildPriceCache(supabaseAdmin: SupabaseAdmin, companyId: string, productIds: string[]) {
-  if (productIds.length === 0) return;
+export async function rebuildPriceCache(sa: SupabaseAdmin, companyId: string, productIds: string[]) {
   const uniqueIds = [...new Set(productIds)];
+  if (uniqueIds.length === 0) return;
   console.log(`[cache] Rebuilding price cache for ${uniqueIds.length} products`);
 
-  for (const productId of uniqueIds) {
-    const { data: linkedSps } = await supabaseAdmin.from("supplier_products").select("id")
-      .eq("company_id", companyId).eq("product_id", productId);
+  for (let i = 0; i < uniqueIds.length; i += 50) {
+    const batch = uniqueIds.slice(i, i + 50);
     
-    const spIds = linkedSps?.map((sp: any) => sp.id) ?? [];
-    if (spIds.length === 0) continue;
-
-    const { data: prices } = await supabaseAdmin
-      .from("supplier_prices")
-      .select("supplier_id, net_price, list_price, discount_percent")
-      .eq("company_id", companyId)
-      .in("supplier_product_id", spIds)
+    // Get all linked supplier_product IDs for this batch
+    const { data: linkedSps } = await sa.from("supplier_products").select("id, product_id")
+      .eq("company_id", companyId).in("product_id", batch);
+    
+    if (!linkedSps || linkedSps.length === 0) continue;
+    
+    const spIds = linkedSps.map(sp => sp.id);
+    const { data: prices } = await sa.from("supplier_prices")
+      .select("supplier_id, supplier_product_id, net_price, list_price, discount_percent")
+      .eq("company_id", companyId).in("supplier_product_id", spIds)
       .order("imported_at", { ascending: false });
 
     if (!prices || prices.length === 0) continue;
 
-    let bestPrice: number | null = null;
-    let bestSupplierId: string | null = null;
-    const snapshot: Record<string, unknown> = {};
+    // Group prices by product_id
+    const spToProduct = new Map<string, string>();
+    for (const sp of linkedSps) spToProduct.set(sp.id, sp.product_id);
 
+    const pricesByProduct = new Map<string, typeof prices>();
     for (const p of prices) {
-      const effective = p.net_price ?? p.list_price;
-      if (effective !== null && (bestPrice === null || effective < bestPrice)) {
-        bestPrice = effective;
-        bestSupplierId = p.supplier_id;
-      }
-      if (!snapshot[p.supplier_id]) {
-        snapshot[p.supplier_id] = { net_price: p.net_price, list_price: p.list_price, discount_percent: p.discount_percent };
-      }
+      const productId = spToProduct.get(p.supplier_product_id);
+      if (!productId) continue;
+      const arr = pricesByProduct.get(productId) ?? [];
+      arr.push(p);
+      pricesByProduct.set(productId, arr);
     }
 
-    const { data: existing } = await supabaseAdmin.from("product_price_cache").select("id")
-      .eq("company_id", companyId).eq("product_id", productId).maybeSingle();
+    // Build cache entries
+    for (const [productId, pList] of pricesByProduct) {
+      let bestPrice: number | null = null;
+      let bestSupplierId: string | null = null;
+      const snapshot: Record<string, unknown> = {};
 
-    const cacheData = {
-      company_id: companyId, product_id: productId, best_supplier_id: bestSupplierId,
-      best_net_price: bestPrice, price_snapshot: snapshot, recalculated_at: new Date().toISOString(),
-    };
+      for (const p of pList) {
+        const effective = p.net_price ?? p.list_price;
+        if (effective !== null && (bestPrice === null || effective < bestPrice)) {
+          bestPrice = effective; bestSupplierId = p.supplier_id;
+        }
+        if (!snapshot[p.supplier_id]) {
+          snapshot[p.supplier_id] = { net_price: p.net_price, list_price: p.list_price, discount_percent: p.discount_percent };
+        }
+      }
 
-    if (existing) {
-      await supabaseAdmin.from("product_price_cache").update(cacheData).eq("id", existing.id);
-    } else {
-      await supabaseAdmin.from("product_price_cache").insert(cacheData);
+      const cacheData = {
+        company_id: companyId, product_id: productId, best_supplier_id: bestSupplierId,
+        best_net_price: bestPrice, price_snapshot: snapshot, recalculated_at: new Date().toISOString(),
+      };
+
+      const { data: existing } = await sa.from("product_price_cache").select("id")
+        .eq("company_id", companyId).eq("product_id", productId).maybeSingle();
+
+      if (existing) {
+        await sa.from("product_price_cache").update(cacheData).eq("id", existing.id);
+      } else {
+        await sa.from("product_price_cache").insert(cacheData);
+      }
     }
   }
 }
@@ -473,242 +569,180 @@ export async function rebuildPriceCache(supabaseAdmin: SupabaseAdmin, companyId:
 // ===== Import stats =====
 
 export interface ImportStats {
-  rows_processed: number;
-  rows_inserted: number;
-  rows_updated: number;
-  rows_failed: number;
-  rows_skipped: number;
-  rows_needs_review: number;
-  errors: string[];
-  affected_product_ids: string[];
+  rows_processed: number; rows_inserted: number; rows_updated: number;
+  rows_failed: number; rows_skipped: number; rows_needs_review: number;
+  errors: string[]; affected_product_ids: string[];
 }
 
-// ===== EFONELFO file parser =====
+// ===== Chunked processing core =====
 
-async function parseEfonelfoFileImport(params: {
-  supabaseAdmin: SupabaseAdmin;
-  supplierId: string;
-  companyId: string;
-  importJobId: string;
-  fileType: string;
-  fileName: string;
-  lines: string[];
+async function processChunk(params: {
+  sa: SupabaseAdmin; companyId: string; supplierId: string;
+  importJobId: string; fileType: string; fileName: string;
+  rows: ParsedRow[]; startRowNumber: number;
 }): Promise<ImportStats> {
-  const { supabaseAdmin, supplierId, companyId, importJobId, fileType, fileName, lines } = params;
+  const { sa, companyId, supplierId, importJobId, fileType, fileName, rows, startRowNumber } = params;
   const stats: ImportStats = {
     rows_processed: 0, rows_inserted: 0, rows_updated: 0, rows_failed: 0,
     rows_skipped: 0, rows_needs_review: 0, errors: [], affected_product_ids: [],
   };
 
-  console.log(`[parser] Parsing EFONELFO format: ${fileName}`);
-  const efonelfoProducts = parseEfonelfoFile(lines);
-  console.log(`[parser] EFONELFO extracted ${efonelfoProducts.length} products from ${fileName}`);
+  // Split into valid (has SKU) and skipped
+  const validRows = rows.filter(r => r.supplier_sku);
+  const skippedCount = rows.length - validRows.length;
+  stats.rows_processed = rows.length;
+  stats.rows_skipped = skippedCount;
 
-  for (let i = 0; i < efonelfoProducts.length; i++) {
-    const ep = efonelfoProducts[i];
-    stats.rows_processed++;
+  if (validRows.length === 0) return stats;
 
-    const row: ParsedRow = {
-      supplier_sku: ep.supplier_sku,
-      el_number: ep.el_number,
-      ean: ep.ean,
-      product_name: ep.product_name,
-      description: ep.description,
-      brand: ep.brand,
-      unit: ep.unit,
-      category: ep.category,
-      list_price: ep.list_price,
-      discount_percent: ep.discount_percent,
-      net_price: ep.net_price,
-      raw_fields: { format: "EFONELFO", supplier_sku: ep.supplier_sku || "" },
-    };
-
-    let parseStatus = "parsed";
-    let errorMessage: string | null = null;
-    let linkedProductId: string | null = null;
-    let linkedSupplierProductId: string | null = null;
-
-    try {
-      if (!row.supplier_sku) {
-        parseStatus = "skipped";
-        errorMessage = "Manglende artikkelkode";
-        stats.rows_skipped++;
-      } else {
-        const { id: spId, isNew } = await upsertSupplierProduct(supabaseAdmin, companyId, supplierId, row);
-        linkedSupplierProductId = spId;
-        if (isNew) stats.rows_inserted++; else stats.rows_updated++;
-
-        let catalogProductId = await matchCatalogProduct(supabaseAdmin, companyId, row);
-        if (!catalogProductId) catalogProductId = await autoCreateCatalogProduct(supabaseAdmin, companyId, row);
-
-        if (catalogProductId) {
-          await supabaseAdmin.from("supplier_products").update({ product_id: catalogProductId }).eq("id", spId);
-          linkedProductId = catalogProductId;
-          stats.affected_product_ids.push(catalogProductId);
-        } else {
-          parseStatus = "needs_review";
-          errorMessage = "Ingen match i produktkatalog – mangler identifikator";
-          stats.rows_needs_review++;
-        }
-
-        await upsertSupplierPrice(supabaseAdmin, companyId, supplierId, spId, row, fileName);
-      }
-    } catch (rowErr) {
-      parseStatus = "failed";
-      errorMessage = (rowErr as Error).message.substring(0, 500);
-      stats.rows_failed++;
-      stats.errors.push(`EFONELFO rad ${i + 1}: ${errorMessage}`);
-    }
-
-    try {
-      await supabaseAdmin.from("product_import_rows").insert({
-        company_id: companyId, import_job_id: importJobId, row_number: i + 1,
-        row_type: fileType, raw_data: row.raw_fields, parse_status: parseStatus as any,
-        error_message: errorMessage, linked_product_id: linkedProductId,
-        linked_supplier_product_id: linkedSupplierProductId,
-      });
-    } catch (insertErr) {
-      console.error(`[parser] Failed to save EFONELFO row ${i + 1}: ${(insertErr as Error).message}`);
-    }
-  }
-
+  // 1. Batch upsert supplier_products
+  let spMap: Map<string, { id: string; isNew: boolean }>;
   try {
-    await rebuildPriceCache(supabaseAdmin, companyId, stats.affected_product_ids);
-  } catch (cacheErr) {
-    console.error(`[parser] Cache rebuild error: ${(cacheErr as Error).message}`);
-    stats.errors.push(`Price cache rebuild feilet: ${(cacheErr as Error).message}`);
+    spMap = await batchUpsertSupplierProducts(sa, companyId, supplierId, validRows);
+  } catch (e) {
+    stats.rows_failed = validRows.length;
+    stats.errors.push(`Batch upsert failed: ${(e as Error).message}`);
+    return stats;
   }
 
-  console.log(`[parser] EFONELFO ${fileName} done: processed=${stats.rows_processed}, inserted=${stats.rows_inserted}, updated=${stats.rows_updated}, failed=${stats.rows_failed}`);
+  for (const [, v] of spMap) {
+    if (v.isNew) stats.rows_inserted++; else stats.rows_updated++;
+  }
+
+  // 2. Batch match to catalog products
+  const matchMap = await batchMatchCatalogProducts(sa, companyId, validRows);
+
+  // 3. Identify unmatched and batch auto-create
+  const unmatchedRows = validRows.filter(r => r.supplier_sku && !matchMap.has(r.supplier_sku));
+  const autoCreatedMap = await batchAutoCreateCatalogProducts(sa, companyId, unmatchedRows);
+
+  // Merge matches
+  for (const [sku, id] of autoCreatedMap) matchMap.set(sku, id);
+
+  // 4. Batch link supplier_products → catalog products
+  const links: Array<{ supplierProductId: string; catalogProductId: string }> = [];
+  for (const row of validRows) {
+    if (!row.supplier_sku) continue;
+    const spEntry = spMap.get(row.supplier_sku);
+    const catalogId = matchMap.get(row.supplier_sku);
+    if (spEntry && catalogId) {
+      links.push({ supplierProductId: spEntry.id, catalogProductId: catalogId });
+      stats.affected_product_ids.push(catalogId);
+    } else {
+      stats.rows_needs_review++;
+    }
+  }
+  if (links.length > 0) await batchLinkProducts(sa, links);
+
+  // 5. Batch insert prices
+  const priceRows = validRows
+    .filter(r => r.supplier_sku && spMap.has(r.supplier_sku))
+    .map(r => ({ supplierProductId: spMap.get(r.supplier_sku!)!.id, row: r, fileName }));
+  await batchInsertPrices(sa, companyId, supplierId, priceRows);
+
+  // 6. Batch insert import_rows (audit trail, minimal data)
+  const importRowEntries = rows.map((row, idx) => {
+    const sku = row.supplier_sku;
+    const spEntry = sku ? spMap.get(sku) : undefined;
+    const catalogId = sku ? matchMap.get(sku) : undefined;
+    return {
+      rowNumber: startRowNumber + idx,
+      parseStatus: !sku ? "skipped" : catalogId ? "parsed" : "needs_review",
+      errorMessage: !sku ? "Manglende artikkelkode" : !catalogId ? "Ingen match i produktkatalog" : null,
+      linkedProductId: catalogId ?? null,
+      linkedSupplierProductId: spEntry?.id ?? null,
+    };
+  });
+  await batchInsertImportRows(sa, companyId, importJobId, fileType, importRowEntries);
+
   return stats;
 }
 
 // ===== Main parseFile =====
 
+const CHUNK_SIZE = 500;
+
 export async function parseFile(params: {
-  supabaseAdmin: SupabaseAdmin;
-  supplierId: string;
-  supplierCode: string | null;
-  companyId: string;
-  importJobId: string;
-  fileType: string;
-  fileName: string;
-  fileContent: string;
+  supabaseAdmin: SupabaseAdmin; supplierId: string; supplierCode: string | null;
+  companyId: string; importJobId: string; fileType: string; fileName: string; fileContent: string;
 }): Promise<ImportStats> {
-  const { supabaseAdmin, supplierId, supplierCode, companyId, importJobId, fileType, fileName, fileContent } = params;
+  const { supabaseAdmin: sa, supplierId, supplierCode, companyId, importJobId, fileType, fileName, fileContent } = params;
 
   const rawLines = fileContent.split(/\r?\n/).filter((l) => l.trim().length > 0);
   if (rawLines.length < 2) {
-    return {
-      rows_processed: 0, rows_inserted: 0, rows_updated: 0, rows_failed: 0,
-      rows_skipped: 0, rows_needs_review: 0,
-      errors: [`${fileName}: Filen har for få rader (${rawLines.length})`],
-      affected_product_ids: [],
-    };
+    return { rows_processed: 0, rows_inserted: 0, rows_updated: 0, rows_failed: 0,
+      rows_skipped: 0, rows_needs_review: 0, errors: [`${fileName}: For få rader (${rawLines.length})`], affected_product_ids: [] };
   }
 
-  // Check for EFONELFO format first
+  console.log(`[parser] ${fileName}: ${rawLines.length} lines, checking format...`);
+
+  // Parse all rows into ParsedRow objects first (CPU only, no DB)
+  let allParsed: ParsedRow[];
+  let startRowBase = 1;
+
   if (isEfonelfoFormat(rawLines)) {
-    console.log(`[parser] Detected EFONELFO format for ${fileName}`);
-    return parseEfonelfoFileImport({
-      supabaseAdmin, supplierId, companyId, importJobId, fileType, fileName, lines: rawLines,
-    });
+    console.log(`[parser] EFONELFO format detected for ${fileName}`);
+    const efonProducts = parseEfonelfoFile(rawLines);
+    console.log(`[parser] EFONELFO: ${efonProducts.length} products extracted`);
+    allParsed = efonProducts.map(ep => ({
+      supplier_sku: ep.supplier_sku, el_number: ep.el_number, ean: ep.ean,
+      product_name: ep.product_name, description: ep.description, brand: ep.brand,
+      unit: ep.unit, category: ep.category, list_price: ep.list_price,
+      discount_percent: ep.discount_percent, net_price: ep.net_price,
+    }));
+  } else {
+    // Standard delimited
+    const delimiter = detectDelimiter(rawLines);
+    const { headerIndex, headers } = detectHeaderRow(rawLines, delimiter);
+    console.log(`[parser] ${fileName}: delimiter="${delimiter === "\t" ? "TAB" : delimiter}", header=${headerIndex}, cols=${headers.length}`);
+    
+    const mapping = getSupplierMapping(supplierCode);
+    const { columns, missing } = resolveAllColumns(headers, mapping);
+    if (columns.supplier_sku === -1) {
+      return { rows_processed: 0, rows_inserted: 0, rows_updated: 0, rows_failed: 0,
+        rows_skipped: 0, rows_needs_review: 0, errors: [`${fileName}: Fant ikke artikkelkode-kolonne. Kolonner: ${headers.join(", ")}`], affected_product_ids: [] };
+    }
+    if (missing.length > 0) console.warn(`[parser] Missing columns: ${missing.join(", ")}`);
+
+    const dataLines = rawLines.slice(headerIndex + 1);
+    startRowBase = headerIndex + 2;
+    allParsed = dataLines.map(line => parseRow(line.split(delimiter), columns));
   }
 
-  // Standard delimited file parsing
-  const stats: ImportStats = {
+  console.log(`[parser] ${fileName}: ${allParsed.length} rows to process in chunks of ${CHUNK_SIZE}`);
+
+  // Process in chunks
+  const totalStats: ImportStats = {
     rows_processed: 0, rows_inserted: 0, rows_updated: 0, rows_failed: 0,
     rows_skipped: 0, rows_needs_review: 0, errors: [], affected_product_ids: [],
   };
 
-  const delimiter = detectDelimiter(rawLines);
-  const { headerIndex, headers } = detectHeaderRow(rawLines, delimiter);
-  console.log(`[parser] ${fileName}: ${rawLines.length} rader, header=${headerIndex}, ${headers.length} kolonner`);
-  console.log(`[parser] Headers: ${headers.join(" | ")}`);
-
-  const mapping = getSupplierMapping(supplierCode);
-  const { columns, missing } = resolveAllColumns(headers, mapping);
-
-  if (columns.supplier_sku === -1) {
-    stats.errors.push(`${fileName}: Kunne ikke finne artikkelkode-kolonne. Kolonner: ${headers.join(", ")}`);
-    return stats;
-  }
-  if (missing.length > 0) console.warn(`[parser] ${fileName}: Missing: ${missing.join(", ")}`);
-
-  const dataLines = rawLines.slice(headerIndex + 1);
-
-  for (let i = 0; i < dataLines.length; i++) {
-    const line = dataLines[i];
-    const rowNumber = i + headerIndex + 2;
-    stats.rows_processed++;
-
-    let parseStatus = "parsed";
-    let errorMessage: string | null = null;
-    let linkedProductId: string | null = null;
-    let linkedSupplierProductId: string | null = null;
-
-    try {
-      const fields = line.split(delimiter);
-      const parsed = parseRow(fields, columns, headers);
-
-      if (!parsed.supplier_sku) {
-        parseStatus = "skipped";
-        errorMessage = "Manglende artikkelkode";
-        stats.rows_skipped++;
-        await supabaseAdmin.from("product_import_rows").insert({
-          company_id: companyId, import_job_id: importJobId, row_number: rowNumber,
-          row_type: fileType, raw_data: parsed.raw_fields, parse_status: parseStatus, error_message: errorMessage,
-        });
-        continue;
-      }
-
-      const { id: spId, isNew } = await upsertSupplierProduct(supabaseAdmin, companyId, supplierId, parsed);
-      linkedSupplierProductId = spId;
-      if (isNew) stats.rows_inserted++; else stats.rows_updated++;
-
-      let catalogProductId = await matchCatalogProduct(supabaseAdmin, companyId, parsed);
-      if (!catalogProductId) catalogProductId = await autoCreateCatalogProduct(supabaseAdmin, companyId, parsed);
-
-      if (catalogProductId) {
-        await supabaseAdmin.from("supplier_products").update({ product_id: catalogProductId }).eq("id", spId);
-        linkedProductId = catalogProductId;
-        stats.affected_product_ids.push(catalogProductId);
-      } else {
-        parseStatus = "needs_review";
-        errorMessage = "Ingen match i produktkatalog";
-        stats.rows_needs_review++;
-      }
-
-      await upsertSupplierPrice(supabaseAdmin, companyId, supplierId, spId, parsed, fileName);
-    } catch (rowErr) {
-      parseStatus = "failed";
-      errorMessage = (rowErr as Error).message.substring(0, 500);
-      stats.rows_failed++;
-      stats.errors.push(`Rad ${rowNumber}: ${errorMessage}`);
-    }
-
-    try {
-      const fields = line.split(delimiter);
-      const rawObj: Record<string, string> = {};
-      headers.forEach((h, idx) => { rawObj[h] = fields[idx]?.trim() ?? ""; });
-      await supabaseAdmin.from("product_import_rows").insert({
-        company_id: companyId, import_job_id: importJobId, row_number: rowNumber,
-        row_type: fileType, raw_data: rawObj, parse_status: parseStatus as any,
-        error_message: errorMessage, linked_product_id: linkedProductId,
-        linked_supplier_product_id: linkedSupplierProductId,
-      });
-    } catch (insertErr) {
-      console.error(`[parser] Failed to save row ${rowNumber}: ${(insertErr as Error).message}`);
-    }
+  for (let i = 0; i < allParsed.length; i += CHUNK_SIZE) {
+    const chunk = allParsed.slice(i, i + CHUNK_SIZE);
+    const chunkStats = await processChunk({
+      sa, companyId, supplierId, importJobId, fileType, fileName,
+      rows: chunk, startRowNumber: startRowBase + i,
+    });
+    totalStats.rows_processed += chunkStats.rows_processed;
+    totalStats.rows_inserted += chunkStats.rows_inserted;
+    totalStats.rows_updated += chunkStats.rows_updated;
+    totalStats.rows_failed += chunkStats.rows_failed;
+    totalStats.rows_skipped += chunkStats.rows_skipped;
+    totalStats.rows_needs_review += chunkStats.rows_needs_review;
+    totalStats.errors.push(...chunkStats.errors);
+    totalStats.affected_product_ids.push(...chunkStats.affected_product_ids);
+    
+    console.log(`[parser] ${fileName}: chunk ${Math.floor(i / CHUNK_SIZE) + 1} done (${i + chunk.length}/${allParsed.length})`);
   }
 
+  // Rebuild price cache once at end
   try {
-    await rebuildPriceCache(supabaseAdmin, companyId, stats.affected_product_ids);
+    await rebuildPriceCache(sa, companyId, totalStats.affected_product_ids);
   } catch (cacheErr) {
     console.error(`[parser] Cache rebuild error: ${(cacheErr as Error).message}`);
-    stats.errors.push(`Price cache rebuild feilet: ${(cacheErr as Error).message}`);
+    totalStats.errors.push(`Price cache rebuild feilet: ${(cacheErr as Error).message}`);
   }
 
-  console.log(`[parser] ${fileName} done: processed=${stats.rows_processed}, inserted=${stats.rows_inserted}, updated=${stats.rows_updated}, failed=${stats.rows_failed}`);
-  return stats;
+  console.log(`[parser] ${fileName} done: processed=${totalStats.rows_processed}, inserted=${totalStats.rows_inserted}, updated=${totalStats.rows_updated}, failed=${totalStats.rows_failed}`);
+  return totalStats;
 }
