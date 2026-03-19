@@ -66,17 +66,26 @@ export function TaskThreadComposer({ onSend, sending, canUpload, canEmail, taskI
     let cancelled = false;
     setLoadingRecipients(true);
     (async () => {
-      const { data } = await supabase
-        .from("event_technicians")
-        .select("technician_id, technicians(name, email)")
-        .eq("event_id", taskId);
+      // Fetch technicians and responsible user in parallel
+      const [techRes, eventRes] = await Promise.all([
+        supabase.from("event_technicians").select("technician_id, technicians(name, email)").eq("event_id", taskId),
+        supabase.from("events").select("responsible_id").eq("id", taskId).maybeSingle(),
+      ]);
       if (cancelled) return;
+      const responsibleId = (eventRes.data as any)?.responsible_id;
       const techs: Recipient[] = [];
-      for (const link of (data || []) as any[]) {
+      for (const link of ((techRes.data || []) as any[])) {
         if (link.technicians?.email) {
-          techs.push({ name: link.technicians.name, email: link.technicians.email, technicianId: link.technician_id });
+          techs.push({
+            name: link.technicians.name,
+            email: link.technicians.email,
+            technicianId: link.technician_id,
+            isResponsible: link.technician_id === responsibleId,
+          });
         }
       }
+      // Sort: responsible first
+      techs.sort((a, b) => (b.isResponsible ? 1 : 0) - (a.isResponsible ? 1 : 0));
       setRecipients(techs);
       setSelectedEmails(new Set(techs.map(t => t.email)));
       setLoadingRecipients(false);
