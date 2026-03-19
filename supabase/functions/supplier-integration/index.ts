@@ -628,9 +628,8 @@ async function handleProcessSyncChunk(supabaseAdmin: ReturnType<typeof createCli
     return jsonOk({ status: finalStatus });
   }
 
-  // Process chunks for current file
-  const chunkEnd = Math.min(chunkStart + CHUNKS_PER_INVOCATION, currentFile.totalChunks);
-  console.log(`[sync] Job ${jobId}: file ${fileIndex + 1}/${storageFiles.length} (${currentFile.fileName}), chunks ${chunkStart}-${chunkEnd - 1} of ${currentFile.totalChunks}`);
+  // Process exactly 1 chunk for current file
+  console.log(`[sync] Job ${jobId}: START batch ${globalChunk + 1}/${totalGlobalChunks} – file ${fileIndex + 1}/${storageFiles.length} (${currentFile.fileName}), chunk ${chunkStart} of ${currentFile.totalChunks}`);
 
   try {
     // Read file from storage
@@ -638,12 +637,12 @@ async function handleProcessSyncChunk(supabaseAdmin: ReturnType<typeof createCli
     if (dlErr) throw new Error(`Storage read failed: ${dlErr.message}`);
     const content = await fileData.text();
 
-    // Parse and process the chunk range
+    // Parse and process exactly 1 chunk
     const result = await parseFile({
       supabaseAdmin, supplierId, supplierCode,
       companyId, importJobId: jobId, fileType: currentFile.type,
       fileName: currentFile.fileName, fileContent: content,
-      chunkRange: { start: chunkStart, end: chunkEnd },
+      chunkRange: { start: chunkStart, end: chunkStart + 1 },
       skipPriceCache: true,
     });
 
@@ -655,10 +654,9 @@ async function handleProcessSyncChunk(supabaseAdmin: ReturnType<typeof createCli
     cumStats.rows_skipped += result.rows_skipped;
     cumStats.rows_needs_review += result.rows_needs_review;
     if (result.errors.length > 0) cumStats.errors.push(...result.errors.slice(0, 10));
-    // Cap errors to avoid huge payloads
     if (cumStats.errors.length > 50) cumStats.errors = cumStats.errors.slice(0, 50);
 
-    globalChunk += (chunkEnd - chunkStart);
+    globalChunk += 1;
     const progressPercent = totalGlobalChunks > 0 ? Math.round((globalChunk / totalGlobalChunks) * 100) : 0;
 
     await updateImportJob(supabaseAdmin, jobId, {
@@ -671,18 +669,20 @@ async function handleProcessSyncChunk(supabaseAdmin: ReturnType<typeof createCli
       last_heartbeat_at: new Date().toISOString(),
     });
 
-    console.log(`[sync] Job ${jobId}: progress ${globalChunk}/${totalGlobalChunks} (${progressPercent}%), inserted=${cumStats.rows_inserted}, updated=${cumStats.rows_updated}`);
+    console.log(`[sync] Job ${jobId}: END batch ${globalChunk}/${totalGlobalChunks} (${progressPercent}%), inserted=${cumStats.rows_inserted}, updated=${cumStats.rows_updated}`);
 
-    // Determine next step
+    // Determine next step: next chunk in same file, or first chunk of next file
+    const nextChunkInFile = chunkStart + 1;
     let nextFileIndex = fileIndex;
-    let nextChunkStart = chunkEnd;
-    if (chunkEnd >= currentFile.totalChunks) {
+    let nextChunkStart = nextChunkInFile;
+    if (nextChunkInFile >= currentFile.totalChunks) {
       nextFileIndex = fileIndex + 1;
       nextChunkStart = 0;
+      console.log(`[sync] Job ${jobId}: file ${currentFile.fileName} complete, moving to file ${nextFileIndex + 1}`);
     }
 
-    // Chain next invocation
-    triggerChunkProcessing({
+    // Chain next invocation (awaited to ensure it fires)
+    await triggerNextChunk({
       action: "process-sync-chunk",
       job_id: jobId,
       company_id: companyId,
