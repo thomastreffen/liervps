@@ -155,8 +155,8 @@ function InlineImageGrid({ images, onDownload }: {
 }) {
   const [urls, setUrls] = useState<Record<string, string>>({});
 
-  // Lazy-load signed URLs
-  useState(() => {
+  // Lazy-load signed URLs on mount
+  useEffect(() => {
     images.forEach(async (img) => {
       const { data } = await supabase.storage
         .from("task-thread-files")
