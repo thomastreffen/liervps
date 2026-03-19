@@ -1,6 +1,6 @@
 /**
  * Parser framework and import services for supplier product imports.
- * Extracted from supplier-integration to reduce edge function compile size.
+ * Supports: CSV/delimited files AND EFONELFO (Norwegian standard) format.
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
@@ -62,6 +62,128 @@ function cleanString(raw: string | undefined | null): string | null {
   if (!raw) return null;
   const cleaned = raw.trim().replace(/^"|"$/g, "").trim();
   return cleaned.length > 0 ? cleaned : null;
+}
+
+// ===== EFONELFO Format Detection & Parsing =====
+
+/**
+ * EFONELFO is a Norwegian EDI standard for product/price files.
+ * Record types: VH (header), VL (product line), PH (price header), PL (price line),
+ * RH (discount header), RL (discount line), etc.
+ * Fields are semicolon-delimited with fixed record-type prefixes.
+ */
+function isEfonelfoFormat(lines: string[]): boolean {
+  // Check if first non-empty line starts with a known EFONELFO record type
+  for (const line of lines.slice(0, 5)) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    const fields = trimmed.split(";");
+    const recordType = fields[0]?.toUpperCase().trim();
+    if (["VH", "PH", "RH", "IH"].includes(recordType)) return true;
+    // Also check if second field is "EFONELFO" (common header indicator)
+    if (fields[1]?.toUpperCase().trim() === "EFONELFO") return true;
+  }
+  return false;
+}
+
+interface EfonelfoProduct {
+  supplier_sku: string;
+  el_number: string | null;
+  ean: string | null;
+  product_name: string | null;
+  description: string | null;
+  brand: string | null;
+  unit: string | null;
+  category: string | null;
+  list_price: number | null;
+  discount_percent: number | null;
+  net_price: number | null;
+}
+
+function parseEfonelfoFile(lines: string[]): EfonelfoProduct[] {
+  const products = new Map<string, EfonelfoProduct>();
+
+  for (const line of lines) {
+    const fields = line.split(";").map(f => f.trim());
+    const recordType = fields[0]?.toUpperCase();
+
+    if (recordType === "VL") {
+      // VL = Varelinje (product line)
+      // Typical EFONELFO VL: VL;artikkelnr;elnr;ean;tekst1;tekst2;enhet;merke;gruppe;...
+      // Positions vary but common layout:
+      // [0]=VL [1]=supplier_sku [2]=el_number [3]=ean [4]=name [5]=description [6]=unit [7]=brand [8]=category
+      const sku = cleanString(fields[1]);
+      if (!sku) continue;
+
+      const existing = products.get(sku);
+      if (existing) continue; // already have this product
+
+      products.set(sku, {
+        supplier_sku: sku,
+        el_number: cleanString(fields[2]),
+        ean: cleanString(fields[3]),
+        product_name: cleanString(fields[4]),
+        description: cleanString(fields[5]),
+        unit: cleanString(fields[6]),
+        brand: cleanString(fields[7]),
+        category: cleanString(fields[8]),
+        list_price: null,
+        discount_percent: null,
+        net_price: null,
+      });
+    } else if (recordType === "PL") {
+      // PL = Prislinje (price line)
+      // [0]=PL [1]=artikkelnr [2]=bruttopris [3]=nettopris [4]=rabatt% [5]=enhet [6]=valuta
+      const sku = cleanString(fields[1]);
+      if (!sku) continue;
+
+      const listPrice = parseNumber(fields[2]);
+      const netPrice = parseNumber(fields[3]);
+      const discPct = parseNumber(fields[4]);
+
+      const existing = products.get(sku);
+      if (existing) {
+        existing.list_price = listPrice ?? existing.list_price;
+        existing.net_price = netPrice ?? existing.net_price;
+        existing.discount_percent = discPct ?? existing.discount_percent;
+      } else {
+        // Price line without product line - create minimal entry
+        products.set(sku, {
+          supplier_sku: sku,
+          el_number: null, ean: null,
+          product_name: null, description: null,
+          unit: cleanString(fields[5]),
+          brand: null, category: null,
+          list_price: listPrice,
+          discount_percent: discPct,
+          net_price: netPrice,
+        });
+      }
+    } else if (recordType === "RL") {
+      // RL = Rabattlinje (discount line)
+      // [0]=RL [1]=artikkelnr [2]=rabatt% [3]=nettopris
+      const sku = cleanString(fields[1]);
+      if (!sku) continue;
+
+      const discPct = parseNumber(fields[2]);
+      const netPrice = parseNumber(fields[3]);
+
+      const existing = products.get(sku);
+      if (existing) {
+        existing.discount_percent = discPct ?? existing.discount_percent;
+        if (netPrice != null) existing.net_price = netPrice;
+      }
+    }
+  }
+
+  // Calculate net_price where missing
+  for (const p of products.values()) {
+    if (p.net_price == null && p.list_price != null && p.discount_percent != null) {
+      p.net_price = Math.round(p.list_price * (1 - p.discount_percent / 100) * 100) / 100;
+    }
+  }
+
+  return Array.from(products.values());
 }
 
 // ===== Supplier mapping profiles =====
@@ -239,27 +361,45 @@ async function upsertSupplierProduct(
 }
 
 async function matchCatalogProduct(supabaseAdmin: SupabaseAdmin, companyId: string, row: ParsedRow): Promise<string | null> {
+  // 1. Exact el_number match
   if (row.el_number) {
     const { data } = await supabaseAdmin.from("supplier_catalog_products").select("id")
       .eq("company_id", companyId).eq("el_number", row.el_number).limit(1).maybeSingle();
     if (data) return data.id;
   }
+  // 2. Exact EAN match
   if (row.ean) {
     const { data } = await supabaseAdmin.from("supplier_catalog_products").select("id")
       .eq("company_id", companyId).eq("ean", row.ean).limit(1).maybeSingle();
+    if (data) return data.id;
+  }
+  // 3. supplier_independent_sku match (if sku looks like a standard code)
+  if (row.supplier_sku && row.supplier_sku.length >= 5) {
+    const { data } = await supabaseAdmin.from("supplier_catalog_products").select("id")
+      .eq("company_id", companyId).eq("supplier_independent_sku", row.supplier_sku).limit(1).maybeSingle();
     if (data) return data.id;
   }
   return null;
 }
 
 async function autoCreateCatalogProduct(supabaseAdmin: SupabaseAdmin, companyId: string, row: ParsedRow): Promise<string | null> {
-  if (!row.product_name || (!row.el_number && !row.ean)) return null;
+  // Need a name AND at least one strong identifier, OR just a name + SKU if name is good
+  const hasName = !!row.product_name && row.product_name.length >= 3;
+  const hasStrongId = !!row.el_number || !!row.ean;
+  const hasSkuIdentity = !!row.supplier_sku && row.supplier_sku.length >= 3;
+
+  if (!hasName && !hasSkuIdentity) return null;
+  if (!hasName && !hasStrongId) return null;
+
+  const name = row.product_name || row.supplier_sku || "Ukjent produkt";
+
   const { data, error } = await supabaseAdmin.from("supplier_catalog_products").insert({
-    company_id: companyId, name: row.product_name, el_number: row.el_number,
+    company_id: companyId, name, el_number: row.el_number,
     ean: row.ean, brand: row.brand, unit: row.unit, category: row.category,
     description: row.description, is_active: true,
   }).select("id").single();
   if (error) { console.warn(`[catalog] Auto-create failed: ${error.message}`); return null; }
+  console.log(`[catalog] Auto-created master product: ${name} (${data.id})`);
   return data.id;
 }
 
@@ -284,15 +424,17 @@ export async function rebuildPriceCache(supabaseAdmin: SupabaseAdmin, companyId:
   console.log(`[cache] Rebuilding price cache for ${uniqueIds.length} products`);
 
   for (const productId of uniqueIds) {
+    const { data: linkedSps } = await supabaseAdmin.from("supplier_products").select("id")
+      .eq("company_id", companyId).eq("product_id", productId);
+    
+    const spIds = linkedSps?.map((sp: any) => sp.id) ?? [];
+    if (spIds.length === 0) continue;
+
     const { data: prices } = await supabaseAdmin
       .from("supplier_prices")
       .select("supplier_id, net_price, list_price, discount_percent")
       .eq("company_id", companyId)
-      .in("supplier_product_id",
-        (await supabaseAdmin.from("supplier_products").select("id")
-          .eq("company_id", companyId).eq("product_id", productId)
-        ).data?.map((sp: any) => sp.id) ?? []
-      )
+      .in("supplier_product_id", spIds)
       .order("imported_at", { ascending: false });
 
     if (!prices || prices.length === 0) continue;
@@ -341,6 +483,106 @@ export interface ImportStats {
   affected_product_ids: string[];
 }
 
+// ===== EFONELFO file parser =====
+
+async function parseEfonelfoFileImport(params: {
+  supabaseAdmin: SupabaseAdmin;
+  supplierId: string;
+  companyId: string;
+  importJobId: string;
+  fileType: string;
+  fileName: string;
+  lines: string[];
+}): Promise<ImportStats> {
+  const { supabaseAdmin, supplierId, companyId, importJobId, fileType, fileName, lines } = params;
+  const stats: ImportStats = {
+    rows_processed: 0, rows_inserted: 0, rows_updated: 0, rows_failed: 0,
+    rows_skipped: 0, rows_needs_review: 0, errors: [], affected_product_ids: [],
+  };
+
+  console.log(`[parser] Parsing EFONELFO format: ${fileName}`);
+  const efonelfoProducts = parseEfonelfoFile(lines);
+  console.log(`[parser] EFONELFO extracted ${efonelfoProducts.length} products from ${fileName}`);
+
+  for (let i = 0; i < efonelfoProducts.length; i++) {
+    const ep = efonelfoProducts[i];
+    stats.rows_processed++;
+
+    const row: ParsedRow = {
+      supplier_sku: ep.supplier_sku,
+      el_number: ep.el_number,
+      ean: ep.ean,
+      product_name: ep.product_name,
+      description: ep.description,
+      brand: ep.brand,
+      unit: ep.unit,
+      category: ep.category,
+      list_price: ep.list_price,
+      discount_percent: ep.discount_percent,
+      net_price: ep.net_price,
+      raw_fields: { format: "EFONELFO", supplier_sku: ep.supplier_sku || "" },
+    };
+
+    let parseStatus = "parsed";
+    let errorMessage: string | null = null;
+    let linkedProductId: string | null = null;
+    let linkedSupplierProductId: string | null = null;
+
+    try {
+      if (!row.supplier_sku) {
+        parseStatus = "skipped";
+        errorMessage = "Manglende artikkelkode";
+        stats.rows_skipped++;
+      } else {
+        const { id: spId, isNew } = await upsertSupplierProduct(supabaseAdmin, companyId, supplierId, row);
+        linkedSupplierProductId = spId;
+        if (isNew) stats.rows_inserted++; else stats.rows_updated++;
+
+        let catalogProductId = await matchCatalogProduct(supabaseAdmin, companyId, row);
+        if (!catalogProductId) catalogProductId = await autoCreateCatalogProduct(supabaseAdmin, companyId, row);
+
+        if (catalogProductId) {
+          await supabaseAdmin.from("supplier_products").update({ product_id: catalogProductId }).eq("id", spId);
+          linkedProductId = catalogProductId;
+          stats.affected_product_ids.push(catalogProductId);
+        } else {
+          parseStatus = "needs_review";
+          errorMessage = "Ingen match i produktkatalog – mangler identifikator";
+          stats.rows_needs_review++;
+        }
+
+        await upsertSupplierPrice(supabaseAdmin, companyId, supplierId, spId, row, fileName);
+      }
+    } catch (rowErr) {
+      parseStatus = "failed";
+      errorMessage = (rowErr as Error).message.substring(0, 500);
+      stats.rows_failed++;
+      stats.errors.push(`EFONELFO rad ${i + 1}: ${errorMessage}`);
+    }
+
+    try {
+      await supabaseAdmin.from("product_import_rows").insert({
+        company_id: companyId, import_job_id: importJobId, row_number: i + 1,
+        row_type: fileType, raw_data: row.raw_fields, parse_status: parseStatus as any,
+        error_message: errorMessage, linked_product_id: linkedProductId,
+        linked_supplier_product_id: linkedSupplierProductId,
+      });
+    } catch (insertErr) {
+      console.error(`[parser] Failed to save EFONELFO row ${i + 1}: ${(insertErr as Error).message}`);
+    }
+  }
+
+  try {
+    await rebuildPriceCache(supabaseAdmin, companyId, stats.affected_product_ids);
+  } catch (cacheErr) {
+    console.error(`[parser] Cache rebuild error: ${(cacheErr as Error).message}`);
+    stats.errors.push(`Price cache rebuild feilet: ${(cacheErr as Error).message}`);
+  }
+
+  console.log(`[parser] EFONELFO ${fileName} done: processed=${stats.rows_processed}, inserted=${stats.rows_inserted}, updated=${stats.rows_updated}, failed=${stats.rows_failed}`);
+  return stats;
+}
+
 // ===== Main parseFile =====
 
 export async function parseFile(params: {
@@ -355,16 +597,29 @@ export async function parseFile(params: {
 }): Promise<ImportStats> {
   const { supabaseAdmin, supplierId, supplierCode, companyId, importJobId, fileType, fileName, fileContent } = params;
 
+  const rawLines = fileContent.split(/\r?\n/).filter((l) => l.trim().length > 0);
+  if (rawLines.length < 2) {
+    return {
+      rows_processed: 0, rows_inserted: 0, rows_updated: 0, rows_failed: 0,
+      rows_skipped: 0, rows_needs_review: 0,
+      errors: [`${fileName}: Filen har for få rader (${rawLines.length})`],
+      affected_product_ids: [],
+    };
+  }
+
+  // Check for EFONELFO format first
+  if (isEfonelfoFormat(rawLines)) {
+    console.log(`[parser] Detected EFONELFO format for ${fileName}`);
+    return parseEfonelfoFileImport({
+      supabaseAdmin, supplierId, companyId, importJobId, fileType, fileName, lines: rawLines,
+    });
+  }
+
+  // Standard delimited file parsing
   const stats: ImportStats = {
     rows_processed: 0, rows_inserted: 0, rows_updated: 0, rows_failed: 0,
     rows_skipped: 0, rows_needs_review: 0, errors: [], affected_product_ids: [],
   };
-
-  const rawLines = fileContent.split(/\r?\n/).filter((l) => l.trim().length > 0);
-  if (rawLines.length < 2) {
-    stats.errors.push(`${fileName}: Filen har for få rader (${rawLines.length})`);
-    return stats;
-  }
 
   const delimiter = detectDelimiter(rawLines);
   const { headerIndex, headers } = detectHeaderRow(rawLines, delimiter);

@@ -60,7 +60,7 @@ export function useProductList(params: ProductListParams = {}) {
     queryKey,
     enabled: !!activeCompanyId,
     queryFn: async () => {
-      // Step 1: fetch catalog products with price cache
+      // Step 1: fetch catalog products (left join with price cache)
       let query = supabase
         .from("supplier_catalog_products")
         .select(`
@@ -77,7 +77,8 @@ export function useProductList(params: ProductListParams = {}) {
         );
       }
 
-      const orderCol = sortBy === "price" ? "name" : sortBy === "suppliers" ? "name" : sortBy;
+      // Sort by name for non-computed columns; price/suppliers sorted client-side
+      const orderCol = ["price", "suppliers"].includes(sortBy) ? "name" : sortBy;
       query = query.order(orderCol as any, { ascending: sortAsc });
 
       const { data: catalogRows, error: catErr } = await query;

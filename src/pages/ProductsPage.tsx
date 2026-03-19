@@ -145,10 +145,22 @@ export default function ProductsPage() {
             ) : products.length === 0 ? (
               <div className="text-center py-20 text-muted-foreground">
                 <Package className="h-10 w-10 mx-auto mb-3 opacity-30" />
-                <p className="font-medium">Ingen produkter funnet</p>
-                <p className="text-sm mt-1">
-                  {search ? "Prøv et annet søk" : "Importer produkter via leverandørintegrering"}
-                </p>
+                <p className="font-medium">Ingen produkter i katalogen</p>
+                {search ? (
+                  <p className="text-sm mt-1">Prøv et annet søk</p>
+                ) : unlinked.length > 0 ? (
+                  <div className="mt-3 space-y-2">
+                    <p className="text-sm">
+                      Det finnes <strong className="text-foreground">{unlinked.length} importerte leverandørprodukter</strong> som ikke er koblet til katalogen ennå.
+                    </p>
+                    <Button variant="outline" size="sm" onClick={() => setActiveTab("unlinked")} className="gap-1.5">
+                      <Link2Off className="h-3.5 w-3.5" />
+                      Vis ukoblede produkter
+                    </Button>
+                  </div>
+                ) : (
+                  <p className="text-sm mt-1">Importer produkter via leverandørintegrering for å fylle katalogen</p>
+                )}
               </div>
             ) : (
               <div className="border rounded-lg overflow-hidden">
