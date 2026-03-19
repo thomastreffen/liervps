@@ -416,6 +416,22 @@ const App = () => (
                     <CompanyMigrationPage />
                   </ProtectedRoute>
                 }
+               />
+              <Route
+                path="/admin/suppliers"
+                element={
+                  <ProtectedRoute requiredRoles={["admin", "super_admin"]}>
+                    <SuppliersPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/suppliers/:id"
+                element={
+                  <ProtectedRoute requiredRoles={["admin", "super_admin"]}>
+                    <SupplierDetailPage />
+                  </ProtectedRoute>
+                }
               />
             </Route>
 

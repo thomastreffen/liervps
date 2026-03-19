@@ -76,6 +76,7 @@ const adminItems = [
   { title: "Innstillinger", url: "/admin/settings", moduleKey: "admin_settings" },
   { title: "Papirkurv", url: "/admin/trash", moduleKey: "admin_trash" },
   { title: "Tripletex import", url: "/admin/tripletex", moduleKey: "admin_tripletex" },
+  { title: "Leverandører", url: "/admin/suppliers", moduleKey: "admin_suppliers" },
   { title: "Selskapsmigrering", url: "/admin/company-migration", requireSuperAdmin: true, moduleKey: "admin_company_migration" },
 ];
 
