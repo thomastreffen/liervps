@@ -1,23 +1,71 @@
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState, useCallback } from "react";
 import { Loader2, MessageSquare } from "lucide-react";
 import type { TaskMessage } from "@/hooks/useTaskThread";
 import { TaskThreadMessageItem } from "./TaskThreadMessageItem";
 import { TaskThreadSystemEventItem } from "./TaskThreadSystemEventItem";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { cn } from "@/lib/utils";
 
 interface Props {
   messages: TaskMessage[];
   loading: boolean;
   currentUserId: string | null;
+  lastReadAt: string | null;
+  onReply?: (message: TaskMessage) => void;
 }
 
-export function TaskThreadFeed({ messages, loading, currentUserId }: Props) {
+export function TaskThreadFeed({ messages, loading, currentUserId, lastReadAt, onReply }: Props) {
   const bottomRef = useRef<HTMLDivElement>(null);
+  const unreadRef = useRef<HTMLDivElement>(null);
+  const [hasScrolledToUnread, setHasScrolledToUnread] = useState(false);
+  const [highlightIds, setHighlightIds] = useState<Set<string>>(new Set());
 
-  // Auto-scroll to bottom on new messages
+  // Find first unread message index
+  const firstUnreadIndex = lastReadAt
+    ? messages.findIndex(
+        (m) =>
+          m.message_type !== "system_event" &&
+          m.author_user_id !== currentUserId &&
+          new Date(m.created_at) > new Date(lastReadAt)
+      )
+    : -1;
+
+  // Scroll to first unread on initial load, or bottom if all read
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages.length]);
+    if (loading || messages.length === 0 || hasScrolledToUnread) return;
+
+    if (firstUnreadIndex > 0 && unreadRef.current) {
+      unreadRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+      // Highlight unread messages briefly
+      const unreadIds = new Set(
+        messages.slice(firstUnreadIndex).filter(m => m.message_type !== "system_event" && m.author_user_id !== currentUserId).map(m => m.id)
+      );
+      setHighlightIds(unreadIds);
+      setTimeout(() => setHighlightIds(new Set()), 3000);
+    } else {
+      bottomRef.current?.scrollIntoView({ behavior: "auto" });
+    }
+    setHasScrolledToUnread(true);
+  }, [loading, messages.length, hasScrolledToUnread, firstUnreadIndex]);
+
+  // Auto-scroll to bottom for new messages after initial load
+  const prevCountRef = useRef(messages.length);
+  useEffect(() => {
+    if (hasScrolledToUnread && messages.length > prevCountRef.current) {
+      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+    prevCountRef.current = messages.length;
+  }, [messages.length, hasScrolledToUnread]);
+
+  // Scroll to a specific message (for quote click)
+  const scrollToMessage = useCallback((messageId: string) => {
+    const el = document.getElementById(`msg-${messageId}`);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      el.classList.add("ring-2", "ring-primary/30");
+      setTimeout(() => el.classList.remove("ring-2", "ring-primary/30"), 2000);
+    }
+  }, []);
 
   if (loading) {
     return (
@@ -34,7 +82,7 @@ export function TaskThreadFeed({ messages, loading, currentUserId }: Props) {
           <MessageSquare className="h-5 w-5 text-muted-foreground" />
         </div>
         <p className="text-sm font-medium text-muted-foreground">
-          Ingen meldinger på denne oppgaven ennå
+          Ingen meldinger ennå
         </p>
         <p className="text-xs text-muted-foreground/70 mt-1">
           Bruk feltet under for å starte en tråd
@@ -45,17 +93,42 @@ export function TaskThreadFeed({ messages, loading, currentUserId }: Props) {
 
   return (
     <ScrollArea className="flex-1">
-      <div className="space-y-3 p-3">
-        {messages.map((msg) => {
-          if (msg.message_type === "system_event") {
-            return <TaskThreadSystemEventItem key={msg.id} message={msg} />;
-          }
+      <div className="space-y-4 p-4">
+        {messages.map((msg, idx) => {
+          const showUnreadDivider = idx === firstUnreadIndex && firstUnreadIndex > 0;
+
           return (
-            <TaskThreadMessageItem
-              key={msg.id}
-              message={msg}
-              isOwnMessage={msg.author_user_id === currentUserId}
-            />
+            <div key={msg.id}>
+              {showUnreadDivider && (
+                <div ref={unreadRef} className="flex items-center gap-3 py-2 mb-3">
+                  <div className="h-px flex-1 bg-primary/30" />
+                  <span className="text-[11px] font-medium text-primary shrink-0">
+                    Nye meldinger
+                  </span>
+                  <div className="h-px flex-1 bg-primary/30" />
+                </div>
+              )}
+
+              <div
+                id={`msg-${msg.id}`}
+                className={cn(
+                  "transition-all duration-500 rounded-lg",
+                  highlightIds.has(msg.id) && "bg-primary/5"
+                )}
+              >
+                {msg.message_type === "system_event" ? (
+                  <TaskThreadSystemEventItem message={msg} />
+                ) : (
+                  <TaskThreadMessageItem
+                    message={msg}
+                    isOwnMessage={msg.author_user_id === currentUserId}
+                    onReply={onReply}
+                    onScrollToMessage={scrollToMessage}
+                    allMessages={messages}
+                  />
+                )}
+              </div>
+            </div>
           );
         })}
         <div ref={bottomRef} />
