@@ -230,7 +230,7 @@ export function SupplierIntegrationForm({ supplier, integration, onSave, saving 
           {syncEnabled && (
             <div className="space-y-1.5">
               <Label className="text-xs">Frekvens</Label>
-              <Select value={syncFrequency} onValueChange={setSyncFrequency}>
+              <Select value={syncFrequency} onValueChange={(v) => setSyncFrequency(v as any)}>
                 <SelectTrigger className="w-[200px]"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="manual">Manuell</SelectItem>
