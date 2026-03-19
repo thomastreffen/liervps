@@ -60,6 +60,7 @@ const mainNav = [
   { title: "Fravær", url: "/absence", icon: CalendarOff, moduleKey: "absence", modulePermission: "module.absence" },
   { title: "Fakturagrunnlag", url: "/invoice-basis", icon: Receipt, moduleKey: "invoice_basis", modulePermission: "module.invoice_basis", requiredPermission: "jobs.view_pricing" },
   { title: "Produkter", url: "/products", icon: PackageSearch, moduleKey: "products", modulePermission: "module.products" },
+  { title: "Innkjøp", url: "/purchasing", icon: ShoppingCart, moduleKey: "purchasing", modulePermission: "module.purchasing" },
   { title: "Fagstøtte", url: "/fag", icon: BookOpen, moduleKey: "fag", modulePermission: "module.fag", requiredPermission: "regulation.review" },
 ];
 
