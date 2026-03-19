@@ -17,6 +17,7 @@ export function useTaskThreadReads(taskId: string | null | undefined): TaskThrea
   const { user } = useAuth();
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [lastReadAt, setLastReadAt] = useState<string | null>(null);
 
   const fetchUnreadCount = useCallback(async () => {
     if (!taskId || !user) { setUnreadCount(0); return; }
