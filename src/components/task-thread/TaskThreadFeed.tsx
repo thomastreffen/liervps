@@ -16,7 +16,7 @@ interface Props {
   onCreateAction?: (type: ActionType, message: TaskMessage) => void;
 }
 
-export function TaskThreadFeed({ messages, loading, currentUserId, lastReadAt, onReply }: Props) {
+export function TaskThreadFeed({ messages, loading, currentUserId, lastReadAt, onReply, onCreateAction }: Props) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const unreadRef = useRef<HTMLDivElement>(null);
   const [hasScrolledToUnread, setHasScrolledToUnread] = useState(false);
