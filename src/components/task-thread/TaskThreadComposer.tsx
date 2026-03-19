@@ -241,7 +241,7 @@ export function TaskThreadComposer({ onSend, sending, canUpload, canEmail, taskI
             </button>
             <label className="flex items-center gap-1 cursor-pointer select-none">
               <Checkbox checked={!skipEmail} onCheckedChange={(checked) => setSkipEmail(!checked)} className="h-3.5 w-3.5" />
-              <span className="text-[11px] text-muted-foreground">E-post</span>
+              <span className="text-[11px] text-muted-foreground">Varsle via e-post</span>
             </label>
           </div>
         )}
