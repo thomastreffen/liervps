@@ -5,7 +5,7 @@
  * All calls go through the supplier-integration edge function.
  */
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompanyContext } from "@/hooks/useCompanyContext";
 import { useQueryClient } from "@tanstack/react-query";
@@ -43,14 +43,6 @@ export interface FileListData {
   };
 }
 
-interface SyncResultData {
-  job_id: string;
-  files_found: number;
-  rows_processed: number;
-  rows_inserted: number;
-  rows_failed: number;
-}
-
 async function invokeAction<T = unknown>(
   action: string,
   body: Record<string, unknown>,
@@ -79,10 +71,27 @@ export function useSupplierActions(supplierId: string | undefined) {
   const [fileListResult, setFileListResult] = useState<FileListData | null>(null);
   const [testResult, setTestResult] = useState<ActionResult | null>(null);
 
+  // Polling refs for sync job status
+  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Cleanup polling on unmount
+  useEffect(() => {
+    return () => {
+      if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+      if (pollTimeoutRef.current) clearTimeout(pollTimeoutRef.current);
+    };
+  }, []);
+
   const invalidateQueries = useCallback(() => {
     qc.invalidateQueries({ queryKey: ["supplier-integration", activeCompanyId, supplierId] });
     qc.invalidateQueries({ queryKey: ["product-import-jobs", activeCompanyId, supplierId] });
   }, [qc, activeCompanyId, supplierId]);
+
+  const stopPolling = useCallback(() => {
+    if (pollIntervalRef.current) { clearInterval(pollIntervalRef.current); pollIntervalRef.current = null; }
+    if (pollTimeoutRef.current) { clearTimeout(pollTimeoutRef.current); pollTimeoutRef.current = null; }
+  }, []);
 
   const savePassword = useCallback(
     async (integrationId: string, password: string) => {
@@ -166,32 +175,73 @@ export function useSupplierActions(supplierId: string | undefined) {
   const runSync = useCallback(
     async (syncType: string = "full_sync") => {
       if (!activeCompanyId || !supplierId) return;
+      stopPolling();
       setRunningSyncType(syncType);
       try {
-        const result = await invokeAction<SyncResultData>("run-sync", {
+        const result = await invokeAction<{ job_id: string }>("run-sync", {
           company_id: activeCompanyId,
           supplier_id: supplierId,
           sync_type: syncType,
         });
 
-        if (result.status === "success") {
-          toast.success(result.message || "Synk fullført");
-        } else if (result.status === "partial_success") {
-          toast.warning(result.message || "Delvis synk");
-        } else {
-          toast.error(result.message || "Synk feilet");
+        if (result.status !== "started" || !result.data?.job_id) {
+          toast.error(result.message || "Kunne ikke starte synk");
+          setRunningSyncType(null);
+          return;
         }
 
-        invalidateQueries();
+        const jobId = result.data.job_id;
+        toast.info("Synkronisering startet – dette kan ta noen minutter");
+
+        // Poll job status every 5 seconds
+        pollIntervalRef.current = setInterval(async () => {
+          try {
+            const { data: job } = await supabase
+              .from("product_import_jobs")
+              .select("status, rows_processed, rows_inserted, rows_updated, rows_failed")
+              .eq("id", jobId)
+              .maybeSingle();
+
+            if (!job) return;
+
+            const done = ["success", "partial_success", "failed"].includes(job.status);
+            if (done) {
+              stopPolling();
+              setRunningSyncType(null);
+              invalidateQueries();
+
+              if (job.status === "success") {
+                toast.success(`Synk fullført: ${job.rows_inserted ?? 0} nye, ${job.rows_updated ?? 0} oppdatert`);
+              } else if (job.status === "partial_success") {
+                toast.warning(`Delvis synk: ${job.rows_inserted ?? 0} nye, ${job.rows_failed ?? 0} feilet`);
+              } else {
+                toast.error("Synk feilet – se importlogg for detaljer");
+              }
+            } else {
+              // Refresh import job list to show progress
+              invalidateQueries();
+            }
+          } catch {
+            // Ignore polling errors
+          }
+        }, 5000);
+
+        // Safety timeout: stop polling after 10 minutes
+        pollTimeoutRef.current = setTimeout(() => {
+          stopPolling();
+          setRunningSyncType(null);
+          invalidateQueries();
+          toast.warning("Synk tar lengre tid enn forventet – sjekk importloggen");
+        }, 10 * 60 * 1000);
+
       } catch (err) {
         toast.error("Synk feilet", {
           description: (err as Error).message,
         });
-      } finally {
         setRunningSyncType(null);
       }
     },
-    [activeCompanyId, supplierId, invalidateQueries],
+    [activeCompanyId, supplierId, invalidateQueries, stopPolling],
   );
 
   return {
