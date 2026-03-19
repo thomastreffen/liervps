@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { MoreHorizontal, AlertTriangle, PlusCircle, Clipboard, FileText } from "lucide-react";
 import {
   DropdownMenu,
@@ -14,6 +15,7 @@ export type ActionType = "deviation" | "additional_work" | "internal_task" | "of
 interface Props {
   message: TaskMessage;
   onCreateAction: (type: ActionType, message: TaskMessage) => void;
+  onOpenChange?: (open: boolean) => void;
 }
 
 const ACTION_OPTIONS: { type: ActionType; label: string; icon: typeof AlertTriangle; className: string }[] = [
@@ -23,15 +25,18 @@ const ACTION_OPTIONS: { type: ActionType; label: string; icon: typeof AlertTrian
   { type: "offer", label: "Tilbud", icon: FileText, className: "text-info" },
 ];
 
-export function MessageActionMenu({ message, onCreateAction }: Props) {
+export function MessageActionMenu({ message, onCreateAction, onOpenChange }: Props) {
   return (
-    <DropdownMenu>
+    <DropdownMenu onOpenChange={onOpenChange}>
       <DropdownMenuTrigger asChild>
-        <button className="inline-flex items-center justify-center h-6 w-6 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-foreground">
+        <button
+          className="inline-flex items-center justify-center h-6 w-6 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+          onClick={(e) => e.stopPropagation()}
+        >
           <MoreHorizontal className="h-3.5 w-3.5" />
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-44">
+      <DropdownMenuContent align="end" className="w-44 z-50" side="bottom" sideOffset={4}>
         <DropdownMenuLabel className="text-[10px] text-muted-foreground font-normal">Opprett fra melding</DropdownMenuLabel>
         {ACTION_OPTIONS.map(opt => {
           const Icon = opt.icon;

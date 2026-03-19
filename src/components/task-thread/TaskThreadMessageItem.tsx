@@ -56,8 +56,10 @@ export function TaskThreadMessageItem({ message, isOwnMessage, onReply, onScroll
     }
   };
 
-  // Hover state for reply button
+  // Hover state for reply button — keep visible while dropdown is open
   const [hovered, setHovered] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const showActions = hovered || menuOpen;
 
   return (
     <div
@@ -68,7 +70,7 @@ export function TaskThreadMessageItem({ message, isOwnMessage, onReply, onScroll
         priority === "important" && "pl-2 border-l-2 border-amber-400 dark:border-amber-600"
       )}
       onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
+      onMouseLeave={() => { if (!menuOpen) setHovered(false); }}
     >
       {/* Avatar */}
       <div className={cn(
@@ -101,7 +103,7 @@ export function TaskThreadMessageItem({ message, isOwnMessage, onReply, onScroll
           <PriorityBadge priority={priority} />
 
           {/* Hover actions */}
-          {hovered && (
+          {showActions && (
             <div className="inline-flex items-center gap-0.5">
               {onReply && (
                 <button
@@ -113,7 +115,14 @@ export function TaskThreadMessageItem({ message, isOwnMessage, onReply, onScroll
                 </button>
               )}
               {onCreateAction && (
-                <MessageActionMenu message={message} onCreateAction={onCreateAction} />
+                <MessageActionMenu
+                  message={message}
+                  onCreateAction={onCreateAction}
+                  onOpenChange={(open) => {
+                    setMenuOpen(open);
+                    if (!open) setHovered(false);
+                  }}
+                />
               )}
             </div>
           )}
