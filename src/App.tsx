@@ -86,6 +86,8 @@ import MyDayPage from "./pages/MyDayPage";
 import CompanyMigrationPage from "./pages/CompanyMigrationPage";
 import ProductsPage from "./pages/ProductsPage";
 import ProductDetailPage from "./pages/ProductDetailPage";
+import PurchaseOrdersPage from "./pages/PurchaseOrdersPage";
+import PurchaseOrderDetailPage from "./pages/PurchaseOrderDetailPage";
 import HelpCenterPage from "./pages/HelpCenterPage";
 import { CompanyProvider } from "@/hooks/useCompanyContext";
 import { PreviewModeProvider } from "@/hooks/usePreviewMode";
@@ -439,6 +441,10 @@ const App = () => (
               {/* Product module */}
               <Route path="/products" element={<ProductsPage />} />
               <Route path="/products/:id" element={<ProductDetailPage />} />
+
+              {/* Purchase module */}
+              <Route path="/purchasing" element={<PurchaseOrdersPage />} />
+              <Route path="/purchasing/:id" element={<PurchaseOrderDetailPage />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />
