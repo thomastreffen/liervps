@@ -215,6 +215,7 @@ export function useTaskThread(taskId: string | null | undefined, companyId: stri
             attachment_paths: uploadedAttachments.length > 0 ? uploadedAttachments : undefined,
             recipient_emails: options.emailRecipients.map(r => r.email),
             reply_to_message_id: options.replyToMessageId || undefined,
+            priority: options.priority || "normal",
           },
         });
 
