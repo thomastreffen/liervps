@@ -40,7 +40,8 @@ export function useTaskThreadReads(taskId: string | null | undefined): TaskThrea
         .eq("user_id", user.id)
         .maybeSingle();
 
-      const lastReadAt = readRecord?.last_read_at || "1970-01-01T00:00:00Z";
+      const lastReadAtVal = readRecord?.last_read_at || "1970-01-01T00:00:00Z";
+      setLastReadAt(readRecord?.last_read_at || null);
 
       // Count messages after last_read_at (exclude user's own messages)
       const { count } = await (supabase as any)
