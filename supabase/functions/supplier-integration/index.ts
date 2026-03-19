@@ -46,6 +46,7 @@ interface ConnectionAdapter {
   connect(): Promise<void>;
   list(path: string): Promise<RemoteFile[]>;
   download(path: string): Promise<string>;
+  downloadRaw(path: string): Promise<Uint8Array>;
   disconnect(): Promise<void>;
 }
 
