@@ -254,6 +254,7 @@ export function TaskThreadComposer({ onSend, sending, canUpload, canEmail, taskI
             <label key={r.email} className="flex items-center gap-2 px-1.5 py-1 rounded hover:bg-muted/50 cursor-pointer">
               <Checkbox checked={selectedEmails.has(r.email)} onCheckedChange={() => toggleRecipient(r.email)} className="h-3.5 w-3.5" />
               <span className="text-xs text-foreground">{r.name}</span>
+              {r.isResponsible && <span className="text-[10px] font-medium text-primary/70">(ansvarlig)</span>}
               <span className="text-[10px] text-muted-foreground">({r.email})</span>
             </label>
           ))}
