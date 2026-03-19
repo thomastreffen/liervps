@@ -221,8 +221,16 @@ async function createFtpAdapter(config: IntegrationConfig, password: string): Pr
       const chunks: Uint8Array[] = [];
       const writable = new Writable({ write(chunk: any, _enc: string, cb: () => void) { chunks.push(chunk instanceof Uint8Array ? chunk : new Uint8Array(chunk)); cb(); } });
       await client.downloadTo(writable, remotePath);
-      const dec = new TextDecoder("utf-8");
-      return chunks.map((c) => dec.decode(c, { stream: true })).join("") + dec.decode();
+      // EFONELFO spec requires Windows-1252 encoding
+      // Try UTF-8 first, fall back to latin1 if replacement chars found
+      const raw = new Uint8Array(chunks.reduce((a, c) => a + c.length, 0));
+      let offset = 0;
+      for (const c of chunks) { raw.set(c, offset); offset += c.length; }
+      let text = new TextDecoder("utf-8").decode(raw);
+      if (text.includes("\ufffd")) {
+        text = new TextDecoder("latin1").decode(raw);
+      }
+      return text;
     },
     async disconnect() { client.close(); },
   };
