@@ -24,6 +24,7 @@ export interface TaskMessage {
   recipients: Array<{ name: string; email: string }> | null;
   email_status: string | null;
   metadata: Record<string, any>;
+  reply_to_message_id: string | null;
   created_at: string;
   edited_at: string | null;
   deleted_at: string | null;
@@ -45,7 +46,7 @@ export interface UseTaskThreadReturn {
   loading: boolean;
   sending: boolean;
   threadId: string | null;
-  sendMessage: (body: string, files?: File[]) => Promise<void>;
+  sendMessage: (body: string, files?: File[], replyToMessageId?: string) => Promise<void>;
   sendEmailMessage: (body: string, files?: File[]) => Promise<void>;
   createSystemEvent: (eventType: string, metadata?: Record<string, any>) => Promise<void>;
   refetch: () => void;
@@ -168,7 +169,7 @@ export function useTaskThread(taskId: string | null | undefined, companyId: stri
   }, [user]);
 
   // Send internal message
-  const sendMessage = useCallback(async (body: string, files?: File[]) => {
+  const sendMessage = useCallback(async (body: string, files?: File[], replyToMessageId?: string) => {
     if (!taskId || !companyId || !user) return;
     if (!body.trim() && (!files || files.length === 0)) return;
     setSending(true);
@@ -176,14 +177,17 @@ export function useTaskThread(taskId: string | null | undefined, companyId: stri
       const tid = await ensureThread();
       const authorName = await getAuthorName();
 
+      const insertPayload: any = {
+        thread_id: tid, task_id: taskId, company_id: companyId,
+        message_type: "internal_message", direction: "internal",
+        body: body.trim() || null,
+        author_user_id: user.id, author_name: authorName, author_email: user.email,
+      };
+      if (replyToMessageId) insertPayload.reply_to_message_id = replyToMessageId;
+
       const { data: msg, error: msgError } = await supabase
         .from("task_messages")
-        .insert({
-          thread_id: tid, task_id: taskId, company_id: companyId,
-          message_type: "internal_message", direction: "internal",
-          body: body.trim() || null,
-          author_user_id: user.id, author_name: authorName, author_email: user.email,
-        } as any)
+        .insert(insertPayload)
         .select("id")
         .single();
       if (msgError) throw msgError;

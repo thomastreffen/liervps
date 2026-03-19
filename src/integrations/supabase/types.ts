@@ -7178,6 +7178,7 @@ export type Database = {
           raw_headers: Json | null
           recipients: Json | null
           reply_to_address: string | null
+          reply_to_message_id: string | null
           subject: string | null
           task_id: string
           thread_id: string
@@ -7204,6 +7205,7 @@ export type Database = {
           raw_headers?: Json | null
           recipients?: Json | null
           reply_to_address?: string | null
+          reply_to_message_id?: string | null
           subject?: string | null
           task_id: string
           thread_id: string
@@ -7230,6 +7232,7 @@ export type Database = {
           raw_headers?: Json | null
           recipients?: Json | null
           reply_to_address?: string | null
+          reply_to_message_id?: string | null
           subject?: string | null
           task_id?: string
           thread_id?: string
@@ -7240,6 +7243,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "internal_companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_messages_reply_to_message_id_fkey"
+            columns: ["reply_to_message_id"]
+            isOneToOne: false
+            referencedRelation: "task_messages"
             referencedColumns: ["id"]
           },
           {

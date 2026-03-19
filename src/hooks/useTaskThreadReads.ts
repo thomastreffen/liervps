@@ -3,11 +3,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
 interface TaskThreadReadState {
-  /** Number of unread messages for a given task */
   unreadCount: number;
-  /** Mark the thread as read up to now */
   markAsRead: () => Promise<void>;
   loading: boolean;
+  lastReadAt: string | null;
 }
 
 /**
@@ -18,6 +17,7 @@ export function useTaskThreadReads(taskId: string | null | undefined): TaskThrea
   const { user } = useAuth();
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [lastReadAt, setLastReadAt] = useState<string | null>(null);
 
   const fetchUnreadCount = useCallback(async () => {
     if (!taskId || !user) { setUnreadCount(0); return; }
@@ -40,7 +40,8 @@ export function useTaskThreadReads(taskId: string | null | undefined): TaskThrea
         .eq("user_id", user.id)
         .maybeSingle();
 
-      const lastReadAt = readRecord?.last_read_at || "1970-01-01T00:00:00Z";
+      const lastReadAtVal = readRecord?.last_read_at || "1970-01-01T00:00:00Z";
+      setLastReadAt(readRecord?.last_read_at || null);
 
       // Count messages after last_read_at (exclude user's own messages)
       const { count } = await (supabase as any)
@@ -48,7 +49,7 @@ export function useTaskThreadReads(taskId: string | null | undefined): TaskThrea
         .select("id", { count: "exact", head: true })
         .eq("thread_id", thread.id)
         .is("deleted_at", null)
-        .gt("created_at", lastReadAt)
+        .gt("created_at", lastReadAtVal)
         .neq("author_user_id", user.id);
 
       setUnreadCount(count || 0);
@@ -112,7 +113,7 @@ export function useTaskThreadReads(taskId: string | null | undefined): TaskThrea
     }
   }, [taskId, user]);
 
-  return { unreadCount, markAsRead, loading };
+  return { unreadCount, markAsRead, loading, lastReadAt };
 }
 
 /**

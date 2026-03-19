@@ -1,5 +1,5 @@
-import { useEffect } from "react";
-import { useTaskThread } from "@/hooks/useTaskThread";
+import { useEffect, useState, useCallback } from "react";
+import { useTaskThread, type TaskMessage } from "@/hooks/useTaskThread";
 import { useTaskThreadReads } from "@/hooks/useTaskThreadReads";
 import { useAuth } from "@/hooks/useAuth";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -15,7 +15,8 @@ export function TaskThreadPanel({ taskId, companyId }: Props) {
   const { user } = useAuth();
   const { hasPermission } = usePermissions();
   const { messages, loading, sending, sendMessage, sendEmailMessage } = useTaskThread(taskId, companyId);
-  const { markAsRead } = useTaskThreadReads(taskId);
+  const { markAsRead, lastReadAt } = useTaskThreadReads(taskId);
+  const [replyTo, setReplyTo] = useState<TaskMessage | null>(null);
 
   const canView = hasPermission("task_thread.view") || hasPermission("admin.manage_users");
   const canComment = hasPermission("task_thread.comment_internal") || hasPermission("admin.manage_users");
@@ -29,6 +30,14 @@ export function TaskThreadPanel({ taskId, companyId }: Props) {
     }
   }, [messages.length, markAsRead]);
 
+  const handleReply = useCallback((msg: TaskMessage) => {
+    setReplyTo(msg);
+  }, []);
+
+  const handleSend = useCallback(async (body: string, files?: File[], replyToMessageId?: string) => {
+    await sendMessage(body, files, replyToMessageId);
+  }, [sendMessage]);
+
   if (!canView) return null;
 
   return (
@@ -37,15 +46,19 @@ export function TaskThreadPanel({ taskId, companyId }: Props) {
         messages={messages}
         loading={loading}
         currentUserId={user?.id || null}
+        lastReadAt={lastReadAt}
+        onReply={canComment ? handleReply : undefined}
       />
       {canComment && (
         <TaskThreadComposer
-          onSend={sendMessage}
+          onSend={handleSend}
           onSendEmail={canEmail ? sendEmailMessage : undefined}
           sending={sending}
           canUpload={canUpload}
           canEmail={canEmail}
           taskId={taskId}
+          replyTo={replyTo}
+          onClearReply={() => setReplyTo(null)}
         />
       )}
     </div>
