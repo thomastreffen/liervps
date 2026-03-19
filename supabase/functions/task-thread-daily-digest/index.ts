@@ -404,14 +404,20 @@ function buildDigestHtml(userName: string, tasks: TaskSummary[], totalUnread: nu
       });
       const deepLink = `${APP_BASE_URL}/projects/plan?${deepLinkParams.toString()}`;
 
+      const priorityBadge = t.maxPriority === 'urgent'
+        ? '<span style="display:inline-block;background:#fee2e2;color:#dc2626;font-size:11px;font-weight:600;padding:2px 8px;border-radius:4px;margin-left:8px;">🔴 HASTER</span>'
+        : t.maxPriority === 'important'
+        ? '<span style="display:inline-block;background:#fef3c7;color:#b45309;font-size:11px;font-weight:600;padding:2px 8px;border-radius:4px;margin-left:8px;">⚠️ Viktig</span>'
+        : '';
+
       return `
         <tr>
-          <td style="padding: 16px 20px; border-bottom: 1px solid #f3f4f6;">
+          <td style="padding: 16px 20px; border-bottom: 1px solid #f3f4f6;${t.maxPriority === 'urgent' ? ' border-left: 3px solid #dc2626;' : t.maxPriority === 'important' ? ' border-left: 3px solid #f59e0b;' : ''}">
             <table cellpadding="0" cellspacing="0" width="100%">
               <tr>
                 <td>
                   <p style="margin: 0 0 4px; font-weight: 600; color: #1a1a1a; font-size: 14px;">
-                    ${escapeHtml(titleDisplay)}
+                    ${escapeHtml(titleDisplay)}${priorityBadge}
                   </p>
                   <p style="margin: 0; color: #6b7280; font-size: 13px;">
                     ${t.unreadCount} ${t.unreadCount === 1 ? "ulest melding" : "uleste meldinger"}
