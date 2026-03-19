@@ -19,6 +19,19 @@ interface ActionResult<T = unknown> {
   error_code?: string;
 }
 
+interface PolledImportJob {
+  status: string;
+  rows_processed: number;
+  rows_inserted: number;
+  rows_updated: number;
+  rows_failed: number;
+  current_chunk: number;
+  total_chunks: number;
+  progress_percent: number;
+  last_heartbeat_at: string | null;
+  updated_at: string;
+}
+
 export interface FileListFile {
   name: string;
   size: number;
@@ -43,6 +56,8 @@ export interface FileListData {
   };
 }
 
+const STALE_JOB_MS = 3 * 60 * 1000;
+
 async function invokeAction<T = unknown>(
   action: string,
   body: Record<string, unknown>,
@@ -59,6 +74,11 @@ async function invokeAction<T = unknown>(
   return data as ActionResult<T>;
 }
 
+function isJobStale(job: PolledImportJob) {
+  const heartbeat = job.last_heartbeat_at ?? job.updated_at;
+  return Date.now() - new Date(heartbeat).getTime() > STALE_JOB_MS;
+}
+
 export function useSupplierActions(supplierId: string | undefined) {
   const { activeCompanyId } = useCompanyContext();
   const qc = useQueryClient();
@@ -71,11 +91,9 @@ export function useSupplierActions(supplierId: string | undefined) {
   const [fileListResult, setFileListResult] = useState<FileListData | null>(null);
   const [testResult, setTestResult] = useState<ActionResult | null>(null);
 
-  // Polling refs for sync job status
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Cleanup polling on unmount
   useEffect(() => {
     return () => {
       if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
@@ -191,18 +209,31 @@ export function useSupplierActions(supplierId: string | undefined) {
         }
 
         const jobId = result.data.job_id;
-        toast.info("Synkronisering startet – dette kan ta noen minutter");
+        toast.info("Synkronisering startet – følg fremdriften i importloggen");
 
-        // Poll job status every 5 seconds
         pollIntervalRef.current = setInterval(async () => {
           try {
             const { data: job } = await supabase
               .from("product_import_jobs")
-              .select("status, rows_processed, rows_inserted, rows_updated, rows_failed")
+              .select("status, rows_processed, rows_inserted, rows_updated, rows_failed, current_chunk, total_chunks, progress_percent, last_heartbeat_at, updated_at")
               .eq("id", jobId)
-              .maybeSingle();
+              .maybeSingle<PolledImportJob>();
 
             if (!job) return;
+
+            if (job.status === "running" && isJobStale(job)) {
+              await invokeAction("mark-stale-job", {
+                company_id: activeCompanyId,
+                supplier_id: supplierId,
+                job_id: jobId,
+              }).catch(() => undefined);
+
+              stopPolling();
+              setRunningSyncType(null);
+              invalidateQueries();
+              toast.error("Synk ser ut til å ha stoppet opp");
+              return;
+            }
 
             const done = ["success", "partial_success", "failed"].includes(job.status);
             if (done) {
@@ -218,7 +249,6 @@ export function useSupplierActions(supplierId: string | undefined) {
                 toast.error("Synk feilet – se importlogg for detaljer");
               }
             } else {
-              // Refresh import job list to show progress
               invalidateQueries();
             }
           } catch {
@@ -226,14 +256,12 @@ export function useSupplierActions(supplierId: string | undefined) {
           }
         }, 5000);
 
-        // Safety timeout: stop polling after 10 minutes
         pollTimeoutRef.current = setTimeout(() => {
           stopPolling();
           setRunningSyncType(null);
           invalidateQueries();
           toast.warning("Synk tar lengre tid enn forventet – sjekk importloggen");
         }, 10 * 60 * 1000);
-
       } catch (err) {
         toast.error("Synk feilet", {
           description: (err as Error).message,
@@ -245,19 +273,14 @@ export function useSupplierActions(supplierId: string | undefined) {
   );
 
   return {
-    // Actions
     savePassword,
     testConnection,
     listFiles,
     runSync,
-
-    // Loading states
     testingConnection,
     listingFiles,
     runningSyncType,
     savingPassword,
-
-    // Results
     fileListResult,
     testResult,
     clearFileList: () => setFileListResult(null),
