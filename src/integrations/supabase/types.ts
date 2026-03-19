@@ -6479,6 +6479,213 @@ export type Database = {
           },
         ]
       }
+      purchase_order_lines: {
+        Row: {
+          best_available_price: number | null
+          best_available_supplier_id: string | null
+          catalog_product_id: string | null
+          chosen_supplier_id: string | null
+          company_id: string
+          created_at: string
+          description: string
+          discount_percent: number
+          el_number: string | null
+          id: string
+          net_price: number
+          price_saving: number | null
+          purchase_order_id: string
+          quantity: number
+          sort_order: number
+          supplier_product_id: string | null
+          total_ex_vat: number | null
+          unit: string | null
+          unit_price: number
+          updated_at: string
+          vat_rate: number
+        }
+        Insert: {
+          best_available_price?: number | null
+          best_available_supplier_id?: string | null
+          catalog_product_id?: string | null
+          chosen_supplier_id?: string | null
+          company_id: string
+          created_at?: string
+          description?: string
+          discount_percent?: number
+          el_number?: string | null
+          id?: string
+          net_price?: number
+          price_saving?: number | null
+          purchase_order_id: string
+          quantity?: number
+          sort_order?: number
+          supplier_product_id?: string | null
+          total_ex_vat?: number | null
+          unit?: string | null
+          unit_price?: number
+          updated_at?: string
+          vat_rate?: number
+        }
+        Update: {
+          best_available_price?: number | null
+          best_available_supplier_id?: string | null
+          catalog_product_id?: string | null
+          chosen_supplier_id?: string | null
+          company_id?: string
+          created_at?: string
+          description?: string
+          discount_percent?: number
+          el_number?: string | null
+          id?: string
+          net_price?: number
+          price_saving?: number | null
+          purchase_order_id?: string
+          quantity?: number
+          sort_order?: number
+          supplier_product_id?: string | null
+          total_ex_vat?: number | null
+          unit?: string | null
+          unit_price?: number
+          updated_at?: string
+          vat_rate?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_order_lines_best_available_supplier_id_fkey"
+            columns: ["best_available_supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_order_lines_catalog_product_id_fkey"
+            columns: ["catalog_product_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_catalog_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_order_lines_chosen_supplier_id_fkey"
+            columns: ["chosen_supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_order_lines_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "internal_companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_order_lines_purchase_order_id_fkey"
+            columns: ["purchase_order_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_order_lines_supplier_product_id_fkey"
+            columns: ["supplier_product_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      purchase_orders: {
+        Row: {
+          company_id: string
+          created_at: string
+          created_by: string
+          deleted_at: string | null
+          deleted_by: string | null
+          id: string
+          notes: string | null
+          order_number: string
+          parent_order_id: string | null
+          preferred_supplier_threshold: number
+          project_id: string | null
+          sent_at: string | null
+          status: Database["public"]["Enums"]["purchase_order_status"]
+          supplier_id: string | null
+          title: string
+          total_ex_vat: number
+          total_inc_vat: number
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          created_by: string
+          deleted_at?: string | null
+          deleted_by?: string | null
+          id?: string
+          notes?: string | null
+          order_number?: string
+          parent_order_id?: string | null
+          preferred_supplier_threshold?: number
+          project_id?: string | null
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["purchase_order_status"]
+          supplier_id?: string | null
+          title?: string
+          total_ex_vat?: number
+          total_inc_vat?: number
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          created_by?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
+          id?: string
+          notes?: string | null
+          order_number?: string
+          parent_order_id?: string | null
+          preferred_supplier_threshold?: number
+          project_id?: string | null
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["purchase_order_status"]
+          supplier_id?: string | null
+          title?: string
+          total_ex_vat?: number
+          total_inc_vat?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_orders_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "internal_companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_orders_parent_order_id_fkey"
+            columns: ["parent_order_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_orders_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_orders_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       regulation_queries: {
         Row: {
           actions: Json | null
@@ -8906,6 +9113,13 @@ export type Database = {
         | "failed"
         | "skipped"
         | "needs_review"
+      purchase_order_status:
+        | "draft"
+        | "confirmed"
+        | "sent"
+        | "partially_received"
+        | "received"
+        | "cancelled"
       regulation_scope_type: "global" | "lead" | "quote" | "job"
       regulation_topic: "NEK" | "FEL" | "FSE" | "FSL" | "Annet"
       supplier_connection_status: "never_tested" | "ok" | "warning" | "error"
@@ -9171,6 +9385,14 @@ export const Constants = {
         "failed",
         "skipped",
         "needs_review",
+      ],
+      purchase_order_status: [
+        "draft",
+        "confirmed",
+        "sent",
+        "partially_received",
+        "received",
+        "cancelled",
       ],
       regulation_scope_type: ["global", "lead", "quote", "job"],
       regulation_topic: ["NEK", "FEL", "FSE", "FSL", "Annet"],
