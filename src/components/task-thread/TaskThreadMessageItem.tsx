@@ -191,6 +191,11 @@ export function TaskThreadMessageItem({ message, isOwnMessage, onReply, onScroll
         {files.length > 0 && (
           <AttachmentGroup files={files} onDownload={handleDownload} />
         )}
+
+        {/* Linked action indicator */}
+        {linkedAction && (
+          <LinkedActionBadge action={linkedAction} />
+        )}
       </div>
     </div>
   );
