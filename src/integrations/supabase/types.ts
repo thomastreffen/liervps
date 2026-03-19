@@ -6117,11 +6117,15 @@ export type Database = {
         Row: {
           company_id: string
           created_at: string
+          current_chunk: number
           error_log: Json | null
+          failed_step: string | null
           files_found: Json | null
           finished_at: string | null
           id: string
           job_type: Database["public"]["Enums"]["product_import_job_type"]
+          last_heartbeat_at: string | null
+          progress_percent: number
           rows_failed: number
           rows_inserted: number
           rows_processed: number
@@ -6129,16 +6133,22 @@ export type Database = {
           started_at: string | null
           status: Database["public"]["Enums"]["product_import_job_status"]
           supplier_id: string
+          total_chunks: number
           triggered_by: string | null
+          updated_at: string
         }
         Insert: {
           company_id: string
           created_at?: string
+          current_chunk?: number
           error_log?: Json | null
+          failed_step?: string | null
           files_found?: Json | null
           finished_at?: string | null
           id?: string
           job_type: Database["public"]["Enums"]["product_import_job_type"]
+          last_heartbeat_at?: string | null
+          progress_percent?: number
           rows_failed?: number
           rows_inserted?: number
           rows_processed?: number
@@ -6146,16 +6156,22 @@ export type Database = {
           started_at?: string | null
           status?: Database["public"]["Enums"]["product_import_job_status"]
           supplier_id: string
+          total_chunks?: number
           triggered_by?: string | null
+          updated_at?: string
         }
         Update: {
           company_id?: string
           created_at?: string
+          current_chunk?: number
           error_log?: Json | null
+          failed_step?: string | null
           files_found?: Json | null
           finished_at?: string | null
           id?: string
           job_type?: Database["public"]["Enums"]["product_import_job_type"]
+          last_heartbeat_at?: string | null
+          progress_percent?: number
           rows_failed?: number
           rows_inserted?: number
           rows_processed?: number
@@ -6163,7 +6179,9 @@ export type Database = {
           started_at?: string | null
           status?: Database["public"]["Enums"]["product_import_job_status"]
           supplier_id?: string
+          total_chunks?: number
           triggered_by?: string | null
+          updated_at?: string
         }
         Relationships: [
           {

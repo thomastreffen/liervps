@@ -1,5 +1,5 @@
 import type { ProductImportJob } from "@/types/product-module";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, FileText, CheckCircle2, AlertTriangle, XCircle, Clock, Play } from "lucide-react";
 import { format } from "date-fns";
@@ -9,6 +9,8 @@ interface Props {
   jobs: ProductImportJob[];
   loading: boolean;
 }
+
+const STALE_JOB_MS = 3 * 60 * 1000;
 
 const statusConfig: Record<string, { icon: typeof CheckCircle2; color: string; label: string }> = {
   queued: { icon: Clock, color: "text-muted-foreground", label: "I kø" },
@@ -25,6 +27,15 @@ const jobTypeLabels: Record<string, string> = {
   discount_sync: "Rabattsynk",
   full_sync: "Full synk",
 };
+
+function getHeartbeat(job: ProductImportJob) {
+  return job.last_heartbeat_at ?? job.updated_at ?? job.created_at;
+}
+
+function isJobStalled(job: ProductImportJob) {
+  if (job.status !== "running") return false;
+  return Date.now() - new Date(getHeartbeat(job)).getTime() > STALE_JOB_MS;
+}
 
 export function ImportJobHistory({ jobs, loading }: Props) {
   if (loading) {
@@ -50,8 +61,12 @@ export function ImportJobHistory({ jobs, loading }: Props) {
   return (
     <div className="space-y-2">
       {jobs.map((job) => {
-        const cfg = statusConfig[job.status] ?? statusConfig.queued;
+        const stalled = isJobStalled(job);
+        const cfg = stalled
+          ? { icon: AlertTriangle, color: "text-destructive", label: "Stoppet opp" }
+          : statusConfig[job.status] ?? statusConfig.queued;
         const Icon = cfg.icon;
+
         return (
           <Card key={job.id} className="hover:shadow-sm transition-shadow">
             <CardContent className="py-3 px-4">
@@ -63,6 +78,11 @@ export function ImportJobHistory({ jobs, loading }: Props) {
                       {jobTypeLabels[job.job_type] ?? job.job_type}
                     </span>
                     <Badge variant="outline" className={`text-[10px] ${cfg.color}`}>{cfg.label}</Badge>
+                    {job.total_chunks > 0 && (
+                      <Badge variant="secondary" className="text-[10px]">
+                        Batch {Math.min(job.current_chunk, job.total_chunks)}/{job.total_chunks} · {job.progress_percent}%
+                      </Badge>
+                    )}
                   </div>
                   <div className="flex gap-4 mt-1 text-[10px] text-muted-foreground flex-wrap">
                     <span>{format(new Date(job.created_at), "d. MMM yyyy HH:mm", { locale: nb })}</span>
@@ -77,20 +97,31 @@ export function ImportJobHistory({ jobs, loading }: Props) {
                         Varighet: {Math.round((new Date(job.finished_at).getTime() - new Date(job.started_at).getTime()) / 1000)}s
                       </span>
                     )}
+                    {job.status === "running" && (
+                      <span>
+                        Sist livstegn: {format(new Date(getHeartbeat(job)), "HH:mm:ss", { locale: nb })}
+                      </span>
+                    )}
                   </div>
+                  {stalled && (
+                    <p className="mt-1 text-[10px] text-destructive">Ser ut til å ha stoppet opp.</p>
+                  )}
                 </div>
               </div>
 
-              {/* Error details */}
-              {job.status === "failed" && Array.isArray(job.error_log) && job.error_log.length > 0 && (
-                <div className="mt-2 p-2 rounded bg-destructive/5 border border-destructive/10">
-                  <p className="text-[10px] text-destructive font-mono">
-                    {typeof job.error_log[0] === "string" ? job.error_log[0] : JSON.stringify(job.error_log[0])}
-                  </p>
+              {(job.status === "failed" || stalled) && (job.failed_step || (Array.isArray(job.error_log) && job.error_log.length > 0)) && (
+                <div className="mt-2 p-2 rounded bg-destructive/5 border border-destructive/10 space-y-1">
+                  {job.failed_step && (
+                    <p className="text-[10px] text-destructive font-mono">Steg: {job.failed_step}</p>
+                  )}
+                  {Array.isArray(job.error_log) && job.error_log.length > 0 && (
+                    <p className="text-[10px] text-destructive font-mono">
+                      {typeof job.error_log[0] === "string" ? job.error_log[0] : JSON.stringify(job.error_log[0])}
+                    </p>
+                  )}
                 </div>
               )}
 
-              {/* Files found */}
               {Array.isArray(job.files_found) && job.files_found.length > 0 && (
                 <div className="mt-2 flex gap-1 flex-wrap">
                   {(job.files_found as any[]).slice(0, 5).map((f, i) => (

@@ -160,9 +160,15 @@ export interface ProductImportJob {
   rows_inserted: number;
   rows_updated: number;
   rows_failed: number;
+  current_chunk: number;
+  total_chunks: number;
+  progress_percent: number;
+  last_heartbeat_at: string | null;
+  failed_step: string | null;
   error_log: unknown[];
   triggered_by: string | null;
   created_at: string;
+  updated_at: string;
 }
 
 export interface ProductImportRow {
