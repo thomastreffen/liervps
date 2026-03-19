@@ -78,6 +78,8 @@ import AiMatcherReportPage from "./pages/AiMatcherReportPage";
 import InvoiceBasisPage from "./pages/InvoiceBasisPage";
 import ModuleManagementPage from "./pages/ModuleManagementPage";
 import TripletexImportPage from "./pages/TripletexImportPage";
+import SuppliersPage from "./pages/SuppliersPage";
+import SupplierDetailPage from "./pages/SupplierDetailPage";
 import ManagementPage from "./pages/ManagementPage";
 import AbsencePage from "./pages/AbsencePage";
 import MyDayPage from "./pages/MyDayPage";
@@ -412,6 +414,22 @@ const App = () => (
                 element={
                   <ProtectedRoute requiredRoles={["super_admin"]}>
                     <CompanyMigrationPage />
+                  </ProtectedRoute>
+                }
+               />
+              <Route
+                path="/admin/suppliers"
+                element={
+                  <ProtectedRoute requiredRoles={["admin", "super_admin"]}>
+                    <SuppliersPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/suppliers/:id"
+                element={
+                  <ProtectedRoute requiredRoles={["admin", "super_admin"]}>
+                    <SupplierDetailPage />
                   </ProtectedRoute>
                 }
               />
