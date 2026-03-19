@@ -756,7 +756,7 @@ async function handleRunSync(supabaseAdmin: ReturnType<typeof createClient>, com
   try { jobId = await createImportJob(supabaseAdmin, companyId, supplierId, syncType, userId || "admin"); } catch (e) { return jsonError((e as Error).message, "job_create_error", 500); }
 
   // Trigger process-sync which handles download → storage → chunking
-  triggerChunkProcessing({
+  triggerNextChunk({
     action: "process-sync",
     job_id: jobId,
     company_id: companyId,
