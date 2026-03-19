@@ -252,7 +252,27 @@ function PriorityBadge({ priority }: { priority: string }) {
   return null;
 }
 
-/* ── Inline Image Grid ── */
+/* ── Linked Action Badge ── */
+
+const ACTION_TYPE_LABELS: Record<string, string> = {
+  wp_deviation_created: "Avvik opprettet",
+  wp_additional_work_created: "Tillegg opprettet",
+  wp_internal_task_created: "Oppgave opprettet",
+  offer_created: "Tilbud opprettet",
+};
+
+function LinkedActionBadge({ action }: { action: { event_type: string; title: string; created_id?: string } }) {
+  const label = ACTION_TYPE_LABELS[action.event_type] || "Handling opprettet";
+
+  return (
+    <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-muted/50 border border-border/30 text-[10px] text-muted-foreground">
+      <ExternalLink className="h-2.5 w-2.5" />
+      <span>{label}: <span className="font-medium text-foreground/80">{action.title}</span></span>
+    </div>
+  );
+}
+
+
 
 function InlineImageGrid({ images, onDownload }: {
   images: Array<{ id: string; file_path: string; file_name: string; file_size: number | null }>;
