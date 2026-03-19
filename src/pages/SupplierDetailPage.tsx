@@ -18,6 +18,9 @@ import { SupplierStatusBanner } from "@/components/suppliers/SupplierStatusBanne
 export default function SupplierDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { isAdmin } = useAuth();
+  const { hasPermission } = usePermissions();
+  const canManageIntegrations = isAdmin || hasPermission("purchasing.manage_integrations");
   const { suppliers, loading: suppLoading } = useSuppliers();
   const supplier = suppliers.find((s) => s.id === id);
   const { integration, loading: intLoading, upsertIntegration } = useSupplierIntegration(id);
