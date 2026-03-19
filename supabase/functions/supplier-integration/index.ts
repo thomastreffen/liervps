@@ -7,14 +7,8 @@
  *   list-files         – List remote files, match patterns
  *   run-sync           – Execute import sync job
  *
- * Architecture layers:
- *   1. Auth guard (getClaims + admin permission)
- *   2. Config loader (supplier_integrations)
- *   3. Secret resolver (supplier_secrets via service_role)
- *   4. Connection adapter factory (FTP/FTPS/SFTP)
- *   5. File discovery + pattern matching
- *   6. Sync orchestrator + job logger
- *   7. Parser entrypoint (stub, extends in next phase)
+ * Priority: test-connection and list-files are hardened for production.
+ * run-sync uses the same adapters but parser is still a stub.
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
@@ -74,10 +68,17 @@ interface ConnectionAdapter {
 }
 
 // ===== Auth Guard =====
+class AuthError extends Error {
+  constructor(msg: string) {
+    super(msg);
+    this.name = "AuthError";
+  }
+}
+
 async function authenticateAdmin(
   req: Request,
   supabaseAdmin: ReturnType<typeof createClient>,
-): Promise<{ userId: string; companyId: string }> {
+): Promise<{ userId: string }> {
   const authHeader = req.headers.get("Authorization");
   if (!authHeader?.startsWith("Bearer ")) {
     throw new AuthError("Mangler autorisasjon");
@@ -94,23 +95,14 @@ async function authenticateAdmin(
 
   const userId = user.id;
 
-  // Check admin permission via existing function
+  // Check admin permission via existing db function
   const { data: isAdmin } = await supabaseAdmin.rpc("check_permission_v2", {
     _auth_user_id: userId,
     _perm: "admin.manage_users",
   });
   if (!isAdmin) throw new AuthError("Krever admin-tilgang");
 
-  // Get active company from user context (sent in body)
-  // Will be validated against supplier's company_id
-  return { userId, companyId: "" }; // companyId resolved from body
-}
-
-class AuthError extends Error {
-  constructor(msg: string) {
-    super(msg);
-    this.name = "AuthError";
-  }
+  return { userId };
 }
 
 // ===== Config Loader =====
@@ -144,7 +136,7 @@ async function loadPassword(
     .maybeSingle();
 
   if (error) {
-    console.error("[supplier-integration] Secret load error:", error.message);
+    console.error("[secret-resolver] Load error:", error.message);
     return null;
   }
   return data?.encrypted_value ?? null;
@@ -167,7 +159,6 @@ async function savePasswordSecret(
       },
       { onConflict: "integration_id" },
     );
-
   if (error) throw new Error(`Feil ved lagring av passord: ${error.message}`);
 }
 
@@ -190,11 +181,17 @@ async function updateConnectionStatus(
 
 // ===== Pattern Matching =====
 function matchGlob(pattern: string, filename: string): boolean {
+  // Escape regex special chars, then convert glob * and ? to regex equivalents
   const escaped = pattern
-    .replace(/[.+^${}()|[\]\\]/g, "\\$&")
+    .replace(/([.+^${}()|[\]\\])/g, "\\$1")
     .replace(/\*/g, ".*")
     .replace(/\?/g, ".");
-  return new RegExp(`^${escaped}$`, "i").test(filename);
+  try {
+    return new RegExp(`^${escaped}$`, "i").test(filename);
+  } catch {
+    console.warn(`[pattern-match] Invalid pattern "${pattern}", skipping`);
+    return false;
+  }
 }
 
 function categorizeFiles(
@@ -242,15 +239,32 @@ function categorizeFiles(
   return { all_files: onlyFiles, matched, warnings };
 }
 
+// ===== Timeout helper =====
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  let timer: number;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`${label} tidsavbrutt etter ${ms / 1000}s`)), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
 // ===== Connection Adapter Factory =====
-// Uses basic-ftp for FTP/FTPS and ssh2-sftp-client for SFTP.
-// These libraries use Node.js net/tls modules available via Deno's Node compat layer.
 
 async function createFtpAdapter(
   config: IntegrationConfig,
   password: string,
 ): Promise<ConnectionAdapter> {
-  const { Client } = await import("npm:basic-ftp@5.0.5");
+  let Client: any;
+  try {
+    const mod = await import("npm:basic-ftp@5.0.5");
+    Client = mod.Client;
+  } catch (importErr) {
+    console.error("[ftp-adapter] Failed to import basic-ftp:", (importErr as Error).message);
+    throw new Error(
+      `Kunne ikke laste FTP-bibliotek. Protokoll "${config.protocol}" er kanskje ikke støttet i dette miljøet.`,
+    );
+  }
+
   const client = new Client();
   client.ftp.verbose = false;
 
@@ -264,7 +278,7 @@ async function createFtpAdapter(
         secure: config.protocol === "ftps",
         secureOptions: config.protocol === "ftps" ? { rejectUnauthorized: false } : undefined,
       });
-      console.log(`[supplier-integration] FTP connected to ${config.host}:${config.port}`);
+      console.log(`[ftp-adapter] Connected to ${config.host}:${config.port} (${config.protocol})`);
     },
     async list(path: string): Promise<RemoteFile[]> {
       const items = await client.list(path);
@@ -272,17 +286,20 @@ async function createFtpAdapter(
         name: item.name,
         size: item.size ?? 0,
         modified_at: item.modifiedAt ? new Date(item.modifiedAt).toISOString() : null,
-        type: item.isDirectory ? "directory" as const : "file" as const,
+        type: item.isDirectory ? ("directory" as const) : ("file" as const),
       }));
     },
-    async download(path: string): Promise<string> {
+    async download(remotePath: string): Promise<string> {
+      // basic-ftp downloadTo needs a Node Writable stream
+      const { Writable } = await import("node:stream");
       const chunks: Uint8Array[] = [];
-      const writable = new WritableStream<Uint8Array>({
-        write(chunk) {
-          chunks.push(chunk);
+      const writable = new Writable({
+        write(chunk: any, _encoding: string, callback: () => void) {
+          chunks.push(chunk instanceof Uint8Array ? chunk : new Uint8Array(chunk));
+          callback();
         },
       });
-      await client.downloadTo(writable, path);
+      await client.downloadTo(writable, remotePath);
       const decoder = new TextDecoder("utf-8");
       return chunks.map((c) => decoder.decode(c, { stream: true })).join("") + decoder.decode();
     },
@@ -296,7 +313,17 @@ async function createSftpAdapter(
   config: IntegrationConfig,
   password: string,
 ): Promise<ConnectionAdapter> {
-  const SftpClient = (await import("npm:ssh2-sftp-client@11.0.0")).default;
+  let SftpClient: any;
+  try {
+    const mod = await import("npm:ssh2-sftp-client@11.0.0");
+    SftpClient = mod.default;
+  } catch (importErr) {
+    console.error("[sftp-adapter] Failed to import ssh2-sftp-client:", (importErr as Error).message);
+    throw new Error(
+      "Kunne ikke laste SFTP-bibliotek. Prøv FTP/FTPS-protokoll hvis SFTP ikke fungerer.",
+    );
+  }
+
   const client = new SftpClient();
 
   return {
@@ -319,7 +346,7 @@ async function createSftpAdapter(
           ],
         },
       });
-      console.log(`[supplier-integration] SFTP connected to ${config.host}:${config.port}`);
+      console.log(`[sftp-adapter] Connected to ${config.host}:${config.port}`);
     },
     async list(path: string): Promise<RemoteFile[]> {
       const items = await client.list(path);
@@ -327,14 +354,16 @@ async function createSftpAdapter(
         name: item.name,
         size: item.size ?? 0,
         modified_at: item.modifyTime ? new Date(item.modifyTime).toISOString() : null,
-        type: item.type === "d" ? "directory" as const : "file" as const,
+        type: item.type === "d" ? ("directory" as const) : ("file" as const),
       }));
     },
-    async download(path: string): Promise<string> {
-      const buffer = await client.get(path);
+    async download(remotePath: string): Promise<string> {
+      const buffer = await client.get(remotePath);
       if (typeof buffer === "string") return buffer;
-      if (buffer instanceof Buffer) return buffer.toString("utf-8");
-      return new TextDecoder().decode(buffer);
+      if (buffer instanceof Uint8Array || (typeof Buffer !== "undefined" && buffer instanceof Buffer)) {
+        return new TextDecoder("utf-8").decode(buffer);
+      }
+      return String(buffer);
     },
     async disconnect() {
       await client.end();
@@ -346,6 +375,7 @@ async function createAdapter(
   config: IntegrationConfig,
   password: string,
 ): Promise<ConnectionAdapter> {
+  console.log(`[adapter-factory] Creating ${config.protocol} adapter for ${config.host}:${config.port}`);
   switch (config.protocol) {
     case "ftp":
     case "ftps":
@@ -353,7 +383,258 @@ async function createAdapter(
     case "sftp":
       return createSftpAdapter(config, password);
     default:
-      throw new Error(`Ustøttet protokoll: ${config.protocol}`);
+      throw new Error(`Ustøttet protokoll: ${(config as any).protocol}`);
+  }
+}
+
+// ===== Error Classification =====
+function classifyConnectionError(errMsg: string, config: IntegrationConfig): { userMessage: string; errorCode: string } {
+  if (errMsg.includes("tidsavbrutt") || errMsg.includes("timeout") || errMsg.includes("ETIMEDOUT") || errMsg.includes("Timed out")) {
+    return { userMessage: `Tidsavbrudd mot ${config.host}:${config.port} – sjekk vertsnavn og port`, errorCode: "timeout" };
+  }
+  if (errMsg.includes("ENOTFOUND") || errMsg.includes("getaddrinfo")) {
+    return { userMessage: `Vertsnavn "${config.host}" ble ikke funnet (DNS-feil)`, errorCode: "host_not_found" };
+  }
+  if (errMsg.includes("ECONNREFUSED")) {
+    return { userMessage: `Tilkobling nektet på ${config.host}:${config.port} – sjekk port og brannmur`, errorCode: "connection_refused" };
+  }
+  if (errMsg.includes("ECONNRESET") || errMsg.includes("socket hang up")) {
+    return { userMessage: `Forbindelsen ble avbrutt av serveren – sjekk protokoll og port`, errorCode: "connection_reset" };
+  }
+  if (errMsg.includes("Auth") || errMsg.includes("auth") || errMsg.includes("login") || errMsg.includes("530") || errMsg.includes("permission denied")) {
+    return { userMessage: "Autentisering feilet – sjekk brukernavn og passord", errorCode: "auth_failed" };
+  }
+  if (errMsg.includes("Kunne ikke laste")) {
+    return { userMessage: errMsg, errorCode: "library_error" };
+  }
+  return { userMessage: `Tilkoblingsfeil: ${errMsg.substring(0, 200)}`, errorCode: "connection_error" };
+}
+
+// ===== Action Handlers =====
+
+async function handleSavePassword(
+  supabaseAdmin: ReturnType<typeof createClient>,
+  companyId: string,
+  body: Record<string, unknown>,
+): Promise<Response> {
+  const integrationId = body.integration_id as string;
+  const password = body.password as string;
+
+  if (!integrationId || !password) {
+    return jsonError("Mangler integration_id eller password", "missing_params");
+  }
+
+  // Verify integration belongs to company
+  const { data: integration } = await supabaseAdmin
+    .from("supplier_integrations")
+    .select("id, company_id")
+    .eq("id", integrationId)
+    .eq("company_id", companyId)
+    .maybeSingle();
+
+  if (!integration) {
+    return jsonError("Integrasjon ikke funnet for dette selskapet", "not_found", 404);
+  }
+
+  await savePasswordSecret(supabaseAdmin, integrationId, companyId, password);
+
+  // Update reference column so UI knows password is set
+  await supabaseAdmin
+    .from("supplier_integrations")
+    .update({ password_secret_ref: `secret:${integrationId}` })
+    .eq("id", integrationId);
+
+  return jsonOk({ message: "Passord lagret sikkert" });
+}
+
+async function handleTestConnection(
+  supabaseAdmin: ReturnType<typeof createClient>,
+  companyId: string,
+  supplierId: string,
+): Promise<Response> {
+  console.log(`[test-connection] Starting for supplier ${supplierId}, company ${companyId}`);
+
+  // Step 1: Load config
+  let config: IntegrationConfig;
+  try {
+    config = await loadIntegrationConfig(supabaseAdmin, companyId, supplierId);
+    console.log(`[test-connection] Config loaded: ${config.protocol}://${config.host}:${config.port}`);
+  } catch (e) {
+    console.error(`[test-connection] Config error: ${(e as Error).message}`);
+    return jsonError((e as Error).message, "config_error");
+  }
+
+  // Step 2: Load password
+  const password = await loadPassword(supabaseAdmin, config.id);
+  if (!password) {
+    console.warn(`[test-connection] No password for integration ${config.id}`);
+    await updateConnectionStatus(supabaseAdmin, config.id, "error", "Passord ikke konfigurert");
+    return jsonOk({
+      status: "error",
+      message: "Passord er ikke lagret for denne integrasjonen. Lagre passord først.",
+      error_code: "no_password",
+      tested_at: new Date().toISOString(),
+      path_exists: false,
+      sample_files: [],
+    });
+  }
+
+  // Step 3: Create adapter + connect + list
+  let adapter: ConnectionAdapter | null = null;
+  try {
+    adapter = await createAdapter(config, password);
+
+    // Connect with 20s timeout
+    await withTimeout(adapter.connect(), 20_000, "Tilkobling");
+
+    // Verify path access
+    const basePath = config.remote_base_path || "/";
+    let sampleFiles: RemoteFile[] = [];
+    let pathExists = true;
+
+    try {
+      sampleFiles = await withTimeout(adapter.list(basePath), 15_000, "Filoppslag");
+    } catch (pathErr) {
+      pathExists = false;
+      console.warn(`[test-connection] Path "${basePath}" inaccessible: ${(pathErr as Error).message}`);
+    }
+
+    const testedAt = new Date().toISOString();
+
+    if (pathExists) {
+      const fileCount = sampleFiles.filter((f) => f.type === "file").length;
+      const dirCount = sampleFiles.filter((f) => f.type === "directory").length;
+      const msg = `Tilkobling OK. ${fileCount} filer og ${dirCount} mapper i ${basePath}`;
+      await updateConnectionStatus(supabaseAdmin, config.id, "ok", msg);
+
+      return jsonOk({
+        status: "ok",
+        message: msg,
+        tested_at: testedAt,
+        path_exists: true,
+        sample_files: sampleFiles.slice(0, 15).map((f) => ({
+          name: f.name,
+          size: f.size,
+          type: f.type,
+        })),
+      });
+    } else {
+      const msg = `Tilkoblet, men sti "${basePath}" er utilgjengelig`;
+      await updateConnectionStatus(supabaseAdmin, config.id, "warning", msg);
+
+      return jsonOk({
+        status: "warning",
+        message: msg,
+        tested_at: testedAt,
+        path_exists: false,
+        sample_files: [],
+      });
+    }
+  } catch (err) {
+    const errMsg = (err as Error).message;
+    console.error(`[test-connection] Failed: ${errMsg}`);
+    const { userMessage, errorCode } = classifyConnectionError(errMsg, config);
+    await updateConnectionStatus(supabaseAdmin, config.id, "error", userMessage);
+
+    return jsonOk({
+      status: "error",
+      message: userMessage,
+      error_code: errorCode,
+      tested_at: new Date().toISOString(),
+      path_exists: false,
+      sample_files: [],
+    });
+  } finally {
+    try {
+      if (adapter) await adapter.disconnect();
+    } catch (e) {
+      console.warn("[test-connection] Disconnect error (ignored):", (e as Error).message);
+    }
+  }
+}
+
+async function handleListFiles(
+  supabaseAdmin: ReturnType<typeof createClient>,
+  companyId: string,
+  supplierId: string,
+): Promise<Response> {
+  console.log(`[list-files] Starting for supplier ${supplierId}`);
+
+  let config: IntegrationConfig;
+  try {
+    config = await loadIntegrationConfig(supabaseAdmin, companyId, supplierId);
+  } catch (e) {
+    return jsonError((e as Error).message, "config_error");
+  }
+
+  const password = await loadPassword(supabaseAdmin, config.id);
+  if (!password) {
+    return jsonError("Passord ikke konfigurert – lagre passord først", "no_password");
+  }
+
+  let adapter: ConnectionAdapter | null = null;
+
+  try {
+    adapter = await createAdapter(config, password);
+    await withTimeout(adapter.connect(), 20_000, "Tilkobling");
+
+    const basePath = config.remote_base_path || "/";
+    let allFiles: RemoteFile[] = [];
+
+    try {
+      allFiles = await withTimeout(adapter.list(basePath), 15_000, "Filoppslag");
+      console.log(`[list-files] Found ${allFiles.length} items in ${basePath}`);
+    } catch (pathErr) {
+      return jsonError(
+        `Kunne ikke lese filer fra "${basePath}": ${(pathErr as Error).message}`,
+        "path_error",
+      );
+    }
+
+    // Explore subdirectories if the base path has few files
+    const subdirs = allFiles.filter((f) => f.type === "directory");
+    const fileCount = allFiles.filter((f) => f.type === "file").length;
+    if (subdirs.length > 0 && fileCount < 3) {
+      console.log(`[list-files] Only ${fileCount} files in root, exploring ${subdirs.length} subdirs`);
+      for (const dir of subdirs.slice(0, 5)) {
+        try {
+          const subPath = `${basePath.replace(/\/$/, "")}/${dir.name}`;
+          const subFiles = await withTimeout(adapter.list(subPath), 10_000, `Undermappe ${dir.name}`);
+          for (const sf of subFiles) {
+            allFiles.push({ ...sf, name: `${dir.name}/${sf.name}` });
+          }
+        } catch {
+          // Skip unreadable subdirectories silently
+        }
+      }
+    }
+
+    const result = categorizeFiles(allFiles, config);
+
+    // Update connection status since we successfully connected
+    await updateConnectionStatus(
+      supabaseAdmin,
+      config.id,
+      "ok",
+      `Filliste hentet: ${result.all_files.length} filer`,
+    );
+
+    return jsonOk({
+      status: "ok",
+      message: `${result.all_files.length} filer funnet`,
+      data: result,
+    });
+  } catch (err) {
+    const errMsg = (err as Error).message;
+    console.error(`[list-files] Failed: ${errMsg}`);
+    const { userMessage, errorCode } = classifyConnectionError(errMsg, config);
+    return jsonError(userMessage, errorCode, 500);
+  } finally {
+    try {
+      if (adapter) await adapter.disconnect();
+    } catch (e) {
+      console.warn("[list-files] Disconnect error (ignored):", (e as Error).message);
+    }
   }
 }
 
@@ -392,30 +673,10 @@ async function updateImportJob(
   jobId: string,
   updates: Record<string, unknown>,
 ) {
-  await supabaseAdmin
-    .from("product_import_jobs")
-    .update(updates)
-    .eq("id", jobId);
+  await supabaseAdmin.from("product_import_jobs").update(updates).eq("id", jobId);
 }
 
-// ===== Parser Entrypoint (stub for next phase) =====
-/**
- * Parser entrypoint – receives downloaded file content and produces
- * structured rows for import into supplier_products / supplier_prices.
- *
- * Next phase will implement:
- * - CSV delimiter detection
- * - Column mapping per supplier
- * - Row validation and normalization
- * - Upsert into supplier_products + supplier_prices
- * - product_import_rows logging per row
- */
-interface ParseResult {
-  rows_parsed: number;
-  rows_failed: number;
-  errors: string[];
-}
-
+// ===== Parser Entrypoint (stub) =====
 async function parseFile(params: {
   supabaseAdmin: ReturnType<typeof createClient>;
   supplierId: string;
@@ -424,18 +685,13 @@ async function parseFile(params: {
   fileType: string;
   fileName: string;
   fileContent: string;
-}): Promise<ParseResult> {
+}): Promise<{ rows_parsed: number; rows_failed: number; errors: string[] }> {
   const { supabaseAdmin, companyId, importJobId, fileType, fileName, fileContent } = params;
-
-  // Stub: count lines as proxy for rows, log each as "parsed"
   const lines = fileContent.split("\n").filter((l) => l.trim().length > 0);
-  const dataLines = lines.length > 1 ? lines.length - 1 : 0; // Exclude header
+  const dataLines = lines.length > 1 ? lines.length - 1 : 0;
 
-  console.log(
-    `[parser] File: ${fileName}, type: ${fileType}, lines: ${lines.length}, data rows: ${dataLines}`,
-  );
+  console.log(`[parser] File: ${fileName}, type: ${fileType}, data rows: ${dataLines}`);
 
-  // Log first row as sample import row
   if (dataLines > 0) {
     await supabaseAdmin.from("product_import_rows").insert({
       company_id: companyId,
@@ -448,225 +704,10 @@ async function parseFile(params: {
     });
   }
 
-  return {
-    rows_parsed: dataLines,
-    rows_failed: 0,
-    errors: [],
-  };
+  return { rows_parsed: dataLines, rows_failed: 0, errors: [] };
 }
 
-// ===== Action Handlers =====
-
-async function handleSavePassword(
-  supabaseAdmin: ReturnType<typeof createClient>,
-  companyId: string,
-  body: Record<string, unknown>,
-): Promise<Response> {
-  const integrationId = body.integration_id as string;
-  const password = body.password as string;
-
-  if (!integrationId || !password) {
-    return jsonError("Mangler integration_id eller password", "missing_params");
-  }
-
-  // Verify integration belongs to company
-  const { data: integration } = await supabaseAdmin
-    .from("supplier_integrations")
-    .select("id, company_id")
-    .eq("id", integrationId)
-    .eq("company_id", companyId)
-    .maybeSingle();
-
-  if (!integration) {
-    return jsonError("Integrasjon ikke funnet for dette selskapet", "not_found", 404);
-  }
-
-  await savePasswordSecret(supabaseAdmin, integrationId, companyId, password);
-
-  // Update the reference column
-  await supabaseAdmin
-    .from("supplier_integrations")
-    .update({ password_secret_ref: `secret:${integrationId}` })
-    .eq("id", integrationId);
-
-  return jsonOk({ message: "Passord lagret sikkert" });
-}
-
-async function handleTestConnection(
-  supabaseAdmin: ReturnType<typeof createClient>,
-  companyId: string,
-  supplierId: string,
-): Promise<Response> {
-  let config: IntegrationConfig;
-  try {
-    config = await loadIntegrationConfig(supabaseAdmin, companyId, supplierId);
-  } catch (e) {
-    return jsonError((e as Error).message, "config_error");
-  }
-
-  const password = await loadPassword(supabaseAdmin, config.id);
-  if (!password) {
-    await updateConnectionStatus(supabaseAdmin, config.id, "error", "Passord ikke konfigurert");
-    return jsonError("Passord er ikke lagret for denne integrasjonen", "no_password");
-  }
-
-  let adapter: ConnectionAdapter | null = null;
-  const stepErrors: string[] = [];
-
-  try {
-    // Step 1: Create adapter
-    adapter = await createAdapter(config, password);
-
-    // Step 2: Connect with timeout
-    const connectPromise = adapter.connect();
-    const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error("Tilkobling tidsavbrutt etter 20 sekunder")), 20000),
-    );
-    await Promise.race([connectPromise, timeoutPromise]);
-
-    // Step 3: Verify path access
-    const basePath = config.remote_base_path || "/";
-    let sampleFiles: RemoteFile[] = [];
-    let pathExists = true;
-
-    try {
-      sampleFiles = await adapter.list(basePath);
-    } catch (pathErr) {
-      pathExists = false;
-      stepErrors.push(`Sti-tilgang feilet: ${(pathErr as Error).message}`);
-    }
-
-    const testedAt = new Date().toISOString();
-
-    if (pathExists) {
-      const msg = `Tilkobling OK. ${sampleFiles.length} elementer funnet i ${basePath}`;
-      await updateConnectionStatus(supabaseAdmin, config.id, "ok", msg);
-
-      return jsonOk({
-        status: "ok",
-        message: msg,
-        tested_at: testedAt,
-        path_exists: true,
-        sample_files: sampleFiles.slice(0, 10),
-      });
-    } else {
-      const msg = `Tilkoblet, men sti "${basePath}" er utilgjengelig`;
-      await updateConnectionStatus(supabaseAdmin, config.id, "warning", msg);
-
-      return jsonOk({
-        status: "warning",
-        message: msg,
-        tested_at: testedAt,
-        path_exists: false,
-        sample_files: [],
-      });
-    }
-  } catch (err) {
-    const errMsg = (err as Error).message;
-    console.error("[supplier-integration] Connection test failed:", errMsg);
-
-    // Categorize error
-    let userMessage = "Tilkoblingsfeil";
-    let errorCode = "connection_error";
-
-    if (errMsg.includes("tidsavbrutt") || errMsg.includes("timeout") || errMsg.includes("ETIMEDOUT")) {
-      userMessage = "Tidsavbrudd – sjekk vertsnavn og port";
-      errorCode = "timeout";
-    } else if (errMsg.includes("ENOTFOUND") || errMsg.includes("getaddrinfo")) {
-      userMessage = `Vertsnavn "${config.host}" ble ikke funnet`;
-      errorCode = "host_not_found";
-    } else if (errMsg.includes("ECONNREFUSED")) {
-      userMessage = `Tilkobling nektet på ${config.host}:${config.port}`;
-      errorCode = "connection_refused";
-    } else if (errMsg.includes("Auth") || errMsg.includes("auth") || errMsg.includes("login") || errMsg.includes("530")) {
-      userMessage = "Autentisering feilet – sjekk brukernavn og passord";
-      errorCode = "auth_failed";
-    }
-
-    await updateConnectionStatus(supabaseAdmin, config.id, "error", userMessage);
-
-    return jsonOk({
-      status: "error",
-      message: userMessage,
-      error_code: errorCode,
-      tested_at: new Date().toISOString(),
-      path_exists: false,
-      sample_files: [],
-    });
-  } finally {
-    try {
-      if (adapter) await adapter.disconnect();
-    } catch { /* ignore disconnect errors */ }
-  }
-}
-
-async function handleListFiles(
-  supabaseAdmin: ReturnType<typeof createClient>,
-  companyId: string,
-  supplierId: string,
-): Promise<Response> {
-  let config: IntegrationConfig;
-  try {
-    config = await loadIntegrationConfig(supabaseAdmin, companyId, supplierId);
-  } catch (e) {
-    return jsonError((e as Error).message, "config_error");
-  }
-
-  const password = await loadPassword(supabaseAdmin, config.id);
-  if (!password) {
-    return jsonError("Passord ikke konfigurert", "no_password");
-  }
-
-  let adapter: ConnectionAdapter | null = null;
-
-  try {
-    adapter = await createAdapter(config, password);
-    await adapter.connect();
-
-    const basePath = config.remote_base_path || "/";
-    let allFiles: RemoteFile[] = [];
-
-    try {
-      allFiles = await adapter.list(basePath);
-    } catch (pathErr) {
-      return jsonError(
-        `Kunne ikke lese filer fra "${basePath}": ${(pathErr as Error).message}`,
-        "path_error",
-      );
-    }
-
-    // Also try common subdirectories if base path has few files
-    const subdirs = allFiles.filter((f) => f.type === "directory");
-    if (subdirs.length > 0 && allFiles.filter((f) => f.type === "file").length < 3) {
-      for (const dir of subdirs.slice(0, 5)) {
-        try {
-          const subFiles = await adapter.list(`${basePath}/${dir.name}`.replace("//", "/"));
-          for (const sf of subFiles) {
-            allFiles.push({ ...sf, name: `${dir.name}/${sf.name}` });
-          }
-        } catch {
-          // Skip unreadable subdirectories
-        }
-      }
-    }
-
-    const result = categorizeFiles(allFiles, config);
-
-    return jsonOk({
-      status: "ok",
-      message: `${result.all_files.length} filer funnet`,
-      data: result,
-    });
-  } catch (err) {
-    console.error("[supplier-integration] List files failed:", (err as Error).message);
-    return jsonError(`Filhenting feilet: ${(err as Error).message}`, "connection_error", 500);
-  } finally {
-    try {
-      if (adapter) await adapter.disconnect();
-    } catch { /* ignore */ }
-  }
-}
-
+// ===== Run Sync Handler =====
 async function handleRunSync(
   supabaseAdmin: ReturnType<typeof createClient>,
   companyId: string,
@@ -676,7 +717,6 @@ async function handleRunSync(
   const syncType = (body.sync_type as string) || "full_sync";
   const userId = body.user_id as string;
 
-  // Validate sync_type
   const validTypes = ["full_sync", "catalog_sync", "price_sync", "discount_sync"];
   if (!validTypes.includes(syncType)) {
     return jsonError(`Ugyldig sync_type: ${syncType}`, "invalid_sync_type");
@@ -694,7 +734,6 @@ async function handleRunSync(
     return jsonError("Passord ikke konfigurert", "no_password");
   }
 
-  // Create import job
   let jobId: string;
   try {
     jobId = await createImportJob(supabaseAdmin, companyId, supplierId, syncType, userId || "admin");
@@ -702,45 +741,28 @@ async function handleRunSync(
     return jsonError((e as Error).message, "job_create_error", 500);
   }
 
-  // Update to running
-  await updateImportJob(supabaseAdmin, jobId, {
-    status: "running",
-    started_at: new Date().toISOString(),
-  });
+  await updateImportJob(supabaseAdmin, jobId, { status: "running", started_at: new Date().toISOString() });
 
   let adapter: ConnectionAdapter | null = null;
   const errorLog: string[] = [];
-  let totalParsed = 0;
-  let totalFailed = 0;
-  let totalInserted = 0;
+  let totalParsed = 0, totalFailed = 0, totalInserted = 0;
   const filesFound: string[] = [];
 
   try {
     adapter = await createAdapter(config, password);
-    await adapter.connect();
+    await withTimeout(adapter.connect(), 20_000, "Tilkobling");
 
     const basePath = config.remote_base_path || "/";
-    const allFiles = await adapter.list(basePath);
+    const allFiles = await withTimeout(adapter.list(basePath), 15_000, "Filoppslag");
     const categorized = categorizeFiles(allFiles, config);
 
-    // Determine which file categories to process
     const typesToProcess: { type: string; files: RemoteFile[] }[] = [];
+    if (syncType === "full_sync" || syncType === "catalog_sync") typesToProcess.push({ type: "catalog", files: categorized.matched.catalog });
+    if (syncType === "full_sync" || syncType === "price_sync") typesToProcess.push({ type: "price", files: categorized.matched.price });
+    if (syncType === "full_sync" || syncType === "discount_sync") typesToProcess.push({ type: "discount", files: categorized.matched.discount });
 
-    if (syncType === "full_sync" || syncType === "catalog_sync") {
-      typesToProcess.push({ type: "catalog", files: categorized.matched.catalog });
-    }
-    if (syncType === "full_sync" || syncType === "price_sync") {
-      typesToProcess.push({ type: "price", files: categorized.matched.price });
-    }
-    if (syncType === "full_sync" || syncType === "discount_sync") {
-      typesToProcess.push({ type: "discount", files: categorized.matched.discount });
-    }
-
-    // Record files found
     for (const group of typesToProcess) {
-      for (const f of group.files) {
-        filesFound.push(f.name);
-      }
+      for (const f of group.files) filesFound.push(f.name);
     }
 
     await updateImportJob(supabaseAdmin, jobId, { files_found: filesFound });
@@ -751,53 +773,29 @@ async function handleRunSync(
         finished_at: new Date().toISOString(),
         error_log: ["Ingen matchende filer funnet på serveren"],
       });
-      return jsonOk({
-        status: "success",
-        message: "Synk fullført – ingen matchende filer funnet",
-        data: { job_id: jobId, files_found: 0 },
-      });
+      return jsonOk({ status: "success", message: "Synk fullført – ingen matchende filer", data: { job_id: jobId, files_found: 0 } });
     }
 
-    // Download and parse each file
     for (const group of typesToProcess) {
       for (const file of group.files) {
-        const filePath = `${basePath}/${file.name}`.replace("//", "/");
-
+        const filePath = `${basePath.replace(/\/$/, "")}/${file.name}`;
         try {
-          console.log(`[supplier-integration] Downloading: ${filePath}`);
-          const content = await adapter.download(filePath);
-
-          const result = await parseFile({
-            supabaseAdmin,
-            supplierId,
-            companyId,
-            importJobId: jobId,
-            fileType: group.type,
-            fileName: file.name,
-            fileContent: content,
-          });
-
+          const content = await withTimeout(adapter.download(filePath), 60_000, `Nedlasting av ${file.name}`);
+          const result = await parseFile({ supabaseAdmin, supplierId, companyId, importJobId: jobId, fileType: group.type, fileName: file.name, fileContent: content });
           totalParsed += result.rows_parsed;
           totalFailed += result.rows_failed;
-          totalInserted += result.rows_parsed; // Stub: all parsed = inserted
+          totalInserted += result.rows_parsed;
           errorLog.push(...result.errors);
         } catch (fileErr) {
           const msg = `Fil "${file.name}": ${(fileErr as Error).message}`;
-          console.error(`[supplier-integration] ${msg}`);
+          console.error(`[run-sync] ${msg}`);
           errorLog.push(msg);
           totalFailed++;
-          // Continue with other files – don't let one failure break everything
         }
       }
     }
 
-    // Determine final status
-    const finalStatus =
-      totalFailed > 0 && totalParsed > 0
-        ? "partial_success"
-        : totalFailed > 0
-          ? "failed"
-          : "success";
+    const finalStatus = totalFailed > 0 && totalParsed > 0 ? "partial_success" : totalFailed > 0 ? "failed" : "success";
 
     await updateImportJob(supabaseAdmin, jobId, {
       status: finalStatus,
@@ -809,35 +807,18 @@ async function handleRunSync(
       error_log: errorLog,
     });
 
-    // Update last_sync_at on success
     if (finalStatus === "success" || finalStatus === "partial_success") {
-      await supabaseAdmin
-        .from("supplier_integrations")
-        .update({ last_sync_at: new Date().toISOString() })
-        .eq("id", config.id);
+      await supabaseAdmin.from("supplier_integrations").update({ last_sync_at: new Date().toISOString() }).eq("id", config.id);
     }
 
     return jsonOk({
       status: finalStatus,
-      message:
-        finalStatus === "success"
-          ? `Synk fullført. ${totalParsed} rader behandlet fra ${filesFound.length} filer.`
-          : finalStatus === "partial_success"
-            ? `Delvis synk. ${totalParsed} rader OK, ${totalFailed} feilet.`
-            : `Synk feilet. ${totalFailed} feil.`,
-      data: {
-        job_id: jobId,
-        files_found: filesFound.length,
-        rows_processed: totalParsed + totalFailed,
-        rows_inserted: totalInserted,
-        rows_failed: totalFailed,
-      },
+      message: finalStatus === "success" ? `Synk fullført. ${totalParsed} rader fra ${filesFound.length} filer.` : finalStatus === "partial_success" ? `Delvis synk. ${totalParsed} OK, ${totalFailed} feilet.` : `Synk feilet. ${totalFailed} feil.`,
+      data: { job_id: jobId, files_found: filesFound.length, rows_processed: totalParsed + totalFailed, rows_inserted: totalInserted, rows_failed: totalFailed },
     });
   } catch (err) {
     const errMsg = (err as Error).message;
-    console.error("[supplier-integration] Sync failed:", errMsg);
-
-    // Categorize error step
+    console.error("[run-sync] Fatal:", errMsg);
     let step = "connection";
     if (errMsg.includes("konfigurasjon")) step = "config";
     else if (errMsg.includes("Auth") || errMsg.includes("login")) step = "auth";
@@ -847,20 +828,9 @@ async function handleRunSync(
       finished_at: new Date().toISOString(),
       error_log: [`[${step}] ${errMsg}`, ...errorLog],
     });
+    await updateConnectionStatus(supabaseAdmin, config.id, "error", `Synk feilet: ${errMsg.substring(0, 200)}`);
 
-    await updateConnectionStatus(
-      supabaseAdmin,
-      config.id,
-      "error",
-      `Synk feilet: ${errMsg}`,
-    );
-
-    return jsonOk({
-      status: "failed",
-      message: `Synk feilet i steg "${step}": ${errMsg}`,
-      error_code: `sync_${step}_error`,
-      data: { job_id: jobId },
-    });
+    return jsonOk({ status: "failed", message: `Synk feilet i steg "${step}": ${errMsg.substring(0, 200)}`, error_code: `sync_${step}_error`, data: { job_id: jobId } });
   } finally {
     try {
       if (adapter) await adapter.disconnect();
@@ -901,37 +871,25 @@ Deno.serve(async (req) => {
       return jsonError("company_id er påkrevd", "missing_company_id");
     }
 
-    // Validate company access: user must have scoped access
-    // (admin permission already checked, company_id used for data isolation)
-
-    console.log(
-      `[supplier-integration] Action: ${action}, supplier: ${supplierId}, company: ${companyId}, user: ${userId}`,
-    );
+    console.log(`[router] Action: ${action}, supplier: ${supplierId}, company: ${companyId}, user: ${userId}`);
 
     switch (action) {
       case "save-password":
         return await handleSavePassword(supabaseAdmin, companyId, body);
-
       case "test-connection":
         if (!supplierId) return jsonError("supplier_id er påkrevd", "missing_supplier_id");
         return await handleTestConnection(supabaseAdmin, companyId, supplierId);
-
       case "list-files":
         if (!supplierId) return jsonError("supplier_id er påkrevd", "missing_supplier_id");
         return await handleListFiles(supabaseAdmin, companyId, supplierId);
-
       case "run-sync":
         if (!supplierId) return jsonError("supplier_id er påkrevd", "missing_supplier_id");
-        return await handleRunSync(supabaseAdmin, companyId, supplierId, {
-          ...body,
-          user_id: userId,
-        });
-
+        return await handleRunSync(supabaseAdmin, companyId, supplierId, { ...body, user_id: userId });
       default:
         return jsonError(`Ukjent action: ${action}`, "unknown_action");
     }
   } catch (err) {
-    console.error("[supplier-integration] Unhandled error:", (err as Error).message);
+    console.error("[router] Unhandled error:", (err as Error).message, (err as Error).stack);
     return jsonError("En uventet feil oppstod", "internal_error", 500);
   }
 });
