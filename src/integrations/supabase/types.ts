@@ -7511,6 +7511,41 @@ export type Database = {
           },
         ]
       }
+      supplier_secrets: {
+        Row: {
+          company_id: string
+          created_at: string
+          encrypted_value: string
+          id: string
+          integration_id: string
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          encrypted_value: string
+          id?: string
+          integration_id: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          encrypted_value?: string
+          id?: string
+          integration_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_secrets_integration_id_fkey"
+            columns: ["integration_id"]
+            isOneToOne: true
+            referencedRelation: "supplier_integrations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       suppliers: {
         Row: {
           code: string
