@@ -634,11 +634,12 @@ async function handleListFiles(
   companyId: string,
   supplierId: string,
 ): Promise<Response> {
-  console.log(`[list-files] Starting for supplier ${supplierId}`);
+  console.log(`[list-files] Starting for supplier ${supplierId}, company ${companyId}`);
 
   let config: IntegrationConfig;
   try {
     config = await loadIntegrationConfig(supabaseAdmin, companyId, supplierId);
+    console.log(`[list-files] Config loaded – price_file_pattern="${config.price_file_pattern}", discount_file_pattern="${config.discount_file_pattern}", catalog_file_pattern="${config.catalog_file_pattern}", invoice_file_pattern="${config.invoice_file_pattern}"`);
   } catch (e) {
     return jsonError((e as Error).message, "config_error");
   }
