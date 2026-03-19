@@ -698,11 +698,12 @@ async function handleProcessSyncChunk(supabaseAdmin: ReturnType<typeof createCli
 
     return jsonOk({ status: "processing", global_chunk: globalChunk, progress_percent: progressPercent });
   } catch (err) {
-    console.error(`[sync] Chunk processing failed for job ${jobId}: ${(err as Error).message}`);
+    const batchLabel = `batch_${globalChunk + 1}`;
+    console.error(`[sync] ${batchLabel} failed for job ${jobId}: ${(err as Error).message}`);
     await updateImportJob(supabaseAdmin, jobId, {
       status: "failed", finished_at: new Date().toISOString(),
       error_log: [...cumStats.errors, (err as Error).message].slice(0, 100),
-      failed_step: `file:${currentFile.fileName} chunk:${chunkStart}`,
+      failed_step: batchLabel,
       rows_processed: cumStats.rows_processed, rows_inserted: cumStats.rows_inserted,
       rows_updated: cumStats.rows_updated, rows_failed: cumStats.rows_failed,
       last_heartbeat_at: new Date().toISOString(),
