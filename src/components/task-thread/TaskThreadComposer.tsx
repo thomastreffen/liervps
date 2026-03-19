@@ -258,3 +258,65 @@ export function TaskThreadComposer({ onSend, sending, canUpload, canEmail, taskI
     </div>
   );
 }
+
+/* ── Progressive disclosure for recipients ── */
+
+function RecipientSummary({
+  recipients,
+  selectedEmails,
+  expanded,
+  onToggleExpand,
+  onToggleRecipient,
+}: {
+  recipients: Recipient[];
+  selectedEmails: Set<string>;
+  expanded: boolean;
+  onToggleExpand: () => void;
+  onToggleRecipient: (email: string) => void;
+}) {
+  const allSelected = recipients.every(r => selectedEmails.has(r.email));
+  const someDeselected = !allSelected && selectedEmails.size > 0;
+
+  // Auto-expand when some are deselected
+  if (someDeselected && !expanded) {
+    // Show inline summary with edit
+    const selectedNames = recipients.filter(r => selectedEmails.has(r.email)).map(r => r.name);
+    return (
+      <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+        <Mail className="h-3 w-3 text-primary/60" />
+        <span className="truncate max-w-[200px]">{selectedNames.join(", ")}</span>
+        <button type="button" onClick={onToggleExpand} className="text-primary/70 hover:text-primary font-medium ml-0.5">Endre</button>
+      </span>
+    );
+  }
+
+  if (recipients.length === 1) {
+    const r = recipients[0];
+    return (
+      <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+        <Mail className="h-3 w-3 text-primary/60" />
+        <span>{r.name}{r.isResponsible ? " (ansvarlig)" : ""}</span>
+      </span>
+    );
+  }
+
+  // Multiple, all selected
+  if (allSelected && !expanded) {
+    return (
+      <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+        <Mail className="h-3 w-3 text-primary/60" />
+        <span>Alle ({recipients.length})</span>
+        <button type="button" onClick={onToggleExpand} className="text-primary/70 hover:text-primary font-medium ml-0.5">Endre</button>
+      </span>
+    );
+  }
+
+  // Expanded state — just show collapse button
+  return (
+    <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+      <Mail className="h-3 w-3 text-primary/60" />
+      <span>{selectedEmails.size}/{recipients.length}</span>
+      <button type="button" onClick={onToggleExpand} className="text-primary/70 hover:text-primary font-medium ml-0.5">Skjul</button>
+    </span>
+  );
+}
