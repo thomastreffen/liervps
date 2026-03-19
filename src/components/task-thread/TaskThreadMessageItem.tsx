@@ -94,6 +94,7 @@ export function TaskThreadMessageItem({ message, isOwnMessage, onReply, onScroll
           </span>
           <span>{time}</span>
           <MessageTypeBadge message={message} isOutbound={isOutbound} isInbound={isInbound} />
+          <PriorityBadge priority={priority} />
 
           {/* Reply button */}
           {onReply && hovered && (
