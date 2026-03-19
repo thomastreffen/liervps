@@ -100,15 +100,22 @@ export function TaskThreadMessageItem({ message, isOwnMessage, onReply, onScroll
           <MessageTypeBadge message={message} isOutbound={isOutbound} isInbound={isInbound} />
           <PriorityBadge priority={priority} />
 
-          {/* Reply button */}
-          {onReply && hovered && (
-            <button
-              onClick={() => onReply(message)}
-              className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-            >
-              <Reply className="h-2.5 w-2.5" />
-              Svar
-            </button>
+          {/* Hover actions */}
+          {hovered && (
+            <div className="inline-flex items-center gap-0.5">
+              {onReply && (
+                <button
+                  onClick={() => onReply(message)}
+                  className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                >
+                  <Reply className="h-2.5 w-2.5" />
+                  Svar
+                </button>
+              )}
+              {onCreateAction && (
+                <MessageActionMenu message={message} onCreateAction={onCreateAction} />
+              )}
+            </div>
           )}
         </div>
 
