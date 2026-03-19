@@ -34,8 +34,9 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { task_id, body_text, attachment_paths } = body;
+    const { task_id, body_text, attachment_paths, recipient_emails, reply_to_message_id } = body;
     // attachment_paths: array of { file_path, file_name, mime_type, file_size }
+    // recipient_emails: optional array of email strings to filter recipients
 
     const MAX_ATTACHMENT_SIZE = 3 * 1024 * 1024; // 3 MB per file — Graph limit for inline is ~4MB but we keep margin
 
@@ -74,16 +75,22 @@ Deno.serve(async (req) => {
       .select("technician_id, technicians(id, name, email)")
       .eq("event_id", task_id);
 
-    const recipients: { name: string; email: string }[] = [];
+    let allRecipients: { name: string; email: string }[] = [];
     for (const link of (techLinks || []) as any[]) {
       const tech = link.technicians;
       if (tech?.email) {
-        recipients.push({ name: tech.name, email: tech.email });
+        allRecipients.push({ name: tech.name, email: tech.email });
       }
     }
 
+    // Filter to selected recipients if provided
+    const recipientFilter = recipient_emails as string[] | undefined;
+    const recipients = recipientFilter && recipientFilter.length > 0
+      ? allRecipients.filter(r => recipientFilter.includes(r.email))
+      : allRecipients;
+
     if (recipients.length === 0) {
-      return json({ error: "Ingen tildelte montører med e-postadresse" }, 400);
+      return json({ error: "Ingen valgte montører med e-postadresse" }, 400);
     }
 
     // ── Get or create thread ──
