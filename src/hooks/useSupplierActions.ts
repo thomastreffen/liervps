@@ -19,8 +19,16 @@ interface ActionResult<T = unknown> {
   error_code?: string;
 }
 
-interface FileListData {
-  all_files: Array<{ name: string; size: number; modified_at: string | null; type: string }>;
+export interface FileListFile {
+  name: string;
+  size: number;
+  modified_at: string | null;
+  type: string;
+  categories: string[];
+}
+
+export interface FileListData {
+  all_files: FileListFile[];
   matched: {
     catalog: Array<{ name: string; size: number }>;
     price: Array<{ name: string; size: number }>;
