@@ -685,23 +685,24 @@ async function processChunk(params: {
 
 // ===== Main parseFile =====
 
-const CHUNK_SIZE = 2000;
+const CHUNK_SIZE = 1000;
 
 export async function parseFile(params: {
   supabaseAdmin: SupabaseAdmin; supplierId: string; supplierCode: string | null;
   companyId: string; importJobId: string; fileType: string; fileName: string; fileContent: string;
-}): Promise<ImportStats> {
+  chunkRange?: { start: number; end: number };
+  skipPriceCache?: boolean;
+}): Promise<ImportStats & { totalChunks: number }> {
   const { supabaseAdmin: sa, supplierId, supplierCode, companyId, importJobId, fileType, fileName, fileContent } = params;
 
   const rawLines = fileContent.split(/\r?\n/).filter((l) => l.trim().length > 0);
   if (rawLines.length < 2) {
     return { rows_processed: 0, rows_inserted: 0, rows_updated: 0, rows_failed: 0,
-      rows_skipped: 0, rows_needs_review: 0, errors: [`${fileName}: For få rader (${rawLines.length})`], affected_product_ids: [] };
+      rows_skipped: 0, rows_needs_review: 0, errors: [`${fileName}: For få rader (${rawLines.length})`], affected_product_ids: [], totalChunks: 0 };
   }
 
   console.log(`[parser] ${fileName}: ${rawLines.length} lines, checking format...`);
 
-  // Parse all rows into ParsedRow objects first (CPU only, no DB)
   let allParsed: ParsedRow[];
   let startRowBase = 1;
 
@@ -716,7 +717,6 @@ export async function parseFile(params: {
       discount_percent: ep.discount_percent, net_price: ep.net_price,
     }));
   } else {
-    // Standard delimited
     const delimiter = detectDelimiter(rawLines);
     const { headerIndex, headers } = detectHeaderRow(rawLines, delimiter);
     console.log(`[parser] ${fileName}: delimiter="${delimiter === "\t" ? "TAB" : delimiter}", header=${headerIndex}, cols=${headers.length}`);
@@ -725,7 +725,7 @@ export async function parseFile(params: {
     const { columns, missing } = resolveAllColumns(headers, mapping);
     if (columns.supplier_sku === -1) {
       return { rows_processed: 0, rows_inserted: 0, rows_updated: 0, rows_failed: 0,
-        rows_skipped: 0, rows_needs_review: 0, errors: [`${fileName}: Fant ikke artikkelkode-kolonne. Kolonner: ${headers.join(", ")}`], affected_product_ids: [] };
+        rows_skipped: 0, rows_needs_review: 0, errors: [`${fileName}: Fant ikke artikkelkode-kolonne. Kolonner: ${headers.join(", ")}`], affected_product_ids: [], totalChunks: 0 };
     }
     if (missing.length > 0) console.warn(`[parser] Missing columns: ${missing.join(", ")}`);
 
@@ -734,15 +734,19 @@ export async function parseFile(params: {
     allParsed = dataLines.map(line => parseRow(line.split(delimiter), columns));
   }
 
-  console.log(`[parser] ${fileName}: ${allParsed.length} rows to process in chunks of ${CHUNK_SIZE}`);
+  const totalChunks = Math.ceil(allParsed.length / CHUNK_SIZE);
+  const chunkStart = params.chunkRange?.start ?? 0;
+  const chunkEnd = Math.min(params.chunkRange?.end ?? totalChunks, totalChunks);
 
-  // Process in chunks
-  const totalStats: ImportStats = {
+  console.log(`[parser] ${fileName}: ${allParsed.length} rows, ${totalChunks} total chunks, processing chunks ${chunkStart}-${chunkEnd - 1}`);
+
+  const totalStats: ImportStats & { totalChunks: number } = {
     rows_processed: 0, rows_inserted: 0, rows_updated: 0, rows_failed: 0,
-    rows_skipped: 0, rows_needs_review: 0, errors: [], affected_product_ids: [],
+    rows_skipped: 0, rows_needs_review: 0, errors: [], affected_product_ids: [], totalChunks,
   };
 
-  for (let i = 0; i < allParsed.length; i += CHUNK_SIZE) {
+  for (let ci = chunkStart; ci < chunkEnd; ci++) {
+    const i = ci * CHUNK_SIZE;
     const chunk = allParsed.slice(i, i + CHUNK_SIZE);
     const chunkStats = await processChunk({
       sa, companyId, supplierId, importJobId, fileType, fileName,
@@ -757,17 +761,18 @@ export async function parseFile(params: {
     totalStats.errors.push(...chunkStats.errors);
     totalStats.affected_product_ids.push(...chunkStats.affected_product_ids);
     
-    console.log(`[parser] ${fileName}: chunk ${Math.floor(i / CHUNK_SIZE) + 1} done (${i + chunk.length}/${allParsed.length})`);
+    console.log(`[parser] ${fileName}: chunk ${ci + 1}/${totalChunks} done (${i + chunk.length}/${allParsed.length})`);
   }
 
-  // Rebuild price cache once at end
-  try {
-    await rebuildPriceCache(sa, companyId, totalStats.affected_product_ids);
-  } catch (cacheErr) {
-    console.error(`[parser] Cache rebuild error: ${(cacheErr as Error).message}`);
-    totalStats.errors.push(`Price cache rebuild feilet: ${(cacheErr as Error).message}`);
+  if (!params.skipPriceCache && chunkEnd >= totalChunks) {
+    try {
+      await rebuildPriceCache(sa, companyId, totalStats.affected_product_ids);
+    } catch (cacheErr) {
+      console.error(`[parser] Cache rebuild error: ${(cacheErr as Error).message}`);
+      totalStats.errors.push(`Price cache rebuild feilet: ${(cacheErr as Error).message}`);
+    }
   }
 
-  console.log(`[parser] ${fileName} done: processed=${totalStats.rows_processed}, inserted=${totalStats.rows_inserted}, updated=${totalStats.rows_updated}, failed=${totalStats.rows_failed}`);
+  console.log(`[parser] ${fileName} chunks ${chunkStart}-${chunkEnd - 1} done: processed=${totalStats.rows_processed}, inserted=${totalStats.rows_inserted}, updated=${totalStats.rows_updated}, failed=${totalStats.rows_failed}`);
   return totalStats;
 }
