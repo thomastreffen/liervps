@@ -49,6 +49,8 @@ export const PERMISSION_LABELS: Record<string, PermissionMeta> = {
   "module.contracts": { label: "Kontrakter", description: "Tilgang til kontraktsmodulen.", category: "Modultilgang" },
   "module.sharepoint": { label: "SharePoint", description: "Tilgang til SharePoint-integrasjonen.", category: "Modultilgang" },
   "module.leads": { label: "Leads", description: "Tilgang til leadsmodulen.", category: "Modultilgang" },
+  "module.products": { label: "Produkter", description: "Tilgang til produktkatalogen.", category: "Modultilgang" },
+  "module.purchasing": { label: "Innkjøp", description: "Tilgang til innkjøpsmodulen.", category: "Modultilgang" },
 
   // ── Jobs ──
   "jobs.view": { label: "Se prosjekter", category: "Prosjekter" },
@@ -148,6 +150,20 @@ export const PERMISSION_LABELS: Record<string, PermissionMeta> = {
   // ── Data ──
   "data.delete": { label: "Slette data", description: "Kan flytte elementer til papirkurven.", category: "Data" },
 
+  // ── Innkjøp & Leverandør ──
+  "purchasing.view": { label: "Se innkjøpsordrer", description: "Kan se innkjøpsordrer og produktpriser.", category: "Innkjøp" },
+  "purchasing.create": { label: "Opprette innkjøpsordrer", description: "Kan opprette og redigere innkjøpsordrer.", category: "Innkjøp" },
+  "purchasing.manage_integrations": {
+    label: "Administrere grossistintegrasjoner",
+    description: "Kan konfigurere FTP-tilkoblinger, lagre credentials, kjøre synk og koble produkter. Kritisk tilgang – kun for innkjøpsansvarlige og admin.",
+    category: "Innkjøp",
+  },
+  "purchasing.manage_preferences": {
+    label: "Endre leverandørpreferanser",
+    description: "Kan endre foretrukket leverandør og regler for innkjøpsintelligens.",
+    category: "Innkjøp",
+  },
+
   // ── SharePoint ──
   "sharepoint.view": { label: "Se SharePoint-filer", description: "Kan se filer i koblet SharePoint-mappe.", category: "SharePoint" },
   "sharepoint.upload": { label: "Laste opp til SharePoint", description: "Kan laste opp filer til SharePoint.", category: "SharePoint" },
@@ -172,7 +188,7 @@ export const MODULE_PERMISSION_KEYS: string[] = [
   "module.invoice_basis", "module.fag", "module.inbox", "module.sales",
   "module.customers", "module.management", "module.admin",
   "module.calendar", "module.documents", "module.communication", "module.contracts",
-  "module.sharepoint", "module.leads",
+  "module.sharepoint", "module.leads", "module.products", "module.purchasing",
 ];
 
 /** Action permission categories (excluding scope and module access) */
@@ -250,6 +266,11 @@ export const PERMISSION_CATEGORIES: { category: string; description: string; key
     category: "Data",
     description: "Generelle rettigheter for datahåndtering.",
     keys: ["data.delete"],
+  },
+  {
+    category: "Innkjøp",
+    description: "Tilgang til innkjøp, produktkatalog og grossistintegrasjoner.",
+    keys: ["purchasing.view", "purchasing.create", "purchasing.manage_integrations", "purchasing.manage_preferences"],
   },
   {
     category: "SharePoint",

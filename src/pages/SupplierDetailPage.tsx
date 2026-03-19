@@ -2,12 +2,14 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useSuppliers } from "@/hooks/useSuppliers";
 import { useSupplierIntegration } from "@/hooks/useSupplierIntegration";
 import { useProductImportJobs } from "@/hooks/useProductImportJobs";
+import { usePermissions } from "@/hooks/usePermissions";
+import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  ArrowLeft, Loader2, Package, Settings2, History,
+  ArrowLeft, Loader2, Package, Settings2, History, ShieldAlert,
 } from "lucide-react";
 import { SupplierIntegrationForm } from "@/components/suppliers/SupplierIntegrationForm";
 import { ImportJobHistory } from "@/components/suppliers/ImportJobHistory";
@@ -16,6 +18,9 @@ import { SupplierStatusBanner } from "@/components/suppliers/SupplierStatusBanne
 export default function SupplierDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { isAdmin } = useAuth();
+  const { hasPermission } = usePermissions();
+  const canManageIntegrations = isAdmin || hasPermission("purchasing.manage_integrations");
   const { suppliers, loading: suppLoading } = useSuppliers();
   const supplier = suppliers.find((s) => s.id === id);
   const { integration, loading: intLoading, upsertIntegration } = useSupplierIntegration(id);
@@ -84,12 +89,25 @@ export default function SupplierDetailPage() {
         </TabsList>
 
         <TabsContent value="integration">
-          <SupplierIntegrationForm
-            supplier={supplier}
-            integration={integration}
-            onSave={(values) => upsertIntegration.mutateAsync(values)}
-            saving={upsertIntegration.isPending}
-          />
+          {canManageIntegrations ? (
+            <SupplierIntegrationForm
+              supplier={supplier}
+              integration={integration}
+              onSave={(values) => upsertIntegration.mutateAsync(values)}
+              saving={upsertIntegration.isPending}
+            />
+          ) : (
+            <Card>
+              <CardContent className="py-10 text-center">
+                <ShieldAlert className="h-8 w-8 mx-auto mb-3 text-muted-foreground" />
+                <p className="text-sm text-muted-foreground">
+                  Du har ikke tilgang til å administrere grossistintegrasjoner.
+                  <br />
+                  Kontakt en administrator for å få rettigheten <code className="text-xs bg-muted px-1 py-0.5 rounded">purchasing.manage_integrations</code>.
+                </p>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         <TabsContent value="history">
