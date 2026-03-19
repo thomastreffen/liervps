@@ -156,3 +156,6 @@ verify_jwt = false
 [functions.graph-subscription-sync]
 verify_jwt = false
 
+[functions.task-thread-escalation]
+verify_jwt = false
+
