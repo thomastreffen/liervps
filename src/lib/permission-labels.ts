@@ -268,6 +268,11 @@ export const PERMISSION_CATEGORIES: { category: string; description: string; key
     keys: ["data.delete"],
   },
   {
+    category: "Innkjøp",
+    description: "Tilgang til innkjøp, produktkatalog og grossistintegrasjoner.",
+    keys: ["purchasing.view", "purchasing.create", "purchasing.manage_integrations", "purchasing.manage_preferences"],
+  },
+  {
     category: "SharePoint",
     description: "Tilgang til SharePoint-integrasjonen.",
     keys: ["sharepoint.view", "sharepoint.upload", "sharepoint.delete", "sharepoint.link_job", "sharepoint.admin"],
