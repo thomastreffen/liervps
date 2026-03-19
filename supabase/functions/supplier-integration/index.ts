@@ -232,6 +232,16 @@ async function createFtpAdapter(config: IntegrationConfig, password: string): Pr
 async function createSftpAdapter(config: IntegrationConfig, password: string): Promise<ConnectionAdapter> {
   const mod = await import("npm:ssh2-sftp-client@11.0.0");
   const client = new mod.default();
+  function decodeBuffer(raw: Uint8Array): string {
+    let text = new TextDecoder("utf-8").decode(raw);
+    if (text.includes("\ufffd")) text = new TextDecoder("latin1").decode(raw);
+    return text;
+  }
+  async function getRaw(remotePath: string): Promise<Uint8Array> {
+    const buffer = await client.get(remotePath);
+    if (typeof buffer === "string") return new TextEncoder().encode(buffer);
+    return buffer instanceof Uint8Array ? buffer : (typeof Buffer !== "undefined" && buffer instanceof Buffer) ? new Uint8Array(buffer) : new TextEncoder().encode(String(buffer));
+  }
   return {
     async connect() {
       await client.connect({ host: config.host, port: config.port, username: config.username, password,
@@ -246,12 +256,10 @@ async function createSftpAdapter(config: IntegrationConfig, password: string): P
         type: item.type === "d" ? "directory" as const : "file" as const }));
     },
     async download(remotePath: string): Promise<string> {
-      const buffer = await client.get(remotePath);
-      if (typeof buffer === "string") return buffer;
-      const raw = buffer instanceof Uint8Array ? buffer : (typeof Buffer !== "undefined" && buffer instanceof Buffer) ? new Uint8Array(buffer) : new TextEncoder().encode(String(buffer));
-      let text = new TextDecoder("utf-8").decode(raw);
-      if (text.includes("\ufffd")) text = new TextDecoder("latin1").decode(raw);
-      return text;
+      return decodeBuffer(await getRaw(remotePath));
+    },
+    async downloadRaw(remotePath: string): Promise<Uint8Array> {
+      return getRaw(remotePath);
     },
     async disconnect() { await client.end(); },
   };
