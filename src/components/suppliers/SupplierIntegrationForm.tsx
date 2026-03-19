@@ -1,15 +1,17 @@
 import { useState, useEffect } from "react";
 import type { Supplier, SupplierIntegration } from "@/types/product-module";
 import { getSupplierDefaults } from "@/lib/supplier-defaults";
+import { useSupplierActions } from "@/hooks/useSupplierActions";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
 import {
   Save, TestTube, FolderSearch, Play, Loader2, Eye, EyeOff, Lightbulb,
+  FileText, AlertTriangle, X,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -22,6 +24,7 @@ interface Props {
 
 export function SupplierIntegrationForm({ supplier, integration, onSave, saving }: Props) {
   const defaults = getSupplierDefaults(supplier.code);
+  const actions = useSupplierActions(supplier.id);
 
   const [protocol, setProtocol] = useState<string>(integration?.protocol ?? defaults?.protocol ?? "sftp");
   const [host, setHost] = useState(integration?.host ?? defaults?.host ?? "");
@@ -38,7 +41,6 @@ export function SupplierIntegrationForm({ supplier, integration, onSave, saving 
   const [syncFrequency, setSyncFrequency] = useState(integration?.sync_frequency ?? "manual");
   const [hasDefaultsSuggestion, setHasDefaultsSuggestion] = useState(!integration && !!defaults);
 
-  // Update from integration when loaded
   useEffect(() => {
     if (integration) {
       setProtocol(integration.protocol);
@@ -69,37 +71,39 @@ export function SupplierIntegrationForm({ supplier, integration, onSave, saving 
     toast.info("Standardverdier fylt ut – du kan overstyre alt");
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!host.trim()) {
       toast.error("Vertsnavn er påkrevd");
       return;
     }
-    onSave({
-      protocol: protocol as any,
-      host: host.trim(),
-      port,
-      username: username.trim(),
-      remote_base_path: basePath.trim() || "/",
-      catalog_file_pattern: catalogPattern.trim() || null,
-      price_file_pattern: pricePattern.trim() || null,
-      discount_file_pattern: discountPattern.trim() || null,
-      invoice_file_pattern: invoicePattern.trim() || null,
-      sync_enabled: syncEnabled,
-      sync_frequency: syncFrequency as any,
-    });
+
+    try {
+      const result = await onSave({
+        protocol: protocol as any,
+        host: host.trim(),
+        port,
+        username: username.trim(),
+        remote_base_path: basePath.trim() || "/",
+        catalog_file_pattern: catalogPattern.trim() || null,
+        price_file_pattern: pricePattern.trim() || null,
+        discount_file_pattern: discountPattern.trim() || null,
+        invoice_file_pattern: invoicePattern.trim() || null,
+        sync_enabled: syncEnabled,
+        sync_frequency: syncFrequency as any,
+      });
+
+      // Save password securely via edge function if provided
+      if (password.trim() && result?.id) {
+        await actions.savePassword(result.id, password.trim());
+        setPassword(""); // Clear after save
+      }
+    } catch {
+      // Error already handled by onSave
+    }
   };
 
-  const handleTestConnection = () => {
-    toast.info("Tilkoblingstest kommer i neste versjon");
-  };
-
-  const handleListFiles = () => {
-    toast.info("Filhenting kommer i neste versjon");
-  };
-
-  const handleFullSync = () => {
-    toast.info("Full synkronisering kommer i neste versjon");
-  };
+  const isAnyActionRunning =
+    actions.testingConnection || actions.listingFiles || !!actions.runningSyncType || saving;
 
   return (
     <div className="space-y-4">
@@ -162,7 +166,7 @@ export function SupplierIntegrationForm({ supplier, integration, onSave, saving 
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder={integration ? "••••••••" : "Passord"}
+                  placeholder={integration?.password_secret_ref ? "••••••••" : "Passord"}
                   className="pr-9"
                 />
                 <button
@@ -173,8 +177,10 @@ export function SupplierIntegrationForm({ supplier, integration, onSave, saving 
                   {showPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
                 </button>
               </div>
-              {integration && (
-                <p className="text-[10px] text-muted-foreground">La stå tomt for å beholde eksisterende passord</p>
+              {integration?.password_secret_ref ? (
+                <p className="text-[10px] text-muted-foreground">Passord er lagret. La stå tomt for å beholde.</p>
+              ) : (
+                <p className="text-[10px] text-muted-foreground">Passord lagres sikkert via backend</p>
               )}
             </div>
           </div>
@@ -245,23 +251,120 @@ export function SupplierIntegrationForm({ supplier, integration, onSave, saving 
 
       {/* Actions */}
       <div className="flex flex-wrap gap-2 pt-2">
-        <Button onClick={handleSave} disabled={saving} className="gap-1.5">
-          {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+        <Button onClick={handleSave} disabled={isAnyActionRunning} className="gap-1.5">
+          {saving || actions.savingPassword ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <Save className="h-3.5 w-3.5" />
+          )}
           Lagre konfigurasjon
         </Button>
-        <Button variant="outline" onClick={handleTestConnection} className="gap-1.5">
-          <TestTube className="h-3.5 w-3.5" />
+        <Button
+          variant="outline"
+          onClick={actions.testConnection}
+          disabled={isAnyActionRunning || !integration}
+          className="gap-1.5"
+        >
+          {actions.testingConnection ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <TestTube className="h-3.5 w-3.5" />
+          )}
           Test tilkobling
         </Button>
-        <Button variant="outline" onClick={handleListFiles} className="gap-1.5">
-          <FolderSearch className="h-3.5 w-3.5" />
+        <Button
+          variant="outline"
+          onClick={actions.listFiles}
+          disabled={isAnyActionRunning || !integration}
+          className="gap-1.5"
+        >
+          {actions.listingFiles ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <FolderSearch className="h-3.5 w-3.5" />
+          )}
           Hent filliste
         </Button>
-        <Button variant="outline" onClick={handleFullSync} className="gap-1.5">
-          <Play className="h-3.5 w-3.5" />
+        <Button
+          variant="outline"
+          onClick={() => actions.runSync("full_sync")}
+          disabled={isAnyActionRunning || !integration}
+          className="gap-1.5"
+        >
+          {actions.runningSyncType ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <Play className="h-3.5 w-3.5" />
+          )}
           Kjør full synk
         </Button>
       </div>
+
+      {!integration && (
+        <p className="text-xs text-muted-foreground">
+          Lagre konfigurasjon først for å aktivere test, filliste og synk.
+        </p>
+      )}
+
+      {/* File list results */}
+      {actions.fileListResult && (
+        <Card className="border-primary/20">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base flex items-center gap-2">
+                <FolderSearch className="h-4 w-4" />
+                Filliste fra server
+              </CardTitle>
+              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={actions.clearFileList}>
+                <X className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {/* Matched file categories */}
+            {(["catalog", "price", "discount", "invoice"] as const).map((cat) => {
+              const files = actions.fileListResult!.matched[cat];
+              const labels: Record<string, string> = {
+                catalog: "Katalog",
+                price: "Pris",
+                discount: "Rabatt",
+                invoice: "Faktura",
+              };
+              if (!files || files.length === 0) return null;
+              return (
+                <div key={cat}>
+                  <p className="text-xs font-medium text-foreground mb-1">{labels[cat]} ({files.length})</p>
+                  <div className="flex flex-wrap gap-1">
+                    {files.map((f, i) => (
+                      <Badge key={i} variant="secondary" className="text-[10px] font-mono">
+                        <FileText className="h-2.5 w-2.5 mr-1" />
+                        {f.name}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* Warnings */}
+            {actions.fileListResult.warnings.length > 0 && (
+              <div className="space-y-1">
+                {actions.fileListResult.warnings.map((w, i) => (
+                  <div key={i} className="flex items-start gap-1.5 text-[10px] text-muted-foreground">
+                    <AlertTriangle className="h-3 w-3 text-yellow-500 shrink-0 mt-0.5" />
+                    <span>{w}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Summary */}
+            <p className="text-[10px] text-muted-foreground border-t border-border/40 pt-2">
+              Totalt {actions.fileListResult.all_files.length} filer på serveren
+            </p>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
