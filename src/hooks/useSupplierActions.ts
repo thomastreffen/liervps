@@ -5,7 +5,7 @@
  * All calls go through the supplier-integration edge function.
  */
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompanyContext } from "@/hooks/useCompanyContext";
 import { useQueryClient } from "@tanstack/react-query";
@@ -75,6 +75,17 @@ export function useSupplierActions(supplierId: string | undefined) {
   const [listingFiles, setListingFiles] = useState(false);
   const [runningSyncType, setRunningSyncType] = useState<string | null>(null);
   const [savingPassword, setSavingPassword] = useState(false);
+
+  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Cleanup polling on unmount
+  useEffect(() => {
+    return () => {
+      if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+      if (pollTimeoutRef.current) clearTimeout(pollTimeoutRef.current);
+    };
+  }, []);
 
   const [fileListResult, setFileListResult] = useState<FileListData | null>(null);
   const [testResult, setTestResult] = useState<ActionResult | null>(null);
@@ -179,7 +190,11 @@ export function useSupplierActions(supplierId: string | undefined) {
           // Poll for completion
           const jobId = result.data?.job_id;
           if (jobId) {
-            const pollInterval = setInterval(async () => {
+            // Clear any previous polling
+            if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+            if (pollTimeoutRef.current) clearTimeout(pollTimeoutRef.current);
+
+            pollIntervalRef.current = setInterval(async () => {
               try {
                 const { data: job } = await supabase
                   .from("product_import_jobs")
@@ -187,7 +202,10 @@ export function useSupplierActions(supplierId: string | undefined) {
                   .eq("id", jobId)
                   .maybeSingle();
                 if (job && !["queued", "running"].includes(job.status)) {
-                  clearInterval(pollInterval);
+                  if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+                  if (pollTimeoutRef.current) clearTimeout(pollTimeoutRef.current);
+                  pollIntervalRef.current = null;
+                  pollTimeoutRef.current = null;
                   setRunningSyncType(null);
                   invalidateQueries();
                   if (job.status === "success") {
@@ -201,7 +219,12 @@ export function useSupplierActions(supplierId: string | undefined) {
               } catch { /* ignore poll errors */ }
             }, 5000);
             // Safety timeout: stop polling after 5 minutes
-            setTimeout(() => { clearInterval(pollInterval); setRunningSyncType(null); }, 300_000);
+            pollTimeoutRef.current = setTimeout(() => {
+              if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+              pollIntervalRef.current = null;
+              pollTimeoutRef.current = null;
+              setRunningSyncType(null);
+            }, 300_000);
           }
           return; // Don't clear runningSyncType yet – polling will do it
         }
