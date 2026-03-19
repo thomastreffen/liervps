@@ -36,6 +36,11 @@ export interface FileListData {
     invoice: Array<{ name: string; size: number }>;
   };
   warnings: string[];
+  debug?: {
+    patterns: Record<string, string | null>;
+    file_names: string[];
+    match_log: Array<{ file: string; category: string; result: boolean; method: string }>;
+  };
 }
 
 interface SyncResultData {
