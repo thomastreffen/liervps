@@ -266,7 +266,7 @@ function parseRow(fields: string[], columns: ResolvedColumns): ParsedRow {
 // ===== BATCH Import Services =====
 // Process rows in chunks to stay within edge function memory limits.
 
-const BATCH_SIZE = 100;
+const BATCH_SIZE = 500;
 
 /**
  * Batch upsert supplier_products. Returns map of supplier_sku → { id, isNew }.
