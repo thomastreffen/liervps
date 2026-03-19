@@ -89,11 +89,10 @@ async function authenticateAdmin(
     { global: { headers: { Authorization: authHeader } } },
   );
 
-  const token = authHeader.replace("Bearer ", "");
-  const { data: claims, error: claimsErr } = await supabaseUser.auth.getClaims(token);
-  if (claimsErr || !claims?.claims) throw new AuthError("Ugyldig token");
+  const { data: { user }, error: userErr } = await supabaseUser.auth.getUser();
+  if (userErr || !user) throw new AuthError("Ugyldig token");
 
-  const userId = claims.claims.sub as string;
+  const userId = user.id;
 
   // Check admin permission via existing function
   const { data: isAdmin } = await supabaseAdmin.rpc("check_permission_v2", {
