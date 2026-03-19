@@ -434,7 +434,11 @@ const App = () => (
                     <SupplierDetailPage />
                   </ProtectedRoute>
                 }
-              />
+               />
+
+              {/* Product module */}
+              <Route path="/products" element={<ProductsPage />} />
+              <Route path="/products/:id" element={<ProductDetailPage />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />
