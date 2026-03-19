@@ -490,20 +490,31 @@ async function handleRunSync(supabaseAdmin: ReturnType<typeof createClient>, com
 
   await updateImportJob(supabaseAdmin, jobId, { status: "running", started_at: new Date().toISOString() });
 
-  // Fire-and-forget: start background processing, respond immediately
-  // Use waitUntil pattern to keep the function alive after responding
-  const bgPromise = processSyncInBackground(supabaseAdmin, config, password, companyId, supplierId, supplierCode, jobId, syncType);
+  // Process synchronously – edge functions terminate after response is sent,
+  // so fire-and-forget does NOT work. Previous successful syncs complete in ~90s.
+  await processSyncInBackground(supabaseAdmin, config, password, companyId, supplierId, supplierCode, jobId, syncType);
 
-  // Return immediately with job_id so frontend can poll for status
-  const response = jsonOk({
-    status: "accepted", message: "Synk startet. Følg fremdriften i importloggen.",
-    data: { job_id: jobId, files_found: 0, rows_processed: 0 },
+  // Read final job status
+  const { data: finalJob } = await supabaseAdmin.from("product_import_jobs")
+    .select("status, rows_processed, rows_inserted, rows_updated, rows_failed")
+    .eq("id", jobId).maybeSingle();
+
+  const status = finalJob?.status ?? "failed";
+  const message = status === "success"
+    ? `Synk fullført: ${finalJob?.rows_inserted ?? 0} nye, ${finalJob?.rows_updated ?? 0} oppdatert av ${finalJob?.rows_processed ?? 0} rader`
+    : status === "partial_success"
+    ? `Delvis synk: ${finalJob?.rows_inserted ?? 0} nye, ${finalJob?.rows_failed ?? 0} feilet`
+    : "Synk feilet – se importlogg for detaljer";
+
+  return jsonOk({
+    status, message,
+    data: {
+      job_id: jobId,
+      files_found: 0,
+      rows_processed: finalJob?.rows_processed ?? 0,
+      rows_inserted: finalJob?.rows_inserted ?? 0,
+    },
   });
-
-  // Keep function alive until background processing completes
-  bgPromise.catch((err) => console.error(`[sync] Unhandled bg error: ${(err as Error).message}`));
-
-  return response;
 }
 
 // ===== Main Router =====
