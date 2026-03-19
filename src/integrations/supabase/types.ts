@@ -7312,6 +7312,41 @@ export type Database = {
           },
         ]
       }
+      task_thread_escalations: {
+        Row: {
+          created_at: string
+          id: string
+          last_reminded_at: string
+          message_id: string
+          reminder_count: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          last_reminded_at?: string
+          message_id: string
+          reminder_count?: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          last_reminded_at?: string
+          message_id?: string
+          reminder_count?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_thread_escalations_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "task_messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       task_thread_reads: {
         Row: {
           created_at: string
