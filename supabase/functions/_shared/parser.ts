@@ -91,10 +91,21 @@ interface EfonelfoProduct {
 
 function parseEfonelfoFile(lines: string[]): EfonelfoProduct[] {
   const products = new Map<string, EfonelfoProduct>();
+  let vlCount = 0;
+  
   for (const line of lines) {
     const fields = line.split(";").map(f => f.trim());
     const recordType = fields[0]?.toUpperCase();
+    
     if (recordType === "VL") {
+      // === DIAGNOSTIC: Log first 5 VL lines with all indexed fields ===
+      if (vlCount < 5) {
+        console.log(`[EFONELFO-DIAG] VL line #${vlCount + 1} raw: ${line.substring(0, 500)}`);
+        console.log(`[EFONELFO-DIAG] VL line #${vlCount + 1} fields (${fields.length}):`);
+        fields.forEach((f, i) => console.log(`  [${i}]: "${f}"`));
+      }
+      vlCount++;
+      
       const sku = cleanString(fields[1]);
       if (!sku || products.has(sku)) continue;
       products.set(sku, {
@@ -104,6 +115,13 @@ function parseEfonelfoFile(lines: string[]): EfonelfoProduct[] {
         list_price: null, discount_percent: null, net_price: null,
       });
     } else if (recordType === "PL") {
+      // === DIAGNOSTIC: Log first PL line ===
+      if (products.size <= 3) {
+        console.log(`[EFONELFO-DIAG] PL line raw: ${line.substring(0, 500)}`);
+        console.log(`[EFONELFO-DIAG] PL fields (${fields.length}):`);
+        fields.forEach((f, i) => console.log(`  [${i}]: "${f}"`));
+      }
+      
       const sku = cleanString(fields[1]);
       if (!sku) continue;
       const existing = products.get(sku);
@@ -129,6 +147,9 @@ function parseEfonelfoFile(lines: string[]): EfonelfoProduct[] {
       }
     }
   }
+  
+  console.log(`[EFONELFO-DIAG] Total VL lines found: ${vlCount}, unique products: ${products.size}`);
+  
   for (const p of products.values()) {
     if (p.net_price == null && p.list_price != null && p.discount_percent != null) {
       p.net_price = Math.round(p.list_price * (1 - p.discount_percent / 100) * 100) / 100;
