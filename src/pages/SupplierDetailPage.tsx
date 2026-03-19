@@ -53,7 +53,7 @@ export default function SupplierDetailPage() {
             <h1 className="text-2xl font-bold text-foreground tracking-tight truncate">{supplier.name}</h1>
             <Badge variant="outline" className="font-mono text-xs shrink-0">{supplier.code}</Badge>
             {supplier.is_active ? (
-              <Badge className="bg-green-500/10 text-green-700 border-green-500/20 text-[10px]">Aktiv</Badge>
+              <Badge className="bg-primary/10 text-primary border-primary/20 text-[10px]">Aktiv</Badge>
             ) : (
               <Badge variant="secondary" className="text-[10px]">Inaktiv</Badge>
             )}

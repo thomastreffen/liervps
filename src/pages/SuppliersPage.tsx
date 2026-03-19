@@ -129,7 +129,7 @@ export default function SuppliersPage() {
                     <div className="flex items-center gap-2 mb-1">
                       <h3 className="font-semibold text-sm text-foreground truncate">{supplier.name}</h3>
                       {supplier.is_active ? (
-                        <div className="h-2 w-2 rounded-full bg-green-500 shrink-0" />
+                        <div className="h-2 w-2 rounded-full bg-primary shrink-0" />
                       ) : (
                         <div className="h-2 w-2 rounded-full bg-muted-foreground/30 shrink-0" />
                       )}
