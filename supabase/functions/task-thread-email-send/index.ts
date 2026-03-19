@@ -395,6 +395,7 @@ ${body_text}
         recipients: recipients.map(r => ({ name: r.name, email: r.email })),
         email_status: sendResult.error ? "failed" : "sent",
         reply_to_address: replyToAddress,
+        reply_to_message_id: reply_to_message_id || null,
         metadata: {
           graph_request_id: sendResult.requestId,
           duration_ms: sendResult.durationMs,
