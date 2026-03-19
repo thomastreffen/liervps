@@ -111,23 +111,6 @@ export function TaskThreadFeed({ messages, loading, currentUserId, lastReadAt, o
     );
   }
 
-  //
-  const linkedActionsMap = useMemo(() => {
-    const map = new Map<string, { event_type: string; title: string; created_id?: string }>();
-    for (const msg of messages) {
-      if (msg.message_type === "system_event") {
-        const meta = msg.metadata as any;
-        if (meta?.source_message_id && meta?.event_type) {
-          map.set(meta.source_message_id, {
-            event_type: meta.event_type,
-            title: meta.title || meta.details || "",
-            created_id: meta.created_id,
-          });
-        }
-      }
-    }
-    return map;
-  }, [messages]);
 
   return (
     <ScrollArea className="flex-1">
