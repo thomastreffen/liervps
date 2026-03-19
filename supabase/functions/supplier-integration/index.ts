@@ -397,25 +397,17 @@ async function updateImportJob(supabaseAdmin: ReturnType<typeof createClient>, j
 }
 
 // ===== Run Sync =====
-async function handleRunSync(supabaseAdmin: ReturnType<typeof createClient>, companyId: string, supplierId: string, body: Record<string, unknown>): Promise<Response> {
-  const syncType = (body.sync_type as string) || "full_sync";
-  const userId = body.user_id as string;
-  if (!["full_sync", "catalog_sync", "price_sync", "discount_sync"].includes(syncType)) return jsonError(`Ugyldig sync_type: ${syncType}`, "invalid_sync_type");
 
-  let config: IntegrationConfig;
-  try { config = await loadIntegrationConfig(supabaseAdmin, companyId, supplierId); } catch (e) { return jsonError((e as Error).message, "config_error"); }
-
-  const password = await loadPassword(supabaseAdmin, config.id);
-  if (!password) return jsonError("Passord ikke konfigurert", "no_password");
-
-  let supplierCode: string | null = null;
-  try { const { data } = await supabaseAdmin.from("suppliers").select("code").eq("id", supplierId).maybeSingle(); supplierCode = data?.code ?? null; } catch {}
-
-  let jobId: string;
-  try { jobId = await createImportJob(supabaseAdmin, companyId, supplierId, syncType, userId || "admin"); } catch (e) { return jsonError((e as Error).message, "job_create_error", 500); }
-
-  await updateImportJob(supabaseAdmin, jobId, { status: "running", started_at: new Date().toISOString() });
-
+/**
+ * Background sync processor. Runs after the HTTP response is sent.
+ * Updates the import job row with progress/results.
+ */
+async function processSyncInBackground(
+  supabaseAdmin: ReturnType<typeof createClient>,
+  config: IntegrationConfig, password: string, companyId: string,
+  supplierId: string, supplierCode: string | null,
+  jobId: string, syncType: string,
+) {
   let adapter: ConnectionAdapter | null = null;
   const errorLog: string[] = [];
   const filesFound: string[] = [];
@@ -438,19 +430,25 @@ async function handleRunSync(supabaseAdmin: ReturnType<typeof createClient>, com
 
     if (filesFound.length === 0) {
       await updateImportJob(supabaseAdmin, jobId, { status: "success", finished_at: new Date().toISOString(), error_log: ["Ingen matchende filer"] });
-      return jsonOk({ status: "success", message: "Synk fullført – ingen filer", data: { job_id: jobId, files_found: 0 } });
+      return;
     }
 
     for (const group of groups) {
       for (const file of group.files) {
         const filePath = `${basePath.replace(/\/$/, "")}/${file.name}`;
         try {
+          console.log(`[sync] Downloading ${file.name}...`);
           const content = await withTimeout(adapter.download(filePath), 120_000, `Nedlasting ${file.name}`);
+          console.log(`[sync] Parsing ${file.name} (${content.length} bytes)...`);
           const result = await parseFile({ supabaseAdmin, supplierId, supplierCode, companyId, importJobId: jobId, fileType: group.type, fileName: file.name, fileContent: content });
           agg.rows_processed += result.rows_processed; agg.rows_inserted += result.rows_inserted; agg.rows_updated += result.rows_updated;
           agg.rows_failed += result.rows_failed; agg.rows_skipped += result.rows_skipped; agg.rows_needs_review += result.rows_needs_review;
           agg.errors.push(...result.errors); agg.affected_product_ids.push(...result.affected_product_ids);
-        } catch (fileErr) { const msg = `Fil "${file.name}": ${(fileErr as Error).message}`; errorLog.push(msg); agg.rows_failed++; }
+        } catch (fileErr) {
+          const msg = `Fil "${file.name}": ${(fileErr as Error).message}`;
+          console.error(`[sync] ${msg}`);
+          errorLog.push(msg); agg.rows_failed++;
+        }
       }
     }
 
@@ -464,18 +462,48 @@ async function handleRunSync(supabaseAdmin: ReturnType<typeof createClient>, com
     });
 
     if (finalStatus !== "failed") await supabaseAdmin.from("supplier_integrations").update({ last_sync_at: new Date().toISOString() }).eq("id", config.id);
-
-    const summary = [`${agg.rows_inserted} nye`, `${agg.rows_updated} oppdaterte`,
-      agg.rows_failed > 0 ? `${agg.rows_failed} feilet` : null, agg.rows_needs_review > 0 ? `${agg.rows_needs_review} gjennomgang` : null].filter(Boolean).join(", ");
-
-    return jsonOk({ status: finalStatus, message: `Synk ${finalStatus === "success" ? "fullført" : "delvis"}. ${summary}.`,
-      data: { job_id: jobId, files_found: filesFound.length, rows_processed: agg.rows_processed, rows_inserted: agg.rows_inserted, rows_updated: agg.rows_updated, rows_failed: agg.rows_failed, rows_needs_review: agg.rows_needs_review } });
+    console.log(`[sync] Job ${jobId} finished: ${finalStatus}, ${agg.rows_inserted} new, ${agg.rows_updated} updated, ${agg.rows_failed} failed`);
   } catch (err) {
     const errMsg = (err as Error).message;
+    console.error(`[sync] Job ${jobId} fatal error: ${errMsg}`);
     await updateImportJob(supabaseAdmin, jobId, { status: "failed", finished_at: new Date().toISOString(), error_log: [errMsg, ...errorLog, ...agg.errors] });
     await updateConnectionStatus(supabaseAdmin, config.id, "error", `Synk feilet: ${errMsg.substring(0, 200)}`);
-    return jsonOk({ status: "failed", message: `Synk feilet: ${errMsg.substring(0, 200)}`, error_code: "sync_error", data: { job_id: jobId } });
   } finally { try { if (adapter) await adapter.disconnect(); } catch {} }
+}
+
+async function handleRunSync(supabaseAdmin: ReturnType<typeof createClient>, companyId: string, supplierId: string, body: Record<string, unknown>): Promise<Response> {
+  const syncType = (body.sync_type as string) || "full_sync";
+  const userId = body.user_id as string;
+  if (!["full_sync", "catalog_sync", "price_sync", "discount_sync"].includes(syncType)) return jsonError(`Ugyldig sync_type: ${syncType}`, "invalid_sync_type");
+
+  let config: IntegrationConfig;
+  try { config = await loadIntegrationConfig(supabaseAdmin, companyId, supplierId); } catch (e) { return jsonError((e as Error).message, "config_error"); }
+
+  const password = await loadPassword(supabaseAdmin, config.id);
+  if (!password) return jsonError("Passord ikke konfigurert", "no_password");
+
+  let supplierCode: string | null = null;
+  try { const { data } = await supabaseAdmin.from("suppliers").select("code").eq("id", supplierId).maybeSingle(); supplierCode = data?.code ?? null; } catch {}
+
+  let jobId: string;
+  try { jobId = await createImportJob(supabaseAdmin, companyId, supplierId, syncType, userId || "admin"); } catch (e) { return jsonError((e as Error).message, "job_create_error", 500); }
+
+  await updateImportJob(supabaseAdmin, jobId, { status: "running", started_at: new Date().toISOString() });
+
+  // Fire-and-forget: start background processing, respond immediately
+  // Use waitUntil pattern to keep the function alive after responding
+  const bgPromise = processSyncInBackground(supabaseAdmin, config, password, companyId, supplierId, supplierCode, jobId, syncType);
+
+  // Return immediately with job_id so frontend can poll for status
+  const response = jsonOk({
+    status: "accepted", message: "Synk startet. Følg fremdriften i importloggen.",
+    data: { job_id: jobId, files_found: 0, rows_processed: 0 },
+  });
+
+  // Keep function alive until background processing completes
+  bgPromise.catch((err) => console.error(`[sync] Unhandled bg error: ${(err as Error).message}`));
+
+  return response;
 }
 
 // ===== Main Router =====
