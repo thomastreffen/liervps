@@ -46,6 +46,7 @@ interface ConnectionAdapter {
   connect(): Promise<void>;
   list(path: string): Promise<RemoteFile[]>;
   download(path: string): Promise<string>;
+  downloadRaw(path: string): Promise<Uint8Array>;
   disconnect(): Promise<void>;
 }
 
@@ -192,6 +193,21 @@ async function createFtpAdapter(config: IntegrationConfig, password: string): Pr
   const mod = await import("npm:basic-ftp@5.0.5");
   const client = new mod.Client();
   client.ftp.verbose = false;
+  async function downloadToBuffer(remotePath: string): Promise<Uint8Array> {
+    const { Writable } = await import("node:stream");
+    const chunks: Uint8Array[] = [];
+    const writable = new Writable({ write(chunk: any, _enc: string, cb: () => void) { chunks.push(chunk instanceof Uint8Array ? chunk : new Uint8Array(chunk)); cb(); } });
+    await client.downloadTo(writable, remotePath);
+    const raw = new Uint8Array(chunks.reduce((a, c) => a + c.length, 0));
+    let offset = 0;
+    for (const c of chunks) { raw.set(c, offset); offset += c.length; }
+    return raw;
+  }
+  function decodeBuffer(raw: Uint8Array): string {
+    let text = new TextDecoder("utf-8").decode(raw);
+    if (text.includes("\ufffd")) text = new TextDecoder("latin1").decode(raw);
+    return text;
+  }
   return {
     async connect() {
       await client.access({ host: config.host, port: config.port, user: config.username, password,
@@ -204,18 +220,10 @@ async function createFtpAdapter(config: IntegrationConfig, password: string): Pr
         type: item.isDirectory ? "directory" as const : "file" as const }));
     },
     async download(remotePath: string): Promise<string> {
-      const { Writable } = await import("node:stream");
-      const chunks: Uint8Array[] = [];
-      const writable = new Writable({ write(chunk: any, _enc: string, cb: () => void) { chunks.push(chunk instanceof Uint8Array ? chunk : new Uint8Array(chunk)); cb(); } });
-      await client.downloadTo(writable, remotePath);
-      const raw = new Uint8Array(chunks.reduce((a, c) => a + c.length, 0));
-      let offset = 0;
-      for (const c of chunks) { raw.set(c, offset); offset += c.length; }
-      let text = new TextDecoder("utf-8").decode(raw);
-      if (text.includes("\ufffd")) {
-        text = new TextDecoder("latin1").decode(raw);
-      }
-      return text;
+      return decodeBuffer(await downloadToBuffer(remotePath));
+    },
+    async downloadRaw(remotePath: string): Promise<Uint8Array> {
+      return downloadToBuffer(remotePath);
     },
     async disconnect() { client.close(); },
   };
@@ -224,6 +232,16 @@ async function createFtpAdapter(config: IntegrationConfig, password: string): Pr
 async function createSftpAdapter(config: IntegrationConfig, password: string): Promise<ConnectionAdapter> {
   const mod = await import("npm:ssh2-sftp-client@11.0.0");
   const client = new mod.default();
+  function decodeBuffer(raw: Uint8Array): string {
+    let text = new TextDecoder("utf-8").decode(raw);
+    if (text.includes("\ufffd")) text = new TextDecoder("latin1").decode(raw);
+    return text;
+  }
+  async function getRaw(remotePath: string): Promise<Uint8Array> {
+    const buffer = await client.get(remotePath);
+    if (typeof buffer === "string") return new TextEncoder().encode(buffer);
+    return buffer instanceof Uint8Array ? buffer : (typeof Buffer !== "undefined" && buffer instanceof Buffer) ? new Uint8Array(buffer) : new TextEncoder().encode(String(buffer));
+  }
   return {
     async connect() {
       await client.connect({ host: config.host, port: config.port, username: config.username, password,
@@ -238,12 +256,10 @@ async function createSftpAdapter(config: IntegrationConfig, password: string): P
         type: item.type === "d" ? "directory" as const : "file" as const }));
     },
     async download(remotePath: string): Promise<string> {
-      const buffer = await client.get(remotePath);
-      if (typeof buffer === "string") return buffer;
-      const raw = buffer instanceof Uint8Array ? buffer : (typeof Buffer !== "undefined" && buffer instanceof Buffer) ? new Uint8Array(buffer) : new TextEncoder().encode(String(buffer));
-      let text = new TextDecoder("utf-8").decode(raw);
-      if (text.includes("\ufffd")) text = new TextDecoder("latin1").decode(raw);
-      return text;
+      return decodeBuffer(await getRaw(remotePath));
+    },
+    async downloadRaw(remotePath: string): Promise<Uint8Array> {
+      return getRaw(remotePath);
     },
     async disconnect() { await client.end(); },
   };
@@ -488,29 +504,57 @@ async function handleProcessSync(supabaseAdmin: ReturnType<typeof createClient>,
     if (syncType === "full_sync" || syncType === "price_sync") groups.push({ type: "price", files: categorized.matched.price });
     if (syncType === "full_sync" || syncType === "discount_sync") groups.push({ type: "discount", files: categorized.matched.discount });
 
+    // Prioritize full catalog files over test files: sort by size descending within each group
+    for (const g of groups) {
+      if (g.files.length > 1) {
+        g.files.sort((a, b) => b.size - a.size);
+        const fullFile = g.files[0];
+        const skipped = g.files.slice(1);
+        console.log(`[sync] ${g.type}: Prioritizing "${fullFile.name}" (${(fullFile.size / 1024 / 1024).toFixed(1)} MB) over ${skipped.map(f => `"${f.name}"`).join(", ")}`);
+        // Keep only the largest (full) file per category
+        g.files = [fullFile];
+      }
+    }
+
     const filesFound: string[] = [];
     const storageFiles: SyncFileInfo[] = [];
+    const DOWNLOAD_TIMEOUT_MS = 600_000; // 10 minutes for large files
 
     for (const g of groups) {
       for (const f of g.files) {
         const filePath = `${basePath.replace(/\/$/, "")}/${f.name}`;
+        const dlStart = Date.now();
         try {
-          console.log(`[sync] Downloading ${f.name}...`);
-          const content = await withTimeout(adapter.download(filePath), 120_000, `Nedlasting ${f.name}`);
-          console.log(`[sync] Downloaded ${f.name} (${content.length} bytes), storing...`);
+          console.log(`[sync] Downloading ${f.name} (expected ~${(f.size / 1024 / 1024).toFixed(1)} MB, type=${g.type})...`);
+          // Stream raw bytes directly to storage – avoid holding decoded string in memory
+          const rawBytes = await withTimeout(adapter.downloadRaw(filePath), DOWNLOAD_TIMEOUT_MS, `Nedlasting ${f.name}`);
+          const dlDuration = ((Date.now() - dlStart) / 1000).toFixed(1);
+          const fileSizeMB = (rawBytes.length / 1024 / 1024).toFixed(2);
+          console.log(`[sync] Downloaded ${f.name}: ${rawBytes.length} bytes (${fileSizeMB} MB) in ${dlDuration}s`);
 
+          // Upload raw bytes to storage
           const storagePath = `sync-temp/${jobId}/${g.type}__${f.name}`;
-          const blob = new Blob([content], { type: "text/plain; charset=utf-8" });
+          const blob = new Blob([rawBytes], { type: "application/octet-stream" });
           const { error: uploadErr } = await supabaseAdmin.storage.from(SYNC_TEMP_BUCKET).upload(storagePath, blob, { upsert: true });
           if (uploadErr) throw new Error(`Storage upload: ${uploadErr.message}`);
+          console.log(`[sync] Stored ${f.name} to storage (${storagePath})`);
 
-          const rowCount = countFileRows(content);
-          const totalChunks = Math.ceil(rowCount / 1000); // Must match CHUNK_SIZE in parser
+          // Decode for row counting only (not kept in memory long)
+          let text = new TextDecoder("utf-8").decode(rawBytes);
+          if (text.includes("\ufffd")) text = new TextDecoder("latin1").decode(rawBytes);
+          const rowCount = countFileRows(text);
+          const totalChunks = Math.ceil(rowCount / 1000);
           filesFound.push(f.name);
           storageFiles.push({ path: storagePath, type: g.type, fileName: f.name, totalChunks });
-          console.log(`[sync] ${f.name}: ${rowCount} rows, ${totalChunks} chunks`);
+          console.log(`[sync] ${f.name}: ${rowCount} rows, ${totalChunks} chunks (full_file=${!f.name.toLowerCase().includes('test')})`);
         } catch (fileErr) {
-          console.error(`[sync] Failed to download/store ${f.name}: ${(fileErr as Error).message}`);
+          const dlDuration = ((Date.now() - dlStart) / 1000).toFixed(1);
+          console.error(`[sync] FAILED to download ${f.name} after ${dlDuration}s: ${(fileErr as Error).message}`);
+          // Log as warning in job but don't fail entire sync
+          await updateImportJob(supabaseAdmin, jobId, {
+            last_heartbeat_at: new Date().toISOString(),
+            error_log: [`Nedlasting feilet: ${f.name} – ${(fileErr as Error).message}`],
+          });
         }
       }
     }
