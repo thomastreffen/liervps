@@ -6113,6 +6113,198 @@ export type Database = {
           },
         ]
       }
+      product_import_jobs: {
+        Row: {
+          company_id: string
+          created_at: string
+          error_log: Json | null
+          files_found: Json | null
+          finished_at: string | null
+          id: string
+          job_type: Database["public"]["Enums"]["product_import_job_type"]
+          rows_failed: number
+          rows_inserted: number
+          rows_processed: number
+          rows_updated: number
+          started_at: string | null
+          status: Database["public"]["Enums"]["product_import_job_status"]
+          supplier_id: string
+          triggered_by: string | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          error_log?: Json | null
+          files_found?: Json | null
+          finished_at?: string | null
+          id?: string
+          job_type: Database["public"]["Enums"]["product_import_job_type"]
+          rows_failed?: number
+          rows_inserted?: number
+          rows_processed?: number
+          rows_updated?: number
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["product_import_job_status"]
+          supplier_id: string
+          triggered_by?: string | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          error_log?: Json | null
+          files_found?: Json | null
+          finished_at?: string | null
+          id?: string
+          job_type?: Database["public"]["Enums"]["product_import_job_type"]
+          rows_failed?: number
+          rows_inserted?: number
+          rows_processed?: number
+          rows_updated?: number
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["product_import_job_status"]
+          supplier_id?: string
+          triggered_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_import_jobs_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "internal_companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_import_jobs_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      product_import_rows: {
+        Row: {
+          company_id: string
+          created_at: string
+          error_message: string | null
+          id: string
+          import_job_id: string
+          linked_product_id: string | null
+          linked_supplier_product_id: string | null
+          parse_status: Database["public"]["Enums"]["product_import_row_status"]
+          raw_data: Json
+          row_number: number
+          row_type: string | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          import_job_id: string
+          linked_product_id?: string | null
+          linked_supplier_product_id?: string | null
+          parse_status?: Database["public"]["Enums"]["product_import_row_status"]
+          raw_data?: Json
+          row_number: number
+          row_type?: string | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          import_job_id?: string
+          linked_product_id?: string | null
+          linked_supplier_product_id?: string | null
+          parse_status?: Database["public"]["Enums"]["product_import_row_status"]
+          raw_data?: Json
+          row_number?: number
+          row_type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_import_rows_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "internal_companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_import_rows_import_job_id_fkey"
+            columns: ["import_job_id"]
+            isOneToOne: false
+            referencedRelation: "product_import_jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_import_rows_linked_product_id_fkey"
+            columns: ["linked_product_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_catalog_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_import_rows_linked_supplier_product_id_fkey"
+            columns: ["linked_supplier_product_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      product_price_cache: {
+        Row: {
+          best_net_price: number | null
+          best_supplier_id: string | null
+          company_id: string
+          id: string
+          price_snapshot: Json | null
+          product_id: string
+          recalculated_at: string
+        }
+        Insert: {
+          best_net_price?: number | null
+          best_supplier_id?: string | null
+          company_id: string
+          id?: string
+          price_snapshot?: Json | null
+          product_id: string
+          recalculated_at?: string
+        }
+        Update: {
+          best_net_price?: number | null
+          best_supplier_id?: string | null
+          company_id?: string
+          id?: string
+          price_snapshot?: Json | null
+          product_id?: string
+          recalculated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_price_cache_best_supplier_id_fkey"
+            columns: ["best_supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_price_cache_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "internal_companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_price_cache_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_catalog_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       products: {
         Row: {
           company_id: string | null
@@ -7022,6 +7214,339 @@ export type Database = {
             foreignKeyName: "superoffice_settings_company_id_fkey"
             columns: ["company_id"]
             isOneToOne: true
+            referencedRelation: "internal_companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      supplier_catalog_products: {
+        Row: {
+          brand: string | null
+          category: string | null
+          company_id: string
+          created_at: string
+          description: string | null
+          ean: string | null
+          el_number: string | null
+          id: string
+          is_active: boolean
+          name: string
+          subcategory: string | null
+          supplier_independent_sku: string | null
+          unit: string | null
+          updated_at: string
+        }
+        Insert: {
+          brand?: string | null
+          category?: string | null
+          company_id: string
+          created_at?: string
+          description?: string | null
+          ean?: string | null
+          el_number?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          subcategory?: string | null
+          supplier_independent_sku?: string | null
+          unit?: string | null
+          updated_at?: string
+        }
+        Update: {
+          brand?: string | null
+          category?: string | null
+          company_id?: string
+          created_at?: string
+          description?: string | null
+          ean?: string | null
+          el_number?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          subcategory?: string | null
+          supplier_independent_sku?: string | null
+          unit?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_catalog_products_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "internal_companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      supplier_integrations: {
+        Row: {
+          catalog_file_pattern: string | null
+          company_id: string
+          created_at: string
+          discount_file_pattern: string | null
+          host: string
+          id: string
+          invoice_file_pattern: string | null
+          last_connected_at: string | null
+          last_connection_message: string | null
+          last_connection_status: Database["public"]["Enums"]["supplier_connection_status"]
+          last_sync_at: string | null
+          password_secret_ref: string | null
+          port: number
+          price_file_pattern: string | null
+          protocol: Database["public"]["Enums"]["supplier_protocol"]
+          remote_base_path: string | null
+          supplier_id: string
+          sync_enabled: boolean
+          sync_frequency: Database["public"]["Enums"]["supplier_sync_frequency"]
+          updated_at: string
+          username: string
+        }
+        Insert: {
+          catalog_file_pattern?: string | null
+          company_id: string
+          created_at?: string
+          discount_file_pattern?: string | null
+          host?: string
+          id?: string
+          invoice_file_pattern?: string | null
+          last_connected_at?: string | null
+          last_connection_message?: string | null
+          last_connection_status?: Database["public"]["Enums"]["supplier_connection_status"]
+          last_sync_at?: string | null
+          password_secret_ref?: string | null
+          port?: number
+          price_file_pattern?: string | null
+          protocol?: Database["public"]["Enums"]["supplier_protocol"]
+          remote_base_path?: string | null
+          supplier_id: string
+          sync_enabled?: boolean
+          sync_frequency?: Database["public"]["Enums"]["supplier_sync_frequency"]
+          updated_at?: string
+          username?: string
+        }
+        Update: {
+          catalog_file_pattern?: string | null
+          company_id?: string
+          created_at?: string
+          discount_file_pattern?: string | null
+          host?: string
+          id?: string
+          invoice_file_pattern?: string | null
+          last_connected_at?: string | null
+          last_connection_message?: string | null
+          last_connection_status?: Database["public"]["Enums"]["supplier_connection_status"]
+          last_sync_at?: string | null
+          password_secret_ref?: string | null
+          port?: number
+          price_file_pattern?: string | null
+          protocol?: Database["public"]["Enums"]["supplier_protocol"]
+          remote_base_path?: string | null
+          supplier_id?: string
+          sync_enabled?: boolean
+          sync_frequency?: Database["public"]["Enums"]["supplier_sync_frequency"]
+          updated_at?: string
+          username?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_integrations_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "internal_companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_integrations_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      supplier_prices: {
+        Row: {
+          company_id: string
+          created_at: string
+          currency: string
+          discount_percent: number | null
+          id: string
+          imported_at: string
+          list_price: number
+          net_price: number | null
+          price_list_name: string | null
+          source_file_name: string | null
+          supplier_id: string
+          supplier_product_id: string
+          valid_from: string | null
+          valid_to: string | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          currency?: string
+          discount_percent?: number | null
+          id?: string
+          imported_at?: string
+          list_price?: number
+          net_price?: number | null
+          price_list_name?: string | null
+          source_file_name?: string | null
+          supplier_id: string
+          supplier_product_id: string
+          valid_from?: string | null
+          valid_to?: string | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          currency?: string
+          discount_percent?: number | null
+          id?: string
+          imported_at?: string
+          list_price?: number
+          net_price?: number | null
+          price_list_name?: string | null
+          source_file_name?: string | null
+          supplier_id?: string
+          supplier_product_id?: string
+          valid_from?: string | null
+          valid_to?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_prices_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "internal_companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_prices_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_prices_supplier_product_id_fkey"
+            columns: ["supplier_product_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      supplier_products: {
+        Row: {
+          company_id: string
+          created_at: string
+          id: string
+          last_seen_at: string | null
+          product_id: string | null
+          raw_brand: string | null
+          raw_category: string | null
+          raw_payload: Json | null
+          raw_unit: string | null
+          supplier_id: string
+          supplier_product_description: string | null
+          supplier_product_name: string | null
+          supplier_sku: string
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          id?: string
+          last_seen_at?: string | null
+          product_id?: string | null
+          raw_brand?: string | null
+          raw_category?: string | null
+          raw_payload?: Json | null
+          raw_unit?: string | null
+          supplier_id: string
+          supplier_product_description?: string | null
+          supplier_product_name?: string | null
+          supplier_sku: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          id?: string
+          last_seen_at?: string | null
+          product_id?: string | null
+          raw_brand?: string | null
+          raw_category?: string | null
+          raw_payload?: Json | null
+          raw_unit?: string | null
+          supplier_id?: string
+          supplier_product_description?: string | null
+          supplier_product_name?: string | null
+          supplier_sku?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_products_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "internal_companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_products_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_catalog_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_products_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      suppliers: {
+        Row: {
+          code: string
+          company_id: string
+          created_at: string
+          id: string
+          integration_type: Database["public"]["Enums"]["supplier_integration_type"]
+          is_active: boolean
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          company_id: string
+          created_at?: string
+          id?: string
+          integration_type?: Database["public"]["Enums"]["supplier_integration_type"]
+          is_active?: boolean
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          company_id?: string
+          created_at?: string
+          id?: string
+          integration_type?: Database["public"]["Enums"]["supplier_integration_type"]
+          is_active?: boolean
+          name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "suppliers_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
             referencedRelation: "internal_companies"
             referencedColumns: ["id"]
           },
@@ -8329,8 +8854,29 @@ export type Database = {
         | "expired"
         | "signed"
         | "archived"
+      product_import_job_status:
+        | "queued"
+        | "running"
+        | "success"
+        | "partial_success"
+        | "failed"
+      product_import_job_type:
+        | "connection_test"
+        | "catalog_sync"
+        | "price_sync"
+        | "discount_sync"
+        | "full_sync"
+      product_import_row_status:
+        | "parsed"
+        | "failed"
+        | "skipped"
+        | "needs_review"
       regulation_scope_type: "global" | "lead" | "quote" | "job"
       regulation_topic: "NEK" | "FEL" | "FSE" | "FSL" | "Annet"
+      supplier_connection_status: "never_tested" | "ok" | "warning" | "error"
+      supplier_integration_type: "ftp" | "ftps" | "sftp" | "manual" | "api"
+      supplier_protocol: "ftp" | "ftps" | "sftp"
+      supplier_sync_frequency: "manual" | "hourly" | "daily"
       work_package_type:
         | "deviation"
         | "additional_work"
@@ -8571,8 +9117,32 @@ export const Constants = {
         "signed",
         "archived",
       ],
+      product_import_job_status: [
+        "queued",
+        "running",
+        "success",
+        "partial_success",
+        "failed",
+      ],
+      product_import_job_type: [
+        "connection_test",
+        "catalog_sync",
+        "price_sync",
+        "discount_sync",
+        "full_sync",
+      ],
+      product_import_row_status: [
+        "parsed",
+        "failed",
+        "skipped",
+        "needs_review",
+      ],
       regulation_scope_type: ["global", "lead", "quote", "job"],
       regulation_topic: ["NEK", "FEL", "FSE", "FSL", "Annet"],
+      supplier_connection_status: ["never_tested", "ok", "warning", "error"],
+      supplier_integration_type: ["ftp", "ftps", "sftp", "manual", "api"],
+      supplier_protocol: ["ftp", "ftps", "sftp"],
+      supplier_sync_frequency: ["manual", "hourly", "daily"],
       work_package_type: [
         "deviation",
         "additional_work",
