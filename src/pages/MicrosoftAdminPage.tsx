@@ -16,7 +16,7 @@ import {
 import { format } from "date-fns";
 import { nb } from "date-fns/locale";
 
-type SubAction = "ensure" | "renew" | "recreate" | "disable";
+type SubAction = "ensure" | "renew" | "recreate" | "disable" | "sync";
 type EmailFilter = "all" | "invite" | "participant_added" | "new_post" | "resend";
 
 export default function MicrosoftAdminPage() {
