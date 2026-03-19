@@ -16,7 +16,7 @@ import {
 import { format } from "date-fns";
 import { nb } from "date-fns/locale";
 
-type SubAction = "ensure" | "renew" | "recreate" | "disable";
+type SubAction = "ensure" | "renew" | "recreate" | "disable" | "sync";
 type EmailFilter = "all" | "invite" | "participant_added" | "new_post" | "resend";
 
 export default function MicrosoftAdminPage() {
@@ -86,11 +86,19 @@ export default function MicrosoftAdminPage() {
   const runAction = async (action: SubAction) => {
     setActionLoading(action);
     try {
-      const { data, error } = await supabase.functions.invoke("graph-subscription-manage", {
-        body: { action, company_id: activeCompanyId },
-      });
-      if (error) throw error;
-      toast.success(`Handling "${action}" fullført`, { description: data?.status || "OK" });
+      if (action === "sync") {
+        const { data, error } = await supabase.functions.invoke("graph-subscription-sync", {
+          body: {},
+        });
+        if (error) throw error;
+        toast.success("Subscription-synk fullført", { description: data?.action || "OK" });
+      } else {
+        const { data, error } = await supabase.functions.invoke("graph-subscription-manage", {
+          body: { action, company_id: activeCompanyId },
+        });
+        if (error) throw error;
+        toast.success(`Handling "${action}" fullført`, { description: data?.status || "OK" });
+      }
       queryClient.invalidateQueries({ queryKey: ["ms-graph-subscriptions"] });
     } catch (err: any) {
       toast.error(`Feil ved "${action}"`, { description: err.message });
@@ -520,6 +528,10 @@ export default function MicrosoftAdminPage() {
           <CardDescription>Administrer webhook-subscription for dette selskapet</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-2">
+          <Button size="sm" variant="default" onClick={() => runAction("sync")} disabled={!!actionLoading}>
+            <Activity className="mr-1.5 h-3.5 w-3.5" />
+            {actionLoading === "sync" ? "Synkroniserer…" : "Synk Postkontoret"}
+          </Button>
           <Button size="sm" onClick={() => runAction("ensure")} disabled={!!actionLoading}>
             <Plus className="mr-1.5 h-3.5 w-3.5" />
             {actionLoading === "ensure" ? "Oppretter…" : "Aktiver / Ensure"}
@@ -562,10 +574,14 @@ export default function MicrosoftAdminPage() {
                       <span className="text-xs text-muted-foreground font-mono">{sub.subscription_id?.slice(0, 12)}…</span>
                     </div>
                     <div className="text-xs text-muted-foreground space-y-0.5">
+                      {sub.mailbox_email && <div>Mailbox: <span className="font-medium">{sub.mailbox_email}</span></div>}
                       <div>Resource: {sub.resource}</div>
                       <div>Utløper: {format(new Date(sub.expiration_at), "d. MMM yyyy HH:mm", { locale: nb })}</div>
                       {sub.last_renewed_at && (
                         <div>Sist fornyet: {format(new Date(sub.last_renewed_at), "d. MMM yyyy HH:mm", { locale: nb })}</div>
+                      )}
+                      {sub.last_checked_at && (
+                        <div>Sist sjekket: {format(new Date(sub.last_checked_at), "d. MMM yyyy HH:mm", { locale: nb })}</div>
                       )}
                       {sub.last_error && <div className="text-destructive mt-1">{sub.last_error}</div>}
                     </div>
