@@ -313,56 +313,100 @@ export function SupplierIntegrationForm({ supplier, integration, onSave, saving 
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <CardTitle className="text-base flex items-center gap-2">
-                <FolderSearch className="h-4 w-4" />
-                Filliste fra server
+                <HardDrive className="h-4 w-4" />
+                Filer på server
               </CardTitle>
               <Button variant="ghost" size="icon" className="h-6 w-6" onClick={actions.clearFileList}>
                 <X className="h-3.5 w-3.5" />
               </Button>
             </div>
+            <CardDescription>
+              {actions.fileListResult.all_files.length} filer funnet
+              {(() => {
+                const matchCount = Object.values(actions.fileListResult!.matched)
+                  .reduce((sum, arr) => sum + arr.length, 0);
+                return matchCount > 0
+                  ? ` · ${matchCount} matcher konfigurerte mønstre`
+                  : actions.fileListResult!.all_files.length > 0
+                    ? " · ingen matcher konfigurerte mønstre"
+                    : "";
+              })()}
+            </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-3">
-            {/* Matched file categories */}
-            {(["catalog", "price", "discount", "invoice"] as const).map((cat) => {
-              const files = actions.fileListResult!.matched[cat];
-              const labels: Record<string, string> = {
-                catalog: "Katalog",
-                price: "Pris",
-                discount: "Rabatt",
-                invoice: "Faktura",
-              };
-              if (!files || files.length === 0) return null;
-              return (
-                <div key={cat}>
-                  <p className="text-xs font-medium text-foreground mb-1">{labels[cat]} ({files.length})</p>
-                  <div className="flex flex-wrap gap-1">
-                    {files.map((f, i) => (
-                      <Badge key={i} variant="secondary" className="text-[10px] font-mono">
-                        <FileText className="h-2.5 w-2.5 mr-1" />
-                        {f.name}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
-
+          <CardContent className="space-y-4">
             {/* Warnings */}
             {actions.fileListResult.warnings.length > 0 && (
-              <div className="space-y-1">
+              <div className="space-y-1 p-2.5 rounded-md bg-accent/50 border border-border/40">
                 {actions.fileListResult.warnings.map((w, i) => (
-                  <div key={i} className="flex items-start gap-1.5 text-[10px] text-muted-foreground">
-                    <AlertTriangle className="h-3 w-3 text-yellow-500 shrink-0 mt-0.5" />
+                  <div key={i} className="flex items-start gap-1.5 text-xs text-muted-foreground">
+                    <AlertTriangle className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
                     <span>{w}</span>
                   </div>
                 ))}
               </div>
             )}
 
-            {/* Summary */}
-            <p className="text-[10px] text-muted-foreground border-t border-border/40 pt-2">
-              Totalt {actions.fileListResult.all_files.length} filer på serveren
-            </p>
+            {/* Full file listing table */}
+            {actions.fileListResult.all_files.length === 0 ? (
+              <div className="text-center py-6">
+                <Folder className="h-8 w-8 text-muted-foreground/40 mx-auto mb-2" />
+                <p className="text-sm text-muted-foreground">Ingen filer funnet på serveren</p>
+                <p className="text-xs text-muted-foreground/70 mt-1">Sjekk remote base path og tilkoblingen</p>
+              </div>
+            ) : (
+              <div className="border border-border/60 rounded-md overflow-hidden">
+                <div className="grid grid-cols-[1fr_auto_auto_auto] gap-x-3 px-3 py-1.5 bg-muted/50 text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                  <span>Filnavn</span>
+                  <span className="text-right">Størrelse</span>
+                  <span className="text-right">Endret</span>
+                  <span className="text-right">Match</span>
+                </div>
+                <div className="divide-y divide-border/40 max-h-[400px] overflow-y-auto">
+                  {actions.fileListResult.all_files.map((f: FileListFile, i: number) => {
+                    const cats = f.categories ?? [];
+                    const catLabels: Record<string, string> = { catalog: "Katalog", price: "Pris", discount: "Rabatt", invoice: "Faktura" };
+                    const catColors: Record<string, string> = {
+                      catalog: "bg-primary/10 text-primary border-primary/20",
+                      price: "bg-accent text-accent-foreground border-accent",
+                      discount: "bg-secondary text-secondary-foreground border-secondary",
+                      invoice: "bg-muted text-muted-foreground border-border",
+                    };
+                    return (
+                      <div
+                        key={i}
+                        className={`grid grid-cols-[1fr_auto_auto_auto] gap-x-3 px-3 py-2 text-xs items-center ${
+                          cats.length > 0 ? "bg-primary/[0.03]" : ""
+                        }`}
+                      >
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                          <span className="font-mono text-foreground truncate" title={f.name}>
+                            {f.name}
+                          </span>
+                        </div>
+                        <span className="text-muted-foreground text-right whitespace-nowrap">
+                          {f.size > 0 ? formatFileSize(f.size) : "–"}
+                        </span>
+                        <span className="text-muted-foreground text-right whitespace-nowrap">
+                          {f.modified_at ? formatDate(f.modified_at) : "–"}
+                        </span>
+                        <div className="flex gap-1 justify-end">
+                          {cats.length > 0 ? (
+                            cats.map((c) => (
+                              <Badge key={c} variant="outline" className={`text-[9px] px-1.5 py-0 h-4 ${catColors[c] ?? ""}`}>
+                                {catLabels[c] ?? c}
+                              </Badge>
+                            ))
+                          ) : (
+                            <span className="text-muted-foreground/50">–</span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
