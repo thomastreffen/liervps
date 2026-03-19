@@ -531,8 +531,8 @@ async function handleProcessSync(supabaseAdmin: ReturnType<typeof createClient>,
       last_heartbeat_at: new Date().toISOString(),
     });
 
-    // Kick off chunk processing starting with file 0, chunk 0
-    triggerChunkProcessing({
+    // Kick off chunk processing: 1 chunk per invocation
+    await triggerNextChunk({
       action: "process-sync-chunk",
       job_id: jobId,
       company_id: companyId,
