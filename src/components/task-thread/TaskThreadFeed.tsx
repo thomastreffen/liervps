@@ -113,7 +113,9 @@ export function TaskThreadFeed({ messages, loading, currentUserId, lastReadAt, o
                 id={`msg-${msg.id}`}
                 className={cn(
                   "transition-all duration-500 rounded-lg",
-                  highlightIds.has(msg.id) && "bg-primary/5"
+                  highlightIds.has(msg.id) && "bg-primary/5",
+                  msg.priority === "urgent" && highlightIds.has(msg.id) && "bg-destructive/10",
+                  msg.priority === "important" && highlightIds.has(msg.id) && "bg-amber-50 dark:bg-amber-950/20"
                 )}
               >
                 {msg.message_type === "system_event" ? (
