@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import type { Supplier, SupplierIntegration } from "@/types/product-module";
 import { getSupplierDefaults } from "@/lib/supplier-defaults";
 import { useSupplierActions } from "@/hooks/useSupplierActions";
+import type { FileListFile } from "@/hooks/useSupplierActions";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Save, TestTube, FolderSearch, Play, Loader2, Eye, EyeOff, Lightbulb,
-  FileText, AlertTriangle, X,
+  FileText, AlertTriangle, X, HardDrive, Folder,
 } from "lucide-react";
 import { toast } from "sonner";
 
