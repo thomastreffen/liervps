@@ -5,7 +5,7 @@
  * All calls go through the supplier-integration edge function.
  */
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompanyContext } from "@/hooks/useCompanyContext";
 import { useQueryClient } from "@tanstack/react-query";
