@@ -8919,6 +8919,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      can_manage_supplier_integrations: {
+        Args: { _auth_user_id: string }
+        Returns: boolean
+      }
       check_permission: {
         Args: { _perm: string; _user_id: string }
         Returns: boolean
@@ -8977,6 +8981,10 @@ export type Database = {
         Returns: boolean
       }
       is_admin: { Args: never; Returns: boolean }
+      is_company_member: {
+        Args: { _auth_user_id: string; _company_id: string }
+        Returns: boolean
+      }
       is_explicit_space_member: {
         Args: { _auth_user_id: string; _space_id: string }
         Returns: boolean
