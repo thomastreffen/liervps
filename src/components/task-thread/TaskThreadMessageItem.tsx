@@ -1,12 +1,14 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { format } from "date-fns";
 import { nb } from "date-fns/locale";
-import { User, Paperclip, Download, Mail, ArrowUpRight, ArrowDownLeft, ChevronDown, ChevronUp, Image as ImageIcon, Reply, AlertTriangle, AlertCircle } from "lucide-react";
+import { User, Paperclip, Download, Mail, ArrowUpRight, ArrowDownLeft, ChevronDown, ChevronUp, Image as ImageIcon, Reply, AlertTriangle, AlertCircle, ExternalLink } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { TaskMessage } from "@/hooks/useTaskThread";
 import { cn } from "@/lib/utils";
 import { filterAttachments, cleanEmailBody } from "./email-utils";
 import { ImageLightbox } from "./ImageLightbox";
+import { MessageActionMenu, type ActionType } from "./MessageActionMenu";
+import { WP_TYPE_CONFIG, type WorkPackageType } from "@/lib/work-package-types";
 
 interface Props {
   message: TaskMessage;
@@ -14,6 +16,8 @@ interface Props {
   onReply?: (message: TaskMessage) => void;
   onScrollToMessage?: (messageId: string) => void;
   allMessages?: TaskMessage[];
+  onCreateAction?: (type: ActionType, message: TaskMessage) => void;
+  linkedAction?: { event_type: string; title: string; created_id?: string } | null;
 }
 
 export function TaskThreadMessageItem({ message, isOwnMessage, onReply, onScrollToMessage, allMessages }: Props) {
