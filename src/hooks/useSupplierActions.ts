@@ -5,7 +5,7 @@
  * All calls go through the supplier-integration edge function.
  */
 
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompanyContext } from "@/hooks/useCompanyContext";
 import { useQueryClient } from "@tanstack/react-query";
@@ -75,17 +75,6 @@ export function useSupplierActions(supplierId: string | undefined) {
   const [listingFiles, setListingFiles] = useState(false);
   const [runningSyncType, setRunningSyncType] = useState<string | null>(null);
   const [savingPassword, setSavingPassword] = useState(false);
-
-  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const pollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Cleanup polling on unmount
-  useEffect(() => {
-    return () => {
-      if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
-      if (pollTimeoutRef.current) clearTimeout(pollTimeoutRef.current);
-    };
-  }, []);
 
   const [fileListResult, setFileListResult] = useState<FileListData | null>(null);
   const [testResult, setTestResult] = useState<ActionResult | null>(null);
@@ -185,50 +174,6 @@ export function useSupplierActions(supplierId: string | undefined) {
           sync_type: syncType,
         });
 
-        if (result.status === "accepted") {
-          toast.success(result.message || "Synk startet i bakgrunnen");
-          // Poll for completion
-          const jobId = result.data?.job_id;
-          if (jobId) {
-            // Clear any previous polling
-            if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
-            if (pollTimeoutRef.current) clearTimeout(pollTimeoutRef.current);
-
-            pollIntervalRef.current = setInterval(async () => {
-              try {
-                const { data: job } = await supabase
-                  .from("product_import_jobs")
-                  .select("status, rows_processed, rows_inserted, rows_failed")
-                  .eq("id", jobId)
-                  .maybeSingle();
-                if (job && !["queued", "running"].includes(job.status)) {
-                  if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
-                  if (pollTimeoutRef.current) clearTimeout(pollTimeoutRef.current);
-                  pollIntervalRef.current = null;
-                  pollTimeoutRef.current = null;
-                  setRunningSyncType(null);
-                  invalidateQueries();
-                  if (job.status === "success") {
-                    toast.success(`Synk fullført: ${job.rows_inserted} nye, ${job.rows_processed} behandlet`);
-                  } else if (job.status === "partial_success") {
-                    toast.warning(`Synk delvis: ${job.rows_inserted} nye, ${job.rows_failed} feilet`);
-                  } else {
-                    toast.error("Synk feilet – se importlogg for detaljer");
-                  }
-                }
-              } catch { /* ignore poll errors */ }
-            }, 5000);
-            // Safety timeout: stop polling after 5 minutes
-            pollTimeoutRef.current = setTimeout(() => {
-              if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
-              pollIntervalRef.current = null;
-              pollTimeoutRef.current = null;
-              setRunningSyncType(null);
-            }, 300_000);
-          }
-          return; // Don't clear runningSyncType yet – polling will do it
-        }
-
         if (result.status === "success") {
           toast.success(result.message || "Synk fullført");
         } else if (result.status === "partial_success") {
@@ -243,11 +188,10 @@ export function useSupplierActions(supplierId: string | undefined) {
           description: (err as Error).message,
         });
       } finally {
-        if (runningSyncType !== syncType) return; // polling handles cleanup for accepted
         setRunningSyncType(null);
       }
     },
-    [activeCompanyId, supplierId, invalidateQueries, runningSyncType],
+    [activeCompanyId, supplierId, invalidateQueries],
   );
 
   return {
