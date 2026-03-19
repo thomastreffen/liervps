@@ -37,7 +37,7 @@ function formatDate(iso: string): string {
   } catch { return iso; }
 }
 
-  const defaults = getSupplierDefaults(supplier.code);
+  export function SupplierIntegrationForm({ supplier, integration, onSave, saving }: Props) {
   const actions = useSupplierActions(supplier.id);
 
   const [protocol, setProtocol] = useState<string>(integration?.protocol ?? defaults?.protocol ?? "sftp");
