@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Paperclip, Send, X, Loader2, FileText, Reply, Mail, MailOff, ChevronDown, ChevronUp } from "lucide-react";
+import { Paperclip, Send, X, Loader2, FileText, Reply, Mail, MailX, ChevronDown, ChevronUp } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import type { TaskMessage } from "@/hooks/useTaskThread";
