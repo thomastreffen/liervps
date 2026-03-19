@@ -8,7 +8,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 // 3. In-Reply-To/References → task_messages.external_message_id
 // ═══════════════════════════════════════════
 
-const TASK_THREAD_PATTERN = /task-thread\+([a-f0-9-]+)@/i;
+const TASK_THREAD_PATTERN = /task-thread\+([a-zA-Z0-9-]+)@/i;
 
 interface TaskThreadMatchResult {
   matched: boolean;
@@ -20,32 +20,61 @@ interface TaskThreadMatchResult {
 }
 
 async function tryMatchTaskThread(message: any, supabase: any): Promise<TaskThreadMatchResult> {
+  // ── Debug: log all recipients for diagnostics ──
+  const replyTo = message.replyTo?.[0]?.emailAddress?.address || "";
+  const toAddrs = (message.toRecipients || []).map((r: any) => r.emailAddress?.address || "");
+  const ccAddrs = (message.ccRecipients || []).map((r: any) => r.emailAddress?.address || "");
+
+  console.log("TASK_THREAD_MATCH_START", {
+    subject: message.subject,
+    from: message.from?.emailAddress?.address,
+    replyTo,
+    toRecipients: toAddrs,
+    ccRecipients: ccAddrs,
+    internetMessageId: message.internetMessageId,
+    hasHeaders: (message.internetMessageHeaders || []).length,
+  });
+
   // Strategy 1: X-MCS-Task-Thread-Token header
   for (const h of message.internetMessageHeaders || []) {
     if (h.name === "X-MCS-Task-Thread-Token" && h.value) {
-      const { data } = await supabase
+      console.log("TASK_THREAD_STRATEGY_1_XHEADER", { token: h.value });
+      const { data, error } = await supabase
         .from("task_threads").select("id, task_id, company_id, thread_token")
         .eq("thread_token", h.value).maybeSingle();
-      if (data) return { matched: true, ...data, match_strategy: "x-header" };
+      if (error) console.error("TASK_THREAD_STRATEGY_1_DB_ERROR", error);
+      if (data) {
+        console.log("TASK_THREAD_MATCH_FOUND", { strategy: "x-header", thread_id: data.id, task_id: data.task_id });
+        return { matched: true, ...data, match_strategy: "x-header" };
+      }
+      console.warn("TASK_THREAD_STRATEGY_1_NO_MATCH", { token: h.value });
     }
   }
 
   // Strategy 2: task-thread+{token} in addresses
-  const replyTo = message.replyTo?.[0]?.emailAddress?.address || "";
-  const toAddrs = (message.toRecipients || []).map((r: any) => r.emailAddress?.address || "");
-  const ccAddrs = (message.ccRecipients || []).map((r: any) => r.emailAddress?.address || "");
   const allAddrs = [replyTo, ...toAddrs, ...ccAddrs].join(" ");
+  console.log("TASK_THREAD_STRATEGY_2_ADDRESSES", { allAddrs });
   const tokenMatch = allAddrs.match(TASK_THREAD_PATTERN);
   if (tokenMatch) {
-    const { data } = await supabase
+    const token = tokenMatch[1];
+    console.log("TASK_THREAD_TOKEN_EXTRACTED", { token, fullMatch: tokenMatch[0] });
+    const { data, error } = await supabase
       .from("task_threads").select("id, task_id, company_id, thread_token")
-      .eq("thread_token", tokenMatch[1]).maybeSingle();
-    if (data) return { matched: true, ...data, match_strategy: "reply-to-token" };
+      .eq("thread_token", token).maybeSingle();
+    if (error) console.error("TASK_THREAD_STRATEGY_2_DB_ERROR", error);
+    if (data) {
+      console.log("TASK_THREAD_MATCH_FOUND", { strategy: "reply-to-token", thread_id: data.id, task_id: data.task_id });
+      return { matched: true, ...data, match_strategy: "reply-to-token" };
+    }
+    console.warn("NO_THREAD_MATCH_FOR_TOKEN", { token });
+  } else {
+    console.log("TASK_THREAD_NO_TOKEN_IN_ADDRESSES", { pattern: TASK_THREAD_PATTERN.source });
   }
 
   // Strategy 3: In-Reply-To/References → task_messages
   for (const h of message.internetMessageHeaders || []) {
     if ((h.name === "In-Reply-To" || h.name === "References") && h.value) {
+      console.log("TASK_THREAD_STRATEGY_3_HEADER", { header: h.name, value: h.value.substring(0, 200) });
       const msgIds = h.value.match(/<[^>]+>/g) || [h.value];
       for (const msgId of msgIds) {
         const cleanId = msgId.replace(/[<>]/g, "").trim();
@@ -57,12 +86,15 @@ async function tryMatchTaskThread(message: any, supabase: any): Promise<TaskThre
           const { data: thread } = await supabase
             .from("task_threads").select("thread_token")
             .eq("id", existing.thread_id).maybeSingle();
+          console.log("TASK_THREAD_MATCH_FOUND", { strategy: "in-reply-to", thread_id: existing.thread_id, msgId: cleanId });
           return { matched: true, ...existing, thread_token: thread?.thread_token, match_strategy: "in-reply-to" };
         }
       }
+      console.log("TASK_THREAD_STRATEGY_3_NO_MATCH", { checkedIds: msgIds.length });
     }
   }
 
+  console.warn("TASK_THREAD_NO_MATCH_ANY_STRATEGY", { subject: message.subject, from: message.from?.emailAddress?.address });
   return { matched: false };
 }
 
