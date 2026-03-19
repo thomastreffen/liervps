@@ -574,10 +574,14 @@ export default function MicrosoftAdminPage() {
                       <span className="text-xs text-muted-foreground font-mono">{sub.subscription_id?.slice(0, 12)}…</span>
                     </div>
                     <div className="text-xs text-muted-foreground space-y-0.5">
+                      {sub.mailbox_email && <div>Mailbox: <span className="font-medium">{sub.mailbox_email}</span></div>}
                       <div>Resource: {sub.resource}</div>
                       <div>Utløper: {format(new Date(sub.expiration_at), "d. MMM yyyy HH:mm", { locale: nb })}</div>
                       {sub.last_renewed_at && (
                         <div>Sist fornyet: {format(new Date(sub.last_renewed_at), "d. MMM yyyy HH:mm", { locale: nb })}</div>
+                      )}
+                      {sub.last_checked_at && (
+                        <div>Sist sjekket: {format(new Date(sub.last_checked_at), "d. MMM yyyy HH:mm", { locale: nb })}</div>
                       )}
                       {sub.last_error && <div className="text-destructive mt-1">{sub.last_error}</div>}
                     </div>
