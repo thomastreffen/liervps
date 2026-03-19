@@ -148,6 +148,20 @@ export const PERMISSION_LABELS: Record<string, PermissionMeta> = {
   // ── Data ──
   "data.delete": { label: "Slette data", description: "Kan flytte elementer til papirkurven.", category: "Data" },
 
+  // ── Innkjøp & Leverandør ──
+  "purchasing.view": { label: "Se innkjøpsordrer", description: "Kan se innkjøpsordrer og produktpriser.", category: "Innkjøp" },
+  "purchasing.create": { label: "Opprette innkjøpsordrer", description: "Kan opprette og redigere innkjøpsordrer.", category: "Innkjøp" },
+  "purchasing.manage_integrations": {
+    label: "Administrere grossistintegrasjoner",
+    description: "Kan konfigurere FTP-tilkoblinger, lagre credentials, kjøre synk og koble produkter. Kritisk tilgang – kun for innkjøpsansvarlige og admin.",
+    category: "Innkjøp",
+  },
+  "purchasing.manage_preferences": {
+    label: "Endre leverandørpreferanser",
+    description: "Kan endre foretrukket leverandør og regler for innkjøpsintelligens.",
+    category: "Innkjøp",
+  },
+
   // ── SharePoint ──
   "sharepoint.view": { label: "Se SharePoint-filer", description: "Kan se filer i koblet SharePoint-mappe.", category: "SharePoint" },
   "sharepoint.upload": { label: "Laste opp til SharePoint", description: "Kan laste opp filer til SharePoint.", category: "SharePoint" },
