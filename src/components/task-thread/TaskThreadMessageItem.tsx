@@ -103,7 +103,7 @@ export function TaskThreadMessageItem({ message, isOwnMessage, onReply, onScroll
           <PriorityBadge priority={priority} />
 
           {/* Hover actions */}
-          {hovered && (
+          {showActions && (
             <div className="inline-flex items-center gap-0.5">
               {onReply && (
                 <button
@@ -115,7 +115,14 @@ export function TaskThreadMessageItem({ message, isOwnMessage, onReply, onScroll
                 </button>
               )}
               {onCreateAction && (
-                <MessageActionMenu message={message} onCreateAction={onCreateAction} />
+                <MessageActionMenu
+                  message={message}
+                  onCreateAction={onCreateAction}
+                  onOpenChange={(open) => {
+                    setMenuOpen(open);
+                    if (!open) setHovered(false);
+                  }}
+                />
               )}
             </div>
           )}
