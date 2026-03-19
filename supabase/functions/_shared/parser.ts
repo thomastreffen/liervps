@@ -685,7 +685,7 @@ async function processChunk(params: {
 
 // ===== Main parseFile =====
 
-const CHUNK_SIZE = 500;
+const CHUNK_SIZE = 2000;
 
 export async function parseFile(params: {
   supabaseAdmin: SupabaseAdmin; supplierId: string; supplierCode: string | null;

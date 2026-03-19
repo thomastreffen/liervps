@@ -500,30 +500,67 @@ async function handleRunSync(supabaseAdmin: ReturnType<typeof createClient>, com
 
   await updateImportJob(supabaseAdmin, jobId, { status: "running", started_at: new Date().toISOString() });
 
-  // Process synchronously – edge functions terminate after response is sent,
-  // so fire-and-forget does NOT work. Previous successful syncs complete in ~90s.
+  // Fire off processing in a separate Edge Function invocation (self-invoke)
+  // This ensures the processing gets its own timeout window (~150s)
+  const processUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/supplier-integration`;
+  fetch(processUrl, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+    },
+    body: JSON.stringify({
+      action: "process-sync",
+      job_id: jobId,
+      company_id: companyId,
+      supplier_id: supplierId,
+      supplier_code: supplierCode,
+      sync_type: syncType,
+    }),
+  }).catch((err) => console.error("[run-sync] Failed to trigger process-sync:", err));
+
+  // Return immediately – frontend will poll job status
+  return jsonOk({
+    status: "started",
+    message: "Synkronisering startet – følg fremdrift i importloggen",
+    data: { job_id: jobId },
+  });
+}
+
+/**
+ * Internal action: process-sync. Called via self-invocation with service_role key.
+ * Does the actual heavy lifting of downloading and parsing files.
+ */
+async function handleProcessSync(supabaseAdmin: ReturnType<typeof createClient>, body: Record<string, unknown>): Promise<Response> {
+  const jobId = body.job_id as string;
+  const companyId = body.company_id as string;
+  const supplierId = body.supplier_id as string;
+  const supplierCode = (body.supplier_code as string) || null;
+  const syncType = (body.sync_type as string) || "full_sync";
+
+  if (!jobId || !companyId || !supplierId) return jsonError("Mangler påkrevde felt", "missing_params");
+
+  let config: IntegrationConfig;
+  try { config = await loadIntegrationConfig(supabaseAdmin, companyId, supplierId); } catch (e) {
+    await updateImportJob(supabaseAdmin, jobId, { status: "failed", finished_at: new Date().toISOString(), error_log: [(e as Error).message] });
+    return jsonError((e as Error).message, "config_error");
+  }
+
+  const password = await loadPassword(supabaseAdmin, config.id);
+  if (!password) {
+    await updateImportJob(supabaseAdmin, jobId, { status: "failed", finished_at: new Date().toISOString(), error_log: ["Passord ikke konfigurert"] });
+    return jsonError("Passord ikke konfigurert", "no_password");
+  }
+
   await processSyncInBackground(supabaseAdmin, config, password, companyId, supplierId, supplierCode, jobId, syncType);
 
-  // Read final job status
   const { data: finalJob } = await supabaseAdmin.from("product_import_jobs")
     .select("status, rows_processed, rows_inserted, rows_updated, rows_failed")
     .eq("id", jobId).maybeSingle();
 
-  const status = finalJob?.status ?? "failed";
-  const message = status === "success"
-    ? `Synk fullført: ${finalJob?.rows_inserted ?? 0} nye, ${finalJob?.rows_updated ?? 0} oppdatert av ${finalJob?.rows_processed ?? 0} rader`
-    : status === "partial_success"
-    ? `Delvis synk: ${finalJob?.rows_inserted ?? 0} nye, ${finalJob?.rows_failed ?? 0} feilet`
-    : "Synk feilet – se importlogg for detaljer";
-
   return jsonOk({
-    status, message,
-    data: {
-      job_id: jobId,
-      files_found: 0,
-      rows_processed: finalJob?.rows_processed ?? 0,
-      rows_inserted: finalJob?.rows_inserted ?? 0,
-    },
+    status: finalJob?.status ?? "unknown",
+    message: `Prosessering ferdig: ${finalJob?.rows_inserted ?? 0} nye, ${finalJob?.rows_updated ?? 0} oppdatert`,
   });
 }
 
