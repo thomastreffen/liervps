@@ -20,7 +20,6 @@ interface TaskThreadMatchResult {
 }
 
 async function tryMatchTaskThread(message: any, supabase: any): Promise<TaskThreadMatchResult> {
-  // ── Debug: log all recipients for diagnostics ──
   const replyTo = message.replyTo?.[0]?.emailAddress?.address || "";
   const toAddrs = (message.toRecipients || []).map((r: any) => r.emailAddress?.address || "");
   const ccAddrs = (message.ccRecipients || []).map((r: any) => r.emailAddress?.address || "");
@@ -38,16 +37,17 @@ async function tryMatchTaskThread(message: any, supabase: any): Promise<TaskThre
   // Strategy 1: X-MCS-Task-Thread-Token header
   for (const h of message.internetMessageHeaders || []) {
     if (h.name === "X-MCS-Task-Thread-Token" && h.value) {
-      console.log("TASK_THREAD_STRATEGY_1_XHEADER", { token: h.value });
+      const token = h.value.trim();
+      console.log("TASK_THREAD_STRATEGY_1_XHEADER", { token });
       const { data, error } = await supabase
         .from("task_threads").select("id, task_id, company_id, thread_token")
-        .eq("thread_token", h.value).maybeSingle();
+        .eq("thread_token", token).maybeSingle();
       if (error) console.error("TASK_THREAD_STRATEGY_1_DB_ERROR", error);
       if (data) {
         console.log("TASK_THREAD_MATCH_FOUND", { strategy: "x-header", thread_id: data.id, task_id: data.task_id });
-        return { matched: true, ...data, match_strategy: "x-header" };
+        return { matched: true, thread_id: data.id, task_id: data.task_id, company_id: data.company_id, thread_token: data.thread_token, match_strategy: "x-header" };
       }
-      console.warn("TASK_THREAD_STRATEGY_1_NO_MATCH", { token: h.value });
+      console.warn("TASK_THREAD_STRATEGY_1_NO_MATCH", { token });
     }
   }
 
@@ -56,15 +56,15 @@ async function tryMatchTaskThread(message: any, supabase: any): Promise<TaskThre
   console.log("TASK_THREAD_STRATEGY_2_ADDRESSES", { allAddrs });
   const tokenMatch = allAddrs.match(TASK_THREAD_PATTERN);
   if (tokenMatch) {
-    const token = tokenMatch[1];
-    console.log("TASK_THREAD_TOKEN_EXTRACTED", { token, fullMatch: tokenMatch[0] });
+    const token = tokenMatch[1].trim();
+    console.log("TASK_THREAD_TOKEN_EXTRACTED", { token, fullMatch: tokenMatch[0], source: "addresses" });
     const { data, error } = await supabase
       .from("task_threads").select("id, task_id, company_id, thread_token")
       .eq("thread_token", token).maybeSingle();
     if (error) console.error("TASK_THREAD_STRATEGY_2_DB_ERROR", error);
     if (data) {
-      console.log("TASK_THREAD_MATCH_FOUND", { strategy: "reply-to-token", thread_id: data.id, task_id: data.task_id });
-      return { matched: true, ...data, match_strategy: "reply-to-token" };
+      console.log("TASK_THREAD_MATCH_FOUND", { strategy: "reply-to-token", thread_id: data.id, task_id: data.task_id, company_id: data.company_id });
+      return { matched: true, thread_id: data.id, task_id: data.task_id, company_id: data.company_id, thread_token: data.thread_token, match_strategy: "reply-to-token" };
     }
     console.warn("NO_THREAD_MATCH_FOR_TOKEN", { token });
   } else {
@@ -86,8 +86,8 @@ async function tryMatchTaskThread(message: any, supabase: any): Promise<TaskThre
           const { data: thread } = await supabase
             .from("task_threads").select("thread_token")
             .eq("id", existing.thread_id).maybeSingle();
-          console.log("TASK_THREAD_MATCH_FOUND", { strategy: "in-reply-to", thread_id: existing.thread_id, msgId: cleanId });
-          return { matched: true, ...existing, thread_token: thread?.thread_token, match_strategy: "in-reply-to" };
+          console.log("TASK_THREAD_MATCH_FOUND", { strategy: "in-reply-to", thread_id: existing.thread_id, task_id: existing.task_id, msgId: cleanId });
+          return { matched: true, thread_id: existing.thread_id, task_id: existing.task_id, company_id: existing.company_id, thread_token: thread?.thread_token, match_strategy: "in-reply-to" };
         }
       }
       console.log("TASK_THREAD_STRATEGY_3_NO_MATCH", { checkedIds: msgIds.length });
@@ -105,14 +105,63 @@ async function processTaskThreadInbound(
   const senderEmail = message.from?.emailAddress?.address?.toLowerCase() || "";
   const senderName = message.from?.emailAddress?.name || senderEmail;
 
+  console.log("INBOUND_MESSAGE_PARSE_START", {
+    thread_id: match.thread_id,
+    task_id: match.task_id,
+    company_id: match.company_id,
+    author_email: senderEmail,
+    author_name: senderName,
+    subject: message.subject,
+    hasBody: !!(message.bodyPreview || message.body?.content),
+    hasAttachments: message.hasAttachments,
+    internetMessageId: message.internetMessageId,
+  });
+
+  // Extract In-Reply-To and References from headers
+  let inReplyTo: string | null = null;
+  let references: string[] | null = null;
+  for (const h of message.internetMessageHeaders || []) {
+    if (h.name === "In-Reply-To") inReplyTo = h.value;
+    if (h.name === "References") {
+      const refs = h.value.match(/<[^>]+>/g);
+      references = refs ? refs.map((m: string) => m.replace(/[<>]/g, "")) : null;
+    }
+  }
+
+  // Idempotency check on task_messages
+  if (message.internetMessageId) {
+    const { data: existingMsg } = await supabase
+      .from("task_messages")
+      .select("id")
+      .eq("external_message_id", message.internetMessageId)
+      .maybeSingle();
+    if (existingMsg) {
+      console.log("TASK_MESSAGE_ALREADY_EXISTS", { existing_id: existingMsg.id, internetMessageId: message.internetMessageId });
+      return { message_id: existingMsg.id };
+    }
+  }
+
+  console.log("TASK_MESSAGE_CREATE_START", {
+    thread_id: match.thread_id,
+    message_type: "external_email",
+    direction: "inbound",
+  });
+
   const { data: msg, error: msgErr } = await supabase
     .from("task_messages").insert({
-      thread_id: match.thread_id, task_id: match.task_id, company_id: match.company_id,
-      message_type: "external_email", direction: "inbound",
-      body: message.bodyPreview || "", body_html: message.body?.content || "",
+      thread_id: match.thread_id,
+      task_id: match.task_id,
+      company_id: match.company_id,
+      message_type: "external_email",
+      direction: "inbound",
+      body: message.bodyPreview || "",
+      body_html: message.body?.content || "",
       subject: message.subject || null,
-      author_name: senderName, author_email: senderEmail,
+      author_name: senderName,
+      author_email: senderEmail,
       external_message_id: message.internetMessageId || null,
+      external_in_reply_to: inReplyTo,
+      external_references: references,
       email_status: "received",
       inbound_received_at: new Date().toISOString(),
       recipients: (message.toRecipients || []).map((r: any) => ({
@@ -124,40 +173,121 @@ async function processTaskThreadInbound(
         conversation_id: message.conversationId,
       },
     }).select("id").single();
-  if (msgErr) throw new Error("Failed to insert task thread inbound: " + msgErr.message);
 
-  // Handle attachments
+  if (msgErr) {
+    console.error("TASK_MESSAGE_CREATE_ERROR", {
+      error: msgErr.message,
+      code: msgErr.code,
+      details: msgErr.details,
+      thread_id: match.thread_id,
+      task_id: match.task_id,
+    });
+    throw new Error("Failed to insert task thread inbound: " + msgErr.message);
+  }
+
+  console.log("TASK_MESSAGE_CREATE_SUCCESS", {
+    message_id: msg!.id,
+    thread_id: match.thread_id,
+    task_id: match.task_id,
+  });
+
+  // Handle attachments (both regular and inline)
+  let attachmentsSaved = 0;
+  let attachmentsFailed = 0;
   if (message.hasAttachments) {
+    console.log("ATTACHMENT_SAVE_START", { resourceUrl });
     try {
       const attResp = await fetch(
-        `https://graph.microsoft.com/v1.0/${resourceUrl}/attachments`,
+        `https://graph.microsoft.com/v1.0/${resourceUrl}/attachments?$expand=microsoft.graph.itemAttachment/item`,
         { headers: { Authorization: `Bearer ${graphToken}` } },
       );
       if (attResp.ok) {
         const attData = await attResp.json();
-        for (const att of attData.value || []) {
-          if (att["@odata.type"] === "#microsoft.graph.fileAttachment" && att.contentBytes) {
+        const allAtts = attData.value || [];
+        console.log("ATTACHMENT_LIST_FETCHED", {
+          count: allAtts.length,
+          types: allAtts.map((a: any) => ({ name: a.name, type: a["@odata.type"], size: a.size, isInline: a.isInline, contentId: a.contentId })),
+        });
+
+        for (const att of allAtts) {
+          if (att["@odata.type"] !== "#microsoft.graph.fileAttachment") {
+            console.log("ATTACHMENT_SKIP_NON_FILE", { name: att.name, type: att["@odata.type"] });
+            continue;
+          }
+          if (!att.contentBytes) {
+            console.warn("ATTACHMENT_SKIP_NO_CONTENT", { name: att.name });
+            continue;
+          }
+
+          try {
             const bytes = Uint8Array.from(atob(att.contentBytes), c => c.charCodeAt(0));
-            const filePath = `${match.company_id}/${match.task_id}/${msg!.id}/${Date.now()}_${att.name}`;
+            const safeName = (att.name || "attachment").replace(/[^a-zA-Z0-9._-]/g, "_");
+            const filePath = `${match.company_id}/${match.task_id}/${msg!.id}/${Date.now()}_${safeName}`;
+
+            console.log("ATTACHMENT_UPLOAD_START", {
+              name: att.name,
+              mime: att.contentType,
+              size: bytes.length,
+              isInline: att.isInline || false,
+              contentId: att.contentId || null,
+              path: filePath,
+            });
+
             const { error: upErr } = await supabase.storage
               .from("task-thread-files")
-              .upload(filePath, bytes, { contentType: att.contentType });
-            if (!upErr) {
-              await supabase.from("task_message_attachments").insert({
-                company_id: match.company_id, message_id: msg!.id,
-                file_name: att.name, file_path: filePath,
-                file_size: att.size || bytes.length, mime_type: att.contentType || null,
-              });
+              .upload(filePath, bytes, { contentType: att.contentType || "application/octet-stream" });
+
+            if (upErr) {
+              console.error("ATTACHMENT_UPLOAD_ERROR", { name: att.name, error: upErr.message });
+              attachmentsFailed++;
+              continue;
             }
+
+            const { data: attRow, error: attInsertErr } = await supabase.from("task_message_attachments").insert({
+              company_id: match.company_id,
+              message_id: msg!.id,
+              file_name: att.name || "attachment",
+              file_path: filePath,
+              file_size: att.size || bytes.length,
+              mime_type: att.contentType || null,
+            }).select("id").single();
+
+            if (attInsertErr) {
+              console.error("ATTACHMENT_INSERT_ERROR", { name: att.name, error: attInsertErr.message });
+              attachmentsFailed++;
+            } else {
+              console.log("ATTACHMENT_SAVE_SUCCESS", { id: attRow?.id, name: att.name, isInline: att.isInline || false });
+              attachmentsSaved++;
+            }
+          } catch (singleAttErr) {
+            console.error("ATTACHMENT_SINGLE_ERROR", { name: att.name, error: String(singleAttErr) });
+            attachmentsFailed++;
           }
         }
-      } else { await attResp.text(); }
-    } catch (attErr) { console.error("TASK_THREAD_INBOUND_ATTACHMENT_ERROR", attErr); }
+      } else {
+        const errText = await attResp.text();
+        console.error("ATTACHMENT_FETCH_ERROR", { status: attResp.status, error: errText.substring(0, 500) });
+      }
+    } catch (attErr) {
+      console.error("ATTACHMENT_PIPELINE_ERROR", { error: String(attErr) });
+    }
   }
 
+  // Update thread last_message_at
   await supabase.from("task_threads")
     .update({ last_message_at: new Date().toISOString() })
     .eq("id", match.thread_id);
+
+  console.log("INBOUND_PIPELINE_COMPLETE", {
+    status: attachmentsFailed > 0 ? "partial" : "success",
+    message_id: msg!.id,
+    thread_id: match.thread_id,
+    task_id: match.task_id,
+    sender: senderEmail,
+    match_strategy: match.match_strategy,
+    attachments_saved: attachmentsSaved,
+    attachments_failed: attachmentsFailed,
+  });
 
   return { message_id: msg!.id };
 }
@@ -276,20 +406,24 @@ async function processMessage(
   }
 
   if (!threadId || !thread) {
-    // Log as ignored
-    await supabase.from("conversation_email_messages").insert({
-      company_id: companyIdHint || "00000000-0000-0000-0000-000000000000",
-      thread_id: "00000000-0000-0000-0000-000000000000",
-      direction: "inbound", provider: "graph",
-      outlook_message_id: message.id,
-      outlook_conversation_id: message.conversationId || null,
-      outlook_internet_message_id: internetMessageId || null,
-      subject: message.subject,
-      from_email: message.from?.emailAddress?.address,
-      to_emails: (message.toRecipients || []).map((r: any) => r.emailAddress?.address),
-      status: "ignored", error: "No matching thread found",
-      processing_status: "ignored",
-    }).catch(() => {});
+    // Log as ignored - use try/catch instead of .catch()
+    try {
+      await supabase.from("conversation_email_messages").insert({
+        company_id: companyIdHint || "00000000-0000-0000-0000-000000000000",
+        thread_id: "00000000-0000-0000-0000-000000000000",
+        direction: "inbound", provider: "graph",
+        outlook_message_id: message.id,
+        outlook_conversation_id: message.conversationId || null,
+        outlook_internet_message_id: internetMessageId || null,
+        subject: message.subject,
+        from_email: message.from?.emailAddress?.address,
+        to_emails: (message.toRecipients || []).map((r: any) => r.emailAddress?.address),
+        status: "ignored", error: "No matching thread found",
+        processing_status: "ignored",
+      });
+    } catch (_ignoreErr) {
+      console.error("Failed to log ignored message:", _ignoreErr);
+    }
     throw new Error("No matching thread found");
   }
 
@@ -343,6 +477,13 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const notifications = body.value || [];
 
+    console.log("WEBHOOK_RECEIVED", {
+      notification_count: notifications.length,
+      timestamp: webhookReceivedAt.toISOString(),
+      subscriptionIds: notifications.map((n: any) => n.subscriptionId),
+      resources: notifications.map((n: any) => n.resource),
+    });
+
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceKey);
@@ -376,14 +517,17 @@ Deno.serve(async (req) => {
 
           if (!subRecord) {
             console.warn("ClientState mismatch or unknown subscription:", notification.subscriptionId);
-            // Dead letter – unknown subscription
-            await supabase.from("conversation_email_dead_letters").insert({
-              company_id: companyId,
-              subscription_id: notification.subscriptionId,
-              raw_payload: notification,
-              error: "Unknown subscription or clientState mismatch",
-              status: "pending",
-            });
+            try {
+              await supabase.from("conversation_email_dead_letters").insert({
+                company_id: companyId,
+                subscription_id: notification.subscriptionId,
+                raw_payload: notification,
+                error: "Unknown subscription or clientState mismatch",
+                status: "pending",
+              });
+            } catch (_dlErr) {
+              console.error("Failed to write dead letter:", _dlErr);
+            }
             continue;
           }
           companyId = subRecord.company_id;
@@ -392,27 +536,33 @@ Deno.serve(async (req) => {
         const resourceUrl = notification.resource;
         if (!resourceUrl) continue;
 
-        // Fetch message from Graph
-        const msgResp = await fetch(`https://graph.microsoft.com/v1.0/${resourceUrl}`, {
-          headers: { Authorization: `Bearer ${accessToken}` },
-        });
+        // Fetch message from Graph (request headers for matching)
+        console.log("INBOUND_MESSAGE_FETCH_START", { resource: resourceUrl });
+        const msgResp = await fetch(
+          `https://graph.microsoft.com/v1.0/${resourceUrl}?$expand=singleValueExtendedProperties($filter=id eq 'String {00020386-0000-0000-C000-000000000046} Name X-MCS-THREAD')&$select=id,subject,body,bodyPreview,from,toRecipients,ccRecipients,replyTo,internetMessageId,conversationId,internetMessageHeaders,hasAttachments,receivedDateTime,webLink,singleValueExtendedProperties`,
+          { headers: { Authorization: `Bearer ${accessToken}` } },
+        );
 
         if (!msgResp.ok) {
           const errText = await msgResp.text();
-          console.error(`Failed to fetch message: ${msgResp.status}`);
-          await supabase.from("conversation_email_dead_letters").insert({
-            company_id: companyId,
-            subscription_id: notification.subscriptionId,
-            raw_payload: notification,
-            error: `Graph fetch failed: ${msgResp.status} ${errText.slice(0, 500)}`,
-            status: "pending",
-          });
+          console.error("INBOUND_MESSAGE_FETCH_ERROR", { status: msgResp.status, error: errText.slice(0, 500) });
+          try {
+            await supabase.from("conversation_email_dead_letters").insert({
+              company_id: companyId,
+              subscription_id: notification.subscriptionId,
+              raw_payload: notification,
+              error: `Graph fetch failed: ${msgResp.status} ${errText.slice(0, 500)}`,
+              status: "pending",
+            });
+          } catch (_dlErr) {
+            console.error("Failed to write dead letter:", _dlErr);
+          }
           continue;
         }
 
         const message = await msgResp.json();
 
-        console.log("INBOUND_EMAIL_RECEIVED", {
+        console.log("INBOUND_MESSAGE_FETCH_SUCCESS", {
           id: message.id,
           subject: message.subject,
           from: message.from?.emailAddress?.address,
@@ -423,6 +573,7 @@ Deno.serve(async (req) => {
           conversationId: message.conversationId,
           hasAttachments: message.hasAttachments,
           receivedDateTime: message.receivedDateTime,
+          headerCount: (message.internetMessageHeaders || []).length,
         });
 
         // Check idempotency before heavy processing
@@ -431,10 +582,9 @@ Deno.serve(async (req) => {
             .from("conversation_email_messages")
             .select("id").eq("outlook_internet_message_id", message.internetMessageId).maybeSingle();
           if (dup) {
-            console.log(`Already processed: ${message.internetMessageId}`);
+            console.log(`Already processed in conversation: ${message.internetMessageId}`);
             continue;
           }
-          // Also check dead letters to avoid duplicates there
           const { data: dlDup } = await supabase
             .from("conversation_email_dead_letters")
             .select("id").eq("internet_message_id", message.internetMessageId).maybeSingle();
@@ -442,10 +592,17 @@ Deno.serve(async (req) => {
             console.log(`Already in dead letters: ${message.internetMessageId}`);
             continue;
           }
+          // Also check task_messages idempotency
+          const { data: taskDup } = await supabase
+            .from("task_messages")
+            .select("id").eq("external_message_id", message.internetMessageId).maybeSingle();
+          if (taskDup) {
+            console.log(`Already processed in task_messages: ${message.internetMessageId}`);
+            continue;
+          }
         }
 
         // ── Try task thread matching first ──
-        // Check if this email is a reply to a task thread (task-thread+{token}@domain)
         let isTaskThread = false;
         try {
           const taskThreadMatch = await tryMatchTaskThread(message, supabase);
@@ -453,22 +610,24 @@ Deno.serve(async (req) => {
             console.log("TASK_THREAD_INBOUND_MATCH", {
               thread_id: taskThreadMatch.thread_id,
               task_id: taskThreadMatch.task_id,
+              company_id: taskThreadMatch.company_id,
               strategy: taskThreadMatch.match_strategy,
               sender: message.from?.emailAddress?.address,
             });
-            await processTaskThreadInbound(
+            const result = await processTaskThreadInbound(
               message,
               taskThreadMatch,
               supabase,
               accessToken,
               resourceUrl,
             );
+            console.log("TASK_THREAD_INBOUND_DONE", { message_id: result.message_id });
             isTaskThread = true;
             processed++;
             continue; // Skip conversation thread processing
           }
         } catch (taskErr) {
-          console.error("TASK_THREAD_INBOUND_ERROR", { error: String(taskErr) });
+          console.error("TASK_THREAD_INBOUND_ERROR", { error: String(taskErr), stack: (taskErr as any)?.stack?.substring(0, 500) });
           // Fall through to conversation matching
         }
 
@@ -476,7 +635,6 @@ Deno.serve(async (req) => {
         const result = await processMessage(message, supabase, companyId);
 
         if (result.skipped) {
-          // Duplicate – already logged
           continue;
         }
 
@@ -544,14 +702,18 @@ Deno.serve(async (req) => {
           ...notification,
           _fetched_message_id: notification.resource,
         };
-        await supabase.from("conversation_email_dead_letters").insert({
-          company_id: companyId,
-          subscription_id: notification.subscriptionId || null,
-          raw_payload: rawPayload,
-          graph_message_id: notification.resource || null,
-          error: String(notifErr),
-          status: "pending",
-        }).catch((dlErr: any) => console.error("Failed to write dead letter:", dlErr));
+        try {
+          await supabase.from("conversation_email_dead_letters").insert({
+            company_id: companyId,
+            subscription_id: notification.subscriptionId || null,
+            raw_payload: rawPayload,
+            graph_message_id: notification.resource || null,
+            error: String(notifErr),
+            status: "pending",
+          });
+        } catch (dlErr) {
+          console.error("Failed to write dead letter:", dlErr);
+        }
       }
     }
 
