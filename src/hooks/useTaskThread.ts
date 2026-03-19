@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import type { Recipient } from "@/components/task-thread/TaskThreadComposer";
 
 /* ── Types ── */
 
@@ -41,13 +42,19 @@ export interface TaskMessageAttachment {
   created_at: string;
 }
 
+export interface SendMessageOptions {
+  files?: File[];
+  replyToMessageId?: string;
+  sendEmail: boolean;
+  emailRecipients?: Recipient[];
+}
+
 export interface UseTaskThreadReturn {
   messages: TaskMessage[];
   loading: boolean;
   sending: boolean;
   threadId: string | null;
-  sendMessage: (body: string, files?: File[], replyToMessageId?: string) => Promise<void>;
-  sendEmailMessage: (body: string, files?: File[]) => Promise<void>;
+  sendMessage: (body: string, options: SendMessageOptions) => Promise<void>;
   createSystemEvent: (eventType: string, metadata?: Record<string, any>) => Promise<void>;
   refetch: () => void;
 }
@@ -168,42 +175,73 @@ export function useTaskThread(taskId: string | null | undefined, companyId: stri
     return (data as any)?.people?.full_name || user.email || "Ukjent";
   }, [user]);
 
-  // Send internal message
-  const sendMessage = useCallback(async (body: string, files?: File[], replyToMessageId?: string) => {
+  // Unified send: always creates message, optionally sends email
+  const sendMessage = useCallback(async (body: string, options: SendMessageOptions) => {
     if (!taskId || !companyId || !user) return;
-    if (!body.trim() && (!files || files.length === 0)) return;
+    if (!body.trim() && (!options.files || options.files.length === 0)) return;
     setSending(true);
     try {
       const tid = await ensureThread();
       const authorName = await getAuthorName();
 
-      const insertPayload: any = {
-        thread_id: tid, task_id: taskId, company_id: companyId,
-        message_type: "internal_message", direction: "internal",
-        body: body.trim() || null,
-        author_user_id: user.id, author_name: authorName, author_email: user.email,
-      };
-      if (replyToMessageId) insertPayload.reply_to_message_id = replyToMessageId;
-
-      const { data: msg, error: msgError } = await supabase
-        .from("task_messages")
-        .insert(insertPayload)
-        .select("id")
-        .single();
-      if (msgError) throw msgError;
-
-      if (files && files.length > 0) {
-        for (const file of files) {
-          const filePath = `${companyId}/${taskId}/${(msg as any).id}/${crypto.randomUUID()}_${file.name}`;
+      // Upload files first
+      const uploadedAttachments: Array<{ file_path: string; file_name: string; mime_type: string; file_size: number }> = [];
+      if (options.files && options.files.length > 0) {
+        for (const file of options.files) {
+          const filePath = `${companyId}/${taskId}/${crypto.randomUUID()}_${file.name}`;
           const { error: uploadErr } = await supabase.storage
             .from("task-thread-files")
             .upload(filePath, file);
           if (uploadErr) { console.error("[useTaskThread] upload error:", uploadErr); continue; }
+          uploadedAttachments.push({
+            file_path: filePath,
+            file_name: file.name,
+            mime_type: file.type || "application/octet-stream",
+            file_size: file.size,
+          });
+        }
+      }
 
+      if (options.sendEmail && options.emailRecipients && options.emailRecipients.length > 0) {
+        // Send via edge function — it creates the message AND sends email
+        const { data, error } = await supabase.functions.invoke("task-thread-email-send", {
+          body: {
+            task_id: taskId,
+            body_text: body.trim(),
+            attachment_paths: uploadedAttachments.length > 0 ? uploadedAttachments : undefined,
+            recipient_emails: options.emailRecipients.map(r => r.email),
+            reply_to_message_id: options.replyToMessageId || undefined,
+          },
+        });
+
+        if (error) throw error;
+        if (data?.error) throw new Error(data.error);
+
+        const recipientCount = data?.recipients?.length || options.emailRecipients.length;
+        toast.success(`Melding sendt og e-post til ${recipientCount} montør${recipientCount !== 1 ? "er" : ""}`);
+      } else {
+        // Internal only — save message directly
+        const insertPayload: any = {
+          thread_id: tid, task_id: taskId, company_id: companyId,
+          message_type: "internal_message", direction: "internal",
+          body: body.trim() || null,
+          author_user_id: user.id, author_name: authorName, author_email: user.email,
+        };
+        if (options.replyToMessageId) insertPayload.reply_to_message_id = options.replyToMessageId;
+
+        const { data: msg, error: msgError } = await supabase
+          .from("task_messages")
+          .insert(insertPayload)
+          .select("id")
+          .single();
+        if (msgError) throw msgError;
+
+        // Save attachment records
+        for (const att of uploadedAttachments) {
           await supabase.from("task_message_attachments").insert({
             company_id: companyId, message_id: (msg as any).id,
-            file_name: file.name, file_path: filePath,
-            file_size: file.size, mime_type: file.type || null, uploaded_by: user.id,
+            file_name: att.file_name, file_path: att.file_path,
+            file_size: att.file_size, mime_type: att.mime_type || null, uploaded_by: user.id,
           } as any);
         }
       }
@@ -214,55 +252,6 @@ export function useTaskThread(taskId: string | null | undefined, companyId: stri
       setSending(false);
     }
   }, [taskId, companyId, user, ensureThread, getAuthorName]);
-
-  // Send email to technicians via edge function
-  const sendEmailMessage = useCallback(async (body: string, files?: File[]) => {
-    if (!taskId || !companyId || !user) return;
-    if (!body.trim() && (!files || files.length === 0)) return;
-    setSending(true);
-    try {
-      // Upload files first if any
-      const attachmentPaths: Array<{ file_path: string; file_name: string; mime_type: string; file_size: number }> = [];
-      if (files && files.length > 0) {
-        const tid = await ensureThread();
-        for (const file of files) {
-          const filePath = `${companyId}/${taskId}/email-${Date.now()}/${crypto.randomUUID()}_${file.name}`;
-          const { error: uploadErr } = await supabase.storage
-            .from("task-thread-files")
-            .upload(filePath, file);
-          if (uploadErr) {
-            console.error("[useTaskThread] email upload error:", uploadErr);
-            continue;
-          }
-          attachmentPaths.push({
-            file_path: filePath,
-            file_name: file.name,
-            mime_type: file.type || "application/octet-stream",
-            file_size: file.size,
-          });
-        }
-      }
-
-      const { data, error } = await supabase.functions.invoke("task-thread-email-send", {
-        body: {
-          task_id: taskId,
-          body_text: body.trim(),
-          attachment_paths: attachmentPaths.length > 0 ? attachmentPaths : undefined,
-        },
-      });
-
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-
-      const recipientCount = data?.recipients?.length || 0;
-      toast.success(`E-post sendt til ${recipientCount} montør${recipientCount !== 1 ? "er" : ""}`);
-    } catch (err: any) {
-      console.error("[useTaskThread] email send error:", err);
-      toast.error("Kunne ikke sende e-post", { description: err?.message });
-    } finally {
-      setSending(false);
-    }
-  }, [taskId, companyId, user, ensureThread]);
 
   // Create system event
   const createSystemEvent = useCallback(async (eventType: string, metadata?: Record<string, any>) => {
@@ -281,7 +270,7 @@ export function useTaskThread(taskId: string | null | undefined, companyId: stri
 
   return {
     messages, loading, sending, threadId,
-    sendMessage, sendEmailMessage, createSystemEvent,
+    sendMessage, createSystemEvent,
     refetch: fetchMessages,
   };
 }

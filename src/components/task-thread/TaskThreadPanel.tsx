@@ -5,6 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { usePermissions } from "@/hooks/usePermissions";
 import { TaskThreadFeed } from "./TaskThreadFeed";
 import { TaskThreadComposer } from "./TaskThreadComposer";
+import type { SendMessageOptions } from "@/hooks/useTaskThread";
 
 interface Props {
   taskId: string;
@@ -14,7 +15,7 @@ interface Props {
 export function TaskThreadPanel({ taskId, companyId }: Props) {
   const { user } = useAuth();
   const { hasPermission } = usePermissions();
-  const { messages, loading, sending, sendMessage, sendEmailMessage } = useTaskThread(taskId, companyId);
+  const { messages, loading, sending, sendMessage } = useTaskThread(taskId, companyId);
   const { markAsRead, lastReadAt } = useTaskThreadReads(taskId);
   const [replyTo, setReplyTo] = useState<TaskMessage | null>(null);
 
@@ -23,7 +24,6 @@ export function TaskThreadPanel({ taskId, companyId }: Props) {
   const canUpload = hasPermission("task_thread.upload_attachments") || hasPermission("admin.manage_users");
   const canEmail = hasPermission("task_thread.email_external") || hasPermission("admin.manage_users");
 
-  // Auto-mark as read when thread panel is visible and messages change
   useEffect(() => {
     if (messages.length > 0) {
       markAsRead();
@@ -34,8 +34,8 @@ export function TaskThreadPanel({ taskId, companyId }: Props) {
     setReplyTo(msg);
   }, []);
 
-  const handleSend = useCallback(async (body: string, files?: File[], replyToMessageId?: string) => {
-    await sendMessage(body, files, replyToMessageId);
+  const handleSend = useCallback(async (body: string, options: SendMessageOptions) => {
+    await sendMessage(body, options);
   }, [sendMessage]);
 
   if (!canView) return null;
@@ -52,7 +52,6 @@ export function TaskThreadPanel({ taskId, companyId }: Props) {
       {canComment && (
         <TaskThreadComposer
           onSend={handleSend}
-          onSendEmail={canEmail ? sendEmailMessage : undefined}
           sending={sending}
           canUpload={canUpload}
           canEmail={canEmail}
