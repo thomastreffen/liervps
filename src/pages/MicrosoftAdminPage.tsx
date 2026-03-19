@@ -528,6 +528,10 @@ export default function MicrosoftAdminPage() {
           <CardDescription>Administrer webhook-subscription for dette selskapet</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-2">
+          <Button size="sm" variant="default" onClick={() => runAction("sync")} disabled={!!actionLoading}>
+            <Activity className="mr-1.5 h-3.5 w-3.5" />
+            {actionLoading === "sync" ? "Synkroniserer…" : "Synk Postkontoret"}
+          </Button>
           <Button size="sm" onClick={() => runAction("ensure")} disabled={!!actionLoading}>
             <Plus className="mr-1.5 h-3.5 w-3.5" />
             {actionLoading === "ensure" ? "Oppretter…" : "Aktiver / Ensure"}
