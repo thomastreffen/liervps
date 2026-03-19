@@ -5382,10 +5382,13 @@ export type Database = {
           client_state: string
           company_id: string
           created_at: string
+          error_message: string | null
           expiration_at: string
           id: string
+          last_checked_at: string | null
           last_error: string | null
           last_renewed_at: string | null
+          mailbox_email: string | null
           notification_url: string
           resource: string
           status: string
@@ -5397,10 +5400,13 @@ export type Database = {
           client_state: string
           company_id: string
           created_at?: string
+          error_message?: string | null
           expiration_at: string
           id?: string
+          last_checked_at?: string | null
           last_error?: string | null
           last_renewed_at?: string | null
+          mailbox_email?: string | null
           notification_url: string
           resource: string
           status?: string
@@ -5412,10 +5418,13 @@ export type Database = {
           client_state?: string
           company_id?: string
           created_at?: string
+          error_message?: string | null
           expiration_at?: string
           id?: string
+          last_checked_at?: string | null
           last_error?: string | null
           last_renewed_at?: string | null
+          mailbox_email?: string | null
           notification_url?: string
           resource?: string
           status?: string
