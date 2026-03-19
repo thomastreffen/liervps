@@ -218,44 +218,35 @@ export function TaskThreadComposer({ onSend, sending, canUpload, canEmail, taskI
           ))}
         </div>
 
-        {/* Email toggle */}
+        {/* Email recipients */}
         {canEmail && recipients.length > 0 && (
           <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setShowRecipients(!showRecipients)}
-              className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
-            >
-              {willSendEmail ? (
-                <>
-                  <Mail className="h-3 w-3 text-blue-500" />
-                  <span>{selectedCount === recipients.length ? "Alle" : `${selectedCount}/${recipients.length}`}</span>
-                </>
-              ) : (
-                <>
-                  <MailX className="h-3 w-3" />
-                  <span>Av</span>
-                </>
-              )}
-              {showRecipients ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-            </button>
             <label className="flex items-center gap-1 cursor-pointer select-none">
               <Checkbox checked={!skipEmail} onCheckedChange={(checked) => setSkipEmail(!checked)} className="h-3.5 w-3.5" />
               <span className="text-[11px] text-muted-foreground">Varsle via e-post</span>
             </label>
+            {!skipEmail && (
+              <RecipientSummary
+                recipients={recipients}
+                selectedEmails={selectedEmails}
+                expanded={showRecipients}
+                onToggleExpand={() => setShowRecipients(!showRecipients)}
+                onToggleRecipient={toggleRecipient}
+              />
+            )}
           </div>
         )}
       </div>
 
-      {/* Recipient list (expandable) */}
+      {/* Expanded recipient list — only when some are deselected or user clicked Endre */}
       {canEmail && recipients.length > 0 && showRecipients && !skipEmail && (
-        <div className="rounded-lg border border-border/50 bg-muted/30 p-2 space-y-1">
+        <div className="rounded-md bg-muted/20 px-2 py-1.5 space-y-0.5">
           {recipients.map((r) => (
-            <label key={r.email} className="flex items-center gap-2 px-1.5 py-1 rounded hover:bg-muted/50 cursor-pointer">
-              <Checkbox checked={selectedEmails.has(r.email)} onCheckedChange={() => toggleRecipient(r.email)} className="h-3.5 w-3.5" />
-              <span className="text-xs text-foreground">{r.name}</span>
+            <label key={r.email} className="flex items-center gap-2 px-1 py-0.5 rounded hover:bg-muted/40 cursor-pointer">
+              <Checkbox checked={selectedEmails.has(r.email)} onCheckedChange={() => toggleRecipient(r.email)} className="h-3 w-3" />
+              <span className="text-[11px] text-foreground">{r.name}</span>
               {r.isResponsible && <span className="text-[10px] font-medium text-primary/70">(ansvarlig)</span>}
-              <span className="text-[10px] text-muted-foreground">({r.email})</span>
+              <span className="text-[10px] text-muted-foreground">{r.email}</span>
             </label>
           ))}
         </div>
@@ -265,5 +256,67 @@ export function TaskThreadComposer({ onSend, sending, canUpload, canEmail, taskI
         Enter for ny linje · {navigator.platform?.includes("Mac") ? "⌘" : "Ctrl"}+Enter for å sende
       </p>
     </div>
+  );
+}
+
+/* ── Progressive disclosure for recipients ── */
+
+function RecipientSummary({
+  recipients,
+  selectedEmails,
+  expanded,
+  onToggleExpand,
+  onToggleRecipient,
+}: {
+  recipients: Recipient[];
+  selectedEmails: Set<string>;
+  expanded: boolean;
+  onToggleExpand: () => void;
+  onToggleRecipient: (email: string) => void;
+}) {
+  const allSelected = recipients.every(r => selectedEmails.has(r.email));
+  const someDeselected = !allSelected && selectedEmails.size > 0;
+
+  // Auto-expand when some are deselected
+  if (someDeselected && !expanded) {
+    // Show inline summary with edit
+    const selectedNames = recipients.filter(r => selectedEmails.has(r.email)).map(r => r.name);
+    return (
+      <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+        <Mail className="h-3 w-3 text-primary/60" />
+        <span className="truncate max-w-[200px]">{selectedNames.join(", ")}</span>
+        <button type="button" onClick={onToggleExpand} className="text-primary/70 hover:text-primary font-medium ml-0.5">Endre</button>
+      </span>
+    );
+  }
+
+  if (recipients.length === 1) {
+    const r = recipients[0];
+    return (
+      <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+        <Mail className="h-3 w-3 text-primary/60" />
+        <span>{r.name}{r.isResponsible ? " (ansvarlig)" : ""}</span>
+      </span>
+    );
+  }
+
+  // Multiple, all selected
+  if (allSelected && !expanded) {
+    return (
+      <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+        <Mail className="h-3 w-3 text-primary/60" />
+        <span>Alle ({recipients.length})</span>
+        <button type="button" onClick={onToggleExpand} className="text-primary/70 hover:text-primary font-medium ml-0.5">Endre</button>
+      </span>
+    );
+  }
+
+  // Expanded state — just show collapse button
+  return (
+    <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+      <Mail className="h-3 w-3 text-primary/60" />
+      <span>{selectedEmails.size}/{recipients.length}</span>
+      <button type="button" onClick={onToggleExpand} className="text-primary/70 hover:text-primary font-medium ml-0.5">Skjul</button>
+    </span>
   );
 }
