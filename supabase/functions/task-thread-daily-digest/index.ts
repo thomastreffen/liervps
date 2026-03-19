@@ -238,28 +238,27 @@ Deno.serve(async (req) => {
           lastActivity: string;
           lastAuthor: string;
           lastMessageType: string;
+          maxPriority: string;
         };
 
         const unreadByTask = new Map<string, UnreadTask>();
+        const priorityRank: Record<string, number> = { urgent: 3, important: 2, normal: 1 };
 
         for (const msg of eligibleMessages) {
           const threadInfo = threadMap.get(msg.thread_id);
           if (!threadInfo) continue;
 
-          // User must have access to this task
           if (!candidate.taskIds.has(threadInfo.taskId)) continue;
-
-          // Skip own messages
           if (msg.author_user_id === userId) continue;
 
-          // Check if unread: message created_at > user's last_read_at
           const readKey = `${userId}:${msg.thread_id}`;
           const lastReadAt = readMap.get(readKey);
           if (lastReadAt && new Date(msg.created_at) <= new Date(lastReadAt)) continue;
 
-          // This message is unread for this user
           const taskInfo = taskInfoMap.get(threadInfo.taskId);
           if (!taskInfo) continue;
+
+          const msgPriority = (msg as any).priority || "normal";
 
           if (!unreadByTask.has(threadInfo.taskId)) {
             unreadByTask.set(threadInfo.taskId, {
@@ -273,11 +272,15 @@ Deno.serve(async (req) => {
               lastActivity: msg.created_at,
               lastAuthor: msg.author_name || "Ukjent",
               lastMessageType: msg.message_type,
+              maxPriority: msgPriority,
             });
           }
 
           const entry = unreadByTask.get(threadInfo.taskId)!;
           entry.unreadCount++;
+          if ((priorityRank[msgPriority] || 1) > (priorityRank[entry.maxPriority] || 1)) {
+            entry.maxPriority = msgPriority;
+          }
           if (new Date(msg.created_at) > new Date(entry.lastActivity)) {
             entry.lastActivity = msg.created_at;
             entry.lastAuthor = msg.author_name || "Ukjent";
@@ -290,10 +293,13 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        // Build and send email
-        const taskSummaries = [...unreadByTask.values()].sort(
-          (a, b) => new Date(b.lastActivity).getTime() - new Date(a.lastActivity).getTime()
-        );
+        // Sort: urgent first, then important, then normal, then by last activity
+        const taskSummaries = [...unreadByTask.values()].sort((a, b) => {
+          const pa = priorityRank[a.maxPriority] || 1;
+          const pb = priorityRank[b.maxPriority] || 1;
+          if (pa !== pb) return pb - pa;
+          return new Date(b.lastActivity).getTime() - new Date(a.lastActivity).getTime();
+        });
         const totalUnread = taskSummaries.reduce((sum, t) => sum + t.unreadCount, 0);
 
         const html = buildDigestHtml(candidate.name, taskSummaries, totalUnread);
