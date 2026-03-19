@@ -180,18 +180,45 @@ async function updateConnectionStatus(
 }
 
 // ===== Pattern Matching =====
-function matchGlob(pattern: string, filename: string): boolean {
-  // Escape regex special chars, then convert glob * and ? to regex equivalents
-  const escaped = pattern
+function matchPattern(pattern: string, filename: string): { match: boolean; method: string; patternUsed: string; filenameUsed: string } {
+  const p = pattern.trim();
+  const f = filename.trim();
+
+  if (!p || !f) {
+    return { match: false, method: "empty", patternUsed: p, filenameUsed: f };
+  }
+
+  // If pattern has no wildcard characters, use exact comparison
+  const hasWildcard = p.includes("*") || p.includes("?");
+  if (!hasWildcard) {
+    const exact = p === f;
+    if (!exact) {
+      // Check case-insensitive to log helpful hint
+      const caseMatch = p.toLowerCase() === f.toLowerCase();
+      if (caseMatch) {
+        console.warn(`[pattern-match] Case mismatch: pattern="${p}" filename="${f}" – would match case-insensitively`);
+      }
+    }
+    return { match: exact, method: "exact", patternUsed: p, filenameUsed: f };
+  }
+
+  // Glob matching: escape regex special chars, convert * and ?
+  const escaped = p
     .replace(/([.+^${}()|[\]\\])/g, "\\$1")
     .replace(/\*/g, ".*")
     .replace(/\?/g, ".");
   try {
-    return new RegExp(`^${escaped}$`, "i").test(filename);
+    const match = new RegExp(`^${escaped}$`).test(f);
+    return { match, method: "glob", patternUsed: p, filenameUsed: f };
   } catch {
-    console.warn(`[pattern-match] Invalid pattern "${pattern}", skipping`);
-    return false;
+    console.warn(`[pattern-match] Invalid glob pattern "${p}", skipping`);
+    return { match: false, method: "invalid_glob", patternUsed: p, filenameUsed: f };
   }
+}
+
+// Keep legacy name for backward compat in other call sites
+function matchGlob(pattern: string, filename: string): boolean {
+  return matchPattern(pattern, filename).match;
 }
 
 function categorizeFiles(
@@ -201,6 +228,11 @@ function categorizeFiles(
   all_files: (RemoteFile & { categories: string[] })[];
   matched: { catalog: RemoteFile[]; price: RemoteFile[]; discount: RemoteFile[]; invoice: RemoteFile[] };
   warnings: string[];
+  debug: {
+    patterns: Record<string, string | null>;
+    file_names: string[];
+    match_log: Array<{ file: string; category: string; result: boolean; method: string }>;
+  };
 } {
   const onlyFiles = files.filter((f) => f.type === "file");
   const matched = {
@@ -210,43 +242,56 @@ function categorizeFiles(
     invoice: [] as RemoteFile[],
   };
   const warnings: string[] = [];
+  const matchLog: Array<{ file: string; category: string; result: boolean; method: string }> = [];
 
-  // Build tagged list with categories per file
+  const patterns: Record<string, string | null> = {
+    catalog: config.catalog_file_pattern?.trim() || null,
+    price: config.price_file_pattern?.trim() || null,
+    discount: config.discount_file_pattern?.trim() || null,
+    invoice: config.invoice_file_pattern?.trim() || null,
+  };
+
+  console.log(`[categorize] Patterns from DB:`, JSON.stringify(patterns));
+  console.log(`[categorize] Files found (${onlyFiles.length}):`, onlyFiles.map(f => f.name));
+
+  const patternEntries: Array<{ key: string; pattern: string; bucket: RemoteFile[] }> = [];
+  if (patterns.catalog) patternEntries.push({ key: "catalog", pattern: patterns.catalog, bucket: matched.catalog });
+  if (patterns.price) patternEntries.push({ key: "price", pattern: patterns.price, bucket: matched.price });
+  if (patterns.discount) patternEntries.push({ key: "discount", pattern: patterns.discount, bucket: matched.discount });
+  if (patterns.invoice) patternEntries.push({ key: "invoice", pattern: patterns.invoice, bucket: matched.invoice });
+
   const tagged = onlyFiles.map((f) => {
     const categories: string[] = [];
-    if (config.catalog_file_pattern && matchGlob(config.catalog_file_pattern, f.name)) {
-      matched.catalog.push(f);
-      categories.push("catalog");
-    }
-    if (config.price_file_pattern && matchGlob(config.price_file_pattern, f.name)) {
-      matched.price.push(f);
-      categories.push("price");
-    }
-    if (config.discount_file_pattern && matchGlob(config.discount_file_pattern, f.name)) {
-      matched.discount.push(f);
-      categories.push("discount");
-    }
-    if (config.invoice_file_pattern && matchGlob(config.invoice_file_pattern, f.name)) {
-      matched.invoice.push(f);
-      categories.push("invoice");
+    for (const entry of patternEntries) {
+      const result = matchPattern(entry.pattern, f.name);
+      matchLog.push({ file: f.name, category: entry.key, result: result.match, method: result.method });
+      if (result.match) {
+        entry.bucket.push(f);
+        categories.push(entry.key);
+      }
     }
     return { ...f, categories };
   });
 
-  if (config.catalog_file_pattern && matched.catalog.length === 0) {
-    warnings.push(`Ingen filer matchet katalogmønsteret: ${config.catalog_file_pattern}`);
+  if (patterns.catalog && matched.catalog.length === 0) {
+    warnings.push(`Ingen filer matchet katalogmønsteret: ${patterns.catalog}`);
   }
-  if (config.price_file_pattern && matched.price.length === 0) {
-    warnings.push(`Ingen filer matchet prismønsteret: ${config.price_file_pattern}`);
+  if (patterns.price && matched.price.length === 0) {
+    warnings.push(`Ingen filer matchet prismønsteret: ${patterns.price}`);
   }
-  if (config.discount_file_pattern && matched.discount.length === 0) {
-    warnings.push(`Ingen filer matchet rabattmønsteret: ${config.discount_file_pattern}`);
+  if (patterns.discount && matched.discount.length === 0) {
+    warnings.push(`Ingen filer matchet rabattmønsteret: ${patterns.discount}`);
   }
-  if (config.invoice_file_pattern && matched.invoice.length === 0) {
-    warnings.push(`Ingen filer matchet fakturamønsteret: ${config.invoice_file_pattern}`);
+  if (patterns.invoice && matched.invoice.length === 0) {
+    warnings.push(`Ingen filer matchet fakturamønsteret: ${patterns.invoice}`);
   }
 
-  return { all_files: tagged, matched, warnings };
+  console.log(`[categorize] Match results: catalog=${matched.catalog.length}, price=${matched.price.length}, discount=${matched.discount.length}, invoice=${matched.invoice.length}`);
+  if (matchLog.length > 0 && matchLog.length <= 50) {
+    console.log(`[categorize] Match log:`, JSON.stringify(matchLog));
+  }
+
+  return { all_files: tagged, matched, warnings, debug: { patterns, file_names: onlyFiles.map(f => f.name), match_log: matchLog } };
 }
 
 // ===== Timeout helper =====
