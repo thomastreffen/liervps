@@ -193,6 +193,21 @@ async function createFtpAdapter(config: IntegrationConfig, password: string): Pr
   const mod = await import("npm:basic-ftp@5.0.5");
   const client = new mod.Client();
   client.ftp.verbose = false;
+  async function downloadToBuffer(remotePath: string): Promise<Uint8Array> {
+    const { Writable } = await import("node:stream");
+    const chunks: Uint8Array[] = [];
+    const writable = new Writable({ write(chunk: any, _enc: string, cb: () => void) { chunks.push(chunk instanceof Uint8Array ? chunk : new Uint8Array(chunk)); cb(); } });
+    await client.downloadTo(writable, remotePath);
+    const raw = new Uint8Array(chunks.reduce((a, c) => a + c.length, 0));
+    let offset = 0;
+    for (const c of chunks) { raw.set(c, offset); offset += c.length; }
+    return raw;
+  }
+  function decodeBuffer(raw: Uint8Array): string {
+    let text = new TextDecoder("utf-8").decode(raw);
+    if (text.includes("\ufffd")) text = new TextDecoder("latin1").decode(raw);
+    return text;
+  }
   return {
     async connect() {
       await client.access({ host: config.host, port: config.port, user: config.username, password,
@@ -205,18 +220,10 @@ async function createFtpAdapter(config: IntegrationConfig, password: string): Pr
         type: item.isDirectory ? "directory" as const : "file" as const }));
     },
     async download(remotePath: string): Promise<string> {
-      const { Writable } = await import("node:stream");
-      const chunks: Uint8Array[] = [];
-      const writable = new Writable({ write(chunk: any, _enc: string, cb: () => void) { chunks.push(chunk instanceof Uint8Array ? chunk : new Uint8Array(chunk)); cb(); } });
-      await client.downloadTo(writable, remotePath);
-      const raw = new Uint8Array(chunks.reduce((a, c) => a + c.length, 0));
-      let offset = 0;
-      for (const c of chunks) { raw.set(c, offset); offset += c.length; }
-      let text = new TextDecoder("utf-8").decode(raw);
-      if (text.includes("\ufffd")) {
-        text = new TextDecoder("latin1").decode(raw);
-      }
-      return text;
+      return decodeBuffer(await downloadToBuffer(remotePath));
+    },
+    async downloadRaw(remotePath: string): Promise<Uint8Array> {
+      return downloadToBuffer(remotePath);
     },
     async disconnect() { client.close(); },
   };
