@@ -23,7 +23,20 @@ interface Props {
   saving: boolean;
 }
 
-export function SupplierIntegrationForm({ supplier, integration, onSave, saving }: Props) {
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function formatDate(iso: string): string {
+  try {
+    const d = new Date(iso);
+    return d.toLocaleDateString("nb-NO", { day: "2-digit", month: "2-digit", year: "2-digit" }) +
+      " " + d.toLocaleTimeString("nb-NO", { hour: "2-digit", minute: "2-digit" });
+  } catch { return iso; }
+}
+
   const defaults = getSupplierDefaults(supplier.code);
   const actions = useSupplierActions(supplier.id);
 
