@@ -89,52 +89,56 @@ interface EfonelfoProduct {
   net_price: number | null;
 }
 
+/**
+ * EFONELFO 4.0 VL field mapping (verified from Solar Norge raw data):
+ * [0]=VL [1]=LineSeq [2]=SupplierSKU [3]=ProductName [4]=ElNumber
+ * [5]=Qty [6]=UnitCode [7]=UnitDesc [8]=ProductGroup [9]=ListPrice(øre)
+ * [10]=PriceDate [11]=PriceUnit [12]=? [13]=? [14]=Brand
+ */
 function parseEfonelfoFile(lines: string[]): EfonelfoProduct[] {
   const products = new Map<string, EfonelfoProduct>();
   let vlCount = 0;
-  
+
   for (const line of lines) {
     const fields = line.split(";").map(f => f.trim());
     const recordType = fields[0]?.toUpperCase();
-    
+
     if (recordType === "VL") {
-      // === DIAGNOSTIC: Log first 5 VL lines with all indexed fields ===
-      if (vlCount < 5) {
-        console.log(`[EFONELFO-DIAG] VL line #${vlCount + 1} raw: ${line.substring(0, 500)}`);
-        console.log(`[EFONELFO-DIAG] VL line #${vlCount + 1} fields (${fields.length}):`);
-        fields.forEach((f, i) => console.log(`  [${i}]: "${f}"`));
+      if (vlCount < 3) {
+        console.log(`[EFONELFO] VL#${vlCount + 1}: sku="${fields[2]}" name="${fields[3]?.substring(0, 40)}" el="${fields[4]}" unit="${fields[6]}" cat="${fields[8]}" price="${fields[9]}" brand="${fields[14]}"`);
       }
       vlCount++;
-      
-      const sku = cleanString(fields[1]);
+
+      const sku = cleanString(fields[2]);
       if (!sku || products.has(sku)) continue;
+
+      // Price in øre → NOK
+      const priceOre = parseNumber(fields[9]);
+      const listPrice = priceOre !== null ? Math.round(priceOre) / 100 : null;
+
       products.set(sku, {
-        supplier_sku: sku, el_number: cleanString(fields[2]), ean: cleanString(fields[3]),
-        product_name: cleanString(fields[4]), description: cleanString(fields[5]),
-        unit: cleanString(fields[6]), brand: cleanString(fields[7]), category: cleanString(fields[8]),
-        list_price: null, discount_percent: null, net_price: null,
+        supplier_sku: sku,
+        el_number: cleanString(fields[4]),
+        ean: cleanString(fields[18]) || null,
+        product_name: cleanString(fields[3]),
+        description: null,
+        unit: cleanString(fields[6]),
+        brand: cleanString(fields[14]),
+        category: cleanString(fields[8]),
+        list_price: listPrice,
+        discount_percent: null,
+        net_price: null,
       });
     } else if (recordType === "PL") {
-      // === DIAGNOSTIC: Log first PL line ===
-      if (products.size <= 3) {
-        console.log(`[EFONELFO-DIAG] PL line raw: ${line.substring(0, 500)}`);
-        console.log(`[EFONELFO-DIAG] PL fields (${fields.length}):`);
-        fields.forEach((f, i) => console.log(`  [${i}]: "${f}"`));
-      }
-      
-      const sku = cleanString(fields[1]);
+      const sku = cleanString(fields[2]);
       if (!sku) continue;
       const existing = products.get(sku);
       if (existing) {
-        existing.list_price = parseNumber(fields[2]) ?? existing.list_price;
-        existing.net_price = parseNumber(fields[3]) ?? existing.net_price;
-        existing.discount_percent = parseNumber(fields[4]) ?? existing.discount_percent;
-      } else {
-        products.set(sku, {
-          supplier_sku: sku, el_number: null, ean: null, product_name: null, description: null,
-          unit: cleanString(fields[5]), brand: null, category: null,
-          list_price: parseNumber(fields[2]), discount_percent: parseNumber(fields[4]), net_price: parseNumber(fields[3]),
-        });
+        const plList = parseNumber(fields[3]);
+        const plNet = parseNumber(fields[4]);
+        existing.list_price = plList !== null ? Math.round(plList) / 100 : existing.list_price;
+        existing.net_price = plNet !== null ? Math.round(plNet) / 100 : existing.net_price;
+        existing.discount_percent = parseNumber(fields[5]) ?? existing.discount_percent;
       }
     } else if (recordType === "RL") {
       const sku = cleanString(fields[1]);
@@ -142,14 +146,14 @@ function parseEfonelfoFile(lines: string[]): EfonelfoProduct[] {
       const existing = products.get(sku);
       if (existing) {
         existing.discount_percent = parseNumber(fields[2]) ?? existing.discount_percent;
-        const netPrice = parseNumber(fields[3]);
-        if (netPrice != null) existing.net_price = netPrice;
+        const rlNet = parseNumber(fields[3]);
+        if (rlNet !== null) existing.net_price = Math.round(rlNet) / 100;
       }
     }
   }
-  
-  console.log(`[EFONELFO-DIAG] Total VL lines found: ${vlCount}, unique products: ${products.size}`);
-  
+
+  console.log(`[EFONELFO] Total VL: ${vlCount}, unique products: ${products.size}`);
+
   for (const p of products.values()) {
     if (p.net_price == null && p.list_price != null && p.discount_percent != null) {
       p.net_price = Math.round(p.list_price * (1 - p.discount_percent / 100) * 100) / 100;
