@@ -190,7 +190,11 @@ export function useSupplierActions(supplierId: string | undefined) {
           // Poll for completion
           const jobId = result.data?.job_id;
           if (jobId) {
-            const pollInterval = setInterval(async () => {
+            // Clear any previous polling
+            if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+            if (pollTimeoutRef.current) clearTimeout(pollTimeoutRef.current);
+
+            pollIntervalRef.current = setInterval(async () => {
               try {
                 const { data: job } = await supabase
                   .from("product_import_jobs")
@@ -198,7 +202,10 @@ export function useSupplierActions(supplierId: string | undefined) {
                   .eq("id", jobId)
                   .maybeSingle();
                 if (job && !["queued", "running"].includes(job.status)) {
-                  clearInterval(pollInterval);
+                  if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+                  if (pollTimeoutRef.current) clearTimeout(pollTimeoutRef.current);
+                  pollIntervalRef.current = null;
+                  pollTimeoutRef.current = null;
                   setRunningSyncType(null);
                   invalidateQueries();
                   if (job.status === "success") {
@@ -212,7 +219,12 @@ export function useSupplierActions(supplierId: string | undefined) {
               } catch { /* ignore poll errors */ }
             }, 5000);
             // Safety timeout: stop polling after 5 minutes
-            setTimeout(() => { clearInterval(pollInterval); setRunningSyncType(null); }, 300_000);
+            pollTimeoutRef.current = setTimeout(() => {
+              if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+              pollIntervalRef.current = null;
+              pollTimeoutRef.current = null;
+              setRunningSyncType(null);
+            }, 300_000);
           }
           return; // Don't clear runningSyncType yet – polling will do it
         }
