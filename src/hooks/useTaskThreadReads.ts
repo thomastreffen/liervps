@@ -113,7 +113,7 @@ export function useTaskThreadReads(taskId: string | null | undefined): TaskThrea
     }
   }, [taskId, user]);
 
-  return { unreadCount, markAsRead, loading };
+  return { unreadCount, markAsRead, loading, lastReadAt };
 }
 
 /**
