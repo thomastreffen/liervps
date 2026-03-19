@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { nb } from "date-fns/locale";
 import { User, Paperclip, Download, Mail, ArrowUpRight, ArrowDownLeft, ChevronDown, ChevronUp, Image as ImageIcon } from "lucide-react";
