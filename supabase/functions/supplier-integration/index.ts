@@ -485,8 +485,9 @@ Deno.serve(async (req) => {
   try {
     const supabaseAdmin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
+    // SECURITY: Authenticate + check supplier management permission
     let userId: string;
-    try { const auth = await authenticateAdmin(req, supabaseAdmin); userId = auth.userId; }
+    try { const auth = await authenticateSupplierAdmin(req, supabaseAdmin); userId = auth.userId; }
     catch (e) { if (e instanceof AuthError) return jsonError(e.message, "auth_error", 401); throw e; }
 
     const body = await req.json().catch(() => ({}));
@@ -494,6 +495,15 @@ Deno.serve(async (req) => {
     const supplierId = body.supplier_id as string;
     const companyId = body.company_id as string;
     if (!companyId) return jsonError("company_id er påkrevd", "missing_company_id");
+
+    // SECURITY: Validate user belongs to the requested company (prevents ID spoofing)
+    try { await validateCompanyMembership(supabaseAdmin, userId, companyId); }
+    catch (e) { if (e instanceof AuthError) return jsonError(e.message, "auth_error", 403); throw e; }
+
+    // AUDIT: Log every action for traceability
+    await logAudit(supabaseAdmin, userId, `supplier.${action}`, supplierId || companyId, "supplier_integration", {
+      company_id: companyId, supplier_id: supplierId, action,
+    });
 
     switch (action) {
       case "save-password": return await handleSavePassword(supabaseAdmin, companyId, body);

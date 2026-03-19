@@ -186,7 +186,7 @@ export const MODULE_PERMISSION_KEYS: string[] = [
   "module.invoice_basis", "module.fag", "module.inbox", "module.sales",
   "module.customers", "module.management", "module.admin",
   "module.calendar", "module.documents", "module.communication", "module.contracts",
-  "module.sharepoint", "module.leads",
+  "module.sharepoint", "module.leads", "module.products", "module.purchasing",
 ];
 
 /** Action permission categories (excluding scope and module access) */
