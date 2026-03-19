@@ -441,6 +441,10 @@ const App = () => (
               {/* Product module */}
               <Route path="/products" element={<ProductsPage />} />
               <Route path="/products/:id" element={<ProductDetailPage />} />
+
+              {/* Purchase module */}
+              <Route path="/purchasing" element={<PurchaseOrdersPage />} />
+              <Route path="/purchasing/:id" element={<PurchaseOrderDetailPage />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />

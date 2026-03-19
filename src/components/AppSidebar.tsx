@@ -18,6 +18,7 @@ import {
   BookOpen,
   CalendarOff,
   PackageSearch,
+  ShoppingCart,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/hooks/useAuth";
