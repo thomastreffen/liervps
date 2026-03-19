@@ -51,7 +51,11 @@ interface ConnectionAdapter {
 // ===== Auth Guard =====
 class AuthError extends Error { constructor(msg: string) { super(msg); this.name = "AuthError"; } }
 
-async function authenticateAdmin(req: Request, supabaseAdmin: ReturnType<typeof createClient>): Promise<{ userId: string }> {
+/**
+ * SECURITY: Authenticate user and verify they can manage supplier integrations.
+ * Checks: valid JWT → purchasing.manage_integrations OR admin.manage_users
+ */
+async function authenticateSupplierAdmin(req: Request, supabaseAdmin: ReturnType<typeof createClient>): Promise<{ userId: string }> {
   const authHeader = req.headers.get("Authorization");
   if (!authHeader?.startsWith("Bearer ")) throw new AuthError("Mangler autorisasjon");
 
@@ -61,9 +65,40 @@ async function authenticateAdmin(req: Request, supabaseAdmin: ReturnType<typeof 
   const { data: { user }, error: userErr } = await supabaseUser.auth.getUser();
   if (userErr || !user) throw new AuthError("Ugyldig token");
 
-  const { data: isAdmin } = await supabaseAdmin.rpc("check_permission_v2", { _auth_user_id: user.id, _perm: "admin.manage_users" });
-  if (!isAdmin) throw new AuthError("Krever admin-tilgang");
+  // Check dedicated permission OR admin fallback
+  const { data: canManage } = await supabaseAdmin.rpc("can_manage_supplier_integrations", { _auth_user_id: user.id });
+  if (!canManage) throw new AuthError("Krever rettigheten 'purchasing.manage_integrations' eller admin-tilgang");
   return { userId: user.id };
+}
+
+/**
+ * SECURITY: Validate that authenticated user is a member of the requested company.
+ * Prevents company_id spoofing where an admin of Company A could access Company B's data.
+ */
+async function validateCompanyMembership(supabaseAdmin: ReturnType<typeof createClient>, userId: string, companyId: string): Promise<void> {
+  const { data: isMember } = await supabaseAdmin.rpc("is_company_member", { _auth_user_id: userId, _company_id: companyId });
+  if (!isMember) {
+    // Also check if user has cross-company scope
+    const { data: hasAllScope } = await supabaseAdmin.rpc("check_permission_v2", { _auth_user_id: userId, _perm: "scope.view.all" });
+    if (!hasAllScope) throw new AuthError("Ingen tilgang til dette selskapet");
+  }
+}
+
+/**
+ * AUDIT: Log supplier integration actions for traceability per company.
+ */
+async function logAudit(supabaseAdmin: ReturnType<typeof createClient>, userId: string, action: string, targetId: string | null, targetType: string, metadata: Record<string, unknown> = {}) {
+  try {
+    await supabaseAdmin.from("audit_log").insert({
+      actor_user_account_id: null, // We store auth user id in metadata
+      action,
+      target_id: targetId,
+      target_type: targetType,
+      metadata: { ...metadata, auth_user_id: userId },
+    });
+  } catch (e) {
+    console.error("[audit] Failed to log:", (e as Error).message);
+  }
 }
 
 // ===== Config & Secret Loaders =====
