@@ -204,17 +204,6 @@ export function useSupplierActions(supplierId: string | undefined) {
     },
     [activeCompanyId, supplierId, invalidateQueries],
   );
-      } catch (err) {
-        toast.error("Synk feilet", {
-          description: (err as Error).message,
-        });
-      } finally {
-        if (runningSyncType !== syncType) return; // polling handles cleanup for accepted
-        setRunningSyncType(null);
-      }
-    },
-    [activeCompanyId, supplierId, invalidateQueries, runningSyncType],
-  );
 
   return {
     // Actions
