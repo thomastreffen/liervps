@@ -1,7 +1,8 @@
 /**
  * supplier-integration – Backend for grossist FTP/sFTP integration.
  *
- * Actions: save-password, test-connection, list-files, run-sync
+ * Actions: save-password, test-connection, list-files, run-sync, mark-stale-job
+ * Internal: process-sync, process-sync-chunk
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
@@ -48,13 +49,16 @@ interface ConnectionAdapter {
   disconnect(): Promise<void>;
 }
 
+interface SyncFileInfo {
+  path: string;
+  type: string;
+  fileName: string;
+  totalChunks: number;
+}
+
 // ===== Auth Guard =====
 class AuthError extends Error { constructor(msg: string) { super(msg); this.name = "AuthError"; } }
 
-/**
- * SECURITY: Authenticate user and verify they can manage supplier integrations.
- * Checks: valid JWT → purchasing.manage_integrations OR admin.manage_users
- */
 async function authenticateSupplierAdmin(req: Request, supabaseAdmin: ReturnType<typeof createClient>): Promise<{ userId: string }> {
   const authHeader = req.headers.get("Authorization");
   if (!authHeader?.startsWith("Bearer ")) throw new AuthError("Mangler autorisasjon");
@@ -65,40 +69,27 @@ async function authenticateSupplierAdmin(req: Request, supabaseAdmin: ReturnType
   const { data: { user }, error: userErr } = await supabaseUser.auth.getUser();
   if (userErr || !user) throw new AuthError("Ugyldig token");
 
-  // Check dedicated permission OR admin fallback
   const { data: canManage } = await supabaseAdmin.rpc("can_manage_supplier_integrations", { _auth_user_id: user.id });
   if (!canManage) throw new AuthError("Krever rettigheten 'purchasing.manage_integrations' eller admin-tilgang");
   return { userId: user.id };
 }
 
-/**
- * SECURITY: Validate that authenticated user is a member of the requested company.
- * Prevents company_id spoofing where an admin of Company A could access Company B's data.
- */
 async function validateCompanyMembership(supabaseAdmin: ReturnType<typeof createClient>, userId: string, companyId: string): Promise<void> {
   const { data: isMember } = await supabaseAdmin.rpc("is_company_member", { _auth_user_id: userId, _company_id: companyId });
   if (!isMember) {
-    // Also check if user has cross-company scope
     const { data: hasAllScope } = await supabaseAdmin.rpc("check_permission_v2", { _auth_user_id: userId, _perm: "scope.view.all" });
     if (!hasAllScope) throw new AuthError("Ingen tilgang til dette selskapet");
   }
 }
 
-/**
- * AUDIT: Log supplier integration actions for traceability per company.
- */
 async function logAudit(supabaseAdmin: ReturnType<typeof createClient>, userId: string, action: string, targetId: string | null, targetType: string, metadata: Record<string, unknown> = {}) {
   try {
     await supabaseAdmin.from("audit_log").insert({
-      actor_user_account_id: null, // We store auth user id in metadata
-      action,
-      target_id: targetId,
-      target_type: targetType,
+      actor_user_account_id: null,
+      action, target_id: targetId, target_type: targetType,
       metadata: { ...metadata, auth_user_id: userId },
     });
-  } catch (e) {
-    console.error("[audit] Failed to log:", (e as Error).message);
-  }
+  } catch (e) { console.error("[audit] Failed:", (e as Error).message); }
 }
 
 // ===== Config & Secret Loaders =====
@@ -144,10 +135,6 @@ function matchPattern(pattern: string, filename: string): { match: boolean; meth
   } catch {
     return { match: false, method: "invalid_glob" };
   }
-}
-
-function matchGlob(pattern: string, filename: string): boolean {
-  return matchPattern(pattern, filename).match;
 }
 
 function categorizeFiles(files: RemoteFile[], config: IntegrationConfig) {
@@ -221,8 +208,6 @@ async function createFtpAdapter(config: IntegrationConfig, password: string): Pr
       const chunks: Uint8Array[] = [];
       const writable = new Writable({ write(chunk: any, _enc: string, cb: () => void) { chunks.push(chunk instanceof Uint8Array ? chunk : new Uint8Array(chunk)); cb(); } });
       await client.downloadTo(writable, remotePath);
-      // EFONELFO spec requires Windows-1252 encoding
-      // Try UTF-8 first, fall back to latin1 if replacement chars found
       const raw = new Uint8Array(chunks.reduce((a, c) => a + c.length, 0));
       let offset = 0;
       for (const c of chunks) { raw.set(c, offset); offset += c.length; }
@@ -369,7 +354,6 @@ async function handleListFiles(supabaseAdmin: ReturnType<typeof createClient>, c
       return jsonError(`Kunne ikke lese "${basePath}": ${(pathErr as Error).message}`, "path_error");
     }
 
-    // Explore subdirs if few files in root
     const subdirs = allFiles.filter((f) => f.type === "directory");
     const fileCount = allFiles.filter((f) => f.type === "file").length;
     if (subdirs.length > 0 && fileCount < 3) {
@@ -403,84 +387,346 @@ async function createImportJob(supabaseAdmin: ReturnType<typeof createClient>, c
 }
 
 async function updateImportJob(supabaseAdmin: ReturnType<typeof createClient>, jobId: string, updates: Record<string, unknown>) {
-  await supabaseAdmin.from("product_import_jobs").update(updates).eq("id", jobId);
+  await supabaseAdmin.from("product_import_jobs").update({ ...updates, updated_at: new Date().toISOString() }).eq("id", jobId);
 }
 
-// ===== Run Sync =====
+// ===== Sync Orchestration =====
+
+const CHUNKS_PER_INVOCATION = 3;
+const SYNC_TEMP_BUCKET = "job-attachments";
+
+function triggerChunkProcessing(body: Record<string, unknown>) {
+  const processUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/supplier-integration`;
+  fetch(processUrl, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+    },
+    body: JSON.stringify(body),
+  }).catch((err) => console.error("[sync] Failed to trigger chunk:", err));
+}
+
+function countFileRows(content: string): number {
+  const rawLines = content.split(/\r?\n/).filter(l => l.trim().length > 0);
+  // Check if EFONELFO
+  const isEfonelfo = rawLines.slice(0, 5).some(l => {
+    const rt = l.split(";")[0]?.toUpperCase().trim();
+    return ["VH", "PH", "RH", "IH"].includes(rt);
+  });
+  if (isEfonelfo) {
+    const skuSet = new Set<string>();
+    for (const line of rawLines) {
+      const fields = line.split(";");
+      if (fields[0]?.toUpperCase().trim() === "VL") {
+        const sku = fields[2]?.trim();
+        if (sku && !skuSet.has(sku)) skuSet.add(sku);
+      }
+    }
+    return skuSet.size;
+  }
+  return Math.max(0, rawLines.length - 1);
+}
 
 /**
- * Background sync processor. Runs after the HTTP response is sent.
- * Updates the import job row with progress/results.
+ * Phase 1: Download files from FTP, store in Supabase storage, count chunks, kick off chunk processing.
  */
-async function processSyncInBackground(
-  supabaseAdmin: ReturnType<typeof createClient>,
-  config: IntegrationConfig, password: string, companyId: string,
-  supplierId: string, supplierCode: string | null,
-  jobId: string, syncType: string,
-) {
-  let adapter: ConnectionAdapter | null = null;
-  const errorLog: string[] = [];
-  const filesFound: string[] = [];
-  const agg: ImportStats = { rows_processed: 0, rows_inserted: 0, rows_updated: 0, rows_failed: 0, rows_skipped: 0, rows_needs_review: 0, errors: [], affected_product_ids: [] };
+async function handleProcessSync(supabaseAdmin: ReturnType<typeof createClient>, body: Record<string, unknown>): Promise<Response> {
+  const jobId = body.job_id as string;
+  const companyId = body.company_id as string;
+  const supplierId = body.supplier_id as string;
+  const supplierCode = (body.supplier_code as string) || null;
+  const syncType = (body.sync_type as string) || "full_sync";
+
+  if (!jobId || !companyId || !supplierId) return jsonError("Mangler påkrevde felt", "missing_params");
 
   try {
-    adapter = await createAdapter(config, password);
-    await withTimeout(adapter.connect(), 20_000, "Tilkobling");
-    const basePath = config.remote_base_path || "/";
-    const allFiles = await withTimeout(adapter.list(basePath), 15_000, "Filoppslag");
-    const categorized = categorizeFiles(allFiles, config);
+    const config = await loadIntegrationConfig(supabaseAdmin, companyId, supplierId);
+    const password = await loadPassword(supabaseAdmin, config.id);
+    if (!password) {
+      await updateImportJob(supabaseAdmin, jobId, { status: "failed", finished_at: new Date().toISOString(), error_log: ["Passord ikke konfigurert"], failed_step: "password" });
+      return jsonOk({ status: "failed" });
+    }
 
+    const now = new Date().toISOString();
+    await updateImportJob(supabaseAdmin, jobId, { status: "running", started_at: now, last_heartbeat_at: now });
+
+    // Connect to FTP
+    let adapter: ConnectionAdapter;
+    try {
+      adapter = await createAdapter(config, password);
+      await withTimeout(adapter.connect(), 20_000, "Tilkobling");
+    } catch (e) {
+      await updateImportJob(supabaseAdmin, jobId, { status: "failed", finished_at: new Date().toISOString(), error_log: [(e as Error).message], failed_step: "connect" });
+      await updateConnectionStatus(supabaseAdmin, config.id, "error", (e as Error).message);
+      return jsonOk({ status: "failed" });
+    }
+
+    const basePath = config.remote_base_path || "/";
+    let allFiles: RemoteFile[];
+    try {
+      allFiles = await withTimeout(adapter.list(basePath), 15_000, "Filoppslag");
+    } catch (e) {
+      try { await adapter.disconnect(); } catch {}
+      await updateImportJob(supabaseAdmin, jobId, { status: "failed", finished_at: new Date().toISOString(), error_log: [(e as Error).message], failed_step: "list-files" });
+      return jsonOk({ status: "failed" });
+    }
+
+    const categorized = categorizeFiles(allFiles, config);
     const groups: { type: string; files: RemoteFile[] }[] = [];
     if (syncType === "full_sync" || syncType === "catalog_sync") groups.push({ type: "catalog", files: categorized.matched.catalog });
     if (syncType === "full_sync" || syncType === "price_sync") groups.push({ type: "price", files: categorized.matched.price });
     if (syncType === "full_sync" || syncType === "discount_sync") groups.push({ type: "discount", files: categorized.matched.discount });
 
-    for (const g of groups) for (const f of g.files) filesFound.push(f.name);
-    await updateImportJob(supabaseAdmin, jobId, { files_found: filesFound });
+    const filesFound: string[] = [];
+    const storageFiles: SyncFileInfo[] = [];
 
-    if (filesFound.length === 0) {
-      await updateImportJob(supabaseAdmin, jobId, { status: "success", finished_at: new Date().toISOString(), error_log: ["Ingen matchende filer"] });
-      return;
-    }
-
-    for (const group of groups) {
-      for (const file of group.files) {
-        const filePath = `${basePath.replace(/\/$/, "")}/${file.name}`;
+    for (const g of groups) {
+      for (const f of g.files) {
+        const filePath = `${basePath.replace(/\/$/, "")}/${f.name}`;
         try {
-          console.log(`[sync] Downloading ${file.name}...`);
-          const content = await withTimeout(adapter.download(filePath), 120_000, `Nedlasting ${file.name}`);
-          console.log(`[sync] Parsing ${file.name} (${content.length} bytes)...`);
-          const result = await parseFile({ supabaseAdmin, supplierId, supplierCode, companyId, importJobId: jobId, fileType: group.type, fileName: file.name, fileContent: content });
-          agg.rows_processed += result.rows_processed; agg.rows_inserted += result.rows_inserted; agg.rows_updated += result.rows_updated;
-          agg.rows_failed += result.rows_failed; agg.rows_skipped += result.rows_skipped; agg.rows_needs_review += result.rows_needs_review;
-          agg.errors.push(...result.errors); agg.affected_product_ids.push(...result.affected_product_ids);
+          console.log(`[sync] Downloading ${f.name}...`);
+          const content = await withTimeout(adapter.download(filePath), 120_000, `Nedlasting ${f.name}`);
+          console.log(`[sync] Downloaded ${f.name} (${content.length} bytes), storing...`);
+
+          const storagePath = `sync-temp/${jobId}/${g.type}__${f.name}`;
+          const blob = new Blob([content], { type: "text/plain; charset=utf-8" });
+          const { error: uploadErr } = await supabaseAdmin.storage.from(SYNC_TEMP_BUCKET).upload(storagePath, blob, { upsert: true });
+          if (uploadErr) throw new Error(`Storage upload: ${uploadErr.message}`);
+
+          const rowCount = countFileRows(content);
+          const totalChunks = Math.ceil(rowCount / 1000); // Must match CHUNK_SIZE in parser
+          filesFound.push(f.name);
+          storageFiles.push({ path: storagePath, type: g.type, fileName: f.name, totalChunks });
+          console.log(`[sync] ${f.name}: ${rowCount} rows, ${totalChunks} chunks`);
         } catch (fileErr) {
-          const msg = `Fil "${file.name}": ${(fileErr as Error).message}`;
-          console.error(`[sync] ${msg}`);
-          errorLog.push(msg); agg.rows_failed++;
+          console.error(`[sync] Failed to download/store ${f.name}: ${(fileErr as Error).message}`);
         }
       }
     }
 
-    const allErrors = [...errorLog, ...agg.errors];
-    const finalStatus = agg.rows_failed > 0 && agg.rows_inserted + agg.rows_updated > 0 ? "partial_success" : agg.rows_failed > 0 ? "failed" : "success";
+    try { await adapter.disconnect(); } catch {}
+
+    if (filesFound.length === 0) {
+      await updateImportJob(supabaseAdmin, jobId, { status: "success", finished_at: new Date().toISOString(), error_log: ["Ingen matchende filer"], progress_percent: 100 });
+      return jsonOk({ status: "success" });
+    }
+
+    const totalGlobalChunks = storageFiles.reduce((sum, f) => sum + f.totalChunks, 0);
+    console.log(`[sync] Job ${jobId}: ${filesFound.length} files, ${totalGlobalChunks} total chunks`);
+
+    await updateImportJob(supabaseAdmin, jobId, {
+      files_found: filesFound,
+      total_chunks: totalGlobalChunks,
+      last_heartbeat_at: new Date().toISOString(),
+    });
+
+    // Kick off chunk processing starting with file 0, chunk 0
+    triggerChunkProcessing({
+      action: "process-sync-chunk",
+      job_id: jobId,
+      company_id: companyId,
+      supplier_id: supplierId,
+      supplier_code: supplierCode,
+      file_index: 0,
+      chunk_start: 0,
+      storage_files: storageFiles,
+      cum_stats: { rows_processed: 0, rows_inserted: 0, rows_updated: 0, rows_failed: 0, rows_skipped: 0, rows_needs_review: 0, errors: [] },
+      global_chunk: 0,
+      total_global_chunks: totalGlobalChunks,
+    });
+
+    return jsonOk({ status: "processing" });
+  } catch (err) {
+    console.error(`[sync] process-sync fatal: ${(err as Error).message}`);
+    await updateImportJob(supabaseAdmin, jobId, { status: "failed", finished_at: new Date().toISOString(), error_log: [(err as Error).message], failed_step: "download" });
+    return jsonOk({ status: "failed" });
+  }
+}
+
+/**
+ * Phase 2: Process a range of chunks for a file. Self-invokes for the next batch.
+ * Each invocation gets a fresh CPU budget.
+ */
+async function handleProcessSyncChunk(supabaseAdmin: ReturnType<typeof createClient>, body: Record<string, unknown>): Promise<Response> {
+  const jobId = body.job_id as string;
+  const companyId = body.company_id as string;
+  const supplierId = body.supplier_id as string;
+  const supplierCode = (body.supplier_code as string) || null;
+  const fileIndex = body.file_index as number;
+  const chunkStart = body.chunk_start as number;
+  const storageFiles = body.storage_files as SyncFileInfo[];
+  const cumStats = body.cum_stats as { rows_processed: number; rows_inserted: number; rows_updated: number; rows_failed: number; rows_skipped: number; rows_needs_review: number; errors: string[] };
+  let globalChunk = body.global_chunk as number;
+  const totalGlobalChunks = body.total_global_chunks as number;
+
+  const currentFile = storageFiles[fileIndex];
+
+  // All files processed → finalize
+  if (!currentFile) {
+    console.log(`[sync] Job ${jobId}: All files processed, finalizing...`);
+
+    // Rebuild price cache by querying linked products
+    try {
+      const { data: linkedProducts } = await supabaseAdmin
+        .from("supplier_products")
+        .select("product_id")
+        .eq("company_id", companyId)
+        .eq("supplier_id", supplierId)
+        .not("product_id", "is", null)
+        .limit(1000);
+      const productIds = [...new Set((linkedProducts ?? []).map((p: any) => p.product_id).filter(Boolean))];
+      if (productIds.length > 0) {
+        console.log(`[sync] Rebuilding price cache for ${productIds.length} products`);
+        await rebuildPriceCache(supabaseAdmin, companyId, productIds);
+      }
+    } catch (e) {
+      console.error(`[sync] Price cache rebuild error: ${(e as Error).message}`);
+      cumStats.errors.push(`Price cache: ${(e as Error).message}`);
+    }
+
+    const finalStatus = cumStats.rows_failed > 0 && (cumStats.rows_inserted + cumStats.rows_updated) > 0
+      ? "partial_success" : cumStats.rows_failed > 0 ? "failed" : "success";
 
     await updateImportJob(supabaseAdmin, jobId, {
       status: finalStatus, finished_at: new Date().toISOString(),
-      rows_processed: agg.rows_processed, rows_inserted: agg.rows_inserted, rows_updated: agg.rows_updated,
-      rows_failed: agg.rows_failed, error_log: allErrors.slice(0, 100),
+      rows_processed: cumStats.rows_processed, rows_inserted: cumStats.rows_inserted,
+      rows_updated: cumStats.rows_updated, rows_failed: cumStats.rows_failed,
+      error_log: cumStats.errors.slice(0, 100),
+      current_chunk: totalGlobalChunks, progress_percent: 100,
+      last_heartbeat_at: new Date().toISOString(),
     });
 
-    if (finalStatus !== "failed") await supabaseAdmin.from("supplier_integrations").update({ last_sync_at: new Date().toISOString() }).eq("id", config.id);
-    console.log(`[sync] Job ${jobId} finished: ${finalStatus}, ${agg.rows_inserted} new, ${agg.rows_updated} updated, ${agg.rows_failed} failed`);
+    // Clean up temp storage
+    try {
+      const { data: files } = await supabaseAdmin.storage.from(SYNC_TEMP_BUCKET).list(`sync-temp/${jobId}`);
+      if (files?.length) {
+        await supabaseAdmin.storage.from(SYNC_TEMP_BUCKET).remove(files.map((f: any) => `sync-temp/${jobId}/${f.name}`));
+      }
+    } catch {}
+
+    // Update last_sync_at on integration
+    try {
+      const { data: integ } = await supabaseAdmin.from("supplier_integrations").select("id")
+        .eq("company_id", companyId).eq("supplier_id", supplierId).maybeSingle();
+      if (integ && finalStatus !== "failed") {
+        await supabaseAdmin.from("supplier_integrations").update({ last_sync_at: new Date().toISOString() }).eq("id", integ.id);
+      }
+    } catch {}
+
+    console.log(`[sync] Job ${jobId} finalized: ${finalStatus}, inserted=${cumStats.rows_inserted}, updated=${cumStats.rows_updated}, failed=${cumStats.rows_failed}`);
+    return jsonOk({ status: finalStatus });
+  }
+
+  // Process chunks for current file
+  const chunkEnd = Math.min(chunkStart + CHUNKS_PER_INVOCATION, currentFile.totalChunks);
+  console.log(`[sync] Job ${jobId}: file ${fileIndex + 1}/${storageFiles.length} (${currentFile.fileName}), chunks ${chunkStart}-${chunkEnd - 1} of ${currentFile.totalChunks}`);
+
+  try {
+    // Read file from storage
+    const { data: fileData, error: dlErr } = await supabaseAdmin.storage.from(SYNC_TEMP_BUCKET).download(currentFile.path);
+    if (dlErr) throw new Error(`Storage read failed: ${dlErr.message}`);
+    const content = await fileData.text();
+
+    // Parse and process the chunk range
+    const result = await parseFile({
+      supabaseAdmin, supplierId, supplierCode,
+      companyId, importJobId: jobId, fileType: currentFile.type,
+      fileName: currentFile.fileName, fileContent: content,
+      chunkRange: { start: chunkStart, end: chunkEnd },
+      skipPriceCache: true,
+    });
+
+    // Accumulate stats
+    cumStats.rows_processed += result.rows_processed;
+    cumStats.rows_inserted += result.rows_inserted;
+    cumStats.rows_updated += result.rows_updated;
+    cumStats.rows_failed += result.rows_failed;
+    cumStats.rows_skipped += result.rows_skipped;
+    cumStats.rows_needs_review += result.rows_needs_review;
+    if (result.errors.length > 0) cumStats.errors.push(...result.errors.slice(0, 10));
+    // Cap errors to avoid huge payloads
+    if (cumStats.errors.length > 50) cumStats.errors = cumStats.errors.slice(0, 50);
+
+    globalChunk += (chunkEnd - chunkStart);
+    const progressPercent = totalGlobalChunks > 0 ? Math.round((globalChunk / totalGlobalChunks) * 100) : 0;
+
+    await updateImportJob(supabaseAdmin, jobId, {
+      current_chunk: globalChunk,
+      progress_percent: progressPercent,
+      rows_processed: cumStats.rows_processed,
+      rows_inserted: cumStats.rows_inserted,
+      rows_updated: cumStats.rows_updated,
+      rows_failed: cumStats.rows_failed,
+      last_heartbeat_at: new Date().toISOString(),
+    });
+
+    console.log(`[sync] Job ${jobId}: progress ${globalChunk}/${totalGlobalChunks} (${progressPercent}%), inserted=${cumStats.rows_inserted}, updated=${cumStats.rows_updated}`);
+
+    // Determine next step
+    let nextFileIndex = fileIndex;
+    let nextChunkStart = chunkEnd;
+    if (chunkEnd >= currentFile.totalChunks) {
+      nextFileIndex = fileIndex + 1;
+      nextChunkStart = 0;
+    }
+
+    // Chain next invocation
+    triggerChunkProcessing({
+      action: "process-sync-chunk",
+      job_id: jobId,
+      company_id: companyId,
+      supplier_id: supplierId,
+      supplier_code: supplierCode,
+      file_index: nextFileIndex,
+      chunk_start: nextChunkStart,
+      storage_files: storageFiles,
+      cum_stats: cumStats,
+      global_chunk: globalChunk,
+      total_global_chunks: totalGlobalChunks,
+    });
+
+    return jsonOk({ status: "processing", global_chunk: globalChunk, progress_percent: progressPercent });
   } catch (err) {
-    const errMsg = (err as Error).message;
-    console.error(`[sync] Job ${jobId} fatal error: ${errMsg}`);
-    await updateImportJob(supabaseAdmin, jobId, { status: "failed", finished_at: new Date().toISOString(), error_log: [errMsg, ...errorLog, ...agg.errors] });
-    await updateConnectionStatus(supabaseAdmin, config.id, "error", `Synk feilet: ${errMsg.substring(0, 200)}`);
-  } finally { try { if (adapter) await adapter.disconnect(); } catch {} }
+    console.error(`[sync] Chunk processing failed for job ${jobId}: ${(err as Error).message}`);
+    await updateImportJob(supabaseAdmin, jobId, {
+      status: "failed", finished_at: new Date().toISOString(),
+      error_log: [...cumStats.errors, (err as Error).message].slice(0, 100),
+      failed_step: `file:${currentFile.fileName} chunk:${chunkStart}`,
+      rows_processed: cumStats.rows_processed, rows_inserted: cumStats.rows_inserted,
+      rows_updated: cumStats.rows_updated, rows_failed: cumStats.rows_failed,
+      last_heartbeat_at: new Date().toISOString(),
+    });
+
+    // Clean up temp storage on failure
+    try {
+      const { data: files } = await supabaseAdmin.storage.from(SYNC_TEMP_BUCKET).list(`sync-temp/${jobId}`);
+      if (files?.length) {
+        await supabaseAdmin.storage.from(SYNC_TEMP_BUCKET).remove(files.map((f: any) => `sync-temp/${jobId}/${f.name}`));
+      }
+    } catch {}
+
+    return jsonOk({ status: "failed" });
+  }
 }
 
+// ===== Mark Stale Job =====
+async function handleMarkStaleJob(supabaseAdmin: ReturnType<typeof createClient>, jobId: string): Promise<Response> {
+  const { data: job } = await supabaseAdmin.from("product_import_jobs")
+    .select("status").eq("id", jobId).maybeSingle();
+  if (job?.status === "running") {
+    await updateImportJob(supabaseAdmin, jobId, {
+      status: "failed",
+      finished_at: new Date().toISOString(),
+      failed_step: "stalled",
+      error_log: ["Jobben stoppet opp (ingen aktivitet på over 3 minutter)"],
+    });
+    console.log(`[sync] Job ${jobId} marked as stalled`);
+  }
+  return jsonOk({ status: "marked" });
+}
+
+// ===== Run Sync (user-facing) =====
 async function handleRunSync(supabaseAdmin: ReturnType<typeof createClient>, companyId: string, supplierId: string, body: Record<string, unknown>): Promise<Response> {
   const syncType = (body.sync_type as string) || "full_sync";
   const userId = body.user_id as string;
@@ -498,69 +744,20 @@ async function handleRunSync(supabaseAdmin: ReturnType<typeof createClient>, com
   let jobId: string;
   try { jobId = await createImportJob(supabaseAdmin, companyId, supplierId, syncType, userId || "admin"); } catch (e) { return jsonError((e as Error).message, "job_create_error", 500); }
 
-  await updateImportJob(supabaseAdmin, jobId, { status: "running", started_at: new Date().toISOString() });
+  // Trigger process-sync which handles download → storage → chunking
+  triggerChunkProcessing({
+    action: "process-sync",
+    job_id: jobId,
+    company_id: companyId,
+    supplier_id: supplierId,
+    supplier_code: supplierCode,
+    sync_type: syncType,
+  });
 
-  // Fire off processing in a separate Edge Function invocation (self-invoke)
-  // This ensures the processing gets its own timeout window (~150s)
-  const processUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/supplier-integration`;
-  fetch(processUrl, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
-    },
-    body: JSON.stringify({
-      action: "process-sync",
-      job_id: jobId,
-      company_id: companyId,
-      supplier_id: supplierId,
-      supplier_code: supplierCode,
-      sync_type: syncType,
-    }),
-  }).catch((err) => console.error("[run-sync] Failed to trigger process-sync:", err));
-
-  // Return immediately – frontend will poll job status
   return jsonOk({
     status: "started",
     message: "Synkronisering startet – følg fremdrift i importloggen",
     data: { job_id: jobId },
-  });
-}
-
-/**
- * Internal action: process-sync. Called via self-invocation with service_role key.
- * Does the actual heavy lifting of downloading and parsing files.
- */
-async function handleProcessSync(supabaseAdmin: ReturnType<typeof createClient>, body: Record<string, unknown>): Promise<Response> {
-  const jobId = body.job_id as string;
-  const companyId = body.company_id as string;
-  const supplierId = body.supplier_id as string;
-  const supplierCode = (body.supplier_code as string) || null;
-  const syncType = (body.sync_type as string) || "full_sync";
-
-  if (!jobId || !companyId || !supplierId) return jsonError("Mangler påkrevde felt", "missing_params");
-
-  let config: IntegrationConfig;
-  try { config = await loadIntegrationConfig(supabaseAdmin, companyId, supplierId); } catch (e) {
-    await updateImportJob(supabaseAdmin, jobId, { status: "failed", finished_at: new Date().toISOString(), error_log: [(e as Error).message] });
-    return jsonError((e as Error).message, "config_error");
-  }
-
-  const password = await loadPassword(supabaseAdmin, config.id);
-  if (!password) {
-    await updateImportJob(supabaseAdmin, jobId, { status: "failed", finished_at: new Date().toISOString(), error_log: ["Passord ikke konfigurert"] });
-    return jsonError("Passord ikke konfigurert", "no_password");
-  }
-
-  await processSyncInBackground(supabaseAdmin, config, password, companyId, supplierId, supplierCode, jobId, syncType);
-
-  const { data: finalJob } = await supabaseAdmin.from("product_import_jobs")
-    .select("status, rows_processed, rows_inserted, rows_updated, rows_failed")
-    .eq("id", jobId).maybeSingle();
-
-  return jsonOk({
-    status: finalJob?.status ?? "unknown",
-    message: `Prosessering ferdig: ${finalJob?.rows_inserted ?? 0} nye, ${finalJob?.rows_updated ?? 0} oppdatert`,
   });
 }
 
@@ -575,14 +772,15 @@ Deno.serve(async (req) => {
     const action = body.action as string;
     const companyId = body.company_id as string;
 
-    // INTERNAL action: process-sync – called via self-invocation with service_role key
-    if (action === "process-sync") {
+    // INTERNAL actions: process-sync and process-sync-chunk – called via self-invocation with service_role key
+    if (action === "process-sync" || action === "process-sync-chunk") {
       const authHeader = req.headers.get("Authorization");
       const token = authHeader?.replace("Bearer ", "");
       if (token !== Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")) {
         return jsonError("Kun intern tilgang", "auth_error", 403);
       }
-      return await handleProcessSync(supabaseAdmin, body);
+      if (action === "process-sync") return await handleProcessSync(supabaseAdmin, body);
+      return await handleProcessSyncChunk(supabaseAdmin, body);
     }
 
     // SECURITY: Authenticate + check supplier management permission
@@ -593,11 +791,11 @@ Deno.serve(async (req) => {
     const supplierId = body.supplier_id as string;
     if (!companyId) return jsonError("company_id er påkrevd", "missing_company_id");
 
-    // SECURITY: Validate user belongs to the requested company (prevents ID spoofing)
+    // SECURITY: Validate user belongs to the requested company
     try { await validateCompanyMembership(supabaseAdmin, userId, companyId); }
     catch (e) { if (e instanceof AuthError) return jsonError(e.message, "auth_error", 403); throw e; }
 
-    // AUDIT: Log every action for traceability
+    // AUDIT: Log every action
     await logAudit(supabaseAdmin, userId, `supplier.${action}`, supplierId || companyId, "supplier_integration", {
       company_id: companyId, supplier_id: supplierId, action,
     });
@@ -607,6 +805,11 @@ Deno.serve(async (req) => {
       case "test-connection": if (!supplierId) return jsonError("supplier_id påkrevd", "missing_supplier_id"); return await handleTestConnection(supabaseAdmin, companyId, supplierId);
       case "list-files": if (!supplierId) return jsonError("supplier_id påkrevd", "missing_supplier_id"); return await handleListFiles(supabaseAdmin, companyId, supplierId);
       case "run-sync": if (!supplierId) return jsonError("supplier_id påkrevd", "missing_supplier_id"); return await handleRunSync(supabaseAdmin, companyId, supplierId, { ...body, user_id: userId });
+      case "mark-stale-job": {
+        const jobId = body.job_id as string;
+        if (!jobId) return jsonError("job_id påkrevd", "missing_job_id");
+        return await handleMarkStaleJob(supabaseAdmin, jobId);
+      }
       default: return jsonError(`Ukjent action: ${action}`, "unknown_action");
     }
   } catch (err) {
