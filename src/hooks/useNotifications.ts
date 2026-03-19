@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -25,18 +25,29 @@ export interface Notification {
 export function useNotifications() {
   const { user } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
+  const fetchRef = useRef(0);
+
+  // Derive unreadCount from notifications array – single source of truth
+  const unreadCount = useMemo(
+    () => notifications.filter((n) => !n.read).length,
+    [notifications]
+  );
 
   const fetchNotifications = useCallback(async () => {
     if (!user) return;
+    const fetchId = ++fetchRef.current;
     setLoading(true);
     try {
       const { data, error } = await supabase
         .from("notifications")
         .select("*")
+        .eq("user_id", user.id)
         .order("created_at", { ascending: false })
         .limit(50);
+
+      // Only apply if this is still the latest fetch (avoid race conditions)
+      if (fetchId !== fetchRef.current) return;
 
       if (!error && data) {
         const mapped = (data as any[]).map((n) => ({
@@ -44,10 +55,11 @@ export function useNotifications() {
           priority: n.priority || "info",
         })) as Notification[];
         setNotifications(mapped);
-        setUnreadCount(mapped.filter((n) => !n.read).length);
       }
     } finally {
-      setLoading(false);
+      if (fetchId === fetchRef.current) {
+        setLoading(false);
+      }
     }
   }, [user]);
 
@@ -60,7 +72,6 @@ export function useNotifications() {
     setNotifications((prev) =>
       prev.map((n) => (n.id === id ? { ...n, read: true, read_at: new Date().toISOString() } : n))
     );
-    setUnreadCount((prev) => Math.max(0, prev - 1));
   }, []);
 
   const markAllAsRead = useCallback(async () => {
@@ -68,17 +79,17 @@ export function useNotifications() {
     await supabase
       .from("notifications")
       .update({ read: true, read_at: new Date().toISOString() } as any)
+      .eq("user_id", user.id)
       .eq("read", false);
 
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true, read_at: new Date().toISOString() })));
-    setUnreadCount(0);
   }, [user]);
 
   useEffect(() => {
     fetchNotifications();
   }, [fetchNotifications]);
 
-  // Realtime subscription
+  // Realtime subscription filtered to current user
   useEffect(() => {
     if (!user) return;
 
@@ -86,7 +97,7 @@ export function useNotifications() {
       .channel("notifications-realtime")
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "notifications" },
+        { event: "*", schema: "public", table: "notifications", filter: `user_id=eq.${user.id}` },
         () => {
           fetchNotifications();
         }

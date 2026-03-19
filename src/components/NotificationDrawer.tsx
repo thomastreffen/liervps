@@ -44,6 +44,8 @@ const TYPE_ICONS: Record<string, React.ElementType> = {
   addition_created: FilePlus,
   offer_followup: Receipt,
   absence_approval: CalendarX,
+  task_thread_reminder_important: AlertTriangle,
+  task_thread_reminder_urgent: AlertTriangle,
 };
 
 const PRIORITY_STYLES: Record<NotificationPriority, string> = {
