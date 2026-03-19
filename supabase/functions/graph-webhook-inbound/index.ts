@@ -412,6 +412,19 @@ Deno.serve(async (req) => {
 
         const message = await msgResp.json();
 
+        console.log("INBOUND_EMAIL_RECEIVED", {
+          id: message.id,
+          subject: message.subject,
+          from: message.from?.emailAddress?.address,
+          toRecipients: (message.toRecipients || []).map((r: any) => r.emailAddress?.address),
+          ccRecipients: (message.ccRecipients || []).map((r: any) => r.emailAddress?.address),
+          replyTo: (message.replyTo || []).map((r: any) => r.emailAddress?.address),
+          internetMessageId: message.internetMessageId,
+          conversationId: message.conversationId,
+          hasAttachments: message.hasAttachments,
+          receivedDateTime: message.receivedDateTime,
+        });
+
         // Check idempotency before heavy processing
         if (message.internetMessageId) {
           const { data: dup } = await supabase
