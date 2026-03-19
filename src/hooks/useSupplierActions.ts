@@ -174,6 +174,38 @@ export function useSupplierActions(supplierId: string | undefined) {
           sync_type: syncType,
         });
 
+        if (result.status === "accepted") {
+          toast.success(result.message || "Synk startet i bakgrunnen");
+          // Poll for completion
+          const jobId = result.data?.job_id;
+          if (jobId) {
+            const pollInterval = setInterval(async () => {
+              try {
+                const { data: job } = await supabase
+                  .from("product_import_jobs")
+                  .select("status, rows_processed, rows_inserted, rows_failed")
+                  .eq("id", jobId)
+                  .maybeSingle();
+                if (job && !["queued", "running"].includes(job.status)) {
+                  clearInterval(pollInterval);
+                  setRunningSyncType(null);
+                  invalidateQueries();
+                  if (job.status === "success") {
+                    toast.success(`Synk fullført: ${job.rows_inserted} nye, ${job.rows_processed} behandlet`);
+                  } else if (job.status === "partial_success") {
+                    toast.warning(`Synk delvis: ${job.rows_inserted} nye, ${job.rows_failed} feilet`);
+                  } else {
+                    toast.error("Synk feilet – se importlogg for detaljer");
+                  }
+                }
+              } catch { /* ignore poll errors */ }
+            }, 5000);
+            // Safety timeout: stop polling after 5 minutes
+            setTimeout(() => { clearInterval(pollInterval); setRunningSyncType(null); }, 300_000);
+          }
+          return; // Don't clear runningSyncType yet – polling will do it
+        }
+
         if (result.status === "success") {
           toast.success(result.message || "Synk fullført");
         } else if (result.status === "partial_success") {
@@ -188,10 +220,11 @@ export function useSupplierActions(supplierId: string | undefined) {
           description: (err as Error).message,
         });
       } finally {
+        if (runningSyncType !== syncType) return; // polling handles cleanup for accepted
         setRunningSyncType(null);
       }
     },
-    [activeCompanyId, supplierId, invalidateQueries],
+    [activeCompanyId, supplierId, invalidateQueries, runningSyncType],
   );
 
   return {
