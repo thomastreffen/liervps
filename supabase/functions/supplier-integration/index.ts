@@ -392,19 +392,29 @@ async function updateImportJob(supabaseAdmin: ReturnType<typeof createClient>, j
 
 // ===== Sync Orchestration =====
 
-const CHUNKS_PER_INVOCATION = 3;
 const SYNC_TEMP_BUCKET = "job-attachments";
 
-function triggerChunkProcessing(body: Record<string, unknown>) {
+async function triggerNextChunk(body: Record<string, unknown>): Promise<void> {
   const processUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/supplier-integration`;
-  fetch(processUrl, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
-    },
-    body: JSON.stringify(body),
-  }).catch((err) => console.error("[sync] Failed to trigger chunk:", err));
+  console.log(`[sync] Triggering next chunk: file_index=${body.file_index}, chunk_start=${body.chunk_start}, global_chunk=${body.global_chunk}`);
+  try {
+    const resp = await fetch(processUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+      },
+      body: JSON.stringify(body),
+    });
+    if (!resp.ok) {
+      const text = await resp.text().catch(() => "");
+      console.error(`[sync] Next chunk trigger failed: ${resp.status} ${text}`);
+    } else {
+      console.log(`[sync] Next chunk triggered successfully`);
+    }
+  } catch (err) {
+    console.error(`[sync] Failed to trigger next chunk:`, (err as Error).message);
+  }
 }
 
 function countFileRows(content: string): number {
