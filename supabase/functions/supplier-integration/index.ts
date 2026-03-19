@@ -504,19 +504,38 @@ async function handleTestConnection(
     if (pathExists) {
       const fileCount = sampleFiles.filter((f) => f.type === "file").length;
       const dirCount = sampleFiles.filter((f) => f.type === "directory").length;
-      const msg = `Tilkobling OK. ${fileCount} filer og ${dirCount} mapper i ${basePath}`;
-      await updateConnectionStatus(supabaseAdmin, config.id, "ok", msg);
+
+      // Run pattern matching against configured patterns so test-connection
+      // shows whether the expected files (e.g. "Priser_3027280.txt") exist.
+      const { matched, warnings } = categorizeFiles(sampleFiles, config);
+      const matchedTotal = matched.catalog.length + matched.price.length + matched.discount.length + matched.invoice.length;
+
+      const hasPatterns = !!(config.catalog_file_pattern || config.price_file_pattern || config.discount_file_pattern || config.invoice_file_pattern);
+      const statusLevel = hasPatterns && matchedTotal === 0 && fileCount > 0 ? "warning" as const : "ok" as const;
+
+      const msg = statusLevel === "ok"
+        ? `Tilkobling OK. ${fileCount} filer og ${dirCount} mapper i ${basePath}` + (matchedTotal > 0 ? `. ${matchedTotal} filer matchet konfigurerte mønstre.` : "")
+        : `Tilkoblet, men ingen filer matchet konfigurerte mønstre (${fileCount} filer i mappen)`;
+
+      await updateConnectionStatus(supabaseAdmin, config.id, statusLevel, msg);
 
       return jsonOk({
-        status: "ok",
+        status: statusLevel,
         message: msg,
         tested_at: testedAt,
         path_exists: true,
-        sample_files: sampleFiles.slice(0, 15).map((f) => ({
+        sample_files: sampleFiles.slice(0, 20).map((f) => ({
           name: f.name,
           size: f.size,
           type: f.type,
         })),
+        matched: {
+          catalog: matched.catalog.map((f) => ({ name: f.name, size: f.size })),
+          price: matched.price.map((f) => ({ name: f.name, size: f.size })),
+          discount: matched.discount.map((f) => ({ name: f.name, size: f.size })),
+          invoice: matched.invoice.map((f) => ({ name: f.name, size: f.size })),
+        },
+        pattern_warnings: warnings,
       });
     } else {
       const msg = `Tilkoblet, men sti "${basePath}" er utilgjengelig`;
@@ -528,6 +547,8 @@ async function handleTestConnection(
         tested_at: testedAt,
         path_exists: false,
         sample_files: [],
+        matched: { catalog: [], price: [], discount: [], invoice: [] },
+        pattern_warnings: [],
       });
     }
   } catch (err) {
