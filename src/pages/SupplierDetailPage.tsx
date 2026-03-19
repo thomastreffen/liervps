@@ -89,12 +89,25 @@ export default function SupplierDetailPage() {
         </TabsList>
 
         <TabsContent value="integration">
-          <SupplierIntegrationForm
-            supplier={supplier}
-            integration={integration}
-            onSave={(values) => upsertIntegration.mutateAsync(values)}
-            saving={upsertIntegration.isPending}
-          />
+          {canManageIntegrations ? (
+            <SupplierIntegrationForm
+              supplier={supplier}
+              integration={integration}
+              onSave={(values) => upsertIntegration.mutateAsync(values)}
+              saving={upsertIntegration.isPending}
+            />
+          ) : (
+            <Card>
+              <CardContent className="py-10 text-center">
+                <ShieldAlert className="h-8 w-8 mx-auto mb-3 text-muted-foreground" />
+                <p className="text-sm text-muted-foreground">
+                  Du har ikke tilgang til å administrere grossistintegrasjoner.
+                  <br />
+                  Kontakt en administrator for å få rettigheten <code className="text-xs bg-muted px-1 py-0.5 rounded">purchasing.manage_integrations</code>.
+                </p>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         <TabsContent value="history">
