@@ -1,10 +1,11 @@
-import { useRef, useEffect, useState, useCallback } from "react";
+import { useRef, useEffect, useState, useCallback, useMemo } from "react";
 import { Loader2, MessageSquare } from "lucide-react";
 import type { TaskMessage } from "@/hooks/useTaskThread";
 import { TaskThreadMessageItem } from "./TaskThreadMessageItem";
 import { TaskThreadSystemEventItem } from "./TaskThreadSystemEventItem";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
+import type { ActionType } from "./MessageActionMenu";
 
 interface Props {
   messages: TaskMessage[];
@@ -12,9 +13,10 @@ interface Props {
   currentUserId: string | null;
   lastReadAt: string | null;
   onReply?: (message: TaskMessage) => void;
+  onCreateAction?: (type: ActionType, message: TaskMessage) => void;
 }
 
-export function TaskThreadFeed({ messages, loading, currentUserId, lastReadAt, onReply }: Props) {
+export function TaskThreadFeed({ messages, loading, currentUserId, lastReadAt, onReply, onCreateAction }: Props) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const unreadRef = useRef<HTMLDivElement>(null);
   const [hasScrolledToUnread, setHasScrolledToUnread] = useState(false);
@@ -67,6 +69,24 @@ export function TaskThreadFeed({ messages, loading, currentUserId, lastReadAt, o
     }
   }, []);
 
+  // Build linked actions map: source_message_id → action info
+  const linkedActionsMap = useMemo(() => {
+    const map = new Map<string, { event_type: string; title: string; created_id?: string }>();
+    for (const msg of messages) {
+      if (msg.message_type === "system_event") {
+        const meta = msg.metadata as any;
+        if (meta?.source_message_id && meta?.event_type) {
+          map.set(meta.source_message_id, {
+            event_type: meta.event_type,
+            title: meta.title || meta.details || "",
+            created_id: meta.created_id,
+          });
+        }
+      }
+    }
+    return map;
+  }, [messages]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -90,6 +110,7 @@ export function TaskThreadFeed({ messages, loading, currentUserId, lastReadAt, o
       </div>
     );
   }
+
 
   return (
     <ScrollArea className="flex-1">
@@ -127,6 +148,8 @@ export function TaskThreadFeed({ messages, loading, currentUserId, lastReadAt, o
                     onReply={onReply}
                     onScrollToMessage={scrollToMessage}
                     allMessages={messages}
+                    onCreateAction={onCreateAction}
+                    linkedAction={linkedActionsMap.get(msg.id) || null}
                   />
                 )}
               </div>

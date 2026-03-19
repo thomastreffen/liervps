@@ -1,12 +1,14 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { format } from "date-fns";
 import { nb } from "date-fns/locale";
-import { User, Paperclip, Download, Mail, ArrowUpRight, ArrowDownLeft, ChevronDown, ChevronUp, Image as ImageIcon, Reply, AlertTriangle, AlertCircle } from "lucide-react";
+import { User, Paperclip, Download, Mail, ArrowUpRight, ArrowDownLeft, ChevronDown, ChevronUp, Image as ImageIcon, Reply, AlertTriangle, AlertCircle, ExternalLink } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { TaskMessage } from "@/hooks/useTaskThread";
 import { cn } from "@/lib/utils";
 import { filterAttachments, cleanEmailBody } from "./email-utils";
 import { ImageLightbox } from "./ImageLightbox";
+import { MessageActionMenu, type ActionType } from "./MessageActionMenu";
+import { WP_TYPE_CONFIG, type WorkPackageType } from "@/lib/work-package-types";
 
 interface Props {
   message: TaskMessage;
@@ -14,9 +16,11 @@ interface Props {
   onReply?: (message: TaskMessage) => void;
   onScrollToMessage?: (messageId: string) => void;
   allMessages?: TaskMessage[];
+  onCreateAction?: (type: ActionType, message: TaskMessage) => void;
+  linkedAction?: { event_type: string; title: string; created_id?: string } | null;
 }
 
-export function TaskThreadMessageItem({ message, isOwnMessage, onReply, onScrollToMessage, allMessages }: Props) {
+export function TaskThreadMessageItem({ message, isOwnMessage, onReply, onScrollToMessage, allMessages, onCreateAction, linkedAction }: Props) {
   const time = format(new Date(message.created_at), "d. MMM HH:mm", { locale: nb });
   const isExternalEmail = message.message_type === "external_email";
   const isOutbound = message.direction === "outbound";
@@ -96,15 +100,22 @@ export function TaskThreadMessageItem({ message, isOwnMessage, onReply, onScroll
           <MessageTypeBadge message={message} isOutbound={isOutbound} isInbound={isInbound} />
           <PriorityBadge priority={priority} />
 
-          {/* Reply button */}
-          {onReply && hovered && (
-            <button
-              onClick={() => onReply(message)}
-              className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-            >
-              <Reply className="h-2.5 w-2.5" />
-              Svar
-            </button>
+          {/* Hover actions */}
+          {hovered && (
+            <div className="inline-flex items-center gap-0.5">
+              {onReply && (
+                <button
+                  onClick={() => onReply(message)}
+                  className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                >
+                  <Reply className="h-2.5 w-2.5" />
+                  Svar
+                </button>
+              )}
+              {onCreateAction && (
+                <MessageActionMenu message={message} onCreateAction={onCreateAction} />
+              )}
+            </div>
           )}
         </div>
 
@@ -180,6 +191,11 @@ export function TaskThreadMessageItem({ message, isOwnMessage, onReply, onScroll
         {files.length > 0 && (
           <AttachmentGroup files={files} onDownload={handleDownload} />
         )}
+
+        {/* Linked action indicator */}
+        {linkedAction && (
+          <LinkedActionBadge action={linkedAction} />
+        )}
       </div>
     </div>
   );
@@ -236,7 +252,27 @@ function PriorityBadge({ priority }: { priority: string }) {
   return null;
 }
 
-/* ── Inline Image Grid ── */
+/* ── Linked Action Badge ── */
+
+const ACTION_TYPE_LABELS: Record<string, string> = {
+  wp_deviation_created: "Avvik opprettet",
+  wp_additional_work_created: "Tillegg opprettet",
+  wp_internal_task_created: "Oppgave opprettet",
+  offer_created: "Tilbud opprettet",
+};
+
+function LinkedActionBadge({ action }: { action: { event_type: string; title: string; created_id?: string } }) {
+  const label = ACTION_TYPE_LABELS[action.event_type] || "Handling opprettet";
+
+  return (
+    <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-muted/50 border border-border/30 text-[10px] text-muted-foreground">
+      <ExternalLink className="h-2.5 w-2.5" />
+      <span>{label}: <span className="font-medium text-foreground/80">{action.title}</span></span>
+    </div>
+  );
+}
+
+
 
 function InlineImageGrid({ images, onDownload }: {
   images: Array<{ id: string; file_path: string; file_name: string; file_size: number | null }>;
