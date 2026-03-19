@@ -3,11 +3,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
 interface TaskThreadReadState {
-  /** Number of unread messages for a given task */
   unreadCount: number;
-  /** Mark the thread as read up to now */
   markAsRead: () => Promise<void>;
   loading: boolean;
+  lastReadAt: string | null;
 }
 
 /**
