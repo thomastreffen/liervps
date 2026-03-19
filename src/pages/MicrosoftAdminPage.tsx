@@ -86,11 +86,19 @@ export default function MicrosoftAdminPage() {
   const runAction = async (action: SubAction) => {
     setActionLoading(action);
     try {
-      const { data, error } = await supabase.functions.invoke("graph-subscription-manage", {
-        body: { action, company_id: activeCompanyId },
-      });
-      if (error) throw error;
-      toast.success(`Handling "${action}" fullført`, { description: data?.status || "OK" });
+      if (action === "sync") {
+        const { data, error } = await supabase.functions.invoke("graph-subscription-sync", {
+          body: {},
+        });
+        if (error) throw error;
+        toast.success("Subscription-synk fullført", { description: data?.action || "OK" });
+      } else {
+        const { data, error } = await supabase.functions.invoke("graph-subscription-manage", {
+          body: { action, company_id: activeCompanyId },
+        });
+        if (error) throw error;
+        toast.success(`Handling "${action}" fullført`, { description: data?.status || "OK" });
+      }
       queryClient.invalidateQueries({ queryKey: ["ms-graph-subscriptions"] });
     } catch (err: any) {
       toast.error(`Feil ved "${action}"`, { description: err.message });
