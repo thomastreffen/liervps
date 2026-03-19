@@ -392,19 +392,29 @@ async function updateImportJob(supabaseAdmin: ReturnType<typeof createClient>, j
 
 // ===== Sync Orchestration =====
 
-const CHUNKS_PER_INVOCATION = 3;
 const SYNC_TEMP_BUCKET = "job-attachments";
 
-function triggerChunkProcessing(body: Record<string, unknown>) {
+async function triggerNextChunk(body: Record<string, unknown>): Promise<void> {
   const processUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/supplier-integration`;
-  fetch(processUrl, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
-    },
-    body: JSON.stringify(body),
-  }).catch((err) => console.error("[sync] Failed to trigger chunk:", err));
+  console.log(`[sync] Triggering next chunk: file_index=${body.file_index}, chunk_start=${body.chunk_start}, global_chunk=${body.global_chunk}`);
+  try {
+    const resp = await fetch(processUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+      },
+      body: JSON.stringify(body),
+    });
+    if (!resp.ok) {
+      const text = await resp.text().catch(() => "");
+      console.error(`[sync] Next chunk trigger failed: ${resp.status} ${text}`);
+    } else {
+      console.log(`[sync] Next chunk triggered successfully`);
+    }
+  } catch (err) {
+    console.error(`[sync] Failed to trigger next chunk:`, (err as Error).message);
+  }
 }
 
 function countFileRows(content: string): number {
@@ -521,8 +531,8 @@ async function handleProcessSync(supabaseAdmin: ReturnType<typeof createClient>,
       last_heartbeat_at: new Date().toISOString(),
     });
 
-    // Kick off chunk processing starting with file 0, chunk 0
-    triggerChunkProcessing({
+    // Kick off chunk processing: 1 chunk per invocation
+    await triggerNextChunk({
       action: "process-sync-chunk",
       job_id: jobId,
       company_id: companyId,
@@ -618,9 +628,8 @@ async function handleProcessSyncChunk(supabaseAdmin: ReturnType<typeof createCli
     return jsonOk({ status: finalStatus });
   }
 
-  // Process chunks for current file
-  const chunkEnd = Math.min(chunkStart + CHUNKS_PER_INVOCATION, currentFile.totalChunks);
-  console.log(`[sync] Job ${jobId}: file ${fileIndex + 1}/${storageFiles.length} (${currentFile.fileName}), chunks ${chunkStart}-${chunkEnd - 1} of ${currentFile.totalChunks}`);
+  // Process exactly 1 chunk for current file
+  console.log(`[sync] Job ${jobId}: START batch ${globalChunk + 1}/${totalGlobalChunks} – file ${fileIndex + 1}/${storageFiles.length} (${currentFile.fileName}), chunk ${chunkStart} of ${currentFile.totalChunks}`);
 
   try {
     // Read file from storage
@@ -628,12 +637,12 @@ async function handleProcessSyncChunk(supabaseAdmin: ReturnType<typeof createCli
     if (dlErr) throw new Error(`Storage read failed: ${dlErr.message}`);
     const content = await fileData.text();
 
-    // Parse and process the chunk range
+    // Parse and process exactly 1 chunk
     const result = await parseFile({
       supabaseAdmin, supplierId, supplierCode,
       companyId, importJobId: jobId, fileType: currentFile.type,
       fileName: currentFile.fileName, fileContent: content,
-      chunkRange: { start: chunkStart, end: chunkEnd },
+      chunkRange: { start: chunkStart, end: chunkStart + 1 },
       skipPriceCache: true,
     });
 
@@ -645,10 +654,9 @@ async function handleProcessSyncChunk(supabaseAdmin: ReturnType<typeof createCli
     cumStats.rows_skipped += result.rows_skipped;
     cumStats.rows_needs_review += result.rows_needs_review;
     if (result.errors.length > 0) cumStats.errors.push(...result.errors.slice(0, 10));
-    // Cap errors to avoid huge payloads
     if (cumStats.errors.length > 50) cumStats.errors = cumStats.errors.slice(0, 50);
 
-    globalChunk += (chunkEnd - chunkStart);
+    globalChunk += 1;
     const progressPercent = totalGlobalChunks > 0 ? Math.round((globalChunk / totalGlobalChunks) * 100) : 0;
 
     await updateImportJob(supabaseAdmin, jobId, {
@@ -661,18 +669,20 @@ async function handleProcessSyncChunk(supabaseAdmin: ReturnType<typeof createCli
       last_heartbeat_at: new Date().toISOString(),
     });
 
-    console.log(`[sync] Job ${jobId}: progress ${globalChunk}/${totalGlobalChunks} (${progressPercent}%), inserted=${cumStats.rows_inserted}, updated=${cumStats.rows_updated}`);
+    console.log(`[sync] Job ${jobId}: END batch ${globalChunk}/${totalGlobalChunks} (${progressPercent}%), inserted=${cumStats.rows_inserted}, updated=${cumStats.rows_updated}`);
 
-    // Determine next step
+    // Determine next step: next chunk in same file, or first chunk of next file
+    const nextChunkInFile = chunkStart + 1;
     let nextFileIndex = fileIndex;
-    let nextChunkStart = chunkEnd;
-    if (chunkEnd >= currentFile.totalChunks) {
+    let nextChunkStart = nextChunkInFile;
+    if (nextChunkInFile >= currentFile.totalChunks) {
       nextFileIndex = fileIndex + 1;
       nextChunkStart = 0;
+      console.log(`[sync] Job ${jobId}: file ${currentFile.fileName} complete, moving to file ${nextFileIndex + 1}`);
     }
 
-    // Chain next invocation
-    triggerChunkProcessing({
+    // Chain next invocation (awaited to ensure it fires)
+    await triggerNextChunk({
       action: "process-sync-chunk",
       job_id: jobId,
       company_id: companyId,
@@ -688,11 +698,12 @@ async function handleProcessSyncChunk(supabaseAdmin: ReturnType<typeof createCli
 
     return jsonOk({ status: "processing", global_chunk: globalChunk, progress_percent: progressPercent });
   } catch (err) {
-    console.error(`[sync] Chunk processing failed for job ${jobId}: ${(err as Error).message}`);
+    const batchLabel = `batch_${globalChunk + 1}`;
+    console.error(`[sync] ${batchLabel} failed for job ${jobId}: ${(err as Error).message}`);
     await updateImportJob(supabaseAdmin, jobId, {
       status: "failed", finished_at: new Date().toISOString(),
       error_log: [...cumStats.errors, (err as Error).message].slice(0, 100),
-      failed_step: `file:${currentFile.fileName} chunk:${chunkStart}`,
+      failed_step: batchLabel,
       rows_processed: cumStats.rows_processed, rows_inserted: cumStats.rows_inserted,
       rows_updated: cumStats.rows_updated, rows_failed: cumStats.rows_failed,
       last_heartbeat_at: new Date().toISOString(),
