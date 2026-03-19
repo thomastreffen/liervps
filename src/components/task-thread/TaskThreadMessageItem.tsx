@@ -22,6 +22,7 @@ export function TaskThreadMessageItem({ message, isOwnMessage, onReply, onScroll
   const isOutbound = message.direction === "outbound";
   const isInbound = message.direction === "inbound";
   const alignRight = isExternalEmail ? isOutbound : isOwnMessage;
+  const priority = message.priority || "normal";
 
   // Email body cleanup for inbound
   const isInboundEmail = isExternalEmail && isInbound;
