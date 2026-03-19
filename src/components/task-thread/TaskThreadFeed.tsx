@@ -1,10 +1,11 @@
-import { useRef, useEffect, useState, useCallback } from "react";
+import { useRef, useEffect, useState, useCallback, useMemo } from "react";
 import { Loader2, MessageSquare } from "lucide-react";
 import type { TaskMessage } from "@/hooks/useTaskThread";
 import { TaskThreadMessageItem } from "./TaskThreadMessageItem";
 import { TaskThreadSystemEventItem } from "./TaskThreadSystemEventItem";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
+import type { ActionType } from "./MessageActionMenu";
 
 interface Props {
   messages: TaskMessage[];
@@ -12,6 +13,7 @@ interface Props {
   currentUserId: string | null;
   lastReadAt: string | null;
   onReply?: (message: TaskMessage) => void;
+  onCreateAction?: (type: ActionType, message: TaskMessage) => void;
 }
 
 export function TaskThreadFeed({ messages, loading, currentUserId, lastReadAt, onReply }: Props) {
