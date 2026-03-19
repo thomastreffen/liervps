@@ -37,9 +37,10 @@ export function useSuppliers() {
   const createSupplier = useMutation({
     mutationFn: async (values: SupplierFormValues) => {
       if (!activeCompanyId) throw new Error("Ingen aktiv bedrift valgt");
+      const row = { ...values, company_id: activeCompanyId } as any;
       const { data, error } = await supabase
         .from("suppliers")
-        .insert({ ...values, company_id: activeCompanyId })
+        .insert(row)
         .select()
         .single();
       if (error) throw error;
