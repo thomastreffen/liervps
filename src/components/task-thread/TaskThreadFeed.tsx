@@ -69,6 +69,24 @@ export function TaskThreadFeed({ messages, loading, currentUserId, lastReadAt, o
     }
   }, []);
 
+  // Build linked actions map: source_message_id → action info
+  const linkedActionsMap = useMemo(() => {
+    const map = new Map<string, { event_type: string; title: string; created_id?: string }>();
+    for (const msg of messages) {
+      if (msg.message_type === "system_event") {
+        const meta = msg.metadata as any;
+        if (meta?.source_message_id && meta?.event_type) {
+          map.set(meta.source_message_id, {
+            event_type: meta.event_type,
+            title: meta.title || meta.details || "",
+            created_id: meta.created_id,
+          });
+        }
+      }
+    }
+    return map;
+  }, [messages]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -93,7 +111,7 @@ export function TaskThreadFeed({ messages, loading, currentUserId, lastReadAt, o
     );
   }
 
-  // Build linked actions map: source_message_id → action info
+  //
   const linkedActionsMap = useMemo(() => {
     const map = new Map<string, { event_type: string; title: string; created_id?: string }>();
     for (const msg of messages) {
