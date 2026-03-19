@@ -24,6 +24,7 @@ export interface TaskMessage {
   recipients: Array<{ name: string; email: string }> | null;
   email_status: string | null;
   metadata: Record<string, any>;
+  reply_to_message_id: string | null;
   created_at: string;
   edited_at: string | null;
   deleted_at: string | null;
