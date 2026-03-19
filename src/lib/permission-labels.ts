@@ -49,6 +49,8 @@ export const PERMISSION_LABELS: Record<string, PermissionMeta> = {
   "module.contracts": { label: "Kontrakter", description: "Tilgang til kontraktsmodulen.", category: "Modultilgang" },
   "module.sharepoint": { label: "SharePoint", description: "Tilgang til SharePoint-integrasjonen.", category: "Modultilgang" },
   "module.leads": { label: "Leads", description: "Tilgang til leadsmodulen.", category: "Modultilgang" },
+  "module.products": { label: "Produkter", description: "Tilgang til produktkatalogen.", category: "Modultilgang" },
+  "module.purchasing": { label: "Innkjøp", description: "Tilgang til innkjøpsmodulen.", category: "Modultilgang" },
 
   // ── Jobs ──
   "jobs.view": { label: "Se prosjekter", category: "Prosjekter" },
