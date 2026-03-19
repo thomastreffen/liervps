@@ -34,9 +34,10 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { task_id, body_text, attachment_paths, recipient_emails, reply_to_message_id } = body;
+    const { task_id, body_text, attachment_paths, recipient_emails, reply_to_message_id, priority } = body;
     // attachment_paths: array of { file_path, file_name, mime_type, file_size }
     // recipient_emails: optional array of email strings to filter recipients
+    // priority: 'normal' | 'important' | 'urgent'
 
     const MAX_ATTACHMENT_SIZE = 3 * 1024 * 1024; // 3 MB per file — Graph limit for inline is ~4MB but we keep margin
 
