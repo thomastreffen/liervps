@@ -372,6 +372,7 @@ interface TaskSummary {
   lastActivity: string;
   lastAuthor: string;
   lastMessageType: string;
+  maxPriority: string;
 }
 
 function buildDigestHtml(userName: string, tasks: TaskSummary[], totalUnread: number): string {
