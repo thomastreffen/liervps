@@ -571,15 +571,26 @@ Deno.serve(async (req) => {
   try {
     const supabaseAdmin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
+    const body = await req.json().catch(() => ({}));
+    const action = body.action as string;
+    const companyId = body.company_id as string;
+
+    // INTERNAL action: process-sync – called via self-invocation with service_role key
+    if (action === "process-sync") {
+      const authHeader = req.headers.get("Authorization");
+      const token = authHeader?.replace("Bearer ", "");
+      if (token !== Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")) {
+        return jsonError("Kun intern tilgang", "auth_error", 403);
+      }
+      return await handleProcessSync(supabaseAdmin, body);
+    }
+
     // SECURITY: Authenticate + check supplier management permission
     let userId: string;
     try { const auth = await authenticateSupplierAdmin(req, supabaseAdmin); userId = auth.userId; }
     catch (e) { if (e instanceof AuthError) return jsonError(e.message, "auth_error", 401); throw e; }
 
-    const body = await req.json().catch(() => ({}));
-    const action = body.action as string;
     const supplierId = body.supplier_id as string;
-    const companyId = body.company_id as string;
     if (!companyId) return jsonError("company_id er påkrevd", "missing_company_id");
 
     // SECURITY: Validate user belongs to the requested company (prevents ID spoofing)
