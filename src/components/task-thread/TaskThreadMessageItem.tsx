@@ -57,7 +57,12 @@ export function TaskThreadMessageItem({ message, isOwnMessage, onReply, onScroll
 
   return (
     <div
-      className={cn("flex gap-2.5 group", alignRight && "flex-row-reverse")}
+      className={cn(
+        "flex gap-2.5 group",
+        alignRight && "flex-row-reverse",
+        priority === "urgent" && "pl-2 border-l-2 border-destructive/60",
+        priority === "important" && "pl-2 border-l-2 border-amber-400 dark:border-amber-600"
+      )}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
