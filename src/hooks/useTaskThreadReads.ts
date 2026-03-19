@@ -49,7 +49,7 @@ export function useTaskThreadReads(taskId: string | null | undefined): TaskThrea
         .select("id", { count: "exact", head: true })
         .eq("thread_id", thread.id)
         .is("deleted_at", null)
-        .gt("created_at", lastReadAt)
+        .gt("created_at", lastReadAtVal)
         .neq("author_user_id", user.id);
 
       setUnreadCount(count || 0);
