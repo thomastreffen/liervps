@@ -45,7 +45,7 @@ export interface UseTaskThreadReturn {
   loading: boolean;
   sending: boolean;
   threadId: string | null;
-  sendMessage: (body: string, files?: File[]) => Promise<void>;
+  sendMessage: (body: string, files?: File[], replyToMessageId?: string) => Promise<void>;
   sendEmailMessage: (body: string, files?: File[]) => Promise<void>;
   createSystemEvent: (eventType: string, metadata?: Record<string, any>) => Promise<void>;
   refetch: () => void;
