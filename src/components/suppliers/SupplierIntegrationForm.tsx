@@ -348,6 +348,19 @@ export function SupplierIntegrationForm({ supplier, integration, onSave, saving 
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* Debug: patterns used */}
+            {actions.fileListResult.debug?.patterns && (
+              <div className="space-y-1 p-2.5 rounded-md bg-muted/50 border border-border/40">
+                <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1">Mønstre brukt av backend</p>
+                {Object.entries(actions.fileListResult.debug.patterns).map(([key, val]) => (
+                  <div key={key} className="flex items-center gap-2 text-xs">
+                    <span className="text-muted-foreground capitalize w-16">{key}:</span>
+                    <code className="font-mono text-foreground">{val ?? <span className="text-muted-foreground/50 italic">ikke satt</span>}</code>
+                  </div>
+                ))}
+              </div>
+            )}
+
             {/* Warnings */}
             {actions.fileListResult.warnings.length > 0 && (
               <div className="space-y-1 p-2.5 rounded-md bg-accent/50 border border-border/40">
