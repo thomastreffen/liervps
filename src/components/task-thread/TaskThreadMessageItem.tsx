@@ -20,7 +20,7 @@ interface Props {
   linkedAction?: { event_type: string; title: string; created_id?: string } | null;
 }
 
-export function TaskThreadMessageItem({ message, isOwnMessage, onReply, onScrollToMessage, allMessages }: Props) {
+export function TaskThreadMessageItem({ message, isOwnMessage, onReply, onScrollToMessage, allMessages, onCreateAction, linkedAction }: Props) {
   const time = format(new Date(message.created_at), "d. MMM HH:mm", { locale: nb });
   const isExternalEmail = message.message_type === "external_email";
   const isOutbound = message.direction === "outbound";
