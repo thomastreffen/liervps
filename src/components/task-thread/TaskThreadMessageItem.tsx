@@ -101,18 +101,15 @@ export function TaskThreadMessageItem({ message, isOwnMessage, onReply, onScroll
           )}
         </div>
 
-        {/* Recipients / sender lines */}
-        {isExternalEmail && isOutbound && recipients && recipients.length > 0 && (
-          <div className={cn("text-[11px] text-muted-foreground", alignRight && "text-right")}>
-            <span>Til: </span>
-            {recipients.map((r, i) => (
-              <span key={i}>
-                {i > 0 && ", "}
-                {r.name} <span className="text-muted-foreground/70">({r.email})</span>
-              </span>
-            ))}
+        {/* Recipients line — shown for outbound emails and internal messages with recipients */}
+        {recipients && recipients.length > 0 && !isInbound && (
+          <div className={cn("flex items-center gap-1 text-[11px] text-muted-foreground", alignRight && "flex-row-reverse")}>
+            <Mail className="h-3 w-3 text-blue-500" />
+            <span>Sendt til: {recipients.map(r => r.name).join(", ")}</span>
           </div>
         )}
+
+        {/* Inbound sender */}
         {isInboundEmail && message.author_email && (
           <div className="text-[11px] text-muted-foreground">
             Fra: {message.author_name || message.author_email}
