@@ -2,12 +2,14 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useSuppliers } from "@/hooks/useSuppliers";
 import { useSupplierIntegration } from "@/hooks/useSupplierIntegration";
 import { useProductImportJobs } from "@/hooks/useProductImportJobs";
+import { usePermissions } from "@/hooks/usePermissions";
+import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  ArrowLeft, Loader2, Package, Settings2, History,
+  ArrowLeft, Loader2, Package, Settings2, History, ShieldAlert,
 } from "lucide-react";
 import { SupplierIntegrationForm } from "@/components/suppliers/SupplierIntegrationForm";
 import { ImportJobHistory } from "@/components/suppliers/ImportJobHistory";
