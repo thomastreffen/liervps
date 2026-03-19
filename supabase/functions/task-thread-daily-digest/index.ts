@@ -84,7 +84,7 @@ Deno.serve(async (req) => {
     // Get all relevant unread messages (not system_event, not too fresh)
     const { data: allMessages } = await supabase
       .from("task_messages")
-      .select("id, thread_id, task_id, company_id, message_type, direction, author_user_id, author_name, body, created_at")
+      .select("id, thread_id, task_id, company_id, message_type, direction, author_user_id, author_name, body, created_at, priority")
       .in("thread_id", threadIds)
       .in("message_type", ["internal_message", "external_email"])
       .is("deleted_at", null)
