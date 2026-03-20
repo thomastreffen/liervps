@@ -417,8 +417,8 @@ function parseEfonelfoFile(lines: string[], supplierCode: string | null): { prod
         const plNet = fm.pl_net_price !== null ? priceToNok(fields[fm.pl_net_price], fm.pl_price_is_ore) : null;
         const plDiscount = fm.pl_discount !== null ? parseNumber(fields[fm.pl_discount]) : null;
 
-        if (plList !== null) existing.list_price = plList;
-        if (plNet !== null) existing.net_price = plNet;
+        if (plList !== null) { existing.list_price = plList; existing.price_source = "pl_list"; }
+        if (plNet !== null) { existing.net_price = plNet; if (!existing.price_source || existing.price_source === "vl_gross") existing.price_source = "pl_net"; }
         if (plDiscount !== null) existing.discount_percent = plDiscount;
 
         if (plCount <= 5) {
