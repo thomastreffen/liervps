@@ -785,6 +785,10 @@ async function handleProcessSyncChunk(supabaseAdmin: ReturnType<typeof createCli
       cumStats.rows_needs_review += result.rows_needs_review;
       if (result.errors.length > 0) cumStats.errors.push(...result.errors.slice(0, 10));
       if (cumStats.errors.length > 50) cumStats.errors = cumStats.errors.slice(0, 50);
+      cumStats.prices_inserted = (cumStats.prices_inserted || 0) + (result.prices_inserted || 0);
+      cumStats.prices_unchanged = (cumStats.prices_unchanged || 0) + (result.prices_unchanged || 0);
+      cumStats.prices_no_price = (cumStats.prices_no_price || 0) + (result.prices_no_price || 0);
+      cumStats.prices_preserved = (cumStats.prices_preserved || 0) + (result.prices_preserved || 0);
 
       globalChunk += chunksToProcess;
       chunksProcessedThisInvocation += chunksToProcess;
