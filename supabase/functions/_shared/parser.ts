@@ -817,7 +817,7 @@ async function processChunk(params: {
   await batchInsertImportRows(sa, companyId, importJobId, fileType, importRowEntries);
   const t6ms = t6();
 
-  console.log(`[timing] upsert=${t1ms}ms match=${t2ms}ms autocreate=${t3ms}ms link=${t4ms}ms prices=${t5ms}ms audit=${t6ms}ms total=${t1ms+t2ms+t3ms+t4ms+t5ms+t6ms}ms rows=${validRows.length}`);
+  console.log(`[timing] upsert=${t1ms}ms match=${t2ms}ms autocreate=${t3ms}ms link=${t4ms}ms prices=${t5ms}ms audit=${t6ms}ms total=${t1ms+t2ms+t3ms+t4ms+t5ms+t6ms}ms rows=${validRows.length} | products: ${stats.rows_inserted} new, ${spResult.updated} updated, ${spResult.unchanged} unchanged | prices: ${priceResult.inserted} new, ${priceResult.skippedDuplicate} unchanged`);
 
   return stats;
 }
