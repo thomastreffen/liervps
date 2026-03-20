@@ -441,7 +441,7 @@ function parseEfonelfoFile(lines: string[], supplierCode: string | null): { prod
         const rlNet = fm.rl_net_price !== null ? priceToNok(fields[fm.rl_net_price], fm.rl_price_is_ore) : null;
 
         if (rlDiscount !== null) existing.discount_percent = rlDiscount;
-        if (rlNet !== null) existing.net_price = rlNet;
+        if (rlNet !== null) { existing.net_price = rlNet; existing.price_source = "rl_discount"; }
 
         if (rlCount <= 5) {
           console.log(`[EFONELFO] RL#${rlCount} (${profile.code}): sku="${sku}" disc=${existing.discount_percent} net=${existing.net_price}`);
