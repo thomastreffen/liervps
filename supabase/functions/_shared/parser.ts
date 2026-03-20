@@ -762,7 +762,7 @@ async function processChunk(params: {
 
   // Phase 1: Upsert supplier_products
   const t1 = timer();
-  let spResult: { map: Map<string, { id: string; isNew: boolean }>; unchanged: number; updated: number };
+  let spResult: { map: Map<string, { id: string; isNew: boolean; existingProductId: string | null }>; unchanged: number; updated: number };
   try {
     spResult = await batchUpsertSupplierProducts(sa, companyId, supplierId, validRows);
   } catch (e) {
@@ -790,21 +790,33 @@ async function processChunk(params: {
   for (const [sku, id] of autoCreatedMap) matchMap.set(sku, id);
   const t3ms = t3();
 
-  // Phase 4: Link products
+  // Phase 4: Link products — ONLY link if not already linked to the correct catalog product
   const t4 = timer();
   const links: Array<{ supplierProductId: string; catalogProductId: string }> = [];
+  let alreadyLinked = 0;
+  let mismatchRelinked = 0;
   for (const row of validRows) {
     if (!row.supplier_sku) continue;
     const spEntry = spMap.get(row.supplier_sku);
     const catalogId = matchMap.get(row.supplier_sku);
     if (spEntry && catalogId) {
-      links.push({ supplierProductId: spEntry.id, catalogProductId: catalogId });
       stats.affected_product_ids.push(catalogId);
+      // Skip if already linked to the correct catalog product
+      if (spEntry.existingProductId === catalogId) {
+        alreadyLinked++;
+      } else {
+        if (spEntry.existingProductId && spEntry.existingProductId !== catalogId) {
+          mismatchRelinked++;
+          console.log(`[link-mismatch] SKU="${row.supplier_sku}" sp.id=${spEntry.id} old_product=${spEntry.existingProductId} → new_product=${catalogId}`);
+        }
+        links.push({ supplierProductId: spEntry.id, catalogProductId: catalogId });
+      }
     } else {
       stats.rows_needs_review++;
     }
   }
   if (links.length > 0) await batchLinkProducts(sa, links);
+  console.log(`[link] ${alreadyLinked} already linked, ${links.length} newly linked, ${mismatchRelinked} re-linked, ${stats.rows_needs_review} unmatched`);
   const t4ms = t4();
 
   // Phase 5: Insert prices (only if changed)
