@@ -678,10 +678,14 @@ async function handleProcessSyncChunk(supabaseAdmin: ReturnType<typeof createCli
   let globalChunk = body.global_chunk as number;
   const totalGlobalChunks = body.total_global_chunks as number;
 
-  console.log(`[chain] job=${jobId} CHUNK_STARTED: global=${globalChunk + 1}/${totalGlobalChunks}, file=${fileIndex}/${storageFiles.length}, chunk=${chunkStart}, chunksPerInvocation=${CHUNKS_PER_INVOCATION}`);
+  const batchStartTime = Date.now();
+  console.log(`[chain] job=${jobId} CHUNK_STARTED: global=${globalChunk + 1}/${totalGlobalChunks}, file=${fileIndex}/${storageFiles.length}, chunk=${chunkStart}`);
 
   // Update heartbeat immediately on entry
-  await updateImportJob(supabaseAdmin, jobId, { last_heartbeat_at: new Date().toISOString() });
+  await updateImportJob(supabaseAdmin, jobId, {
+    last_heartbeat_at: new Date().toISOString(),
+    dispatch_retries: 0, // reset retries on successful entry
+  });
 
   // Check if job was externally cancelled/failed
   const { data: jobStatus } = await supabaseAdmin.from("product_import_jobs")
