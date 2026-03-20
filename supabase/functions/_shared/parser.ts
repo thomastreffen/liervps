@@ -557,11 +557,14 @@ async function batchAutoCreateCatalogProducts(
     if (row.el_number) seenElNumbers.add(row.el_number);
     if (row.ean) seenEans.add(row.ean);
 
+    // Only set el_number on catalog product if it's a valid numeric el-number
+    const catalogElNumber = isValidElNumber(row.el_number) ? row.el_number : null;
+
     toCreate.push({
       row,
       payload: {
         company_id: companyId, name: row.product_name || row.supplier_sku || "Ukjent produkt",
-        el_number: row.el_number, ean: row.ean, brand: row.brand,
+        el_number: catalogElNumber, ean: row.ean, brand: row.brand,
         unit: row.unit, category: row.category, description: row.description, is_active: true,
       },
     });
