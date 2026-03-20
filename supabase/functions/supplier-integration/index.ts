@@ -652,7 +652,7 @@ async function handleProcessSync(supabaseAdmin: ReturnType<typeof createClient>,
  * Processing multiple chunks per invocation amortizes the cost of
  * file download + parse across more work, dramatically improving throughput.
  */
-const CHUNKS_PER_INVOCATION = 3;
+const CHUNKS_PER_INVOCATION = 1;
 
 async function handleProcessSyncChunk(supabaseAdmin: ReturnType<typeof createClient>, body: Record<string, unknown>): Promise<Response> {
   const jobId = body.job_id as string;
