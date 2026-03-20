@@ -747,19 +747,21 @@ async function processChunk(params: {
 
   // Phase 1: Upsert supplier_products
   const t1 = timer();
-  let spMap: Map<string, { id: string; isNew: boolean }>;
+  let spResult: { map: Map<string, { id: string; isNew: boolean }>; unchanged: number; updated: number };
   try {
-    spMap = await batchUpsertSupplierProducts(sa, companyId, supplierId, validRows);
+    spResult = await batchUpsertSupplierProducts(sa, companyId, supplierId, validRows);
   } catch (e) {
     stats.rows_failed = validRows.length;
     stats.errors.push(`Batch upsert failed: ${(e as Error).message}`);
     return stats;
   }
+  const spMap = spResult.map;
   const t1ms = t1();
 
   for (const [, v] of spMap) {
-    if (v.isNew) stats.rows_inserted++; else stats.rows_updated++;
+    if (v.isNew) stats.rows_inserted++;
   }
+  stats.rows_updated = spResult.updated;
 
   // Phase 2: Match catalog products
   const t2 = timer();
