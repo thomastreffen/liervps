@@ -712,7 +712,17 @@ async function handleProcessSyncChunk(supabaseAdmin: ReturnType<typeof createCli
       error_log: cumStats.errors.slice(0, 100),
       current_chunk: totalGlobalChunks, progress_percent: 100,
       last_heartbeat_at: new Date().toISOString(),
+      summary_stats: {
+        prices_inserted: cumStats.prices_inserted || 0,
+        prices_unchanged: cumStats.prices_unchanged || 0,
+        prices_no_price: cumStats.prices_no_price || 0,
+        prices_preserved: cumStats.prices_preserved || 0,
+        rows_skipped: cumStats.rows_skipped || 0,
+        rows_needs_review: cumStats.rows_needs_review || 0,
+      },
     });
+
+    console.log(`[chain] job=${jobId} FINAL SUMMARY: status=${finalStatus} processed=${cumStats.rows_processed} ins=${cumStats.rows_inserted} upd=${cumStats.rows_updated} fail=${cumStats.rows_failed} | prices: new=${cumStats.prices_inserted} unchanged=${cumStats.prices_unchanged} missing=${cumStats.prices_no_price} preserved=${cumStats.prices_preserved}`);
 
     // Clean up temp storage
     try {
