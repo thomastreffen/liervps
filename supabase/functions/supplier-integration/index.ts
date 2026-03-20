@@ -393,7 +393,8 @@ async function createImportJob(supabaseAdmin: ReturnType<typeof createClient>, c
 }
 
 async function updateImportJob(supabaseAdmin: ReturnType<typeof createClient>, jobId: string, updates: Record<string, unknown>) {
-  await supabaseAdmin.from("product_import_jobs").update({ ...updates, updated_at: new Date().toISOString() }).eq("id", jobId);
+  const { error } = await supabaseAdmin.from("product_import_jobs").update({ ...updates, updated_at: new Date().toISOString() }).eq("id", jobId);
+  if (error) console.error(`[updateImportJob] job=${jobId} error: ${error.message}`);
 }
 
 // ===== Sync Orchestration =====
