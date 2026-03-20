@@ -1,6 +1,7 @@
 /**
  * Hook for unlinked supplier products – those without a catalog master link.
  * Used in the data quality section of the product module.
+ * Supports server-side pagination with total count.
  */
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -20,25 +21,59 @@ export interface UnlinkedProduct {
   created_at: string;
 }
 
-export function useUnlinkedProducts() {
+interface UnlinkedParams {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+}
+
+export function useUnlinkedProducts(params: UnlinkedParams = {}) {
   const { activeCompanyId } = useCompanyContext();
   const qc = useQueryClient();
+  const { page = 0, pageSize = 100, search } = params;
 
-  const { data: unlinked = [], isLoading: loading } = useQuery({
-    queryKey: ["unlinked-products", activeCompanyId],
+  const { data, isLoading: loading } = useQuery({
+    queryKey: ["unlinked-products", activeCompanyId, page, pageSize, search],
     enabled: !!activeCompanyId,
     queryFn: async () => {
-      const { data, error } = await supabase
+      // Get total count
+      let countQuery = supabase
+        .from("supplier_products")
+        .select("id", { count: "exact", head: true })
+        .eq("company_id", activeCompanyId!)
+        .is("product_id", null);
+
+      if (search && search.length >= 2) {
+        countQuery = countQuery.or(
+          `supplier_sku.ilike.%${search}%,supplier_product_name.ilike.%${search}%,raw_brand.ilike.%${search}%`
+        );
+      }
+
+      const { count: totalCount, error: countErr } = await countQuery;
+      if (countErr) throw countErr;
+
+      // Get paginated rows
+      const from = page * pageSize;
+      const to = from + pageSize - 1;
+
+      let query = supabase
         .from("supplier_products")
         .select("id, supplier_id, supplier_sku, supplier_product_name, raw_brand, raw_category, last_seen_at, created_at, suppliers:supplier_id(name)")
         .eq("company_id", activeCompanyId!)
         .is("product_id", null)
         .order("created_at", { ascending: false })
-        .limit(200);
+        .range(from, to);
 
+      if (search && search.length >= 2) {
+        query = query.or(
+          `supplier_sku.ilike.%${search}%,supplier_product_name.ilike.%${search}%,raw_brand.ilike.%${search}%`
+        );
+      }
+
+      const { data: rows, error } = await query;
       if (error) throw error;
 
-      return (data || []).map((row: any) => ({
+      const items = (rows || []).map((row: any) => ({
         id: row.id,
         supplier_id: row.supplier_id,
         supplier_name: (row.suppliers as any)?.name ?? "Ukjent",
@@ -49,6 +84,8 @@ export function useUnlinkedProducts() {
         last_seen_at: row.last_seen_at,
         created_at: row.created_at,
       })) as UnlinkedProduct[];
+
+      return { items, totalCount: totalCount ?? 0 };
     },
   });
 
@@ -72,7 +109,6 @@ export function useUnlinkedProducts() {
 
   const createAndLink = useMutation({
     mutationFn: async (supplierProduct: UnlinkedProduct) => {
-      // Create a new catalog product from supplier product data
       const { data: newProduct, error: createErr } = await supabase
         .from("supplier_catalog_products")
         .insert({
@@ -87,7 +123,6 @@ export function useUnlinkedProducts() {
 
       if (createErr) throw createErr;
 
-      // Link the supplier product
       const { error: linkErr } = await supabase
         .from("supplier_products")
         .update({ product_id: newProduct.id })
@@ -106,5 +141,11 @@ export function useUnlinkedProducts() {
     },
   });
 
-  return { unlinked, loading, linkToProduct, createAndLink };
+  return {
+    unlinked: data?.items ?? [],
+    totalCount: data?.totalCount ?? 0,
+    loading,
+    linkToProduct,
+    createAndLink,
+  };
 }

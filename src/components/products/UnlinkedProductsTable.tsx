@@ -7,15 +7,35 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+  Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Loader2, Link2, PlusCircle, Search } from "lucide-react";
+import { Loader2, Link2, PlusCircle, Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { nb } from "date-fns/locale";
 
-export function UnlinkedProductsTable() {
-  const { unlinked, loading, linkToProduct, createAndLink } = useUnlinkedProducts();
+interface UnlinkedProductsTableProps {
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  search: string;
+  onSearchChange: (val: string) => void;
+  onPageChange: (p: number) => void;
+}
+
+export function UnlinkedProductsTable({
+  page,
+  pageSize,
+  totalCount,
+  search,
+  onSearchChange,
+  onPageChange,
+}: UnlinkedProductsTableProps) {
+  const { unlinked, loading, linkToProduct, createAndLink } = useUnlinkedProducts({
+    page,
+    pageSize,
+    search,
+  });
   const [linkDialogItem, setLinkDialogItem] = useState<UnlinkedProduct | null>(null);
   const [catalogSearch, setCatalogSearch] = useState("");
   const { products: catalogResults, loading: catalogLoading } = useCatalogProducts({
@@ -23,7 +43,11 @@ export function UnlinkedProductsTable() {
     limit: 20,
   });
 
-  if (loading) {
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+  const from = page * pageSize + 1;
+  const to = Math.min((page + 1) * pageSize, totalCount);
+
+  if (loading && page === 0) {
     return (
       <div className="flex items-center justify-center py-20">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -31,82 +55,123 @@ export function UnlinkedProductsTable() {
     );
   }
 
-  if (unlinked.length === 0) {
-    return (
-      <div className="text-center py-20 text-muted-foreground">
-        <p className="font-medium">Ingen ukoblede produkter</p>
-        <p className="text-sm mt-1">Alle leverandørprodukter er koblet til katalogen</p>
-      </div>
-    );
-  }
-
   return (
     <>
-      <div className="border rounded-lg overflow-hidden">
-        <div className="max-h-[calc(100vh-380px)] overflow-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Leverandør</TableHead>
-                <TableHead>SKU</TableHead>
-                <TableHead>Produktnavn</TableHead>
-                <TableHead>Merke</TableHead>
-                <TableHead>Kategori</TableHead>
-                <TableHead>Sist sett</TableHead>
-                <TableHead className="text-right">Handling</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {unlinked.map((item) => (
-                <TableRow key={item.id}>
-                  <TableCell>
-                    <Badge variant="outline" className="text-[10px]">{item.supplier_name}</Badge>
-                  </TableCell>
-                  <TableCell className="font-mono text-xs">{item.supplier_sku}</TableCell>
-                  <TableCell className="text-sm max-w-[250px] truncate">
-                    {item.supplier_product_name || "—"}
-                  </TableCell>
-                  <TableCell className="text-sm">{item.raw_brand || "—"}</TableCell>
-                  <TableCell className="text-sm">{item.raw_category || "—"}</TableCell>
-                  <TableCell className="text-xs text-muted-foreground">
-                    {item.last_seen_at
-                      ? formatDistanceToNow(new Date(item.last_seen_at), { addSuffix: true, locale: nb })
-                      : "—"}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-7 text-xs gap-1"
-                        onClick={() => {
-                          setLinkDialogItem(item);
-                          setCatalogSearch("");
-                        }}
-                      >
-                        <Link2 className="h-3 w-3" />
-                        Koble
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-7 text-xs gap-1"
-                        onClick={() => createAndLink.mutate(item)}
-                        disabled={createAndLink.isPending}
-                      >
-                        <PlusCircle className="h-3 w-3" />
-                        Nytt
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+      <div className="space-y-4">
+        <div className="relative max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Søk på SKU, navn, merke..."
+            value={search}
+            onChange={(e) => onSearchChange(e.target.value)}
+            className="pl-9"
+          />
         </div>
-        <div className="border-t px-4 py-2 text-xs text-muted-foreground bg-muted/30">
-          {unlinked.length} ukoblede produkter
-        </div>
+
+        {unlinked.length === 0 && page === 0 ? (
+          <div className="text-center py-20 text-muted-foreground">
+            <p className="font-medium">Ingen ukoblede produkter</p>
+            <p className="text-sm mt-1">
+              {search ? "Prøv et annet søk" : "Alle leverandørprodukter er koblet til katalogen"}
+            </p>
+          </div>
+        ) : (
+          <div className="border rounded-lg overflow-hidden">
+            <div className="max-h-[calc(100vh-420px)] overflow-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Leverandør</TableHead>
+                    <TableHead>SKU</TableHead>
+                    <TableHead>Produktnavn</TableHead>
+                    <TableHead>Merke</TableHead>
+                    <TableHead>Kategori</TableHead>
+                    <TableHead>Sist sett</TableHead>
+                    <TableHead className="text-right">Handling</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {unlinked.map((item) => (
+                    <TableRow key={item.id}>
+                      <TableCell>
+                        <Badge variant="outline" className="text-[10px]">{item.supplier_name}</Badge>
+                      </TableCell>
+                      <TableCell className="font-mono text-xs">{item.supplier_sku}</TableCell>
+                      <TableCell className="text-sm max-w-[250px] truncate">
+                        {item.supplier_product_name || "—"}
+                      </TableCell>
+                      <TableCell className="text-sm">{item.raw_brand || "—"}</TableCell>
+                      <TableCell className="text-sm">{item.raw_category || "—"}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground">
+                        {item.last_seen_at
+                          ? formatDistanceToNow(new Date(item.last_seen_at), { addSuffix: true, locale: nb })
+                          : "—"}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 text-xs gap-1"
+                            onClick={() => {
+                              setLinkDialogItem(item);
+                              setCatalogSearch("");
+                            }}
+                          >
+                            <Link2 className="h-3 w-3" />
+                            Koble
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 text-xs gap-1"
+                            onClick={() => createAndLink.mutate(item)}
+                            disabled={createAndLink.isPending}
+                          >
+                            <PlusCircle className="h-3 w-3" />
+                            Nytt
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+            <div className="border-t px-4 py-2 flex items-center justify-between bg-muted/30">
+              <span className="text-xs text-muted-foreground">
+                {totalCount > 0
+                  ? `${from}–${to} av ${totalCount.toLocaleString("nb-NO")} ukoblede produkter`
+                  : "0 ukoblede produkter"}
+              </span>
+              {totalPages > 1 && (
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 w-7 p-0"
+                    disabled={page === 0}
+                    onClick={() => onPageChange(page - 1)}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <span className="text-xs text-muted-foreground px-2">
+                    Side {page + 1} av {totalPages}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 w-7 p-0"
+                    disabled={page >= totalPages - 1}
+                    onClick={() => onPageChange(page + 1)}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Link dialog */}
