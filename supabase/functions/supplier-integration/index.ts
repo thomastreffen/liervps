@@ -419,47 +419,58 @@ async function dispatchNextChunk(
   const processUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/supplier-integration`;
   const jobId = body.job_id as string;
   const globalChunk = body.global_chunk ?? "init";
+  const MAX_RETRIES = 3;
 
-  console.log(`[chain] job=${jobId} DISPATCH next: action=${body.action}, file_index=${body.file_index}, chunk_start=${body.chunk_start}, global_chunk=${globalChunk}`);
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    console.log(`[chain] job=${jobId} DISPATCH attempt=${attempt}/${MAX_RETRIES}: action=${body.action}, global_chunk=${globalChunk}`);
 
-  try {
-    // Fire the request — do NOT await the response.
-    // We only need the HTTP request to reach the Supabase gateway.
-    const fetchPromise = fetch(processUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
-      },
-      body: JSON.stringify(body),
-    });
-
-    // Consume response in background to avoid resource leaks, but don't block on it
-    fetchPromise
-      .then(resp => {
-        console.log(`[chain] job=${jobId} DISPATCH response (background): HTTP ${resp.status}`);
-        resp.body?.cancel().catch(() => {});
-      })
-      .catch(err => {
-        console.error(`[chain] job=${jobId} DISPATCH background error: ${(err as Error).message}`);
+    try {
+      const resp = await fetch(processUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+        },
+        body: JSON.stringify(body),
       });
 
-    // Give the request time to leave the network stack
-    await new Promise(resolve => setTimeout(resolve, 1000));
+      // Read body to avoid resource leaks
+      const respText = await resp.text().catch(() => "");
 
-    console.log(`[chain] job=${jobId} DISPATCH fired for global_chunk=${globalChunk}, action=${body.action}`);
-    return true;
-  } catch (err) {
-    console.error(`[chain] job=${jobId} DISPATCH FAILED (sync): ${(err as Error).message}`);
-    await updateImportJob(supabaseAdmin, jobId, {
-      status: "failed",
-      finished_at: new Date().toISOString(),
-      failed_step: `dispatch_batch_${globalChunk}`,
-      error_log: [`Chunk-dispatch feilet: ${(err as Error).message}`],
-      last_heartbeat_at: new Date().toISOString(),
-    });
-    return false;
+      if (resp.status >= 200 && resp.status < 500) {
+        console.log(`[chain] job=${jobId} DISPATCH OK (attempt ${attempt}): HTTP ${resp.status}`);
+        return true;
+      }
+
+      // 5xx = server error, retry
+      console.warn(`[chain] job=${jobId} DISPATCH HTTP ${resp.status} (attempt ${attempt}): ${respText.substring(0, 200)}`);
+
+      if (attempt < MAX_RETRIES) {
+        const backoff = attempt * 2000;
+        console.log(`[chain] job=${jobId} Retrying in ${backoff}ms...`);
+        await new Promise(resolve => setTimeout(resolve, backoff));
+      }
+    } catch (err) {
+      console.error(`[chain] job=${jobId} DISPATCH error (attempt ${attempt}): ${(err as Error).message}`);
+      if (attempt < MAX_RETRIES) {
+        const backoff = attempt * 2000;
+        await new Promise(resolve => setTimeout(resolve, backoff));
+      }
+    }
   }
+
+  // All retries failed
+  console.error(`[chain] job=${jobId} DISPATCH FAILED after ${MAX_RETRIES} attempts`);
+  await updateImportJob(supabaseAdmin, jobId, {
+    status: "failed",
+    finished_at: new Date().toISOString(),
+    failed_step: `dispatch_batch_${globalChunk}`,
+    last_error_batch: globalChunk,
+    last_error_message: `Dispatch feilet etter ${MAX_RETRIES} forsøk`,
+    error_log: [`Chunk-dispatch feilet etter ${MAX_RETRIES} forsøk for batch ${globalChunk}`],
+    last_heartbeat_at: new Date().toISOString(),
+  });
+  return false;
 }
 
 function countFileRows(content: string): number {
