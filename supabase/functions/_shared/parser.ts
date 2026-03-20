@@ -329,14 +329,15 @@ const BATCH_SIZE = 500;
  */
 async function batchUpsertSupplierProducts(
   sa: SupabaseAdmin, companyId: string, supplierId: string, rows: ParsedRow[],
-): Promise<{ map: Map<string, { id: string; isNew: boolean }>; unchanged: number; updated: number }> {
-  const map = new Map<string, { id: string; isNew: boolean }>();
+): Promise<{ map: Map<string, { id: string; isNew: boolean; existingProductId: string | null }>; unchanged: number; updated: number }> {
+  const map = new Map<string, { id: string; isNew: boolean; existingProductId: string | null }>();
   const skus = rows.map(r => r.supplier_sku!).filter(Boolean);
   if (skus.length === 0) return { map, unchanged: 0, updated: 0 };
 
-  // Fetch existing with ALL comparable fields in one query
+  // Fetch existing with ALL comparable fields + product_id for link check
   interface ExistingProduct {
-    id: string; supplier_sku: string; supplier_product_name: string | null;
+    id: string; supplier_sku: string; product_id: string | null;
+    supplier_product_name: string | null;
     supplier_product_description: string | null; raw_category: string | null;
     raw_brand: string | null; raw_unit: string | null;
   }
@@ -344,9 +345,23 @@ async function batchUpsertSupplierProducts(
   for (let i = 0; i < skus.length; i += 200) {
     const batch = skus.slice(i, i + 200);
     const { data } = await sa.from("supplier_products")
-      .select("id, supplier_sku, supplier_product_name, supplier_product_description, raw_category, raw_brand, raw_unit")
+      .select("id, supplier_sku, product_id, supplier_product_name, supplier_product_description, raw_category, raw_brand, raw_unit")
       .eq("company_id", companyId).eq("supplier_id", supplierId).in("supplier_sku", batch);
     for (const d of (data ?? []) as ExistingProduct[]) existingMap.set(d.supplier_sku, d);
+  }
+
+  // Log matching key info
+  console.log(`[upsert] Matching key: supplier_sku + supplier_id. ${skus.length} incoming SKUs, ${existingMap.size} matched in DB`);
+  let sampleCount = 0;
+  for (const row of rows) {
+    if (!row.supplier_sku || sampleCount >= 5) break;
+    const existing = existingMap.get(row.supplier_sku);
+    if (existing) {
+      console.log(`[match-sample] SKU="${row.supplier_sku}" el="${row.el_number}" → matched sp.id=${existing.id} sp.product_id=${existing.product_id}`);
+    } else {
+      console.log(`[match-sample] SKU="${row.supplier_sku}" el="${row.el_number}" → NO MATCH (will insert)`);
+    }
+    sampleCount++;
   }
 
   const now = new Date().toISOString();
@@ -371,7 +386,7 @@ async function batchUpsertSupplierProducts(
       } else {
         toTouchIds.push(existing.id);
       }
-      map.set(row.supplier_sku, { id: existing.id, isNew: false });
+      map.set(row.supplier_sku, { id: existing.id, isNew: false, existingProductId: existing.product_id });
     } else {
       toInsert.push({
         company_id: companyId, supplier_id: supplierId, supplier_sku: row.supplier_sku,
@@ -392,12 +407,12 @@ async function batchUpsertSupplierProducts(
         for (const item of batch) {
           try {
             const { data: single } = await sa.from("supplier_products").insert(item).select("id, supplier_sku").single();
-            if (single) map.set(single.supplier_sku, { id: single.id, isNew: true });
+            if (single) map.set(single.supplier_sku, { id: single.id, isNew: true, existingProductId: null });
           } catch {}
         }
         continue;
       }
-      for (const d of data ?? []) map.set(d.supplier_sku, { id: d.id, isNew: true });
+      for (const d of data ?? []) map.set(d.supplier_sku, { id: d.id, isNew: true, existingProductId: null });
     }
   }
 
