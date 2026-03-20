@@ -402,53 +402,58 @@ const SYNC_TEMP_BUCKET = "job-attachments";
 
 /**
  * Dispatch next chunk via self-invocation using service_role key.
- * CRITICAL: This is FIRE-AND-FORGET. We do NOT await the response.
- * The current worker sends the request and returns immediately,
- * freeing compute resources before the next chunk starts.
- *
- * If the fetch itself fails to send, we mark the job as failed
- * in the background via .catch().
+ * We AWAIT the fetch until the HTTP response status is received,
+ * ensuring the request is actually sent before the current worker exits.
+ * We do NOT await the response body — the next chunk runs independently.
  */
-function dispatchNextChunk(
+async function dispatchNextChunk(
   body: Record<string, unknown>,
   supabaseAdmin: ReturnType<typeof createClient>,
-): void {
+): Promise<boolean> {
   const processUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/supplier-integration`;
   const jobId = body.job_id as string;
   const globalChunk = body.global_chunk;
 
   console.log(`[chain] job=${jobId} DISPATCH next: action=${body.action}, file_index=${body.file_index}, chunk_start=${body.chunk_start}, global_chunk=${globalChunk}`);
 
-  // Fire-and-forget: do NOT await this promise.
-  // The fetch sends the request; we don't need or want the response.
-  fetch(processUrl, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
-    },
-    body: JSON.stringify(body),
-  }).then(resp => {
-    // We don't need to read the body — just log status for diagnostics
-    // Consume body to prevent resource leak in Deno
+  try {
+    const resp = await fetch(processUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+      },
+      body: JSON.stringify(body),
+    });
+
+    // Consume body to prevent resource leak, but don't wait for full processing
     resp.body?.cancel().catch(() => {});
+
     if (!resp.ok) {
-      console.error(`[chain] job=${jobId} DISPATCH response: HTTP ${resp.status} (non-blocking, job NOT marked failed here)`);
-    } else {
-      console.log(`[chain] job=${jobId} DISPATCH accepted: HTTP ${resp.status}`);
+      console.error(`[chain] job=${jobId} DISPATCH rejected: HTTP ${resp.status}`);
+      await updateImportJob(supabaseAdmin, jobId, {
+        status: "failed",
+        finished_at: new Date().toISOString(),
+        failed_step: `dispatch_batch_${globalChunk}`,
+        error_log: [`Chunk-dispatch feilet: HTTP ${resp.status}`],
+        last_heartbeat_at: new Date().toISOString(),
+      });
+      return false;
     }
-  }).catch(err => {
-    // Network-level failure to even send the request
+
+    console.log(`[chain] job=${jobId} DISPATCH accepted: HTTP ${resp.status}`);
+    return true;
+  } catch (err) {
     console.error(`[chain] job=${jobId} DISPATCH FAILED (network): ${(err as Error).message}`);
-    // Mark job as failed since the chain is truly broken
-    updateImportJob(supabaseAdmin, jobId, {
+    await updateImportJob(supabaseAdmin, jobId, {
       status: "failed",
       finished_at: new Date().toISOString(),
       failed_step: `dispatch_batch_${globalChunk}`,
       error_log: [`Chunk-dispatch feilet (nettverksfeil): ${(err as Error).message}`],
       last_heartbeat_at: new Date().toISOString(),
-    }).catch(() => {});
-  });
+    });
+    return false;
+  }
 }
 
 function countFileRows(content: string): number {
