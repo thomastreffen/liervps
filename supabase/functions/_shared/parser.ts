@@ -859,12 +859,14 @@ async function batchAutoCreateCatalogProducts(
 /**
  * Batch insert supplier_prices.
  * OPTIMIZED: Only inserts if price data actually differs from latest existing price.
- * GUARDRAIL: Never inserts dummy/fallback prices.
+ * GUARDRAIL: Never inserts dummy/fallback prices. Records price history on changes.
+ * GUARDRAIL: If incoming feed has no price for a product that had a valid price, preserve old price and flag.
  */
 async function batchInsertPrices(
   sa: SupabaseAdmin, companyId: string, supplierId: string,
   priceRows: Array<{ supplierProductId: string; row: ParsedRow; fileName: string }>,
-): Promise<{ inserted: number; skippedDuplicate: number; skippedNoPrice: number }> {
+  importJobId?: string,
+): Promise<{ inserted: number; skippedDuplicate: number; skippedNoPrice: number; pricesPreserved: number }> {
   const now = new Date().toISOString();
   const withPrice = priceRows.filter(p => {
     const hasListPrice = p.row.list_price !== null && p.row.list_price > 0;
@@ -873,15 +875,16 @@ async function batchInsertPrices(
   });
   const skippedNoPrice = priceRows.length - withPrice.length;
 
-  if (withPrice.length === 0) return { inserted: 0, skippedDuplicate: 0, skippedNoPrice };
+  // Gather all supplier_product_ids that appear in feed (with or without price)
+  const allSpIds = [...new Set(priceRows.map(p => p.supplierProductId))];
 
-  const spIds = [...new Set(withPrice.map(p => p.supplierProductId))];
-  interface ExistingPrice { supplier_product_id: string; list_price: number | null; discount_percent: number | null; net_price: number | null }
+  // Fetch latest existing prices for ALL products in feed (including those without new price)
+  interface ExistingPrice { supplier_product_id: string; list_price: number | null; discount_percent: number | null; net_price: number | null; price_source: string | null }
   const latestPriceMap = new Map<string, ExistingPrice>();
-  for (let i = 0; i < spIds.length; i += 200) {
-    const batch = spIds.slice(i, i + 200);
+  for (let i = 0; i < allSpIds.length; i += 200) {
+    const batch = allSpIds.slice(i, i + 200);
     const { data } = await sa.from("supplier_prices")
-      .select("supplier_product_id, list_price, discount_percent, net_price")
+      .select("supplier_product_id, list_price, discount_percent, net_price, price_source")
       .eq("company_id", companyId).eq("supplier_id", supplierId)
       .in("supplier_product_id", batch)
       .order("imported_at", { ascending: false });
@@ -892,8 +895,30 @@ async function batchInsertPrices(
     }
   }
 
+  // GUARDRAIL: Products in feed WITHOUT price that HAD a valid price → preserve
+  let pricesPreserved = 0;
+  const noPriceSpIds = new Set(priceRows.filter(p => {
+    const hasListPrice = p.row.list_price !== null && p.row.list_price > 0;
+    const hasNetPrice = p.row.net_price !== null && p.row.net_price > 0;
+    return !hasListPrice && !hasNetPrice;
+  }).map(p => p.supplierProductId));
+
+  for (const spId of noPriceSpIds) {
+    const existing = latestPriceMap.get(spId);
+    if (existing && ((existing.list_price && existing.list_price > 0) || (existing.net_price && existing.net_price > 0))) {
+      pricesPreserved++;
+    }
+  }
+  if (pricesPreserved > 0) {
+    console.warn(`[prices] ⚠️ GUARDRAIL: ${pricesPreserved} products in feed had no price but had existing valid price → old price preserved (not overwritten)`);
+  }
+
+  if (withPrice.length === 0) return { inserted: 0, skippedDuplicate: 0, skippedNoPrice, pricesPreserved };
+
   const payloads: any[] = [];
+  const historyPayloads: any[] = [];
   let skippedDuplicate = 0;
+
   for (const p of withPrice) {
     const existing = latestPriceMap.get(p.supplierProductId);
     if (existing) {
@@ -904,24 +929,64 @@ async function batchInsertPrices(
         skippedDuplicate++;
         continue;
       }
+
+      // Price changed → record history
+      const effectiveOld = (existing.net_price ?? existing.list_price) ?? 0;
+      const effectiveNew = (p.row.net_price ?? p.row.list_price) ?? 0;
+      const changeType = effectiveOld === 0 ? "new" : effectiveNew > effectiveOld ? "increase" : effectiveNew < effectiveOld ? "decrease" : "new";
+      historyPayloads.push({
+        company_id: companyId, supplier_id: supplierId, supplier_product_id: p.supplierProductId,
+        change_type: changeType,
+        old_list_price: existing.list_price, new_list_price: p.row.list_price,
+        old_net_price: existing.net_price, new_net_price: p.row.net_price,
+        old_discount_percent: existing.discount_percent, new_discount_percent: p.row.discount_percent,
+        price_source: p.row.price_source, source_file_name: p.fileName,
+        import_job_id: importJobId ?? null,
+      });
+    } else {
+      // New price → record as 'new' in history
+      historyPayloads.push({
+        company_id: companyId, supplier_id: supplierId, supplier_product_id: p.supplierProductId,
+        change_type: "new",
+        old_list_price: null, new_list_price: p.row.list_price,
+        old_net_price: null, new_net_price: p.row.net_price,
+        old_discount_percent: null, new_discount_percent: p.row.discount_percent,
+        price_source: p.row.price_source, source_file_name: p.fileName,
+        import_job_id: importJobId ?? null,
+      });
     }
+
     payloads.push({
       company_id: companyId, supplier_id: supplierId, supplier_product_id: p.supplierProductId,
       list_price: p.row.list_price,
       discount_percent: p.row.discount_percent,
       net_price: p.row.net_price, currency: "NOK", source_file_name: p.fileName,
-      imported_at: now,
+      imported_at: now, price_source: p.row.price_source,
     });
   }
 
+  // Insert prices
   for (let i = 0; i < payloads.length; i += BATCH_SIZE) {
     const batch = payloads.slice(i, i + BATCH_SIZE);
     const { error } = await sa.from("supplier_prices").insert(batch);
     if (error) console.error(`[batch] Insert prices error: ${error.message}`);
   }
 
-  console.log(`[prices] ${payloads.length} inserted, ${skippedDuplicate} unchanged, ${skippedNoPrice} no price`);
-  return { inserted: payloads.length, skippedDuplicate, skippedNoPrice };
+  // Insert price history
+  if (historyPayloads.length > 0) {
+    for (let i = 0; i < historyPayloads.length; i += BATCH_SIZE) {
+      const batch = historyPayloads.slice(i, i + BATCH_SIZE);
+      const { error } = await sa.from("supplier_price_history").insert(batch);
+      if (error) console.error(`[batch] Insert price_history error: ${error.message}`);
+    }
+    const increases = historyPayloads.filter(h => h.change_type === "increase").length;
+    const decreases = historyPayloads.filter(h => h.change_type === "decrease").length;
+    const newPrices = historyPayloads.filter(h => h.change_type === "new").length;
+    console.log(`[prices] History: ${newPrices} new, ${increases} increases, ${decreases} decreases`);
+  }
+
+  console.log(`[prices] ${payloads.length} inserted, ${skippedDuplicate} unchanged, ${skippedNoPrice} no price, ${pricesPreserved} preserved`);
+  return { inserted: payloads.length, skippedDuplicate, skippedNoPrice, pricesPreserved };
 }
 
 /**
