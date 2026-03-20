@@ -662,7 +662,7 @@ async function handleProcessSyncChunk(supabaseAdmin: ReturnType<typeof createCli
   let fileIndex = body.file_index as number;
   let chunkStart = body.chunk_start as number;
   const storageFiles = body.storage_files as SyncFileInfo[];
-  const cumStats = body.cum_stats as { rows_processed: number; rows_inserted: number; rows_updated: number; rows_failed: number; rows_skipped: number; rows_needs_review: number; errors: string[] };
+  const cumStats = body.cum_stats as { rows_processed: number; rows_inserted: number; rows_updated: number; rows_failed: number; rows_skipped: number; rows_needs_review: number; errors: string[]; prices_inserted: number; prices_unchanged: number; prices_no_price: number; prices_preserved: number };
   let globalChunk = body.global_chunk as number;
   const totalGlobalChunks = body.total_global_chunks as number;
 
