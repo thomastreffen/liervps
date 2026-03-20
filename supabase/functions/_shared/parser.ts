@@ -606,6 +606,7 @@ interface ParsedRow {
   product_name: string | null; description: string | null; brand: string | null;
   unit: string | null; category: string | null; list_price: number | null;
   discount_percent: number | null; net_price: number | null;
+  price_source: string | null;
 }
 
 function parseRow(fields: string[], columns: ResolvedColumns): ParsedRow {
