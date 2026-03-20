@@ -197,11 +197,21 @@ export function useSupplierActions(supplierId: string | undefined) {
       stopPolling();
       setRunningSyncType(syncType);
       try {
-        const result = await invokeAction<{ job_id: string }>("run-sync", {
+        const result = await invokeAction<{ job_id: string; job_status?: string; progress_percent?: number }>("run-sync", {
           company_id: activeCompanyId,
           supplier_id: supplierId,
           sync_type: syncType,
         });
+
+        if (result.status === "already_running") {
+          const pct = result.data?.progress_percent ?? 0;
+          toast.warning(`Sync kjører allerede (${pct}% ferdig)`, {
+            description: "Vent til pågående jobb er ferdig før du starter en ny.",
+          });
+          setRunningSyncType(null);
+          invalidateQueries();
+          return;
+        }
 
         if (result.status !== "started" || !result.data?.job_id) {
           toast.error(result.message || "Kunne ikke starte synk");

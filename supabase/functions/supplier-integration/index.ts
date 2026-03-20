@@ -897,6 +897,48 @@ async function handleRunSync(supabaseAdmin: ReturnType<typeof createClient>, com
   const userId = body.user_id as string;
   if (!["full_sync", "catalog_sync", "price_sync", "discount_sync"].includes(syncType)) return jsonError(`Ugyldig sync_type: ${syncType}`, "invalid_sync_type");
 
+  // ── Guard: prevent parallel sync jobs for same company + supplier ──
+  const { data: activeJobs } = await supabaseAdmin
+    .from("product_import_jobs")
+    .select("id, status, progress_percent, current_chunk, total_chunks, last_heartbeat_at, created_at")
+    .eq("company_id", companyId)
+    .eq("supplier_id", supplierId)
+    .in("status", ["queued", "running", "finalizing"])
+    .order("created_at", { ascending: false })
+    .limit(1);
+
+  if (activeJobs && activeJobs.length > 0) {
+    const existing = activeJobs[0];
+    // Check if the job is truly stale (no heartbeat for 10+ minutes)
+    const heartbeat = existing.last_heartbeat_at ? new Date(existing.last_heartbeat_at).getTime() : new Date(existing.created_at).getTime();
+    const staleMs = 10 * 60 * 1000; // 10 minutes
+    const isStale = Date.now() - heartbeat > staleMs;
+
+    if (!isStale) {
+      console.log(`[run-sync] BLOCKED: active job ${existing.id} (status=${existing.status}) already running for company=${companyId} supplier=${supplierId}`);
+      return jsonOk({
+        status: "already_running",
+        message: "En synkronisering kjører allerede for denne leverandøren",
+        data: {
+          job_id: existing.id,
+          job_status: existing.status,
+          progress_percent: existing.progress_percent,
+          current_chunk: existing.current_chunk,
+          total_chunks: existing.total_chunks,
+        },
+      });
+    } else {
+      // Mark stale job as failed so a new one can start
+      console.log(`[run-sync] Marking stale job ${existing.id} as failed (last heartbeat ${Math.round((Date.now() - heartbeat) / 1000)}s ago)`);
+      await supabaseAdmin.from("product_import_jobs").update({
+        status: "failed",
+        error_message: "Automatisk avsluttet: ingen aktivitet på over 10 minutter",
+        failed_step: "stale_guard",
+      }).eq("id", existing.id);
+    }
+  }
+  // ── End guard ──
+
   let config: IntegrationConfig;
   try { config = await loadIntegrationConfig(supabaseAdmin, companyId, supplierId); } catch (e) { return jsonError((e as Error).message, "config_error"); }
 
