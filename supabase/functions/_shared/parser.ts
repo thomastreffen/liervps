@@ -1259,6 +1259,7 @@ export async function parseFile(params: {
       product_name: ep.product_name, description: ep.description, brand: ep.brand,
       unit: ep.unit, category: ep.category, list_price: ep.list_price,
       discount_percent: ep.discount_percent, net_price: ep.net_price,
+      price_source: ep.price_source,
     }));
   } else {
     const delimiter = detectDelimiter(rawLines);
