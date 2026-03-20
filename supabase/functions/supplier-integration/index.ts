@@ -401,10 +401,15 @@ async function updateImportJob(supabaseAdmin: ReturnType<typeof createClient>, j
 const SYNC_TEMP_BUCKET = "job-attachments";
 
 /**
- * Dispatch next chunk via self-invocation using service_role key.
- * We AWAIT the fetch until the HTTP response status is received,
- * ensuring the request is actually sent before the current worker exits.
- * We do NOT await the response body — the next chunk runs independently.
+ * Dispatch next step via self-invocation using service_role key.
+ *
+ * CRITICAL: We do NOT await the HTTP response from the target function.
+ * The target function may run for 60-90+ seconds (e.g. downloading files),
+ * which causes the Supabase gateway to return HTTP 504.
+ * Instead we fire the request and wait just long enough for it to leave
+ * the network stack (~1 s), then return immediately.
+ *
+ * The target function runs independently in its own worker.
  */
 async function dispatchNextChunk(
   body: Record<string, unknown>,
@@ -412,12 +417,14 @@ async function dispatchNextChunk(
 ): Promise<boolean> {
   const processUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/supplier-integration`;
   const jobId = body.job_id as string;
-  const globalChunk = body.global_chunk;
+  const globalChunk = body.global_chunk ?? "init";
 
   console.log(`[chain] job=${jobId} DISPATCH next: action=${body.action}, file_index=${body.file_index}, chunk_start=${body.chunk_start}, global_chunk=${globalChunk}`);
 
   try {
-    const resp = await fetch(processUrl, {
+    // Fire the request — do NOT await the response.
+    // We only need the HTTP request to reach the Supabase gateway.
+    const fetchPromise = fetch(processUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -426,30 +433,28 @@ async function dispatchNextChunk(
       body: JSON.stringify(body),
     });
 
-    // Consume body to prevent resource leak, but don't wait for full processing
-    resp.body?.cancel().catch(() => {});
-
-    if (!resp.ok) {
-      console.error(`[chain] job=${jobId} DISPATCH rejected: HTTP ${resp.status}`);
-      await updateImportJob(supabaseAdmin, jobId, {
-        status: "failed",
-        finished_at: new Date().toISOString(),
-        failed_step: `dispatch_batch_${globalChunk}`,
-        error_log: [`Chunk-dispatch feilet: HTTP ${resp.status}`],
-        last_heartbeat_at: new Date().toISOString(),
+    // Consume response in background to avoid resource leaks, but don't block on it
+    fetchPromise
+      .then(resp => {
+        console.log(`[chain] job=${jobId} DISPATCH response (background): HTTP ${resp.status}`);
+        resp.body?.cancel().catch(() => {});
+      })
+      .catch(err => {
+        console.error(`[chain] job=${jobId} DISPATCH background error: ${(err as Error).message}`);
       });
-      return false;
-    }
 
-    console.log(`[chain] job=${jobId} DISPATCH accepted: HTTP ${resp.status}`);
+    // Give the request time to leave the network stack
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    console.log(`[chain] job=${jobId} DISPATCH fired for global_chunk=${globalChunk}, action=${body.action}`);
     return true;
   } catch (err) {
-    console.error(`[chain] job=${jobId} DISPATCH FAILED (network): ${(err as Error).message}`);
+    console.error(`[chain] job=${jobId} DISPATCH FAILED (sync): ${(err as Error).message}`);
     await updateImportJob(supabaseAdmin, jobId, {
       status: "failed",
       finished_at: new Date().toISOString(),
       failed_step: `dispatch_batch_${globalChunk}`,
-      error_log: [`Chunk-dispatch feilet (nettverksfeil): ${(err as Error).message}`],
+      error_log: [`Chunk-dispatch feilet: ${(err as Error).message}`],
       last_heartbeat_at: new Date().toISOString(),
     });
     return false;
