@@ -834,7 +834,7 @@ async function handleProcessSyncChunk(supabaseAdmin: ReturnType<typeof createCli
     }
 
     const progressPercent = totalGlobalChunks > 0 ? Math.round((globalChunk / totalGlobalChunks) * 100) : 0;
-    const invocationDuration = ((Date.now() - invocationStartTime) / 1000).toFixed(1);
+    const batchDuration = ((Date.now() - batchStartTime) / 1000).toFixed(1);
 
     await updateImportJob(supabaseAdmin, jobId, {
       current_chunk: globalChunk,
@@ -844,13 +844,12 @@ async function handleProcessSyncChunk(supabaseAdmin: ReturnType<typeof createCli
       rows_updated: cumStats.rows_updated,
       rows_failed: cumStats.rows_failed,
       last_heartbeat_at: new Date().toISOString(),
+      last_successful_batch: globalChunk,
     });
 
-    console.log(`[chain] job=${jobId} INVOCATION_COMPLETED: batches ${globalChunk - chunksProcessedThisInvocation + 1}-${globalChunk}/${totalGlobalChunks} (${progressPercent}%) in ${invocationDuration}s, ins=${cumStats.rows_inserted} upd=${cumStats.rows_updated}`);
+    console.log(`[chain] job=${jobId} BATCH_COMPLETED: ${globalChunk}/${totalGlobalChunks} (${progressPercent}%) in ${batchDuration}s, ins=${cumStats.rows_inserted} upd=${cumStats.rows_updated}`);
 
     // Chain next invocation
-    console.log(`[chain] job=${jobId} END invocation (processed ${chunksProcessedThisInvocation} chunks)`);
-
     const dispatched = await dispatchNextChunk({
       action: "process-sync-chunk",
       job_id: jobId,
@@ -871,11 +870,15 @@ async function handleProcessSyncChunk(supabaseAdmin: ReturnType<typeof createCli
     return jsonOk({ status: "processing", global_chunk: globalChunk, progress_percent: progressPercent });
   } catch (err) {
     const batchLabel = `batch_${globalChunk + 1}`;
-    console.error(`[chain] job=${jobId} ${batchLabel} FAILED: ${(err as Error).message}`);
+    const batchDuration = ((Date.now() - batchStartTime) / 1000).toFixed(1);
+    const errorMsg = (err as Error).message;
+    console.error(`[chain] job=${jobId} ${batchLabel} FAILED after ${batchDuration}s: ${errorMsg}`);
     await updateImportJob(supabaseAdmin, jobId, {
       status: "failed", finished_at: new Date().toISOString(),
-      error_log: [...cumStats.errors, (err as Error).message].slice(0, 100),
+      error_log: [...cumStats.errors, errorMsg].slice(0, 100),
       failed_step: batchLabel,
+      last_error_batch: globalChunk + 1,
+      last_error_message: errorMsg.substring(0, 500),
       rows_processed: cumStats.rows_processed, rows_inserted: cumStats.rows_inserted,
       rows_updated: cumStats.rows_updated, rows_failed: cumStats.rows_failed,
       last_heartbeat_at: new Date().toISOString(),
