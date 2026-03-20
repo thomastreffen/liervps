@@ -2,7 +2,7 @@
  * Parser framework and import services for supplier product imports.
  * Supports: CSV/delimited files AND EFONELFO (Norwegian standard) format.
  * 
- * OPTIMIZED: Uses batch DB operations to avoid memory exhaustion on large files.
+ * OPTIMIZED: Uses batch DB operations, skips no-op updates, minimal audit trail.
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
@@ -63,19 +63,19 @@ function cleanString(raw: string | undefined | null): string | null {
 
 // ===== Encoding helper =====
 
-/**
- * Decode raw bytes to string, trying UTF-8 first, then latin1 (windows-1252).
- * This is the SINGLE decode function used throughout the pipeline.
- */
 export function decodeRawBytes(raw: Uint8Array): string {
-  // Try UTF-8 first
   let text = new TextDecoder("utf-8").decode(raw);
-  // If replacement character is present, UTF-8 failed → use latin1
   if (text.includes("\ufffd")) {
     text = new TextDecoder("latin1").decode(raw);
     console.log(`[decode] Fell back to latin1 encoding (UTF-8 had replacement chars)`);
   }
   return text;
+}
+
+// ===== Timing helper =====
+function timer() {
+  const start = Date.now();
+  return () => Date.now() - start;
 }
 
 // ===== EFONELFO Format Detection & Parsing =====
@@ -106,29 +106,12 @@ interface EfonelfoProduct {
   net_price: number | null;
 }
 
-/**
- * EFONELFO 4.0 VL field mapping (verified from Solar Norge raw data):
- * [0]=VL [1]=LineSeq [2]=SupplierSKU [3]=ProductName [4]=ElNumber
- * [5]=Qty [6]=UnitCode [7]=UnitDesc [8]=ProductGroup [9]=ListPrice(øre)
- * [10]=PriceDate [11]=PriceUnit [12]=? [13]=? [14]=Brand
- * 
- * PL (price lines):
- * [0]=PL [1]=LineSeq [2]=SupplierSKU [3]=ListPrice(øre) [4]=NetPrice(øre)
- * [5]=DiscountPercent [6]=PriceDate [7]=PriceUnit
- * 
- * RL (discount/rebate lines):
- * [0]=RL [1]=SupplierSKU [2]=DiscountPercent [3]=NetPrice(øre)
- * 
- * IMPORTANT: Prices in EFONELFO are in ØRE (1/100 NOK).
- * To convert: NOK = øre / 100
- */
 function parseEfonelfoFile(lines: string[]): EfonelfoProduct[] {
   const products = new Map<string, EfonelfoProduct>();
   let vlCount = 0;
   let plCount = 0;
   let rlCount = 0;
 
-  // First pass: Parse all VL lines (product data + list price)
   for (const line of lines) {
     const fields = line.split(";").map(f => f.trim());
     const recordType = fields[0]?.toUpperCase();
@@ -138,7 +121,6 @@ function parseEfonelfoFile(lines: string[]): EfonelfoProduct[] {
       const sku = cleanString(fields[2]);
       if (!sku || products.has(sku)) continue;
 
-      // Price in øre → NOK: divide by 100
       const rawPriceField = fields[9];
       const priceOre = parseNumber(rawPriceField);
       const listPrice = priceOre !== null && priceOre > 0 ? priceOre / 100 : null;
@@ -163,7 +145,6 @@ function parseEfonelfoFile(lines: string[]): EfonelfoProduct[] {
     }
   }
 
-  // Second pass: Apply PL (price) and RL (discount/rebate) lines
   for (const line of lines) {
     const fields = line.split(";").map(f => f.trim());
     const recordType = fields[0]?.toUpperCase();
@@ -174,7 +155,6 @@ function parseEfonelfoFile(lines: string[]): EfonelfoProduct[] {
       if (!sku) continue;
       const existing = products.get(sku);
       if (existing) {
-        // PL fields: [3]=ListPrice(øre), [4]=NetPrice(øre), [5]=DiscountPercent
         const plListOre = parseNumber(fields[3]);
         const plNetOre = parseNumber(fields[4]);
         const plDiscount = parseNumber(fields[5]);
@@ -189,7 +169,6 @@ function parseEfonelfoFile(lines: string[]): EfonelfoProduct[] {
       }
     } else if (recordType === "RL") {
       rlCount++;
-      // RL: [1]=SupplierSKU [2]=DiscountPercent [3]=NetPrice(øre)
       const sku = cleanString(fields[1]);
       if (!sku) continue;
       const existing = products.get(sku);
@@ -209,7 +188,6 @@ function parseEfonelfoFile(lines: string[]): EfonelfoProduct[] {
 
   console.log(`[EFONELFO] Totals: VL=${vlCount}, PL=${plCount}, RL=${rlCount}, unique products=${products.size}`);
 
-  // Calculate net_price from list_price + discount where missing
   let calcCount = 0;
   for (const p of products.values()) {
     if (p.net_price == null && p.list_price != null && p.discount_percent != null && p.discount_percent > 0) {
@@ -219,7 +197,6 @@ function parseEfonelfoFile(lines: string[]): EfonelfoProduct[] {
   }
   if (calcCount > 0) console.log(`[EFONELFO] Calculated net_price for ${calcCount} products from list_price + discount`);
 
-  // Log price quality summary
   let withListPrice = 0, withNetPrice = 0, withDiscount = 0, noPrice = 0;
   for (const p of products.values()) {
     if (p.list_price !== null) withListPrice++;
@@ -229,7 +206,6 @@ function parseEfonelfoFile(lines: string[]): EfonelfoProduct[] {
   }
   console.log(`[EFONELFO] Price quality: list=${withListPrice}, net=${withNetPrice}, disc=${withDiscount}, no_price=${noPrice} of ${products.size}`);
 
-  // Log sample of parsed prices for verification
   let sampleCount = 0;
   for (const p of products.values()) {
     if (sampleCount >= 5) break;
@@ -344,12 +320,12 @@ function parseRow(fields: string[], columns: ResolvedColumns): ParsedRow {
 }
 
 // ===== BATCH Import Services =====
-// Process rows in chunks to stay within edge function memory limits.
 
 const BATCH_SIZE = 500;
 
 /**
- * Batch upsert supplier_products. Returns map of supplier_sku → { id, isNew }.
+ * Batch upsert supplier_products.
+ * OPTIMIZED: Only updates rows where data actually changed.
  */
 async function batchUpsertSupplierProducts(
   sa: SupabaseAdmin, companyId: string, supplierId: string, rows: ParsedRow[],
@@ -358,25 +334,32 @@ async function batchUpsertSupplierProducts(
   const skus = rows.map(r => r.supplier_sku!).filter(Boolean);
   if (skus.length === 0) return result;
 
-  // Fetch existing in one query (batched if >200 skus)
-  const existingMap = new Map<string, string>();
+  // Fetch existing in one query
+  const existingMap = new Map<string, { id: string; name: string | null }>();
   for (let i = 0; i < skus.length; i += 200) {
     const batch = skus.slice(i, i + 200);
-    const { data } = await sa.from("supplier_products").select("id, supplier_sku")
+    const { data } = await sa.from("supplier_products").select("id, supplier_sku, supplier_product_name")
       .eq("company_id", companyId).eq("supplier_id", supplierId).in("supplier_sku", batch);
-    for (const d of data ?? []) existingMap.set(d.supplier_sku, d.id);
+    for (const d of data ?? []) existingMap.set(d.supplier_sku, { id: d.id, name: d.supplier_product_name });
   }
 
   const now = new Date().toISOString();
   const toInsert: any[] = [];
-  const toUpdate: { id: string; row: ParsedRow }[] = [];
+  const toTouchIds: string[] = []; // existing rows with no data change — just touch last_seen_at
+  const toUpdateFull: { id: string; row: ParsedRow }[] = []; // existing rows with changed data
 
   for (const row of rows) {
     if (!row.supplier_sku) continue;
-    const existingId = existingMap.get(row.supplier_sku);
-    if (existingId) {
-      toUpdate.push({ id: existingId, row });
-      result.set(row.supplier_sku, { id: existingId, isNew: false });
+    const existing = existingMap.get(row.supplier_sku);
+    if (existing) {
+      // Only do a full update if product_name actually changed
+      const nameChanged = row.product_name !== null && row.product_name !== existing.name;
+      if (nameChanged) {
+        toUpdateFull.push({ id: existing.id, row });
+      } else {
+        toTouchIds.push(existing.id);
+      }
+      result.set(row.supplier_sku, { id: existing.id, isNew: false });
     } else {
       toInsert.push({
         company_id: companyId, supplier_id: supplierId, supplier_sku: row.supplier_sku,
@@ -406,12 +389,23 @@ async function batchUpsertSupplierProducts(
     }
   }
 
-  // Batch update existing (just touch last_seen_at, lighter than per-row)
-  if (toUpdate.length > 0) {
-    const updateIds = toUpdate.map(u => u.id);
-    for (let i = 0; i < updateIds.length; i += 200) {
-      const batch = updateIds.slice(i, i + 200);
-      await sa.from("supplier_products").update({ last_seen_at: now, updated_at: now }).in("id", batch);
+  // Batch touch last_seen_at for unchanged rows (lightweight)
+  if (toTouchIds.length > 0) {
+    for (let i = 0; i < toTouchIds.length; i += 500) {
+      const batch = toTouchIds.slice(i, i + 500);
+      await sa.from("supplier_products").update({ last_seen_at: now }).in("id", batch);
+    }
+  }
+
+  // Full update for changed rows
+  if (toUpdateFull.length > 0) {
+    for (const u of toUpdateFull) {
+      await sa.from("supplier_products").update({
+        supplier_product_name: u.row.product_name,
+        supplier_product_description: u.row.description,
+        raw_category: u.row.category, raw_brand: u.row.brand, raw_unit: u.row.unit,
+        last_seen_at: now, updated_at: now,
+      }).eq("id", u.id);
     }
   }
 
@@ -420,7 +414,6 @@ async function batchUpsertSupplierProducts(
 
 /**
  * Batch match catalog products by el_number and EAN.
- * Returns map of supplier_sku → catalog_product_id.
  */
 async function batchMatchCatalogProducts(
   sa: SupabaseAdmin, companyId: string, rows: ParsedRow[],
@@ -432,8 +425,9 @@ async function batchMatchCatalogProducts(
   
   const elMap = new Map<string, string>();
   if (elNumbers.length > 0) {
-    for (let i = 0; i < elNumbers.length; i += 200) {
-      const batch = [...new Set(elNumbers.slice(i, i + 200))];
+    const unique = [...new Set(elNumbers)];
+    for (let i = 0; i < unique.length; i += 200) {
+      const batch = unique.slice(i, i + 200);
       const { data } = await sa.from("supplier_catalog_products").select("id, el_number")
         .eq("company_id", companyId).in("el_number", batch);
       for (const d of data ?? []) if (d.el_number) elMap.set(d.el_number, d.id);
@@ -442,8 +436,9 @@ async function batchMatchCatalogProducts(
   
   const eanMap = new Map<string, string>();
   if (eans.length > 0) {
-    for (let i = 0; i < eans.length; i += 200) {
-      const batch = [...new Set(eans.slice(i, i + 200))];
+    const unique = [...new Set(eans)];
+    for (let i = 0; i < unique.length; i += 200) {
+      const batch = unique.slice(i, i + 200);
       const { data } = await sa.from("supplier_catalog_products").select("id, ean")
         .eq("company_id", companyId).in("ean", batch);
       for (const d of data ?? []) if (d.ean) eanMap.set(d.ean, d.id);
@@ -524,7 +519,7 @@ async function batchAutoCreateCatalogProducts(
 
 /**
  * Batch insert supplier_prices.
- * IMPORTANT: Only insert rows that have a valid price (not null/zero fallbacks).
+ * Only inserts rows with valid prices.
  */
 async function batchInsertPrices(
   sa: SupabaseAdmin, companyId: string, supplierId: string,
@@ -533,14 +528,13 @@ async function batchInsertPrices(
   const now = new Date().toISOString();
   const payloads = priceRows
     .filter(p => {
-      // Only insert if we have a real price – never insert dummy/fallback
       const hasListPrice = p.row.list_price !== null && p.row.list_price > 0;
       const hasNetPrice = p.row.net_price !== null && p.row.net_price > 0;
       return hasListPrice || hasNetPrice;
     })
     .map(p => ({
       company_id: companyId, supplier_id: supplierId, supplier_product_id: p.supplierProductId,
-      list_price: p.row.list_price, // null if unknown – NOT defaulting to 0
+      list_price: p.row.list_price,
       discount_percent: p.row.discount_percent,
       net_price: p.row.net_price, currency: "NOK", source_file_name: p.fileName,
       imported_at: now,
@@ -558,13 +552,18 @@ async function batchInsertPrices(
 }
 
 /**
- * Batch insert import rows for audit trail.
+ * Batch insert import rows — ONLY for errors and needs_review.
+ * Successful rows are NOT logged individually to save write throughput.
  */
 async function batchInsertImportRows(
   sa: SupabaseAdmin, companyId: string, importJobId: string, fileType: string,
   rows: Array<{ rowNumber: number; parseStatus: string; errorMessage: string | null; linkedProductId: string | null; linkedSupplierProductId: string | null }>,
 ): Promise<void> {
-  const payloads = rows.map(r => ({
+  // Only log errors and needs_review — skip "parsed" (success) and "skipped" (no sku)
+  const errorRows = rows.filter(r => r.parseStatus === "needs_review" || r.parseStatus === "error");
+  if (errorRows.length === 0) return;
+
+  const payloads = errorRows.map(r => ({
     company_id: companyId, import_job_id: importJobId, row_number: r.rowNumber,
     row_type: fileType, raw_data: {}, parse_status: r.parseStatus,
     error_message: r.errorMessage, linked_product_id: r.linkedProductId,
@@ -696,6 +695,8 @@ async function processChunk(params: {
 
   if (validRows.length === 0) return stats;
 
+  // Phase 1: Upsert supplier_products
+  const t1 = timer();
   let spMap: Map<string, { id: string; isNew: boolean }>;
   try {
     spMap = await batchUpsertSupplierProducts(sa, companyId, supplierId, validRows);
@@ -704,18 +705,26 @@ async function processChunk(params: {
     stats.errors.push(`Batch upsert failed: ${(e as Error).message}`);
     return stats;
   }
+  const t1ms = t1();
 
   for (const [, v] of spMap) {
     if (v.isNew) stats.rows_inserted++; else stats.rows_updated++;
   }
 
+  // Phase 2: Match catalog products
+  const t2 = timer();
   const matchMap = await batchMatchCatalogProducts(sa, companyId, validRows);
+  const t2ms = t2();
 
+  // Phase 3: Auto-create catalog products
+  const t3 = timer();
   const unmatchedRows = validRows.filter(r => r.supplier_sku && !matchMap.has(r.supplier_sku));
   const autoCreatedMap = await batchAutoCreateCatalogProducts(sa, companyId, unmatchedRows);
-
   for (const [sku, id] of autoCreatedMap) matchMap.set(sku, id);
+  const t3ms = t3();
 
+  // Phase 4: Link products
+  const t4 = timer();
   const links: Array<{ supplierProductId: string; catalogProductId: string }> = [];
   for (const row of validRows) {
     if (!row.supplier_sku) continue;
@@ -729,12 +738,18 @@ async function processChunk(params: {
     }
   }
   if (links.length > 0) await batchLinkProducts(sa, links);
+  const t4ms = t4();
 
+  // Phase 5: Insert prices
+  const t5 = timer();
   const priceRows = validRows
     .filter(r => r.supplier_sku && spMap.has(r.supplier_sku))
     .map(r => ({ supplierProductId: spMap.get(r.supplier_sku!)!.id, row: r, fileName }));
   await batchInsertPrices(sa, companyId, supplierId, priceRows);
+  const t5ms = t5();
 
+  // Phase 6: Import rows audit (only errors/needs_review)
+  const t6 = timer();
   const importRowEntries = rows.map((row, idx) => {
     const sku = row.supplier_sku;
     const spEntry = sku ? spMap.get(sku) : undefined;
@@ -748,6 +763,9 @@ async function processChunk(params: {
     };
   });
   await batchInsertImportRows(sa, companyId, importJobId, fileType, importRowEntries);
+  const t6ms = t6();
+
+  console.log(`[timing] upsert=${t1ms}ms match=${t2ms}ms autocreate=${t3ms}ms link=${t4ms}ms prices=${t5ms}ms audit=${t6ms}ms total=${t1ms+t2ms+t3ms+t4ms+t5ms+t6ms}ms rows=${validRows.length}`);
 
   return stats;
 }
@@ -764,6 +782,7 @@ export async function parseFile(params: {
 }): Promise<ImportStats & { totalChunks: number }> {
   const { supabaseAdmin: sa, supplierId, supplierCode, companyId, importJobId, fileType, fileName, fileContent } = params;
 
+  const tParse = timer();
   const rawLines = fileContent.split(/\r?\n/).filter((l) => l.trim().length > 0);
   if (rawLines.length < 2) {
     return { rows_processed: 0, rows_inserted: 0, rows_updated: 0, rows_failed: 0,
@@ -802,12 +821,13 @@ export async function parseFile(params: {
     startRowBase = headerIndex + 2;
     allParsed = dataLines.map(line => parseRow(line.split(delimiter), columns));
   }
+  const parseMs = tParse();
 
   const totalChunks = Math.ceil(allParsed.length / CHUNK_SIZE);
   const chunkStart = params.chunkRange?.start ?? 0;
   const chunkEnd = Math.min(params.chunkRange?.end ?? totalChunks, totalChunks);
 
-  console.log(`[parser] ${fileName}: ${allParsed.length} rows, ${totalChunks} total chunks, processing chunks ${chunkStart}-${chunkEnd - 1}`);
+  console.log(`[parser] ${fileName}: ${allParsed.length} rows, ${totalChunks} total chunks, processing chunks ${chunkStart}-${chunkEnd - 1} (parse=${parseMs}ms)`);
 
   const totalStats: ImportStats & { totalChunks: number } = {
     rows_processed: 0, rows_inserted: 0, rows_updated: 0, rows_failed: 0,
