@@ -167,6 +167,10 @@ export interface ProductImportJob {
   failed_step: string | null;
   error_log: unknown[];
   triggered_by: string | null;
+  last_successful_batch: number | null;
+  last_error_batch: number | null;
+  last_error_message: string | null;
+  error_message: string | null;
   created_at: string;
   updated_at: string;
 }
