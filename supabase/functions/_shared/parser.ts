@@ -309,6 +309,7 @@ interface EfonelfoProduct {
   list_price: number | null;
   discount_percent: number | null;
   net_price: number | null;
+  price_source: string | null; // 'vl_gross', 'pl_list', 'pl_net', 'rl_discount'
 }
 
 /** Convert raw price field to NOK based on profile config */
@@ -388,6 +389,7 @@ function parseEfonelfoFile(lines: string[], supplierCode: string | null): { prod
         list_price: listPrice,
         discount_percent: null,
         net_price: null,
+        price_source: listPrice !== null ? "vl_gross" : null,
       });
     }
   }
@@ -415,8 +417,8 @@ function parseEfonelfoFile(lines: string[], supplierCode: string | null): { prod
         const plNet = fm.pl_net_price !== null ? priceToNok(fields[fm.pl_net_price], fm.pl_price_is_ore) : null;
         const plDiscount = fm.pl_discount !== null ? parseNumber(fields[fm.pl_discount]) : null;
 
-        if (plList !== null) existing.list_price = plList;
-        if (plNet !== null) existing.net_price = plNet;
+        if (plList !== null) { existing.list_price = plList; existing.price_source = "pl_list"; }
+        if (plNet !== null) { existing.net_price = plNet; if (!existing.price_source || existing.price_source === "vl_gross") existing.price_source = "pl_net"; }
         if (plDiscount !== null) existing.discount_percent = plDiscount;
 
         if (plCount <= 5) {
@@ -439,7 +441,7 @@ function parseEfonelfoFile(lines: string[], supplierCode: string | null): { prod
         const rlNet = fm.rl_net_price !== null ? priceToNok(fields[fm.rl_net_price], fm.rl_price_is_ore) : null;
 
         if (rlDiscount !== null) existing.discount_percent = rlDiscount;
-        if (rlNet !== null) existing.net_price = rlNet;
+        if (rlNet !== null) { existing.net_price = rlNet; existing.price_source = "rl_discount"; }
 
         if (rlCount <= 5) {
           console.log(`[EFONELFO] RL#${rlCount} (${profile.code}): sku="${sku}" disc=${existing.discount_percent} net=${existing.net_price}`);
@@ -604,6 +606,7 @@ interface ParsedRow {
   product_name: string | null; description: string | null; brand: string | null;
   unit: string | null; category: string | null; list_price: number | null;
   discount_percent: number | null; net_price: number | null;
+  price_source: string | null;
 }
 
 function parseRow(fields: string[], columns: ResolvedColumns): ParsedRow {
@@ -619,12 +622,14 @@ function parseRow(fields: string[], columns: ResolvedColumns): ParsedRow {
   const rawEl = cleanString(get(columns.el_number));
   const validEl = isValidElNumber(rawEl) ? rawEl : null;
   
+  const hasPrice = listPrice !== null || netPrice !== null;
   return {
     supplier_sku: cleanString(get(columns.supplier_sku)), el_number: validEl,
     ean: cleanString(get(columns.ean)), product_name: cleanString(get(columns.product_name)),
     description: cleanString(get(columns.description)), brand: cleanString(get(columns.brand)),
     unit: cleanString(get(columns.unit)), category: cleanString(get(columns.category)),
     list_price: listPrice, discount_percent: discountPct, net_price: netPrice,
+    price_source: hasPrice ? "csv" : null,
   };
 }
 
@@ -854,12 +859,14 @@ async function batchAutoCreateCatalogProducts(
 /**
  * Batch insert supplier_prices.
  * OPTIMIZED: Only inserts if price data actually differs from latest existing price.
- * GUARDRAIL: Never inserts dummy/fallback prices.
+ * GUARDRAIL: Never inserts dummy/fallback prices. Records price history on changes.
+ * GUARDRAIL: If incoming feed has no price for a product that had a valid price, preserve old price and flag.
  */
 async function batchInsertPrices(
   sa: SupabaseAdmin, companyId: string, supplierId: string,
   priceRows: Array<{ supplierProductId: string; row: ParsedRow; fileName: string }>,
-): Promise<{ inserted: number; skippedDuplicate: number; skippedNoPrice: number }> {
+  importJobId?: string,
+): Promise<{ inserted: number; skippedDuplicate: number; skippedNoPrice: number; pricesPreserved: number }> {
   const now = new Date().toISOString();
   const withPrice = priceRows.filter(p => {
     const hasListPrice = p.row.list_price !== null && p.row.list_price > 0;
@@ -868,15 +875,16 @@ async function batchInsertPrices(
   });
   const skippedNoPrice = priceRows.length - withPrice.length;
 
-  if (withPrice.length === 0) return { inserted: 0, skippedDuplicate: 0, skippedNoPrice };
+  // Gather all supplier_product_ids that appear in feed (with or without price)
+  const allSpIds = [...new Set(priceRows.map(p => p.supplierProductId))];
 
-  const spIds = [...new Set(withPrice.map(p => p.supplierProductId))];
-  interface ExistingPrice { supplier_product_id: string; list_price: number | null; discount_percent: number | null; net_price: number | null }
+  // Fetch latest existing prices for ALL products in feed (including those without new price)
+  interface ExistingPrice { supplier_product_id: string; list_price: number | null; discount_percent: number | null; net_price: number | null; price_source: string | null }
   const latestPriceMap = new Map<string, ExistingPrice>();
-  for (let i = 0; i < spIds.length; i += 200) {
-    const batch = spIds.slice(i, i + 200);
+  for (let i = 0; i < allSpIds.length; i += 200) {
+    const batch = allSpIds.slice(i, i + 200);
     const { data } = await sa.from("supplier_prices")
-      .select("supplier_product_id, list_price, discount_percent, net_price")
+      .select("supplier_product_id, list_price, discount_percent, net_price, price_source")
       .eq("company_id", companyId).eq("supplier_id", supplierId)
       .in("supplier_product_id", batch)
       .order("imported_at", { ascending: false });
@@ -887,8 +895,30 @@ async function batchInsertPrices(
     }
   }
 
+  // GUARDRAIL: Products in feed WITHOUT price that HAD a valid price → preserve
+  let pricesPreserved = 0;
+  const noPriceSpIds = new Set(priceRows.filter(p => {
+    const hasListPrice = p.row.list_price !== null && p.row.list_price > 0;
+    const hasNetPrice = p.row.net_price !== null && p.row.net_price > 0;
+    return !hasListPrice && !hasNetPrice;
+  }).map(p => p.supplierProductId));
+
+  for (const spId of noPriceSpIds) {
+    const existing = latestPriceMap.get(spId);
+    if (existing && ((existing.list_price && existing.list_price > 0) || (existing.net_price && existing.net_price > 0))) {
+      pricesPreserved++;
+    }
+  }
+  if (pricesPreserved > 0) {
+    console.warn(`[prices] ⚠️ GUARDRAIL: ${pricesPreserved} products in feed had no price but had existing valid price → old price preserved (not overwritten)`);
+  }
+
+  if (withPrice.length === 0) return { inserted: 0, skippedDuplicate: 0, skippedNoPrice, pricesPreserved };
+
   const payloads: any[] = [];
+  const historyPayloads: any[] = [];
   let skippedDuplicate = 0;
+
   for (const p of withPrice) {
     const existing = latestPriceMap.get(p.supplierProductId);
     if (existing) {
@@ -899,24 +929,64 @@ async function batchInsertPrices(
         skippedDuplicate++;
         continue;
       }
+
+      // Price changed → record history
+      const effectiveOld = (existing.net_price ?? existing.list_price) ?? 0;
+      const effectiveNew = (p.row.net_price ?? p.row.list_price) ?? 0;
+      const changeType = effectiveOld === 0 ? "new" : effectiveNew > effectiveOld ? "increase" : effectiveNew < effectiveOld ? "decrease" : "new";
+      historyPayloads.push({
+        company_id: companyId, supplier_id: supplierId, supplier_product_id: p.supplierProductId,
+        change_type: changeType,
+        old_list_price: existing.list_price, new_list_price: p.row.list_price,
+        old_net_price: existing.net_price, new_net_price: p.row.net_price,
+        old_discount_percent: existing.discount_percent, new_discount_percent: p.row.discount_percent,
+        price_source: p.row.price_source, source_file_name: p.fileName,
+        import_job_id: importJobId ?? null,
+      });
+    } else {
+      // New price → record as 'new' in history
+      historyPayloads.push({
+        company_id: companyId, supplier_id: supplierId, supplier_product_id: p.supplierProductId,
+        change_type: "new",
+        old_list_price: null, new_list_price: p.row.list_price,
+        old_net_price: null, new_net_price: p.row.net_price,
+        old_discount_percent: null, new_discount_percent: p.row.discount_percent,
+        price_source: p.row.price_source, source_file_name: p.fileName,
+        import_job_id: importJobId ?? null,
+      });
     }
+
     payloads.push({
       company_id: companyId, supplier_id: supplierId, supplier_product_id: p.supplierProductId,
       list_price: p.row.list_price,
       discount_percent: p.row.discount_percent,
       net_price: p.row.net_price, currency: "NOK", source_file_name: p.fileName,
-      imported_at: now,
+      imported_at: now, price_source: p.row.price_source,
     });
   }
 
+  // Insert prices
   for (let i = 0; i < payloads.length; i += BATCH_SIZE) {
     const batch = payloads.slice(i, i + BATCH_SIZE);
     const { error } = await sa.from("supplier_prices").insert(batch);
     if (error) console.error(`[batch] Insert prices error: ${error.message}`);
   }
 
-  console.log(`[prices] ${payloads.length} inserted, ${skippedDuplicate} unchanged, ${skippedNoPrice} no price`);
-  return { inserted: payloads.length, skippedDuplicate, skippedNoPrice };
+  // Insert price history
+  if (historyPayloads.length > 0) {
+    for (let i = 0; i < historyPayloads.length; i += BATCH_SIZE) {
+      const batch = historyPayloads.slice(i, i + BATCH_SIZE);
+      const { error } = await sa.from("supplier_price_history").insert(batch);
+      if (error) console.error(`[batch] Insert price_history error: ${error.message}`);
+    }
+    const increases = historyPayloads.filter(h => h.change_type === "increase").length;
+    const decreases = historyPayloads.filter(h => h.change_type === "decrease").length;
+    const newPrices = historyPayloads.filter(h => h.change_type === "new").length;
+    console.log(`[prices] History: ${newPrices} new, ${increases} increases, ${decreases} decreases`);
+  }
+
+  console.log(`[prices] ${payloads.length} inserted, ${skippedDuplicate} unchanged, ${skippedNoPrice} no price, ${pricesPreserved} preserved`);
+  return { inserted: payloads.length, skippedDuplicate, skippedNoPrice, pricesPreserved };
 }
 
 /**
@@ -1039,6 +1109,7 @@ export interface ImportStats {
   rows_processed: number; rows_inserted: number; rows_updated: number;
   rows_failed: number; rows_skipped: number; rows_needs_review: number;
   errors: string[]; affected_product_ids: string[];
+  prices_inserted: number; prices_unchanged: number; prices_no_price: number; prices_preserved: number;
 }
 
 // ===== Chunked processing core =====
@@ -1052,6 +1123,7 @@ async function processChunk(params: {
   const stats: ImportStats = {
     rows_processed: 0, rows_inserted: 0, rows_updated: 0, rows_failed: 0,
     rows_skipped: 0, rows_needs_review: 0, errors: [], affected_product_ids: [],
+    prices_inserted: 0, prices_unchanged: 0, prices_no_price: 0, prices_preserved: 0,
   };
 
   const validRows = rows.filter(r => r.supplier_sku);
@@ -1124,7 +1196,11 @@ async function processChunk(params: {
   const priceRows = validRows
     .filter(r => r.supplier_sku && spMap.has(r.supplier_sku))
     .map(r => ({ supplierProductId: spMap.get(r.supplier_sku!)!.id, row: r, fileName }));
-  const priceResult = await batchInsertPrices(sa, companyId, supplierId, priceRows);
+  const priceResult = await batchInsertPrices(sa, companyId, supplierId, priceRows, importJobId);
+  stats.prices_inserted = priceResult.inserted;
+  stats.prices_unchanged = priceResult.skippedDuplicate;
+  stats.prices_no_price = priceResult.skippedNoPrice;
+  stats.prices_preserved = priceResult.pricesPreserved;
   const t5ms = t5();
 
   // Phase 6: Import rows audit (only errors/needs_review)
@@ -1183,6 +1259,7 @@ export async function parseFile(params: {
       product_name: ep.product_name, description: ep.description, brand: ep.brand,
       unit: ep.unit, category: ep.category, list_price: ep.list_price,
       discount_percent: ep.discount_percent, net_price: ep.net_price,
+      price_source: ep.price_source,
     }));
   } else {
     const delimiter = detectDelimiter(rawLines);
@@ -1212,6 +1289,7 @@ export async function parseFile(params: {
   const totalStats: ImportStats & { totalChunks: number } = {
     rows_processed: 0, rows_inserted: 0, rows_updated: 0, rows_failed: 0,
     rows_skipped: 0, rows_needs_review: 0, errors: [], affected_product_ids: [], totalChunks,
+    prices_inserted: 0, prices_unchanged: 0, prices_no_price: 0, prices_preserved: 0,
   };
 
   for (let ci = chunkStart; ci < chunkEnd; ci++) {
@@ -1227,6 +1305,10 @@ export async function parseFile(params: {
     totalStats.rows_failed += chunkStats.rows_failed;
     totalStats.rows_skipped += chunkStats.rows_skipped;
     totalStats.rows_needs_review += chunkStats.rows_needs_review;
+    totalStats.prices_inserted += chunkStats.prices_inserted;
+    totalStats.prices_unchanged += chunkStats.prices_unchanged;
+    totalStats.prices_no_price += chunkStats.prices_no_price;
+    totalStats.prices_preserved += chunkStats.prices_preserved;
     totalStats.errors.push(...chunkStats.errors);
     totalStats.affected_product_ids.push(...chunkStats.affected_product_ids);
     
@@ -1242,6 +1324,18 @@ export async function parseFile(params: {
     }
   }
 
-  console.log(`[parser] ${fileName} chunks ${chunkStart}-${chunkEnd - 1} done: processed=${totalStats.rows_processed}, inserted=${totalStats.rows_inserted}, updated=${totalStats.rows_updated}, failed=${totalStats.rows_failed}`);
+  // Log 20 sample products for verification (across all parsed data)
+  const sampleCount = Math.min(20, allParsed.length);
+  const step = Math.max(1, Math.floor(allParsed.length / sampleCount));
+  console.log(`[VERIFY] ===== ${sampleCount} CONTROL PRODUCTS (${supplierCode}) =====`);
+  for (let si = 0; si < sampleCount; si++) {
+    const idx = si * step;
+    const p = allParsed[idx];
+    if (!p) break;
+    console.log(`[VERIFY] #${si+1}: sku=${p.supplier_sku} el=${p.el_number} ean=${p.ean} name="${p.product_name?.substring(0, 45)}" brand=${p.brand} list=${p.list_price} disc=${p.discount_percent}% net=${p.net_price} src=${p.price_source}`);
+  }
+  console.log(`[VERIFY] ===== END CONTROL PRODUCTS =====`);
+
+  console.log(`[parser] ${fileName} chunks ${chunkStart}-${chunkEnd - 1} done: processed=${totalStats.rows_processed}, inserted=${totalStats.rows_inserted}, updated=${totalStats.rows_updated}, failed=${totalStats.rows_failed} | prices: ${totalStats.prices_inserted} new, ${totalStats.prices_unchanged} unchanged, ${totalStats.prices_no_price} missing, ${totalStats.prices_preserved} preserved`);
   return totalStats;
 }

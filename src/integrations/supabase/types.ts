@@ -6132,6 +6132,7 @@ export type Database = {
           rows_updated: number
           started_at: string | null
           status: Database["public"]["Enums"]["product_import_job_status"]
+          summary_stats: Json | null
           supplier_id: string
           total_chunks: number
           triggered_by: string | null
@@ -6155,6 +6156,7 @@ export type Database = {
           rows_updated?: number
           started_at?: string | null
           status?: Database["public"]["Enums"]["product_import_job_status"]
+          summary_stats?: Json | null
           supplier_id: string
           total_chunks?: number
           triggered_by?: string | null
@@ -6178,6 +6180,7 @@ export type Database = {
           rows_updated?: number
           started_at?: string | null
           status?: Database["public"]["Enums"]["product_import_job_status"]
+          summary_stats?: Json | null
           supplier_id?: string
           total_chunks?: number
           triggered_by?: string | null
@@ -7590,6 +7593,78 @@ export type Database = {
           },
         ]
       }
+      supplier_price_history: {
+        Row: {
+          catalog_product_id: string | null
+          change_type: string
+          company_id: string
+          id: string
+          import_job_id: string | null
+          new_discount_percent: number | null
+          new_list_price: number | null
+          new_net_price: number | null
+          old_discount_percent: number | null
+          old_list_price: number | null
+          old_net_price: number | null
+          price_source: string | null
+          recorded_at: string
+          source_file_name: string | null
+          supplier_id: string
+          supplier_product_id: string
+        }
+        Insert: {
+          catalog_product_id?: string | null
+          change_type: string
+          company_id: string
+          id?: string
+          import_job_id?: string | null
+          new_discount_percent?: number | null
+          new_list_price?: number | null
+          new_net_price?: number | null
+          old_discount_percent?: number | null
+          old_list_price?: number | null
+          old_net_price?: number | null
+          price_source?: string | null
+          recorded_at?: string
+          source_file_name?: string | null
+          supplier_id: string
+          supplier_product_id: string
+        }
+        Update: {
+          catalog_product_id?: string | null
+          change_type?: string
+          company_id?: string
+          id?: string
+          import_job_id?: string | null
+          new_discount_percent?: number | null
+          new_list_price?: number | null
+          new_net_price?: number | null
+          old_discount_percent?: number | null
+          old_list_price?: number | null
+          old_net_price?: number | null
+          price_source?: string | null
+          recorded_at?: string
+          source_file_name?: string | null
+          supplier_id?: string
+          supplier_product_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_price_history_catalog_product_id_fkey"
+            columns: ["catalog_product_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_catalog_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_price_history_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "internal_companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       supplier_prices: {
         Row: {
           company_id: string
@@ -7601,6 +7676,8 @@ export type Database = {
           list_price: number
           net_price: number | null
           price_list_name: string | null
+          price_preserved: boolean | null
+          price_source: string | null
           source_file_name: string | null
           supplier_id: string
           supplier_product_id: string
@@ -7617,6 +7694,8 @@ export type Database = {
           list_price?: number
           net_price?: number | null
           price_list_name?: string | null
+          price_preserved?: boolean | null
+          price_source?: string | null
           source_file_name?: string | null
           supplier_id: string
           supplier_product_id: string
@@ -7633,6 +7712,8 @@ export type Database = {
           list_price?: number
           net_price?: number | null
           price_list_name?: string | null
+          price_preserved?: boolean | null
+          price_source?: string | null
           source_file_name?: string | null
           supplier_id?: string
           supplier_product_id?: string

@@ -625,7 +625,7 @@ async function handleProcessSync(supabaseAdmin: ReturnType<typeof createClient>,
       file_index: 0,
       chunk_start: 0,
       storage_files: storageFiles,
-      cum_stats: { rows_processed: 0, rows_inserted: 0, rows_updated: 0, rows_failed: 0, rows_skipped: 0, rows_needs_review: 0, errors: [] },
+      cum_stats: { rows_processed: 0, rows_inserted: 0, rows_updated: 0, rows_failed: 0, rows_skipped: 0, rows_needs_review: 0, errors: [], prices_inserted: 0, prices_unchanged: 0, prices_no_price: 0, prices_preserved: 0 },
       global_chunk: 0,
       total_global_chunks: totalGlobalChunks,
     }, supabaseAdmin);
@@ -662,7 +662,7 @@ async function handleProcessSyncChunk(supabaseAdmin: ReturnType<typeof createCli
   let fileIndex = body.file_index as number;
   let chunkStart = body.chunk_start as number;
   const storageFiles = body.storage_files as SyncFileInfo[];
-  const cumStats = body.cum_stats as { rows_processed: number; rows_inserted: number; rows_updated: number; rows_failed: number; rows_skipped: number; rows_needs_review: number; errors: string[] };
+  const cumStats = body.cum_stats as { rows_processed: number; rows_inserted: number; rows_updated: number; rows_failed: number; rows_skipped: number; rows_needs_review: number; errors: string[]; prices_inserted: number; prices_unchanged: number; prices_no_price: number; prices_preserved: number };
   let globalChunk = body.global_chunk as number;
   const totalGlobalChunks = body.total_global_chunks as number;
 
@@ -712,7 +712,17 @@ async function handleProcessSyncChunk(supabaseAdmin: ReturnType<typeof createCli
       error_log: cumStats.errors.slice(0, 100),
       current_chunk: totalGlobalChunks, progress_percent: 100,
       last_heartbeat_at: new Date().toISOString(),
+      summary_stats: {
+        prices_inserted: cumStats.prices_inserted || 0,
+        prices_unchanged: cumStats.prices_unchanged || 0,
+        prices_no_price: cumStats.prices_no_price || 0,
+        prices_preserved: cumStats.prices_preserved || 0,
+        rows_skipped: cumStats.rows_skipped || 0,
+        rows_needs_review: cumStats.rows_needs_review || 0,
+      },
     });
+
+    console.log(`[chain] job=${jobId} FINAL SUMMARY: status=${finalStatus} processed=${cumStats.rows_processed} ins=${cumStats.rows_inserted} upd=${cumStats.rows_updated} fail=${cumStats.rows_failed} | prices: new=${cumStats.prices_inserted} unchanged=${cumStats.prices_unchanged} missing=${cumStats.prices_no_price} preserved=${cumStats.prices_preserved}`);
 
     // Clean up temp storage
     try {
@@ -785,6 +795,10 @@ async function handleProcessSyncChunk(supabaseAdmin: ReturnType<typeof createCli
       cumStats.rows_needs_review += result.rows_needs_review;
       if (result.errors.length > 0) cumStats.errors.push(...result.errors.slice(0, 10));
       if (cumStats.errors.length > 50) cumStats.errors = cumStats.errors.slice(0, 50);
+      cumStats.prices_inserted = (cumStats.prices_inserted || 0) + (result.prices_inserted || 0);
+      cumStats.prices_unchanged = (cumStats.prices_unchanged || 0) + (result.prices_unchanged || 0);
+      cumStats.prices_no_price = (cumStats.prices_no_price || 0) + (result.prices_no_price || 0);
+      cumStats.prices_preserved = (cumStats.prices_preserved || 0) + (result.prices_preserved || 0);
 
       globalChunk += chunksToProcess;
       chunksProcessedThisInvocation += chunksToProcess;
