@@ -625,7 +625,7 @@ async function handleProcessSync(supabaseAdmin: ReturnType<typeof createClient>,
       file_index: 0,
       chunk_start: 0,
       storage_files: storageFiles,
-      cum_stats: { rows_processed: 0, rows_inserted: 0, rows_updated: 0, rows_failed: 0, rows_skipped: 0, rows_needs_review: 0, errors: [] },
+      cum_stats: { rows_processed: 0, rows_inserted: 0, rows_updated: 0, rows_failed: 0, rows_skipped: 0, rows_needs_review: 0, errors: [], prices_inserted: 0, prices_unchanged: 0, prices_no_price: 0, prices_preserved: 0 },
       global_chunk: 0,
       total_global_chunks: totalGlobalChunks,
     }, supabaseAdmin);
