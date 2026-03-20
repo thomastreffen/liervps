@@ -110,12 +110,25 @@ export function ImportJobHistory({ jobs, loading }: Props) {
                 </div>
               </div>
 
-              {(job.status === "failed" || stalled) && (job.failed_step || (Array.isArray(job.error_log) && job.error_log.length > 0)) && (
+              {(job.status === "failed" || stalled) && (job.failed_step || job.last_error_message || job.error_message || (Array.isArray(job.error_log) && job.error_log.length > 0)) && (
                 <div className="mt-2 p-2 rounded bg-destructive/5 border border-destructive/10 space-y-1">
                   {job.failed_step && (
                     <p className="text-[10px] text-destructive font-mono">Steg: {job.failed_step}</p>
                   )}
-                  {Array.isArray(job.error_log) && job.error_log.length > 0 && (
+                  {job.last_error_batch != null && (
+                    <p className="text-[10px] text-destructive font-mono">
+                      Feilet på batch {job.last_error_batch}/{job.total_chunks}
+                      {job.last_successful_batch != null && job.last_successful_batch > 0 && (
+                        <span className="text-muted-foreground"> (siste OK: batch {job.last_successful_batch})</span>
+                      )}
+                    </p>
+                  )}
+                  {(job.last_error_message || job.error_message) && (
+                    <p className="text-[10px] text-destructive font-mono">
+                      {job.last_error_message || job.error_message}
+                    </p>
+                  )}
+                  {Array.isArray(job.error_log) && job.error_log.length > 0 && !job.last_error_message && (
                     <p className="text-[10px] text-destructive font-mono">
                       {typeof job.error_log[0] === "string" ? job.error_log[0] : JSON.stringify(job.error_log[0])}
                     </p>

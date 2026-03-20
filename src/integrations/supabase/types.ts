@@ -6118,13 +6118,18 @@ export type Database = {
           company_id: string
           created_at: string
           current_chunk: number
+          dispatch_retries: number | null
           error_log: Json | null
+          error_message: string | null
           failed_step: string | null
           files_found: Json | null
           finished_at: string | null
           id: string
           job_type: Database["public"]["Enums"]["product_import_job_type"]
+          last_error_batch: number | null
+          last_error_message: string | null
           last_heartbeat_at: string | null
+          last_successful_batch: number | null
           progress_percent: number
           rows_failed: number
           rows_inserted: number
@@ -6142,13 +6147,18 @@ export type Database = {
           company_id: string
           created_at?: string
           current_chunk?: number
+          dispatch_retries?: number | null
           error_log?: Json | null
+          error_message?: string | null
           failed_step?: string | null
           files_found?: Json | null
           finished_at?: string | null
           id?: string
           job_type: Database["public"]["Enums"]["product_import_job_type"]
+          last_error_batch?: number | null
+          last_error_message?: string | null
           last_heartbeat_at?: string | null
+          last_successful_batch?: number | null
           progress_percent?: number
           rows_failed?: number
           rows_inserted?: number
@@ -6166,13 +6176,18 @@ export type Database = {
           company_id?: string
           created_at?: string
           current_chunk?: number
+          dispatch_retries?: number | null
           error_log?: Json | null
+          error_message?: string | null
           failed_step?: string | null
           files_found?: Json | null
           finished_at?: string | null
           id?: string
           job_type?: Database["public"]["Enums"]["product_import_job_type"]
+          last_error_batch?: number | null
+          last_error_message?: string | null
           last_heartbeat_at?: string | null
+          last_successful_batch?: number | null
           progress_percent?: number
           rows_failed?: number
           rows_inserted?: number

@@ -393,7 +393,8 @@ async function createImportJob(supabaseAdmin: ReturnType<typeof createClient>, c
 }
 
 async function updateImportJob(supabaseAdmin: ReturnType<typeof createClient>, jobId: string, updates: Record<string, unknown>) {
-  await supabaseAdmin.from("product_import_jobs").update({ ...updates, updated_at: new Date().toISOString() }).eq("id", jobId);
+  const { error } = await supabaseAdmin.from("product_import_jobs").update({ ...updates, updated_at: new Date().toISOString() }).eq("id", jobId);
+  if (error) console.error(`[updateImportJob] job=${jobId} error: ${error.message}`);
 }
 
 // ===== Sync Orchestration =====
@@ -418,47 +419,58 @@ async function dispatchNextChunk(
   const processUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/supplier-integration`;
   const jobId = body.job_id as string;
   const globalChunk = body.global_chunk ?? "init";
+  const MAX_RETRIES = 3;
 
-  console.log(`[chain] job=${jobId} DISPATCH next: action=${body.action}, file_index=${body.file_index}, chunk_start=${body.chunk_start}, global_chunk=${globalChunk}`);
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    console.log(`[chain] job=${jobId} DISPATCH attempt=${attempt}/${MAX_RETRIES}: action=${body.action}, global_chunk=${globalChunk}`);
 
-  try {
-    // Fire the request — do NOT await the response.
-    // We only need the HTTP request to reach the Supabase gateway.
-    const fetchPromise = fetch(processUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
-      },
-      body: JSON.stringify(body),
-    });
-
-    // Consume response in background to avoid resource leaks, but don't block on it
-    fetchPromise
-      .then(resp => {
-        console.log(`[chain] job=${jobId} DISPATCH response (background): HTTP ${resp.status}`);
-        resp.body?.cancel().catch(() => {});
-      })
-      .catch(err => {
-        console.error(`[chain] job=${jobId} DISPATCH background error: ${(err as Error).message}`);
+    try {
+      const resp = await fetch(processUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+        },
+        body: JSON.stringify(body),
       });
 
-    // Give the request time to leave the network stack
-    await new Promise(resolve => setTimeout(resolve, 1000));
+      // Read body to avoid resource leaks
+      const respText = await resp.text().catch(() => "");
 
-    console.log(`[chain] job=${jobId} DISPATCH fired for global_chunk=${globalChunk}, action=${body.action}`);
-    return true;
-  } catch (err) {
-    console.error(`[chain] job=${jobId} DISPATCH FAILED (sync): ${(err as Error).message}`);
-    await updateImportJob(supabaseAdmin, jobId, {
-      status: "failed",
-      finished_at: new Date().toISOString(),
-      failed_step: `dispatch_batch_${globalChunk}`,
-      error_log: [`Chunk-dispatch feilet: ${(err as Error).message}`],
-      last_heartbeat_at: new Date().toISOString(),
-    });
-    return false;
+      if (resp.status >= 200 && resp.status < 500) {
+        console.log(`[chain] job=${jobId} DISPATCH OK (attempt ${attempt}): HTTP ${resp.status}`);
+        return true;
+      }
+
+      // 5xx = server error, retry
+      console.warn(`[chain] job=${jobId} DISPATCH HTTP ${resp.status} (attempt ${attempt}): ${respText.substring(0, 200)}`);
+
+      if (attempt < MAX_RETRIES) {
+        const backoff = attempt * 2000;
+        console.log(`[chain] job=${jobId} Retrying in ${backoff}ms...`);
+        await new Promise(resolve => setTimeout(resolve, backoff));
+      }
+    } catch (err) {
+      console.error(`[chain] job=${jobId} DISPATCH error (attempt ${attempt}): ${(err as Error).message}`);
+      if (attempt < MAX_RETRIES) {
+        const backoff = attempt * 2000;
+        await new Promise(resolve => setTimeout(resolve, backoff));
+      }
+    }
   }
+
+  // All retries failed
+  console.error(`[chain] job=${jobId} DISPATCH FAILED after ${MAX_RETRIES} attempts`);
+  await updateImportJob(supabaseAdmin, jobId, {
+    status: "failed",
+    finished_at: new Date().toISOString(),
+    failed_step: `dispatch_batch_${globalChunk}`,
+    last_error_batch: globalChunk,
+    last_error_message: `Dispatch feilet etter ${MAX_RETRIES} forsøk`,
+    error_log: [`Chunk-dispatch feilet etter ${MAX_RETRIES} forsøk for batch ${globalChunk}`],
+    last_heartbeat_at: new Date().toISOString(),
+  });
+  return false;
 }
 
 function countFileRows(content: string): number {
@@ -666,10 +678,14 @@ async function handleProcessSyncChunk(supabaseAdmin: ReturnType<typeof createCli
   let globalChunk = body.global_chunk as number;
   const totalGlobalChunks = body.total_global_chunks as number;
 
-  console.log(`[chain] job=${jobId} CHUNK_STARTED: global=${globalChunk + 1}/${totalGlobalChunks}, file=${fileIndex}/${storageFiles.length}, chunk=${chunkStart}, chunksPerInvocation=${CHUNKS_PER_INVOCATION}`);
+  const batchStartTime = Date.now();
+  console.log(`[chain] job=${jobId} CHUNK_STARTED: global=${globalChunk + 1}/${totalGlobalChunks}, file=${fileIndex}/${storageFiles.length}, chunk=${chunkStart}`);
 
   // Update heartbeat immediately on entry
-  await updateImportJob(supabaseAdmin, jobId, { last_heartbeat_at: new Date().toISOString() });
+  await updateImportJob(supabaseAdmin, jobId, {
+    last_heartbeat_at: new Date().toISOString(),
+    dispatch_retries: 0, // reset retries on successful entry
+  });
 
   // Check if job was externally cancelled/failed
   const { data: jobStatus } = await supabaseAdmin.from("product_import_jobs")
@@ -818,7 +834,7 @@ async function handleProcessSyncChunk(supabaseAdmin: ReturnType<typeof createCli
     }
 
     const progressPercent = totalGlobalChunks > 0 ? Math.round((globalChunk / totalGlobalChunks) * 100) : 0;
-    const invocationDuration = ((Date.now() - invocationStartTime) / 1000).toFixed(1);
+    const batchDuration = ((Date.now() - batchStartTime) / 1000).toFixed(1);
 
     await updateImportJob(supabaseAdmin, jobId, {
       current_chunk: globalChunk,
@@ -828,13 +844,12 @@ async function handleProcessSyncChunk(supabaseAdmin: ReturnType<typeof createCli
       rows_updated: cumStats.rows_updated,
       rows_failed: cumStats.rows_failed,
       last_heartbeat_at: new Date().toISOString(),
+      last_successful_batch: globalChunk,
     });
 
-    console.log(`[chain] job=${jobId} INVOCATION_COMPLETED: batches ${globalChunk - chunksProcessedThisInvocation + 1}-${globalChunk}/${totalGlobalChunks} (${progressPercent}%) in ${invocationDuration}s, ins=${cumStats.rows_inserted} upd=${cumStats.rows_updated}`);
+    console.log(`[chain] job=${jobId} BATCH_COMPLETED: ${globalChunk}/${totalGlobalChunks} (${progressPercent}%) in ${batchDuration}s, ins=${cumStats.rows_inserted} upd=${cumStats.rows_updated}`);
 
     // Chain next invocation
-    console.log(`[chain] job=${jobId} END invocation (processed ${chunksProcessedThisInvocation} chunks)`);
-
     const dispatched = await dispatchNextChunk({
       action: "process-sync-chunk",
       job_id: jobId,
@@ -855,11 +870,15 @@ async function handleProcessSyncChunk(supabaseAdmin: ReturnType<typeof createCli
     return jsonOk({ status: "processing", global_chunk: globalChunk, progress_percent: progressPercent });
   } catch (err) {
     const batchLabel = `batch_${globalChunk + 1}`;
-    console.error(`[chain] job=${jobId} ${batchLabel} FAILED: ${(err as Error).message}`);
+    const batchDuration = ((Date.now() - batchStartTime) / 1000).toFixed(1);
+    const errorMsg = (err as Error).message;
+    console.error(`[chain] job=${jobId} ${batchLabel} FAILED after ${batchDuration}s: ${errorMsg}`);
     await updateImportJob(supabaseAdmin, jobId, {
       status: "failed", finished_at: new Date().toISOString(),
-      error_log: [...cumStats.errors, (err as Error).message].slice(0, 100),
+      error_log: [...cumStats.errors, errorMsg].slice(0, 100),
       failed_step: batchLabel,
+      last_error_batch: globalChunk + 1,
+      last_error_message: errorMsg.substring(0, 500),
       rows_processed: cumStats.rows_processed, rows_inserted: cumStats.rows_inserted,
       rows_updated: cumStats.rows_updated, rows_failed: cumStats.rows_failed,
       last_heartbeat_at: new Date().toISOString(),
