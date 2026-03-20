@@ -10,7 +10,8 @@ interface Props {
   loading: boolean;
 }
 
-const STALE_JOB_MS = 3 * 60 * 1000;
+// Match server-side stale threshold (10 minutes)
+const STALE_JOB_MS = 10 * 60 * 1000;
 
 const statusConfig: Record<string, { icon: typeof CheckCircle2; color: string; label: string }> = {
   queued: { icon: Clock, color: "text-muted-foreground", label: "I kø" },
