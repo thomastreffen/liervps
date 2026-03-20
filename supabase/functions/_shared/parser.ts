@@ -106,11 +106,23 @@ interface EfonelfoProduct {
   net_price: number | null;
 }
 
+/**
+ * Validate that a string looks like a Norwegian EL-number (numeric, 4-8 digits).
+ * Model codes like "IZMX40B3-V20F-1" are NOT el-numbers.
+ */
+function isValidElNumber(value: string | null): boolean {
+  if (!value) return false;
+  return /^\d{4,8}$/.test(value.trim());
+}
+
 function parseEfonelfoFile(lines: string[]): EfonelfoProduct[] {
   const products = new Map<string, EfonelfoProduct>();
   let vlCount = 0;
   let plCount = 0;
   let rlCount = 0;
+
+  // Dump first 3 VL lines with ALL field indices for debugging
+  let rawDumpCount = 0;
 
   for (const line of lines) {
     const fields = line.split(";").map(f => f.trim());
@@ -121,17 +133,35 @@ function parseEfonelfoFile(lines: string[]): EfonelfoProduct[] {
       const sku = cleanString(fields[2]);
       if (!sku || products.has(sku)) continue;
 
+      // Raw field dump for first 3 VL lines to verify field positions
+      if (rawDumpCount < 3) {
+        rawDumpCount++;
+        const fieldDump = fields.slice(0, Math.min(25, fields.length)).map((f, i) => `[${i}]="${f}"`).join(" ");
+        console.log(`[EFONELFO] RAW_VL#${rawDumpCount}: ${fieldDump}`);
+      }
+
+      // EFONELFO 4.0 VL field positions:
+      // [0]=PostType [1]=VareMrk [2]=Varenummer(SKU) [3]=Varetekst(Name)
+      // [4]=EL-nummer [5]=NOBB [6]=Enhet [7]=AntPrisEnhet [8]=Prisgruppe
+      // [9]=Bruttopris(øre) [10]=PrisEnhet [11]=Rabattgruppe [12]=Bilde
+      // [13]=Leverandør [14]=ProdusentMrk [15]=AntIPk [16]=Vekt [17]=Volum [18]=EAN
+      
+      // Validate el_number: must be numeric (4-8 digits), not model codes
+      const rawElNumber = cleanString(fields[4]);
+      const validatedElNumber = isValidElNumber(rawElNumber) ? rawElNumber : null;
+      
+      // Price field [9] is gross price in øre per EFONELFO 4.0 spec
       const rawPriceField = fields[9];
       const priceOre = parseNumber(rawPriceField);
       const listPrice = priceOre !== null && priceOre > 0 ? priceOre / 100 : null;
 
       if (vlCount <= 5) {
-        console.log(`[EFONELFO] VL#${vlCount}: sku="${sku}" name="${fields[3]?.substring(0, 40)}" el="${fields[4]}" price_raw="${rawPriceField}" price_ore=${priceOre} list_nok=${listPrice} brand="${fields[14]}"`);
+        console.log(`[EFONELFO] VL#${vlCount}: sku="${sku}" name="${fields[3]?.substring(0, 40)}" rawEl="${rawElNumber}" validEl=${validatedElNumber} price_raw="${rawPriceField}" price_ore=${priceOre} list_nok=${listPrice} brand="${fields[14]}" ean="${fields[18]}"`);
       }
 
       products.set(sku, {
         supplier_sku: sku,
-        el_number: cleanString(fields[4]),
+        el_number: validatedElNumber,
         ean: cleanString(fields[18]) || null,
         product_name: cleanString(fields[3]),
         description: null,
@@ -145,12 +175,22 @@ function parseEfonelfoFile(lines: string[]): EfonelfoProduct[] {
     }
   }
 
+  // Second pass: PL (price list) and RL (discount/rebate) lines
+  let plRawDumpCount = 0;
   for (const line of lines) {
     const fields = line.split(";").map(f => f.trim());
     const recordType = fields[0]?.toUpperCase();
 
     if (recordType === "PL") {
       plCount++;
+      // Raw dump first 3 PL lines
+      if (plRawDumpCount < 3) {
+        plRawDumpCount++;
+        const fieldDump = fields.slice(0, Math.min(15, fields.length)).map((f, i) => `[${i}]="${f}"`).join(" ");
+        console.log(`[EFONELFO] RAW_PL#${plRawDumpCount}: ${fieldDump}`);
+      }
+      
+      // PL fields: [0]=PL [1]=VareMrk [2]=Varenummer [3]=Bruttopris(øre) [4]=Nettopris(øre) [5]=Rabatt%
       const sku = cleanString(fields[2]);
       if (!sku) continue;
       const existing = products.get(sku);
@@ -169,6 +209,7 @@ function parseEfonelfoFile(lines: string[]): EfonelfoProduct[] {
       }
     } else if (recordType === "RL") {
       rlCount++;
+      // RL fields: [0]=RL [1]=Varenummer [2]=Rabatt% [3]=Nettopris(øre)
       const sku = cleanString(fields[1]);
       if (!sku) continue;
       const existing = products.get(sku);
@@ -188,6 +229,7 @@ function parseEfonelfoFile(lines: string[]): EfonelfoProduct[] {
 
   console.log(`[EFONELFO] Totals: VL=${vlCount}, PL=${plCount}, RL=${rlCount}, unique products=${products.size}`);
 
+  // Calculate net price from list + discount where possible
   let calcCount = 0;
   for (const p of products.values()) {
     if (p.net_price == null && p.list_price != null && p.discount_percent != null && p.discount_percent > 0) {
@@ -197,22 +239,26 @@ function parseEfonelfoFile(lines: string[]): EfonelfoProduct[] {
   }
   if (calcCount > 0) console.log(`[EFONELFO] Calculated net_price for ${calcCount} products from list_price + discount`);
 
+  // Price quality stats
   let withListPrice = 0, withNetPrice = 0, withDiscount = 0, noPrice = 0;
+  let invalidElCount = 0, validElCount = 0;
   for (const p of products.values()) {
     if (p.list_price !== null) withListPrice++;
     if (p.net_price !== null) withNetPrice++;
     if (p.discount_percent !== null) withDiscount++;
     if (p.list_price === null && p.net_price === null) noPrice++;
+    if (p.el_number !== null) validElCount++;
+    else invalidElCount++;
   }
   console.log(`[EFONELFO] Price quality: list=${withListPrice}, net=${withNetPrice}, disc=${withDiscount}, no_price=${noPrice} of ${products.size}`);
+  console.log(`[EFONELFO] El-number quality: valid=${validElCount}, invalid/missing=${invalidElCount} of ${products.size}`);
 
+  // Verification sample: 5 products with full pipeline data
   let sampleCount = 0;
   for (const p of products.values()) {
     if (sampleCount >= 5) break;
-    if (p.list_price !== null || p.net_price !== null) {
-      console.log(`[EFONELFO] PRICE_SAMPLE: sku=${p.supplier_sku} list=${p.list_price} disc=${p.discount_percent}% net=${p.net_price} name="${p.product_name?.substring(0, 30)}"`);
-      sampleCount++;
-    }
+    console.log(`[VERIFY] sku=${p.supplier_sku} el=${p.el_number} ean=${p.ean} name="${p.product_name?.substring(0, 40)}" brand=${p.brand} list=${p.list_price} disc=${p.discount_percent}% net=${p.net_price}`);
+    sampleCount++;
   }
 
   return Array.from(products.values());
