@@ -401,69 +401,54 @@ async function updateImportJob(supabaseAdmin: ReturnType<typeof createClient>, j
 const SYNC_TEMP_BUCKET = "job-attachments";
 
 /**
- * Trigger next chunk via self-invocation using service_role key.
- * CRITICAL: This is fire-and-forget but we verify the HTTP response.
- * If triggering fails, we mark the job as failed immediately.
+ * Dispatch next chunk via self-invocation using service_role key.
+ * CRITICAL: This is FIRE-AND-FORGET. We do NOT await the response.
+ * The current worker sends the request and returns immediately,
+ * freeing compute resources before the next chunk starts.
+ *
+ * If the fetch itself fails to send, we mark the job as failed
+ * in the background via .catch().
  */
-async function triggerNextChunk(
+function dispatchNextChunk(
   body: Record<string, unknown>,
-  supabaseAdmin?: ReturnType<typeof createClient>,
-): Promise<{ ok: boolean; error?: string }> {
+  supabaseAdmin: ReturnType<typeof createClient>,
+): void {
   const processUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/supplier-integration`;
   const jobId = body.job_id as string;
   const globalChunk = body.global_chunk;
-  const nextFileIndex = body.file_index;
-  const nextChunkStart = body.chunk_start;
 
-  console.log(`[chain] job=${jobId} TRIGGER next: action=${body.action}, file_index=${nextFileIndex}, chunk_start=${nextChunkStart}, global_chunk=${globalChunk}`);
+  console.log(`[chain] job=${jobId} DISPATCH next: action=${body.action}, file_index=${body.file_index}, chunk_start=${body.chunk_start}, global_chunk=${globalChunk}`);
 
-  try {
-    const resp = await fetch(processUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
-      },
-      body: JSON.stringify(body),
-    });
-
-    // Read and discard body to ensure connection is properly closed
-    const respText = await resp.text().catch(() => "");
-
+  // Fire-and-forget: do NOT await this promise.
+  // The fetch sends the request; we don't need or want the response.
+  fetch(processUrl, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+    },
+    body: JSON.stringify(body),
+  }).then(resp => {
+    // We don't need to read the body — just log status for diagnostics
+    // Consume body to prevent resource leak in Deno
+    resp.body?.cancel().catch(() => {});
     if (!resp.ok) {
-      const errMsg = `HTTP ${resp.status}: ${respText.substring(0, 200)}`;
-      console.error(`[chain] job=${jobId} TRIGGER FAILED: ${errMsg}`);
-
-      // Mark job as failed since chain is broken
-      if (supabaseAdmin && jobId) {
-        await updateImportJob(supabaseAdmin, jobId, {
-          status: "failed",
-          finished_at: new Date().toISOString(),
-          failed_step: `chain_trigger_batch_${globalChunk}`,
-          error_log: [`Chunk-kjeden stoppet: ${errMsg}`],
-          last_heartbeat_at: new Date().toISOString(),
-        });
-      }
-      return { ok: false, error: errMsg };
+      console.error(`[chain] job=${jobId} DISPATCH response: HTTP ${resp.status} (non-blocking, job NOT marked failed here)`);
+    } else {
+      console.log(`[chain] job=${jobId} DISPATCH accepted: HTTP ${resp.status}`);
     }
-
-    console.log(`[chain] job=${jobId} TRIGGER ACCEPTED (HTTP ${resp.status})`);
-    return { ok: true };
-  } catch (err) {
-    const errMsg = (err as Error).message;
-    console.error(`[chain] job=${jobId} TRIGGER EXCEPTION: ${errMsg}`);
-
-    if (supabaseAdmin && jobId) {
-      await updateImportJob(supabaseAdmin, jobId, {
-        status: "failed",
-        finished_at: new Date().toISOString(),
-        failed_step: `chain_trigger_batch_${globalChunk}`,
-        error_log: [`Chunk-kjeden stoppet (nettverksfeil): ${errMsg}`],
-        last_heartbeat_at: new Date().toISOString(),
-      });
-    }
-    return { ok: false, error: errMsg };
-  }
+  }).catch(err => {
+    // Network-level failure to even send the request
+    console.error(`[chain] job=${jobId} DISPATCH FAILED (network): ${(err as Error).message}`);
+    // Mark job as failed since the chain is truly broken
+    updateImportJob(supabaseAdmin, jobId, {
+      status: "failed",
+      finished_at: new Date().toISOString(),
+      failed_step: `dispatch_batch_${globalChunk}`,
+      error_log: [`Chunk-dispatch feilet (nettverksfeil): ${(err as Error).message}`],
+      last_heartbeat_at: new Date().toISOString(),
+    }).catch(() => {});
+  });
 }
 
 function countFileRows(content: string): number {
