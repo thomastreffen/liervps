@@ -325,41 +325,53 @@ const BATCH_SIZE = 500;
 
 /**
  * Batch upsert supplier_products.
- * OPTIMIZED: Only updates rows where data actually changed.
+ * OPTIMIZED: Only updates rows where data actually changed across ALL fields.
  */
 async function batchUpsertSupplierProducts(
   sa: SupabaseAdmin, companyId: string, supplierId: string, rows: ParsedRow[],
-): Promise<Map<string, { id: string; isNew: boolean }>> {
-  const result = new Map<string, { id: string; isNew: boolean }>();
+): Promise<{ map: Map<string, { id: string; isNew: boolean }>; unchanged: number; updated: number }> {
+  const map = new Map<string, { id: string; isNew: boolean }>();
   const skus = rows.map(r => r.supplier_sku!).filter(Boolean);
-  if (skus.length === 0) return result;
+  if (skus.length === 0) return { map, unchanged: 0, updated: 0 };
 
-  // Fetch existing in one query
-  const existingMap = new Map<string, { id: string; name: string | null }>();
+  // Fetch existing with ALL comparable fields in one query
+  interface ExistingProduct {
+    id: string; supplier_sku: string; supplier_product_name: string | null;
+    supplier_product_description: string | null; raw_category: string | null;
+    raw_brand: string | null; raw_unit: string | null;
+  }
+  const existingMap = new Map<string, ExistingProduct>();
   for (let i = 0; i < skus.length; i += 200) {
     const batch = skus.slice(i, i + 200);
-    const { data } = await sa.from("supplier_products").select("id, supplier_sku, supplier_product_name")
+    const { data } = await sa.from("supplier_products")
+      .select("id, supplier_sku, supplier_product_name, supplier_product_description, raw_category, raw_brand, raw_unit")
       .eq("company_id", companyId).eq("supplier_id", supplierId).in("supplier_sku", batch);
-    for (const d of data ?? []) existingMap.set(d.supplier_sku, { id: d.id, name: d.supplier_product_name });
+    for (const d of (data ?? []) as ExistingProduct[]) existingMap.set(d.supplier_sku, d);
   }
 
   const now = new Date().toISOString();
   const toInsert: any[] = [];
-  const toTouchIds: string[] = []; // existing rows with no data change — just touch last_seen_at
-  const toUpdateFull: { id: string; row: ParsedRow }[] = []; // existing rows with changed data
+  const toTouchIds: string[] = [];
+  const toUpdateFull: { id: string; row: ParsedRow }[] = [];
 
   for (const row of rows) {
     if (!row.supplier_sku) continue;
     const existing = existingMap.get(row.supplier_sku);
     if (existing) {
-      // Only do a full update if product_name actually changed
-      const nameChanged = row.product_name !== null && row.product_name !== existing.name;
-      if (nameChanged) {
+      // Compare ALL relevant fields
+      const changed =
+        (row.product_name !== null && row.product_name !== existing.supplier_product_name) ||
+        (row.description !== null && row.description !== existing.supplier_product_description) ||
+        (row.brand !== null && row.brand !== existing.raw_brand) ||
+        (row.category !== null && row.category !== existing.raw_category) ||
+        (row.unit !== null && row.unit !== existing.raw_unit);
+
+      if (changed) {
         toUpdateFull.push({ id: existing.id, row });
       } else {
         toTouchIds.push(existing.id);
       }
-      result.set(row.supplier_sku, { id: existing.id, isNew: false });
+      map.set(row.supplier_sku, { id: existing.id, isNew: false });
     } else {
       toInsert.push({
         company_id: companyId, supplier_id: supplierId, supplier_sku: row.supplier_sku,
@@ -380,12 +392,12 @@ async function batchUpsertSupplierProducts(
         for (const item of batch) {
           try {
             const { data: single } = await sa.from("supplier_products").insert(item).select("id, supplier_sku").single();
-            if (single) result.set(single.supplier_sku, { id: single.id, isNew: true });
+            if (single) map.set(single.supplier_sku, { id: single.id, isNew: true });
           } catch {}
         }
         continue;
       }
-      for (const d of data ?? []) result.set(d.supplier_sku, { id: d.id, isNew: true });
+      for (const d of data ?? []) map.set(d.supplier_sku, { id: d.id, isNew: true });
     }
   }
 
@@ -409,7 +421,8 @@ async function batchUpsertSupplierProducts(
     }
   }
 
-  return result;
+  console.log(`[upsert] products: ${toInsert.length} new, ${toUpdateFull.length} updated, ${toTouchIds.length} unchanged`);
+  return { map, unchanged: toTouchIds.length, updated: toUpdateFull.length };
 }
 
 /**
@@ -519,26 +532,64 @@ async function batchAutoCreateCatalogProducts(
 
 /**
  * Batch insert supplier_prices.
- * Only inserts rows with valid prices.
+ * OPTIMIZED: Only inserts if price data actually differs from latest existing price.
  */
 async function batchInsertPrices(
   sa: SupabaseAdmin, companyId: string, supplierId: string,
   priceRows: Array<{ supplierProductId: string; row: ParsedRow; fileName: string }>,
-): Promise<void> {
+): Promise<{ inserted: number; skippedDuplicate: number; skippedNoPrice: number }> {
   const now = new Date().toISOString();
-  const payloads = priceRows
-    .filter(p => {
-      const hasListPrice = p.row.list_price !== null && p.row.list_price > 0;
-      const hasNetPrice = p.row.net_price !== null && p.row.net_price > 0;
-      return hasListPrice || hasNetPrice;
-    })
-    .map(p => ({
+  const withPrice = priceRows.filter(p => {
+    const hasListPrice = p.row.list_price !== null && p.row.list_price > 0;
+    const hasNetPrice = p.row.net_price !== null && p.row.net_price > 0;
+    return hasListPrice || hasNetPrice;
+  });
+  const skippedNoPrice = priceRows.length - withPrice.length;
+
+  if (withPrice.length === 0) return { inserted: 0, skippedDuplicate: 0, skippedNoPrice };
+
+  // Fetch latest existing prices for all supplier_product_ids in this batch
+  const spIds = [...new Set(withPrice.map(p => p.supplierProductId))];
+  interface ExistingPrice { supplier_product_id: string; list_price: number | null; discount_percent: number | null; net_price: number | null }
+  const latestPriceMap = new Map<string, ExistingPrice>();
+  for (let i = 0; i < spIds.length; i += 200) {
+    const batch = spIds.slice(i, i + 200);
+    // Get the most recent price per supplier_product_id
+    const { data } = await sa.from("supplier_prices")
+      .select("supplier_product_id, list_price, discount_percent, net_price")
+      .eq("company_id", companyId).eq("supplier_id", supplierId)
+      .in("supplier_product_id", batch)
+      .order("imported_at", { ascending: false });
+    // Only keep the first (latest) per supplier_product_id
+    for (const d of (data ?? []) as ExistingPrice[]) {
+      if (!latestPriceMap.has(d.supplier_product_id)) {
+        latestPriceMap.set(d.supplier_product_id, d);
+      }
+    }
+  }
+
+  // Compare and filter out duplicates
+  const payloads: any[] = [];
+  let skippedDuplicate = 0;
+  for (const p of withPrice) {
+    const existing = latestPriceMap.get(p.supplierProductId);
+    if (existing) {
+      const sameList = (p.row.list_price ?? null) === (existing.list_price ?? null);
+      const sameNet = (p.row.net_price ?? null) === (existing.net_price ?? null);
+      const sameDiscount = (p.row.discount_percent ?? null) === (existing.discount_percent ?? null);
+      if (sameList && sameNet && sameDiscount) {
+        skippedDuplicate++;
+        continue;
+      }
+    }
+    payloads.push({
       company_id: companyId, supplier_id: supplierId, supplier_product_id: p.supplierProductId,
       list_price: p.row.list_price,
       discount_percent: p.row.discount_percent,
       net_price: p.row.net_price, currency: "NOK", source_file_name: p.fileName,
       imported_at: now,
-    }));
+    });
+  }
 
   for (let i = 0; i < payloads.length; i += BATCH_SIZE) {
     const batch = payloads.slice(i, i + BATCH_SIZE);
@@ -546,9 +597,8 @@ async function batchInsertPrices(
     if (error) console.error(`[batch] Insert prices error: ${error.message}`);
   }
 
-  if (priceRows.length > 0 && payloads.length < priceRows.length) {
-    console.log(`[batch] Skipped ${priceRows.length - payloads.length} price rows with no valid price data`);
-  }
+  console.log(`[prices] ${payloads.length} inserted, ${skippedDuplicate} unchanged, ${skippedNoPrice} no price`);
+  return { inserted: payloads.length, skippedDuplicate, skippedNoPrice };
 }
 
 /**
@@ -697,19 +747,21 @@ async function processChunk(params: {
 
   // Phase 1: Upsert supplier_products
   const t1 = timer();
-  let spMap: Map<string, { id: string; isNew: boolean }>;
+  let spResult: { map: Map<string, { id: string; isNew: boolean }>; unchanged: number; updated: number };
   try {
-    spMap = await batchUpsertSupplierProducts(sa, companyId, supplierId, validRows);
+    spResult = await batchUpsertSupplierProducts(sa, companyId, supplierId, validRows);
   } catch (e) {
     stats.rows_failed = validRows.length;
     stats.errors.push(`Batch upsert failed: ${(e as Error).message}`);
     return stats;
   }
+  const spMap = spResult.map;
   const t1ms = t1();
 
   for (const [, v] of spMap) {
-    if (v.isNew) stats.rows_inserted++; else stats.rows_updated++;
+    if (v.isNew) stats.rows_inserted++;
   }
+  stats.rows_updated = spResult.updated;
 
   // Phase 2: Match catalog products
   const t2 = timer();
@@ -740,12 +792,12 @@ async function processChunk(params: {
   if (links.length > 0) await batchLinkProducts(sa, links);
   const t4ms = t4();
 
-  // Phase 5: Insert prices
+  // Phase 5: Insert prices (only if changed)
   const t5 = timer();
   const priceRows = validRows
     .filter(r => r.supplier_sku && spMap.has(r.supplier_sku))
     .map(r => ({ supplierProductId: spMap.get(r.supplier_sku!)!.id, row: r, fileName }));
-  await batchInsertPrices(sa, companyId, supplierId, priceRows);
+  const priceResult = await batchInsertPrices(sa, companyId, supplierId, priceRows);
   const t5ms = t5();
 
   // Phase 6: Import rows audit (only errors/needs_review)
@@ -765,7 +817,7 @@ async function processChunk(params: {
   await batchInsertImportRows(sa, companyId, importJobId, fileType, importRowEntries);
   const t6ms = t6();
 
-  console.log(`[timing] upsert=${t1ms}ms match=${t2ms}ms autocreate=${t3ms}ms link=${t4ms}ms prices=${t5ms}ms audit=${t6ms}ms total=${t1ms+t2ms+t3ms+t4ms+t5ms+t6ms}ms rows=${validRows.length}`);
+  console.log(`[timing] upsert=${t1ms}ms match=${t2ms}ms autocreate=${t3ms}ms link=${t4ms}ms prices=${t5ms}ms audit=${t6ms}ms total=${t1ms+t2ms+t3ms+t4ms+t5ms+t6ms}ms rows=${validRows.length} | products: ${stats.rows_inserted} new, ${spResult.updated} updated, ${spResult.unchanged} unchanged | prices: ${priceResult.inserted} new, ${priceResult.skippedDuplicate} unchanged`);
 
   return stats;
 }
