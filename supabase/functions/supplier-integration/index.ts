@@ -608,8 +608,10 @@ async function handleProcessSync(supabaseAdmin: ReturnType<typeof createClient>,
       last_heartbeat_at: new Date().toISOString(),
     });
 
-    // Kick off chunk processing chain (fully server-side, fire-and-forget)
-    dispatchNextChunk({
+    console.log(`[sync] job=${jobId} CREATED: total_rows=${storageFiles.reduce((s, f) => s + f.totalChunks * 1000, 0)}, total_chunks=${totalGlobalChunks}, dispatching first chunk...`);
+
+    // Kick off chunk processing chain — AWAIT dispatch to ensure it's sent before worker exits
+    const dispatched = await dispatchNextChunk({
       action: "process-sync-chunk",
       job_id: jobId,
       company_id: companyId,
@@ -622,6 +624,12 @@ async function handleProcessSync(supabaseAdmin: ReturnType<typeof createClient>,
       global_chunk: 0,
       total_global_chunks: totalGlobalChunks,
     }, supabaseAdmin);
+
+    if (dispatched) {
+      console.log(`[sync] job=${jobId} first chunk dispatched successfully`);
+    } else {
+      console.error(`[sync] job=${jobId} FAILED to dispatch first chunk — job marked as failed`);
+    }
 
     return jsonOk({ status: "processing" });
   } catch (err) {
