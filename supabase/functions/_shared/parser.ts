@@ -309,6 +309,7 @@ interface EfonelfoProduct {
   list_price: number | null;
   discount_percent: number | null;
   net_price: number | null;
+  price_source: string | null; // 'vl_gross', 'pl_list', 'pl_net', 'rl_discount'
 }
 
 /** Convert raw price field to NOK based on profile config */
