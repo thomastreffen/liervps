@@ -877,8 +877,10 @@ async function handleRunSync(supabaseAdmin: ReturnType<typeof createClient>, com
   let jobId: string;
   try { jobId = await createImportJob(supabaseAdmin, companyId, supplierId, syncType, userId || "admin"); } catch (e) { return jsonError((e as Error).message, "job_create_error", 500); }
 
-  // Trigger process-sync (fire-and-forget, runs fully server-side)
-  dispatchNextChunk({
+  console.log(`[run-sync] job=${jobId} CREATED, dispatching process-sync...`);
+
+  // Trigger process-sync — AWAIT dispatch to ensure request is sent before worker exits
+  const dispatched = await dispatchNextChunk({
     action: "process-sync",
     job_id: jobId,
     company_id: companyId,
@@ -886,6 +888,13 @@ async function handleRunSync(supabaseAdmin: ReturnType<typeof createClient>, com
     supplier_code: supplierCode,
     sync_type: syncType,
   }, supabaseAdmin);
+
+  if (dispatched) {
+    console.log(`[run-sync] job=${jobId} process-sync dispatched successfully`);
+  } else {
+    console.error(`[run-sync] job=${jobId} FAILED to dispatch process-sync — job marked as failed`);
+    return jsonOk({ status: "failed", message: "Kunne ikke starte synkronisering", data: { job_id: jobId } });
+  }
 
   return jsonOk({
     status: "started",
