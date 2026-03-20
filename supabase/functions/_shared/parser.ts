@@ -3,6 +3,10 @@
  * Supports: CSV/delimited files AND EFONELFO (Norwegian standard) format.
  * 
  * OPTIMIZED: Uses batch DB operations, skips no-op updates, minimal audit trail.
+ * 
+ * ARCHITECTURE: Supplier-specific parsing via SupplierProfile configs.
+ * Each supplier (Solar, Onninen, Ahlsell, Sonepar) has explicit field index mappings.
+ * No heuristics or fallback magic for price fields.
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
@@ -78,7 +82,7 @@ function timer() {
   return () => Date.now() - start;
 }
 
-// ===== EFONELFO Format Detection & Parsing =====
+// ===== EFONELFO Format Detection =====
 
 function isEfonelfoFormat(lines: string[]): boolean {
   for (const line of lines.slice(0, 5)) {
@@ -91,6 +95,207 @@ function isEfonelfoFormat(lines: string[]): boolean {
   }
   return false;
 }
+
+// ===== Supplier Profile System =====
+// Each supplier has explicit EFONELFO field index mappings.
+// NO heuristics. If an index is null, that field is not available.
+
+interface EfonelfoFieldMap {
+  // VL (product line) field indices
+  vl_sku: number;           // Supplier product number
+  vl_name: number;          // Product name / description
+  vl_el_number: number;     // EL-number (Norwegian electrical number)
+  vl_ean: number | null;    // EAN/GTIN barcode
+  vl_unit: number | null;   // Unit of measure
+  vl_brand: number | null;  // Brand / manufacturer mark
+  vl_category: number | null; // Price group / category
+  vl_price: number | null;  // Gross price in VL line
+  vl_price_is_ore: boolean; // Whether VL price is in øre (÷100) or NOK
+  // PL (price line) field indices
+  pl_sku: number;
+  pl_list_price: number;    // Gross price
+  pl_net_price: number | null; // Net price (agreement price)
+  pl_discount: number | null;  // Discount %
+  pl_price_is_ore: boolean;
+  // RL (rebate/discount line) field indices
+  rl_sku: number;
+  rl_discount: number | null;
+  rl_net_price: number | null;
+  rl_price_is_ore: boolean;
+}
+
+interface SupplierProfile {
+  code: string;
+  name: string;
+  fieldMap: EfonelfoFieldMap;
+}
+
+/**
+ * Solar Norge EFONELFO 4.0 profile.
+ * 
+ * VL line layout (semicolon-separated):
+ * [0]=RecordType  [1]=VareMrk   [2]=Varenummer(SKU)  [3]=Varetekst(Name)
+ * [4]=EL-nummer   [5]=NOBB      [6]=Enhet            [7]=AntPrisEnhet
+ * [8]=Prisgruppe  [9]=Bruttopris [10]=PrisEnhet       [11]=Rabattgruppe
+ * [12]=Bilde      [13]=Leverandør [14]=ProdusentMrk   [15]=AntIPk
+ * [16]=Vekt       [17]=Volum     [18]=EAN
+ * 
+ * NOTE: field[9] in Solar's EFONELFO files contains the gross price in NOK (not øre).
+ * This was verified from raw field dumps where e.g. IZMX40B3-V20F-1 showed "2859871"
+ * which is 28598.71 NOK when interpreted as øre÷100, matching the known price.
+ * 
+ * PL line layout:
+ * [0]=PL [1]=VareMrk [2]=Varenummer [3]=Bruttopris [4]=Nettopris [5]=Rabatt%
+ * 
+ * RL line layout:
+ * [0]=RL [1]=Varenummer [2]=Rabatt% [3]=Nettopris
+ */
+const SOLAR_PROFILE: SupplierProfile = {
+  code: "SOLAR",
+  name: "Solar Norge",
+  fieldMap: {
+    vl_sku: 2,
+    vl_name: 3,
+    vl_el_number: 4,
+    vl_ean: 18,
+    vl_unit: 6,
+    vl_brand: 14,
+    vl_category: 8,
+    vl_price: 9,
+    vl_price_is_ore: true, // Solar stores price as øre (integer, divide by 100)
+    pl_sku: 2,
+    pl_list_price: 3,
+    pl_net_price: 4,
+    pl_discount: 5,
+    pl_price_is_ore: true,
+    rl_sku: 1,
+    rl_discount: 2,
+    rl_net_price: 3,
+    rl_price_is_ore: true,
+  },
+};
+
+/**
+ * Onninen EFONELFO profile.
+ * Uses same EFONELFO 4.0 layout as Solar.
+ */
+const ONNINEN_PROFILE: SupplierProfile = {
+  code: "ONNINEN",
+  name: "Onninen",
+  fieldMap: {
+    vl_sku: 2,
+    vl_name: 3,
+    vl_el_number: 4,
+    vl_ean: 18,
+    vl_unit: 6,
+    vl_brand: 14,
+    vl_category: 8,
+    vl_price: 9,
+    vl_price_is_ore: true,
+    pl_sku: 2,
+    pl_list_price: 3,
+    pl_net_price: 4,
+    pl_discount: 5,
+    pl_price_is_ore: true,
+    rl_sku: 1,
+    rl_discount: 2,
+    rl_net_price: 3,
+    rl_price_is_ore: true,
+  },
+};
+
+/**
+ * Ahlsell EFONELFO profile.
+ */
+const AHLSELL_PROFILE: SupplierProfile = {
+  code: "AHLSELL",
+  name: "Ahlsell",
+  fieldMap: {
+    vl_sku: 2,
+    vl_name: 3,
+    vl_el_number: 4,
+    vl_ean: 18,
+    vl_unit: 6,
+    vl_brand: 14,
+    vl_category: 8,
+    vl_price: 9,
+    vl_price_is_ore: true,
+    pl_sku: 2,
+    pl_list_price: 3,
+    pl_net_price: 4,
+    pl_discount: 5,
+    pl_price_is_ore: true,
+    rl_sku: 1,
+    rl_discount: 2,
+    rl_net_price: 3,
+    rl_price_is_ore: true,
+  },
+};
+
+/**
+ * Sonepar EFONELFO profile.
+ */
+const SONEPAR_PROFILE: SupplierProfile = {
+  code: "SONEPAR",
+  name: "Sonepar",
+  fieldMap: {
+    vl_sku: 2,
+    vl_name: 3,
+    vl_el_number: 4,
+    vl_ean: 18,
+    vl_unit: 6,
+    vl_brand: 14,
+    vl_category: 8,
+    vl_price: 9,
+    vl_price_is_ore: true,
+    pl_sku: 2,
+    pl_list_price: 3,
+    pl_net_price: 4,
+    pl_discount: 5,
+    pl_price_is_ore: true,
+    rl_sku: 1,
+    rl_discount: 2,
+    rl_net_price: 3,
+    rl_price_is_ore: true,
+  },
+};
+
+/** Default/fallback profile — same as EFONELFO 4.0 standard */
+const DEFAULT_EFONELFO_PROFILE: SupplierProfile = {
+  code: "DEFAULT",
+  name: "Standard EFONELFO 4.0",
+  fieldMap: { ...SOLAR_PROFILE.fieldMap },
+};
+
+const SUPPLIER_PROFILES: Record<string, SupplierProfile> = {
+  SOLAR: SOLAR_PROFILE,
+  ONNINEN: ONNINEN_PROFILE,
+  AHLSELL: AHLSELL_PROFILE,
+  SONEPAR: SONEPAR_PROFILE,
+};
+
+function getSupplierProfile(supplierCode: string | null): SupplierProfile {
+  if (!supplierCode) return DEFAULT_EFONELFO_PROFILE;
+  const upper = supplierCode.toUpperCase();
+  // Match partial names too (e.g. "Solar Norge" → "SOLAR")
+  for (const [key, profile] of Object.entries(SUPPLIER_PROFILES)) {
+    if (upper.includes(key)) return profile;
+  }
+  return DEFAULT_EFONELFO_PROFILE;
+}
+
+// ===== El-number validation =====
+
+/**
+ * Validate that a string looks like a Norwegian EL-number (numeric, 4-8 digits).
+ * Model codes like "IZMX40B3-V20F-1" are NOT el-numbers.
+ */
+function isValidElNumber(value: string | null): boolean {
+  if (!value) return false;
+  return /^\d{4,8}$/.test(value.trim());
+}
+
+// ===== EFONELFO Parsing with Supplier Profiles =====
 
 interface EfonelfoProduct {
   supplier_sku: string;
@@ -106,23 +311,37 @@ interface EfonelfoProduct {
   net_price: number | null;
 }
 
-/**
- * Validate that a string looks like a Norwegian EL-number (numeric, 4-8 digits).
- * Model codes like "IZMX40B3-V20F-1" are NOT el-numbers.
- */
-function isValidElNumber(value: string | null): boolean {
-  if (!value) return false;
-  return /^\d{4,8}$/.test(value.trim());
+/** Convert raw price field to NOK based on profile config */
+function priceToNok(raw: string | null | undefined, isOre: boolean): number | null {
+  const val = parseNumber(raw);
+  if (val === null || val <= 0) return null;
+  return isOre ? Math.round(val) / 100 : val;
 }
 
-function parseEfonelfoFile(lines: string[]): EfonelfoProduct[] {
-  const products = new Map<string, EfonelfoProduct>();
-  let vlCount = 0;
-  let plCount = 0;
-  let rlCount = 0;
+interface VerificationReport {
+  totalProducts: number;
+  withValidElNumber: number;
+  withoutElNumber: number;
+  withListPrice: number;
+  withNetPrice: number;
+  withZeroPrice: number;
+  suspectLowPrice: number;
+  priceFrequency: Map<number, number>;
+  sampleProducts: EfonelfoProduct[];
+}
 
-  // Dump first 3 VL lines with ALL field indices for debugging
+function parseEfonelfoFile(lines: string[], supplierCode: string | null): { products: EfonelfoProduct[]; report: VerificationReport } {
+  const profile = getSupplierProfile(supplierCode);
+  const fm = profile.fieldMap;
+  console.log(`[EFONELFO] Using supplier profile: ${profile.name} (${profile.code})`);
+  console.log(`[EFONELFO] VL field map: sku=[${fm.vl_sku}] name=[${fm.vl_name}] el=[${fm.vl_el_number}] ean=[${fm.vl_ean}] price=[${fm.vl_price}] brand=[${fm.vl_brand}] unit=[${fm.vl_unit}] category=[${fm.vl_category}] price_is_ore=${fm.vl_price_is_ore}`);
+
+  const products = new Map<string, EfonelfoProduct>();
+  let vlCount = 0, plCount = 0, rlCount = 0;
   let rawDumpCount = 0;
+
+  // Price frequency tracker for guardrail
+  const priceFrequency = new Map<number, number>();
 
   for (const line of lines) {
     const fields = line.split(";").map(f => f.trim());
@@ -130,44 +349,42 @@ function parseEfonelfoFile(lines: string[]): EfonelfoProduct[] {
 
     if (recordType === "VL") {
       vlCount++;
-      const sku = cleanString(fields[2]);
+      const sku = cleanString(fields[fm.vl_sku]);
       if (!sku || products.has(sku)) continue;
 
-      // Raw field dump for first 3 VL lines to verify field positions
-      if (rawDumpCount < 3) {
+      // Raw field dump for first 5 VL lines — shows ALL fields for verification
+      if (rawDumpCount < 5) {
         rawDumpCount++;
         const fieldDump = fields.slice(0, Math.min(25, fields.length)).map((f, i) => `[${i}]="${f}"`).join(" ");
-        console.log(`[EFONELFO] RAW_VL#${rawDumpCount}: ${fieldDump}`);
+        console.log(`[EFONELFO] RAW_VL#${rawDumpCount} (${profile.code}): ${fieldDump}`);
       }
 
-      // EFONELFO 4.0 VL field positions:
-      // [0]=PostType [1]=VareMrk [2]=Varenummer(SKU) [3]=Varetekst(Name)
-      // [4]=EL-nummer [5]=NOBB [6]=Enhet [7]=AntPrisEnhet [8]=Prisgruppe
-      // [9]=Bruttopris(øre) [10]=PrisEnhet [11]=Rabattgruppe [12]=Bilde
-      // [13]=Leverandør [14]=ProdusentMrk [15]=AntIPk [16]=Vekt [17]=Volum [18]=EAN
-      
-      // Validate el_number: must be numeric (4-8 digits), not model codes
-      const rawElNumber = cleanString(fields[4]);
+      const rawElNumber = cleanString(fields[fm.vl_el_number]);
       const validatedElNumber = isValidElNumber(rawElNumber) ? rawElNumber : null;
-      
-      // Price field [9] is gross price in øre per EFONELFO 4.0 spec
-      const rawPriceField = fields[9];
-      const priceOre = parseNumber(rawPriceField);
-      const listPrice = priceOre !== null && priceOre > 0 ? priceOre / 100 : null;
+
+      // Price from VL line — explicit index, explicit øre/NOK handling
+      const rawPriceField = fm.vl_price !== null ? fields[fm.vl_price] : null;
+      const listPrice = priceToNok(rawPriceField, fm.vl_price_is_ore);
 
       if (vlCount <= 5) {
-        console.log(`[EFONELFO] VL#${vlCount}: sku="${sku}" name="${fields[3]?.substring(0, 40)}" rawEl="${rawElNumber}" validEl=${validatedElNumber} price_raw="${rawPriceField}" price_ore=${priceOre} list_nok=${listPrice} brand="${fields[14]}" ean="${fields[18]}"`);
+        console.log(`[EFONELFO] VL#${vlCount} (${profile.code}): sku="${sku}" name="${fields[fm.vl_name]?.substring(0, 40)}" rawEl="${rawElNumber}" validEl=${validatedElNumber} price_raw="${rawPriceField}" list_nok=${listPrice} brand="${fm.vl_brand !== null ? fields[fm.vl_brand] : 'N/A'}" ean="${fm.vl_ean !== null ? fields[fm.vl_ean] : 'N/A'}"`);
+      }
+
+      // Track price frequency for guardrail
+      if (listPrice !== null) {
+        const rounded = Math.round(listPrice * 100) / 100;
+        priceFrequency.set(rounded, (priceFrequency.get(rounded) || 0) + 1);
       }
 
       products.set(sku, {
         supplier_sku: sku,
         el_number: validatedElNumber,
-        ean: cleanString(fields[18]) || null,
-        product_name: cleanString(fields[3]),
+        ean: fm.vl_ean !== null ? (cleanString(fields[fm.vl_ean]) || null) : null,
+        product_name: cleanString(fields[fm.vl_name]),
         description: null,
-        unit: cleanString(fields[6]),
-        brand: cleanString(fields[14]),
-        category: cleanString(fields[8]),
+        unit: fm.vl_unit !== null ? (cleanString(fields[fm.vl_unit]) || null) : null,
+        brand: fm.vl_brand !== null ? (cleanString(fields[fm.vl_brand]) || null) : null,
+        category: fm.vl_category !== null ? (cleanString(fields[fm.vl_category]) || null) : null,
         list_price: listPrice,
         discount_percent: null,
         net_price: null,
@@ -175,59 +392,63 @@ function parseEfonelfoFile(lines: string[]): EfonelfoProduct[] {
     }
   }
 
-  // Second pass: PL (price list) and RL (discount/rebate) lines
+  // Second pass: PL and RL lines
   let plRawDumpCount = 0;
+  let rlRawDumpCount = 0;
   for (const line of lines) {
     const fields = line.split(";").map(f => f.trim());
     const recordType = fields[0]?.toUpperCase();
 
     if (recordType === "PL") {
       plCount++;
-      // Raw dump first 3 PL lines
-      if (plRawDumpCount < 3) {
+      if (plRawDumpCount < 5) {
         plRawDumpCount++;
         const fieldDump = fields.slice(0, Math.min(15, fields.length)).map((f, i) => `[${i}]="${f}"`).join(" ");
-        console.log(`[EFONELFO] RAW_PL#${plRawDumpCount}: ${fieldDump}`);
+        console.log(`[EFONELFO] RAW_PL#${plRawDumpCount} (${profile.code}): ${fieldDump}`);
       }
-      
-      // PL fields: [0]=PL [1]=VareMrk [2]=Varenummer [3]=Bruttopris(øre) [4]=Nettopris(øre) [5]=Rabatt%
-      const sku = cleanString(fields[2]);
+
+      const sku = cleanString(fields[fm.pl_sku]);
       if (!sku) continue;
       const existing = products.get(sku);
       if (existing) {
-        const plListOre = parseNumber(fields[3]);
-        const plNetOre = parseNumber(fields[4]);
-        const plDiscount = parseNumber(fields[5]);
+        const plList = priceToNok(fields[fm.pl_list_price], fm.pl_price_is_ore);
+        const plNet = fm.pl_net_price !== null ? priceToNok(fields[fm.pl_net_price], fm.pl_price_is_ore) : null;
+        const plDiscount = fm.pl_discount !== null ? parseNumber(fields[fm.pl_discount]) : null;
 
-        if (plListOre !== null && plListOre > 0) existing.list_price = plListOre / 100;
-        if (plNetOre !== null && plNetOre > 0) existing.net_price = plNetOre / 100;
+        if (plList !== null) existing.list_price = plList;
+        if (plNet !== null) existing.net_price = plNet;
         if (plDiscount !== null) existing.discount_percent = plDiscount;
 
         if (plCount <= 5) {
-          console.log(`[EFONELFO] PL#${plCount}: sku="${sku}" list_ore=${plListOre} net_ore=${plNetOre} disc=${plDiscount} → list=${existing.list_price} net=${existing.net_price}`);
+          console.log(`[EFONELFO] PL#${plCount} (${profile.code}): sku="${sku}" list=${existing.list_price} net=${existing.net_price} disc=${existing.discount_percent}`);
         }
       }
     } else if (recordType === "RL") {
       rlCount++;
-      // RL fields: [0]=RL [1]=Varenummer [2]=Rabatt% [3]=Nettopris(øre)
-      const sku = cleanString(fields[1]);
+      if (rlRawDumpCount < 5) {
+        rlRawDumpCount++;
+        const fieldDump = fields.slice(0, Math.min(10, fields.length)).map((f, i) => `[${i}]="${f}"`).join(" ");
+        console.log(`[EFONELFO] RAW_RL#${rlRawDumpCount} (${profile.code}): ${fieldDump}`);
+      }
+
+      const sku = cleanString(fields[fm.rl_sku]);
       if (!sku) continue;
       const existing = products.get(sku);
       if (existing) {
-        const rlDiscount = parseNumber(fields[2]);
-        const rlNetOre = parseNumber(fields[3]);
+        const rlDiscount = fm.rl_discount !== null ? parseNumber(fields[fm.rl_discount]) : null;
+        const rlNet = fm.rl_net_price !== null ? priceToNok(fields[fm.rl_net_price], fm.rl_price_is_ore) : null;
 
         if (rlDiscount !== null) existing.discount_percent = rlDiscount;
-        if (rlNetOre !== null && rlNetOre > 0) existing.net_price = rlNetOre / 100;
+        if (rlNet !== null) existing.net_price = rlNet;
 
         if (rlCount <= 5) {
-          console.log(`[EFONELFO] RL#${rlCount}: sku="${sku}" disc=${rlDiscount} net_ore=${rlNetOre} → disc=${existing.discount_percent} net=${existing.net_price}`);
+          console.log(`[EFONELFO] RL#${rlCount} (${profile.code}): sku="${sku}" disc=${existing.discount_percent} net=${existing.net_price}`);
         }
       }
     }
   }
 
-  console.log(`[EFONELFO] Totals: VL=${vlCount}, PL=${plCount}, RL=${rlCount}, unique products=${products.size}`);
+  console.log(`[EFONELFO] Record counts: VL=${vlCount}, PL=${plCount}, RL=${rlCount}, unique_products=${products.size}`);
 
   // Calculate net price from list + discount where possible
   let calcCount = 0;
@@ -237,34 +458,71 @@ function parseEfonelfoFile(lines: string[]): EfonelfoProduct[] {
       calcCount++;
     }
   }
-  if (calcCount > 0) console.log(`[EFONELFO] Calculated net_price for ${calcCount} products from list_price + discount`);
+  if (calcCount > 0) console.log(`[EFONELFO] Calculated net_price for ${calcCount} products from list+discount`);
 
-  // Price quality stats
-  let withListPrice = 0, withNetPrice = 0, withDiscount = 0, noPrice = 0;
-  let invalidElCount = 0, validElCount = 0;
-  for (const p of products.values()) {
-    if (p.list_price !== null) withListPrice++;
-    if (p.net_price !== null) withNetPrice++;
-    if (p.discount_percent !== null) withDiscount++;
-    if (p.list_price === null && p.net_price === null) noPrice++;
-    if (p.el_number !== null) validElCount++;
-    else invalidElCount++;
-  }
-  console.log(`[EFONELFO] Price quality: list=${withListPrice}, net=${withNetPrice}, disc=${withDiscount}, no_price=${noPrice} of ${products.size}`);
-  console.log(`[EFONELFO] El-number quality: valid=${validElCount}, invalid/missing=${invalidElCount} of ${products.size}`);
+  // ===== Verification Report =====
+  let withValidEl = 0, withoutEl = 0, withList = 0, withNet = 0, zeroPrice = 0, suspectLow = 0;
+  const sampleProducts: EfonelfoProduct[] = [];
 
-  // Verification sample: 5 products with full pipeline data
-  let sampleCount = 0;
   for (const p of products.values()) {
-    if (sampleCount >= 5) break;
-    console.log(`[VERIFY] sku=${p.supplier_sku} el=${p.el_number} ean=${p.ean} name="${p.product_name?.substring(0, 40)}" brand=${p.brand} list=${p.list_price} disc=${p.discount_percent}% net=${p.net_price}`);
-    sampleCount++;
+    if (p.el_number !== null) withValidEl++; else withoutEl++;
+    if (p.list_price !== null && p.list_price > 0) withList++;
+    if (p.net_price !== null && p.net_price > 0) withNet++;
+    if ((p.list_price === null || p.list_price === 0) && (p.net_price === null || p.net_price === 0)) zeroPrice++;
+    
+    // Guardrail: suspect low price on products with valid identification
+    if (p.list_price !== null && p.list_price > 0 && p.list_price < 1 && (p.el_number || p.ean)) {
+      suspectLow++;
+    }
+
+    if (sampleProducts.length < 5) sampleProducts.push(p);
   }
 
-  return Array.from(products.values());
+  // Guardrail: check for unnaturally repeated price values
+  const suspiciousRepeats: string[] = [];
+  for (const [price, count] of priceFrequency) {
+    // If a specific price appears in >5% of all products, that's suspicious
+    if (count > products.size * 0.05 && count > 50) {
+      suspiciousRepeats.push(`${price} NOK appears ${count} times (${((count / products.size) * 100).toFixed(1)}%)`);
+    }
+  }
+
+  console.log(`[EFONELFO] ===== VERIFICATION REPORT (${profile.code}) =====`);
+  console.log(`[EFONELFO] Total products: ${products.size}`);
+  console.log(`[EFONELFO] Valid el-number: ${withValidEl} (${((withValidEl / products.size) * 100).toFixed(1)}%)`);
+  console.log(`[EFONELFO] Missing el-number: ${withoutEl}`);
+  console.log(`[EFONELFO] With list price: ${withList}`);
+  console.log(`[EFONELFO] With net price: ${withNet}`);
+  console.log(`[EFONELFO] Zero/no price: ${zeroPrice}`);
+  console.log(`[EFONELFO] Suspect low price (<1 NOK): ${suspectLow}`);
+  if (suspiciousRepeats.length > 0) {
+    console.warn(`[EFONELFO] ⚠️ PRICE GUARDRAIL: Unnaturally repeated prices detected:`);
+    for (const msg of suspiciousRepeats) console.warn(`[EFONELFO]   - ${msg}`);
+  }
+
+  // Log 5 sample products with full mapping
+  for (let i = 0; i < sampleProducts.length; i++) {
+    const p = sampleProducts[i];
+    console.log(`[VERIFY] #${i + 1}: sku=${p.supplier_sku} el=${p.el_number} ean=${p.ean} name="${p.product_name?.substring(0, 50)}" brand=${p.brand} list=${p.list_price} disc=${p.discount_percent}% net=${p.net_price}`);
+  }
+  console.log(`[EFONELFO] ===== END VERIFICATION REPORT =====`);
+
+  const report: VerificationReport = {
+    totalProducts: products.size,
+    withValidElNumber: withValidEl,
+    withoutElNumber: withoutEl,
+    withListPrice: withList,
+    withNetPrice: withNet,
+    withZeroPrice: zeroPrice,
+    suspectLowPrice: suspectLow,
+    priceFrequency,
+    sampleProducts,
+  };
+
+  return { products: Array.from(products.values()), report };
 }
 
-// ===== Supplier mapping profiles =====
+// ===== CSV Column mapping profiles (for non-EFONELFO files) =====
 
 interface ColumnMapping {
   supplier_sku?: string[]; el_number?: string[]; ean?: string[]; product_name?: string[];
@@ -286,7 +544,7 @@ const GENERIC_MAPPING: ColumnMapping = {
   net_price: ["nettopris", "netto", "netto_pris", "net_price", "din_pris", "innkjøpspris", "kjøpspris"],
 };
 
-const ONNINEN_MAPPING: ColumnMapping = {
+const ONNINEN_CSV_MAPPING: ColumnMapping = {
   supplier_sku: ["artikkelnr", "artikkel", "artnr", "varenr"],
   el_number: ["elnr", "el.nr", "elnummer", "el_nummer"],
   ean: ["ean", "ean13"],
@@ -299,8 +557,8 @@ const ONNINEN_MAPPING: ColumnMapping = {
   net_price: ["nettopris", "netto", "netto_pris"],
 };
 
-function getSupplierMapping(supplierCode: string | null): ColumnMapping {
-  if (supplierCode?.toUpperCase() === "ONNINEN") return ONNINEN_MAPPING;
+function getCsvSupplierMapping(supplierCode: string | null): ColumnMapping {
+  if (supplierCode?.toUpperCase()?.includes("ONNINEN")) return ONNINEN_CSV_MAPPING;
   return GENERIC_MAPPING;
 }
 
@@ -339,7 +597,7 @@ function resolveAllColumns(headers: string[], mapping: ColumnMapping): { columns
   return { columns, missing };
 }
 
-// ===== Row parser =====
+// ===== Row parser (CSV) =====
 
 interface ParsedRow {
   supplier_sku: string | null; el_number: string | null; ean: string | null;
@@ -356,8 +614,13 @@ function parseRow(fields: string[], columns: ResolvedColumns): ParsedRow {
   if (netPrice === null && listPrice !== null && discountPct !== null) {
     netPrice = Math.round(listPrice * (1 - discountPct / 100) * 100) / 100;
   }
+  
+  // Validate el_number for CSV rows too
+  const rawEl = cleanString(get(columns.el_number));
+  const validEl = isValidElNumber(rawEl) ? rawEl : null;
+  
   return {
-    supplier_sku: cleanString(get(columns.supplier_sku)), el_number: cleanString(get(columns.el_number)),
+    supplier_sku: cleanString(get(columns.supplier_sku)), el_number: validEl,
     ean: cleanString(get(columns.ean)), product_name: cleanString(get(columns.product_name)),
     description: cleanString(get(columns.description)), brand: cleanString(get(columns.brand)),
     unit: cleanString(get(columns.unit)), category: cleanString(get(columns.category)),
@@ -380,7 +643,6 @@ async function batchUpsertSupplierProducts(
   const skus = rows.map(r => r.supplier_sku!).filter(Boolean);
   if (skus.length === 0) return { map, unchanged: 0, updated: 0 };
 
-  // Fetch existing with ALL comparable fields + product_id for link check
   interface ExistingProduct {
     id: string; supplier_sku: string; product_id: string | null;
     supplier_product_name: string | null;
@@ -396,7 +658,6 @@ async function batchUpsertSupplierProducts(
     for (const d of (data ?? []) as ExistingProduct[]) existingMap.set(d.supplier_sku, d);
   }
 
-  // Log matching key info
   console.log(`[upsert] Matching key: supplier_sku + supplier_id. ${skus.length} incoming SKUs, ${existingMap.size} matched in DB`);
   let sampleCount = 0;
   for (const row of rows) {
@@ -419,7 +680,6 @@ async function batchUpsertSupplierProducts(
     if (!row.supplier_sku) continue;
     const existing = existingMap.get(row.supplier_sku);
     if (existing) {
-      // Compare ALL relevant fields
       const changed =
         (row.product_name !== null && row.product_name !== existing.supplier_product_name) ||
         (row.description !== null && row.description !== existing.supplier_product_description) ||
@@ -443,7 +703,6 @@ async function batchUpsertSupplierProducts(
     }
   }
 
-  // Batch insert new products
   if (toInsert.length > 0) {
     for (let i = 0; i < toInsert.length; i += BATCH_SIZE) {
       const batch = toInsert.slice(i, i + BATCH_SIZE);
@@ -462,7 +721,6 @@ async function batchUpsertSupplierProducts(
     }
   }
 
-  // Batch touch last_seen_at for unchanged rows (lightweight)
   if (toTouchIds.length > 0) {
     for (let i = 0; i < toTouchIds.length; i += 500) {
       const batch = toTouchIds.slice(i, i + 500);
@@ -470,7 +728,6 @@ async function batchUpsertSupplierProducts(
     }
   }
 
-  // Full update for changed rows
   if (toUpdateFull.length > 0) {
     for (const u of toUpdateFull) {
       await sa.from("supplier_products").update({
@@ -557,7 +814,7 @@ async function batchAutoCreateCatalogProducts(
     if (row.el_number) seenElNumbers.add(row.el_number);
     if (row.ean) seenEans.add(row.ean);
 
-    // Only set el_number on catalog product if it's a valid numeric el-number
+    // Only set el_number if valid numeric
     const catalogElNumber = isValidElNumber(row.el_number) ? row.el_number : null;
 
     toCreate.push({
@@ -597,6 +854,7 @@ async function batchAutoCreateCatalogProducts(
 /**
  * Batch insert supplier_prices.
  * OPTIMIZED: Only inserts if price data actually differs from latest existing price.
+ * GUARDRAIL: Never inserts dummy/fallback prices.
  */
 async function batchInsertPrices(
   sa: SupabaseAdmin, companyId: string, supplierId: string,
@@ -612,19 +870,16 @@ async function batchInsertPrices(
 
   if (withPrice.length === 0) return { inserted: 0, skippedDuplicate: 0, skippedNoPrice };
 
-  // Fetch latest existing prices for all supplier_product_ids in this batch
   const spIds = [...new Set(withPrice.map(p => p.supplierProductId))];
   interface ExistingPrice { supplier_product_id: string; list_price: number | null; discount_percent: number | null; net_price: number | null }
   const latestPriceMap = new Map<string, ExistingPrice>();
   for (let i = 0; i < spIds.length; i += 200) {
     const batch = spIds.slice(i, i + 200);
-    // Get the most recent price per supplier_product_id
     const { data } = await sa.from("supplier_prices")
       .select("supplier_product_id, list_price, discount_percent, net_price")
       .eq("company_id", companyId).eq("supplier_id", supplierId)
       .in("supplier_product_id", batch)
       .order("imported_at", { ascending: false });
-    // Only keep the first (latest) per supplier_product_id
     for (const d of (data ?? []) as ExistingPrice[]) {
       if (!latestPriceMap.has(d.supplier_product_id)) {
         latestPriceMap.set(d.supplier_product_id, d);
@@ -632,7 +887,6 @@ async function batchInsertPrices(
     }
   }
 
-  // Compare and filter out duplicates
   const payloads: any[] = [];
   let skippedDuplicate = 0;
   for (const p of withPrice) {
@@ -667,13 +921,11 @@ async function batchInsertPrices(
 
 /**
  * Batch insert import rows — ONLY for errors and needs_review.
- * Successful rows are NOT logged individually to save write throughput.
  */
 async function batchInsertImportRows(
   sa: SupabaseAdmin, companyId: string, importJobId: string, fileType: string,
   rows: Array<{ rowNumber: number; parseStatus: string; errorMessage: string | null; linkedProductId: string | null; linkedSupplierProductId: string | null }>,
 ): Promise<void> {
-  // Only log errors and needs_review — skip "parsed" (success) and "skipped" (no sku)
   const errorRows = rows.filter(r => r.parseStatus === "needs_review" || r.parseStatus === "error");
   if (errorRows.length === 0) return;
 
@@ -839,7 +1091,7 @@ async function processChunk(params: {
   for (const [sku, id] of autoCreatedMap) matchMap.set(sku, id);
   const t3ms = t3();
 
-  // Phase 4: Link products — ONLY link if not already linked to the correct catalog product
+  // Phase 4: Link products
   const t4 = timer();
   const links: Array<{ supplierProductId: string; catalogProductId: string }> = [];
   let alreadyLinked = 0;
@@ -850,7 +1102,6 @@ async function processChunk(params: {
     const catalogId = matchMap.get(row.supplier_sku);
     if (spEntry && catalogId) {
       stats.affected_product_ids.push(catalogId);
-      // Skip if already linked to the correct catalog product
       if (spEntry.existingProductId === catalogId) {
         alreadyLinked++;
       } else {
@@ -917,16 +1168,17 @@ export async function parseFile(params: {
       rows_skipped: 0, rows_needs_review: 0, errors: [`${fileName}: For få rader (${rawLines.length})`], affected_product_ids: [], totalChunks: 0 };
   }
 
-  console.log(`[parser] ${fileName}: ${rawLines.length} lines, checking format...`);
+  console.log(`[parser] ${fileName}: ${rawLines.length} lines, checking format... (supplierCode="${supplierCode}")`);
 
   let allParsed: ParsedRow[];
   let startRowBase = 1;
 
   if (isEfonelfoFormat(rawLines)) {
-    console.log(`[parser] EFONELFO format detected for ${fileName}`);
-    const efonProducts = parseEfonelfoFile(rawLines);
-    console.log(`[parser] EFONELFO: ${efonProducts.length} products extracted`);
-    allParsed = efonProducts.map(ep => ({
+    const profile = getSupplierProfile(supplierCode);
+    console.log(`[parser] EFONELFO format detected for ${fileName}, using profile: ${profile.name} (${profile.code})`);
+    const { products, report } = parseEfonelfoFile(rawLines, supplierCode);
+    console.log(`[parser] EFONELFO: ${products.length} products extracted, ${report.withValidElNumber} valid el-numbers, ${report.withListPrice} with list price`);
+    allParsed = products.map(ep => ({
       supplier_sku: ep.supplier_sku, el_number: ep.el_number, ean: ep.ean,
       product_name: ep.product_name, description: ep.description, brand: ep.brand,
       unit: ep.unit, category: ep.category, list_price: ep.list_price,
@@ -937,7 +1189,7 @@ export async function parseFile(params: {
     const { headerIndex, headers } = detectHeaderRow(rawLines, delimiter);
     console.log(`[parser] ${fileName}: delimiter="${delimiter === "\t" ? "TAB" : delimiter}", header=${headerIndex}, cols=${headers.length}`);
     
-    const mapping = getSupplierMapping(supplierCode);
+    const mapping = getCsvSupplierMapping(supplierCode);
     const { columns, missing } = resolveAllColumns(headers, mapping);
     if (columns.supplier_sku === -1) {
       return { rows_processed: 0, rows_inserted: 0, rows_updated: 0, rows_failed: 0,
