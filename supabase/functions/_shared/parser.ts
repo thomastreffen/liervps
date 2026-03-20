@@ -325,41 +325,53 @@ const BATCH_SIZE = 500;
 
 /**
  * Batch upsert supplier_products.
- * OPTIMIZED: Only updates rows where data actually changed.
+ * OPTIMIZED: Only updates rows where data actually changed across ALL fields.
  */
 async function batchUpsertSupplierProducts(
   sa: SupabaseAdmin, companyId: string, supplierId: string, rows: ParsedRow[],
-): Promise<Map<string, { id: string; isNew: boolean }>> {
-  const result = new Map<string, { id: string; isNew: boolean }>();
+): Promise<{ map: Map<string, { id: string; isNew: boolean }>; unchanged: number; updated: number }> {
+  const map = new Map<string, { id: string; isNew: boolean }>();
   const skus = rows.map(r => r.supplier_sku!).filter(Boolean);
-  if (skus.length === 0) return result;
+  if (skus.length === 0) return { map, unchanged: 0, updated: 0 };
 
-  // Fetch existing in one query
-  const existingMap = new Map<string, { id: string; name: string | null }>();
+  // Fetch existing with ALL comparable fields in one query
+  interface ExistingProduct {
+    id: string; supplier_sku: string; supplier_product_name: string | null;
+    supplier_product_description: string | null; raw_category: string | null;
+    raw_brand: string | null; raw_unit: string | null;
+  }
+  const existingMap = new Map<string, ExistingProduct>();
   for (let i = 0; i < skus.length; i += 200) {
     const batch = skus.slice(i, i + 200);
-    const { data } = await sa.from("supplier_products").select("id, supplier_sku, supplier_product_name")
+    const { data } = await sa.from("supplier_products")
+      .select("id, supplier_sku, supplier_product_name, supplier_product_description, raw_category, raw_brand, raw_unit")
       .eq("company_id", companyId).eq("supplier_id", supplierId).in("supplier_sku", batch);
-    for (const d of data ?? []) existingMap.set(d.supplier_sku, { id: d.id, name: d.supplier_product_name });
+    for (const d of (data ?? []) as ExistingProduct[]) existingMap.set(d.supplier_sku, d);
   }
 
   const now = new Date().toISOString();
   const toInsert: any[] = [];
-  const toTouchIds: string[] = []; // existing rows with no data change — just touch last_seen_at
-  const toUpdateFull: { id: string; row: ParsedRow }[] = []; // existing rows with changed data
+  const toTouchIds: string[] = [];
+  const toUpdateFull: { id: string; row: ParsedRow }[] = [];
 
   for (const row of rows) {
     if (!row.supplier_sku) continue;
     const existing = existingMap.get(row.supplier_sku);
     if (existing) {
-      // Only do a full update if product_name actually changed
-      const nameChanged = row.product_name !== null && row.product_name !== existing.name;
-      if (nameChanged) {
+      // Compare ALL relevant fields
+      const changed =
+        (row.product_name !== null && row.product_name !== existing.supplier_product_name) ||
+        (row.description !== null && row.description !== existing.supplier_product_description) ||
+        (row.brand !== null && row.brand !== existing.raw_brand) ||
+        (row.category !== null && row.category !== existing.raw_category) ||
+        (row.unit !== null && row.unit !== existing.raw_unit);
+
+      if (changed) {
         toUpdateFull.push({ id: existing.id, row });
       } else {
         toTouchIds.push(existing.id);
       }
-      result.set(row.supplier_sku, { id: existing.id, isNew: false });
+      map.set(row.supplier_sku, { id: existing.id, isNew: false });
     } else {
       toInsert.push({
         company_id: companyId, supplier_id: supplierId, supplier_sku: row.supplier_sku,
@@ -380,12 +392,12 @@ async function batchUpsertSupplierProducts(
         for (const item of batch) {
           try {
             const { data: single } = await sa.from("supplier_products").insert(item).select("id, supplier_sku").single();
-            if (single) result.set(single.supplier_sku, { id: single.id, isNew: true });
+            if (single) map.set(single.supplier_sku, { id: single.id, isNew: true });
           } catch {}
         }
         continue;
       }
-      for (const d of data ?? []) result.set(d.supplier_sku, { id: d.id, isNew: true });
+      for (const d of data ?? []) map.set(d.supplier_sku, { id: d.id, isNew: true });
     }
   }
 
@@ -409,7 +421,8 @@ async function batchUpsertSupplierProducts(
     }
   }
 
-  return result;
+  console.log(`[upsert] products: ${toInsert.length} new, ${toUpdateFull.length} updated, ${toTouchIds.length} unchanged`);
+  return { map, unchanged: toTouchIds.length, updated: toUpdateFull.length };
 }
 
 /**
