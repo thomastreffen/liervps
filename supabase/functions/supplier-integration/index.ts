@@ -603,8 +603,8 @@ async function handleProcessSync(supabaseAdmin: ReturnType<typeof createClient>,
       last_heartbeat_at: new Date().toISOString(),
     });
 
-    // Kick off chunk processing chain (fully server-side)
-    await triggerNextChunk({
+    // Kick off chunk processing chain (fully server-side, fire-and-forget)
+    dispatchNextChunk({
       action: "process-sync-chunk",
       job_id: jobId,
       company_id: companyId,
