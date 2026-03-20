@@ -792,12 +792,12 @@ async function processChunk(params: {
   if (links.length > 0) await batchLinkProducts(sa, links);
   const t4ms = t4();
 
-  // Phase 5: Insert prices
+  // Phase 5: Insert prices (only if changed)
   const t5 = timer();
   const priceRows = validRows
     .filter(r => r.supplier_sku && spMap.has(r.supplier_sku))
     .map(r => ({ supplierProductId: spMap.get(r.supplier_sku!)!.id, row: r, fileName }));
-  await batchInsertPrices(sa, companyId, supplierId, priceRows);
+  const priceResult = await batchInsertPrices(sa, companyId, supplierId, priceRows);
   const t5ms = t5();
 
   // Phase 6: Import rows audit (only errors/needs_review)
