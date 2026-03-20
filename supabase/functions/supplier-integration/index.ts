@@ -645,25 +645,28 @@ async function handleProcessSync(supabaseAdmin: ReturnType<typeof createClient>,
 }
 
 /**
- * Phase 2: Process exactly 1 chunk, then self-invoke for the next.
+ * Phase 2: Process CHUNKS_PER_INVOCATION chunks, then self-invoke for the next batch.
  * Each invocation is independent – no frontend/polling dependency.
  * The chain continues purely server-side via HTTP self-invocation.
+ *
+ * Processing multiple chunks per invocation amortizes the cost of
+ * file download + parse across more work, dramatically improving throughput.
  */
+const CHUNKS_PER_INVOCATION = 3;
+
 async function handleProcessSyncChunk(supabaseAdmin: ReturnType<typeof createClient>, body: Record<string, unknown>): Promise<Response> {
   const jobId = body.job_id as string;
   const companyId = body.company_id as string;
   const supplierId = body.supplier_id as string;
   const supplierCode = (body.supplier_code as string) || null;
-  const fileIndex = body.file_index as number;
-  const chunkStart = body.chunk_start as number;
+  let fileIndex = body.file_index as number;
+  let chunkStart = body.chunk_start as number;
   const storageFiles = body.storage_files as SyncFileInfo[];
   const cumStats = body.cum_stats as { rows_processed: number; rows_inserted: number; rows_updated: number; rows_failed: number; rows_skipped: number; rows_needs_review: number; errors: string[] };
   let globalChunk = body.global_chunk as number;
   const totalGlobalChunks = body.total_global_chunks as number;
 
-  const currentFile = storageFiles[fileIndex];
-
-  console.log(`[chain] job=${jobId} CHUNK_STARTED: global=${globalChunk + 1}/${totalGlobalChunks}, file=${fileIndex}/${storageFiles.length}, chunk=${chunkStart}`);
+  console.log(`[chain] job=${jobId} CHUNK_STARTED: global=${globalChunk + 1}/${totalGlobalChunks}, file=${fileIndex}/${storageFiles.length}, chunk=${chunkStart}, chunksPerInvocation=${CHUNKS_PER_INVOCATION}`);
 
   // Update heartbeat immediately on entry
   await updateImportJob(supabaseAdmin, jobId, { last_heartbeat_at: new Date().toISOString() });
@@ -677,6 +680,7 @@ async function handleProcessSyncChunk(supabaseAdmin: ReturnType<typeof createCli
   }
 
   // All files processed → finalize
+  const currentFile = storageFiles[fileIndex];
   if (!currentFile) {
     console.log(`[chain] job=${jobId} ALL FILES COMPLETE, finalizing...`);
 
@@ -731,43 +735,76 @@ async function handleProcessSyncChunk(supabaseAdmin: ReturnType<typeof createCli
     return jsonOk({ status: finalStatus });
   }
 
-  // Process exactly 1 chunk for current file
-  const chunkStartTime = Date.now();
-  console.log(`[chain] job=${jobId} PROCESSING batch ${globalChunk + 1}/${totalGlobalChunks} – file "${currentFile.fileName}" chunk ${chunkStart}/${currentFile.totalChunks}`);
+  // Process up to CHUNKS_PER_INVOCATION chunks across current (and possibly next) files
+  const invocationStartTime = Date.now();
+  let chunksProcessedThisInvocation = 0;
 
   try {
-    // Read file from storage as raw bytes, then decode consistently
-    const { data: fileData, error: dlErr } = await supabaseAdmin.storage.from(SYNC_TEMP_BUCKET).download(currentFile.path);
-    if (dlErr) throw new Error(`Storage read failed: ${dlErr.message}`);
+    // Download and parse file ONCE for all chunks we'll process from it
+    let currentFileContent: string | null = null;
+    let currentFileIndex = fileIndex;
 
-    // CRITICAL: Read as arrayBuffer and decode with our consistent function
-    // This ensures latin1/windows-1252 files are decoded correctly
-    const arrayBuffer = await fileData.arrayBuffer();
-    const rawBytes = new Uint8Array(arrayBuffer);
-    const content = decodeRawBytes(rawBytes);
+    while (chunksProcessedThisInvocation < CHUNKS_PER_INVOCATION) {
+      const thisFile = storageFiles[fileIndex];
+      if (!thisFile) break; // all files done, will finalize on next dispatch
 
-    // Parse and process exactly 1 chunk
-    const result = await parseFile({
-      supabaseAdmin, supplierId, supplierCode,
-      companyId, importJobId: jobId, fileType: currentFile.type,
-      fileName: currentFile.fileName, fileContent: content,
-      chunkRange: { start: chunkStart, end: chunkStart + 1 },
-      skipPriceCache: true,
-    });
+      // Download file only when switching to a new file
+      if (currentFileContent === null || fileIndex !== currentFileIndex) {
+        const tDl = Date.now();
+        const { data: fileData, error: dlErr } = await supabaseAdmin.storage.from(SYNC_TEMP_BUCKET).download(thisFile.path);
+        if (dlErr) throw new Error(`Storage read failed: ${dlErr.message}`);
+        const arrayBuffer = await fileData.arrayBuffer();
+        const rawBytes = new Uint8Array(arrayBuffer);
+        currentFileContent = decodeRawBytes(rawBytes);
+        currentFileIndex = fileIndex;
+        console.log(`[chain] job=${jobId} file download+decode: ${Date.now() - tDl}ms (${(rawBytes.length / 1024 / 1024).toFixed(1)}MB)`);
+      }
 
-    // Accumulate stats
-    cumStats.rows_processed += result.rows_processed;
-    cumStats.rows_inserted += result.rows_inserted;
-    cumStats.rows_updated += result.rows_updated;
-    cumStats.rows_failed += result.rows_failed;
-    cumStats.rows_skipped += result.rows_skipped;
-    cumStats.rows_needs_review += result.rows_needs_review;
-    if (result.errors.length > 0) cumStats.errors.push(...result.errors.slice(0, 10));
-    if (cumStats.errors.length > 50) cumStats.errors = cumStats.errors.slice(0, 50);
+      // Determine how many chunks to process from this file in this iteration
+      const remainingChunksInFile = thisFile.totalChunks - chunkStart;
+      const remainingBudget = CHUNKS_PER_INVOCATION - chunksProcessedThisInvocation;
+      const chunksToProcess = Math.min(remainingChunksInFile, remainingBudget);
+      const chunkEnd = chunkStart + chunksToProcess;
 
-    globalChunk += 1;
+      console.log(`[chain] job=${jobId} PROCESSING batch ${globalChunk + 1}-${globalChunk + chunksToProcess}/${totalGlobalChunks} – file "${thisFile.fileName}" chunks ${chunkStart}-${chunkEnd - 1}/${thisFile.totalChunks}`);
+
+      const result = await parseFile({
+        supabaseAdmin, supplierId, supplierCode,
+        companyId, importJobId: jobId, fileType: thisFile.type,
+        fileName: thisFile.fileName, fileContent: currentFileContent!,
+        chunkRange: { start: chunkStart, end: chunkEnd },
+        skipPriceCache: true,
+      });
+
+      // Accumulate stats
+      cumStats.rows_processed += result.rows_processed;
+      cumStats.rows_inserted += result.rows_inserted;
+      cumStats.rows_updated += result.rows_updated;
+      cumStats.rows_failed += result.rows_failed;
+      cumStats.rows_skipped += result.rows_skipped;
+      cumStats.rows_needs_review += result.rows_needs_review;
+      if (result.errors.length > 0) cumStats.errors.push(...result.errors.slice(0, 10));
+      if (cumStats.errors.length > 50) cumStats.errors = cumStats.errors.slice(0, 50);
+
+      globalChunk += chunksToProcess;
+      chunksProcessedThisInvocation += chunksToProcess;
+
+      // Move to next file if this one is done
+      if (chunkEnd >= thisFile.totalChunks) {
+        console.log(`[chain] job=${jobId} FILE_COMPLETE: "${thisFile.fileName}", moving to file ${fileIndex + 2}/${storageFiles.length}`);
+        fileIndex += 1;
+        chunkStart = 0;
+        currentFileContent = null; // force re-download for next file
+      } else {
+        chunkStart = chunkEnd;
+      }
+
+      // Heartbeat mid-invocation
+      await updateImportJob(supabaseAdmin, jobId, { last_heartbeat_at: new Date().toISOString() });
+    }
+
     const progressPercent = totalGlobalChunks > 0 ? Math.round((globalChunk / totalGlobalChunks) * 100) : 0;
-    const chunkDuration = ((Date.now() - chunkStartTime) / 1000).toFixed(1);
+    const invocationDuration = ((Date.now() - invocationStartTime) / 1000).toFixed(1);
 
     await updateImportJob(supabaseAdmin, jobId, {
       current_chunk: globalChunk,
@@ -779,20 +816,10 @@ async function handleProcessSyncChunk(supabaseAdmin: ReturnType<typeof createCli
       last_heartbeat_at: new Date().toISOString(),
     });
 
-    console.log(`[chain] job=${jobId} CHUNK_COMPLETED: batch ${globalChunk}/${totalGlobalChunks} (${progressPercent}%) in ${chunkDuration}s, ins=${cumStats.rows_inserted} upd=${cumStats.rows_updated}`);
+    console.log(`[chain] job=${jobId} INVOCATION_COMPLETED: batches ${globalChunk - chunksProcessedThisInvocation + 1}-${globalChunk}/${totalGlobalChunks} (${progressPercent}%) in ${invocationDuration}s, ins=${cumStats.rows_inserted} upd=${cumStats.rows_updated}`);
 
-    // Determine next step
-    const nextChunkInFile = chunkStart + 1;
-    let nextFileIndex = fileIndex;
-    let nextChunkStart = nextChunkInFile;
-    if (nextChunkInFile >= currentFile.totalChunks) {
-      nextFileIndex = fileIndex + 1;
-      nextChunkStart = 0;
-      console.log(`[chain] job=${jobId} FILE_COMPLETE: "${currentFile.fileName}", moving to file ${nextFileIndex + 1}/${storageFiles.length}`);
-    }
-
-    // Chain next invocation — await dispatch to ensure request is sent before worker exits
-    console.log(`[chain] job=${jobId} END batch ${globalChunk}/${totalGlobalChunks}`);
+    // Chain next invocation
+    console.log(`[chain] job=${jobId} END invocation (processed ${chunksProcessedThisInvocation} chunks)`);
 
     const dispatched = await dispatchNextChunk({
       action: "process-sync-chunk",
@@ -800,8 +827,8 @@ async function handleProcessSyncChunk(supabaseAdmin: ReturnType<typeof createCli
       company_id: companyId,
       supplier_id: supplierId,
       supplier_code: supplierCode,
-      file_index: nextFileIndex,
-      chunk_start: nextChunkStart,
+      file_index: fileIndex,
+      chunk_start: chunkStart,
       storage_files: storageFiles,
       cum_stats: cumStats,
       global_chunk: globalChunk,
