@@ -532,26 +532,64 @@ async function batchAutoCreateCatalogProducts(
 
 /**
  * Batch insert supplier_prices.
- * Only inserts rows with valid prices.
+ * OPTIMIZED: Only inserts if price data actually differs from latest existing price.
  */
 async function batchInsertPrices(
   sa: SupabaseAdmin, companyId: string, supplierId: string,
   priceRows: Array<{ supplierProductId: string; row: ParsedRow; fileName: string }>,
-): Promise<void> {
+): Promise<{ inserted: number; skippedDuplicate: number; skippedNoPrice: number }> {
   const now = new Date().toISOString();
-  const payloads = priceRows
-    .filter(p => {
-      const hasListPrice = p.row.list_price !== null && p.row.list_price > 0;
-      const hasNetPrice = p.row.net_price !== null && p.row.net_price > 0;
-      return hasListPrice || hasNetPrice;
-    })
-    .map(p => ({
+  const withPrice = priceRows.filter(p => {
+    const hasListPrice = p.row.list_price !== null && p.row.list_price > 0;
+    const hasNetPrice = p.row.net_price !== null && p.row.net_price > 0;
+    return hasListPrice || hasNetPrice;
+  });
+  const skippedNoPrice = priceRows.length - withPrice.length;
+
+  if (withPrice.length === 0) return { inserted: 0, skippedDuplicate: 0, skippedNoPrice };
+
+  // Fetch latest existing prices for all supplier_product_ids in this batch
+  const spIds = [...new Set(withPrice.map(p => p.supplierProductId))];
+  interface ExistingPrice { supplier_product_id: string; list_price: number | null; discount_percent: number | null; net_price: number | null }
+  const latestPriceMap = new Map<string, ExistingPrice>();
+  for (let i = 0; i < spIds.length; i += 200) {
+    const batch = spIds.slice(i, i + 200);
+    // Get the most recent price per supplier_product_id
+    const { data } = await sa.from("supplier_prices")
+      .select("supplier_product_id, list_price, discount_percent, net_price")
+      .eq("company_id", companyId).eq("supplier_id", supplierId)
+      .in("supplier_product_id", batch)
+      .order("imported_at", { ascending: false });
+    // Only keep the first (latest) per supplier_product_id
+    for (const d of (data ?? []) as ExistingPrice[]) {
+      if (!latestPriceMap.has(d.supplier_product_id)) {
+        latestPriceMap.set(d.supplier_product_id, d);
+      }
+    }
+  }
+
+  // Compare and filter out duplicates
+  const payloads: any[] = [];
+  let skippedDuplicate = 0;
+  for (const p of withPrice) {
+    const existing = latestPriceMap.get(p.supplierProductId);
+    if (existing) {
+      const sameList = (p.row.list_price ?? null) === (existing.list_price ?? null);
+      const sameNet = (p.row.net_price ?? null) === (existing.net_price ?? null);
+      const sameDiscount = (p.row.discount_percent ?? null) === (existing.discount_percent ?? null);
+      if (sameList && sameNet && sameDiscount) {
+        skippedDuplicate++;
+        continue;
+      }
+    }
+    payloads.push({
       company_id: companyId, supplier_id: supplierId, supplier_product_id: p.supplierProductId,
       list_price: p.row.list_price,
       discount_percent: p.row.discount_percent,
       net_price: p.row.net_price, currency: "NOK", source_file_name: p.fileName,
       imported_at: now,
-    }));
+    });
+  }
 
   for (let i = 0; i < payloads.length; i += BATCH_SIZE) {
     const batch = payloads.slice(i, i + BATCH_SIZE);
@@ -559,9 +597,8 @@ async function batchInsertPrices(
     if (error) console.error(`[batch] Insert prices error: ${error.message}`);
   }
 
-  if (priceRows.length > 0 && payloads.length < priceRows.length) {
-    console.log(`[batch] Skipped ${priceRows.length - payloads.length} price rows with no valid price data`);
-  }
+  console.log(`[prices] ${payloads.length} inserted, ${skippedDuplicate} unchanged, ${skippedNoPrice} no price`);
+  return { inserted: payloads.length, skippedDuplicate, skippedNoPrice };
 }
 
 /**
