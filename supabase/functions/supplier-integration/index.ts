@@ -6,7 +6,7 @@
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
-import { parseFile, rebuildPriceCache, type ImportStats } from "../_shared/parser.ts";
+import { parseFile, rebuildPriceCache, decodeRawBytes, type ImportStats } from "../_shared/parser.ts";
 
 // ===== CORS =====
 const corsHeaders = {
@@ -203,11 +203,6 @@ async function createFtpAdapter(config: IntegrationConfig, password: string): Pr
     for (const c of chunks) { raw.set(c, offset); offset += c.length; }
     return raw;
   }
-  function decodeBuffer(raw: Uint8Array): string {
-    let text = new TextDecoder("utf-8").decode(raw);
-    if (text.includes("\ufffd")) text = new TextDecoder("latin1").decode(raw);
-    return text;
-  }
   return {
     async connect() {
       await client.access({ host: config.host, port: config.port, user: config.username, password,
@@ -220,7 +215,7 @@ async function createFtpAdapter(config: IntegrationConfig, password: string): Pr
         type: item.isDirectory ? "directory" as const : "file" as const }));
     },
     async download(remotePath: string): Promise<string> {
-      return decodeBuffer(await downloadToBuffer(remotePath));
+      return decodeRawBytes(await downloadToBuffer(remotePath));
     },
     async downloadRaw(remotePath: string): Promise<Uint8Array> {
       return downloadToBuffer(remotePath);
@@ -232,11 +227,6 @@ async function createFtpAdapter(config: IntegrationConfig, password: string): Pr
 async function createSftpAdapter(config: IntegrationConfig, password: string): Promise<ConnectionAdapter> {
   const mod = await import("npm:ssh2-sftp-client@11.0.0");
   const client = new mod.default();
-  function decodeBuffer(raw: Uint8Array): string {
-    let text = new TextDecoder("utf-8").decode(raw);
-    if (text.includes("\ufffd")) text = new TextDecoder("latin1").decode(raw);
-    return text;
-  }
   async function getRaw(remotePath: string): Promise<Uint8Array> {
     const buffer = await client.get(remotePath);
     if (typeof buffer === "string") return new TextEncoder().encode(buffer);
@@ -256,7 +246,7 @@ async function createSftpAdapter(config: IntegrationConfig, password: string): P
         type: item.type === "d" ? "directory" as const : "file" as const }));
     },
     async download(remotePath: string): Promise<string> {
-      return decodeBuffer(await getRaw(remotePath));
+      return decodeRawBytes(await getRaw(remotePath));
     },
     async downloadRaw(remotePath: string): Promise<Uint8Array> {
       return getRaw(remotePath);
@@ -410,9 +400,23 @@ async function updateImportJob(supabaseAdmin: ReturnType<typeof createClient>, j
 
 const SYNC_TEMP_BUCKET = "job-attachments";
 
-async function triggerNextChunk(body: Record<string, unknown>): Promise<void> {
+/**
+ * Trigger next chunk via self-invocation using service_role key.
+ * CRITICAL: This is fire-and-forget but we verify the HTTP response.
+ * If triggering fails, we mark the job as failed immediately.
+ */
+async function triggerNextChunk(
+  body: Record<string, unknown>,
+  supabaseAdmin?: ReturnType<typeof createClient>,
+): Promise<{ ok: boolean; error?: string }> {
   const processUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/supplier-integration`;
-  console.log(`[sync] Triggering next chunk: file_index=${body.file_index}, chunk_start=${body.chunk_start}, global_chunk=${body.global_chunk}`);
+  const jobId = body.job_id as string;
+  const globalChunk = body.global_chunk;
+  const nextFileIndex = body.file_index;
+  const nextChunkStart = body.chunk_start;
+
+  console.log(`[chain] job=${jobId} TRIGGER next: action=${body.action}, file_index=${nextFileIndex}, chunk_start=${nextChunkStart}, global_chunk=${globalChunk}`);
+
   try {
     const resp = await fetch(processUrl, {
       method: "POST",
@@ -422,20 +426,48 @@ async function triggerNextChunk(body: Record<string, unknown>): Promise<void> {
       },
       body: JSON.stringify(body),
     });
+
+    // Read and discard body to ensure connection is properly closed
+    const respText = await resp.text().catch(() => "");
+
     if (!resp.ok) {
-      const text = await resp.text().catch(() => "");
-      console.error(`[sync] Next chunk trigger failed: ${resp.status} ${text}`);
-    } else {
-      console.log(`[sync] Next chunk triggered successfully`);
+      const errMsg = `HTTP ${resp.status}: ${respText.substring(0, 200)}`;
+      console.error(`[chain] job=${jobId} TRIGGER FAILED: ${errMsg}`);
+
+      // Mark job as failed since chain is broken
+      if (supabaseAdmin && jobId) {
+        await updateImportJob(supabaseAdmin, jobId, {
+          status: "failed",
+          finished_at: new Date().toISOString(),
+          failed_step: `chain_trigger_batch_${globalChunk}`,
+          error_log: [`Chunk-kjeden stoppet: ${errMsg}`],
+          last_heartbeat_at: new Date().toISOString(),
+        });
+      }
+      return { ok: false, error: errMsg };
     }
+
+    console.log(`[chain] job=${jobId} TRIGGER ACCEPTED (HTTP ${resp.status})`);
+    return { ok: true };
   } catch (err) {
-    console.error(`[sync] Failed to trigger next chunk:`, (err as Error).message);
+    const errMsg = (err as Error).message;
+    console.error(`[chain] job=${jobId} TRIGGER EXCEPTION: ${errMsg}`);
+
+    if (supabaseAdmin && jobId) {
+      await updateImportJob(supabaseAdmin, jobId, {
+        status: "failed",
+        finished_at: new Date().toISOString(),
+        failed_step: `chain_trigger_batch_${globalChunk}`,
+        error_log: [`Chunk-kjeden stoppet (nettverksfeil): ${errMsg}`],
+        last_heartbeat_at: new Date().toISOString(),
+      });
+    }
+    return { ok: false, error: errMsg };
   }
 }
 
 function countFileRows(content: string): number {
   const rawLines = content.split(/\r?\n/).filter(l => l.trim().length > 0);
-  // Check if EFONELFO
   const isEfonelfo = rawLines.slice(0, 5).some(l => {
     const rt = l.split(";")[0]?.toUpperCase().trim();
     return ["VH", "PH", "RH", "IH"].includes(rt);
@@ -504,21 +536,24 @@ async function handleProcessSync(supabaseAdmin: ReturnType<typeof createClient>,
     if (syncType === "full_sync" || syncType === "price_sync") groups.push({ type: "price", files: categorized.matched.price });
     if (syncType === "full_sync" || syncType === "discount_sync") groups.push({ type: "discount", files: categorized.matched.discount });
 
-    // Prioritize full catalog files over test files: sort by size descending within each group
+    // Prioritize full catalog files over test files: sort by size descending
     for (const g of groups) {
       if (g.files.length > 1) {
         g.files.sort((a, b) => b.size - a.size);
         const fullFile = g.files[0];
         const skipped = g.files.slice(1);
-        console.log(`[sync] ${g.type}: Prioritizing "${fullFile.name}" (${(fullFile.size / 1024 / 1024).toFixed(1)} MB) over ${skipped.map(f => `"${f.name}"`).join(", ")}`);
-        // Keep only the largest (full) file per category
+        console.log(`[sync] ⚠️ ${g.type}: PRIORITIZING full file "${fullFile.name}" (${(fullFile.size / 1024 / 1024).toFixed(1)} MB) over test files: ${skipped.map(f => `"${f.name}" (${(f.size/1024/1024).toFixed(1)} MB)`).join(", ")}`);
         g.files = [fullFile];
+      } else if (g.files.length === 1) {
+        const f = g.files[0];
+        const isTest = f.name.toLowerCase().includes('test');
+        console.log(`[sync] ${g.type}: Using "${f.name}" (${(f.size / 1024 / 1024).toFixed(1)} MB) [${isTest ? '⚠️ TEST FILE' : '✅ FULL FILE'}]`);
       }
     }
 
     const filesFound: string[] = [];
     const storageFiles: SyncFileInfo[] = [];
-    const DOWNLOAD_TIMEOUT_MS = 600_000; // 10 minutes for large files
+    const DOWNLOAD_TIMEOUT_MS = 600_000; // 10 minutes
 
     for (const g of groups) {
       for (const f of g.files) {
@@ -526,11 +561,10 @@ async function handleProcessSync(supabaseAdmin: ReturnType<typeof createClient>,
         const dlStart = Date.now();
         try {
           console.log(`[sync] Downloading ${f.name} (expected ~${(f.size / 1024 / 1024).toFixed(1)} MB, type=${g.type})...`);
-          // Stream raw bytes directly to storage – avoid holding decoded string in memory
           const rawBytes = await withTimeout(adapter.downloadRaw(filePath), DOWNLOAD_TIMEOUT_MS, `Nedlasting ${f.name}`);
           const dlDuration = ((Date.now() - dlStart) / 1000).toFixed(1);
           const fileSizeMB = (rawBytes.length / 1024 / 1024).toFixed(2);
-          console.log(`[sync] Downloaded ${f.name}: ${rawBytes.length} bytes (${fileSizeMB} MB) in ${dlDuration}s`);
+          console.log(`[sync] ✅ Downloaded ${f.name}: ${rawBytes.length} bytes (${fileSizeMB} MB) in ${dlDuration}s`);
 
           // Upload raw bytes to storage
           const storagePath = `sync-temp/${jobId}/${g.type}__${f.name}`;
@@ -539,18 +573,27 @@ async function handleProcessSync(supabaseAdmin: ReturnType<typeof createClient>,
           if (uploadErr) throw new Error(`Storage upload: ${uploadErr.message}`);
           console.log(`[sync] Stored ${f.name} to storage (${storagePath})`);
 
-          // Decode for row counting only (not kept in memory long)
-          let text = new TextDecoder("utf-8").decode(rawBytes);
-          if (text.includes("\ufffd")) text = new TextDecoder("latin1").decode(rawBytes);
+          // Decode for row counting using consistent decode function
+          const text = decodeRawBytes(rawBytes);
           const rowCount = countFileRows(text);
           const totalChunks = Math.ceil(rowCount / 1000);
           filesFound.push(f.name);
           storageFiles.push({ path: storagePath, type: g.type, fileName: f.name, totalChunks });
-          console.log(`[sync] ${f.name}: ${rowCount} rows, ${totalChunks} chunks (full_file=${!f.name.toLowerCase().includes('test')})`);
+
+          const isTest = f.name.toLowerCase().includes('test');
+          console.log(`[sync] ${f.name}: ${rowCount} products, ${totalChunks} chunks [${isTest ? 'TEST' : 'FULL'}], download=${dlDuration}s, size=${fileSizeMB}MB`);
+
+          // Log encoding sample
+          const sampleLines = text.split(/\r?\n/).slice(0, 3);
+          for (const sl of sampleLines) {
+            if (/[ÆØÅæøå]/.test(sl)) {
+              console.log(`[sync] ENCODING_SAMPLE: "${sl.substring(0, 80)}"`);
+              break;
+            }
+          }
         } catch (fileErr) {
           const dlDuration = ((Date.now() - dlStart) / 1000).toFixed(1);
-          console.error(`[sync] FAILED to download ${f.name} after ${dlDuration}s: ${(fileErr as Error).message}`);
-          // Log as warning in job but don't fail entire sync
+          console.error(`[sync] ❌ FAILED to download ${f.name} after ${dlDuration}s: ${(fileErr as Error).message}`);
           await updateImportJob(supabaseAdmin, jobId, {
             last_heartbeat_at: new Date().toISOString(),
             error_log: [`Nedlasting feilet: ${f.name} – ${(fileErr as Error).message}`],
@@ -567,7 +610,7 @@ async function handleProcessSync(supabaseAdmin: ReturnType<typeof createClient>,
     }
 
     const totalGlobalChunks = storageFiles.reduce((sum, f) => sum + f.totalChunks, 0);
-    console.log(`[sync] Job ${jobId}: ${filesFound.length} files, ${totalGlobalChunks} total chunks`);
+    console.log(`[sync] Job ${jobId}: ${filesFound.length} files, ${totalGlobalChunks} total chunks — starting chunk chain (server-side only, no frontend dependency)`);
 
     await updateImportJob(supabaseAdmin, jobId, {
       files_found: filesFound,
@@ -575,7 +618,7 @@ async function handleProcessSync(supabaseAdmin: ReturnType<typeof createClient>,
       last_heartbeat_at: new Date().toISOString(),
     });
 
-    // Kick off chunk processing: 1 chunk per invocation
+    // Kick off chunk processing chain (fully server-side)
     await triggerNextChunk({
       action: "process-sync-chunk",
       job_id: jobId,
@@ -588,7 +631,7 @@ async function handleProcessSync(supabaseAdmin: ReturnType<typeof createClient>,
       cum_stats: { rows_processed: 0, rows_inserted: 0, rows_updated: 0, rows_failed: 0, rows_skipped: 0, rows_needs_review: 0, errors: [] },
       global_chunk: 0,
       total_global_chunks: totalGlobalChunks,
-    });
+    }, supabaseAdmin);
 
     return jsonOk({ status: "processing" });
   } catch (err) {
@@ -599,8 +642,9 @@ async function handleProcessSync(supabaseAdmin: ReturnType<typeof createClient>,
 }
 
 /**
- * Phase 2: Process a range of chunks for a file. Self-invokes for the next batch.
- * Each invocation gets a fresh CPU budget.
+ * Phase 2: Process exactly 1 chunk, then self-invoke for the next.
+ * Each invocation is independent – no frontend/polling dependency.
+ * The chain continues purely server-side via HTTP self-invocation.
  */
 async function handleProcessSyncChunk(supabaseAdmin: ReturnType<typeof createClient>, body: Record<string, unknown>): Promise<Response> {
   const jobId = body.job_id as string;
@@ -616,11 +660,23 @@ async function handleProcessSyncChunk(supabaseAdmin: ReturnType<typeof createCli
 
   const currentFile = storageFiles[fileIndex];
 
+  console.log(`[chain] job=${jobId} CHUNK_STARTED: global=${globalChunk + 1}/${totalGlobalChunks}, file=${fileIndex}/${storageFiles.length}, chunk=${chunkStart}`);
+
+  // Update heartbeat immediately on entry
+  await updateImportJob(supabaseAdmin, jobId, { last_heartbeat_at: new Date().toISOString() });
+
+  // Check if job was externally cancelled/failed
+  const { data: jobStatus } = await supabaseAdmin.from("product_import_jobs")
+    .select("status").eq("id", jobId).maybeSingle();
+  if (jobStatus && jobStatus.status !== "running") {
+    console.log(`[chain] job=${jobId} ABORT: status is "${jobStatus.status}", stopping chain`);
+    return jsonOk({ status: "aborted" });
+  }
+
   // All files processed → finalize
   if (!currentFile) {
-    console.log(`[sync] Job ${jobId}: All files processed, finalizing...`);
+    console.log(`[chain] job=${jobId} ALL FILES COMPLETE, finalizing...`);
 
-    // Rebuild price cache by querying linked products
     try {
       const { data: linkedProducts } = await supabaseAdmin
         .from("supplier_products")
@@ -631,11 +687,11 @@ async function handleProcessSyncChunk(supabaseAdmin: ReturnType<typeof createCli
         .limit(1000);
       const productIds = [...new Set((linkedProducts ?? []).map((p: any) => p.product_id).filter(Boolean))];
       if (productIds.length > 0) {
-        console.log(`[sync] Rebuilding price cache for ${productIds.length} products`);
+        console.log(`[chain] Rebuilding price cache for ${productIds.length} products`);
         await rebuildPriceCache(supabaseAdmin, companyId, productIds);
       }
     } catch (e) {
-      console.error(`[sync] Price cache rebuild error: ${(e as Error).message}`);
+      console.error(`[chain] Price cache rebuild error: ${(e as Error).message}`);
       cumStats.errors.push(`Price cache: ${(e as Error).message}`);
     }
 
@@ -659,7 +715,7 @@ async function handleProcessSyncChunk(supabaseAdmin: ReturnType<typeof createCli
       }
     } catch {}
 
-    // Update last_sync_at on integration
+    // Update last_sync_at
     try {
       const { data: integ } = await supabaseAdmin.from("supplier_integrations").select("id")
         .eq("company_id", companyId).eq("supplier_id", supplierId).maybeSingle();
@@ -668,18 +724,24 @@ async function handleProcessSyncChunk(supabaseAdmin: ReturnType<typeof createCli
       }
     } catch {}
 
-    console.log(`[sync] Job ${jobId} finalized: ${finalStatus}, inserted=${cumStats.rows_inserted}, updated=${cumStats.rows_updated}, failed=${cumStats.rows_failed}`);
+    console.log(`[chain] job=${jobId} FINALIZED: ${finalStatus}, inserted=${cumStats.rows_inserted}, updated=${cumStats.rows_updated}, failed=${cumStats.rows_failed}`);
     return jsonOk({ status: finalStatus });
   }
 
   // Process exactly 1 chunk for current file
-  console.log(`[sync] Job ${jobId}: START batch ${globalChunk + 1}/${totalGlobalChunks} – file ${fileIndex + 1}/${storageFiles.length} (${currentFile.fileName}), chunk ${chunkStart} of ${currentFile.totalChunks}`);
+  const chunkStartTime = Date.now();
+  console.log(`[chain] job=${jobId} PROCESSING batch ${globalChunk + 1}/${totalGlobalChunks} – file "${currentFile.fileName}" chunk ${chunkStart}/${currentFile.totalChunks}`);
 
   try {
-    // Read file from storage
+    // Read file from storage as raw bytes, then decode consistently
     const { data: fileData, error: dlErr } = await supabaseAdmin.storage.from(SYNC_TEMP_BUCKET).download(currentFile.path);
     if (dlErr) throw new Error(`Storage read failed: ${dlErr.message}`);
-    const content = await fileData.text();
+
+    // CRITICAL: Read as arrayBuffer and decode with our consistent function
+    // This ensures latin1/windows-1252 files are decoded correctly
+    const arrayBuffer = await fileData.arrayBuffer();
+    const rawBytes = new Uint8Array(arrayBuffer);
+    const content = decodeRawBytes(rawBytes);
 
     // Parse and process exactly 1 chunk
     const result = await parseFile({
@@ -702,6 +764,7 @@ async function handleProcessSyncChunk(supabaseAdmin: ReturnType<typeof createCli
 
     globalChunk += 1;
     const progressPercent = totalGlobalChunks > 0 ? Math.round((globalChunk / totalGlobalChunks) * 100) : 0;
+    const chunkDuration = ((Date.now() - chunkStartTime) / 1000).toFixed(1);
 
     await updateImportJob(supabaseAdmin, jobId, {
       current_chunk: globalChunk,
@@ -713,20 +776,20 @@ async function handleProcessSyncChunk(supabaseAdmin: ReturnType<typeof createCli
       last_heartbeat_at: new Date().toISOString(),
     });
 
-    console.log(`[sync] Job ${jobId}: END batch ${globalChunk}/${totalGlobalChunks} (${progressPercent}%), inserted=${cumStats.rows_inserted}, updated=${cumStats.rows_updated}`);
+    console.log(`[chain] job=${jobId} CHUNK_COMPLETED: batch ${globalChunk}/${totalGlobalChunks} (${progressPercent}%) in ${chunkDuration}s, ins=${cumStats.rows_inserted} upd=${cumStats.rows_updated}`);
 
-    // Determine next step: next chunk in same file, or first chunk of next file
+    // Determine next step
     const nextChunkInFile = chunkStart + 1;
     let nextFileIndex = fileIndex;
     let nextChunkStart = nextChunkInFile;
     if (nextChunkInFile >= currentFile.totalChunks) {
       nextFileIndex = fileIndex + 1;
       nextChunkStart = 0;
-      console.log(`[sync] Job ${jobId}: file ${currentFile.fileName} complete, moving to file ${nextFileIndex + 1}`);
+      console.log(`[chain] job=${jobId} FILE_COMPLETE: "${currentFile.fileName}", moving to file ${nextFileIndex + 1}/${storageFiles.length}`);
     }
 
-    // Chain next invocation (awaited to ensure it fires)
-    await triggerNextChunk({
+    // Chain next invocation – if trigger fails, job is marked as failed inside triggerNextChunk
+    const triggerResult = await triggerNextChunk({
       action: "process-sync-chunk",
       job_id: jobId,
       company_id: companyId,
@@ -738,12 +801,18 @@ async function handleProcessSyncChunk(supabaseAdmin: ReturnType<typeof createCli
       cum_stats: cumStats,
       global_chunk: globalChunk,
       total_global_chunks: totalGlobalChunks,
-    });
+    }, supabaseAdmin);
+
+    if (!triggerResult.ok) {
+      console.error(`[chain] job=${jobId} CHAIN BROKEN at batch ${globalChunk}: ${triggerResult.error}`);
+      // Job already marked as failed by triggerNextChunk
+      return jsonOk({ status: "chain_broken" });
+    }
 
     return jsonOk({ status: "processing", global_chunk: globalChunk, progress_percent: progressPercent });
   } catch (err) {
     const batchLabel = `batch_${globalChunk + 1}`;
-    console.error(`[sync] ${batchLabel} failed for job ${jobId}: ${(err as Error).message}`);
+    console.error(`[chain] job=${jobId} ${batchLabel} FAILED: ${(err as Error).message}`);
     await updateImportJob(supabaseAdmin, jobId, {
       status: "failed", finished_at: new Date().toISOString(),
       error_log: [...cumStats.errors, (err as Error).message].slice(0, 100),
@@ -766,17 +835,29 @@ async function handleProcessSyncChunk(supabaseAdmin: ReturnType<typeof createCli
 }
 
 // ===== Mark Stale Job =====
+// IMPORTANT: Stale timeout increased to 10 minutes since chunks can take several minutes each.
+const STALE_JOB_MS = 10 * 60 * 1000;
+
 async function handleMarkStaleJob(supabaseAdmin: ReturnType<typeof createClient>, jobId: string): Promise<Response> {
   const { data: job } = await supabaseAdmin.from("product_import_jobs")
-    .select("status").eq("id", jobId).maybeSingle();
+    .select("status, last_heartbeat_at, updated_at").eq("id", jobId).maybeSingle();
+
   if (job?.status === "running") {
+    const heartbeat = job.last_heartbeat_at ?? job.updated_at;
+    const heartbeatAge = Date.now() - new Date(heartbeat).getTime();
+
+    if (heartbeatAge < STALE_JOB_MS) {
+      console.log(`[stale] Job ${jobId}: heartbeat ${Math.round(heartbeatAge / 1000)}s ago – NOT stale (threshold ${STALE_JOB_MS / 1000}s)`);
+      return jsonOk({ status: "not_stale", heartbeat_age_s: Math.round(heartbeatAge / 1000) });
+    }
+
     await updateImportJob(supabaseAdmin, jobId, {
       status: "failed",
       finished_at: new Date().toISOString(),
       failed_step: "stalled",
-      error_log: ["Jobben stoppet opp (ingen aktivitet på over 3 minutter)"],
+      error_log: [`Jobben stoppet opp (ingen aktivitet på over ${STALE_JOB_MS / 60000} minutter)`],
     });
-    console.log(`[sync] Job ${jobId} marked as stalled`);
+    console.log(`[stale] Job ${jobId} marked as stalled (heartbeat ${Math.round(heartbeatAge / 1000)}s ago)`);
   }
   return jsonOk({ status: "marked" });
 }
@@ -799,7 +880,7 @@ async function handleRunSync(supabaseAdmin: ReturnType<typeof createClient>, com
   let jobId: string;
   try { jobId = await createImportJob(supabaseAdmin, companyId, supplierId, syncType, userId || "admin"); } catch (e) { return jsonError((e as Error).message, "job_create_error", 500); }
 
-  // Trigger process-sync which handles download → storage → chunking
+  // Trigger process-sync (fire-and-forget, runs fully server-side)
   triggerNextChunk({
     action: "process-sync",
     job_id: jobId,
@@ -807,7 +888,7 @@ async function handleRunSync(supabaseAdmin: ReturnType<typeof createClient>, com
     supplier_id: supplierId,
     supplier_code: supplierCode,
     sync_type: syncType,
-  });
+  }, supabaseAdmin);
 
   return jsonOk({
     status: "started",

@@ -61,6 +61,23 @@ function cleanString(raw: string | undefined | null): string | null {
   return cleaned.length > 0 ? cleaned : null;
 }
 
+// ===== Encoding helper =====
+
+/**
+ * Decode raw bytes to string, trying UTF-8 first, then latin1 (windows-1252).
+ * This is the SINGLE decode function used throughout the pipeline.
+ */
+export function decodeRawBytes(raw: Uint8Array): string {
+  // Try UTF-8 first
+  let text = new TextDecoder("utf-8").decode(raw);
+  // If replacement character is present, UTF-8 failed → use latin1
+  if (text.includes("\ufffd")) {
+    text = new TextDecoder("latin1").decode(raw);
+    console.log(`[decode] Fell back to latin1 encoding (UTF-8 had replacement chars)`);
+  }
+  return text;
+}
+
 // ===== EFONELFO Format Detection & Parsing =====
 
 function isEfonelfoFormat(lines: string[]): boolean {
@@ -94,27 +111,41 @@ interface EfonelfoProduct {
  * [0]=VL [1]=LineSeq [2]=SupplierSKU [3]=ProductName [4]=ElNumber
  * [5]=Qty [6]=UnitCode [7]=UnitDesc [8]=ProductGroup [9]=ListPrice(øre)
  * [10]=PriceDate [11]=PriceUnit [12]=? [13]=? [14]=Brand
+ * 
+ * PL (price lines):
+ * [0]=PL [1]=LineSeq [2]=SupplierSKU [3]=ListPrice(øre) [4]=NetPrice(øre)
+ * [5]=DiscountPercent [6]=PriceDate [7]=PriceUnit
+ * 
+ * RL (discount/rebate lines):
+ * [0]=RL [1]=SupplierSKU [2]=DiscountPercent [3]=NetPrice(øre)
+ * 
+ * IMPORTANT: Prices in EFONELFO are in ØRE (1/100 NOK).
+ * To convert: NOK = øre / 100
  */
 function parseEfonelfoFile(lines: string[]): EfonelfoProduct[] {
   const products = new Map<string, EfonelfoProduct>();
   let vlCount = 0;
+  let plCount = 0;
+  let rlCount = 0;
 
+  // First pass: Parse all VL lines (product data + list price)
   for (const line of lines) {
     const fields = line.split(";").map(f => f.trim());
     const recordType = fields[0]?.toUpperCase();
 
     if (recordType === "VL") {
-      if (vlCount < 3) {
-        console.log(`[EFONELFO] VL#${vlCount + 1}: sku="${fields[2]}" name="${fields[3]?.substring(0, 40)}" el="${fields[4]}" unit="${fields[6]}" cat="${fields[8]}" price="${fields[9]}" brand="${fields[14]}"`);
-      }
       vlCount++;
-
       const sku = cleanString(fields[2]);
       if (!sku || products.has(sku)) continue;
 
-      // Price in øre → NOK
-      const priceOre = parseNumber(fields[9]);
-      const listPrice = priceOre !== null ? Math.round(priceOre) / 100 : null;
+      // Price in øre → NOK: divide by 100
+      const rawPriceField = fields[9];
+      const priceOre = parseNumber(rawPriceField);
+      const listPrice = priceOre !== null && priceOre > 0 ? priceOre / 100 : null;
+
+      if (vlCount <= 5) {
+        console.log(`[EFONELFO] VL#${vlCount}: sku="${sku}" name="${fields[3]?.substring(0, 40)}" el="${fields[4]}" price_raw="${rawPriceField}" price_ore=${priceOre} list_nok=${listPrice} brand="${fields[14]}"`);
+      }
 
       products.set(sku, {
         supplier_sku: sku,
@@ -129,36 +160,85 @@ function parseEfonelfoFile(lines: string[]): EfonelfoProduct[] {
         discount_percent: null,
         net_price: null,
       });
-    } else if (recordType === "PL") {
+    }
+  }
+
+  // Second pass: Apply PL (price) and RL (discount/rebate) lines
+  for (const line of lines) {
+    const fields = line.split(";").map(f => f.trim());
+    const recordType = fields[0]?.toUpperCase();
+
+    if (recordType === "PL") {
+      plCount++;
       const sku = cleanString(fields[2]);
       if (!sku) continue;
       const existing = products.get(sku);
       if (existing) {
-        const plList = parseNumber(fields[3]);
-        const plNet = parseNumber(fields[4]);
-        existing.list_price = plList !== null ? Math.round(plList) / 100 : existing.list_price;
-        existing.net_price = plNet !== null ? Math.round(plNet) / 100 : existing.net_price;
-        existing.discount_percent = parseNumber(fields[5]) ?? existing.discount_percent;
+        // PL fields: [3]=ListPrice(øre), [4]=NetPrice(øre), [5]=DiscountPercent
+        const plListOre = parseNumber(fields[3]);
+        const plNetOre = parseNumber(fields[4]);
+        const plDiscount = parseNumber(fields[5]);
+
+        if (plListOre !== null && plListOre > 0) existing.list_price = plListOre / 100;
+        if (plNetOre !== null && plNetOre > 0) existing.net_price = plNetOre / 100;
+        if (plDiscount !== null) existing.discount_percent = plDiscount;
+
+        if (plCount <= 5) {
+          console.log(`[EFONELFO] PL#${plCount}: sku="${sku}" list_ore=${plListOre} net_ore=${plNetOre} disc=${plDiscount} → list=${existing.list_price} net=${existing.net_price}`);
+        }
       }
     } else if (recordType === "RL") {
+      rlCount++;
+      // RL: [1]=SupplierSKU [2]=DiscountPercent [3]=NetPrice(øre)
       const sku = cleanString(fields[1]);
       if (!sku) continue;
       const existing = products.get(sku);
       if (existing) {
-        existing.discount_percent = parseNumber(fields[2]) ?? existing.discount_percent;
-        const rlNet = parseNumber(fields[3]);
-        if (rlNet !== null) existing.net_price = Math.round(rlNet) / 100;
+        const rlDiscount = parseNumber(fields[2]);
+        const rlNetOre = parseNumber(fields[3]);
+
+        if (rlDiscount !== null) existing.discount_percent = rlDiscount;
+        if (rlNetOre !== null && rlNetOre > 0) existing.net_price = rlNetOre / 100;
+
+        if (rlCount <= 5) {
+          console.log(`[EFONELFO] RL#${rlCount}: sku="${sku}" disc=${rlDiscount} net_ore=${rlNetOre} → disc=${existing.discount_percent} net=${existing.net_price}`);
+        }
       }
     }
   }
 
-  console.log(`[EFONELFO] Total VL: ${vlCount}, unique products: ${products.size}`);
+  console.log(`[EFONELFO] Totals: VL=${vlCount}, PL=${plCount}, RL=${rlCount}, unique products=${products.size}`);
 
+  // Calculate net_price from list_price + discount where missing
+  let calcCount = 0;
   for (const p of products.values()) {
-    if (p.net_price == null && p.list_price != null && p.discount_percent != null) {
+    if (p.net_price == null && p.list_price != null && p.discount_percent != null && p.discount_percent > 0) {
       p.net_price = Math.round(p.list_price * (1 - p.discount_percent / 100) * 100) / 100;
+      calcCount++;
     }
   }
+  if (calcCount > 0) console.log(`[EFONELFO] Calculated net_price for ${calcCount} products from list_price + discount`);
+
+  // Log price quality summary
+  let withListPrice = 0, withNetPrice = 0, withDiscount = 0, noPrice = 0;
+  for (const p of products.values()) {
+    if (p.list_price !== null) withListPrice++;
+    if (p.net_price !== null) withNetPrice++;
+    if (p.discount_percent !== null) withDiscount++;
+    if (p.list_price === null && p.net_price === null) noPrice++;
+  }
+  console.log(`[EFONELFO] Price quality: list=${withListPrice}, net=${withNetPrice}, disc=${withDiscount}, no_price=${noPrice} of ${products.size}`);
+
+  // Log sample of parsed prices for verification
+  let sampleCount = 0;
+  for (const p of products.values()) {
+    if (sampleCount >= 5) break;
+    if (p.list_price !== null || p.net_price !== null) {
+      console.log(`[EFONELFO] PRICE_SAMPLE: sku=${p.supplier_sku} list=${p.list_price} disc=${p.discount_percent}% net=${p.net_price} name="${p.product_name?.substring(0, 30)}"`);
+      sampleCount++;
+    }
+  }
+
   return Array.from(products.values());
 }
 
@@ -314,7 +394,6 @@ async function batchUpsertSupplierProducts(
       const { data, error } = await sa.from("supplier_products").insert(batch).select("id, supplier_sku");
       if (error) {
         console.error(`[batch] Insert supplier_products error: ${error.message}`);
-        // Fall back to individual inserts for this batch
         for (const item of batch) {
           try {
             const { data: single } = await sa.from("supplier_products").insert(item).select("id, supplier_sku").single();
@@ -348,11 +427,9 @@ async function batchMatchCatalogProducts(
 ): Promise<Map<string, string>> {
   const result = new Map<string, string>();
   
-  // Collect all el_numbers and EANs
   const elNumbers = rows.filter(r => r.el_number).map(r => r.el_number!);
   const eans = rows.filter(r => r.ean).map(r => r.ean!);
   
-  // Batch lookup by el_number
   const elMap = new Map<string, string>();
   if (elNumbers.length > 0) {
     for (let i = 0; i < elNumbers.length; i += 200) {
@@ -363,7 +440,6 @@ async function batchMatchCatalogProducts(
     }
   }
   
-  // Batch lookup by EAN
   const eanMap = new Map<string, string>();
   if (eans.length > 0) {
     for (let i = 0; i < eans.length; i += 200) {
@@ -374,7 +450,6 @@ async function batchMatchCatalogProducts(
     }
   }
   
-  // Assign matches: el_number first, then EAN
   for (const row of rows) {
     if (!row.supplier_sku) continue;
     if (row.el_number && elMap.has(row.el_number)) {
@@ -389,7 +464,6 @@ async function batchMatchCatalogProducts(
 
 /**
  * Batch auto-create catalog products for unmatched rows.
- * Returns map of supplier_sku → new catalog_product_id.
  */
 async function batchAutoCreateCatalogProducts(
   sa: SupabaseAdmin, companyId: string, unmatchedRows: ParsedRow[],
@@ -397,7 +471,6 @@ async function batchAutoCreateCatalogProducts(
   const result = new Map<string, string>();
   const toCreate: { row: ParsedRow; payload: any }[] = [];
 
-  // Deduplicate by el_number/ean to avoid creating duplicate masters
   const seenElNumbers = new Set<string>();
   const seenEans = new Set<string>();
 
@@ -409,7 +482,6 @@ async function batchAutoCreateCatalogProducts(
     if (!hasName && !hasSkuIdentity) continue;
     if (!hasName && !hasStrongId) continue;
 
-    // Skip duplicates within this batch
     if (row.el_number && seenElNumbers.has(row.el_number)) continue;
     if (row.ean && seenEans.has(row.ean)) continue;
 
@@ -426,7 +498,6 @@ async function batchAutoCreateCatalogProducts(
     });
   }
 
-  // Batch insert
   for (let i = 0; i < toCreate.length; i += BATCH_SIZE) {
     const batch = toCreate.slice(i, i + BATCH_SIZE);
     const payloads = batch.map(b => b.payload);
@@ -441,7 +512,6 @@ async function batchAutoCreateCatalogProducts(
       }
       continue;
     }
-    // Map back to rows by position (insert order preserved)
     for (let j = 0; j < (data ?? []).length; j++) {
       const created = data![j];
       const srcRow = batch[j].row;
@@ -454,6 +524,7 @@ async function batchAutoCreateCatalogProducts(
 
 /**
  * Batch insert supplier_prices.
+ * IMPORTANT: Only insert rows that have a valid price (not null/zero fallbacks).
  */
 async function batchInsertPrices(
   sa: SupabaseAdmin, companyId: string, supplierId: string,
@@ -461,10 +532,16 @@ async function batchInsertPrices(
 ): Promise<void> {
   const now = new Date().toISOString();
   const payloads = priceRows
-    .filter(p => p.row.list_price !== null || p.row.net_price !== null)
+    .filter(p => {
+      // Only insert if we have a real price – never insert dummy/fallback
+      const hasListPrice = p.row.list_price !== null && p.row.list_price > 0;
+      const hasNetPrice = p.row.net_price !== null && p.row.net_price > 0;
+      return hasListPrice || hasNetPrice;
+    })
     .map(p => ({
       company_id: companyId, supplier_id: supplierId, supplier_product_id: p.supplierProductId,
-      list_price: p.row.list_price ?? 0, discount_percent: p.row.discount_percent,
+      list_price: p.row.list_price, // null if unknown – NOT defaulting to 0
+      discount_percent: p.row.discount_percent,
       net_price: p.row.net_price, currency: "NOK", source_file_name: p.fileName,
       imported_at: now,
     }));
@@ -473,6 +550,10 @@ async function batchInsertPrices(
     const batch = payloads.slice(i, i + BATCH_SIZE);
     const { error } = await sa.from("supplier_prices").insert(batch);
     if (error) console.error(`[batch] Insert prices error: ${error.message}`);
+  }
+
+  if (priceRows.length > 0 && payloads.length < priceRows.length) {
+    console.log(`[batch] Skipped ${priceRows.length - payloads.length} price rows with no valid price data`);
   }
 }
 
@@ -506,7 +587,6 @@ async function batchInsertImportRows(
 async function batchLinkProducts(
   sa: SupabaseAdmin, links: Array<{ supplierProductId: string; catalogProductId: string }>,
 ): Promise<void> {
-  // Group by catalogProductId for efficient updates
   const byProduct = new Map<string, string[]>();
   for (const l of links) {
     const arr = byProduct.get(l.catalogProductId) ?? [];
@@ -531,7 +611,6 @@ export async function rebuildPriceCache(sa: SupabaseAdmin, companyId: string, pr
   for (let i = 0; i < uniqueIds.length; i += 50) {
     const batch = uniqueIds.slice(i, i + 50);
     
-    // Get all linked supplier_product IDs for this batch
     const { data: linkedSps } = await sa.from("supplier_products").select("id, product_id")
       .eq("company_id", companyId).in("product_id", batch);
     
@@ -545,7 +624,6 @@ export async function rebuildPriceCache(sa: SupabaseAdmin, companyId: string, pr
 
     if (!prices || prices.length === 0) continue;
 
-    // Group prices by product_id
     const spToProduct = new Map<string, string>();
     for (const sp of linkedSps) spToProduct.set(sp.id, sp.product_id);
 
@@ -558,7 +636,6 @@ export async function rebuildPriceCache(sa: SupabaseAdmin, companyId: string, pr
       pricesByProduct.set(productId, arr);
     }
 
-    // Build cache entries
     for (const [productId, pList] of pricesByProduct) {
       let bestPrice: number | null = null;
       let bestSupplierId: string | null = null;
@@ -566,7 +643,7 @@ export async function rebuildPriceCache(sa: SupabaseAdmin, companyId: string, pr
 
       for (const p of pList) {
         const effective = p.net_price ?? p.list_price;
-        if (effective !== null && (bestPrice === null || effective < bestPrice)) {
+        if (effective !== null && effective > 0 && (bestPrice === null || effective < bestPrice)) {
           bestPrice = effective; bestSupplierId = p.supplier_id;
         }
         if (!snapshot[p.supplier_id]) {
@@ -612,7 +689,6 @@ async function processChunk(params: {
     rows_skipped: 0, rows_needs_review: 0, errors: [], affected_product_ids: [],
   };
 
-  // Split into valid (has SKU) and skipped
   const validRows = rows.filter(r => r.supplier_sku);
   const skippedCount = rows.length - validRows.length;
   stats.rows_processed = rows.length;
@@ -620,7 +696,6 @@ async function processChunk(params: {
 
   if (validRows.length === 0) return stats;
 
-  // 1. Batch upsert supplier_products
   let spMap: Map<string, { id: string; isNew: boolean }>;
   try {
     spMap = await batchUpsertSupplierProducts(sa, companyId, supplierId, validRows);
@@ -634,17 +709,13 @@ async function processChunk(params: {
     if (v.isNew) stats.rows_inserted++; else stats.rows_updated++;
   }
 
-  // 2. Batch match to catalog products
   const matchMap = await batchMatchCatalogProducts(sa, companyId, validRows);
 
-  // 3. Identify unmatched and batch auto-create
   const unmatchedRows = validRows.filter(r => r.supplier_sku && !matchMap.has(r.supplier_sku));
   const autoCreatedMap = await batchAutoCreateCatalogProducts(sa, companyId, unmatchedRows);
 
-  // Merge matches
   for (const [sku, id] of autoCreatedMap) matchMap.set(sku, id);
 
-  // 4. Batch link supplier_products → catalog products
   const links: Array<{ supplierProductId: string; catalogProductId: string }> = [];
   for (const row of validRows) {
     if (!row.supplier_sku) continue;
@@ -659,13 +730,11 @@ async function processChunk(params: {
   }
   if (links.length > 0) await batchLinkProducts(sa, links);
 
-  // 5. Batch insert prices
   const priceRows = validRows
     .filter(r => r.supplier_sku && spMap.has(r.supplier_sku))
     .map(r => ({ supplierProductId: spMap.get(r.supplier_sku!)!.id, row: r, fileName }));
   await batchInsertPrices(sa, companyId, supplierId, priceRows);
 
-  // 6. Batch insert import_rows (audit trail, minimal data)
   const importRowEntries = rows.map((row, idx) => {
     const sku = row.supplier_sku;
     const spEntry = sku ? spMap.get(sku) : undefined;

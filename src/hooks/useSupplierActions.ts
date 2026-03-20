@@ -56,7 +56,8 @@ export interface FileListData {
   };
 }
 
-const STALE_JOB_MS = 3 * 60 * 1000;
+// Match server-side stale threshold (10 minutes)
+const STALE_JOB_MS = 10 * 60 * 1000;
 
 async function invokeAction<T = unknown>(
   action: string,
