@@ -622,12 +622,14 @@ function parseRow(fields: string[], columns: ResolvedColumns): ParsedRow {
   const rawEl = cleanString(get(columns.el_number));
   const validEl = isValidElNumber(rawEl) ? rawEl : null;
   
+  const hasPrice = listPrice !== null || netPrice !== null;
   return {
     supplier_sku: cleanString(get(columns.supplier_sku)), el_number: validEl,
     ean: cleanString(get(columns.ean)), product_name: cleanString(get(columns.product_name)),
     description: cleanString(get(columns.description)), brand: cleanString(get(columns.brand)),
     unit: cleanString(get(columns.unit)), category: cleanString(get(columns.category)),
     list_price: listPrice, discount_percent: discountPct, net_price: netPrice,
+    price_source: hasPrice ? "csv" : null,
   };
 }
 
