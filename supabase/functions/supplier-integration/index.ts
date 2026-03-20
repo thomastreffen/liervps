@@ -402,53 +402,58 @@ const SYNC_TEMP_BUCKET = "job-attachments";
 
 /**
  * Dispatch next chunk via self-invocation using service_role key.
- * CRITICAL: This is FIRE-AND-FORGET. We do NOT await the response.
- * The current worker sends the request and returns immediately,
- * freeing compute resources before the next chunk starts.
- *
- * If the fetch itself fails to send, we mark the job as failed
- * in the background via .catch().
+ * We AWAIT the fetch until the HTTP response status is received,
+ * ensuring the request is actually sent before the current worker exits.
+ * We do NOT await the response body — the next chunk runs independently.
  */
-function dispatchNextChunk(
+async function dispatchNextChunk(
   body: Record<string, unknown>,
   supabaseAdmin: ReturnType<typeof createClient>,
-): void {
+): Promise<boolean> {
   const processUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/supplier-integration`;
   const jobId = body.job_id as string;
   const globalChunk = body.global_chunk;
 
   console.log(`[chain] job=${jobId} DISPATCH next: action=${body.action}, file_index=${body.file_index}, chunk_start=${body.chunk_start}, global_chunk=${globalChunk}`);
 
-  // Fire-and-forget: do NOT await this promise.
-  // The fetch sends the request; we don't need or want the response.
-  fetch(processUrl, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
-    },
-    body: JSON.stringify(body),
-  }).then(resp => {
-    // We don't need to read the body — just log status for diagnostics
-    // Consume body to prevent resource leak in Deno
+  try {
+    const resp = await fetch(processUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+      },
+      body: JSON.stringify(body),
+    });
+
+    // Consume body to prevent resource leak, but don't wait for full processing
     resp.body?.cancel().catch(() => {});
+
     if (!resp.ok) {
-      console.error(`[chain] job=${jobId} DISPATCH response: HTTP ${resp.status} (non-blocking, job NOT marked failed here)`);
-    } else {
-      console.log(`[chain] job=${jobId} DISPATCH accepted: HTTP ${resp.status}`);
+      console.error(`[chain] job=${jobId} DISPATCH rejected: HTTP ${resp.status}`);
+      await updateImportJob(supabaseAdmin, jobId, {
+        status: "failed",
+        finished_at: new Date().toISOString(),
+        failed_step: `dispatch_batch_${globalChunk}`,
+        error_log: [`Chunk-dispatch feilet: HTTP ${resp.status}`],
+        last_heartbeat_at: new Date().toISOString(),
+      });
+      return false;
     }
-  }).catch(err => {
-    // Network-level failure to even send the request
+
+    console.log(`[chain] job=${jobId} DISPATCH accepted: HTTP ${resp.status}`);
+    return true;
+  } catch (err) {
     console.error(`[chain] job=${jobId} DISPATCH FAILED (network): ${(err as Error).message}`);
-    // Mark job as failed since the chain is truly broken
-    updateImportJob(supabaseAdmin, jobId, {
+    await updateImportJob(supabaseAdmin, jobId, {
       status: "failed",
       finished_at: new Date().toISOString(),
       failed_step: `dispatch_batch_${globalChunk}`,
       error_log: [`Chunk-dispatch feilet (nettverksfeil): ${(err as Error).message}`],
       last_heartbeat_at: new Date().toISOString(),
-    }).catch(() => {});
-  });
+    });
+    return false;
+  }
 }
 
 function countFileRows(content: string): number {
@@ -603,8 +608,10 @@ async function handleProcessSync(supabaseAdmin: ReturnType<typeof createClient>,
       last_heartbeat_at: new Date().toISOString(),
     });
 
-    // Kick off chunk processing chain (fully server-side, fire-and-forget)
-    dispatchNextChunk({
+    console.log(`[sync] job=${jobId} CREATED: total_rows=${storageFiles.reduce((s, f) => s + f.totalChunks * 1000, 0)}, total_chunks=${totalGlobalChunks}, dispatching first chunk...`);
+
+    // Kick off chunk processing chain — AWAIT dispatch to ensure it's sent before worker exits
+    const dispatched = await dispatchNextChunk({
       action: "process-sync-chunk",
       job_id: jobId,
       company_id: companyId,
@@ -617,6 +624,12 @@ async function handleProcessSync(supabaseAdmin: ReturnType<typeof createClient>,
       global_chunk: 0,
       total_global_chunks: totalGlobalChunks,
     }, supabaseAdmin);
+
+    if (dispatched) {
+      console.log(`[sync] job=${jobId} first chunk dispatched successfully`);
+    } else {
+      console.error(`[sync] job=${jobId} FAILED to dispatch first chunk — job marked as failed`);
+    }
 
     return jsonOk({ status: "processing" });
   } catch (err) {
@@ -773,12 +786,10 @@ async function handleProcessSyncChunk(supabaseAdmin: ReturnType<typeof createCli
       console.log(`[chain] job=${jobId} FILE_COMPLETE: "${currentFile.fileName}", moving to file ${nextFileIndex + 1}/${storageFiles.length}`);
     }
 
-    // Chain next invocation – FIRE AND FORGET
-    // Current worker returns immediately, freeing compute before next chunk starts.
-    // This prevents 504/WORKER_LIMIT errors from holding two workers simultaneously.
+    // Chain next invocation — await dispatch to ensure request is sent before worker exits
     console.log(`[chain] job=${jobId} END batch ${globalChunk}/${totalGlobalChunks}`);
 
-    dispatchNextChunk({
+    const dispatched = await dispatchNextChunk({
       action: "process-sync-chunk",
       job_id: jobId,
       company_id: companyId,
@@ -792,7 +803,9 @@ async function handleProcessSyncChunk(supabaseAdmin: ReturnType<typeof createCli
       total_global_chunks: totalGlobalChunks,
     }, supabaseAdmin);
 
-    console.log(`[chain] job=${jobId} DISPATCH next batch ${globalChunk + 1}/${totalGlobalChunks}`);
+    if (dispatched) {
+      console.log(`[chain] job=${jobId} DISPATCH next batch ${globalChunk + 1}/${totalGlobalChunks} OK`);
+    }
     return jsonOk({ status: "processing", global_chunk: globalChunk, progress_percent: progressPercent });
   } catch (err) {
     const batchLabel = `batch_${globalChunk + 1}`;
@@ -864,8 +877,10 @@ async function handleRunSync(supabaseAdmin: ReturnType<typeof createClient>, com
   let jobId: string;
   try { jobId = await createImportJob(supabaseAdmin, companyId, supplierId, syncType, userId || "admin"); } catch (e) { return jsonError((e as Error).message, "job_create_error", 500); }
 
-  // Trigger process-sync (fire-and-forget, runs fully server-side)
-  dispatchNextChunk({
+  console.log(`[run-sync] job=${jobId} CREATED, dispatching process-sync...`);
+
+  // Trigger process-sync — AWAIT dispatch to ensure request is sent before worker exits
+  const dispatched = await dispatchNextChunk({
     action: "process-sync",
     job_id: jobId,
     company_id: companyId,
@@ -873,6 +888,13 @@ async function handleRunSync(supabaseAdmin: ReturnType<typeof createClient>, com
     supplier_code: supplierCode,
     sync_type: syncType,
   }, supabaseAdmin);
+
+  if (dispatched) {
+    console.log(`[run-sync] job=${jobId} process-sync dispatched successfully`);
+  } else {
+    console.error(`[run-sync] job=${jobId} FAILED to dispatch process-sync — job marked as failed`);
+    return jsonOk({ status: "failed", message: "Kunne ikke starte synkronisering", data: { job_id: jobId } });
+  }
 
   return jsonOk({
     status: "started",
