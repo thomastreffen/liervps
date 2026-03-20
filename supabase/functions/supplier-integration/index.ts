@@ -786,12 +786,10 @@ async function handleProcessSyncChunk(supabaseAdmin: ReturnType<typeof createCli
       console.log(`[chain] job=${jobId} FILE_COMPLETE: "${currentFile.fileName}", moving to file ${nextFileIndex + 1}/${storageFiles.length}`);
     }
 
-    // Chain next invocation – FIRE AND FORGET
-    // Current worker returns immediately, freeing compute before next chunk starts.
-    // This prevents 504/WORKER_LIMIT errors from holding two workers simultaneously.
+    // Chain next invocation — await dispatch to ensure request is sent before worker exits
     console.log(`[chain] job=${jobId} END batch ${globalChunk}/${totalGlobalChunks}`);
 
-    dispatchNextChunk({
+    const dispatched = await dispatchNextChunk({
       action: "process-sync-chunk",
       job_id: jobId,
       company_id: companyId,
@@ -805,7 +803,9 @@ async function handleProcessSyncChunk(supabaseAdmin: ReturnType<typeof createCli
       total_global_chunks: totalGlobalChunks,
     }, supabaseAdmin);
 
-    console.log(`[chain] job=${jobId} DISPATCH next batch ${globalChunk + 1}/${totalGlobalChunks}`);
+    if (dispatched) {
+      console.log(`[chain] job=${jobId} DISPATCH next batch ${globalChunk + 1}/${totalGlobalChunks} OK`);
+    }
     return jsonOk({ status: "processing", global_chunk: globalChunk, progress_percent: progressPercent });
   } catch (err) {
     const batchLabel = `batch_${globalChunk + 1}`;
