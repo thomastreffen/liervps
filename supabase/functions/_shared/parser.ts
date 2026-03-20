@@ -1123,6 +1123,7 @@ async function processChunk(params: {
   const stats: ImportStats = {
     rows_processed: 0, rows_inserted: 0, rows_updated: 0, rows_failed: 0,
     rows_skipped: 0, rows_needs_review: 0, errors: [], affected_product_ids: [],
+    prices_inserted: 0, prices_unchanged: 0, prices_no_price: 0, prices_preserved: 0,
   };
 
   const validRows = rows.filter(r => r.supplier_sku);
