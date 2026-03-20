@@ -1196,7 +1196,11 @@ async function processChunk(params: {
   const priceRows = validRows
     .filter(r => r.supplier_sku && spMap.has(r.supplier_sku))
     .map(r => ({ supplierProductId: spMap.get(r.supplier_sku!)!.id, row: r, fileName }));
-  const priceResult = await batchInsertPrices(sa, companyId, supplierId, priceRows);
+  const priceResult = await batchInsertPrices(sa, companyId, supplierId, priceRows, importJobId);
+  stats.prices_inserted = priceResult.inserted;
+  stats.prices_unchanged = priceResult.skippedDuplicate;
+  stats.prices_no_price = priceResult.skippedNoPrice;
+  stats.prices_preserved = priceResult.pricesPreserved;
   const t5ms = t5();
 
   // Phase 6: Import rows audit (only errors/needs_review)
