@@ -389,6 +389,7 @@ function parseEfonelfoFile(lines: string[], supplierCode: string | null): { prod
         list_price: listPrice,
         discount_percent: null,
         net_price: null,
+        price_source: listPrice !== null ? "vl_gross" : null,
       });
     }
   }
