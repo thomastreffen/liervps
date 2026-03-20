@@ -1109,6 +1109,7 @@ export interface ImportStats {
   rows_processed: number; rows_inserted: number; rows_updated: number;
   rows_failed: number; rows_skipped: number; rows_needs_review: number;
   errors: string[]; affected_product_ids: string[];
+  prices_inserted: number; prices_unchanged: number; prices_no_price: number; prices_preserved: number;
 }
 
 // ===== Chunked processing core =====
