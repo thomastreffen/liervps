@@ -1,6 +1,7 @@
 /**
  * Hook for the product module overview – company-scoped.
  * Fetches catalog products with price cache and supplier count.
+ * Supports server-side pagination with total count.
  */
 
 import { useQuery } from "@tanstack/react-query";
@@ -29,7 +30,8 @@ interface ProductListParams {
   filterSupplier?: string;
   filterOnlyWithPrice?: boolean;
   filterOnlyMultiSupplier?: boolean;
-  limit?: number;
+  page?: number;
+  pageSize?: number;
 }
 
 export function useProductList(params: ProductListParams = {}) {
@@ -41,7 +43,8 @@ export function useProductList(params: ProductListParams = {}) {
     filterSupplier,
     filterOnlyWithPrice,
     filterOnlyMultiSupplier,
-    limit = 200,
+    page = 0,
+    pageSize = 100,
   } = params;
 
   const queryKey = [
@@ -53,14 +56,34 @@ export function useProductList(params: ProductListParams = {}) {
     filterSupplier,
     filterOnlyWithPrice,
     filterOnlyMultiSupplier,
-    limit,
+    page,
+    pageSize,
   ];
 
-  const { data: products = [], isLoading: loading } = useQuery({
+  const { data, isLoading: loading } = useQuery({
     queryKey,
     enabled: !!activeCompanyId,
     queryFn: async () => {
-      // Step 1: fetch catalog products (left join with price cache)
+      // Step 1: get total count
+      let countQuery = supabase
+        .from("supplier_catalog_products")
+        .select("id", { count: "exact", head: true })
+        .eq("company_id", activeCompanyId!)
+        .eq("is_active", true);
+
+      if (search && search.length >= 2) {
+        countQuery = countQuery.or(
+          `el_number.ilike.%${search}%,ean.ilike.%${search}%,name.ilike.%${search}%,brand.ilike.%${search}%`
+        );
+      }
+
+      const { count: totalCount, error: countErr } = await countQuery;
+      if (countErr) throw countErr;
+
+      // Step 2: fetch paginated catalog products
+      const from = page * pageSize;
+      const to = from + pageSize - 1;
+
       let query = supabase
         .from("supplier_catalog_products")
         .select(`
@@ -69,7 +92,7 @@ export function useProductList(params: ProductListParams = {}) {
         `)
         .eq("company_id", activeCompanyId!)
         .eq("is_active", true)
-        .limit(limit);
+        .range(from, to);
 
       if (search && search.length >= 2) {
         query = query.or(
@@ -84,7 +107,7 @@ export function useProductList(params: ProductListParams = {}) {
       const { data: catalogRows, error: catErr } = await query;
       if (catErr) throw catErr;
 
-      // Step 2: get supplier counts per product
+      // Step 3: get supplier counts per product
       const productIds = (catalogRows || []).map((r: any) => r.id);
       let supplierCounts: Record<string, number> = {};
       let supplierNames: Record<string, string> = {};
@@ -101,7 +124,6 @@ export function useProductList(params: ProductListParams = {}) {
           supplierCounts[pid] = (supplierCounts[pid] || 0) + 1;
         }
 
-        // Get supplier names for best_supplier_id
         const { data: suppliers } = await supabase
           .from("suppliers")
           .select("id, name")
@@ -155,9 +177,13 @@ export function useProductList(params: ProductListParams = {}) {
         );
       }
 
-      return items;
+      return { items, totalCount: totalCount ?? 0 };
     },
   });
 
-  return { products, loading };
+  return {
+    products: data?.items ?? [],
+    totalCount: data?.totalCount ?? 0,
+    loading,
+  };
 }
