@@ -1288,6 +1288,7 @@ export async function parseFile(params: {
   const totalStats: ImportStats & { totalChunks: number } = {
     rows_processed: 0, rows_inserted: 0, rows_updated: 0, rows_failed: 0,
     rows_skipped: 0, rows_needs_review: 0, errors: [], affected_product_ids: [], totalChunks,
+    prices_inserted: 0, prices_unchanged: 0, prices_no_price: 0, prices_preserved: 0,
   };
 
   for (let ci = chunkStart; ci < chunkEnd; ci++) {
@@ -1303,6 +1304,10 @@ export async function parseFile(params: {
     totalStats.rows_failed += chunkStats.rows_failed;
     totalStats.rows_skipped += chunkStats.rows_skipped;
     totalStats.rows_needs_review += chunkStats.rows_needs_review;
+    totalStats.prices_inserted += chunkStats.prices_inserted;
+    totalStats.prices_unchanged += chunkStats.prices_unchanged;
+    totalStats.prices_no_price += chunkStats.prices_no_price;
+    totalStats.prices_preserved += chunkStats.prices_preserved;
     totalStats.errors.push(...chunkStats.errors);
     totalStats.affected_product_ids.push(...chunkStats.affected_product_ids);
     
@@ -1318,6 +1323,18 @@ export async function parseFile(params: {
     }
   }
 
-  console.log(`[parser] ${fileName} chunks ${chunkStart}-${chunkEnd - 1} done: processed=${totalStats.rows_processed}, inserted=${totalStats.rows_inserted}, updated=${totalStats.rows_updated}, failed=${totalStats.rows_failed}`);
+  // Log 20 sample products for verification (across all parsed data)
+  const sampleCount = Math.min(20, allParsed.length);
+  const step = Math.max(1, Math.floor(allParsed.length / sampleCount));
+  console.log(`[VERIFY] ===== ${sampleCount} CONTROL PRODUCTS (${supplierCode}) =====`);
+  for (let si = 0; si < sampleCount; si++) {
+    const idx = si * step;
+    const p = allParsed[idx];
+    if (!p) break;
+    console.log(`[VERIFY] #${si+1}: sku=${p.supplier_sku} el=${p.el_number} ean=${p.ean} name="${p.product_name?.substring(0, 45)}" brand=${p.brand} list=${p.list_price} disc=${p.discount_percent}% net=${p.net_price} src=${p.price_source}`);
+  }
+  console.log(`[VERIFY] ===== END CONTROL PRODUCTS =====`);
+
+  console.log(`[parser] ${fileName} chunks ${chunkStart}-${chunkEnd - 1} done: processed=${totalStats.rows_processed}, inserted=${totalStats.rows_inserted}, updated=${totalStats.rows_updated}, failed=${totalStats.rows_failed} | prices: ${totalStats.prices_inserted} new, ${totalStats.prices_unchanged} unchanged, ${totalStats.prices_no_price} missing, ${totalStats.prices_preserved} preserved`);
   return totalStats;
 }
