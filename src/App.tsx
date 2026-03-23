@@ -89,6 +89,11 @@ import ProductDetailPage from "./pages/ProductDetailPage";
 import PurchaseOrdersPage from "./pages/PurchaseOrdersPage";
 import PurchaseOrderDetailPage from "./pages/PurchaseOrderDetailPage";
 import HelpCenterPage from "./pages/HelpCenterPage";
+import OrderFormsPage from "./pages/OrderFormsPage";
+import OrderFormDetailPage from "./pages/OrderFormDetailPage";
+import OrderFormSubmitPage from "./pages/OrderFormSubmitPage";
+import OrderFormTemplatesPage from "./pages/OrderFormTemplatesPage";
+import OrderFormBuilderPage from "./pages/OrderFormBuilderPage";
 import { CompanyProvider } from "@/hooks/useCompanyContext";
 import { PreviewModeProvider } from "@/hooks/usePreviewMode";
 import PortalLogin from "./pages/portal/PortalLogin";
@@ -445,6 +450,27 @@ const App = () => (
               {/* Purchase module */}
               <Route path="/purchasing" element={<PurchaseOrdersPage />} />
               <Route path="/purchasing/:id" element={<PurchaseOrderDetailPage />} />
+
+              {/* Order Forms module */}
+              <Route path="/orders" element={<OrderFormsPage />} />
+              <Route path="/orders/:id" element={<OrderFormDetailPage />} />
+              <Route path="/orders/new/:slug" element={<OrderFormSubmitPage />} />
+              <Route
+                path="/admin/order-forms"
+                element={
+                  <ProtectedRoute requiredRoles={["admin", "super_admin"]}>
+                    <OrderFormTemplatesPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/order-forms/:id"
+                element={
+                  <ProtectedRoute requiredRoles={["admin", "super_admin"]}>
+                    <OrderFormBuilderPage />
+                  </ProtectedRoute>
+                }
+              />
             </Route>
 
             <Route path="*" element={<NotFound />} />

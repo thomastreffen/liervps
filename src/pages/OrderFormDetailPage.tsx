@@ -1,0 +1,375 @@
+import { useState } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { ArrowLeft, MessageSquare, Clock, Paperclip } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
+import { toast } from "sonner";
+import {
+  ORDER_STATUS_CONFIG,
+  ORDER_PRIORITY_CONFIG,
+  type OrderFormSubmissionStatus,
+} from "@/types/order-forms";
+import { format } from "date-fns";
+import { nb } from "date-fns/locale";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useAuth } from "@/hooks/useAuth";
+
+export default function OrderFormDetailPage() {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const qc = useQueryClient();
+  const { user } = useAuth();
+  const [comment, setComment] = useState("");
+
+  const { data: submission, isLoading } = useQuery({
+    queryKey: ["order-form-submission", id],
+    enabled: !!id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("order_form_submissions")
+        .select("*, order_form_templates(name, slug)")
+        .eq("id", id!)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: values = [] } = useQuery({
+    queryKey: ["order-form-values", id],
+    enabled: !!id,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("order_form_submission_values")
+        .select("*")
+        .eq("submission_id", id!);
+      return data || [];
+    },
+  });
+
+  const { data: attachments = [] } = useQuery({
+    queryKey: ["order-form-attachments", id],
+    enabled: !!id,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("order_form_submission_attachments")
+        .select("*")
+        .eq("submission_id", id!);
+      return data || [];
+    },
+  });
+
+  const { data: comments = [] } = useQuery({
+    queryKey: ["order-form-comments", id],
+    enabled: !!id,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("order_form_comments")
+        .select("*")
+        .eq("submission_id", id!)
+        .order("created_at", { ascending: true });
+      return data || [];
+    },
+  });
+
+  const { data: activity = [] } = useQuery({
+    queryKey: ["order-form-activity", id],
+    enabled: !!id,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("order_form_activity_log")
+        .select("*")
+        .eq("submission_id", id!)
+        .order("created_at", { ascending: false });
+      return data || [];
+    },
+  });
+
+  // Load template sections+fields to display values in structure
+  const { data: sections = [] } = useQuery({
+    queryKey: ["order-form-template-structure", submission?.template_id],
+    enabled: !!submission?.template_id,
+    queryFn: async () => {
+      const { data: secs } = await supabase
+        .from("order_form_template_sections")
+        .select("*")
+        .eq("template_id", submission!.template_id)
+        .order("sort_order");
+      if (!secs) return [];
+
+      const { data: fields } = await supabase
+        .from("order_form_template_fields")
+        .select("*")
+        .eq("template_id", submission!.template_id)
+        .eq("is_active", true)
+        .order("sort_order");
+
+      return secs.map((s: any) => ({
+        ...s,
+        fields: (fields || []).filter((f: any) => f.section_id === s.id),
+      }));
+    },
+  });
+
+  const updateStatus = useMutation({
+    mutationFn: async (newStatus: string) => {
+      const { error } = await supabase
+        .from("order_form_submissions")
+        .update({ status: newStatus })
+        .eq("id", id!);
+      if (error) throw error;
+
+      await supabase.from("order_form_activity_log").insert({
+        submission_id: id!,
+        event_type: "status_changed",
+        payload: { from: submission?.status, to: newStatus },
+        created_by: user?.id,
+      });
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["order-form-submission", id] });
+      qc.invalidateQueries({ queryKey: ["order-form-activity", id] });
+      toast.success("Status oppdatert");
+    },
+  });
+
+  const addComment = useMutation({
+    mutationFn: async () => {
+      if (!comment.trim()) return;
+      const { error } = await supabase.from("order_form_comments").insert({
+        submission_id: id!,
+        body: comment.trim(),
+        comment_type: "internal",
+        created_by: user?.id,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      setComment("");
+      qc.invalidateQueries({ queryKey: ["order-form-comments", id] });
+      toast.success("Kommentar lagt til");
+    },
+  });
+
+  if (isLoading) return <div className="p-6 text-center text-muted-foreground">Laster...</div>;
+  if (!submission) return <div className="p-6 text-center text-muted-foreground">Ikke funnet</div>;
+
+  const statusConfig = ORDER_STATUS_CONFIG[submission.status as OrderFormSubmissionStatus];
+  const priorityConfig = ORDER_PRIORITY_CONFIG[submission.priority];
+  const valuesMap: Record<string, any> = {};
+  values.forEach((v: any) => { valuesMap[v.field_key] = v.value; });
+
+  return (
+    <div className="space-y-6 p-6 max-w-5xl mx-auto">
+      {/* Header */}
+      <div className="flex items-center gap-3">
+        <Button variant="ghost" size="icon" onClick={() => navigate("/orders")}>
+          <ArrowLeft className="h-4 w-4" />
+        </Button>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h1 className="text-xl font-bold text-foreground">{submission.submission_no}</h1>
+            <Badge className={statusConfig?.color || ""}>{statusConfig?.label || submission.status}</Badge>
+            {submission.priority !== "normal" && priorityConfig && (
+              <Badge className={priorityConfig.color}>{priorityConfig.label}</Badge>
+            )}
+          </div>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            {(submission as any).order_form_templates?.name} ·{" "}
+            {format(new Date(submission.submitted_at), "d. MMMM yyyy HH:mm", { locale: nb })}
+          </p>
+        </div>
+        <Select
+          value={submission.status}
+          onValueChange={(v) => updateStatus.mutate(v)}
+        >
+          <SelectTrigger className="w-48">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {Object.entries(ORDER_STATUS_CONFIG).map(([key, cfg]) => (
+              <SelectItem key={key} value={key}>
+                {cfg.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Summary info from submission.summary */}
+      {submission.summary && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm">Sammendrag</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
+              {Object.entries(submission.summary as Record<string, any>).map(([key, val]) => (
+                <div key={key}>
+                  <span className="text-muted-foreground text-xs capitalize">
+                    {key.replace(/_/g, " ")}
+                  </span>
+                  <p className="font-medium">{String(val || "–")}</p>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Main content: Sections with field values */}
+        <div className="lg:col-span-2 space-y-4">
+          {sections.map((section: any) => {
+            const sectionFields = section.fields || [];
+            const hasValues = sectionFields.some((f: any) => valuesMap[f.field_key] != null);
+            if (!hasValues && sectionFields.length > 0) return null;
+
+            return (
+              <Card key={section.id}>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm">{section.title}</CardTitle>
+                  {section.description && (
+                    <p className="text-xs text-muted-foreground">{section.description}</p>
+                  )}
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {sectionFields.map((field: any) => {
+                      const val = valuesMap[field.field_key];
+                      if (val == null && !field.is_required) return null;
+                      return (
+                        <div key={field.id} className="flex flex-col">
+                          <span className="text-xs text-muted-foreground">{field.label}</span>
+                          <span className="text-sm font-medium">
+                            {renderFieldValue(val, field.field_type)}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+
+          {/* Attachments */}
+          {attachments.length > 0 && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Paperclip className="h-4 w-4" />
+                  Vedlegg ({attachments.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {attachments.map((att: any) => (
+                    <div key={att.id} className="flex items-center gap-2 text-sm">
+                      <Paperclip className="h-3 w-3 text-muted-foreground shrink-0" />
+                      <span className="truncate">{att.file_name}</span>
+                      {att.category && (
+                        <Badge variant="outline" className="text-[10px]">{att.category}</Badge>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+
+        {/* Sidebar: Comments & Activity */}
+        <div className="space-y-4">
+          {/* Comments */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <MessageSquare className="h-4 w-4" />
+                Kommentarer
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3 mb-3 max-h-64 overflow-y-auto">
+                {comments.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">Ingen kommentarer ennå</p>
+                ) : (
+                  comments.map((c: any) => (
+                    <div key={c.id} className="text-sm border-l-2 border-border pl-3">
+                      <p>{c.body}</p>
+                      <span className="text-[10px] text-muted-foreground">
+                        {format(new Date(c.created_at), "d. MMM HH:mm", { locale: nb })}
+                      </span>
+                    </div>
+                  ))
+                )}
+              </div>
+              <div className="flex gap-2">
+                <Textarea
+                  placeholder="Skriv kommentar..."
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value)}
+                  className="min-h-[60px] text-sm"
+                />
+              </div>
+              <Button
+                size="sm"
+                className="mt-2"
+                disabled={!comment.trim()}
+                onClick={() => addComment.mutate()}
+              >
+                Legg til
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Activity */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Clock className="h-4 w-4" />
+                Aktivitetslogg
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2 max-h-48 overflow-y-auto">
+                {activity.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">Ingen aktivitet</p>
+                ) : (
+                  activity.map((a: any) => (
+                    <div key={a.id} className="text-xs text-muted-foreground">
+                      <span className="font-medium text-foreground">{a.event_type}</span>
+                      {a.payload?.from && a.payload?.to && (
+                        <> · {a.payload.from} → {a.payload.to}</>
+                      )}
+                      <br />
+                      {format(new Date(a.created_at), "d. MMM HH:mm", { locale: nb })}
+                    </div>
+                  ))
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function renderFieldValue(val: any, type: string): string {
+  if (val == null) return "–";
+  if (typeof val === "boolean") return val ? "Ja" : "Nei";
+  if (Array.isArray(val)) return val.join(", ");
+  if (typeof val === "object") return JSON.stringify(val);
+  return String(val);
+}

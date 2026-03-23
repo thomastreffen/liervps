@@ -19,6 +19,7 @@ import {
   CalendarOff,
   PackageSearch,
   ShoppingCart,
+  ClipboardList,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/hooks/useAuth";
@@ -61,6 +62,7 @@ const mainNav = [
   { title: "Fakturagrunnlag", url: "/invoice-basis", icon: Receipt, moduleKey: "invoice_basis", modulePermission: "module.invoice_basis", requiredPermission: "jobs.view_pricing" },
   { title: "Produkter", url: "/products", icon: PackageSearch, moduleKey: "products", modulePermission: "module.products", requiredPermission: "purchasing.view" },
   { title: "Innkjøp", url: "/purchasing", icon: ShoppingCart, moduleKey: "purchasing", modulePermission: "module.purchasing", requiredPermission: "purchasing.view" },
+  { title: "Bestillinger", url: "/orders", icon: ClipboardList, moduleKey: "orders", modulePermission: "module.orders" },
   { title: "Fagstøtte", url: "/fag", icon: BookOpen, moduleKey: "fag", modulePermission: "module.fag", requiredPermission: "regulation.review" },
 ];
 
@@ -71,6 +73,7 @@ const adminItems = [
   { title: "Roller", url: "/admin/roller", requireSuperAdmin: true, moduleKey: "admin_roles" },
   { title: "Postkontoret", url: "/admin/superoffice", requirePostkontorAdmin: true, moduleKey: "admin_postkontor" },
   { title: "Skjema & maler", url: "/admin/forms", moduleKey: "admin_forms" },
+  { title: "Bestillingsmaler", url: "/admin/order-forms", moduleKey: "admin_order_forms" },
   { title: "Integrasjoner", url: "/settings/integrations", moduleKey: "admin_integrations" },
   { title: "Integrasjonshelse", url: "/admin/integration-health", moduleKey: "admin_integration_health" },
   { title: "Systemhelse", url: "/admin/system-health", moduleKey: "admin_system_health" },

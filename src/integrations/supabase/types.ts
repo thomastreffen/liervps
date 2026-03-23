@@ -5891,6 +5891,408 @@ export type Database = {
           },
         ]
       }
+      order_form_activity_log: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          event_type: string
+          id: string
+          payload: Json | null
+          submission_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          event_type: string
+          id?: string
+          payload?: Json | null
+          submission_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          event_type?: string
+          id?: string
+          payload?: Json | null
+          submission_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_form_activity_log_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "order_form_submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      order_form_comments: {
+        Row: {
+          body: string
+          comment_type: string
+          created_at: string
+          created_by: string | null
+          id: string
+          submission_id: string
+        }
+        Insert: {
+          body: string
+          comment_type?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          submission_id: string
+        }
+        Update: {
+          body?: string
+          comment_type?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          submission_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_form_comments_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "order_form_submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      order_form_submission_attachments: {
+        Row: {
+          category: string | null
+          field_key: string | null
+          file_name: string
+          file_path: string
+          file_size: number | null
+          id: string
+          mime_type: string | null
+          submission_id: string
+          uploaded_at: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          category?: string | null
+          field_key?: string | null
+          file_name: string
+          file_path: string
+          file_size?: number | null
+          id?: string
+          mime_type?: string | null
+          submission_id: string
+          uploaded_at?: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          category?: string | null
+          field_key?: string | null
+          file_name?: string
+          file_path?: string
+          file_size?: number | null
+          id?: string
+          mime_type?: string | null
+          submission_id?: string
+          uploaded_at?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_form_submission_attachments_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "order_form_submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      order_form_submission_values: {
+        Row: {
+          created_at: string
+          field_key: string
+          id: string
+          submission_id: string
+          value: Json | null
+        }
+        Insert: {
+          created_at?: string
+          field_key: string
+          id?: string
+          submission_id: string
+          value?: Json | null
+        }
+        Update: {
+          created_at?: string
+          field_key?: string
+          id?: string
+          submission_id?: string
+          value?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_form_submission_values_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "order_form_submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      order_form_submissions: {
+        Row: {
+          assigned_to: string | null
+          company_id: string
+          created_at: string
+          id: string
+          linked_customer_id: string | null
+          linked_project_id: string | null
+          priority: string
+          requester_type: string
+          source: string
+          status: string
+          submission_no: string
+          submitted_at: string
+          submitted_by: string | null
+          summary: Json | null
+          template_id: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          company_id: string
+          created_at?: string
+          id?: string
+          linked_customer_id?: string | null
+          linked_project_id?: string | null
+          priority?: string
+          requester_type?: string
+          source?: string
+          status?: string
+          submission_no?: string
+          submitted_at?: string
+          submitted_by?: string | null
+          summary?: Json | null
+          template_id: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_to?: string | null
+          company_id?: string
+          created_at?: string
+          id?: string
+          linked_customer_id?: string | null
+          linked_project_id?: string | null
+          priority?: string
+          requester_type?: string
+          source?: string
+          status?: string
+          submission_no?: string
+          submitted_at?: string
+          submitted_by?: string | null
+          summary?: Json | null
+          template_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_form_submissions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "internal_companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_form_submissions_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "order_form_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      order_form_template_fields: {
+        Row: {
+          conditional_logic: Json | null
+          created_at: string
+          default_value: Json | null
+          field_key: string
+          field_type: string
+          help_text: string | null
+          id: string
+          is_active: boolean
+          is_readonly: boolean
+          is_required: boolean
+          label: string
+          options: Json | null
+          placeholder: string | null
+          section_id: string
+          sort_order: number
+          template_id: string
+          validation: Json | null
+        }
+        Insert: {
+          conditional_logic?: Json | null
+          created_at?: string
+          default_value?: Json | null
+          field_key: string
+          field_type: string
+          help_text?: string | null
+          id?: string
+          is_active?: boolean
+          is_readonly?: boolean
+          is_required?: boolean
+          label: string
+          options?: Json | null
+          placeholder?: string | null
+          section_id: string
+          sort_order?: number
+          template_id: string
+          validation?: Json | null
+        }
+        Update: {
+          conditional_logic?: Json | null
+          created_at?: string
+          default_value?: Json | null
+          field_key?: string
+          field_type?: string
+          help_text?: string | null
+          id?: string
+          is_active?: boolean
+          is_readonly?: boolean
+          is_required?: boolean
+          label?: string
+          options?: Json | null
+          placeholder?: string | null
+          section_id?: string
+          sort_order?: number
+          template_id?: string
+          validation?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_form_template_fields_section_id_fkey"
+            columns: ["section_id"]
+            isOneToOne: false
+            referencedRelation: "order_form_template_sections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_form_template_fields_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "order_form_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      order_form_template_sections: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          sort_order: number
+          template_id: string
+          title: string
+          visibility_rules: Json | null
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          sort_order?: number
+          template_id: string
+          title: string
+          visibility_rules?: Json | null
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          sort_order?: number
+          template_id?: string
+          title?: string
+          visibility_rules?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_form_template_sections_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "order_form_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      order_form_templates: {
+        Row: {
+          audience_type: string
+          category: string | null
+          company_id: string
+          confirmation_text: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          external_title: string | null
+          id: string
+          internal_title: string | null
+          is_active: boolean
+          name: string
+          on_submit_action: string
+          send_email_to: string[] | null
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          audience_type?: string
+          category?: string | null
+          company_id: string
+          confirmation_text?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          external_title?: string | null
+          id?: string
+          internal_title?: string | null
+          is_active?: boolean
+          name: string
+          on_submit_action?: string
+          send_email_to?: string[] | null
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          audience_type?: string
+          category?: string | null
+          company_id?: string
+          confirmation_text?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          external_title?: string | null
+          id?: string
+          internal_title?: string | null
+          is_active?: boolean
+          name?: string
+          on_submit_action?: string
+          send_email_to?: string[] | null
+          slug?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_form_templates_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "internal_companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       order_lines: {
         Row: {
           calculation_id: string
