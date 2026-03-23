@@ -804,6 +804,26 @@ async function batchAutoCreateCatalogProducts(
 
   const seenElNumbers = new Set<string>();
   const seenEans = new Set<string>();
+  const seenNames = new Set<string>();
+
+  // Pre-check: look up existing catalog products by name+brand to prevent duplicates
+  const namesToCheck = unmatchedRows
+    .filter(r => r.supplier_sku && r.product_name && r.product_name.length >= 3)
+    .map(r => r.product_name!);
+  const uniqueNames = [...new Set(namesToCheck)];
+  
+  const existingByName = new Map<string, string>(); // "name|brand" → catalog_id
+  for (let i = 0; i < uniqueNames.length; i += 200) {
+    const batch = uniqueNames.slice(i, i + 200);
+    const { data } = await sa.from("supplier_catalog_products").select("id, name, brand")
+      .eq("company_id", companyId).in("name", batch);
+    for (const d of data ?? []) {
+      const key = `${d.name}|${d.brand || ""}`;
+      if (!existingByName.has(key)) existingByName.set(key, d.id);
+    }
+  }
+
+  let matchedByName = 0;
 
   for (const row of unmatchedRows) {
     if (!row.supplier_sku) continue;
@@ -813,11 +833,22 @@ async function batchAutoCreateCatalogProducts(
     if (!hasName && !hasSkuIdentity) continue;
     if (!hasName && !hasStrongId) continue;
 
+    // Check if already exists by name+brand (prevent duplicates)
+    const nameKey = `${row.product_name || row.supplier_sku}|${row.brand || ""}`;
+    const existingId = existingByName.get(nameKey);
+    if (existingId) {
+      result.set(row.supplier_sku, existingId);
+      matchedByName++;
+      continue;
+    }
+
     if (row.el_number && seenElNumbers.has(row.el_number)) continue;
     if (row.ean && seenEans.has(row.ean)) continue;
+    if (seenNames.has(nameKey)) continue;
 
     if (row.el_number) seenElNumbers.add(row.el_number);
     if (row.ean) seenEans.add(row.ean);
+    seenNames.add(nameKey);
 
     // Only set el_number if valid numeric
     const catalogElNumber = isValidElNumber(row.el_number) ? row.el_number : null;
@@ -830,6 +861,10 @@ async function batchAutoCreateCatalogProducts(
         unit: row.unit, category: row.category, description: row.description, is_active: true,
       },
     });
+  }
+
+  if (matchedByName > 0) {
+    console.log(`[autocreate] ${matchedByName} matched by name+brand (prevented duplicates), ${toCreate.length} genuinely new`);
   }
 
   for (let i = 0; i < toCreate.length; i += BATCH_SIZE) {

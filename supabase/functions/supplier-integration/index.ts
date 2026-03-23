@@ -701,16 +701,28 @@ async function handleProcessSyncChunk(supabaseAdmin: ReturnType<typeof createCli
     console.log(`[chain] job=${jobId} ALL FILES COMPLETE, finalizing...`);
 
     try {
-      const { data: linkedProducts } = await supabaseAdmin
-        .from("supplier_products")
-        .select("product_id")
-        .eq("company_id", companyId)
-        .eq("supplier_id", supplierId)
-        .not("product_id", "is", null)
-        .limit(1000);
-      const productIds = [...new Set((linkedProducts ?? []).map((p: any) => p.product_id).filter(Boolean))];
+      // Paginate through ALL linked products (no limit)
+      const allProductIds: string[] = [];
+      let offset = 0;
+      const PAGE = 1000;
+      while (true) {
+        const { data: linkedProducts } = await supabaseAdmin
+          .from("supplier_products")
+          .select("product_id")
+          .eq("company_id", companyId)
+          .eq("supplier_id", supplierId)
+          .not("product_id", "is", null)
+          .range(offset, offset + PAGE - 1);
+        if (!linkedProducts || linkedProducts.length === 0) break;
+        for (const p of linkedProducts) {
+          if (p.product_id) allProductIds.push(p.product_id);
+        }
+        if (linkedProducts.length < PAGE) break;
+        offset += PAGE;
+      }
+      const productIds = [...new Set(allProductIds)];
       if (productIds.length > 0) {
-        console.log(`[chain] Rebuilding price cache for ${productIds.length} products`);
+        console.log(`[chain] Rebuilding price cache for ${productIds.length} products (paginated from ${allProductIds.length} links)`);
         await rebuildPriceCache(supabaseAdmin, companyId, productIds);
       }
     } catch (e) {
