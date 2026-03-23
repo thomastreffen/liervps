@@ -450,6 +450,27 @@ const App = () => (
               {/* Purchase module */}
               <Route path="/purchasing" element={<PurchaseOrdersPage />} />
               <Route path="/purchasing/:id" element={<PurchaseOrderDetailPage />} />
+
+              {/* Order Forms module */}
+              <Route path="/orders" element={<OrderFormsPage />} />
+              <Route path="/orders/:id" element={<OrderFormDetailPage />} />
+              <Route path="/orders/new/:slug" element={<OrderFormSubmitPage />} />
+              <Route
+                path="/admin/order-forms"
+                element={
+                  <ProtectedRoute requiredRoles={["admin", "super_admin"]}>
+                    <OrderFormTemplatesPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/order-forms/:id"
+                element={
+                  <ProtectedRoute requiredRoles={["admin", "super_admin"]}>
+                    <OrderFormBuilderPage />
+                  </ProtectedRoute>
+                }
+              />
             </Route>
 
             <Route path="*" element={<NotFound />} />
