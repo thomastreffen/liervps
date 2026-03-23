@@ -73,6 +73,7 @@ const adminItems = [
   { title: "Roller", url: "/admin/roller", requireSuperAdmin: true, moduleKey: "admin_roles" },
   { title: "Postkontoret", url: "/admin/superoffice", requirePostkontorAdmin: true, moduleKey: "admin_postkontor" },
   { title: "Skjema & maler", url: "/admin/forms", moduleKey: "admin_forms" },
+  { title: "Bestillingsmaler", url: "/admin/order-forms", moduleKey: "admin_order_forms" },
   { title: "Integrasjoner", url: "/settings/integrations", moduleKey: "admin_integrations" },
   { title: "Integrasjonshelse", url: "/admin/integration-health", moduleKey: "admin_integration_health" },
   { title: "Systemhelse", url: "/admin/system-health", moduleKey: "admin_system_health" },
