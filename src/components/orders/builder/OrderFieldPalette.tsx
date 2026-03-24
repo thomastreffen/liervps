@@ -77,7 +77,7 @@ export interface FieldBlock {
   label: string;
   icon: React.ElementType;
   description: string;
-  fields: { label: string; type: OrderFormFieldType; field_key: string; is_required?: boolean; help_text?: string; options?: string[] }[];
+  fields: { label: string; type: OrderFormFieldType; field_key: string; is_required?: boolean; help_text?: string; options?: string[]; field_width?: string }[];
 }
 
 const FIELD_BLOCKS: FieldBlock[] = [
@@ -87,11 +87,11 @@ const FIELD_BLOCKS: FieldBlock[] = [
     icon: UserSearch,
     description: "Firmanavn, org.nr, kontaktperson, telefon, e-post",
     fields: [
-      { label: "Firmanavn", type: "short_text", field_key: "firmanavn", is_required: true, help_text: "Navn på firma / kunde" },
-      { label: "Org.nr", type: "org_number", field_key: "org_nr", help_text: "Organisasjonsnummer" },
-      { label: "Kontaktperson", type: "short_text", field_key: "kontaktperson_kunde", help_text: "Navn på kontaktperson hos kunde" },
-      { label: "Telefon kunde", type: "phone", field_key: "telefon_kunde", help_text: "Telefonnummer til kontaktperson" },
-      { label: "E-post kunde", type: "email", field_key: "epost_kunde", help_text: "E-postadresse til kontaktperson" },
+      { label: "Firmanavn", type: "short_text", field_key: "firmanavn", is_required: true, help_text: "Navn på firma / kunde", field_width: "half" },
+      { label: "Org.nr", type: "org_number", field_key: "org_nr", help_text: "Organisasjonsnummer", field_width: "half" },
+      { label: "Kontaktperson", type: "short_text", field_key: "kontaktperson_kunde", help_text: "Navn på kontaktperson hos kunde", field_width: "half" },
+      { label: "E-post kunde", type: "email", field_key: "epost_kunde", help_text: "E-postadresse til kontaktperson", field_width: "half" },
+      { label: "Telefon kunde", type: "phone", field_key: "telefon_kunde", help_text: "Telefonnummer til kontaktperson", field_width: "half" },
     ],
   },
   {
@@ -100,9 +100,9 @@ const FIELD_BLOCKS: FieldBlock[] = [
     icon: Receipt,
     description: "Fakturamottaker, fakturaadresse, PO/referanse",
     fields: [
-      { label: "Fakturamottaker", type: "short_text", field_key: "fakturamottaker", help_text: "Hvem skal motta faktura?" },
+      { label: "Fakturamottaker", type: "short_text", field_key: "fakturamottaker", help_text: "Hvem skal motta faktura?", field_width: "half" },
+      { label: "Fakturamerking / PO", type: "short_text", field_key: "fakturamerking", help_text: "PO-nummer, referanse eller annen merking", field_width: "half" },
       { label: "Fakturaadresse", type: "address", field_key: "fakturaadresse", help_text: "Adresse for fakturering" },
-      { label: "Fakturamerking / PO", type: "short_text", field_key: "fakturamerking", help_text: "PO-nummer, referanse eller annen merking" },
     ],
   },
   {
@@ -121,8 +121,8 @@ const FIELD_BLOCKS: FieldBlock[] = [
     icon: User,
     description: "Kontaktperson med telefon og e-post",
     fields: [
-      { label: "Kontaktperson", type: "short_text", field_key: "kontaktperson", is_required: true, help_text: "Navn på kontaktperson" },
-      { label: "Telefon", type: "phone", field_key: "kontakt_telefon", help_text: "Telefonnummer" },
+      { label: "Kontaktperson", type: "short_text", field_key: "kontaktperson", is_required: true, help_text: "Navn på kontaktperson", field_width: "half" },
+      { label: "Telefon", type: "phone", field_key: "kontakt_telefon", help_text: "Telefonnummer", field_width: "half" },
       { label: "E-post", type: "email", field_key: "kontakt_epost", help_text: "E-postadresse" },
     ],
   },
@@ -132,8 +132,8 @@ const FIELD_BLOCKS: FieldBlock[] = [
     icon: FileText,
     description: "PO-nummer, midlertidig referanse og intern referanse",
     fields: [
-      { label: "PO / Innkjøpsordre", type: "short_text", field_key: "po_nummer", help_text: "Innkjøpsordrenummer fra kunde" },
-      { label: "Midlertidig referanse", type: "short_text", field_key: "midlertidig_referanse", help_text: "Bruk dette dersom PO ikke er klar ennå" },
+      { label: "PO / Innkjøpsordre", type: "short_text", field_key: "po_nummer", help_text: "Innkjøpsordrenummer fra kunde", field_width: "half" },
+      { label: "Midlertidig referanse", type: "short_text", field_key: "midlertidig_referanse", help_text: "Bruk dette dersom PO ikke er klar ennå", field_width: "half" },
       { label: "Intern referanse", type: "short_text", field_key: "intern_referanse", help_text: "Eventuell intern referanse" },
     ],
   },
@@ -154,10 +154,10 @@ const FIELD_BLOCKS: FieldBlock[] = [
     icon: Upload,
     description: "Tegninger, bilder, materialliste, FDV",
     fields: [
-      { label: "Tegninger", type: "file_upload", field_key: "vedlegg_tegninger", help_text: "Last opp reviderte tegninger" },
-      { label: "Bilder", type: "image_upload", field_key: "vedlegg_bilder", help_text: "Last opp relevante bilder fra anlegget" },
-      { label: "Materialliste", type: "file_upload", field_key: "vedlegg_materialliste", help_text: "Last opp materialliste hvis tilgjengelig" },
-      { label: "FDV-dokumentasjon", type: "file_upload", field_key: "vedlegg_fdv", help_text: "Last opp FDV-dokumentasjon" },
+      { label: "Tegninger", type: "file_upload", field_key: "vedlegg_tegninger", help_text: "Last opp reviderte tegninger", field_width: "half" },
+      { label: "Bilder", type: "image_upload", field_key: "vedlegg_bilder", help_text: "Last opp relevante bilder fra anlegget", field_width: "half" },
+      { label: "Materialliste", type: "file_upload", field_key: "vedlegg_materialliste", help_text: "Last opp materialliste hvis tilgjengelig", field_width: "half" },
+      { label: "FDV-dokumentasjon", type: "file_upload", field_key: "vedlegg_fdv", help_text: "Last opp FDV-dokumentasjon", field_width: "half" },
     ],
   },
   {
@@ -166,12 +166,12 @@ const FIELD_BLOCKS: FieldBlock[] = [
     icon: FileCheck,
     description: "Sjekkliste for kvalitetskontroll av bestillingen",
     fields: [
-      { label: "Kundeinfo er kontrollert", type: "yes_no", field_key: "kundeinfo_kontrollert" },
-      { label: "Anleggsadresse er kontrollert", type: "yes_no", field_key: "anleggsadresse_kontrollert" },
-      { label: "Tegninger er vedlagt eller vurdert", type: "yes_no", field_key: "tegninger_vurdert" },
-      { label: "Materialbehov er avklart", type: "yes_no", field_key: "materialbehov_avklart" },
-      { label: "PO / referanse er avklart", type: "yes_no", field_key: "po_avklart" },
-      { label: "Bestillingen er klar for planlegging", type: "yes_no", field_key: "klar_for_planlegging" },
+      { label: "Kundeinfo er kontrollert", type: "yes_no", field_key: "kundeinfo_kontrollert", field_width: "half" },
+      { label: "Anleggsadresse er kontrollert", type: "yes_no", field_key: "anleggsadresse_kontrollert", field_width: "half" },
+      { label: "Tegninger er vedlagt eller vurdert", type: "yes_no", field_key: "tegninger_vurdert", field_width: "half" },
+      { label: "Materialbehov er avklart", type: "yes_no", field_key: "materialbehov_avklart", field_width: "half" },
+      { label: "PO / referanse er avklart", type: "yes_no", field_key: "po_avklart", field_width: "half" },
+      { label: "Bestillingen er klar for planlegging", type: "yes_no", field_key: "klar_for_planlegging", field_width: "half" },
     ],
   },
 ];

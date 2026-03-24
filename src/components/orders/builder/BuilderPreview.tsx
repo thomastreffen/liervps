@@ -6,12 +6,20 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Upload, Info } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import type { OrderFormFieldType } from "@/types/order-forms";
 
 interface BuilderPreviewProps {
   sections: any[];
   templateTitle: string;
+}
+
+function getWidthStyle(w: string): string {
+  switch (w) {
+    case "half": return "w-full sm:w-1/2";
+    case "third": return "w-full sm:w-1/3";
+    case "two_thirds": return "w-full sm:w-2/3";
+    default: return "w-full";
+  }
 }
 
 export function BuilderPreview({ sections, templateTitle }: BuilderPreviewProps) {
@@ -27,6 +35,9 @@ export function BuilderPreview({ sections, templateTitle }: BuilderPreviewProps)
           const fields = (section.fields || []).filter((f: any) => f.is_active !== false);
           if (fields.length === 0) return null;
 
+          // Group into visual rows
+          const rows = groupFieldsIntoRows(fields);
+
           return (
             <Card key={section.id}>
               <CardHeader className="pb-3">
@@ -37,8 +48,14 @@ export function BuilderPreview({ sections, templateTitle }: BuilderPreviewProps)
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {fields.map((field: any) => (
-                    <PreviewField key={field.id} field={field} />
+                  {rows.map((row, rIdx) => (
+                    <div key={rIdx} className="flex flex-wrap gap-x-3 gap-y-4">
+                      {row.map((field: any) => (
+                        <div key={field.id} className={getWidthStyle(field.field_width || "full")} style={{ minWidth: 0 }}>
+                          <PreviewField field={field} />
+                        </div>
+                      ))}
+                    </div>
                   ))}
                 </div>
               </CardContent>
@@ -48,6 +65,33 @@ export function BuilderPreview({ sections, templateTitle }: BuilderPreviewProps)
       </div>
     </div>
   );
+}
+
+function groupFieldsIntoRows(fields: any[]): any[][] {
+  const rows: any[][] = [];
+  let currentRow: any[] = [];
+  let currentRowWidth = 0;
+
+  for (const field of fields) {
+    const w = field.field_width || "full";
+    const fraction = w === "half" ? 0.5 : w === "third" ? 0.33 : w === "two_thirds" ? 0.66 : 1;
+
+    if (currentRowWidth + fraction > 1.01 && currentRow.length > 0) {
+      rows.push(currentRow);
+      currentRow = [];
+      currentRowWidth = 0;
+    }
+    currentRow.push(field);
+    currentRowWidth += fraction;
+
+    if (currentRowWidth >= 0.99) {
+      rows.push(currentRow);
+      currentRow = [];
+      currentRowWidth = 0;
+    }
+  }
+  if (currentRow.length > 0) rows.push(currentRow);
+  return rows;
 }
 
 function PreviewField({ field }: { field: any }) {

@@ -1,0 +1,1 @@
+ALTER TABLE public.order_form_template_fields ADD COLUMN IF NOT EXISTS field_width text NOT NULL DEFAULT 'full';

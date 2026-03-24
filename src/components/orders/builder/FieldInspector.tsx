@@ -6,6 +6,7 @@ import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ORDER_FIELD_TYPE_LABELS, type OrderFormFieldType } from "@/types/order-forms";
 import { Settings2, Trash2 } from "lucide-react";
 
@@ -17,6 +18,13 @@ interface FieldInspectorProps {
   onDeleteField: (fieldId: string) => void;
   onDeleteSection: (sectionId: string) => void;
 }
+
+const WIDTH_OPTIONS = [
+  { value: "full", label: "Full bredde (100%)" },
+  { value: "half", label: "Halv bredde (50%)" },
+  { value: "third", label: "Tredjedel (33%)" },
+  { value: "two_thirds", label: "To tredjedeler (66%)" },
+];
 
 export function FieldInspector({
   field, section, onUpdateField, onUpdateSection, onDeleteField, onDeleteSection,
@@ -151,6 +159,31 @@ export function FieldInspector({
             onBlur={() => saveField({ placeholder: localField.placeholder || null })}
             className="h-8 text-sm"
           />
+        </div>
+
+        <Separator />
+
+        {/* Layout */}
+        <div>
+          <Label className="text-xs font-semibold">Layout</Label>
+          <Select
+            value={field.field_width || "full"}
+            onValueChange={(v) => saveField({ field_width: v })}
+          >
+            <SelectTrigger className="h-8 text-xs mt-1">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {WIDTH_OPTIONS.map((o) => (
+                <SelectItem key={o.value} value={o.value} className="text-xs">
+                  {o.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-[10px] text-muted-foreground mt-1">
+            Felter med halv bredde plasseres side om side i skjemaet.
+          </p>
         </div>
 
         <Separator />
