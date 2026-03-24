@@ -100,9 +100,9 @@ const FIELD_BLOCKS: FieldBlock[] = [
     icon: Receipt,
     description: "Fakturamottaker, fakturaadresse, PO/referanse",
     fields: [
-      { label: "Fakturamottaker", type: "short_text", field_key: "fakturamottaker", help_text: "Hvem skal motta faktura?" },
+      { label: "Fakturamottaker", type: "short_text", field_key: "fakturamottaker", help_text: "Hvem skal motta faktura?", field_width: "half" },
+      { label: "Fakturamerking / PO", type: "short_text", field_key: "fakturamerking", help_text: "PO-nummer, referanse eller annen merking", field_width: "half" },
       { label: "Fakturaadresse", type: "address", field_key: "fakturaadresse", help_text: "Adresse for fakturering" },
-      { label: "Fakturamerking / PO", type: "short_text", field_key: "fakturamerking", help_text: "PO-nummer, referanse eller annen merking" },
     ],
   },
   {
