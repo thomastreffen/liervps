@@ -411,9 +411,10 @@ interface FieldRendererProps {
   error?: string;
   required: boolean;
   onFileAdd: (file: File, category?: string) => void;
+  onFileRemove: (index: number) => void;
 }
 
-function FieldRenderer({ field, value, onChange, error, required, onFileAdd }: FieldRendererProps) {
+function FieldRenderer({ field, value, onChange, error, required, onFileAdd, onFileRemove }: FieldRendererProps) {
   const options: string[] = Array.isArray(field.options)
     ? field.options.map((o: any) => (typeof o === "string" ? o : o.label || o.value))
     : [];
