@@ -6044,11 +6044,17 @@ export type Database = {
         Row: {
           assigned_to: string | null
           company_id: string
+          confirmation_sent_at: string | null
+          converted_to_id: string | null
+          converted_to_type: string | null
           created_at: string
           id: string
           linked_customer_id: string | null
           linked_project_id: string | null
+          notification_sent_at: string | null
           priority: string
+          quality_issues: Json | null
+          quality_score: string | null
           requester_type: string
           source: string
           status: string
@@ -6062,11 +6068,17 @@ export type Database = {
         Insert: {
           assigned_to?: string | null
           company_id: string
+          confirmation_sent_at?: string | null
+          converted_to_id?: string | null
+          converted_to_type?: string | null
           created_at?: string
           id?: string
           linked_customer_id?: string | null
           linked_project_id?: string | null
+          notification_sent_at?: string | null
           priority?: string
+          quality_issues?: Json | null
+          quality_score?: string | null
           requester_type?: string
           source?: string
           status?: string
@@ -6080,11 +6092,17 @@ export type Database = {
         Update: {
           assigned_to?: string | null
           company_id?: string
+          confirmation_sent_at?: string | null
+          converted_to_id?: string | null
+          converted_to_type?: string | null
           created_at?: string
           id?: string
           linked_customer_id?: string | null
           linked_project_id?: string | null
+          notification_sent_at?: string | null
           priority?: string
+          quality_issues?: Json | null
+          quality_score?: string | null
           requester_type?: string
           source?: string
           status?: string
