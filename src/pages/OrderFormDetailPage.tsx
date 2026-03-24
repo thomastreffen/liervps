@@ -1,8 +1,11 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, MessageSquare, Clock, Paperclip } from "lucide-react";
+import {
+  ArrowLeft, MessageSquare, Clock, Paperclip, User, AlertTriangle,
+  ArrowRight, FileText, Download,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,6 +26,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useAuth } from "@/hooks/useAuth";
+import { computeQualityScore, type QualityResult } from "@/lib/order-quality";
+import { QualityBadge } from "@/components/orders/QualityBadge";
+import { QualityIssuesPanel } from "@/components/orders/QualityIssuesPanel";
+import { RequestInfoDialog } from "@/components/orders/RequestInfoDialog";
+import { ConvertDialog } from "@/components/orders/ConvertDialog";
 
 export default function OrderFormDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -30,6 +38,8 @@ export default function OrderFormDetailPage() {
   const qc = useQueryClient();
   const { user } = useAuth();
   const [comment, setComment] = useState("");
+  const [requestInfoOpen, setRequestInfoOpen] = useState(false);
+  const [convertOpen, setConvertOpen] = useState(false);
 
   const { data: submission, isLoading } = useQuery({
     queryKey: ["order-form-submission", id],
@@ -95,7 +105,6 @@ export default function OrderFormDetailPage() {
     },
   });
 
-  // Load template sections+fields to display values in structure
   const { data: sections = [] } = useQuery({
     queryKey: ["order-form-template-structure", submission?.template_id],
     enabled: !!submission?.template_id,
@@ -120,6 +129,16 @@ export default function OrderFormDetailPage() {
       }));
     },
   });
+
+  const valuesMap: Record<string, any> = useMemo(() => {
+    const map: Record<string, any> = {};
+    values.forEach((v: any) => { map[v.field_key] = v.value; });
+    return map;
+  }, [values]);
+
+  const qualityResult: QualityResult = useMemo(() => {
+    return computeQualityScore(valuesMap, attachments as any);
+  }, [valuesMap, attachments]);
 
   const updateStatus = useMutation({
     mutationFn: async (newStatus: string) => {
@@ -166,11 +185,27 @@ export default function OrderFormDetailPage() {
 
   const statusConfig = ORDER_STATUS_CONFIG[submission.status as OrderFormSubmissionStatus];
   const priorityConfig = ORDER_PRIORITY_CONFIG[submission.priority];
-  const valuesMap: Record<string, any> = {};
-  values.forEach((v: any) => { valuesMap[v.field_key] = v.value; });
+
+  const eventTypeLabels: Record<string, string> = {
+    submitted: "Bestilling innsendt",
+    status_changed: "Status endret",
+    missing_info_requested: "Forespørsel om mer info",
+    comment_added: "Kommentar lagt til",
+    converted_to_case: "Konvertert til sak",
+    converted_to_order: "Konvertert til oppdrag",
+    notification_sent: "E-postvarsling sendt",
+  };
+
+  // Group attachments by category
+  const attByCategory: Record<string, any[]> = {};
+  attachments.forEach((a: any) => {
+    const cat = a.category || "Annet";
+    if (!attByCategory[cat]) attByCategory[cat] = [];
+    attByCategory[cat].push(a);
+  });
 
   return (
-    <div className="space-y-6 p-6 max-w-5xl mx-auto">
+    <div className="space-y-6 p-6 max-w-6xl mx-auto">
       {/* Header */}
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="icon" onClick={() => navigate("/orders")}>
@@ -183,48 +218,63 @@ export default function OrderFormDetailPage() {
             {submission.priority !== "normal" && priorityConfig && (
               <Badge className={priorityConfig.color}>{priorityConfig.label}</Badge>
             )}
+            <QualityBadge score={qualityResult.score} />
           </div>
           <p className="text-sm text-muted-foreground mt-0.5">
             {(submission as any).order_form_templates?.name} ·{" "}
             {format(new Date(submission.submitted_at), "d. MMMM yyyy HH:mm", { locale: nb })}
+            {submission.requester_type === "internal" && " · Intern bestilling"}
           </p>
         </div>
-        <Select
-          value={submission.status}
-          onValueChange={(v) => updateStatus.mutate(v)}
-        >
+      </div>
+
+      {/* Top summary bar */}
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+        {[
+          { label: "Kunde", value: (submission.summary as any)?.kundenavn },
+          { label: "Oppdrag", value: (submission.summary as any)?.oppdragstittel },
+          { label: "Hastegrad", value: (submission.summary as any)?.hastegrad },
+          { label: "Type", value: submission.requester_type === "internal" ? "Intern" : "Ekstern" },
+          { label: "Status", value: statusConfig?.label },
+          { label: "Bestiller", value: (submission.summary as any)?.bestiller_navn },
+        ].map(({ label, value }) => (
+          <div key={label} className="text-sm">
+            <span className="text-muted-foreground text-xs">{label}</span>
+            <p className="font-medium truncate">{value || "–"}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Quick actions */}
+      <div className="flex flex-wrap gap-2">
+        <Select value={submission.status} onValueChange={(v) => updateStatus.mutate(v)}>
           <SelectTrigger className="w-48">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
             {Object.entries(ORDER_STATUS_CONFIG).map(([key, cfg]) => (
-              <SelectItem key={key} value={key}>
-                {cfg.label}
-              </SelectItem>
+              <SelectItem key={key} value={key}>{cfg.label}</SelectItem>
             ))}
           </SelectContent>
         </Select>
+        <Button variant="outline" size="sm" onClick={() => setRequestInfoOpen(true)}>
+          <AlertTriangle className="h-3.5 w-3.5 mr-1" />
+          Be om mer info
+        </Button>
+        <Button variant="outline" size="sm" onClick={() => setConvertOpen(true)}>
+          <ArrowRight className="h-3.5 w-3.5 mr-1" />
+          Konverter
+        </Button>
       </div>
 
-      {/* Summary info from submission.summary */}
-      {submission.summary && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm">Sammendrag</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
-              {Object.entries(submission.summary as Record<string, any>).map(([key, val]) => (
-                <div key={key}>
-                  <span className="text-muted-foreground text-xs capitalize">
-                    {key.replace(/_/g, " ")}
-                  </span>
-                  <p className="font-medium">{String(val || "–")}</p>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+      {/* Quality issues panel */}
+      <QualityIssuesPanel result={qualityResult} />
+
+      {submission.converted_to_type && (
+        <div className="rounded-lg bg-green-50 border border-green-200 p-3 text-sm text-green-800">
+          Denne bestillingen er konvertert til{" "}
+          <strong>{submission.converted_to_type === "case" ? "sak" : "oppdrag"}</strong>.
+        </div>
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -263,7 +313,7 @@ export default function OrderFormDetailPage() {
             );
           })}
 
-          {/* Attachments */}
+          {/* Attachments grouped by category */}
           {attachments.length > 0 && (
             <Card>
               <CardHeader className="pb-2">
@@ -273,14 +323,21 @@ export default function OrderFormDetailPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-2">
-                  {attachments.map((att: any) => (
-                    <div key={att.id} className="flex items-center gap-2 text-sm">
-                      <Paperclip className="h-3 w-3 text-muted-foreground shrink-0" />
-                      <span className="truncate">{att.file_name}</span>
-                      {att.category && (
-                        <Badge variant="outline" className="text-[10px]">{att.category}</Badge>
-                      )}
+                <div className="space-y-3">
+                  {Object.entries(attByCategory).map(([cat, files]) => (
+                    <div key={cat}>
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">{cat}</p>
+                      <div className="space-y-1.5">
+                        {files.map((att: any) => (
+                          <div key={att.id} className="flex items-center gap-2 text-sm p-2 rounded-lg bg-muted/30">
+                            <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                            <span className="truncate flex-1">{att.file_name}</span>
+                            <span className="text-[10px] text-muted-foreground">
+                              {att.file_size ? `${Math.round(att.file_size / 1024)} KB` : ""}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -305,8 +362,15 @@ export default function OrderFormDetailPage() {
                   <p className="text-xs text-muted-foreground">Ingen kommentarer ennå</p>
                 ) : (
                   comments.map((c: any) => (
-                    <div key={c.id} className="text-sm border-l-2 border-border pl-3">
-                      <p>{c.body}</p>
+                    <div key={c.id} className={`text-sm border-l-2 pl-3 ${
+                      c.comment_type === "missing_info_request" ? "border-amber-400" : "border-border"
+                    }`}>
+                      {c.comment_type === "missing_info_request" && (
+                        <Badge variant="outline" className="text-[9px] mb-1 bg-amber-50 text-amber-700 border-amber-200">
+                          Forespørsel
+                        </Badge>
+                      )}
+                      <p className="whitespace-pre-wrap">{c.body}</p>
                       <span className="text-[10px] text-muted-foreground">
                         {format(new Date(c.created_at), "d. MMM HH:mm", { locale: nb })}
                       </span>
@@ -348,9 +412,11 @@ export default function OrderFormDetailPage() {
                 ) : (
                   activity.map((a: any) => (
                     <div key={a.id} className="text-xs text-muted-foreground">
-                      <span className="font-medium text-foreground">{a.event_type}</span>
+                      <span className="font-medium text-foreground">
+                        {eventTypeLabels[a.event_type] || a.event_type}
+                      </span>
                       {a.payload?.from && a.payload?.to && (
-                        <> · {a.payload.from} → {a.payload.to}</>
+                        <> · {ORDER_STATUS_CONFIG[a.payload.from as OrderFormSubmissionStatus]?.label || a.payload.from} → {ORDER_STATUS_CONFIG[a.payload.to as OrderFormSubmissionStatus]?.label || a.payload.to}</>
                       )}
                       <br />
                       {format(new Date(a.created_at), "d. MMM HH:mm", { locale: nb })}
@@ -362,6 +428,19 @@ export default function OrderFormDetailPage() {
           </Card>
         </div>
       </div>
+
+      {/* Dialogs */}
+      <RequestInfoDialog
+        open={requestInfoOpen}
+        onOpenChange={setRequestInfoOpen}
+        submissionId={id!}
+      />
+      <ConvertDialog
+        open={convertOpen}
+        onOpenChange={setConvertOpen}
+        submissionId={id!}
+        summary={submission.summary as Record<string, any> | null}
+      />
     </div>
   );
 }
