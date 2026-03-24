@@ -166,12 +166,12 @@ const FIELD_BLOCKS: FieldBlock[] = [
     icon: FileCheck,
     description: "Sjekkliste for kvalitetskontroll av bestillingen",
     fields: [
-      { label: "Kundeinfo er kontrollert", type: "yes_no", field_key: "kundeinfo_kontrollert" },
-      { label: "Anleggsadresse er kontrollert", type: "yes_no", field_key: "anleggsadresse_kontrollert" },
-      { label: "Tegninger er vedlagt eller vurdert", type: "yes_no", field_key: "tegninger_vurdert" },
-      { label: "Materialbehov er avklart", type: "yes_no", field_key: "materialbehov_avklart" },
-      { label: "PO / referanse er avklart", type: "yes_no", field_key: "po_avklart" },
-      { label: "Bestillingen er klar for planlegging", type: "yes_no", field_key: "klar_for_planlegging" },
+      { label: "Kundeinfo er kontrollert", type: "yes_no", field_key: "kundeinfo_kontrollert", field_width: "half" },
+      { label: "Anleggsadresse er kontrollert", type: "yes_no", field_key: "anleggsadresse_kontrollert", field_width: "half" },
+      { label: "Tegninger er vedlagt eller vurdert", type: "yes_no", field_key: "tegninger_vurdert", field_width: "half" },
+      { label: "Materialbehov er avklart", type: "yes_no", field_key: "materialbehov_avklart", field_width: "half" },
+      { label: "PO / referanse er avklart", type: "yes_no", field_key: "po_avklart", field_width: "half" },
+      { label: "Bestillingen er klar for planlegging", type: "yes_no", field_key: "klar_for_planlegging", field_width: "half" },
     ],
   },
 ];
