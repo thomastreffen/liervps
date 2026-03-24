@@ -77,7 +77,7 @@ export interface FieldBlock {
   label: string;
   icon: React.ElementType;
   description: string;
-  fields: { label: string; type: OrderFormFieldType; field_key: string; is_required?: boolean; help_text?: string; options?: string[] }[];
+  fields: { label: string; type: OrderFormFieldType; field_key: string; is_required?: boolean; help_text?: string; options?: string[]; field_width?: string }[];
 }
 
 const FIELD_BLOCKS: FieldBlock[] = [
