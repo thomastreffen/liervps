@@ -319,6 +319,23 @@ export default function OrderFormSubmitPage() {
         const visibleFields = section.fields.filter(isFieldVisible);
         if (visibleFields.length === 0) return null;
 
+        // Group fields into rows based on field_width
+        const rows: { fields: any[] }[] = [];
+        let currentRow: any[] = [];
+        let currentWidth = 0;
+        for (const field of visibleFields) {
+          const w = (field as any).field_width || "full";
+          const frac = w === "half" ? 0.5 : w === "third" ? 0.33 : w === "two_thirds" ? 0.66 : 1;
+          if (currentWidth + frac > 1.01 && currentRow.length > 0) {
+            rows.push({ fields: currentRow });
+            currentRow = [];
+            currentWidth = 0;
+          }
+          currentRow.push(field);
+          currentWidth += frac;
+        }
+        if (currentRow.length > 0) rows.push({ fields: currentRow });
+
         return (
           <Card key={section.id}>
             <CardHeader className="pb-3">
@@ -329,18 +346,29 @@ export default function OrderFormSubmitPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {visibleFields.map((field: any) => (
-                  <FieldRenderer
-                    key={field.id}
-                    field={field}
-                    value={formData[field.field_key]}
-                    onChange={(val) => setValue(field.field_key, val)}
-                    error={errors[field.field_key]}
-                    required={isFieldRequired(field)}
-                    onFileAdd={(file, category) =>
-                      setAttachments((prev) => [...prev, { fieldKey: field.field_key, file, category }])
-                    }
-                  />
+                {rows.map((row, ri) => (
+                  <div key={ri} className={row.fields.length > 1 ? "flex gap-3" : ""}>
+                    {row.fields.map((field: any) => {
+                      const w = (field as any).field_width || "full";
+                      const style: React.CSSProperties = row.fields.length > 1
+                        ? { width: w === "half" ? "calc(50% - 6px)" : w === "third" ? "calc(33.33% - 8px)" : w === "two_thirds" ? "calc(66.66% - 4px)" : "100%" }
+                        : {};
+                      return (
+                        <div key={field.id} style={style} className={row.fields.length > 1 ? "min-w-0" : ""}>
+                          <FieldRenderer
+                            field={field}
+                            value={formData[field.field_key]}
+                            onChange={(val) => setValue(field.field_key, val)}
+                            error={errors[field.field_key]}
+                            required={isFieldRequired(field)}
+                            onFileAdd={(file, category) =>
+                              setAttachments((prev) => [...prev, { fieldKey: field.field_key, file, category }])
+                            }
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
                 ))}
               </div>
             </CardContent>

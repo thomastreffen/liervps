@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, Save, Eye, Settings } from "lucide-react";
+import { ArrowLeft, Save, Eye, Settings, Link2, ExternalLink, Copy, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
@@ -322,10 +322,13 @@ export default function OrderFormBuilderPage() {
             <p className="text-[10px] text-muted-foreground">/{template.slug}</p>
           </div>
           <Badge variant={template.is_active ? "default" : "secondary"} className="text-[10px]">
-            {template.is_active ? "Aktiv" : "Kladd"}
+            {template.is_active ? "Publisert" : "Kladd"}
           </Badge>
         </div>
         <div className="flex items-center gap-1.5">
+          {template.is_active && (
+            <PublishLinkActions slug={template.slug} audienceType={template.audience_type} />
+          )}
           <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setPreviewMode(true)}>
             <Eye className="h-3.5 w-3.5 mr-1" />
             Forhåndsvisning
@@ -424,6 +427,43 @@ export default function OrderFormBuilderPage() {
           />
         </SheetContent>
       </Sheet>
+    </div>
+  );
+}
+
+function PublishLinkActions({ slug, audienceType }: { slug: string; audienceType: string }) {
+  const [copied, setCopied] = useState(false);
+  const internalUrl = `${window.location.origin}/orders/new/${slug}`;
+  const publicUrl = `${window.location.origin}/bestilling/${slug}`;
+  const isExternal = audienceType === "external" || audienceType === "both";
+
+  const copyLink = (url: string) => {
+    navigator.clipboard.writeText(url);
+    setCopied(true);
+    toast.success("Lenke kopiert");
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div className="flex items-center gap-1">
+      <Button
+        variant="outline"
+        size="sm"
+        className="h-8 text-xs"
+        onClick={() => copyLink(isExternal ? publicUrl : internalUrl)}
+      >
+        {copied ? <Check className="h-3.5 w-3.5 mr-1" /> : <Copy className="h-3.5 w-3.5 mr-1" />}
+        {copied ? "Kopiert!" : "Kopier lenke"}
+      </Button>
+      <Button
+        variant="outline"
+        size="sm"
+        className="h-8 text-xs"
+        onClick={() => window.open(isExternal ? publicUrl : internalUrl, "_blank")}
+      >
+        <ExternalLink className="h-3.5 w-3.5 mr-1" />
+        Åpne skjema
+      </Button>
     </div>
   );
 }
