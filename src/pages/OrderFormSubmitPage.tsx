@@ -192,7 +192,7 @@ export default function OrderFormSubmitPage() {
         summary,
         quality_score: qualityResult.score,
         quality_issues: qualityResult.issues,
-      });
+      } as any);
       if (subErr) throw subErr;
 
       // Insert field values
