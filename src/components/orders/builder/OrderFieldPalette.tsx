@@ -121,8 +121,8 @@ const FIELD_BLOCKS: FieldBlock[] = [
     icon: User,
     description: "Kontaktperson med telefon og e-post",
     fields: [
-      { label: "Kontaktperson", type: "short_text", field_key: "kontaktperson", is_required: true, help_text: "Navn på kontaktperson" },
-      { label: "Telefon", type: "phone", field_key: "kontakt_telefon", help_text: "Telefonnummer" },
+      { label: "Kontaktperson", type: "short_text", field_key: "kontaktperson", is_required: true, help_text: "Navn på kontaktperson", field_width: "half" },
+      { label: "Telefon", type: "phone", field_key: "kontakt_telefon", help_text: "Telefonnummer", field_width: "half" },
       { label: "E-post", type: "email", field_key: "kontakt_epost", help_text: "E-postadresse" },
     ],
   },
