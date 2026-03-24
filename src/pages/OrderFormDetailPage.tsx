@@ -267,6 +267,10 @@ export default function OrderFormDetailPage() {
           <ArrowRight className="h-3.5 w-3.5 mr-1" />
           Konverter
         </Button>
+        <Button variant="outline" size="sm" onClick={() => setTripletexOpen(true)}>
+          <Download className="h-3.5 w-3.5 mr-1" />
+          Tripletex-eksport
+        </Button>
       </div>
 
       {/* Quality issues panel */}
