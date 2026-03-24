@@ -12,7 +12,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Check, AlertCircle, Upload, Info, Loader2 } from "lucide-react";
+import { Check, AlertCircle, Upload, Info, Loader2, FileText as FileIcon, X } from "lucide-react";
 import type { ConditionalLogic } from "@/types/order-forms";
 
 export default function OrderFormPublicPage() {
@@ -290,15 +290,19 @@ export default function OrderFormPublicPage() {
                         const style: React.CSSProperties = row.fields.length > 1
                           ? { width: w === "half" ? "calc(50% - 6px)" : w === "third" ? "calc(33.33% - 8px)" : w === "two_thirds" ? "calc(66.66% - 4px)" : "100%" }
                           : {};
+                        const fieldAtts = attachments
+                          .map((a, idx) => ({ ...a, index: idx }))
+                          .filter((a) => a.fieldKey === field.field_key);
                         return (
                           <div key={field.id} style={style} className={row.fields.length > 1 ? "min-w-0" : ""}>
                             <PublicFieldRenderer
-                              field={field}
+                              field={{ ...field, _attachments: fieldAtts }}
                               value={formData[field.field_key]}
                               onChange={(val) => setValue(field.field_key, val)}
                               error={errors[field.field_key]}
                               required={isFieldRequired(field)}
                               onFileAdd={(file) => setAttachments((prev) => [...prev, { fieldKey: field.field_key, file }])}
+                              onFileRemove={(idx) => setAttachments((prev) => prev.filter((_, i) => i !== idx))}
                             />
                           </div>
                         );
@@ -331,8 +335,8 @@ export default function OrderFormPublicPage() {
 
 // ── Public Field Renderer ──
 
-function PublicFieldRenderer({ field, value, onChange, error, required, onFileAdd }: {
-  field: any; value: any; onChange: (v: any) => void; error?: string; required: boolean; onFileAdd: (f: File) => void;
+function PublicFieldRenderer({ field, value, onChange, error, required, onFileAdd, onFileRemove }: {
+  field: any; value: any; onChange: (v: any) => void; error?: string; required: boolean; onFileAdd: (f: File) => void; onFileRemove: (index: number) => void;
 }) {
   const options: string[] = Array.isArray(field.options)
     ? field.options.map((o: any) => (typeof o === "string" ? o : o.label || o.value))
@@ -388,14 +392,34 @@ function PublicFieldRenderer({ field, value, onChange, error, required, onFileAd
           </div>
         );
       }
-      case "file_upload": case "image_upload":
+      case "file_upload": case "image_upload": {
+        const fieldAttachments = (field as any)._attachments || [];
         return (
-          <label className="flex items-center gap-2 px-4 py-3 border-2 border-dashed border-border rounded-lg cursor-pointer hover:border-primary/40 transition-colors">
-            <Upload className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm text-muted-foreground">{field.field_type === "image_upload" ? "Last opp bilde" : "Last opp fil"}</span>
-            <input type="file" className="hidden" accept={field.field_type === "image_upload" ? "image/*" : undefined} multiple onChange={(e) => { if (e.target.files) { Array.from(e.target.files).forEach((f) => onFileAdd(f)); onChange(`${(value ? Number(value) : 0) + e.target.files.length} filer`); } }} />
-          </label>
+          <div className="space-y-2">
+            <label className="flex items-center gap-2 px-4 py-3 border-2 border-dashed border-border rounded-lg cursor-pointer hover:border-primary/40 transition-colors">
+              <Upload className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">{field.field_type === "image_upload" ? "Last opp bilde" : "Last opp fil"}</span>
+              <input type="file" className="hidden" accept={field.field_type === "image_upload" ? "image/*" : undefined} multiple onChange={(e) => { if (e.target.files) { Array.from(e.target.files).forEach((f) => onFileAdd(f)); } }} />
+            </label>
+            {fieldAttachments.length > 0 && (
+              <div className="space-y-1">
+                {fieldAttachments.map((att: { file: File; index: number }, i: number) => (
+                  <div key={i} className="flex items-center gap-2 rounded-md border bg-muted/40 px-2.5 py-1.5 text-sm">
+                    <FileIcon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                    <span className="truncate flex-1 font-medium">{att.file.name}</span>
+                    <span className="text-xs text-muted-foreground shrink-0">
+                      {att.file.size < 1024 * 1024 ? `${Math.round(att.file.size / 1024)} KB` : `${(att.file.size / 1024 / 1024).toFixed(1)} MB`}
+                    </span>
+                    <button type="button" onClick={() => onFileRemove(att.index)} className="text-muted-foreground hover:text-destructive shrink-0">
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         );
+      }
       case "info_box":
         return (
           <div className="flex items-start gap-2 p-3 rounded-lg bg-muted/50">

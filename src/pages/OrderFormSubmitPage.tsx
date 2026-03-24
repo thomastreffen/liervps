@@ -19,7 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { ArrowLeft, Check, AlertCircle, Upload, Info } from "lucide-react";
+import { ArrowLeft, Check, AlertCircle, Upload, Info, FileText as FileIcon, X } from "lucide-react";
 import type { OrderFormField, ConditionalLogic } from "@/types/order-forms";
 import { computeQualityScore } from "@/lib/order-quality";
 import { QualityIssuesPanel } from "@/components/orders/QualityIssuesPanel";
@@ -346,30 +346,34 @@ export default function OrderFormSubmitPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {rows.map((row, ri) => (
-                  <div key={ri} className={row.fields.length > 1 ? "flex gap-3" : ""}>
-                    {row.fields.map((field: any) => {
-                      const w = (field as any).field_width || "full";
-                      const style: React.CSSProperties = row.fields.length > 1
-                        ? { width: w === "half" ? "calc(50% - 6px)" : w === "third" ? "calc(33.33% - 8px)" : w === "two_thirds" ? "calc(66.66% - 4px)" : "100%" }
-                        : {};
-                      return (
-                        <div key={field.id} style={style} className={row.fields.length > 1 ? "min-w-0" : ""}>
-                          <FieldRenderer
-                            field={field}
-                            value={formData[field.field_key]}
-                            onChange={(val) => setValue(field.field_key, val)}
-                            error={errors[field.field_key]}
-                            required={isFieldRequired(field)}
-                            onFileAdd={(file, category) =>
-                              setAttachments((prev) => [...prev, { fieldKey: field.field_key, file, category }])
-                            }
-                          />
-                        </div>
-                      );
-                    })}
-                  </div>
-                ))}
+                  {rows.map((row, ri) => (
+                    <div key={ri} className={row.fields.length > 1 ? "flex gap-3" : ""}>
+                      {row.fields.map((field: any) => {
+                        const w = (field as any).field_width || "full";
+                        const style: React.CSSProperties = row.fields.length > 1
+                          ? { width: w === "half" ? "calc(50% - 6px)" : w === "third" ? "calc(33.33% - 8px)" : w === "two_thirds" ? "calc(66.66% - 4px)" : "100%" }
+                          : {};
+                        const fieldAtts = attachments
+                          .map((a, idx) => ({ ...a, index: idx }))
+                          .filter((a) => a.fieldKey === field.field_key);
+                        return (
+                          <div key={field.id} style={style} className={row.fields.length > 1 ? "min-w-0" : ""}>
+                            <FieldRenderer
+                              field={{ ...field, _attachments: fieldAtts }}
+                              value={formData[field.field_key]}
+                              onChange={(val) => setValue(field.field_key, val)}
+                              error={errors[field.field_key]}
+                              required={isFieldRequired(field)}
+                              onFileAdd={(file, category) =>
+                                setAttachments((prev) => [...prev, { fieldKey: field.field_key, file, category }])
+                              }
+                              onFileRemove={(idx) => setAttachments((prev) => prev.filter((_, i) => i !== idx))}
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ))}
               </div>
             </CardContent>
           </Card>
@@ -407,9 +411,10 @@ interface FieldRendererProps {
   error?: string;
   required: boolean;
   onFileAdd: (file: File, category?: string) => void;
+  onFileRemove: (index: number) => void;
 }
 
-function FieldRenderer({ field, value, onChange, error, required, onFileAdd }: FieldRendererProps) {
+function FieldRenderer({ field, value, onChange, error, required, onFileAdd, onFileRemove }: FieldRendererProps) {
   const options: string[] = Array.isArray(field.options)
     ? field.options.map((o: any) => (typeof o === "string" ? o : o.label || o.value))
     : [];
@@ -537,9 +542,10 @@ function FieldRenderer({ field, value, onChange, error, required, onFileAdd }: F
         );
 
       case "file_upload":
-      case "image_upload":
+      case "image_upload": {
+        const fieldAttachments = (field as any)._attachments || [];
         return (
-          <div>
+          <div className="space-y-2">
             <label className="flex items-center gap-2 px-4 py-3 border-2 border-dashed border-border rounded-lg cursor-pointer hover:border-primary/40 transition-colors">
               <Upload className="h-4 w-4 text-muted-foreground" />
               <span className="text-sm text-muted-foreground">
@@ -554,13 +560,29 @@ function FieldRenderer({ field, value, onChange, error, required, onFileAdd }: F
                   const files = e.target.files;
                   if (files) {
                     Array.from(files).forEach((f) => onFileAdd(f));
-                    onChange(`${(value ? Number(value) : 0) + files.length} filer`);
                   }
                 }}
               />
             </label>
+            {fieldAttachments.length > 0 && (
+              <div className="space-y-1">
+                {fieldAttachments.map((att: { file: File; index: number }, i: number) => (
+                  <div key={i} className="flex items-center gap-2 rounded-md border bg-muted/40 px-2.5 py-1.5 text-sm">
+                    <FileIcon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                    <span className="truncate flex-1 font-medium">{att.file.name}</span>
+                    <span className="text-xs text-muted-foreground shrink-0">
+                      {att.file.size < 1024 * 1024 ? `${Math.round(att.file.size / 1024)} KB` : `${(att.file.size / 1024 / 1024).toFixed(1)} MB`}
+                    </span>
+                    <button type="button" onClick={() => onFileRemove(att.index)} className="text-muted-foreground hover:text-destructive shrink-0">
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         );
+      }
 
       case "info_box":
         return (

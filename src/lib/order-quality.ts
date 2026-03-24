@@ -14,9 +14,9 @@ export interface QualityResult {
 }
 
 const QUALITY_LABELS: Record<QualityLevel, { label: string; color: string; dotClass: string }> = {
-  green: { label: "Klar for behandling", color: "bg-green-100 text-green-800", dotClass: "bg-green-500" },
-  yellow: { label: "Noe mangler", color: "bg-amber-100 text-amber-800", dotClass: "bg-amber-500" },
-  red: { label: "Utilstrekkelig grunnlag", color: "bg-red-100 text-red-800", dotClass: "bg-red-500" },
+  green: { label: "Komplett", color: "bg-green-100 text-green-800", dotClass: "bg-green-500" },
+  yellow: { label: "Trenger oppfølging", color: "bg-amber-100 text-amber-800", dotClass: "bg-amber-500" },
+  red: { label: "Mangler å avklare", color: "bg-orange-100 text-orange-800", dotClass: "bg-orange-500" },
 };
 
 export { QUALITY_LABELS };

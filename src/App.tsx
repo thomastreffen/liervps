@@ -95,6 +95,7 @@ import OrderFormSubmitPage from "./pages/OrderFormSubmitPage";
 import OrderFormTemplatesPage from "./pages/OrderFormTemplatesPage";
 import OrderFormBuilderPage from "./pages/OrderFormBuilderPage";
 import OrderFormPublicPage from "./pages/OrderFormPublicPage";
+import OrderFormsCatalogPage from "./pages/OrderFormsCatalogPage";
 import { CompanyProvider } from "@/hooks/useCompanyContext";
 import { PreviewModeProvider } from "@/hooks/usePreviewMode";
 import PortalLogin from "./pages/portal/PortalLogin";
@@ -130,6 +131,7 @@ const App = () => (
             <Route path="/approve-change-order" element={<ApproveChangeOrderPage />} />
             <Route path="/invite/thread/:token" element={<ThreadInviteAcceptPage />} />
             <Route path="/activate" element={<ActivatePage />} />
+            <Route path="/bestilling" element={<OrderFormsCatalogPage />} />
             <Route path="/bestilling/:slug" element={<OrderFormPublicPage />} />
 
             {/* Customer Portal */}
