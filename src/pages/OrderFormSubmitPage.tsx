@@ -21,6 +21,8 @@ import {
 import { toast } from "sonner";
 import { ArrowLeft, Check, AlertCircle, Upload, Info } from "lucide-react";
 import type { OrderFormField, ConditionalLogic } from "@/types/order-forms";
+import { computeQualityScore } from "@/lib/order-quality";
+import { QualityIssuesPanel } from "@/components/orders/QualityIssuesPanel";
 
 export default function OrderFormSubmitPage() {
   const { slug } = useParams<{ slug: string }>();
@@ -174,6 +176,9 @@ export default function OrderFormSubmitPage() {
       };
       const priority = hastegradMap[formData.hastegrad] || "normal";
 
+      // Compute quality score
+      const qualityResult = computeQualityScore(formData, attachments.map(a => ({ category: a.category, file_name: a.file.name })));
+
       // Insert submission
       const { error: subErr } = await supabase.from("order_form_submissions").insert({
         id: submissionId,
@@ -185,7 +190,9 @@ export default function OrderFormSubmitPage() {
         submitted_by: user?.id,
         priority,
         summary,
-      });
+        quality_score: qualityResult.score,
+        quality_issues: qualityResult.issues,
+      } as any);
       if (subErr) throw subErr;
 
       // Insert field values
@@ -340,6 +347,15 @@ export default function OrderFormSubmitPage() {
           </Card>
         );
       })}
+
+      {/* Pre-submit quality warnings */}
+      {Object.keys(formData).length > 3 && (() => {
+        const previewQuality = computeQualityScore(formData, attachments.map(a => ({ category: a.category, file_name: a.file.name })));
+        if (previewQuality.issues.length > 0) {
+          return <QualityIssuesPanel result={previewQuality} />;
+        }
+        return null;
+      })()}
 
       {/* Submit */}
       <div className="flex justify-end gap-3 pb-8">

@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Search, Filter, ClipboardList } from "lucide-react";
+import { Plus, Search, ClipboardList, Paperclip, AlertTriangle } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompanyContext } from "@/hooks/useCompanyContext";
@@ -15,6 +15,15 @@ import {
 } from "@/types/order-forms";
 import { format } from "date-fns";
 import { nb } from "date-fns/locale";
+import { QualityDot } from "@/components/orders/QualityBadge";
+import type { QualityLevel } from "@/lib/order-quality";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const STATUS_TABS: { key: OrderFormSubmissionStatus | "all"; label: string }[] = [
   { key: "all", label: "Alle" },
@@ -32,7 +41,9 @@ export default function OrderFormsPage() {
   const navigate = useNavigate();
   const { activeCompanyId } = useCompanyContext();
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [qualityFilter, setQualityFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
+  const [sortBy, setSortBy] = useState<string>("newest");
 
   const { data: submissions = [], isLoading } = useQuery({
     queryKey: ["order-form-submissions", activeCompanyId, statusFilter],
@@ -43,7 +54,7 @@ export default function OrderFormsPage() {
         .select("*, order_form_templates(name, slug)")
         .eq("company_id", activeCompanyId!)
         .order("submitted_at", { ascending: false })
-        .limit(200);
+        .limit(500);
 
       if (statusFilter !== "all") {
         query = query.eq("status", statusFilter);
@@ -70,16 +81,36 @@ export default function OrderFormsPage() {
     },
   });
 
-  const filtered = submissions.filter((s: any) => {
-    if (!search) return true;
-    const q = search.toLowerCase();
-    return (
-      s.submission_no?.toLowerCase().includes(q) ||
-      (s as any).order_form_templates?.name?.toLowerCase().includes(q) ||
-      s.summary?.oppdragstittel?.toLowerCase().includes(q) ||
-      s.summary?.kundenavn?.toLowerCase().includes(q)
-    );
-  });
+  const filtered = useMemo(() => {
+    let result = submissions.filter((s: any) => {
+      if (search) {
+        const q = search.toLowerCase();
+        const match =
+          s.submission_no?.toLowerCase().includes(q) ||
+          (s as any).order_form_templates?.name?.toLowerCase().includes(q) ||
+          s.summary?.oppdragstittel?.toLowerCase().includes(q) ||
+          s.summary?.kundenavn?.toLowerCase().includes(q);
+        if (!match) return false;
+      }
+      if (qualityFilter !== "all" && s.quality_score !== qualityFilter) return false;
+      return true;
+    });
+
+    // Sort
+    if (sortBy === "priority") {
+      const priorityOrder: Record<string, number> = { critical: 0, high: 1, normal: 2, low: 3 };
+      result = [...result].sort((a: any, b: any) =>
+        (priorityOrder[a.priority] ?? 2) - (priorityOrder[b.priority] ?? 2)
+      );
+    } else if (sortBy === "quality") {
+      const qualityOrder: Record<string, number> = { red: 0, yellow: 1, green: 2 };
+      result = [...result].sort((a: any, b: any) =>
+        (qualityOrder[a.quality_score] ?? 2) - (qualityOrder[b.quality_score] ?? 2)
+      );
+    }
+
+    return result;
+  }, [submissions, search, qualityFilter, sortBy]);
 
   // Status counts
   const statusCounts: Record<string, number> = {};
@@ -94,7 +125,7 @@ export default function OrderFormsPage() {
         <div>
           <h1 className="text-2xl font-bold text-foreground">Bestillinger</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Oversikt over innsendte bestillinger
+            {submissions.length} bestillinger totalt
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -133,15 +164,38 @@ export default function OrderFormsPage() {
         })}
       </div>
 
-      {/* Search */}
-      <div className="relative max-w-md">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Søk bestillingsnummer, kunde, oppdrag..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="pl-9"
-        />
+      {/* Filters row */}
+      <div className="flex flex-wrap gap-3 items-center">
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Søk bestillingsnummer, kunde, oppdrag..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+        <Select value={qualityFilter} onValueChange={setQualityFilter}>
+          <SelectTrigger className="w-44">
+            <SelectValue placeholder="Kvalitet" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Alle kvaliteter</SelectItem>
+            <SelectItem value="red">🔴 Utilstrekkelig</SelectItem>
+            <SelectItem value="yellow">🟡 Noe mangler</SelectItem>
+            <SelectItem value="green">🟢 Komplett</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={sortBy} onValueChange={setSortBy}>
+          <SelectTrigger className="w-36">
+            <SelectValue placeholder="Sortering" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="newest">Nyeste først</SelectItem>
+            <SelectItem value="priority">Hastegrad</SelectItem>
+            <SelectItem value="quality">Kvalitet</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {/* List */}
@@ -150,18 +204,14 @@ export default function OrderFormsPage() {
       ) : filtered.length === 0 ? (
         <div className="text-center py-16">
           <ClipboardList className="h-12 w-12 text-muted-foreground/30 mx-auto mb-3" />
-          <p className="text-sm text-muted-foreground font-medium">Ingen bestillinger ennå</p>
-          <p className="text-xs text-muted-foreground/60 mt-1">
-            {templates.length > 0
-              ? "Opprett en ny bestilling for å komme i gang"
-              : "Opprett en bestillingsmal først under Admin"}
-          </p>
+          <p className="text-sm text-muted-foreground font-medium">Ingen bestillinger funnet</p>
         </div>
       ) : (
         <div className="space-y-2">
           {filtered.map((sub: any) => {
             const statusConfig = ORDER_STATUS_CONFIG[sub.status as OrderFormSubmissionStatus];
             const priorityConfig = ORDER_PRIORITY_CONFIG[sub.priority];
+            const qs = (sub.quality_score || "green") as QualityLevel;
             return (
               <Card
                 key={sub.id}
@@ -171,11 +221,9 @@ export default function OrderFormsPage() {
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3 min-w-0">
-                      <div
-                        className={`h-2.5 w-2.5 rounded-full shrink-0 ${statusConfig?.dotClass || "bg-muted"}`}
-                      />
+                      <QualityDot score={qs} />
                       <div className="min-w-0">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <span className="text-sm font-semibold text-foreground">
                             {sub.submission_no}
                           </span>
@@ -186,6 +234,12 @@ export default function OrderFormsPage() {
                             <Badge className={`text-[10px] ${priorityConfig.color}`}>
                               {priorityConfig.label}
                             </Badge>
+                          )}
+                          {sub.requester_type === "internal" && (
+                            <Badge variant="outline" className="text-[10px]">Intern</Badge>
+                          )}
+                          {sub.status === "missing_info" && (
+                            <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
                           )}
                         </div>
                         <p className="text-xs text-muted-foreground mt-0.5 truncate">
