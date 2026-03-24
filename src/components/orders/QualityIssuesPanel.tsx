@@ -1,4 +1,4 @@
-import { AlertTriangle, XCircle, CheckCircle2 } from "lucide-react";
+import { AlertTriangle, Info, CheckCircle2 } from "lucide-react";
 import type { QualityResult } from "@/lib/order-quality";
 import { QUALITY_LABELS } from "@/lib/order-quality";
 
@@ -16,26 +16,27 @@ export function QualityIssuesPanel({ result }: QualityIssuesPanelProps) {
     );
   }
 
-  const bgColor = result.score === "red" ? "bg-red-50 border-red-200" : "bg-amber-50 border-amber-200";
-  const headerColor = result.score === "red" ? "text-red-800" : "text-amber-800";
+  const isRed = result.score === "red";
+  const bgColor = isRed ? "bg-orange-50 border-orange-200" : "bg-amber-50 border-amber-200";
+  const headerColor = isRed ? "text-orange-800" : "text-amber-800";
 
   return (
     <div className={`rounded-lg border p-3 ${bgColor}`}>
       <div className="flex items-center gap-2 mb-2">
-        <AlertTriangle className={`h-4 w-4 ${headerColor} shrink-0`} />
+        <Info className={`h-4 w-4 ${headerColor} shrink-0`} />
         <span className={`text-sm font-medium ${headerColor}`}>
-          {QUALITY_LABELS[result.score].label}
+          {QUALITY_LABELS[result.score].label} – intern oppfølging
         </span>
       </div>
       <ul className="space-y-1">
         {result.issues.map((issue, i) => (
           <li key={i} className="flex items-start gap-2 text-xs">
             {issue.severity === "error" ? (
-              <XCircle className="h-3.5 w-3.5 text-red-500 mt-0.5 shrink-0" />
+              <AlertTriangle className="h-3.5 w-3.5 text-orange-500 mt-0.5 shrink-0" />
             ) : (
-              <AlertTriangle className="h-3.5 w-3.5 text-amber-500 mt-0.5 shrink-0" />
+              <Info className="h-3.5 w-3.5 text-amber-500 mt-0.5 shrink-0" />
             )}
-            <span className={issue.severity === "error" ? "text-red-700" : "text-amber-700"}>
+            <span className={issue.severity === "error" ? "text-orange-700" : "text-amber-700"}>
               {issue.message}
             </span>
           </li>
