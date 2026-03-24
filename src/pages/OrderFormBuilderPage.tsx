@@ -322,10 +322,13 @@ export default function OrderFormBuilderPage() {
             <p className="text-[10px] text-muted-foreground">/{template.slug}</p>
           </div>
           <Badge variant={template.is_active ? "default" : "secondary"} className="text-[10px]">
-            {template.is_active ? "Aktiv" : "Kladd"}
+            {template.is_active ? "Publisert" : "Kladd"}
           </Badge>
         </div>
         <div className="flex items-center gap-1.5">
+          {template.is_active && (
+            <PublishLinkActions slug={template.slug} audienceType={template.audience_type} />
+          )}
           <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setPreviewMode(true)}>
             <Eye className="h-3.5 w-3.5 mr-1" />
             Forhåndsvisning
