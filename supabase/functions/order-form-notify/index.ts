@@ -117,7 +117,6 @@ Deno.serve(async (req) => {
         .eq("id", submission_id);
 
     } else if (notification_type === "confirmation") {
-      const bestillerEpost = valMap.bestiller_epost;
       if (!bestillerEpost) {
         console.log("NO_BESTILLER_EMAIL", { submission_id });
         return json({ success: false, reason: "no_bestiller_email" });
