@@ -176,6 +176,9 @@ export default function OrderFormSubmitPage() {
       };
       const priority = hastegradMap[formData.hastegrad] || "normal";
 
+      // Compute quality score
+      const qualityResult = computeQualityScore(formData, attachments.map(a => ({ category: a.category, file_name: a.file.name })));
+
       // Insert submission
       const { error: subErr } = await supabase.from("order_form_submissions").insert({
         id: submissionId,
@@ -187,6 +190,8 @@ export default function OrderFormSubmitPage() {
         submitted_by: user?.id,
         priority,
         summary,
+        quality_score: qualityResult.score,
+        quality_issues: qualityResult.issues,
       });
       if (subErr) throw subErr;
 
