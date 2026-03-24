@@ -137,7 +137,6 @@ Deno.serve(async (req) => {
         .eq("id", submission_id);
 
     } else if (notification_type === "missing_info") {
-      const bestillerEpost = valMap.bestiller_epost;
       if (!bestillerEpost) {
         return json({ success: false, reason: "no_bestiller_email" });
       }
