@@ -431,7 +431,44 @@ export default function OrderFormBuilderPage() {
   );
 }
 
-function TemplateSettingsForm({ template, onSave }: { template: any; onSave: (u: any) => void }) {
+function PublishLinkActions({ slug, audienceType }: { slug: string; audienceType: string }) {
+  const [copied, setCopied] = useState(false);
+  const internalUrl = `${window.location.origin}/orders/new/${slug}`;
+  const publicUrl = `${window.location.origin}/bestilling/${slug}`;
+  const isExternal = audienceType === "external" || audienceType === "both";
+
+  const copyLink = (url: string) => {
+    navigator.clipboard.writeText(url);
+    setCopied(true);
+    toast.success("Lenke kopiert");
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div className="flex items-center gap-1">
+      <Button
+        variant="outline"
+        size="sm"
+        className="h-8 text-xs"
+        onClick={() => copyLink(isExternal ? publicUrl : internalUrl)}
+      >
+        {copied ? <Check className="h-3.5 w-3.5 mr-1" /> : <Copy className="h-3.5 w-3.5 mr-1" />}
+        {copied ? "Kopiert!" : "Kopier lenke"}
+      </Button>
+      <Button
+        variant="outline"
+        size="sm"
+        className="h-8 text-xs"
+        onClick={() => window.open(isExternal ? publicUrl : internalUrl, "_blank")}
+      >
+        <ExternalLink className="h-3.5 w-3.5 mr-1" />
+        Åpne skjema
+      </Button>
+    </div>
+  );
+}
+
+
   const [form, setForm] = useState({
     name: template.name || "",
     internal_title: template.internal_title || "",
