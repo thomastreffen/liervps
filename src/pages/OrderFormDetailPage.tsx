@@ -447,6 +447,14 @@ export default function OrderFormDetailPage() {
         submissionId={id!}
         summary={submission.summary as Record<string, any> | null}
       />
+      <TripletexExportPanel
+        open={tripletexOpen}
+        onOpenChange={setTripletexOpen}
+        submissionId={id!}
+        values={valuesMap}
+        summary={submission.summary as Record<string, any> | null}
+        submissionNo={submission.submission_no}
+      />
     </div>
   );
 }
