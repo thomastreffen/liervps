@@ -95,6 +95,7 @@ import OrderFormSubmitPage from "./pages/OrderFormSubmitPage";
 import OrderFormTemplatesPage from "./pages/OrderFormTemplatesPage";
 import OrderFormBuilderPage from "./pages/OrderFormBuilderPage";
 import OrderFormPublicPage from "./pages/OrderFormPublicPage";
+import OrderFormsCatalogPage from "./pages/OrderFormsCatalogPage";
 import { CompanyProvider } from "@/hooks/useCompanyContext";
 import { PreviewModeProvider } from "@/hooks/usePreviewMode";
 import PortalLogin from "./pages/portal/PortalLogin";
