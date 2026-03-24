@@ -21,6 +21,8 @@ import {
 import { toast } from "sonner";
 import { ArrowLeft, Check, AlertCircle, Upload, Info } from "lucide-react";
 import type { OrderFormField, ConditionalLogic } from "@/types/order-forms";
+import { computeQualityScore } from "@/lib/order-quality";
+import { QualityIssuesPanel } from "@/components/orders/QualityIssuesPanel";
 
 export default function OrderFormSubmitPage() {
   const { slug } = useParams<{ slug: string }>();
