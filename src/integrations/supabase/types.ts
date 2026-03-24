@@ -6160,6 +6160,7 @@ export type Database = {
           default_value: Json | null
           field_key: string
           field_type: string
+          field_width: string
           help_text: string | null
           id: string
           is_active: boolean
@@ -6179,6 +6180,7 @@ export type Database = {
           default_value?: Json | null
           field_key: string
           field_type: string
+          field_width?: string
           help_text?: string | null
           id?: string
           is_active?: boolean
@@ -6198,6 +6200,7 @@ export type Database = {
           default_value?: Json | null
           field_key?: string
           field_type?: string
+          field_width?: string
           help_text?: string | null
           id?: string
           is_active?: boolean
