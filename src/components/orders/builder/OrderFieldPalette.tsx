@@ -132,8 +132,8 @@ const FIELD_BLOCKS: FieldBlock[] = [
     icon: FileText,
     description: "PO-nummer, midlertidig referanse og intern referanse",
     fields: [
-      { label: "PO / Innkjøpsordre", type: "short_text", field_key: "po_nummer", help_text: "Innkjøpsordrenummer fra kunde" },
-      { label: "Midlertidig referanse", type: "short_text", field_key: "midlertidig_referanse", help_text: "Bruk dette dersom PO ikke er klar ennå" },
+      { label: "PO / Innkjøpsordre", type: "short_text", field_key: "po_nummer", help_text: "Innkjøpsordrenummer fra kunde", field_width: "half" },
+      { label: "Midlertidig referanse", type: "short_text", field_key: "midlertidig_referanse", help_text: "Bruk dette dersom PO ikke er klar ennå", field_width: "half" },
       { label: "Intern referanse", type: "short_text", field_key: "intern_referanse", help_text: "Eventuell intern referanse" },
     ],
   },
