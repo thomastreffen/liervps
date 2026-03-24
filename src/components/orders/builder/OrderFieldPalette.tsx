@@ -3,12 +3,11 @@ import {
   Type, AlignLeft, Hash, Calendar, Clock, Mail, Phone, MapPin, Building2,
   ChevronDown, CircleDot, CheckSquare, ListChecks, Upload, Image, Search,
   Users, FolderSearch, UserSearch, Info, Heading, Timer, Package, FileCheck,
-  Blocks, User, FileText, Briefcase, Receipt, Wrench, ClipboardList,
-  Star, ChevronRight,
+  Blocks, User, FileText, Receipt, ClipboardList,
+  Star, Columns2, Columns3, LayoutGrid,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import type { OrderFormFieldType } from "@/types/order-forms";
 
 export const FIELD_ICONS: Record<OrderFormFieldType, React.ElementType> = {
@@ -65,7 +64,6 @@ const BUSINESS_PRESETS: BusinessPreset[] = [
   { id: "oensket_dato", label: "Ønsket utført dato", icon: Calendar, fieldType: "date", fieldKey: "oensket_dato", helpText: "Når ønsker du at arbeidet skal utføres?" },
 ];
 
-/** Look up a preset by id – used by canvas on drop */
 export function getPresetById(presetId: string): BusinessPreset | undefined {
   return BUSINESS_PRESETS.find(p => p.id === presetId);
 }
@@ -77,15 +75,15 @@ export interface FieldBlock {
   label: string;
   icon: React.ElementType;
   description: string;
+  previewLayout: string; // e.g. "2-col", "full"
   fields: { label: string; type: OrderFormFieldType; field_key: string; is_required?: boolean; help_text?: string; options?: string[]; field_width?: string }[];
 }
 
 const FIELD_BLOCKS: FieldBlock[] = [
   {
-    id: "customer_info",
-    label: "Kundeinformasjon",
-    icon: UserSearch,
-    description: "Firmanavn, org.nr, kontaktperson, telefon, e-post",
+    id: "customer_info", label: "Kundeinformasjon", icon: UserSearch,
+    description: "Firmanavn, org.nr, kontakt, telefon, e-post",
+    previewLayout: "2-col",
     fields: [
       { label: "Firmanavn", type: "short_text", field_key: "firmanavn", is_required: true, help_text: "Navn på firma / kunde", field_width: "half" },
       { label: "Org.nr", type: "org_number", field_key: "org_nr", help_text: "Organisasjonsnummer", field_width: "half" },
@@ -95,10 +93,9 @@ const FIELD_BLOCKS: FieldBlock[] = [
     ],
   },
   {
-    id: "faktura_info",
-    label: "Fakturainformasjon",
-    icon: Receipt,
-    description: "Fakturamottaker, fakturaadresse, PO/referanse",
+    id: "faktura_info", label: "Fakturainformasjon", icon: Receipt,
+    description: "Fakturamottaker, fakturaadresse, PO",
+    previewLayout: "2-col",
     fields: [
       { label: "Fakturamottaker", type: "short_text", field_key: "fakturamottaker", help_text: "Hvem skal motta faktura?", field_width: "half" },
       { label: "Fakturamerking / PO", type: "short_text", field_key: "fakturamerking", help_text: "PO-nummer, referanse eller annen merking", field_width: "half" },
@@ -106,20 +103,18 @@ const FIELD_BLOCKS: FieldBlock[] = [
     ],
   },
   {
-    id: "order_location",
-    label: "Oppdragssted",
-    icon: MapPin,
+    id: "order_location", label: "Oppdragssted", icon: MapPin,
     description: "Oppdragssted og anleggsadresse",
+    previewLayout: "full",
     fields: [
       { label: "Oppdragssted", type: "short_text", field_key: "oppdragssted", is_required: true, help_text: "Navn på anlegg eller oppdragssted" },
       { label: "Anleggsadresse", type: "address", field_key: "anleggsadresse", is_required: true, help_text: "Adresse der arbeidet skal utføres" },
     ],
   },
   {
-    id: "kontaktperson_blokk",
-    label: "Kontaktperson",
-    icon: User,
+    id: "kontaktperson_blokk", label: "Kontaktperson", icon: User,
     description: "Kontaktperson med telefon og e-post",
+    previewLayout: "2-col",
     fields: [
       { label: "Kontaktperson", type: "short_text", field_key: "kontaktperson", is_required: true, help_text: "Navn på kontaktperson", field_width: "half" },
       { label: "Telefon", type: "phone", field_key: "kontakt_telefon", help_text: "Telefonnummer", field_width: "half" },
@@ -127,10 +122,9 @@ const FIELD_BLOCKS: FieldBlock[] = [
     ],
   },
   {
-    id: "referanse_po_blokk",
-    label: "Referanse og PO",
-    icon: FileText,
-    description: "PO-nummer, midlertidig referanse og intern referanse",
+    id: "referanse_po_blokk", label: "Referanse og PO", icon: FileText,
+    description: "PO-nummer og referanser",
+    previewLayout: "2-col",
     fields: [
       { label: "PO / Innkjøpsordre", type: "short_text", field_key: "po_nummer", help_text: "Innkjøpsordrenummer fra kunde", field_width: "half" },
       { label: "Midlertidig referanse", type: "short_text", field_key: "midlertidig_referanse", help_text: "Bruk dette dersom PO ikke er klar ennå", field_width: "half" },
@@ -138,10 +132,9 @@ const FIELD_BLOCKS: FieldBlock[] = [
     ],
   },
   {
-    id: "material_responsibility",
-    label: "Material og ansvar",
-    icon: Package,
+    id: "material_responsibility", label: "Material og ansvar", icon: Package,
     description: "Hvem skaffer materiell og hva som trengs",
+    previewLayout: "full",
     fields: [
       { label: "Hvem skaffer materiell?", type: "radio", field_key: "materialansvar", is_required: true, options: ["Service skaffer alt", "Bestiller leverer alt", "Deles mellom partene"], help_text: "Angi tydelig materialansvar" },
       { label: "Hva leverer bestiller / kunde?", type: "long_text", field_key: "hva_leverer_bestiller", help_text: "Beskriv hva bestiller/kunde leverer av materiell" },
@@ -149,10 +142,9 @@ const FIELD_BLOCKS: FieldBlock[] = [
     ],
   },
   {
-    id: "attachments_pack",
-    label: "Vedleggspakke",
-    icon: Upload,
+    id: "attachments_pack", label: "Vedleggspakke", icon: Upload,
     description: "Tegninger, bilder, materialliste, FDV",
+    previewLayout: "2-col",
     fields: [
       { label: "Tegninger", type: "file_upload", field_key: "vedlegg_tegninger", help_text: "Last opp reviderte tegninger", field_width: "half" },
       { label: "Bilder", type: "image_upload", field_key: "vedlegg_bilder", help_text: "Last opp relevante bilder fra anlegget", field_width: "half" },
@@ -161,10 +153,9 @@ const FIELD_BLOCKS: FieldBlock[] = [
     ],
   },
   {
-    id: "intern_kontroll",
-    label: "Intern kontroll",
-    icon: FileCheck,
-    description: "Sjekkliste for kvalitetskontroll av bestillingen",
+    id: "intern_kontroll", label: "Intern kontroll", icon: FileCheck,
+    description: "Sjekkliste for kvalitetskontroll",
+    previewLayout: "2-col",
     fields: [
       { label: "Kundeinfo er kontrollert", type: "yes_no", field_key: "kundeinfo_kontrollert", field_width: "half" },
       { label: "Anleggsadresse er kontrollert", type: "yes_no", field_key: "anleggsadresse_kontrollert", field_width: "half" },
@@ -176,71 +167,38 @@ const FIELD_BLOCKS: FieldBlock[] = [
   },
 ];
 
-// ── Generic field categories (shown under "Avansert") ──
+// ── Generic field types (shown under "Avansert") ──
 
-interface FieldCategory {
+interface GenericFieldDef {
+  type: OrderFormFieldType;
   label: string;
-  types: { type: OrderFormFieldType; label: string; description: string }[];
+  description: string;
+  icon: React.ElementType;
 }
 
-const ADVANCED_CATEGORIES: FieldCategory[] = [
-  {
-    label: "Tekstfelt",
-    types: [
-      { type: "short_text", label: "Kort tekst", description: "Brukes til firmanavn, kontaktperson, referanse osv." },
-      { type: "long_text", label: "Lang tekst", description: "Brukes til arbeidsbeskrivelse, merknader osv." },
-      { type: "number", label: "Tall", description: "Numerisk verdi" },
-    ],
-  },
-  {
-    label: "Dato og tid",
-    types: [
-      { type: "date", label: "Dato", description: "Datovelger" },
-      { type: "time", label: "Klokkeslett", description: "Tidspunkt" },
-      { type: "time_window", label: "Tidsvindu", description: "Fra–til tidspunkt" },
-    ],
-  },
-  {
-    label: "Kontaktinfo",
-    types: [
-      { type: "email", label: "E-post", description: "E-postadresse" },
-      { type: "phone", label: "Telefon", description: "Telefonnummer" },
-      { type: "address", label: "Adresse", description: "Brukes til anleggsadresse, fakturaadresse osv." },
-      { type: "org_number", label: "Org.nr", description: "Organisasjonsnummer" },
-    ],
-  },
-  {
-    label: "Valgfelt",
-    types: [
-      { type: "dropdown", label: "Nedtrekksliste", description: "Velg ett alternativ fra liste" },
-      { type: "radio", label: "Radioknapper", description: "Velg ett av flere synlige valg" },
-      { type: "yes_no", label: "Ja / Nei", description: "Enkelt ja/nei-valg" },
-      { type: "checkbox_list", label: "Sjekkliste", description: "Huk av flere alternativer" },
-      { type: "multi_select", label: "Flervalg", description: "Velg flere fra liste" },
-    ],
-  },
-  {
-    label: "Vedlegg",
-    types: [
-      { type: "file_upload", label: "Filopplasting", description: "PDF, XLSX, DOCX m.m." },
-      { type: "image_upload", label: "Bildeopplasting", description: "JPG, PNG bilder" },
-    ],
-  },
-  {
-    label: "Systemoppslag",
-    types: [
-      { type: "customer_lookup", label: "Velg kunde fra systemet", description: "Søk og velg eksisterende kunde. Kan autofylle navn, adresse, org.nr." },
-      { type: "project_lookup", label: "Velg prosjekt fra systemet", description: "Koble bestillingen til et eksisterende prosjekt" },
-      { type: "user_lookup", label: "Velg bruker / ansatt", description: "Velg intern bruker, f.eks. prosjektleder eller ansvarlig" },
-    ],
-  },
-  {
-    label: "Layout",
-    types: [
-      { type: "section_header", label: "Seksjonsoverskrift", description: "Visuell gruppering av felt" },
-      { type: "info_box", label: "Infoboks", description: "Hjelpetekst eller informasjon til utfyller" },
-    ],
-  },
+const GENERIC_FIELDS: GenericFieldDef[] = [
+  { type: "short_text", label: "Kort tekst", description: "Enkel tekstlinje", icon: Type },
+  { type: "long_text", label: "Lang tekst", description: "Flerlinjes tekstfelt", icon: AlignLeft },
+  { type: "number", label: "Tall", description: "Numerisk verdi", icon: Hash },
+  { type: "date", label: "Dato", description: "Datovelger", icon: Calendar },
+  { type: "time", label: "Klokkeslett", description: "Tidspunkt", icon: Clock },
+  { type: "time_window", label: "Tidsvindu", description: "Fra–til tidspunkt", icon: Timer },
+  { type: "email", label: "E-post", description: "E-postadresse", icon: Mail },
+  { type: "phone", label: "Telefon", description: "Telefonnummer", icon: Phone },
+  { type: "address", label: "Adresse", description: "Full adresse", icon: MapPin },
+  { type: "org_number", label: "Org.nr", description: "Organisasjonsnummer", icon: Building2 },
+  { type: "dropdown", label: "Nedtrekksliste", description: "Velg ett alternativ", icon: ChevronDown },
+  { type: "radio", label: "Radioknapper", description: "Velg ett synlig valg", icon: CircleDot },
+  { type: "yes_no", label: "Ja / Nei", description: "Enkelt ja/nei", icon: CheckSquare },
+  { type: "checkbox_list", label: "Sjekkliste", description: "Huk av flere", icon: ListChecks },
+  { type: "multi_select", label: "Flervalg", description: "Velg flere fra liste", icon: ListChecks },
+  { type: "file_upload", label: "Filopplasting", description: "PDF, XLSX m.m.", icon: Upload },
+  { type: "image_upload", label: "Bildeopplasting", description: "JPG, PNG bilder", icon: Image },
+  { type: "customer_lookup", label: "Kundeoppslag", description: "Søk eksisterende kunde", icon: UserSearch },
+  { type: "project_lookup", label: "Prosjektoppslag", description: "Koble til prosjekt", icon: FolderSearch },
+  { type: "user_lookup", label: "Brukeroppslag", description: "Velg intern bruker", icon: Users },
+  { type: "section_header", label: "Overskrift", description: "Visuell gruppering", icon: Heading },
+  { type: "info_box", label: "Infoboks", description: "Hjelpetekst til utfyller", icon: Info },
 ];
 
 // ── Component ──
@@ -251,203 +209,194 @@ export interface OrderFieldPaletteProps {
   activeSectionId: string | null;
 }
 
+function FieldTile({
+  icon: Icon, label, description, disabled, draggable: isDraggable, onDragStart, onClick,
+}: {
+  icon: React.ElementType; label: string; description?: string;
+  disabled?: boolean; draggable?: boolean;
+  onDragStart?: (e: React.DragEvent) => void; onClick?: () => void;
+}) {
+  return (
+    <button
+      draggable={isDraggable}
+      onDragStart={onDragStart}
+      onClick={onClick}
+      disabled={disabled}
+      className="w-full flex items-start gap-2.5 rounded-xl border border-border/60 bg-card px-3 py-2.5 text-left hover:border-primary/30 hover:shadow-sm hover:bg-primary/[0.02] transition-all cursor-grab active:cursor-grabbing active:scale-[0.98] select-none disabled:opacity-30 disabled:cursor-not-allowed"
+    >
+      <div className="h-8 w-8 rounded-lg bg-muted/50 flex items-center justify-center shrink-0 mt-0.5">
+        <Icon className="h-4 w-4 text-primary/70" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <span className="text-xs font-medium block truncate">{label}</span>
+        {description && (
+          <span className="text-[10px] text-muted-foreground block truncate leading-tight mt-0.5">{description}</span>
+        )}
+      </div>
+    </button>
+  );
+}
+
+function BlockTile({
+  block, disabled, onClick,
+}: {
+  block: FieldBlock; disabled?: boolean; onClick?: () => void;
+}) {
+  const Icon = block.icon;
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className="w-full rounded-xl border border-border/60 bg-card px-3 py-3 text-left hover:border-primary/30 hover:shadow-sm hover:bg-primary/[0.02] transition-all select-none disabled:opacity-30 disabled:cursor-not-allowed"
+    >
+      <div className="flex items-start gap-2.5">
+        <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+          <Icon className="h-4 w-4 text-primary" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <span className="text-xs font-medium block">{block.label}</span>
+          <span className="text-[10px] text-muted-foreground block leading-tight mt-0.5">{block.description}</span>
+        </div>
+        <Badge variant="outline" className="text-[9px] shrink-0 mt-0.5">{block.fields.length} felt</Badge>
+      </div>
+      {/* Mini layout preview */}
+      <div className="mt-2 flex flex-wrap gap-1">
+        {block.fields.slice(0, 6).map((f, i) => (
+          <div
+            key={i}
+            className={`h-1.5 rounded-full bg-muted-foreground/15 ${
+              f.field_width === "half" ? "w-[calc(50%-2px)]" : f.field_width === "third" ? "w-[calc(33%-2px)]" : "w-full"
+            }`}
+          />
+        ))}
+      </div>
+    </button>
+  );
+}
+
 export function OrderFieldPalette({ onAddField, onAddBlock, activeSectionId }: OrderFieldPaletteProps) {
   const [search, setSearch] = useState("");
-  const [tab, setTab] = useState<"business" | "advanced" | "blocks">("business");
-  const [advancedOpen, setAdvancedOpen] = useState<Record<string, boolean>>({});
+  const [tab, setTab] = useState<"business" | "blocks" | "advanced">("business");
   const q = search.toLowerCase();
 
   const filteredPresets = BUSINESS_PRESETS.filter(
     p => !q || p.label.toLowerCase().includes(q) || (p.helpText?.toLowerCase().includes(q))
   );
 
+  const filteredGeneric = GENERIC_FIELDS.filter(
+    f => !q || f.label.toLowerCase().includes(q) || f.description.toLowerCase().includes(q)
+  );
+
+  const filteredBlocks = FIELD_BLOCKS.filter(
+    b => !q || b.label.toLowerCase().includes(q) || b.description.toLowerCase().includes(q)
+  );
+
   const handlePresetClick = (preset: BusinessPreset) => {
     if (!activeSectionId) return;
     onAddField(preset.fieldType, activeSectionId, {
-      label: preset.label,
-      fieldKey: preset.fieldKey,
-      helpText: preset.helpText,
-      options: preset.options,
-      isRequired: preset.isRequired,
+      label: preset.label, fieldKey: preset.fieldKey,
+      helpText: preset.helpText, options: preset.options, isRequired: preset.isRequired,
     });
   };
 
-  const handleAdvancedClick = (type: OrderFormFieldType) => {
+  const handleGenericClick = (type: OrderFormFieldType) => {
     if (!activeSectionId) return;
     onAddField(type, activeSectionId);
   };
+
+  const noSection = !activeSectionId;
 
   return (
     <div className="h-full flex flex-col">
       {/* Header */}
       <div className="p-3 border-b border-border space-y-2">
-        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Feltbibliotek</h3>
+        <h3 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Feltbibliotek</h3>
         <div className="relative">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-          <Input
-            placeholder="Søk felt..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-8 h-8 text-xs"
-          />
+          <Input placeholder="Søk felt..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-8 h-8 text-xs" />
         </div>
         <div className="flex gap-1">
-          <button
-            onClick={() => setTab("business")}
-            className={`flex-1 px-2 py-1.5 text-[10px] font-medium rounded-md transition-colors ${
-              tab === "business" ? "bg-primary text-primary-foreground" : "bg-muted/60 text-muted-foreground hover:bg-muted"
-            }`}
-          >
-            <Star className="h-3 w-3 inline mr-0.5 -mt-px" />
-            Bestillingsfelt
-          </button>
-          <button
-            onClick={() => setTab("blocks")}
-            className={`flex-1 px-2 py-1.5 text-[10px] font-medium rounded-md transition-colors ${
-              tab === "blocks" ? "bg-primary text-primary-foreground" : "bg-muted/60 text-muted-foreground hover:bg-muted"
-            }`}
-          >
-            <Blocks className="h-3 w-3 inline mr-0.5 -mt-px" />
-            Blokker
-          </button>
-          <button
-            onClick={() => setTab("advanced")}
-            className={`flex-1 px-2 py-1.5 text-[10px] font-medium rounded-md transition-colors ${
-              tab === "advanced" ? "bg-primary text-primary-foreground" : "bg-muted/60 text-muted-foreground hover:bg-muted"
-            }`}
-          >
-            Avansert
-          </button>
+          {([
+            { key: "business" as const, label: "Felt", icon: Star },
+            { key: "blocks" as const, label: "Blokker", icon: LayoutGrid },
+            { key: "advanced" as const, label: "Alle typer", icon: Blocks },
+          ]).map(t => (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              className={`flex-1 px-2 py-1.5 text-[10px] font-medium rounded-lg transition-colors ${
+                tab === t.key ? "bg-primary text-primary-foreground" : "bg-muted/50 text-muted-foreground hover:bg-muted"
+              }`}
+            >
+              <t.icon className="h-3 w-3 inline mr-0.5 -mt-px" />
+              {t.label}
+            </button>
+          ))}
         </div>
       </div>
 
+      {noSection && (
+        <div className="p-3 text-center">
+          <p className="text-[10px] text-muted-foreground">Velg en seksjon i skjemaet for å legge til felt</p>
+        </div>
+      )}
+
       {/* Content */}
-      <div className="flex-1 overflow-y-auto p-3 space-y-4">
-
-        {/* ── Business presets tab ── */}
+      <div className="flex-1 overflow-y-auto p-3 space-y-2">
         {tab === "business" && (
-          <>
-            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
-              Vanlige bestillingsfelt
-            </p>
-            <p className="text-[10px] text-muted-foreground mb-2">
-              Dra eller klikk for å legge til. Hvert felt har ferdig label og hjelpetekst.
-            </p>
-            <div className="space-y-1">
-              {filteredPresets.map((preset) => {
-                const Icon = preset.icon;
-                return (
-                  <button
-                    key={preset.id}
-                    draggable
-                    onDragStart={(e) => {
-                      // Store full preset data so canvas can pass it back
-                      e.dataTransfer.setData("order-field-type", preset.fieldType);
-                      e.dataTransfer.setData("order-preset-data", JSON.stringify({
-                        label: preset.label,
-                        fieldKey: preset.fieldKey,
-                        helpText: preset.helpText,
-                        options: preset.options,
-                        isRequired: preset.isRequired,
-                      }));
-                      e.dataTransfer.effectAllowed = "copy";
-                    }}
-                    onClick={() => handlePresetClick(preset)}
-                    disabled={!activeSectionId}
-                    className="w-full flex items-center gap-2.5 rounded-lg border border-border bg-card px-2.5 py-2 text-left hover:border-primary/30 hover:bg-primary/5 transition-all cursor-grab active:cursor-grabbing active:scale-[0.98] select-none disabled:opacity-40 disabled:cursor-not-allowed"
-                    title={preset.helpText}
-                  >
-                    <Icon className="h-4 w-4 text-primary/70 shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <span className="text-xs font-medium block truncate">{preset.label}</span>
-                      {preset.helpText && (
-                        <span className="text-[10px] text-muted-foreground block truncate">{preset.helpText}</span>
-                      )}
-                    </div>
-                    {preset.isRequired && (
-                      <Badge variant="outline" className="text-[8px] px-1 py-0 shrink-0 border-orange-300 text-orange-600">Påkrevd</Badge>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          </>
-        )}
-
-        {/* ── Blocks tab ── */}
-        {tab === "blocks" && (
-          <div className="space-y-2">
-            <p className="text-[10px] text-muted-foreground mb-1">
-              Legg til en ferdig sammensatt gruppe med flere felt.
-            </p>
-            {FIELD_BLOCKS.filter(
-              (b) => !q || b.label.toLowerCase().includes(q) || b.description.toLowerCase().includes(q)
-            ).map((block) => {
-              const Icon = block.icon;
-              return (
-                <button
-                  key={block.id}
-                  onClick={() => activeSectionId && onAddBlock(block, activeSectionId)}
-                  disabled={!activeSectionId}
-                  className="w-full flex items-start gap-2.5 rounded-lg border border-border bg-card px-2.5 py-2.5 text-left hover:border-primary/30 hover:bg-primary/5 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  <Icon className="h-4 w-4 text-primary/70 mt-0.5 shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <span className="text-xs font-medium block">{block.label}</span>
-                    <span className="text-[10px] text-muted-foreground block">{block.description}</span>
-                    <span className="text-[9px] text-muted-foreground/60 mt-0.5 block">{block.fields.length} felt</span>
-                  </div>
-                </button>
-              );
-            })}
+          <div className="space-y-1.5">
+            {filteredPresets.map((preset) => (
+              <FieldTile
+                key={preset.id}
+                icon={preset.icon}
+                label={preset.label}
+                description={preset.helpText}
+                disabled={noSection}
+                draggable={!noSection}
+                onDragStart={(e) => {
+                  e.dataTransfer.setData("order-field-type", preset.fieldType);
+                  e.dataTransfer.setData("order-preset-data", JSON.stringify({
+                    label: preset.label, fieldKey: preset.fieldKey,
+                    helpText: preset.helpText, options: preset.options, isRequired: preset.isRequired,
+                  }));
+                  e.dataTransfer.effectAllowed = "copy";
+                }}
+                onClick={() => handlePresetClick(preset)}
+              />
+            ))}
           </div>
         )}
 
-        {/* ── Advanced tab ── */}
-        {tab === "advanced" && (
+        {tab === "blocks" && (
           <div className="space-y-2">
-            <p className="text-[10px] text-muted-foreground mb-1">
-              Generiske felttyper for avansert bruk. Dra eller klikk for å legge til.
-            </p>
-            {ADVANCED_CATEGORIES.map((cat) => {
-              const filtered = cat.types.filter(
-                (t) => !q || t.label.toLowerCase().includes(q) || t.description.toLowerCase().includes(q)
-              );
-              if (filtered.length === 0) return null;
-              const isOpen = advancedOpen[cat.label] !== false;
-              return (
-                <Collapsible key={cat.label} open={isOpen} onOpenChange={(v) => setAdvancedOpen((p) => ({ ...p, [cat.label]: v }))}>
-                  <CollapsibleTrigger className="flex items-center gap-1.5 w-full text-[10px] font-semibold text-muted-foreground uppercase tracking-wider py-1 hover:text-foreground transition-colors">
-                    {isOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-                    {cat.label}
-                  </CollapsibleTrigger>
-                  <CollapsibleContent className="space-y-0.5 mt-1">
-                    {filtered.map((ft) => {
-                      const Icon = FIELD_ICONS[ft.type] || Type;
-                      return (
-                        <button
-                          key={ft.type}
-                          draggable
-                          onDragStart={(e) => {
-                            e.dataTransfer.setData("order-field-type", ft.type);
-                            e.dataTransfer.effectAllowed = "copy";
-                          }}
-                          onClick={() => handleAdvancedClick(ft.type)}
-                          disabled={!activeSectionId}
-                          className="w-full flex items-center gap-2 rounded-md px-2 py-1.5 text-left hover:bg-muted/60 transition-colors cursor-grab active:cursor-grabbing select-none disabled:opacity-40 disabled:cursor-not-allowed"
-                        >
-                          <Icon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                          <div className="flex-1 min-w-0">
-                            <span className="text-[11px] font-medium block truncate">{ft.label}</span>
-                            <span className="text-[9px] text-muted-foreground block truncate">{ft.description}</span>
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </CollapsibleContent>
-                </Collapsible>
-              );
-            })}
+            {filteredBlocks.map((block) => (
+              <BlockTile
+                key={block.id}
+                block={block}
+                disabled={noSection}
+                onClick={() => { if (activeSectionId) onAddBlock(block, activeSectionId); }}
+              />
+            ))}
+          </div>
+        )}
+
+        {tab === "advanced" && (
+          <div className="space-y-1.5">
+            {filteredGeneric.map((f) => (
+              <FieldTile
+                key={f.type}
+                icon={f.icon}
+                label={f.label}
+                description={f.description}
+                disabled={noSection}
+                draggable={!noSection}
+                onDragStart={(e) => {
+                  e.dataTransfer.setData("order-field-type", f.type);
+                  e.dataTransfer.effectAllowed = "copy";
+                }}
+                onClick={() => handleGenericClick(f.type)}
+              />
+            ))}
           </div>
         )}
       </div>
