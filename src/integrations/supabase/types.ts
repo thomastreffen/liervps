@@ -641,6 +641,7 @@ export type Database = {
           resolution_type: string | null
           scope: Database["public"]["Enums"]["case_scope"]
           service_job_id: string | null
+          source_order_form_id: string | null
           status: Database["public"]["Enums"]["case_status"]
           thread_id: string | null
           title: string
@@ -677,6 +678,7 @@ export type Database = {
           resolution_type?: string | null
           scope?: Database["public"]["Enums"]["case_scope"]
           service_job_id?: string | null
+          source_order_form_id?: string | null
           status?: Database["public"]["Enums"]["case_status"]
           thread_id?: string | null
           title?: string
@@ -713,6 +715,7 @@ export type Database = {
           resolution_type?: string | null
           scope?: Database["public"]["Enums"]["case_scope"]
           service_job_id?: string | null
+          source_order_form_id?: string | null
           status?: Database["public"]["Enums"]["case_status"]
           thread_id?: string | null
           title?: string
@@ -788,6 +791,13 @@ export type Database = {
             columns: ["service_job_id"]
             isOneToOne: false
             referencedRelation: "service_jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cases_source_order_form_id_fkey"
+            columns: ["source_order_form_id"]
+            isOneToOne: false
+            referencedRelation: "order_form_submissions"
             referencedColumns: ["id"]
           },
           {
@@ -3117,6 +3127,7 @@ export type Database = {
           sharepoint_folder_web_url: string | null
           sharepoint_project_code: string | null
           sharepoint_site_id: string | null
+          source_order_form_id: string | null
           start_time: string
           status: Database["public"]["Enums"]["job_status"]
           task_id: string | null
@@ -3188,6 +3199,7 @@ export type Database = {
           sharepoint_folder_web_url?: string | null
           sharepoint_project_code?: string | null
           sharepoint_site_id?: string | null
+          source_order_form_id?: string | null
           start_time: string
           status?: Database["public"]["Enums"]["job_status"]
           task_id?: string | null
@@ -3259,6 +3271,7 @@ export type Database = {
           sharepoint_folder_web_url?: string | null
           sharepoint_project_code?: string | null
           sharepoint_site_id?: string | null
+          source_order_form_id?: string | null
           start_time?: string
           status?: Database["public"]["Enums"]["job_status"]
           task_id?: string | null
@@ -3305,6 +3318,13 @@ export type Database = {
             columns: ["parent_project_id"]
             isOneToOne: false
             referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "events_source_order_form_id_fkey"
+            columns: ["source_order_form_id"]
+            isOneToOne: false
+            referencedRelation: "order_form_submissions"
             referencedColumns: ["id"]
           },
           {
@@ -6051,6 +6071,7 @@ export type Database = {
           id: string
           linked_customer_id: string | null
           linked_project_id: string | null
+          notification_error: string | null
           notification_sent_at: string | null
           priority: string
           quality_issues: Json | null
@@ -6075,6 +6096,7 @@ export type Database = {
           id?: string
           linked_customer_id?: string | null
           linked_project_id?: string | null
+          notification_error?: string | null
           notification_sent_at?: string | null
           priority?: string
           quality_issues?: Json | null
@@ -6099,6 +6121,7 @@ export type Database = {
           id?: string
           linked_customer_id?: string | null
           linked_project_id?: string | null
+          notification_error?: string | null
           notification_sent_at?: string | null
           priority?: string
           quality_issues?: Json | null
