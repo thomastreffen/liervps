@@ -1,13 +1,20 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
-  GripVertical, Plus, ChevronDown, ChevronRight, Eye, EyeOff, Trash2,
+  GripVertical, Plus, ChevronDown, ChevronRight, Eye, EyeOff,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { ORDER_FIELD_TYPE_LABELS, type OrderFormFieldType } from "@/types/order-forms";
 import { FIELD_ICONS } from "./OrderFieldPalette";
+
+interface PresetData {
+  label: string;
+  fieldKey: string;
+  helpText?: string;
+  options?: string[];
+  isRequired?: boolean;
+}
 
 interface BuilderCanvasProps {
   sections: any[];
@@ -21,7 +28,7 @@ interface BuilderCanvasProps {
   onToggleSectionActive: (sectionId: string, active: boolean) => void;
   onMoveSection: (fromIdx: number, toIdx: number) => void;
   onMoveField: (fieldId: string, fromSectionId: string, toSectionId: string, toIndex: number) => void;
-  onDropNewField: (type: OrderFormFieldType, sectionId: string, index: number) => void;
+  onDropNewField: (type: OrderFormFieldType, sectionId: string, index: number, preset?: PresetData) => void;
   templateTitle: string;
 }
 
@@ -34,8 +41,18 @@ export function BuilderCanvas({
   const [expandedSections, setExpandedSections] = useState<Set<string>>(
     new Set(sections.map((s) => s.id))
   );
-  const [dragOverTarget, setDragOverTarget] = useState<string | null>(null);
+  const [dropTarget, setDropTarget] = useState<{ sectionId: string; index: number } | null>(null);
   const [draggingFieldId, setDraggingFieldId] = useState<string | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Keep new sections expanded
+  useEffect(() => {
+    setExpandedSections(prev => {
+      const next = new Set(prev);
+      sections.forEach(s => next.add(s.id));
+      return next;
+    });
+  }, [sections.length]);
 
   const toggleExpand = (id: string) => {
     setExpandedSections((prev) => {
@@ -45,32 +62,68 @@ export function BuilderCanvas({
     });
   };
 
-  const handleDragOver = (e: React.DragEvent, target: string) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = e.dataTransfer.types.includes("order-field-type") ? "copy" : "move";
-    setDragOverTarget(target);
+  // Auto-scroll when dragging near edges
+  const handleAutoScroll = (clientY: number) => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const edgeSize = 60;
+    if (clientY - rect.top < edgeSize) {
+      el.scrollTop -= 8;
+    } else if (rect.bottom - clientY < edgeSize) {
+      el.scrollTop += 8;
+    }
   };
 
-  const handleDrop = (e: React.DragEvent, sectionId: string, fieldIndex: number) => {
+  const computeDropIndex = (e: React.DragEvent, sectionId: string, fields: any[]): number => {
+    // Find the closest field based on mouse Y position
+    const container = e.currentTarget as HTMLElement;
+    const fieldEls = container.querySelectorAll('[data-field-index]');
+    
+    for (let i = 0; i < fieldEls.length; i++) {
+      const rect = fieldEls[i].getBoundingClientRect();
+      const midY = rect.top + rect.height / 2;
+      if (e.clientY < midY) return i;
+    }
+    return fields.length;
+  };
+
+  const handleSectionDragOver = (e: React.DragEvent, sectionId: string, fields: any[]) => {
     e.preventDefault();
     e.stopPropagation();
-    setDragOverTarget(null);
+    handleAutoScroll(e.clientY);
+    const isNew = e.dataTransfer.types.includes("order-field-type");
+    const isMove = e.dataTransfer.types.includes("move-field");
+    if (!isNew && !isMove) return;
+    e.dataTransfer.dropEffect = isNew ? "copy" : "move";
+    const idx = computeDropIndex(e, sectionId, fields);
+    setDropTarget({ sectionId, index: idx });
+  };
+
+  const handleDrop = (e: React.DragEvent, sectionId: string, fields: any[]) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const idx = dropTarget?.sectionId === sectionId ? dropTarget.index : fields.length;
+    setDropTarget(null);
 
     const newType = e.dataTransfer.getData("order-field-type") as OrderFormFieldType;
     if (newType) {
-      onDropNewField(newType, sectionId, fieldIndex);
+      // Check for preset data
+      const presetRaw = e.dataTransfer.getData("order-preset-data");
+      const preset: PresetData | undefined = presetRaw ? JSON.parse(presetRaw) : undefined;
+      onDropNewField(newType, sectionId, idx, preset);
       return;
     }
 
     const moveData = e.dataTransfer.getData("move-field");
     if (moveData) {
       const { fieldId, fromSectionId } = JSON.parse(moveData);
-      onMoveField(fieldId, fromSectionId, sectionId, fieldIndex);
+      onMoveField(fieldId, fromSectionId, sectionId, idx);
     }
   };
 
   return (
-    <div className="h-full overflow-y-auto">
+    <div ref={scrollRef} className="h-full overflow-y-auto">
       <div className="p-4 border-b border-border bg-muted/20">
         <h2 className="text-base font-bold text-foreground">{templateTitle || "Nytt skjema"}</h2>
         <p className="text-[10px] text-muted-foreground mt-0.5">{sections.length} seksjoner</p>
@@ -111,91 +164,121 @@ export function BuilderCanvas({
                 />
               </div>
 
-              {/* Fields */}
+              {/* Fields area – generous drop zone */}
               {isExpanded && (
                 <div
-                  className="px-3 py-2 space-y-1"
-                  onDragOver={(e) => handleDragOver(e, `section-${section.id}`)}
-                  onDrop={(e) => handleDrop(e, section.id, fields.length)}
-                  onDragLeave={() => setDragOverTarget(null)}
+                  className={`px-3 py-2 transition-colors ${
+                    dropTarget?.sectionId === section.id
+                      ? "bg-primary/[0.03]"
+                      : ""
+                  }`}
+                  onDragOver={(e) => handleSectionDragOver(e, section.id, fields)}
+                  onDrop={(e) => handleDrop(e, section.id, fields)}
+                  onDragLeave={(e) => {
+                    // Only clear if leaving the container entirely
+                    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                      setDropTarget(null);
+                    }
+                  }}
+                  style={{ minHeight: fields.length === 0 ? 80 : undefined }}
                 >
                   {fields.length === 0 ? (
                     <div
-                      className={`rounded-lg border-2 border-dashed p-6 text-center transition-colors ${
-                        dragOverTarget === `section-${section.id}` ? "border-primary bg-primary/5" : "border-border/50"
+                      className={`rounded-lg border-2 border-dashed p-8 text-center transition-colors ${
+                        dropTarget?.sectionId === section.id
+                          ? "border-primary bg-primary/5"
+                          : "border-border/50"
                       }`}
                     >
-                      <p className="text-[11px] text-muted-foreground">
-                        Dra felt hit eller klikk i feltbiblioteket
+                      <p className="text-xs text-muted-foreground">
+                        Dra felt hit fra biblioteket, eller klikk på et felt
                       </p>
                     </div>
                   ) : (
-                    fields.map((field: any, fIdx: number) => {
-                      const Icon = FIELD_ICONS[field.field_type as OrderFormFieldType] || GripVertical;
-                      const isFieldSelected = selectedFieldId === field.id;
-                      const dropTarget = `field-${field.id}`;
+                    <div className="space-y-0">
+                      {fields.map((field: any, fIdx: number) => {
+                        const Icon = FIELD_ICONS[field.field_type as OrderFormFieldType] || GripVertical;
+                        const isFieldSelected = selectedFieldId === field.id;
+                        const showDropBefore = dropTarget?.sectionId === section.id && dropTarget.index === fIdx && draggingFieldId !== field.id;
 
-                      return (
-                        <div key={field.id}>
-                          {dragOverTarget === dropTarget && draggingFieldId !== field.id && (
-                            <div className="h-0.5 bg-primary rounded-full mx-2 my-0.5" />
-                          )}
-                          <div
-                            draggable
-                            onDragStart={(e) => {
-                              e.dataTransfer.setData("move-field", JSON.stringify({ fieldId: field.id, fromSectionId: section.id }));
-                              setDraggingFieldId(field.id);
-                            }}
-                            onDragEnd={() => setDraggingFieldId(null)}
-                            onDragOver={(e) => handleDragOver(e, dropTarget)}
-                            onDrop={(e) => handleDrop(e, section.id, fIdx)}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onSelectField(field.id, section.id);
-                            }}
-                            className={`flex items-center gap-2 px-2.5 py-2 rounded-lg text-sm cursor-grab active:cursor-grabbing transition-all ${
-                              isFieldSelected
-                                ? "bg-primary/5 border border-primary/30 ring-1 ring-primary/10"
-                                : "border border-transparent hover:bg-muted/40"
-                            } ${!field.is_active ? "opacity-40" : ""}`}
-                          >
-                            <GripVertical className="h-3 w-3 text-muted-foreground/40 shrink-0" />
-                            <Icon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                            <span className="flex-1 font-medium truncate text-xs">{field.label}</span>
-                            {field.is_required && (
-                              <span className="text-destructive text-[10px] font-bold">*</span>
-                            )}
-                            <button
-                              className="text-[10px] text-muted-foreground hover:text-foreground px-1"
+                        return (
+                          <div key={field.id} data-field-index={fIdx}>
+                            {/* Drop indicator before this field */}
+                            <div
+                              className={`transition-all mx-1 rounded-full ${
+                                showDropBefore ? "h-1 bg-primary my-1" : "h-0"
+                              }`}
+                            />
+                            <div
+                              draggable
+                              onDragStart={(e) => {
+                                e.dataTransfer.setData("move-field", JSON.stringify({ fieldId: field.id, fromSectionId: section.id }));
+                                setDraggingFieldId(field.id);
+                              }}
+                              onDragEnd={() => { setDraggingFieldId(null); setDropTarget(null); }}
                               onClick={(e) => {
                                 e.stopPropagation();
-                                onToggleFieldRequired(field.id, !field.is_required);
+                                onSelectField(field.id, section.id);
                               }}
+                              className={`flex items-center gap-2 px-2.5 py-2.5 rounded-lg text-sm cursor-grab active:cursor-grabbing transition-all ${
+                                isFieldSelected
+                                  ? "bg-primary/5 border border-primary/30 ring-1 ring-primary/10"
+                                  : "border border-transparent hover:bg-muted/40"
+                              } ${!field.is_active ? "opacity-40" : ""} ${
+                                draggingFieldId === field.id ? "opacity-30" : ""
+                              }`}
                             >
-                              {field.is_required ? "Påkrevd" : "Valgfritt"}
-                            </button>
-                            <button
-                              className="p-0.5 hover:bg-muted rounded"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onToggleFieldActive(field.id, !field.is_active);
-                              }}
-                            >
-                              {field.is_active !== false ? (
-                                <Eye className="h-3 w-3 text-muted-foreground" />
-                              ) : (
-                                <EyeOff className="h-3 w-3 text-muted-foreground" />
+                              <GripVertical className="h-3 w-3 text-muted-foreground/40 shrink-0" />
+                              <Icon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                              <span className="flex-1 font-medium truncate text-xs">{field.label}</span>
+                              {field.is_required && (
+                                <span className="text-destructive text-[10px] font-bold">*</span>
                               )}
-                            </button>
+                              <button
+                                className="text-[10px] text-muted-foreground hover:text-foreground px-1"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onToggleFieldRequired(field.id, !field.is_required);
+                                }}
+                              >
+                                {field.is_required ? "Påkrevd" : "Valgfritt"}
+                              </button>
+                              <button
+                                className="p-0.5 hover:bg-muted rounded"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onToggleFieldActive(field.id, !field.is_active);
+                                }}
+                              >
+                                {field.is_active !== false ? (
+                                  <Eye className="h-3 w-3 text-muted-foreground" />
+                                ) : (
+                                  <EyeOff className="h-3 w-3 text-muted-foreground" />
+                                )}
+                              </button>
+                            </div>
                           </div>
-                        </div>
-                      );
-                    })
-                  )}
+                        );
+                      })}
 
-                  {/* Bottom drop zone */}
-                  {dragOverTarget === `section-${section.id}` && fields.length > 0 && (
-                    <div className="h-0.5 bg-primary rounded-full mx-2" />
+                      {/* Drop indicator after last field */}
+                      <div
+                        className={`transition-all mx-1 rounded-full ${
+                          dropTarget?.sectionId === section.id && dropTarget.index === fields.length && draggingFieldId !== fields[fields.length - 1]?.id
+                            ? "h-1 bg-primary my-1"
+                            : "h-0"
+                        }`}
+                      />
+
+                      {/* Generous bottom drop zone */}
+                      <div
+                        className={`min-h-[32px] rounded-lg transition-colors ${
+                          dropTarget?.sectionId === section.id && dropTarget.index === fields.length
+                            ? "border-2 border-dashed border-primary/30 bg-primary/[0.03]"
+                            : ""
+                        }`}
+                      />
+                    </div>
                   )}
                 </div>
               )}

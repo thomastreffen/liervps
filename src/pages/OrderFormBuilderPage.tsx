@@ -288,7 +288,7 @@ export default function OrderFormBuilderPage() {
             onToggleSectionActive={(sId, act) => updateSection.mutate({ sectionId: sId, updates: { is_active: act } })}
             onMoveSection={() => {}}
             onMoveField={() => {}}
-            onDropNewField={(type, sId, idx) => addFieldToSection(type, sId)}
+            onDropNewField={(type, sId, idx, preset) => addFieldToSection(type, sId, preset)}
             templateTitle={template.name}
           />
         </div>
