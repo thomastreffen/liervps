@@ -307,7 +307,7 @@ export default function OrderFormDetailPage() {
           disabled={sendNotification.isPending}
         >
           <Mail className="h-3.5 w-3.5 mr-1" />
-          {hasNotification ? "Send på nytt" : "Send varsling"}
+          {hasNotification ? "Send varsling på nytt" : "Send varsling manuelt"}
         </Button>
         {valuesMap.bestiller_epost && !hasConfirmation && (
           <Button
