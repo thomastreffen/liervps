@@ -307,7 +307,7 @@ export default function OrderFormDetailPage() {
           disabled={sendNotification.isPending}
         >
           <Mail className="h-3.5 w-3.5 mr-1" />
-          {hasNotification ? "Send på nytt" : "Send varsling"}
+          {hasNotification ? "Send varsling på nytt" : "Send varsling manuelt"}
         </Button>
         {valuesMap.bestiller_epost && !hasConfirmation && (
           <Button
@@ -362,8 +362,8 @@ export default function OrderFormDetailPage() {
         )}
       </div>
 
-      {/* Quality issues panel */}
-      <QualityIssuesPanel result={qualityResult} />
+      {/* Quality issues panel - only show if there are issues */}
+      {qualityResult.score !== "green" && <QualityIssuesPanel result={qualityResult} />}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main content: Sections with field values */}

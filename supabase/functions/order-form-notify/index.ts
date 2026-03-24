@@ -60,16 +60,25 @@ Deno.serve(async (req) => {
       : "https://mcsressurs.lovable.app";
     const detailUrl = `${appUrl}/orders/${submission_id}`;
 
+    // Smart fallback resolution for key fields
+    const kundenavn = valMap.kundenavn || valMap.firmanavn || valMap.kunde_navn || summary.kundenavn || summary.firmanavn || "Ikke angitt";
+    const oppdragstittel = valMap.oppdragstittel || valMap.oppdragssted || summary.oppdragstittel || template?.name || "Bestilling";
+    const hastegrad = valMap.hastegrad || summary.hastegrad || "Normal";
+    const bestillingstype = submission.requester_type === "internal" ? "Intern" : "Ekstern";
+    const priorityEmoji = hastegrad === "Kritisk stopp" ? "🔴" : hastegrad === "Høy" ? "🟠" : "";
+    const bestillerNavn = valMap.bestiller_navn || valMap.kontaktperson || valMap.kontaktperson_navn || summary.bestiller_navn || valMap.bestiller_epost || "Ikke angitt";
+    const bestillerEpost = valMap.bestiller_epost || valMap.epost_kunde || valMap.epost || "";
+    const bestillerTelefon = valMap.bestiller_telefon || valMap.telefon_kunde || valMap.telefon || "";
+    const anleggsadresse = valMap.anleggsadresse || valMap.oppdragssted || valMap.adresse || "";
+    const materialansvar = valMap.materialansvar || "Ikke angitt";
+    const referanse = valMap.referanse_po || valMap.fakturamerking_po || valMap.midlertidig_referanse || valMap.po_nummer || "Ikke angitt";
+    const onsketDato = valMap.onsket_utfort_dato || valMap.onsket_dato || "Ikke angitt";
+    const arbeidsbeskrivelse = valMap.detaljert_arbeidsbeskrivelse || valMap.arbeidsbeskrivelse || valMap.beskrivelse || "";
+
     // Build email based on type
     let subject = "";
     let bodyHtml = "";
     let recipients: string[] = [];
-
-    const kundenavn = valMap.kundenavn || summary.kundenavn || "Ukjent kunde";
-    const oppdragstittel = valMap.oppdragstittel || summary.oppdragstittel || "Uten tittel";
-    const hastegrad = valMap.hastegrad || summary.hastegrad || "Normal";
-    const bestillingstype = submission.requester_type === "internal" ? "Intern" : "Ekstern";
-    const priorityEmoji = hastegrad === "Kritisk stopp" ? "🔴" : hastegrad === "Høy" ? "🟠" : "";
 
     if (notification_type === "new_order") {
       subject = `${priorityEmoji ? priorityEmoji + " " : ""}[Ny bestilling] ${submission.submission_no} | ${kundenavn} | ${hastegrad}`;
@@ -84,18 +93,19 @@ Deno.serve(async (req) => {
 
       bodyHtml = buildNewOrderEmail({
         submissionNo: submission.submission_no,
+        templateName: template?.name || "Bestillingsskjema",
         kundenavn,
         oppdragstittel,
         hastegrad,
         bestillingstype,
-        onsketDato: valMap.onsket_utfort_dato || "Ikke angitt",
-        bestillerNavn: valMap.bestiller_navn || summary.bestiller_navn || "Ikke angitt",
-        bestillerEpost: valMap.bestiller_epost || "",
-        bestillerTelefon: valMap.bestiller_telefon || "",
-        anleggsadresse: valMap.anleggsadresse || "",
-        materialansvar: valMap.materialansvar || "Ikke angitt",
-        referanse: valMap.referanse_po || valMap.midlertidig_referanse || "Ikke angitt",
-        arbeidsbeskrivelse: valMap.detaljert_arbeidsbeskrivelse || "",
+        onsketDato,
+        bestillerNavn,
+        bestillerEpost,
+        bestillerTelefon,
+        anleggsadresse,
+        materialansvar,
+        referanse,
+        arbeidsbeskrivelse,
         attachments: attachments || [],
         detailUrl,
         qualityScore: submission.quality_score,
@@ -107,7 +117,6 @@ Deno.serve(async (req) => {
         .eq("id", submission_id);
 
     } else if (notification_type === "confirmation") {
-      const bestillerEpost = valMap.bestiller_epost;
       if (!bestillerEpost) {
         console.log("NO_BESTILLER_EMAIL", { submission_id });
         return json({ success: false, reason: "no_bestiller_email" });
@@ -128,7 +137,6 @@ Deno.serve(async (req) => {
         .eq("id", submission_id);
 
     } else if (notification_type === "missing_info") {
-      const bestillerEpost = valMap.bestiller_epost;
       if (!bestillerEpost) {
         return json({ success: false, reason: "no_bestiller_email" });
       }
@@ -207,7 +215,7 @@ function json(data: any, status = 200) {
 // ── Email builders ──
 
 function buildNewOrderEmail(p: {
-  submissionNo: string; kundenavn: string; oppdragstittel: string;
+  submissionNo: string; templateName: string; kundenavn: string; oppdragstittel: string;
   hastegrad: string; bestillingstype: string; onsketDato: string;
   bestillerNavn: string; bestillerEpost: string; bestillerTelefon: string;
   anleggsadresse: string; materialansvar: string; referanse: string;
@@ -228,6 +236,7 @@ function buildNewOrderEmail(p: {
   <div style="background:${hasteBg};border-radius:8px;padding:16px;margin-bottom:16px;">
     <h2 style="margin:0 0 4px;color:${hasteFg};font-size:18px;">Ny bestilling: ${p.submissionNo}</h2>
     <p style="margin:0;color:${hasteFg};font-size:14px;">${p.kundenavn} · ${p.oppdragstittel}</p>
+    <p style="margin:4px 0 0;color:${hasteFg};font-size:12px;opacity:0.8;">Skjema: ${p.templateName}</p>
   </div>
   <div style="display:flex;gap:8px;margin-bottom:16px;">
     <span style="background:${hasteBg};color:${hasteFg};padding:4px 10px;border-radius:4px;font-size:12px;font-weight:600;">${p.hastegrad}</span>

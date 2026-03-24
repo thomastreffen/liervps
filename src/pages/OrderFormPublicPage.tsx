@@ -175,6 +175,19 @@ export default function OrderFormPublicPage() {
         payload: { source: "external" },
       });
 
+      // Auto-send notification to postkontor (fire-and-forget)
+      supabase.functions.invoke("order-form-notify", {
+        body: { submission_id: submissionId, notification_type: "new_order" },
+      }).catch((err) => console.error("Auto-notify failed:", err));
+
+      // Auto-send confirmation to bestiller if email provided
+      const bestillerEpost = formData.bestiller_epost || formData.epost_kunde || formData.epost;
+      if (bestillerEpost) {
+        supabase.functions.invoke("order-form-notify", {
+          body: { submission_id: submissionId, notification_type: "confirmation" },
+        }).catch((err) => console.error("Auto-confirm failed:", err));
+      }
+
       setSubmissionNo(subData?.submission_no || null);
       setSubmitted(true);
     } catch (err: any) {
