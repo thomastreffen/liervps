@@ -3,8 +3,8 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import {
-  ArrowLeft, MessageSquare, Clock, Paperclip, User, AlertTriangle,
-  ArrowRight, FileText, Download, ExternalLink,
+  ArrowLeft, MessageSquare, Clock, Paperclip, AlertTriangle,
+  ArrowRight, FileText, Download, Mail, MailCheck, MailX, ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -182,11 +182,35 @@ export default function OrderFormDetailPage() {
     },
   });
 
+  const sendNotification = useMutation({
+    mutationFn: async (type: string) => {
+      const { data, error } = await supabase.functions.invoke("order-form-notify", {
+        body: { submission_id: id, notification_type: type },
+      });
+      if (error) throw error;
+      if (data && !data.success) throw new Error(data.error || data.reason || "Sending feilet");
+      return data;
+    },
+    onSuccess: (_, type) => {
+      qc.invalidateQueries({ queryKey: ["order-form-submission", id] });
+      qc.invalidateQueries({ queryKey: ["order-form-activity", id] });
+      const labels: Record<string, string> = {
+        new_order: "Varsling sendt til postkontor",
+        confirmation: "Bekreftelse sendt til bestiller",
+      };
+      toast.success(labels[type] || "E-post sendt");
+    },
+    onError: (err: any) => {
+      toast.error("E-postsending feilet: " + (err.message || "Ukjent feil"));
+    },
+  });
+
   if (isLoading) return <div className="p-6 text-center text-muted-foreground">Laster...</div>;
   if (!submission) return <div className="p-6 text-center text-muted-foreground">Ikke funnet</div>;
 
   const statusConfig = ORDER_STATUS_CONFIG[submission.status as OrderFormSubmissionStatus];
   const priorityConfig = ORDER_PRIORITY_CONFIG[submission.priority];
+  const sub = submission as any;
 
   const eventTypeLabels: Record<string, string> = {
     submitted: "Bestilling innsendt",
@@ -196,6 +220,8 @@ export default function OrderFormDetailPage() {
     converted_to_case: "Konvertert til sak",
     converted_to_order: "Konvertert til oppdrag",
     notification_sent: "E-postvarsling sendt",
+    notification_failed: "E-postsending feilet",
+    exported_to_tripletex: "Eksportert til Tripletex",
   };
 
   // Group attachments by category
@@ -205,6 +231,10 @@ export default function OrderFormDetailPage() {
     if (!attByCategory[cat]) attByCategory[cat] = [];
     attByCategory[cat].push(a);
   });
+
+  const hasNotification = !!sub.notification_sent_at;
+  const hasConfirmation = !!sub.confirmation_sent_at;
+  const hasError = !!sub.notification_error;
 
   return (
     <div className="space-y-6 p-6 max-w-6xl mx-auto">
@@ -223,7 +253,7 @@ export default function OrderFormDetailPage() {
             <QualityBadge score={qualityResult.score} />
           </div>
           <p className="text-sm text-muted-foreground mt-0.5">
-            {(submission as any).order_form_templates?.name} ·{" "}
+            {sub.order_form_templates?.name} ·{" "}
             {format(new Date(submission.submitted_at), "d. MMMM yyyy HH:mm", { locale: nb })}
             {submission.requester_type === "internal" && " · Intern bestilling"}
           </p>
@@ -263,25 +293,77 @@ export default function OrderFormDetailPage() {
           <AlertTriangle className="h-3.5 w-3.5 mr-1" />
           Be om mer info
         </Button>
-        <Button variant="outline" size="sm" onClick={() => setConvertOpen(true)}>
+        <Button variant="outline" size="sm" onClick={() => setConvertOpen(true)} disabled={!!sub.converted_to_id}>
           <ArrowRight className="h-3.5 w-3.5 mr-1" />
           Konverter
         </Button>
         <Button variant="outline" size="sm" onClick={() => setTripletexOpen(true)}>
           <Download className="h-3.5 w-3.5 mr-1" />
-          Tripletex-eksport
+          Tripletex
         </Button>
+        <Button
+          variant="outline" size="sm"
+          onClick={() => sendNotification.mutate("new_order")}
+          disabled={sendNotification.isPending}
+        >
+          <Mail className="h-3.5 w-3.5 mr-1" />
+          {hasNotification ? "Send på nytt" : "Send varsling"}
+        </Button>
+        {valuesMap.bestiller_epost && !hasConfirmation && (
+          <Button
+            variant="outline" size="sm"
+            onClick={() => sendNotification.mutate("confirmation")}
+            disabled={sendNotification.isPending}
+          >
+            <MailCheck className="h-3.5 w-3.5 mr-1" />
+            Send bekreftelse
+          </Button>
+        )}
+      </div>
+
+      {/* Email & conversion status indicators */}
+      <div className="flex flex-wrap gap-2">
+        {hasNotification && (
+          <Badge variant="outline" className="text-[10px] bg-green-50 text-green-700 border-green-200">
+            <MailCheck className="h-3 w-3 mr-1" />
+            Varsling sendt {format(new Date(sub.notification_sent_at), "d. MMM HH:mm", { locale: nb })}
+          </Badge>
+        )}
+        {hasConfirmation && (
+          <Badge variant="outline" className="text-[10px] bg-blue-50 text-blue-700 border-blue-200">
+            <MailCheck className="h-3 w-3 mr-1" />
+            Bekreftelse sendt {format(new Date(sub.confirmation_sent_at), "d. MMM HH:mm", { locale: nb })}
+          </Badge>
+        )}
+        {hasError && (
+          <Badge variant="outline" className="text-[10px] bg-red-50 text-red-700 border-red-200">
+            <MailX className="h-3 w-3 mr-1" />
+            E-postfeil: {sub.notification_error?.substring(0, 60)}
+          </Badge>
+        )}
+        {sub.converted_to_type && (
+          <Badge variant="outline" className="text-[10px] bg-green-50 text-green-700 border-green-200">
+            <ArrowRight className="h-3 w-3 mr-1" />
+            Konvertert til {sub.converted_to_type === "case" ? "sak" : "oppdrag"}
+            {sub.converted_to_id && (
+              <button
+                className="ml-1 underline"
+                onClick={() => {
+                  const url = sub.converted_to_type === "case"
+                    ? `/cases/${sub.converted_to_id}`
+                    : `/projects/plan?openTask=${sub.converted_to_id}`;
+                  navigate(url);
+                }}
+              >
+                <ExternalLink className="h-3 w-3 inline" />
+              </button>
+            )}
+          </Badge>
+        )}
       </div>
 
       {/* Quality issues panel */}
       <QualityIssuesPanel result={qualityResult} />
-
-      {submission.converted_to_type && (
-        <div className="rounded-lg bg-green-50 border border-green-200 p-3 text-sm text-green-800">
-          Denne bestillingen er konvertert til{" "}
-          <strong>{submission.converted_to_type === "case" ? "sak" : "oppdrag"}</strong>.
-        </div>
-      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main content: Sections with field values */}
@@ -424,6 +506,9 @@ export default function OrderFormDetailPage() {
                       {a.payload?.from && a.payload?.to && (
                         <> · {ORDER_STATUS_CONFIG[a.payload.from as OrderFormSubmissionStatus]?.label || a.payload.from} → {ORDER_STATUS_CONFIG[a.payload.to as OrderFormSubmissionStatus]?.label || a.payload.to}</>
                       )}
+                      {a.payload?.recipients && (
+                        <> · {(a.payload.recipients as string[]).join(", ")}</>
+                      )}
                       <br />
                       {format(new Date(a.created_at), "d. MMM HH:mm", { locale: nb })}
                     </div>
@@ -446,6 +531,8 @@ export default function OrderFormDetailPage() {
         onOpenChange={setConvertOpen}
         submissionId={id!}
         summary={submission.summary as Record<string, any> | null}
+        values={valuesMap}
+        submissionNo={submission.submission_no}
       />
       <TripletexExportPanel
         open={tripletexOpen}

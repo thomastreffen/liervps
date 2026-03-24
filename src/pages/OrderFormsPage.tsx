@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Search, ClipboardList, Paperclip, AlertTriangle } from "lucide-react";
+import { Plus, Search, ClipboardList, AlertTriangle, Mail, MailX, ArrowRight, Download } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompanyContext } from "@/hooks/useCompanyContext";
@@ -42,6 +42,7 @@ export default function OrderFormsPage() {
   const { activeCompanyId } = useCompanyContext();
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [qualityFilter, setQualityFilter] = useState<string>("all");
+  const [extraFilter, setExtraFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState<string>("newest");
 
@@ -93,10 +94,24 @@ export default function OrderFormsPage() {
         if (!match) return false;
       }
       if (qualityFilter !== "all" && s.quality_score !== qualityFilter) return false;
+      
+      // Extra filters
+      if (extraFilter === "not_notified" && s.notification_sent_at) return false;
+      if (extraFilter === "not_converted" && s.converted_to_type) return false;
+      if (extraFilter === "exported" && !s.converted_to_type) {
+        // check activity log - simplified: show those already converted
+        return false;
+      }
+      if (extraFilter === "needs_action") {
+        const isNew = s.status === "new";
+        const isMissing = s.status === "missing_info";
+        const isRed = s.quality_score === "red";
+        if (!isNew && !isMissing && !isRed) return false;
+      }
+      
       return true;
     });
 
-    // Sort
     if (sortBy === "priority") {
       const priorityOrder: Record<string, number> = { critical: 0, high: 1, normal: 2, low: 3 };
       result = [...result].sort((a: any, b: any) =>
@@ -110,13 +125,18 @@ export default function OrderFormsPage() {
     }
 
     return result;
-  }, [submissions, search, qualityFilter, sortBy]);
+  }, [submissions, search, qualityFilter, sortBy, extraFilter]);
 
   // Status counts
   const statusCounts: Record<string, number> = {};
   submissions.forEach((s: any) => {
     statusCounts[s.status] = (statusCounts[s.status] || 0) + 1;
   });
+
+  // Needs action count
+  const needsActionCount = submissions.filter((s: any) =>
+    s.status === "new" || s.status === "missing_info" || s.quality_score === "red"
+  ).length;
 
   return (
     <div className="space-y-6 p-6 max-w-7xl mx-auto">
@@ -126,6 +146,9 @@ export default function OrderFormsPage() {
           <h1 className="text-2xl font-bold text-foreground">Bestillinger</h1>
           <p className="text-sm text-muted-foreground mt-1">
             {submissions.length} bestillinger totalt
+            {needsActionCount > 0 && (
+              <span className="text-amber-600 font-medium"> · {needsActionCount} krever handling</span>
+            )}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -184,6 +207,17 @@ export default function OrderFormsPage() {
             <SelectItem value="red">🔴 Utilstrekkelig</SelectItem>
             <SelectItem value="yellow">🟡 Noe mangler</SelectItem>
             <SelectItem value="green">🟢 Komplett</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={extraFilter} onValueChange={setExtraFilter}>
+          <SelectTrigger className="w-48">
+            <SelectValue placeholder="Vis" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Alle</SelectItem>
+            <SelectItem value="needs_action">Krever handling</SelectItem>
+            <SelectItem value="not_notified">Ikke varslet</SelectItem>
+            <SelectItem value="not_converted">Ikke konvertert</SelectItem>
           </SelectContent>
         </Select>
         <Select value={sortBy} onValueChange={setSortBy}>
@@ -248,7 +282,17 @@ export default function OrderFormsPage() {
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-3 shrink-0">
+                    <div className="flex items-center gap-2 shrink-0">
+                      {/* Status indicators */}
+                      {sub.notification_sent_at && (
+                        <Mail className="h-3.5 w-3.5 text-green-500" title="Varsling sendt" />
+                      )}
+                      {sub.notification_error && !sub.notification_sent_at && (
+                        <MailX className="h-3.5 w-3.5 text-red-500" title="E-postfeil" />
+                      )}
+                      {sub.converted_to_type && (
+                        <ArrowRight className="h-3.5 w-3.5 text-green-500" title="Konvertert" />
+                      )}
                       <Badge className={`text-[10px] ${statusConfig?.color || ""}`}>
                         {statusConfig?.label || sub.status}
                       </Badge>
