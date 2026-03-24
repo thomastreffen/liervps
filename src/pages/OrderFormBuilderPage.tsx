@@ -187,6 +187,7 @@ export default function OrderFormBuilderPage() {
       field_type: f.type,
       is_required: f.is_required || false,
       options: f.options || null,
+      help_text: f.help_text || null,
       sort_order: maxOrder + 1 + i,
     }));
 
