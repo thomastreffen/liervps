@@ -13,60 +13,17 @@ interface BuilderPreviewProps {
   templateTitle: string;
 }
 
+/* Width classes — MUST match BuilderCanvas exactly */
 function getWidthStyle(w: string): string {
   switch (w) {
-    case "half": return "w-full sm:w-1/2";
-    case "third": return "w-full sm:w-1/3";
-    case "two_thirds": return "w-full sm:w-2/3";
+    case "half": return "w-full sm:w-[calc(50%-6px)]";
+    case "third": return "w-full sm:w-[calc(33.333%-8px)]";
+    case "two_thirds": return "w-full sm:w-[calc(66.666%-4px)]";
     default: return "w-full";
   }
 }
 
-export function BuilderPreview({ sections, templateTitle }: BuilderPreviewProps) {
-  return (
-    <div className="h-full overflow-y-auto bg-muted/20 p-4">
-      <div className="max-w-2xl mx-auto space-y-4">
-        <div className="text-center pb-2">
-          <h2 className="text-lg font-bold">{templateTitle || "Skjema"}</h2>
-          <p className="text-xs text-muted-foreground">Forhåndsvisning</p>
-        </div>
-
-        {sections.filter((s) => s.is_active !== false).map((section) => {
-          const fields = (section.fields || []).filter((f: any) => f.is_active !== false);
-          if (fields.length === 0) return null;
-
-          // Group into visual rows
-          const rows = groupFieldsIntoRows(fields);
-
-          return (
-            <Card key={section.id}>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm">{section.title}</CardTitle>
-                {section.description && (
-                  <p className="text-xs text-muted-foreground">{section.description}</p>
-                )}
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {rows.map((row, rIdx) => (
-                    <div key={rIdx} className="flex flex-wrap gap-x-3 gap-y-4">
-                      {row.map((field: any) => (
-                        <div key={field.id} className={getWidthStyle(field.field_width || "full")} style={{ minWidth: 0 }}>
-                          <PreviewField field={field} />
-                        </div>
-                      ))}
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
+/* Row grouping — MUST match BuilderCanvas exactly */
 function groupFieldsIntoRows(fields: any[]): any[][] {
   const rows: any[][] = [];
   let currentRow: any[] = [];
@@ -74,7 +31,7 @@ function groupFieldsIntoRows(fields: any[]): any[][] {
 
   for (const field of fields) {
     const w = field.field_width || "full";
-    const fraction = w === "half" ? 0.5 : w === "third" ? 0.33 : w === "two_thirds" ? 0.66 : 1;
+    const fraction = w === "half" ? 0.5 : w === "third" ? 1 / 3 : w === "two_thirds" ? 2 / 3 : 1;
 
     if (currentRowWidth + fraction > 1.01 && currentRow.length > 0) {
       rows.push(currentRow);
@@ -92,6 +49,49 @@ function groupFieldsIntoRows(fields: any[]): any[][] {
   }
   if (currentRow.length > 0) rows.push(currentRow);
   return rows;
+}
+
+export function BuilderPreview({ sections, templateTitle }: BuilderPreviewProps) {
+  return (
+    <div className="h-full overflow-y-auto bg-muted/20 p-4">
+      <div className="max-w-2xl mx-auto space-y-5 py-4">
+        <div className="text-center pb-2">
+          <h2 className="text-lg font-bold">{templateTitle || "Skjema"}</h2>
+          <p className="text-xs text-muted-foreground">Forhåndsvisning</p>
+        </div>
+
+        {sections.filter((s) => s.is_active !== false).map((section) => {
+          const fields = (section.fields || []).filter((f: any) => f.is_active !== false);
+          if (fields.length === 0) return null;
+          const rows = groupFieldsIntoRows(fields);
+
+          return (
+            <Card key={section.id}>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm">{section.title}</CardTitle>
+                {section.description && (
+                  <p className="text-xs text-muted-foreground">{section.description}</p>
+                )}
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {rows.map((row, rIdx) => (
+                    <div key={rIdx} className="flex flex-wrap gap-3">
+                      {row.map((field: any) => (
+                        <div key={field.id} className={getWidthStyle(field.field_width || "full")} style={{ minWidth: 0 }}>
+                          <PreviewField field={field} />
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
 
 function PreviewField({ field }: { field: any }) {
@@ -133,7 +133,7 @@ function PreviewField({ field }: { field: any }) {
         );
       case "radio":
         return (
-          <RadioGroup disabled className="space-y-1.5">
+          <RadioGroup disabled className="flex flex-wrap gap-x-4 gap-y-1.5">
             {options.map((o) => (
               <div key={o} className="flex items-center gap-2">
                 <RadioGroupItem value={o} disabled />
@@ -151,7 +151,7 @@ function PreviewField({ field }: { field: any }) {
         );
       case "checkbox_list": case "multi_select":
         return (
-          <div className="space-y-1.5">
+          <div className="flex flex-wrap gap-x-4 gap-y-1.5">
             {options.map((o) => (
               <div key={o} className="flex items-center gap-2">
                 <Checkbox disabled />
