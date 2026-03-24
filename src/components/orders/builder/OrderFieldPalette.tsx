@@ -154,10 +154,10 @@ const FIELD_BLOCKS: FieldBlock[] = [
     icon: Upload,
     description: "Tegninger, bilder, materialliste, FDV",
     fields: [
-      { label: "Tegninger", type: "file_upload", field_key: "vedlegg_tegninger", help_text: "Last opp reviderte tegninger" },
-      { label: "Bilder", type: "image_upload", field_key: "vedlegg_bilder", help_text: "Last opp relevante bilder fra anlegget" },
-      { label: "Materialliste", type: "file_upload", field_key: "vedlegg_materialliste", help_text: "Last opp materialliste hvis tilgjengelig" },
-      { label: "FDV-dokumentasjon", type: "file_upload", field_key: "vedlegg_fdv", help_text: "Last opp FDV-dokumentasjon" },
+      { label: "Tegninger", type: "file_upload", field_key: "vedlegg_tegninger", help_text: "Last opp reviderte tegninger", field_width: "half" },
+      { label: "Bilder", type: "image_upload", field_key: "vedlegg_bilder", help_text: "Last opp relevante bilder fra anlegget", field_width: "half" },
+      { label: "Materialliste", type: "file_upload", field_key: "vedlegg_materialliste", help_text: "Last opp materialliste hvis tilgjengelig", field_width: "half" },
+      { label: "FDV-dokumentasjon", type: "file_upload", field_key: "vedlegg_fdv", help_text: "Last opp FDV-dokumentasjon", field_width: "half" },
     ],
   },
   {
