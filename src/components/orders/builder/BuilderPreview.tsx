@@ -1,0 +1,156 @@
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Upload, Info } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import type { OrderFormFieldType } from "@/types/order-forms";
+
+interface BuilderPreviewProps {
+  sections: any[];
+  templateTitle: string;
+}
+
+export function BuilderPreview({ sections, templateTitle }: BuilderPreviewProps) {
+  return (
+    <div className="h-full overflow-y-auto bg-muted/20 p-4">
+      <div className="max-w-2xl mx-auto space-y-4">
+        <div className="text-center pb-2">
+          <h2 className="text-lg font-bold">{templateTitle || "Skjema"}</h2>
+          <p className="text-xs text-muted-foreground">Forhåndsvisning</p>
+        </div>
+
+        {sections.filter((s) => s.is_active !== false).map((section) => {
+          const fields = (section.fields || []).filter((f: any) => f.is_active !== false);
+          if (fields.length === 0) return null;
+
+          return (
+            <Card key={section.id}>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm">{section.title}</CardTitle>
+                {section.description && (
+                  <p className="text-xs text-muted-foreground">{section.description}</p>
+                )}
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {fields.map((field: any) => (
+                    <PreviewField key={field.id} field={field} />
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function PreviewField({ field }: { field: any }) {
+  const options: string[] = Array.isArray(field.options)
+    ? field.options.map((o: any) => typeof o === "string" ? o : o.label || o.value)
+    : [];
+
+  if (field.field_type === "section_header") {
+    return <h3 className="text-sm font-semibold text-foreground pt-2">{field.label}</h3>;
+  }
+
+  if (field.field_type === "info_box") {
+    return (
+      <div className="rounded-lg bg-blue-50 border border-blue-100 p-3 flex items-start gap-2">
+        <Info className="h-4 w-4 text-blue-500 mt-0.5 shrink-0" />
+        <p className="text-xs text-blue-700">{field.help_text || field.label}</p>
+      </div>
+    );
+  }
+
+  const renderInput = () => {
+    switch (field.field_type as OrderFormFieldType) {
+      case "short_text": case "email": case "phone": case "address": case "org_number":
+        return <Input placeholder={field.placeholder || ""} disabled className="h-8 text-sm" />;
+      case "long_text":
+        return <Textarea placeholder={field.placeholder || ""} disabled className="text-sm min-h-[60px]" />;
+      case "number":
+        return <Input type="number" placeholder={field.placeholder || ""} disabled className="h-8 text-sm" />;
+      case "date":
+        return <Input type="date" disabled className="h-8 text-sm" />;
+      case "time": case "time_window":
+        return <Input type="time" disabled className="h-8 text-sm" />;
+      case "dropdown":
+        return (
+          <Select disabled>
+            <SelectTrigger className="h-8 text-sm"><SelectValue placeholder={field.placeholder || "Velg..."} /></SelectTrigger>
+            <SelectContent>{options.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
+          </Select>
+        );
+      case "radio":
+        return (
+          <RadioGroup disabled className="space-y-1.5">
+            {options.map((o) => (
+              <div key={o} className="flex items-center gap-2">
+                <RadioGroupItem value={o} disabled />
+                <span className="text-xs">{o}</span>
+              </div>
+            ))}
+          </RadioGroup>
+        );
+      case "yes_no":
+        return (
+          <div className="flex gap-3">
+            <div className="flex items-center gap-1.5"><RadioGroupItem value="ja" disabled /><span className="text-xs">Ja</span></div>
+            <div className="flex items-center gap-1.5"><RadioGroupItem value="nei" disabled /><span className="text-xs">Nei</span></div>
+          </div>
+        );
+      case "checkbox_list": case "multi_select":
+        return (
+          <div className="space-y-1.5">
+            {options.map((o) => (
+              <div key={o} className="flex items-center gap-2">
+                <Checkbox disabled />
+                <span className="text-xs">{o}</span>
+              </div>
+            ))}
+          </div>
+        );
+      case "file_upload": case "image_upload":
+        return (
+          <div className="rounded-lg border-2 border-dashed border-border/50 p-4 text-center">
+            <Upload className="h-5 w-5 text-muted-foreground/40 mx-auto mb-1" />
+            <p className="text-[10px] text-muted-foreground">
+              {field.field_type === "image_upload" ? "Last opp bilde" : "Last opp fil"}
+            </p>
+          </div>
+        );
+      case "customer_lookup": case "project_lookup": case "user_lookup":
+        return (
+          <Select disabled>
+            <SelectTrigger className="h-8 text-sm">
+              <SelectValue placeholder={
+                field.field_type === "customer_lookup" ? "Søk kunde..." :
+                field.field_type === "project_lookup" ? "Søk prosjekt..." : "Søk bruker..."
+              } />
+            </SelectTrigger>
+          </Select>
+        );
+      default:
+        return <Input disabled className="h-8 text-sm" />;
+    }
+  };
+
+  return (
+    <div>
+      <Label className="text-xs mb-1 flex items-center gap-1">
+        {field.label}
+        {field.is_required && <span className="text-destructive">*</span>}
+      </Label>
+      {field.help_text && (
+        <p className="text-[10px] text-muted-foreground mb-1">{field.help_text}</p>
+      )}
+      {renderInput()}
+    </div>
+  );
+}

@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import {
   ArrowLeft, MessageSquare, Clock, Paperclip, User, AlertTriangle,
-  ArrowRight, FileText, Download,
+  ArrowRight, FileText, Download, ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -31,6 +31,7 @@ import { QualityBadge } from "@/components/orders/QualityBadge";
 import { QualityIssuesPanel } from "@/components/orders/QualityIssuesPanel";
 import { RequestInfoDialog } from "@/components/orders/RequestInfoDialog";
 import { ConvertDialog } from "@/components/orders/ConvertDialog";
+import { TripletexExportPanel } from "@/components/orders/TripletexExportPanel";
 
 export default function OrderFormDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -40,6 +41,7 @@ export default function OrderFormDetailPage() {
   const [comment, setComment] = useState("");
   const [requestInfoOpen, setRequestInfoOpen] = useState(false);
   const [convertOpen, setConvertOpen] = useState(false);
+  const [tripletexOpen, setTripletexOpen] = useState(false);
 
   const { data: submission, isLoading } = useQuery({
     queryKey: ["order-form-submission", id],
@@ -265,6 +267,10 @@ export default function OrderFormDetailPage() {
           <ArrowRight className="h-3.5 w-3.5 mr-1" />
           Konverter
         </Button>
+        <Button variant="outline" size="sm" onClick={() => setTripletexOpen(true)}>
+          <Download className="h-3.5 w-3.5 mr-1" />
+          Tripletex-eksport
+        </Button>
       </div>
 
       {/* Quality issues panel */}
@@ -440,6 +446,14 @@ export default function OrderFormDetailPage() {
         onOpenChange={setConvertOpen}
         submissionId={id!}
         summary={submission.summary as Record<string, any> | null}
+      />
+      <TripletexExportPanel
+        open={tripletexOpen}
+        onOpenChange={setTripletexOpen}
+        submissionId={id!}
+        values={valuesMap}
+        summary={submission.summary as Record<string, any> | null}
+        submissionNo={submission.submission_no}
       />
     </div>
   );
