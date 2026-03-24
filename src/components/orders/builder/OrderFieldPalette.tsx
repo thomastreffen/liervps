@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import type { OrderFormFieldType } from "@/types/order-forms";
 
-const FIELD_ICONS: Record<OrderFormFieldType, React.ElementType> = {
+export const FIELD_ICONS: Record<OrderFormFieldType, React.ElementType> = {
   short_text: Type,
   long_text: AlignLeft,
   number: Hash,
@@ -37,7 +37,6 @@ const FIELD_ICONS: Record<OrderFormFieldType, React.ElementType> = {
 };
 
 // ── Business Presets ──
-// These create the correct underlying field type with a meaningful label & help text
 
 export interface BusinessPreset {
   id: string;
@@ -65,6 +64,11 @@ const BUSINESS_PRESETS: BusinessPreset[] = [
   { id: "materialansvar", label: "Materialansvar", icon: Package, fieldType: "radio", fieldKey: "materialansvar", helpText: "Angi hvem som skaffer materiell", options: ["Service skaffer alt", "Bestiller leverer alt", "Deles mellom partene"], isRequired: true },
   { id: "oensket_dato", label: "Ønsket utført dato", icon: Calendar, fieldType: "date", fieldKey: "oensket_dato", helpText: "Når ønsker du at arbeidet skal utføres?" },
 ];
+
+/** Look up a preset by id – used by canvas on drop */
+export function getPresetById(presetId: string): BusinessPreset | undefined {
+  return BUSINESS_PRESETS.find(p => p.id === presetId);
+}
 
 // ── Field Blocks ──
 
@@ -268,6 +272,11 @@ export function OrderFieldPalette({ onAddField, onAddBlock, activeSectionId }: O
     });
   };
 
+  const handleAdvancedClick = (type: OrderFormFieldType) => {
+    if (!activeSectionId) return;
+    onAddField(type, activeSectionId);
+  };
+
   return (
     <div className="h-full flex flex-col">
       {/* Header */}
@@ -332,8 +341,15 @@ export function OrderFieldPalette({ onAddField, onAddBlock, activeSectionId }: O
                     key={preset.id}
                     draggable
                     onDragStart={(e) => {
+                      // Store full preset data so canvas can pass it back
                       e.dataTransfer.setData("order-field-type", preset.fieldType);
-                      e.dataTransfer.setData("order-preset-id", preset.id);
+                      e.dataTransfer.setData("order-preset-data", JSON.stringify({
+                        label: preset.label,
+                        fieldKey: preset.fieldKey,
+                        helpText: preset.helpText,
+                        options: preset.options,
+                        isRequired: preset.isRequired,
+                      }));
                       e.dataTransfer.effectAllowed = "copy";
                     }}
                     onClick={() => handlePresetClick(preset)}
@@ -373,15 +389,13 @@ export function OrderFieldPalette({ onAddField, onAddBlock, activeSectionId }: O
                   key={block.id}
                   onClick={() => activeSectionId && onAddBlock(block, activeSectionId)}
                   disabled={!activeSectionId}
-                  className="w-full flex items-start gap-2.5 rounded-lg border border-border bg-card px-3 py-2.5 text-left hover:border-primary/30 hover:bg-primary/5 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="w-full flex items-start gap-2.5 rounded-lg border border-border bg-card px-2.5 py-2.5 text-left hover:border-primary/30 hover:bg-primary/5 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   <Icon className="h-4 w-4 text-primary/70 mt-0.5 shrink-0" />
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-xs font-semibold">{block.label}</span>
-                      <Badge variant="outline" className="text-[9px]">{block.fields.length} felt</Badge>
-                    </div>
-                    <p className="text-[10px] text-muted-foreground mt-0.5">{block.description}</p>
+                  <div className="flex-1 min-w-0">
+                    <span className="text-xs font-medium block">{block.label}</span>
+                    <span className="text-[10px] text-muted-foreground block">{block.description}</span>
+                    <span className="text-[9px] text-muted-foreground/60 mt-0.5 block">{block.fields.length} felt</span>
                   </div>
                 </button>
               );
@@ -389,70 +403,54 @@ export function OrderFieldPalette({ onAddField, onAddBlock, activeSectionId }: O
           </div>
         )}
 
-        {/* ── Advanced / generic fields tab ── */}
+        {/* ── Advanced tab ── */}
         {tab === "advanced" && (
-          <>
-            <p className="text-[10px] text-muted-foreground mb-2">
-              Generiske felttyper for avansert bruk. Velg «Bestillingsfelt» for vanlige felt med ferdig oppsett.
+          <div className="space-y-2">
+            <p className="text-[10px] text-muted-foreground mb-1">
+              Generiske felttyper for avansert bruk. Dra eller klikk for å legge til.
             </p>
             {ADVANCED_CATEGORIES.map((cat) => {
               const filtered = cat.types.filter(
                 (t) => !q || t.label.toLowerCase().includes(q) || t.description.toLowerCase().includes(q)
               );
               if (filtered.length === 0) return null;
-              const isOpen = advancedOpen[cat.label] !== false; // default open
+              const isOpen = advancedOpen[cat.label] !== false;
               return (
-                <Collapsible key={cat.label} open={isOpen} onOpenChange={(o) => setAdvancedOpen(prev => ({ ...prev, [cat.label]: o }))}>
-                  <CollapsibleTrigger className="flex items-center gap-1 w-full text-left mb-1">
-                    <ChevronRight className={`h-3 w-3 text-muted-foreground transition-transform ${isOpen ? "rotate-90" : ""}`} />
-                    <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-                      {cat.label}
-                    </span>
+                <Collapsible key={cat.label} open={isOpen} onOpenChange={(v) => setAdvancedOpen((p) => ({ ...p, [cat.label]: v }))}>
+                  <CollapsibleTrigger className="flex items-center gap-1.5 w-full text-[10px] font-semibold text-muted-foreground uppercase tracking-wider py-1 hover:text-foreground transition-colors">
+                    {isOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                    {cat.label}
                   </CollapsibleTrigger>
-                  <CollapsibleContent>
-                    <div className="space-y-1 ml-1">
-                      {filtered.map((ft) => {
-                        const Icon = FIELD_ICONS[ft.type];
-                        return (
-                          <button
-                            key={ft.type}
-                            draggable
-                            onDragStart={(e) => {
-                              e.dataTransfer.setData("order-field-type", ft.type);
-                              e.dataTransfer.effectAllowed = "copy";
-                            }}
-                            onClick={() => activeSectionId && onAddField(ft.type, activeSectionId)}
-                            disabled={!activeSectionId}
-                            className="w-full flex items-center gap-2 rounded-lg border border-border bg-card px-2.5 py-1.5 text-left hover:border-primary/30 hover:bg-primary/5 transition-all cursor-grab active:cursor-grabbing active:scale-[0.98] select-none disabled:opacity-40 disabled:cursor-not-allowed"
-                            title={ft.description}
-                          >
-                            <Icon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                            <div className="flex-1 min-w-0">
-                              <span className="text-xs font-medium block truncate">{ft.label}</span>
-                              <span className="text-[10px] text-muted-foreground block truncate">{ft.description}</span>
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
+                  <CollapsibleContent className="space-y-0.5 mt-1">
+                    {filtered.map((ft) => {
+                      const Icon = FIELD_ICONS[ft.type] || Type;
+                      return (
+                        <button
+                          key={ft.type}
+                          draggable
+                          onDragStart={(e) => {
+                            e.dataTransfer.setData("order-field-type", ft.type);
+                            e.dataTransfer.effectAllowed = "copy";
+                          }}
+                          onClick={() => handleAdvancedClick(ft.type)}
+                          disabled={!activeSectionId}
+                          className="w-full flex items-center gap-2 rounded-md px-2 py-1.5 text-left hover:bg-muted/60 transition-colors cursor-grab active:cursor-grabbing select-none disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                          <Icon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <span className="text-[11px] font-medium block truncate">{ft.label}</span>
+                            <span className="text-[9px] text-muted-foreground block truncate">{ft.description}</span>
+                          </div>
+                        </button>
+                      );
+                    })}
                   </CollapsibleContent>
                 </Collapsible>
               );
             })}
-          </>
+          </div>
         )}
       </div>
-
-      {/* Footer hint */}
-      {!activeSectionId && (
-        <div className="p-3 border-t border-border">
-          <p className="text-[10px] text-muted-foreground text-center">
-            Velg en seksjon i skjemaet for å legge til felt
-          </p>
-        </div>
-      )}
     </div>
   );
 }
-
-export { FIELD_ICONS, FIELD_BLOCKS, BUSINESS_PRESETS };
