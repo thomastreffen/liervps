@@ -236,6 +236,7 @@ function buildNewOrderEmail(p: {
   <div style="background:${hasteBg};border-radius:8px;padding:16px;margin-bottom:16px;">
     <h2 style="margin:0 0 4px;color:${hasteFg};font-size:18px;">Ny bestilling: ${p.submissionNo}</h2>
     <p style="margin:0;color:${hasteFg};font-size:14px;">${p.kundenavn} · ${p.oppdragstittel}</p>
+    <p style="margin:4px 0 0;color:${hasteFg};font-size:12px;opacity:0.8;">Skjema: ${p.templateName}</p>
   </div>
   <div style="display:flex;gap:8px;margin-bottom:16px;">
     <span style="background:${hasteBg};color:${hasteFg};padding:4px 10px;border-radius:4px;font-size:12px;font-weight:600;">${p.hastegrad}</span>
