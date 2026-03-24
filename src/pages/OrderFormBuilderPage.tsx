@@ -468,7 +468,7 @@ function PublishLinkActions({ slug, audienceType }: { slug: string; audienceType
   );
 }
 
-
+function TemplateSettingsForm({ template, onSave }: { template: any; onSave: (u: any) => void }) {
   const [form, setForm] = useState({
     name: template.name || "",
     internal_title: template.internal_title || "",
