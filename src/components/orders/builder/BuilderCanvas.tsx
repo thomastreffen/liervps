@@ -23,6 +23,22 @@ interface PresetData {
   fieldWidth?: string;
 }
 
+interface BlockData {
+  id: string;
+  label: string;
+  description: string;
+  previewLayout: string;
+  fields: Array<{
+    label: string;
+    type: OrderFormFieldType;
+    field_key: string;
+    is_required?: boolean;
+    help_text?: string;
+    options?: string[];
+    field_width?: string;
+  }>;
+}
+
 interface BuilderCanvasProps {
   sections: any[];
   selectedFieldId: string | null;
@@ -36,6 +52,7 @@ interface BuilderCanvasProps {
   onMoveSection: (fromIdx: number, toIdx: number) => void;
   onMoveField: (fieldId: string, fromSectionId: string, toSectionId: string, toIndex: number) => void;
   onDropNewField: (type: OrderFormFieldType, sectionId: string, index: number, preset?: PresetData) => void;
+  onDropNewBlock: (block: BlockData, sectionId: string, index: number) => void;
   templateTitle: string;
 }
 
@@ -191,7 +208,7 @@ export function BuilderCanvas({
   sections, selectedFieldId, selectedSectionId,
   onSelectField, onSelectSection, onAddSection,
   onToggleFieldRequired, onToggleFieldActive, onToggleSectionActive,
-  onMoveSection, onMoveField, onDropNewField, templateTitle,
+  onMoveSection, onMoveField, onDropNewField, onDropNewBlock, templateTitle,
 }: BuilderCanvasProps) {
   const [expandedSections, setExpandedSections] = useState<Set<string>>(
     new Set(sections.map((s) => s.id))
@@ -240,9 +257,10 @@ export function BuilderCanvas({
     e.stopPropagation();
     handleAutoScroll(e.clientY);
     const isNew = e.dataTransfer.types.includes("order-field-type");
+    const isBlock = e.dataTransfer.types.includes("order-block-data");
     const isMove = e.dataTransfer.types.includes("move-field");
-    if (!isNew && !isMove) return;
-    e.dataTransfer.dropEffect = isNew ? "copy" : "move";
+    if (!isNew && !isMove && !isBlock) return;
+    e.dataTransfer.dropEffect = isMove ? "move" : "copy";
     const idx = computeDropIndex(e, e.currentTarget as HTMLElement, fields);
     setDropTarget(prev => {
       if (prev?.sectionId === sectionId && prev?.index === idx) return prev;
@@ -265,16 +283,23 @@ export function BuilderCanvas({
       return;
     }
 
+    const blockRaw = e.dataTransfer.getData("order-block-data");
+    if (blockRaw) {
+      const block: BlockData = JSON.parse(blockRaw);
+      onDropNewBlock(block, sectionId, idx);
+      return;
+    }
+
     const moveData = e.dataTransfer.getData("move-field");
     if (moveData) {
       const { fieldId, fromSectionId } = JSON.parse(moveData);
       onMoveField(fieldId, fromSectionId, sectionId, idx);
     }
-  }, [dropTarget, onDropNewField, onMoveField]);
+  }, [dropTarget, onDropNewBlock, onDropNewField, onMoveField]);
 
   return (
     <div ref={scrollRef} className="h-full overflow-y-auto bg-muted/20">
-      <div className="max-w-2xl mx-auto pt-6 pb-12 px-4">
+      <div className="max-w-4xl mx-auto pt-6 pb-12 px-6">
         {/* Form title */}
         <div className="text-center mb-6">
           <h2 className="text-lg font-bold text-foreground">{templateTitle || "Nytt skjema"}</h2>
@@ -284,7 +309,7 @@ export function BuilderCanvas({
         </div>
 
         {/* Sections rendered as form cards */}
-        <div className="space-y-5">
+        <div className="space-y-6">
           {sections.map((section, sIdx) => {
             const isExpanded = expandedSections.has(section.id);
             const isSelected = selectedSectionId === section.id && !selectedFieldId;
@@ -294,13 +319,13 @@ export function BuilderCanvas({
             return (
               <div
                 key={section.id}
-                className={`rounded-2xl border bg-card transition-all ${
-                  isSelected ? "border-primary ring-2 ring-primary/10 shadow-md" : "border-border/40 shadow-sm"
+                className={`rounded-3xl border bg-card transition-all ${
+                  isSelected ? "border-primary ring-2 ring-primary/10 shadow-[var(--shadow-card)]" : "border-border/40 shadow-sm"
                 } ${section.is_active === false ? "opacity-40" : ""}`}
                 onClick={(e) => { e.stopPropagation(); onSelectSection(section.id); }}
               >
                 {/* Section header — compact, clean */}
-                <div className="flex items-center gap-2 px-5 py-3 border-b border-border/20">
+                <div className="flex items-center gap-2 px-6 py-4 border-b border-border/20 bg-muted/20 rounded-t-3xl">
                   <button
                     onClick={(e) => { e.stopPropagation(); toggleExpand(section.id); }}
                     className="text-muted-foreground hover:text-foreground transition-colors"
@@ -323,8 +348,8 @@ export function BuilderCanvas({
                 {/* Field area */}
                 {isExpanded && (
                   <div
-                    className={`px-5 py-4 transition-colors min-h-[80px] ${
-                      dropTarget?.sectionId === section.id ? "bg-primary/[0.02]" : ""
+                    className={`px-6 py-5 transition-colors min-h-[120px] ${
+                      dropTarget?.sectionId === section.id ? "bg-primary/[0.04]" : ""
                     }`}
                     onDragOver={(e) => handleDragOver(e, section.id, fields)}
                     onDrop={(e) => handleDrop(e, section.id, fields)}
@@ -334,9 +359,9 @@ export function BuilderCanvas({
                   >
                     {fields.length === 0 ? (
                       <div
-                        className={`rounded-xl border-2 border-dashed p-8 text-center transition-all ${
+                          className={`rounded-2xl border-2 border-dashed p-10 text-center transition-all ${
                           dropTarget?.sectionId === section.id
-                            ? "border-primary bg-primary/5"
+                              ? "border-primary bg-primary/5 shadow-sm"
                             : "border-border/30 hover:border-border/50"
                         }`}
                       >
@@ -346,12 +371,14 @@ export function BuilderCanvas({
                         </p>
                       </div>
                     ) : (
-                      <div className="space-y-3">
+                        <div className="space-y-4">
                         {groupFieldsIntoRows(fields).map((row, rIdx) => (
                           <div key={rIdx}>
                             {/* Drop indicator line */}
                             {dropTarget?.sectionId === section.id && dropTarget.index === row.startIndex && (
-                              <div className="h-0.5 bg-primary rounded-full mx-1 mb-2 animate-pulse" />
+                                <div className="rounded-2xl border-2 border-dashed border-primary bg-primary/5 px-4 py-3 mb-3 text-xs text-primary font-medium animate-pulse">
+                                  Slipp her i {section.title}
+                                </div>
                             )}
 
                             <div className="flex flex-wrap gap-3">
@@ -376,10 +403,10 @@ export function BuilderCanvas({
                                       }}
                                       onDragEnd={() => { setDraggingFieldId(null); setDropTarget(null); }}
                                       onClick={(e) => { e.stopPropagation(); onSelectField(field.id, section.id); }}
-                                      className={`relative rounded-xl px-3 py-2.5 transition-all group ${
+                                      className={`relative rounded-2xl px-4 py-3 transition-all group bg-background/80 ${
                                         isFieldSelected
-                                          ? "ring-2 ring-primary/30 bg-primary/[0.03] border border-primary/20"
-                                          : "border border-transparent hover:border-border/50 hover:bg-muted/30"
+                                          ? "ring-2 ring-primary/30 bg-primary/[0.03] border border-primary/20 shadow-sm"
+                                          : "border border-border/30 hover:border-border/60 hover:bg-muted/20"
                                       } ${!field.is_active ? "opacity-25" : ""} ${
                                         isDragging ? "opacity-20 scale-95" : ""
                                       } cursor-grab active:cursor-grabbing`}
@@ -419,7 +446,9 @@ export function BuilderCanvas({
 
                         {/* Drop indicator after last field */}
                         {dropTarget?.sectionId === section.id && dropTarget.index >= fields.length && (
-                          <div className="h-0.5 bg-primary rounded-full mx-1 mt-1 animate-pulse" />
+                          <div className="rounded-2xl border-2 border-dashed border-primary bg-primary/5 px-4 py-3 mt-2 text-xs text-primary font-medium animate-pulse">
+                            Slipp nederst i {section.title}
+                          </div>
                         )}
                       </div>
                     )}

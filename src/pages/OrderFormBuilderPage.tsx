@@ -196,9 +196,23 @@ export default function OrderFormBuilderPage() {
     invalidate();
   }, [sections, id]);
 
-  const addBlockToSection = useCallback(async (block: FieldBlock, sectionId: string) => {
+  const addBlockToSection = useCallback(async (block: FieldBlock, sectionId: string, insertAtIndex?: number) => {
     const sectionFields = sections.find((s: any) => s.id === sectionId)?.fields || [];
-    const maxOrder = sectionFields.reduce((m: number, f: any) => Math.max(m, f.sort_order), -1);
+    let startSortOrder: number;
+
+    if (insertAtIndex !== undefined && insertAtIndex < sectionFields.length) {
+      startSortOrder = sectionFields[insertAtIndex]?.sort_order ?? 0;
+      const bumps = sectionFields.filter((f: any) => f.sort_order >= startSortOrder);
+      for (const f of bumps) {
+        await supabase
+          .from("order_form_template_fields")
+          .update({ sort_order: f.sort_order + block.fields.length })
+          .eq("id", f.id);
+      }
+    } else {
+      const maxOrder = sectionFields.reduce((m: number, f: any) => Math.max(m, f.sort_order), -1);
+      startSortOrder = maxOrder + 1;
+    }
 
     const rows = block.fields.map((f, i) => ({
       template_id: id!,
@@ -209,7 +223,7 @@ export default function OrderFormBuilderPage() {
       is_required: f.is_required || false,
       options: f.options || null,
       help_text: f.help_text || null,
-      sort_order: maxOrder + 1 + i,
+      sort_order: startSortOrder + i,
       field_width: (f as any).field_width || "full",
     }));
 
@@ -357,6 +371,7 @@ export default function OrderFormBuilderPage() {
             onMoveSection={moveSection}
             onMoveField={moveField}
             onDropNewField={(type, sId, idx, preset) => addFieldToSection(type, sId, preset, idx)}
+            onDropNewBlock={(block, sId, idx) => addBlockToSection(block as FieldBlock, sId, idx)}
             templateTitle={template.name}
           />
         </div>

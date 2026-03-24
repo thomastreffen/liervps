@@ -46,22 +46,23 @@ export interface BusinessPreset {
   helpText?: string;
   options?: string[];
   isRequired?: boolean;
+  fieldWidth?: string;
 }
 
 const BUSINESS_PRESETS: BusinessPreset[] = [
-  { id: "firmanavn", label: "Firmanavn", icon: Building2, fieldType: "short_text", fieldKey: "firmanavn", helpText: "Navn på firma / kunde" },
-  { id: "kontaktperson", label: "Kontaktperson", icon: User, fieldType: "short_text", fieldKey: "kontaktperson", helpText: "Navn på kontaktperson hos kunde" },
-  { id: "epost_kunde", label: "E-post kunde", icon: Mail, fieldType: "email", fieldKey: "epost_kunde", helpText: "E-postadresse til kontaktperson" },
-  { id: "telefon_kunde", label: "Telefon kunde", icon: Phone, fieldType: "phone", fieldKey: "telefon_kunde", helpText: "Telefonnummer til kontaktperson" },
-  { id: "fakturamottaker", label: "Fakturamottaker", icon: Receipt, fieldType: "short_text", fieldKey: "fakturamottaker", helpText: "Hvem skal motta faktura?" },
+  { id: "firmanavn", label: "Firmanavn", icon: Building2, fieldType: "short_text", fieldKey: "firmanavn", helpText: "Navn på firma / kunde", fieldWidth: "half" },
+  { id: "kontaktperson", label: "Kontaktperson", icon: User, fieldType: "short_text", fieldKey: "kontaktperson", helpText: "Navn på kontaktperson hos kunde", fieldWidth: "half" },
+  { id: "epost_kunde", label: "E-post kunde", icon: Mail, fieldType: "email", fieldKey: "epost_kunde", helpText: "E-postadresse til kontaktperson", fieldWidth: "half" },
+  { id: "telefon_kunde", label: "Telefon kunde", icon: Phone, fieldType: "phone", fieldKey: "telefon_kunde", helpText: "Telefonnummer til kontaktperson", fieldWidth: "half" },
+  { id: "fakturamottaker", label: "Fakturamottaker", icon: Receipt, fieldType: "short_text", fieldKey: "fakturamottaker", helpText: "Hvem skal motta faktura?", fieldWidth: "half" },
   { id: "fakturaadresse", label: "Fakturaadresse", icon: MapPin, fieldType: "address", fieldKey: "fakturaadresse", helpText: "Adresse for fakturering" },
-  { id: "fakturamerking", label: "Fakturamerking / PO", icon: FileText, fieldType: "short_text", fieldKey: "fakturamerking", helpText: "PO-nummer, referanse eller annen fakturamerking" },
+  { id: "fakturamerking", label: "Fakturamerking / PO", icon: FileText, fieldType: "short_text", fieldKey: "fakturamerking", helpText: "PO-nummer, referanse eller annen fakturamerking", fieldWidth: "half" },
   { id: "oppdragssted", label: "Oppdragssted", icon: MapPin, fieldType: "short_text", fieldKey: "oppdragssted", helpText: "Navn på anlegg eller oppdragssted", isRequired: true },
   { id: "anleggsadresse", label: "Anleggsadresse", icon: MapPin, fieldType: "address", fieldKey: "anleggsadresse", helpText: "Adresse der arbeidet skal utføres", isRequired: true },
-  { id: "referanse_po", label: "Referanse / PO", icon: FileText, fieldType: "short_text", fieldKey: "referanse_po", helpText: "Innkjøpsordrenummer, prosjektreferanse eller intern referanse" },
+  { id: "referanse_po", label: "Referanse / PO", icon: FileText, fieldType: "short_text", fieldKey: "referanse_po", helpText: "Innkjøpsordrenummer, prosjektreferanse eller intern referanse", fieldWidth: "half" },
   { id: "arbeidsbeskrivelse", label: "Arbeidsbeskrivelse", icon: ClipboardList, fieldType: "long_text", fieldKey: "arbeidsbeskrivelse", helpText: "Beskriv hva som skal utføres så detaljert som mulig", isRequired: true },
   { id: "materialansvar", label: "Materialansvar", icon: Package, fieldType: "radio", fieldKey: "materialansvar", helpText: "Angi hvem som skaffer materiell", options: ["Service skaffer alt", "Bestiller leverer alt", "Deles mellom partene"], isRequired: true },
-  { id: "oensket_dato", label: "Ønsket utført dato", icon: Calendar, fieldType: "date", fieldKey: "oensket_dato", helpText: "Når ønsker du at arbeidet skal utføres?" },
+  { id: "oensket_dato", label: "Ønsket utført dato", icon: Calendar, fieldType: "date", fieldKey: "oensket_dato", helpText: "Når ønsker du at arbeidet skal utføres?", fieldWidth: "half" },
 ];
 
 export function getPresetById(presetId: string): BusinessPreset | undefined {
@@ -78,6 +79,8 @@ export interface FieldBlock {
   previewLayout: string; // e.g. "2-col", "full"
   fields: { label: string; type: OrderFormFieldType; field_key: string; is_required?: boolean; help_text?: string; options?: string[]; field_width?: string }[];
 }
+
+export type FieldBlockInsert = Pick<FieldBlock, "id" | "label" | "description" | "previewLayout" | "fields">;
 
 const FIELD_BLOCKS: FieldBlock[] = [
   {
@@ -204,8 +207,8 @@ const GENERIC_FIELDS: GenericFieldDef[] = [
 // ── Component ──
 
 export interface OrderFieldPaletteProps {
-  onAddField: (type: OrderFormFieldType, sectionId: string, preset?: { label: string; fieldKey: string; helpText?: string; options?: string[]; isRequired?: boolean }) => void;
-  onAddBlock: (block: FieldBlock, sectionId: string) => void;
+  onAddField: (type: OrderFormFieldType, sectionId: string, preset?: { label: string; fieldKey: string; helpText?: string; options?: string[]; isRequired?: boolean; fieldWidth?: string }) => void;
+  onAddBlock: (block: FieldBlockInsert, sectionId: string) => void;
   activeSectionId: string | null;
 }
 
@@ -238,16 +241,18 @@ function FieldTile({
 }
 
 function BlockTile({
-  block, disabled, onClick,
+  block, disabled, draggable: isDraggable, onDragStart, onClick,
 }: {
-  block: FieldBlock; disabled?: boolean; onClick?: () => void;
+  block: FieldBlock; disabled?: boolean; draggable?: boolean; onDragStart?: (e: React.DragEvent) => void; onClick?: () => void;
 }) {
   const Icon = block.icon;
   return (
     <button
+      draggable={isDraggable}
+      onDragStart={onDragStart}
       onClick={onClick}
       disabled={disabled}
-      className="w-full rounded-xl border border-border/60 bg-card px-3 py-3 text-left hover:border-primary/30 hover:shadow-sm hover:bg-primary/[0.02] transition-all select-none disabled:opacity-30 disabled:cursor-not-allowed"
+      className="w-full rounded-xl border border-border/60 bg-card px-3 py-3 text-left hover:border-primary/30 hover:shadow-sm hover:bg-primary/[0.02] transition-all select-none cursor-grab active:cursor-grabbing active:scale-[0.98] disabled:opacity-30 disabled:cursor-not-allowed"
     >
       <div className="flex items-start gap-2.5">
         <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
@@ -295,7 +300,7 @@ export function OrderFieldPalette({ onAddField, onAddBlock, activeSectionId }: O
     if (!activeSectionId) return;
     onAddField(preset.fieldType, activeSectionId, {
       label: preset.label, fieldKey: preset.fieldKey,
-      helpText: preset.helpText, options: preset.options, isRequired: preset.isRequired,
+        helpText: preset.helpText, options: preset.options, isRequired: preset.isRequired, fieldWidth: preset.fieldWidth,
     });
   };
 
@@ -357,7 +362,7 @@ export function OrderFieldPalette({ onAddField, onAddBlock, activeSectionId }: O
                   e.dataTransfer.setData("order-field-type", preset.fieldType);
                   e.dataTransfer.setData("order-preset-data", JSON.stringify({
                     label: preset.label, fieldKey: preset.fieldKey,
-                    helpText: preset.helpText, options: preset.options, isRequired: preset.isRequired,
+                    helpText: preset.helpText, options: preset.options, isRequired: preset.isRequired, fieldWidth: preset.fieldWidth,
                   }));
                   e.dataTransfer.effectAllowed = "copy";
                 }}
@@ -374,6 +379,17 @@ export function OrderFieldPalette({ onAddField, onAddBlock, activeSectionId }: O
                 key={block.id}
                 block={block}
                 disabled={noSection}
+                draggable={!noSection}
+                onDragStart={(e) => {
+                  e.dataTransfer.setData("order-block-data", JSON.stringify({
+                    id: block.id,
+                    label: block.label,
+                    description: block.description,
+                    previewLayout: block.previewLayout,
+                    fields: block.fields,
+                  }));
+                  e.dataTransfer.effectAllowed = "copy";
+                }}
                 onClick={() => { if (activeSectionId) onAddBlock(block, activeSectionId); }}
               />
             ))}
