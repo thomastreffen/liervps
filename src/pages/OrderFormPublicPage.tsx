@@ -331,8 +331,8 @@ export default function OrderFormPublicPage() {
 
 // ── Public Field Renderer ──
 
-function PublicFieldRenderer({ field, value, onChange, error, required, onFileAdd }: {
-  field: any; value: any; onChange: (v: any) => void; error?: string; required: boolean; onFileAdd: (f: File) => void;
+function PublicFieldRenderer({ field, value, onChange, error, required, onFileAdd, onFileRemove }: {
+  field: any; value: any; onChange: (v: any) => void; error?: string; required: boolean; onFileAdd: (f: File) => void; onFileRemove: (index: number) => void;
 }) {
   const options: string[] = Array.isArray(field.options)
     ? field.options.map((o: any) => (typeof o === "string" ? o : o.label || o.value))
