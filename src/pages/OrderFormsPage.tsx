@@ -285,13 +285,13 @@ export default function OrderFormsPage() {
                     <div className="flex items-center gap-2 shrink-0">
                       {/* Status indicators */}
                       {sub.notification_sent_at && (
-                        <Mail className="h-3.5 w-3.5 text-green-500" title="Varsling sendt" />
+                        <Mail className="h-3.5 w-3.5 text-green-500" />
                       )}
                       {sub.notification_error && !sub.notification_sent_at && (
-                        <MailX className="h-3.5 w-3.5 text-red-500" title="E-postfeil" />
+                        <MailX className="h-3.5 w-3.5 text-red-500" />
                       )}
                       {sub.converted_to_type && (
-                        <ArrowRight className="h-3.5 w-3.5 text-green-500" title="Konvertert" />
+                        <ArrowRight className="h-3.5 w-3.5 text-green-500" />
                       )}
                       <Badge className={`text-[10px] ${statusConfig?.color || ""}`}>
                         {statusConfig?.label || sub.status}
