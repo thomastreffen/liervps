@@ -31,6 +31,7 @@ import { QualityBadge } from "@/components/orders/QualityBadge";
 import { QualityIssuesPanel } from "@/components/orders/QualityIssuesPanel";
 import { RequestInfoDialog } from "@/components/orders/RequestInfoDialog";
 import { ConvertDialog } from "@/components/orders/ConvertDialog";
+import { TripletexExportPanel } from "@/components/orders/TripletexExportPanel";
 
 export default function OrderFormDetailPage() {
   const { id } = useParams<{ id: string }>();
