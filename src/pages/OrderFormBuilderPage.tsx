@@ -152,13 +152,33 @@ export default function OrderFormBuilderPage() {
     },
   });
 
-  const addFieldToSection = useCallback(async (type: OrderFormFieldType, sectionId: string, preset?: { label: string; fieldKey: string; helpText?: string; options?: string[]; isRequired?: boolean }) => {
-    const sectionFields = sections.find((s: any) => s.id === sectionId)?.fields || [];
-    const maxOrder = sectionFields.reduce((m: number, f: any) => Math.max(m, f.sort_order), -1);
+  const addFieldToSection = useCallback(async (
+    type: OrderFormFieldType,
+    sectionId: string,
+    preset?: { label: string; fieldKey: string; helpText?: string; options?: string[]; isRequired?: boolean; fieldWidth?: string },
+    insertAtIndex?: number,
+  ) => {
+    const section = sections.find((s: any) => s.id === sectionId);
+    const sectionFields: any[] = section?.fields || [];
     const label = preset?.label || ORDER_FIELD_TYPE_LABELS[type] || type;
     const fieldKey = preset?.fieldKey || label.toLowerCase().replace(/[^a-zæøå0-9]+/g, "_").replace(/(^_|_$)/g, "");
-
     const needsOptions = ["dropdown", "radio", "checkbox_list", "multi_select"].includes(type);
+
+    // Calculate sort_order based on insertAtIndex
+    let sortOrder: number;
+    if (insertAtIndex !== undefined && insertAtIndex < sectionFields.length) {
+      // Insert before the field at insertAtIndex
+      const targetSort = sectionFields[insertAtIndex]?.sort_order ?? 0;
+      sortOrder = targetSort;
+      // Bump all fields at or after this index
+      const bumps = sectionFields.filter((f: any) => f.sort_order >= sortOrder);
+      for (const f of bumps) {
+        await supabase.from("order_form_template_fields").update({ sort_order: f.sort_order + 1 }).eq("id", f.id);
+      }
+    } else {
+      const maxOrder = sectionFields.reduce((m: number, f: any) => Math.max(m, f.sort_order), -1);
+      sortOrder = maxOrder + 1;
+    }
 
     const { error } = await supabase.from("order_form_template_fields").insert({
       template_id: id!,
@@ -166,10 +186,11 @@ export default function OrderFormBuilderPage() {
       field_key: fieldKey + "_" + Date.now().toString(36),
       label,
       field_type: type,
-      sort_order: maxOrder + 1,
+      sort_order: sortOrder,
       help_text: preset?.helpText || null,
       is_required: preset?.isRequired || false,
       options: preset?.options || (needsOptions ? ["Alternativ 1", "Alternativ 2"] : null),
+      field_width: preset?.fieldWidth || "full",
     });
     if (error) { toast.error(error.message); return; }
     invalidate();
@@ -182,13 +203,14 @@ export default function OrderFormBuilderPage() {
     const rows = block.fields.map((f, i) => ({
       template_id: id!,
       section_id: sectionId,
-      field_key: f.field_key,
+      field_key: f.field_key + "_" + Date.now().toString(36) + i,
       label: f.label,
       field_type: f.type,
       is_required: f.is_required || false,
       options: f.options || null,
       help_text: f.help_text || null,
       sort_order: maxOrder + 1 + i,
+      field_width: (f as any).field_width || "full",
     }));
 
     const { error } = await supabase.from("order_form_template_fields").insert(rows);
@@ -196,6 +218,52 @@ export default function OrderFormBuilderPage() {
     invalidate();
     toast.success(`${block.label} lagt til (${block.fields.length} felt)`);
   }, [sections, id]);
+
+  // ── Reordering ──
+
+  const moveSection = useCallback(async (fromIdx: number, toIdx: number) => {
+    if (fromIdx === toIdx) return;
+    const sorted = [...sections];
+    const [moved] = sorted.splice(fromIdx, 1);
+    sorted.splice(toIdx, 0, moved);
+    // Update all sort_orders
+    const updates = sorted.map((s: any, i: number) =>
+      supabase.from("order_form_template_sections").update({ sort_order: i }).eq("id", s.id)
+    );
+    await Promise.all(updates);
+    invalidate();
+  }, [sections]);
+
+  const moveField = useCallback(async (fieldId: string, fromSectionId: string, toSectionId: string, toIndex: number) => {
+    const toSection = sections.find((s: any) => s.id === toSectionId);
+    const toFields: any[] = (toSection?.fields || []).filter((f: any) => f.id !== fieldId);
+
+    // Insert at toIndex
+    toFields.splice(toIndex, 0, { id: fieldId });
+
+    // Update section_id if moving between sections
+    if (fromSectionId !== toSectionId) {
+      await supabase.from("order_form_template_fields").update({ section_id: toSectionId }).eq("id", fieldId);
+    }
+
+    // Re-number all fields in the target section
+    const updates = toFields.map((f: any, i: number) =>
+      supabase.from("order_form_template_fields").update({ sort_order: i }).eq("id", f.id)
+    );
+    await Promise.all(updates);
+
+    // If moved between sections, re-number the source section too
+    if (fromSectionId !== toSectionId) {
+      const fromSection = sections.find((s: any) => s.id === fromSectionId);
+      const fromFields = (fromSection?.fields || []).filter((f: any) => f.id !== fieldId);
+      const srcUpdates = fromFields.map((f: any, i: number) =>
+        supabase.from("order_form_template_fields").update({ sort_order: i }).eq("id", f.id)
+      );
+      await Promise.all(srcUpdates);
+    }
+
+    invalidate();
+  }, [sections]);
 
   const updateTemplate = useMutation({
     mutationFn: async (updates: Record<string, any>) => {
@@ -286,9 +354,9 @@ export default function OrderFormBuilderPage() {
             onToggleFieldRequired={(fId, req) => updateField.mutate({ fieldId: fId, updates: { is_required: req } })}
             onToggleFieldActive={(fId, act) => updateField.mutate({ fieldId: fId, updates: { is_active: act } })}
             onToggleSectionActive={(sId, act) => updateSection.mutate({ sectionId: sId, updates: { is_active: act } })}
-            onMoveSection={() => {}}
-            onMoveField={() => {}}
-            onDropNewField={(type, sId, idx, preset) => addFieldToSection(type, sId, preset)}
+            onMoveSection={moveSection}
+            onMoveField={moveField}
+            onDropNewField={(type, sId, idx, preset) => addFieldToSection(type, sId, preset, idx)}
             templateTitle={template.name}
           />
         </div>

@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import {
   GripVertical, Plus, ChevronDown, ChevronRight, Eye, EyeOff,
+  Columns2, Square,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -14,7 +15,15 @@ interface PresetData {
   helpText?: string;
   options?: string[];
   isRequired?: boolean;
+  fieldWidth?: string;
 }
+
+const WIDTH_LABELS: Record<string, string> = {
+  full: "100%",
+  half: "50%",
+  third: "33%",
+  two_thirds: "66%",
+};
 
 interface BuilderCanvasProps {
   sections: any[];
@@ -75,11 +84,9 @@ export function BuilderCanvas({
     }
   };
 
-  const computeDropIndex = (e: React.DragEvent, sectionId: string, fields: any[]): number => {
-    // Find the closest field based on mouse Y position
+  const computeDropIndex = (e: React.DragEvent, fields: any[]): number => {
     const container = e.currentTarget as HTMLElement;
     const fieldEls = container.querySelectorAll('[data-field-index]');
-    
     for (let i = 0; i < fieldEls.length; i++) {
       const rect = fieldEls[i].getBoundingClientRect();
       const midY = rect.top + rect.height / 2;
@@ -96,7 +103,7 @@ export function BuilderCanvas({
     const isMove = e.dataTransfer.types.includes("move-field");
     if (!isNew && !isMove) return;
     e.dataTransfer.dropEffect = isNew ? "copy" : "move";
-    const idx = computeDropIndex(e, sectionId, fields);
+    const idx = computeDropIndex(e, fields);
     setDropTarget({ sectionId, index: idx });
   };
 
@@ -108,7 +115,6 @@ export function BuilderCanvas({
 
     const newType = e.dataTransfer.getData("order-field-type") as OrderFormFieldType;
     if (newType) {
-      // Check for preset data
       const presetRaw = e.dataTransfer.getData("order-preset-data");
       const preset: PresetData | undefined = presetRaw ? JSON.parse(presetRaw) : undefined;
       onDropNewField(newType, sectionId, idx, preset);
@@ -119,6 +125,43 @@ export function BuilderCanvas({
     if (moveData) {
       const { fieldId, fromSectionId } = JSON.parse(moveData);
       onMoveField(fieldId, fromSectionId, sectionId, idx);
+    }
+  };
+
+  // Group fields into visual rows based on field_width
+  const groupFieldsIntoRows = (fields: any[]) => {
+    const rows: any[][] = [];
+    let currentRow: any[] = [];
+    let currentRowWidth = 0;
+
+    for (const field of fields) {
+      const w = field.field_width || "full";
+      const fraction = w === "half" ? 0.5 : w === "third" ? 0.33 : w === "two_thirds" ? 0.66 : 1;
+
+      if (currentRowWidth + fraction > 1.01 && currentRow.length > 0) {
+        rows.push(currentRow);
+        currentRow = [];
+        currentRowWidth = 0;
+      }
+      currentRow.push(field);
+      currentRowWidth += fraction;
+
+      if (currentRowWidth >= 0.99) {
+        rows.push(currentRow);
+        currentRow = [];
+        currentRowWidth = 0;
+      }
+    }
+    if (currentRow.length > 0) rows.push(currentRow);
+    return rows;
+  };
+
+  const getWidthClass = (w: string) => {
+    switch (w) {
+      case "half": return "w-1/2";
+      case "third": return "w-1/3";
+      case "two_thirds": return "w-2/3";
+      default: return "w-full";
     }
   };
 
@@ -164,18 +207,15 @@ export function BuilderCanvas({
                 />
               </div>
 
-              {/* Fields area – generous drop zone */}
+              {/* Fields area */}
               {isExpanded && (
                 <div
                   className={`px-3 py-2 transition-colors ${
-                    dropTarget?.sectionId === section.id
-                      ? "bg-primary/[0.03]"
-                      : ""
+                    dropTarget?.sectionId === section.id ? "bg-primary/[0.03]" : ""
                   }`}
                   onDragOver={(e) => handleSectionDragOver(e, section.id, fields)}
                   onDrop={(e) => handleDrop(e, section.id, fields)}
                   onDragLeave={(e) => {
-                    // Only clear if leaving the container entirely
                     if (!e.currentTarget.contains(e.relatedTarget as Node)) {
                       setDropTarget(null);
                     }
@@ -200,13 +240,15 @@ export function BuilderCanvas({
                         const Icon = FIELD_ICONS[field.field_type as OrderFormFieldType] || GripVertical;
                         const isFieldSelected = selectedFieldId === field.id;
                         const showDropBefore = dropTarget?.sectionId === section.id && dropTarget.index === fIdx && draggingFieldId !== field.id;
+                        const fw = field.field_width || "full";
+                        const widthBadge = fw !== "full" ? WIDTH_LABELS[fw] : null;
 
                         return (
                           <div key={field.id} data-field-index={fIdx}>
-                            {/* Drop indicator before this field */}
+                            {/* Drop indicator */}
                             <div
-                              className={`transition-all mx-1 rounded-full ${
-                                showDropBefore ? "h-1 bg-primary my-1" : "h-0"
+                              className={`transition-all rounded-full ${
+                                showDropBefore ? "h-1.5 bg-primary mx-1 my-1.5" : "h-0"
                               }`}
                             />
                             <div
@@ -231,6 +273,11 @@ export function BuilderCanvas({
                               <GripVertical className="h-3 w-3 text-muted-foreground/40 shrink-0" />
                               <Icon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                               <span className="flex-1 font-medium truncate text-xs">{field.label}</span>
+                              {widthBadge && (
+                                <Badge variant="outline" className="text-[8px] px-1 py-0 shrink-0 text-muted-foreground">
+                                  {widthBadge}
+                                </Badge>
+                              )}
                               {field.is_required && (
                                 <span className="text-destructive text-[10px] font-bold">*</span>
                               )}
@@ -263,14 +310,14 @@ export function BuilderCanvas({
 
                       {/* Drop indicator after last field */}
                       <div
-                        className={`transition-all mx-1 rounded-full ${
+                        className={`transition-all rounded-full ${
                           dropTarget?.sectionId === section.id && dropTarget.index === fields.length && draggingFieldId !== fields[fields.length - 1]?.id
-                            ? "h-1 bg-primary my-1"
+                            ? "h-1.5 bg-primary mx-1 my-1.5"
                             : "h-0"
                         }`}
                       />
 
-                      {/* Generous bottom drop zone */}
+                      {/* Bottom drop zone */}
                       <div
                         className={`min-h-[32px] rounded-lg transition-colors ${
                           dropTarget?.sectionId === section.id && dropTarget.index === fields.length
