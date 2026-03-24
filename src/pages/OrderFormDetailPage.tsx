@@ -417,13 +417,7 @@ export default function OrderFormDetailPage() {
                       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">{cat}</p>
                       <div className="space-y-1.5">
                         {files.map((att: any) => (
-                          <div key={att.id} className="flex items-center gap-2 text-sm p-2 rounded-lg bg-muted/30">
-                            <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                            <span className="truncate flex-1">{att.file_name}</span>
-                            <span className="text-[10px] text-muted-foreground">
-                              {att.file_size ? `${Math.round(att.file_size / 1024)} KB` : ""}
-                            </span>
-                          </div>
+                          <AttachmentRow key={att.id} attachment={att} />
                         ))}
                       </div>
                     </div>
