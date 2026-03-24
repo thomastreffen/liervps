@@ -152,11 +152,11 @@ export default function OrderFormBuilderPage() {
     },
   });
 
-  const addFieldToSection = useCallback(async (type: OrderFormFieldType, sectionId: string) => {
+  const addFieldToSection = useCallback(async (type: OrderFormFieldType, sectionId: string, preset?: { label: string; fieldKey: string; helpText?: string; options?: string[]; isRequired?: boolean }) => {
     const sectionFields = sections.find((s: any) => s.id === sectionId)?.fields || [];
     const maxOrder = sectionFields.reduce((m: number, f: any) => Math.max(m, f.sort_order), -1);
-    const label = ORDER_FIELD_TYPE_LABELS[type] || type;
-    const fieldKey = label.toLowerCase().replace(/[^a-zæøå0-9]+/g, "_").replace(/(^_|_$)/g, "");
+    const label = preset?.label || ORDER_FIELD_TYPE_LABELS[type] || type;
+    const fieldKey = preset?.fieldKey || label.toLowerCase().replace(/[^a-zæøå0-9]+/g, "_").replace(/(^_|_$)/g, "");
 
     const needsOptions = ["dropdown", "radio", "checkbox_list", "multi_select"].includes(type);
 
@@ -167,7 +167,9 @@ export default function OrderFormBuilderPage() {
       label,
       field_type: type,
       sort_order: maxOrder + 1,
-      options: needsOptions ? ["Alternativ 1", "Alternativ 2"] : null,
+      help_text: preset?.helpText || null,
+      is_required: preset?.isRequired || false,
+      options: preset?.options || (needsOptions ? ["Alternativ 1", "Alternativ 2"] : null),
     });
     if (error) { toast.error(error.message); return; }
     invalidate();
@@ -185,6 +187,7 @@ export default function OrderFormBuilderPage() {
       field_type: f.type,
       is_required: f.is_required || false,
       options: f.options || null,
+      help_text: f.help_text || null,
       sort_order: maxOrder + 1 + i,
     }));
 
