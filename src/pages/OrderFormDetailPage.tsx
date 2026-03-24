@@ -362,8 +362,8 @@ export default function OrderFormDetailPage() {
         )}
       </div>
 
-      {/* Quality issues panel */}
-      <QualityIssuesPanel result={qualityResult} />
+      {/* Quality issues panel - only show if there are issues */}
+      {qualityResult.score !== "green" && <QualityIssuesPanel result={qualityResult} />}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main content: Sections with field values */}
