@@ -348,6 +348,15 @@ export default function OrderFormSubmitPage() {
         );
       })}
 
+      {/* Pre-submit quality warnings */}
+      {Object.keys(formData).length > 3 && (() => {
+        const previewQuality = computeQualityScore(formData, attachments.map(a => ({ category: a.category, file_name: a.file.name })));
+        if (previewQuality.issues.length > 0) {
+          return <QualityIssuesPanel result={previewQuality} />;
+        }
+        return null;
+      })()}
+
       {/* Submit */}
       <div className="flex justify-end gap-3 pb-8">
         <Button variant="outline" onClick={() => navigate("/orders")}>
