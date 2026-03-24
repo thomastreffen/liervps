@@ -87,11 +87,11 @@ const FIELD_BLOCKS: FieldBlock[] = [
     icon: UserSearch,
     description: "Firmanavn, org.nr, kontaktperson, telefon, e-post",
     fields: [
-      { label: "Firmanavn", type: "short_text", field_key: "firmanavn", is_required: true, help_text: "Navn på firma / kunde" },
-      { label: "Org.nr", type: "org_number", field_key: "org_nr", help_text: "Organisasjonsnummer" },
-      { label: "Kontaktperson", type: "short_text", field_key: "kontaktperson_kunde", help_text: "Navn på kontaktperson hos kunde" },
-      { label: "Telefon kunde", type: "phone", field_key: "telefon_kunde", help_text: "Telefonnummer til kontaktperson" },
-      { label: "E-post kunde", type: "email", field_key: "epost_kunde", help_text: "E-postadresse til kontaktperson" },
+      { label: "Firmanavn", type: "short_text", field_key: "firmanavn", is_required: true, help_text: "Navn på firma / kunde", field_width: "half" },
+      { label: "Org.nr", type: "org_number", field_key: "org_nr", help_text: "Organisasjonsnummer", field_width: "half" },
+      { label: "Kontaktperson", type: "short_text", field_key: "kontaktperson_kunde", help_text: "Navn på kontaktperson hos kunde", field_width: "half" },
+      { label: "E-post kunde", type: "email", field_key: "epost_kunde", help_text: "E-postadresse til kontaktperson", field_width: "half" },
+      { label: "Telefon kunde", type: "phone", field_key: "telefon_kunde", help_text: "Telefonnummer til kontaktperson", field_width: "half" },
     ],
   },
   {
