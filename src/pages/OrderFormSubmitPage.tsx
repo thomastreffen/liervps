@@ -542,9 +542,10 @@ function FieldRenderer({ field, value, onChange, error, required, onFileAdd, onF
         );
 
       case "file_upload":
-      case "image_upload":
+      case "image_upload": {
+        const fieldAttachments = (field as any)._attachments || [];
         return (
-          <div>
+          <div className="space-y-2">
             <label className="flex items-center gap-2 px-4 py-3 border-2 border-dashed border-border rounded-lg cursor-pointer hover:border-primary/40 transition-colors">
               <Upload className="h-4 w-4 text-muted-foreground" />
               <span className="text-sm text-muted-foreground">
@@ -559,13 +560,29 @@ function FieldRenderer({ field, value, onChange, error, required, onFileAdd, onF
                   const files = e.target.files;
                   if (files) {
                     Array.from(files).forEach((f) => onFileAdd(f));
-                    onChange(`${(value ? Number(value) : 0) + files.length} filer`);
                   }
                 }}
               />
             </label>
+            {fieldAttachments.length > 0 && (
+              <div className="space-y-1">
+                {fieldAttachments.map((att: { file: File; index: number }, i: number) => (
+                  <div key={i} className="flex items-center gap-2 rounded-md border bg-muted/40 px-2.5 py-1.5 text-sm">
+                    <FileIcon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                    <span className="truncate flex-1 font-medium">{att.file.name}</span>
+                    <span className="text-xs text-muted-foreground shrink-0">
+                      {att.file.size < 1024 * 1024 ? `${Math.round(att.file.size / 1024)} KB` : `${(att.file.size / 1024 / 1024).toFixed(1)} MB`}
+                    </span>
+                    <button type="button" onClick={() => onFileRemove(att.index)} className="text-muted-foreground hover:text-destructive shrink-0">
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         );
+      }
 
       case "info_box":
         return (
