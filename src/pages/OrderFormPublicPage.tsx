@@ -12,7 +12,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Check, AlertCircle, Upload, Info, Loader2 } from "lucide-react";
+import { Check, AlertCircle, Upload, Info, Loader2, FileText as FileIcon, X } from "lucide-react";
 import type { ConditionalLogic } from "@/types/order-forms";
 
 export default function OrderFormPublicPage() {
