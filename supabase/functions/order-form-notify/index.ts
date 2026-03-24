@@ -215,7 +215,7 @@ function json(data: any, status = 200) {
 // ── Email builders ──
 
 function buildNewOrderEmail(p: {
-  submissionNo: string; kundenavn: string; oppdragstittel: string;
+  submissionNo: string; templateName: string; kundenavn: string; oppdragstittel: string;
   hastegrad: string; bestillingstype: string; onsketDato: string;
   bestillerNavn: string; bestillerEpost: string; bestillerTelefon: string;
   anleggsadresse: string; materialansvar: string; referanse: string;
