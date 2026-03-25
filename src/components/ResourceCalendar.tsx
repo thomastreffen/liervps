@@ -900,12 +900,19 @@ export const ResourceCalendar = memo(function ResourceCalendar({
                         {props.jobNumber}
                       </span>
                     )}
-                    {!props.jobNumber && (
-                      <span
-                        className="h-1.5 w-1.5 rounded-full shrink-0 ml-auto border border-white/30"
-                        style={{ backgroundColor: props.statusDot }}
-                      />
-                    )}
+                    {/* Acceptance status indicator */}
+                    {(() => {
+                      const acceptanceInfo = ACCEPTANCE_ICON_MAP[props.status as string];
+                      if (acceptanceInfo) {
+                        const AccIcon = acceptanceInfo.Icon;
+                        return (
+                          <span className={cn("shrink-0", props.jobNumber ? "" : "ml-auto")} title={acceptanceInfo.title}>
+                            <AccIcon className={cn("h-2.5 w-2.5", acceptanceInfo.className)} />
+                          </span>
+                        );
+                      }
+                      return null;
+                    })()}
                   </div>
                   <p className="text-[11px] font-semibold leading-tight truncate text-white">
                     {arg.event.title}
