@@ -9,11 +9,12 @@ export default function OrderFormsCatalogPage() {
   const { data: templates = [], isLoading } = useQuery({
     queryKey: ["public-order-form-templates"],
     queryFn: async () => {
-      const { data } = await supabase
+      const { data } = await (supabase as any)
         .from("order_form_templates")
-        .select("id, name, external_title, description, slug, audience_type")
+        .select("id, name, external_title, description, slug, audience_type, show_in_catalog")
         .eq("is_active", true)
         .in("audience_type", ["external", "both"])
+        .eq("show_in_catalog", true)
         .order("name");
       return data || [];
     },

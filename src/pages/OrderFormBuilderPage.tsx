@@ -327,7 +327,7 @@ export default function OrderFormBuilderPage() {
         </div>
         <div className="flex items-center gap-1.5">
           {template.is_active && (
-            <PublishLinkActions slug={template.slug} audienceType={template.audience_type} />
+            <PublishLinkActions template={template} />
           )}
           <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setPreviewMode(true)}>
             <Eye className="h-3.5 w-3.5 mr-1" />
