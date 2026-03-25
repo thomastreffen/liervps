@@ -62,7 +62,27 @@ export default function ApprovalPage() {
       });
 
       if (fnErr) {
-        setError(fnErr.message || "Noe gikk galt. Prøv igjen.");
+        // Parse the error — edge function non-2xx returns contain the response body
+        let errorMessage = "Noe gikk galt. Prøv igjen.";
+        try {
+          if (typeof fnErr.message === "string") {
+            // Try to extract the JSON error from the edge function response
+            const parsed = JSON.parse(fnErr.message);
+            if (parsed?.error) errorMessage = parsed.error;
+          }
+        } catch {
+          // Check if the context contains the error
+          if (fnErr.context?.body) {
+            try {
+              const bodyText = typeof fnErr.context.body === "string" 
+                ? fnErr.context.body 
+                : new TextDecoder().decode(fnErr.context.body);
+              const parsed = JSON.parse(bodyText);
+              if (parsed?.error) errorMessage = parsed.error;
+            } catch { /* use default */ }
+          }
+        }
+        setError(errorMessage);
       } else if (data?.error) {
         setError(data.error);
       } else {
