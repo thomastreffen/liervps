@@ -1011,6 +1011,11 @@ export const ResourceCalendar = memo(function ResourceCalendar({
                     <p className="text-[9px] text-white/70 truncate">{props.customer}</p>
                   )}
                   <span className="text-[8px] text-white/50 block">{arg.timeText}</span>
+                  {isRisk && (
+                    <span className="absolute bottom-0.5 right-1 text-[7px] font-bold uppercase tracking-wider bg-red-500/80 text-white rounded px-1 py-px">
+                      ⚠ Risiko
+                    </span>
+                  )}
                 </div>
               </TooltipTrigger>
               <TooltipContent side="top">{eventTooltip}</TooltipContent>
