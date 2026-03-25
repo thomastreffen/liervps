@@ -159,6 +159,69 @@ export const ResourceCalendar = memo(function ResourceCalendar({
   const isMonthView = calendarView === "dayGridMonth";
   const isDayView = calendarView === "timeGridDay";
 
+  // ── Month heatmap: per-day summaries ──
+  const monthDaySummaries = useMemo(() => {
+    if (!isMonthView) return new Map<string, { eventCount: number; techCount: number; pending: number; risk: number; percent: number }>();
+    const map = new Map<string, { events: Set<string>; techs: Set<string>; pending: number; risk: number; totalMinutes: number }>();
+
+    const getDayKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+    for (const ev of calendarEvents) {
+      // Iterate through each day the event spans
+      let cursor = new Date(ev.start);
+      const end = ev.end;
+      while (cursor < end) {
+        const dk = getDayKey(cursor);
+        if (!map.has(dk)) map.set(dk, { events: new Set(), techs: new Set(), pending: 0, risk: 0, totalMinutes: 0 });
+        const entry = map.get(dk)!;
+        entry.events.add(ev.id);
+        for (const t of ev.technicians) entry.techs.add(t.id);
+
+        // Calculate minutes for this day
+        const dayStart = new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate());
+        const dayEnd = new Date(dayStart);
+        dayEnd.setDate(dayEnd.getDate() + 1);
+        const segStart = Math.max(ev.start.getTime(), dayStart.getTime());
+        const segEnd = Math.min(ev.end.getTime(), dayEnd.getTime());
+        entry.totalMinutes += Math.max(0, (segEnd - segStart) / 60000);
+
+        const nextDay = new Date(cursor);
+        nextDay.setDate(nextDay.getDate() + 1);
+        nextDay.setHours(0, 0, 0, 0);
+        cursor = nextDay;
+      }
+
+      // Approval data
+      const summary = approvalSummaries.get(ev.id);
+      if (summary) {
+        const dk = getDayKey(ev.start);
+        const entry = map.get(dk);
+        if (entry) {
+          entry.pending += summary.pending;
+          if ((summary.declined > 0 || summary.changeRequest > 0)) entry.risk++;
+          const hoursUntil = (ev.start.getTime() - Date.now()) / 3600000;
+          if (summary.pending > 0 && hoursUntil > 0 && hoursUntil < 12) entry.risk++;
+        }
+      }
+    }
+
+    const WORK_DAY_MINUTES = 480; // 8h per tech
+    const techCount = technicianMap.size || 1;
+    const totalDayCapacity = WORK_DAY_MINUTES * techCount;
+
+    const result = new Map<string, { eventCount: number; techCount: number; pending: number; risk: number; percent: number }>();
+    for (const [dk, entry] of map) {
+      result.set(dk, {
+        eventCount: entry.events.size,
+        techCount: entry.techs.size,
+        pending: entry.pending,
+        risk: entry.risk,
+        percent: Math.min(100, (entry.totalMinutes / totalDayCapacity) * 100),
+      });
+    }
+    return result;
+  }, [isMonthView, calendarEvents, approvalSummaries, technicianMap]);
+
   useEffect(() => {
     const api = calendarRef.current?.getApi();
     if (api) {
