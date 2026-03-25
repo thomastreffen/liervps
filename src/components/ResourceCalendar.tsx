@@ -904,7 +904,6 @@ export const ResourceCalendar = memo(function ResourceCalendar({
             : null;
 
           // Enhanced tooltip
-          const calEvent = props.calendarEvent as CalendarEvent | undefined;
           const nextReminder = approvalSum && calEvent
             ? getNextReminderInfo(approvalSum, calEvent.start)
             : null;
