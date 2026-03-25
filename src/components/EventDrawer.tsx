@@ -169,6 +169,9 @@ export function EventDrawer({
   // Thread unread tracking
   const { unreadCount: threadUnreadCount } = useTaskThreadReads(editEvent?.id);
 
+  // Per-technician approval statuses
+  const { approvals: techApprovals } = useJobApprovals(editEvent?.id);
+
   // Populate form from props
   useEffect(() => {
     if (!open) return;
