@@ -47,7 +47,7 @@ export function useJobApprovals(jobId: string | null | undefined) {
       }
 
       setApprovals(
-        data.map((d) => ({
+        data.map((d: any) => ({
           technicianUserId: d.technician_user_id,
           technicianName: nameMap.get(d.technician_user_id) || "Ukjent",
           status: d.status,
@@ -55,6 +55,8 @@ export function useJobApprovals(jobId: string | null | undefined) {
           comment: d.comment,
           proposedStart: d.proposed_start,
           proposedEnd: d.proposed_end,
+          remindersPaused: d.reminders_paused ?? false,
+          createdAt: d.created_at ?? null,
         }))
       );
     } catch {
