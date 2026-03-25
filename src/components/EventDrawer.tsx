@@ -7,6 +7,7 @@ import type { Attachment } from "@/lib/mock-data";
 import { TaskThreadPanel } from "@/components/task-thread";
 import { ReminderProfileSelect, type ReminderConfig } from "@/components/ReminderProfileSelect";
 import { useTaskThreadReads } from "@/hooks/useTaskThreadReads";
+import { useReminderSettings } from "@/hooks/useReminderSettings";
 import {
   Sheet,
   SheetContent,
@@ -118,6 +119,7 @@ export function EventDrawer({
   const navigate = useNavigate();
   const { syncCreate, syncUpdate, syncDelete } = useCalendarSync();
   const { activeCompanyId, isAllCompanies, companies } = useCompanyContext();
+  const { settings: reminderSettings } = useReminderSettings();
   const isEditing = !!editEvent;
 
   // Form state
@@ -139,7 +141,7 @@ export function EventDrawer({
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
   const [reminderConfig, setReminderConfig] = useState<ReminderConfig>({
     responseRequired: true,
-    profile: "standard",
+    profile: "company_default",
   });
 
   // Existing job search
@@ -221,7 +223,7 @@ export function EventDrawer({
     setEditCompanyName(null);
     setEditCompanyId(null);
     setDrawerTab("details");
-    setReminderConfig({ responseRequired: true, profile: "standard" });
+    setReminderConfig({ responseRequired: true, profile: "company_default" });
     setSelectedCompanyId(isAllCompanies ? (companies.length === 1 ? companies[0].id : null) : activeCompanyId);
 
     // Load existing attachments for edit mode
@@ -908,8 +910,13 @@ export function EventDrawer({
           </section>
 
           {/* ═══ SECTION: PÅMINNELSE ═══ */}
-          {!isEditing && eventType === "project" && techIds.length > 0 && (
-            <ReminderProfileSelect value={reminderConfig} onChange={setReminderConfig} disabled={readOnly} />
+          {(isEditing || eventType === "project") && techIds.length > 0 && (
+            <ReminderProfileSelect
+              value={reminderConfig}
+              onChange={setReminderConfig}
+              disabled={readOnly}
+              companyRemindersDisabled={reminderSettings?.enabled === false}
+            />
           )}
 
           {/* ═══ SECTION: BESKRIVELSE ═══ */}
