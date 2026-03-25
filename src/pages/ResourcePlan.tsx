@@ -99,6 +99,20 @@ export default function ResourcePlan() {
   const [externalBlocksCapacity, setExternalBlocksCapacity] = useState(true);
   const [minFreeMinutes, setMinFreeMinutes] = useState<number | null>(null);
   const [calendarView, setCalendarView] = useState<CalendarViewType>(getStoredView);
+  const [focusMode, setFocusMode] = useState(() => {
+    try { return localStorage.getItem("resourceplan_focus") === "true"; } catch { return false; }
+  });
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  const toggleFocusMode = useCallback(() => {
+    setFocusMode(prev => {
+      const next = !prev;
+      try { localStorage.setItem("resourceplan_focus", String(next)); } catch {}
+      if (next) setSidebarCollapsed(true);
+      else setSidebarCollapsed(false);
+      return next;
+    });
+  }, []);
 
   const [referenceDate, setReferenceDate] = useState<Date>(new Date());
 
