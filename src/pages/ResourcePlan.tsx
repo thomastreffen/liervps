@@ -766,7 +766,8 @@ export default function ResourcePlan() {
               </div>
             </div>
 
-            {/* ═══ SECONDARY ROW ═══ */}
+            {/* ═══ SECONDARY ROW (hidden in focus mode) ═══ */}
+            {!focusMode && (
             <div className="flex items-center justify-between mb-3 gap-2 py-1.5 px-3 bg-muted/30 rounded-lg border border-border/20">
               <div className="flex items-center gap-3 flex-wrap">
                 {/* Capacity filter chips */}
