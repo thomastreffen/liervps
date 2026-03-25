@@ -1117,6 +1117,101 @@ export const ResourceCalendar = memo(function ResourceCalendar({
             </div>
           );
         }}
+        dayCellDidMount={isMonthView ? (arg) => {
+          const dk = `${arg.date.getFullYear()}-${String(arg.date.getMonth() + 1).padStart(2, "0")}-${String(arg.date.getDate()).padStart(2, "0")}`;
+          const summary = monthDaySummaries.get(dk);
+          const el = arg.el;
+          if (!summary || summary.eventCount === 0) {
+            el.style.backgroundColor = "";
+            return;
+          }
+          const pct = summary.percent;
+          if (summary.risk > 0) {
+            el.style.backgroundColor = `hsl(0 65% 52% / ${Math.min(0.12 + pct * 0.001, 0.18)})`;
+          } else if (pct >= 80) {
+            el.style.backgroundColor = `hsl(38 92% 50% / ${Math.min(0.08 + pct * 0.001, 0.16)})`;
+          } else if (pct >= 40) {
+            el.style.backgroundColor = `hsl(38 92% 50% / 0.06)`;
+          } else {
+            el.style.backgroundColor = `hsl(152 50% 38% / ${Math.min(0.04 + pct * 0.001, 0.10)})`;
+          }
+        } : undefined}
+        dayCellContent={isMonthView ? (arg) => {
+          const isToday = new Date().toDateString() === arg.date.toDateString();
+          const dk = `${arg.date.getFullYear()}-${String(arg.date.getMonth() + 1).padStart(2, "0")}-${String(arg.date.getDate()).padStart(2, "0")}`;
+          const summary = monthDaySummaries.get(dk);
+
+          return (
+            <div
+              className="w-full h-full p-1 cursor-pointer min-h-[80px] flex flex-col"
+              onClick={() => {
+                // Click day cell → navigate to day view
+                if (onDateSelect) {
+                  const dayEnd = new Date(arg.date);
+                  dayEnd.setDate(dayEnd.getDate() + 1);
+                  onDateSelect(arg.date, dayEnd);
+                }
+              }}
+            >
+              {/* Date number */}
+              <div className="flex items-center justify-between mb-1">
+                <span className={cn(
+                  "text-sm font-bold tabular-nums",
+                  isToday ? "text-primary-foreground bg-primary rounded-full w-6 h-6 flex items-center justify-center" : "text-foreground",
+                  arg.isOther && "text-muted-foreground/40"
+                )}>
+                  {arg.date.getDate()}
+                </span>
+                {summary && summary.percent >= 80 && (
+                  <span className="h-2 w-2 rounded-full bg-warning shrink-0" title={`${Math.round(summary.percent)}% belastning`} />
+                )}
+                {summary && summary.risk > 0 && (
+                  <span className="h-2 w-2 rounded-full bg-destructive shrink-0" title={`${summary.risk} risikoer`} />
+                )}
+              </div>
+
+              {/* Day summary */}
+              {summary && summary.eventCount > 0 && !arg.isOther && (
+                <div className="flex flex-col gap-0.5 mt-auto">
+                  <div className="flex items-center gap-1.5 text-[10px]">
+                    <span className="font-semibold text-foreground">{summary.eventCount} oppdr.</span>
+                    <span className="text-muted-foreground">· {summary.techCount} mont.</span>
+                  </div>
+                  {(summary.pending > 0 || summary.risk > 0) && (
+                    <div className="flex items-center gap-1.5 text-[9px]">
+                      {summary.pending > 0 && (
+                        <span className="flex items-center gap-0.5 text-warning font-medium">
+                          <Clock className="h-2 w-2" />{summary.pending}
+                        </span>
+                      )}
+                      {summary.risk > 0 && (
+                        <span className="flex items-center gap-0.5 text-destructive font-medium">
+                          <AlertTriangle className="h-2 w-2" />{summary.risk}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  {/* Capacity bar */}
+                  <div className="w-full h-1 rounded-full bg-muted overflow-hidden mt-0.5">
+                    <div
+                      className="h-full rounded-full transition-all"
+                      style={{
+                        width: `${Math.min(summary.percent, 100)}%`,
+                        backgroundColor: summary.risk > 0
+                          ? "hsl(0 65% 52%)"
+                          : summary.percent >= 80
+                            ? "hsl(38 92% 50%)"
+                            : summary.percent >= 40
+                              ? "hsl(38 92% 50% / 0.7)"
+                              : "hsl(152 50% 38%)",
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        } : undefined}
         loading={() => {}}
       />
     </div>
