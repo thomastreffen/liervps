@@ -7,6 +7,8 @@ import listPlugin from "@fullcalendar/list";
 import type { EventInput, EventDropArg, DateSelectArg, EventClickArg } from "@fullcalendar/core";
 import { useCalendarEvents, type CalendarEvent } from "@/hooks/useCalendarEvents";
 import type { ExternalBusySlot } from "@/hooks/useExternalBusy";
+import type { ApprovalSummary } from "@/hooks/useApprovalSummaries";
+import { getNextReminderInfo } from "@/hooks/useApprovalSummaries";
 import type { DayCapacity } from "@/hooks/useCapacity";
 import type { ScheduleBlock } from "@/hooks/useScheduleBlocks";
 import {
