@@ -647,8 +647,11 @@ export default function ResourcePlan() {
           />
         ) : (
           <>
-            {/* ═══ PRIMARY ROW ═══ */}
-            <div className="flex items-center justify-between mb-2">
+            {/* ═══ PRIMARY ROW (sticky in focus mode) ═══ */}
+            <div className={cn(
+              "flex items-center justify-between mb-2",
+              focusMode && "sticky top-0 z-20 bg-background/95 backdrop-blur-sm py-1.5 -mx-2 px-2 border-b border-border/20"
+            )}>
               {/* Left: Title + selected tech */}
               <div className="flex items-center gap-3 min-w-0">
                 <h1 className="text-lg font-bold tracking-tight flex items-center gap-2 shrink-0">
