@@ -98,21 +98,21 @@ export function AssignResourceTaskDialog({
   const [customer, setCustomer] = useState(
     findVal("kundenavn", "kunde", "firmanavn") || summary?.kundenavn || ""
   );
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(parseInitialDate());
-  const [startHour, setStartHour] = useState(8);
-  const [durationHours, setDurationHours] = useState(8);
+  const [startDate, setStartDate] = useState<Date | undefined>(parseInitialDate());
+  const [startTime, setStartTime] = useState("08:00");
+  const [endDate, setEndDate] = useState<Date | undefined>(parseInitialDate());
+  const [endTime, setEndTime] = useState("16:00");
   const [selectedTechIds, setSelectedTechIds] = useState<string[]>([]);
   const [includeAttachments, setIncludeAttachments] = useState(true);
 
-  const computedStart = useMemo(() => {
-    if (!selectedDate) return null;
-    return setMinutes(setHours(new Date(selectedDate), startHour), 0);
-  }, [selectedDate, startHour]);
+  const applyTime = (date: Date | undefined, time: string): Date => {
+    const d = date ? new Date(date) : new Date();
+    const [h, m] = time.split(":").map(Number);
+    return setMinutes(setHours(d, h), m);
+  };
 
-  const computedEnd = useMemo(() => {
-    if (!computedStart) return null;
-    return new Date(computedStart.getTime() + durationHours * 60 * 60 * 1000);
-  }, [computedStart, durationHours]);
+  const computedStart = useMemo(() => applyTime(startDate, startTime), [startDate, startTime]);
+  const computedEnd = useMemo(() => applyTime(endDate, endTime), [endDate, endTime]);
 
   const mutation = useMutation({
     mutationFn: async () => {
