@@ -428,9 +428,16 @@ export default function OrderFormDetailPage() {
                     <div key={cat}>
                       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">{cat}</p>
                       <div className="space-y-1.5">
-                        {files.map((att: any) => (
-                          <AttachmentRow key={att.id} attachment={att} />
-                        ))}
+                        {files.map((att: any) => {
+                          const globalIdx = attachments.findIndex((a: any) => a.id === att.id);
+                          return (
+                            <AttachmentRow
+                              key={att.id}
+                              attachment={att}
+                              onPreview={() => setPreviewAttIdx(globalIdx)}
+                            />
+                          );
+                        })}
                       </div>
                     </div>
                   ))}
