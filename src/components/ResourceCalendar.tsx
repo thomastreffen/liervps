@@ -1146,14 +1146,7 @@ export const ResourceCalendar = memo(function ResourceCalendar({
           return (
             <div
               className="w-full h-full p-1 cursor-pointer min-h-[80px] flex flex-col"
-              onClick={() => {
-                // Click day cell → navigate to day view
-                if (onDateSelect) {
-                  const dayEnd = new Date(arg.date);
-                  dayEnd.setDate(dayEnd.getDate() + 1);
-                  onDateSelect(arg.date, dayEnd);
-                }
-              }}
+              onClick={() => onMonthDayClick?.(arg.date)}
             >
               {/* Date number */}
               <div className="flex items-center justify-between mb-1">
