@@ -314,35 +314,37 @@ Deno.serve(async (req) => {
 
       const currentCount = approval.reminder_count || 0;
 
-      // ── GUARD: Max reminders reached ──
-      if (currentCount >= maxReminders || currentCount >= intervals.length) {
+      // ── GUARD: Max reminders reached (skip for manual) ──
+      if (!isManual && (currentCount >= maxReminders || currentCount >= intervals.length)) {
         log(`[ApprovalReminder][Skip] approval=${aid} reason=max_reminders_reached count=${currentCount} max=${maxReminders}`);
         skipped++;
         continue;
       }
 
-      // Check if enough time has passed
-      const createdAt = new Date(approval.created_at).getTime();
-      const elapsed = (now.getTime() - createdAt) / 60000;
+      // Check if enough time has passed (skip for manual triggers)
+      if (!isManual) {
+        const createdAt = new Date(approval.created_at).getTime();
+        const elapsed = (now.getTime() - createdAt) / 60000;
 
-      let totalRequired = 0;
-      for (let i = 0; i <= currentCount; i++) {
-        totalRequired += intervals[i];
-      }
+        let totalRequired = 0;
+        for (let i = 0; i <= currentCount; i++) {
+          totalRequired += intervals[i];
+        }
 
-      if (elapsed < totalRequired) {
-        log(`[ApprovalReminder][Skip] approval=${aid} reason=too_early elapsed=${Math.round(elapsed)}min required=${totalRequired}min`);
-        skipped++;
-        continue;
-      }
-
-      // Don't resend if last reminder was very recent (< 5 min)
-      if (approval.last_reminded_at) {
-        const sinceLastReminder = (now.getTime() - new Date(approval.last_reminded_at).getTime()) / 60000;
-        if (sinceLastReminder < 5) {
-          log(`[ApprovalReminder][Skip] approval=${aid} reason=recently_reminded since_last=${Math.round(sinceLastReminder)}min`);
+        if (elapsed < totalRequired) {
+          log(`[ApprovalReminder][Skip] approval=${aid} reason=too_early elapsed=${Math.round(elapsed)}min required=${totalRequired}min`);
           skipped++;
           continue;
+        }
+
+        // Don't resend if last reminder was very recent (< 5 min)
+        if (approval.last_reminded_at) {
+          const sinceLastReminder = (now.getTime() - new Date(approval.last_reminded_at).getTime()) / 60000;
+          if (sinceLastReminder < 5) {
+            log(`[ApprovalReminder][Skip] approval=${aid} reason=recently_reminded since_last=${Math.round(sinceLastReminder)}min`);
+            skipped++;
+            continue;
+          }
         }
       }
 
