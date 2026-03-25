@@ -582,7 +582,7 @@ export default function ResourcePlan() {
     : null;
 
   return (
-    <div className="flex flex-1 overflow-hidden h-full">
+    <div className={cn("flex flex-1 overflow-hidden h-full", focusMode && "focus-mode")}>
       {!isMobile && (
         <aside className={cn(
           "shrink-0 border-r border-border/30 bg-card/50 overflow-y-auto transition-all duration-200",
