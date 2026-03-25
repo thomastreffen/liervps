@@ -824,7 +824,7 @@ export function EventDrawer({
                   billingStatus={BILLING_STATUSES.includes(editEvent.status) ? editEvent.status : null}
                 />
               </div>
-            </div>
+              </div>
 
               {/* ═══ APPROVAL COCKPIT ═══ */}
               {approvalSummary && approvalSummary.total > 0 && (() => {
@@ -847,7 +847,6 @@ export function EventDrawer({
                     hasChange ? "border-blue-500/30 bg-blue-500/5" :
                     "border-amber-500/30 bg-amber-500/5"
                   )}>
-                    {/* Main status line */}
                     <div className="flex items-center gap-2">
                       {allApproved ? (
                         <Check className="h-4 w-4 text-emerald-600 shrink-0" />
@@ -870,7 +869,6 @@ export function EventDrawer({
                       )}
                     </div>
 
-                    {/* Next reminder */}
                     {s.pending > 0 && (
                       <div className="flex items-center gap-2 text-xs text-muted-foreground">
                         <Bell className="h-3 w-3 shrink-0" />
@@ -882,7 +880,6 @@ export function EventDrawer({
                       </div>
                     )}
 
-                    {/* Profile info */}
                     <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
                       <span>Profil: {profileLabels[s.reminderProfile || "standard"] || s.reminderProfile}</span>
                       {!s.responseRequired && (
