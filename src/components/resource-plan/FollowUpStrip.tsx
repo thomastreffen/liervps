@@ -1,7 +1,6 @@
 import { useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { Clock, RefreshCw, Pause, AlertTriangle, AlertCircle, X } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import type { ApprovalSummary } from "@/hooks/useApprovalSummaries";
 import type { CalendarEvent } from "@/hooks/useCalendarEvents";
 
@@ -20,41 +19,41 @@ const CATEGORIES: CategoryDef[] = [
   {
     key: "waiting",
     icon: Clock,
-    label: "Venter på svar",
-    colorClass: "text-amber-700 dark:text-amber-400 bg-amber-500/10 border-amber-500/30",
-    activeClass: "ring-2 ring-amber-500 bg-amber-500/20",
+    label: "Venter",
+    colorClass: "text-amber-700 dark:text-amber-400",
+    activeClass: "ring-1 ring-amber-500 bg-amber-500/15",
     filter: (_, s) => s.pending > 0 && s.responseRequired,
   },
   {
     key: "multi_reminder",
     icon: RefreshCw,
-    label: "Flere påminnelser",
-    colorClass: "text-orange-700 dark:text-orange-400 bg-orange-500/10 border-orange-500/30",
-    activeClass: "ring-2 ring-orange-500 bg-orange-500/20",
+    label: "Påminnelser",
+    colorClass: "text-orange-700 dark:text-orange-400",
+    activeClass: "ring-1 ring-orange-500 bg-orange-500/15",
     filter: (_, s) => s.reminderCount >= 2 && s.approved < s.total,
   },
   {
     key: "paused",
     icon: Pause,
     label: "Pauset",
-    colorClass: "text-muted-foreground bg-muted/50 border-border/50",
-    activeClass: "ring-2 ring-primary bg-muted",
+    colorClass: "text-muted-foreground",
+    activeClass: "ring-1 ring-primary bg-muted",
     filter: (_, s) => s.hasPaused,
   },
   {
     key: "declined",
     icon: AlertTriangle,
-    label: "Avslag / tidsendring",
-    colorClass: "text-destructive bg-destructive/10 border-destructive/30",
-    activeClass: "ring-2 ring-destructive bg-destructive/20",
+    label: "Avslag",
+    colorClass: "text-destructive",
+    activeClass: "ring-1 ring-destructive bg-destructive/15",
     filter: (_, s) => s.declined > 0 || s.changeRequest > 0,
   },
   {
     key: "starting_soon",
     icon: AlertCircle,
-    label: "Starter snart uten svar",
-    colorClass: "text-red-700 dark:text-red-400 bg-red-500/10 border-red-500/30",
-    activeClass: "ring-2 ring-red-500 bg-red-500/20",
+    label: "Haster",
+    colorClass: "text-red-700 dark:text-red-400",
+    activeClass: "ring-1 ring-red-500 bg-red-500/15",
     filter: (jobId, s, event) => {
       if (!event || s.pending === 0) return false;
       const hoursUntilStart = (event.start.getTime() - Date.now()) / (1000 * 60 * 60);
@@ -104,8 +103,8 @@ export function FollowUpStrip({ summaries, events, activeFilter, onFilterChange 
   if (totalIssues === 0) return null;
 
   return (
-    <div className="flex items-center gap-2 px-1 py-1.5 overflow-x-auto">
-      <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground shrink-0">
+    <div className="flex items-center gap-1.5 mb-1">
+      <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground shrink-0 mr-0.5">
         Oppfølging
       </span>
 
@@ -123,28 +122,28 @@ export function FollowUpStrip({ summaries, events, activeFilter, onFilterChange 
             type="button"
             onClick={() => onFilterChange(isActive ? null : cat.key)}
             className={cn(
-              "inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[11px] font-medium transition-all shrink-0",
+              "inline-flex items-center gap-1 rounded-md border border-border/30 px-2 py-0.5 text-[11px] font-medium transition-all shrink-0",
               cat.colorClass,
               isActive && cat.activeClass,
+              "hover:bg-muted/50",
             )}
           >
-            <Icon className="h-3 w-3 shrink-0" />
-            <span>{count}</span>
-            <span className="hidden sm:inline">{cat.label}</span>
+            <Icon className="h-2.5 w-2.5 shrink-0" />
+            <span className="font-bold">{count}</span>
+            <span className="hidden sm:inline text-[10px]">{cat.label}</span>
           </button>
         );
       })}
 
       {activeFilter && (
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-6 text-[10px] gap-1 shrink-0 px-2"
+        <button
+          type="button"
+          className="inline-flex items-center gap-0.5 text-[10px] text-muted-foreground hover:text-foreground transition-colors ml-0.5"
           onClick={() => onFilterChange(null)}
         >
-          <X className="h-3 w-3" />
+          <X className="h-2.5 w-2.5" />
           Nullstill
-        </Button>
+        </button>
       )}
     </div>
   );

@@ -1,7 +1,6 @@
 import { memo } from "react";
 import { AlertTriangle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
 
 interface UnplannedProjectsBannerProps {
   count: number;
@@ -17,19 +16,16 @@ export const UnplannedProjectsBanner = memo(function UnplannedProjectsBanner({
   if (count <= 0) return null;
 
   return (
-    <div className="mb-3 flex items-center gap-3 rounded-xl border border-warning/30 bg-warning/5 px-4 py-2.5">
-      <AlertTriangle className="h-4 w-4 text-warning shrink-0" />
-      <span className="text-sm font-medium text-foreground">
+    <button
+      type="button"
+      onClick={onClick || (() => navigate("/jobs?filter=unplanned"))}
+      className="mb-1 flex items-center gap-2 rounded-md px-2.5 py-1 text-[11px] font-medium text-warning hover:bg-warning/10 transition-colors w-fit"
+    >
+      <AlertTriangle className="h-3 w-3 shrink-0" />
+      <span>
         <span className="font-bold">{count}</span> prosjekt{count > 1 ? "er" : ""} mangler planlegging
       </span>
-      <Button
-        variant="outline"
-        size="sm"
-        className="ml-auto h-7 text-xs rounded-lg border-warning/30 text-warning hover:bg-warning/10"
-        onClick={onClick || (() => navigate("/jobs?filter=unplanned"))}
-      >
-        Vis
-      </Button>
-    </div>
+      <span className="text-[10px] underline ml-1">Vis</span>
+    </button>
   );
 });
