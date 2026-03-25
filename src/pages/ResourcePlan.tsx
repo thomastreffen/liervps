@@ -40,6 +40,8 @@ import { UnplannedProjectsBanner } from "@/components/resource-plan/UnplannedPro
 import { UnplannedJobsStrip } from "@/components/resource-plan/UnplannedJobsStrip";
 import { FollowUpStrip, getFilteredJobIds, type FollowUpCategory } from "@/components/resource-plan/FollowUpStrip";
 import { RecommendedActions } from "@/components/resource-plan/RecommendedActions";
+import { CapacityGapsStrip } from "@/components/resource-plan/CapacityGapsStrip";
+import { useCapacityGaps, type CapacityGap } from "@/hooks/useCapacityGaps";
 import { useUnplannedProjects } from "@/hooks/useUnplannedProjects";
 import { addMinutes } from "date-fns";
 import { useCompanyContext } from "@/hooks/useCompanyContext";
@@ -466,6 +468,20 @@ export default function ResourcePlan() {
   const { aggregatedDays, techCapacities, availableTechIds, partialTechIds } = useCapacity(
     calEvents, busySlots, referenceDate, techIds, operatingHours.workDayMinutes
   );
+
+  const capacityGapsSummary = useCapacityGaps(calEvents, techCapacities, technicianMap, referenceDate);
+
+  const handleGapClick = useCallback((gap: CapacityGap) => {
+    // Select the technician and navigate to the day
+    setSelectedTechId(gap.techId);
+    setReferenceDate(gap.date);
+    if (calendarView !== "timeGridDay") setCalendarView("timeGridDay");
+    // Scroll to the gap start time
+    const timeStr = `${String(Math.floor(gap.startHour)).padStart(2, "0")}:00:00`;
+    setTimeout(() => {
+      window.dispatchEvent(new CustomEvent("resource-calendar:scroll-to", { detail: timeStr }));
+    }, 300);
+  }, [calendarView]);
 
   const handleExternalDrop = useCallback((info: { taskId: string; title: string; start: Date; end: Date; estimatedMinutes: number; priority: string; dropType: string }) => {
     const techId = selectedTechId || (technicians.length > 0 ? technicians[0].id : null);
@@ -926,6 +942,14 @@ export default function ResourcePlan() {
               const event = calEvents.find(e => e.id === jobId);
               if (event) handleEventClick(event);
             }}
+          />
+        )}
+
+        {/* Capacity gaps (hidden in focus mode) */}
+        {!isMobile && !focusMode && canReadBusy && (
+          <CapacityGapsStrip
+            summary={capacityGapsSummary}
+            onGapClick={handleGapClick}
           />
         )}
 
