@@ -231,6 +231,73 @@ function buildGraphBody(
   return body;
 }
 
+async function deleteGraphEventWithFallbacks(
+  supabaseAdmin: any,
+  event: any,
+  tech: any,
+  eventTechRow: any,
+  msToken: string
+): Promise<{
+  deleted: boolean;
+  deletedEventId: string | null;
+  attempts: Array<{ source: string; eventId: string; status: number }>;
+  all404: boolean;
+}> {
+  const candidateIds = new Map<string, string>();
+  const addCandidate = (source: string, value: string | null | undefined) => {
+    if (!value || value.startsWith("pending:")) return;
+    if (!candidateIds.has(value)) candidateIds.set(value, source);
+  };
+
+  addCandidate("event_technicians", eventTechRow.calendar_event_id);
+  addCandidate("events.microsoft_event_id", event.microsoft_event_id);
+
+  const [{ data: calLinks }, { data: scheduleBlocks }] = await Promise.all([
+    supabaseAdmin
+      .from("job_calendar_links")
+      .select("calendar_event_id")
+      .eq("job_id", event.id)
+      .eq("user_id", tech.user_id)
+      .eq("provider", "microsoft"),
+    supabaseAdmin
+      .from("schedule_blocks")
+      .select("outlook_event_id")
+      .eq("project_id", event.id)
+      .eq("technician_id", tech.id)
+      .limit(20),
+  ]);
+
+  for (const link of calLinks || []) addCandidate("job_calendar_links", link.calendar_event_id as string | null);
+  for (const block of scheduleBlocks || []) addCandidate("schedule_blocks", block.outlook_event_id as string | null);
+
+  const attempts: Array<{ source: string; eventId: string; status: number }> = [];
+
+  for (const [eventId, source] of candidateIds.entries()) {
+    const res = await fetch(
+      `https://graph.microsoft.com/v1.0/users/${tech.email}/events/${eventId}`,
+      { method: "DELETE", headers: { Authorization: `Bearer ${msToken}` } }
+    );
+
+    attempts.push({ source, eventId, status: res.status });
+
+    if (res.ok) {
+      return {
+        deleted: true,
+        deletedEventId: eventId,
+        attempts,
+        all404: false,
+      };
+    }
+  }
+
+  return {
+    deleted: false,
+    deletedEventId: null,
+    attempts,
+    all404: attempts.length > 0 && attempts.every((attempt) => attempt.status === 404),
+  };
+}
+
 /* ── Resolve caller user_id from token ── */
 async function resolveCallerUserId(req: Request, supabaseAdmin: any): Promise<string | null> {
   const authHeader = req.headers.get("Authorization");
@@ -422,26 +489,67 @@ async function syncForTechnician(
   }
 
   if (action === "delete") {
-    if (!existingCalEventId) {
-      return { techId: tech.id, techName: tech.name, status: "no_calendar_event" };
-    }
-
-    const res = await fetch(
-      `https://graph.microsoft.com/v1.0/users/${techEmail}/events/${existingCalEventId}`,
-      { method: "DELETE", headers: { Authorization: `Bearer ${msToken}` } }
+    const deleteResult = await deleteGraphEventWithFallbacks(
+      supabaseAdmin,
+      event,
+      tech,
+      eventTechRow,
+      msToken
     );
 
-    if (!res.ok && res.status !== 404) {
-      console.error(`[calendar-write-sync] DELETE failed for ${techEmail}:`, res.status);
-      return { techId: tech.id, techName: tech.name, status: "error", code: res.status };
+    if (!deleteResult.deleted) {
+      console.warn(
+        `[calendar-write-sync] DELETE could not confirm removal for ${techEmail}:`,
+        JSON.stringify(deleteResult.attempts)
+      );
+
+      if (deleteResult.all404) {
+        await logAction(
+          "outlook_delete_unconfirmed",
+          `Outlook-event kunne ikke bekreftes slettet for ${tech.name} (kun 404 på kjente ID-er)`
+        );
+        return {
+          techId: tech.id,
+          techName: tech.name,
+          status: "not_found",
+          code: 404,
+          attempts: deleteResult.attempts,
+        };
+      }
+
+      const lastStatus = deleteResult.attempts.at(-1)?.status ?? "delete_failed";
+      console.error(`[calendar-write-sync] DELETE failed for ${techEmail}:`, lastStatus);
+      return {
+        techId: tech.id,
+        techName: tech.name,
+        status: "error",
+        code: lastStatus,
+        attempts: deleteResult.attempts,
+      };
     }
 
-    await supabaseAdmin.from("event_technicians")
-      .update({ calendar_event_id: null })
-      .eq("id", eventTechRow.id);
+    await Promise.all([
+      supabaseAdmin.from("event_technicians")
+        .update({ calendar_event_id: null })
+        .eq("id", eventTechRow.id),
+      supabaseAdmin.from("job_calendar_links")
+        .update({
+          sync_status: "unlinked",
+          calendar_event_id: null,
+          calendar_event_url: null,
+        } as any)
+        .eq("job_id", event.id)
+        .eq("user_id", userId)
+        .eq("provider", "microsoft"),
+    ]);
 
     await logAction("outlook_deleted", `Outlook-event slettet for ${tech.name}`);
-    return { techId: tech.id, techName: tech.name, status: "deleted" };
+    return {
+      techId: tech.id,
+      techName: tech.name,
+      status: "deleted",
+      calendarEventId: deleteResult.deletedEventId,
+    };
   }
 
   return { techId: tech.id, techName: tech.name, status: "unknown_action" };
@@ -567,6 +675,7 @@ Deno.serve(async (req) => {
     const hasCreated = results.some(r => r.status === "created");
     const hasUpdated = results.some(r => r.status === "updated");
     const hasDeleted = results.some(r => r.status === "deleted");
+    const hasNotFound = results.some(r => r.status === "not_found");
     const hasConflict = results.some(r => r.status === "conflict");
     const hasError = results.some(r => r.status === "error");
     const hasAlreadyExists = results.some(r => r.status === "already_exists");
@@ -577,6 +686,7 @@ Deno.serve(async (req) => {
     else if (action === "update" && hasUpdated) overallStatus = "updated";
     else if (action === "force_update" && (hasUpdated || hasCreated)) overallStatus = "force_updated";
     else if (action === "delete" && hasDeleted) overallStatus = "deleted";
+    else if (action === "delete" && hasNotFound) overallStatus = "not_found";
     else if (hasConflict) overallStatus = "conflict";
     else if (hasError) overallStatus = "error";
     else if (results.every(r => r.status === "no_token")) overallStatus = "no_token";
@@ -591,7 +701,7 @@ Deno.serve(async (req) => {
       }).eq("id", event_id);
     }
 
-    if (action === "delete") {
+    if (action === "delete" && overallStatus === "deleted") {
       await supabaseAdmin.from("events").update({
         microsoft_event_id: null,
         microsoft_etag: null,

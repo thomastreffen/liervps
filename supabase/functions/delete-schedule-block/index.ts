@@ -39,7 +39,7 @@ async function deleteOutlookEvent(
     `https://graph.microsoft.com/v1.0/users/${userEmail}/events/${calendarEventId}`,
     { method: "DELETE", headers: { Authorization: `Bearer ${token}` } }
   );
-  return { ok: res.ok || res.status === 404, status: res.status };
+  return { ok: res.ok, status: res.status };
 }
 
 Deno.serve(async (req) => {
