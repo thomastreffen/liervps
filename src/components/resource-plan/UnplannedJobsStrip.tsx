@@ -27,7 +27,7 @@ interface UnplannedJobsStripProps {
 export function UnplannedJobsStrip({ companyId }: UnplannedJobsStripProps) {
   const [jobs, setJobs] = useState<UnplannedJob[]>([]);
   const [loading, setLoading] = useState(true);
-  const [expanded, setExpanded] = useState(true);
+  const [expanded, setExpanded] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const draggableRef = useRef<Draggable | null>(null);
 
