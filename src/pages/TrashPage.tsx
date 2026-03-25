@@ -65,6 +65,9 @@ export default function TrashPage() {
     (convsRes.data || []).forEach((c: any) => all.push({
       id: c.id, title: c.title, subtitle: "Samtale", deleted_at: c.deleted_at, type: "conversation",
     }));
+    (ordersRes.data || []).forEach((o: any) => all.push({
+      id: o.id, title: o.submission_no || "Bestilling", subtitle: (o as any).order_form_templates?.name || o.summary?.kundenavn || "", deleted_at: o.deleted_at, type: "order",
+    }));
     all.sort((a, b) => new Date(b.deleted_at).getTime() - new Date(a.deleted_at).getTime());
     setItems(all);
     setLoading(false);
