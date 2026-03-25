@@ -554,7 +554,7 @@ export default function OrderFormDetailPage() {
         onOpenChange={setRequestInfoOpen}
         submissionId={id!}
         submissionNo={submission.submission_no}
-        bestillerEpost={valuesMap.bestiller_epost || valuesMap.epost_kunde || valuesMap[Object.keys(valuesMap).find(k => k.startsWith("epost_kunde")) || ""] || ""}
+        bestillerEpost={bestillerEpost}
       />
       <ConvertDialog
         open={convertOpen}
