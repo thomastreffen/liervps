@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -86,24 +86,36 @@ export function AssignResourceTaskDialog({
     }
   };
 
-  const [title, setTitle] = useState(
-    findVal("oppdragstittel") || summary?.oppdragstittel || `Oppgave fra ${submissionNo || "bestilling"}`
-  );
-  const [description, setDescription] = useState(
-    findVal("arbeidsbeskrivelse", "detaljert_arbeidsbeskrivelse", "beskrivelse") || ""
-  );
-  const [address, setAddress] = useState(
-    findVal("anleggsadresse", "oppdragssted", "adresse") || ""
-  );
-  const [customer, setCustomer] = useState(
-    findVal("firmanavn", "kundenavn", "kunde") || summary?.kundenavn || ""
-  );
-  const [startDate, setStartDate] = useState<Date | undefined>(parseInitialDate());
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [address, setAddress] = useState("");
+  const [customer, setCustomer] = useState("");
+  const [startDate, setStartDate] = useState<Date | undefined>(undefined);
   const [startTime, setStartTime] = useState("08:00");
-  const [endDate, setEndDate] = useState<Date | undefined>(parseInitialDate());
+  const [endDate, setEndDate] = useState<Date | undefined>(undefined);
   const [endTime, setEndTime] = useState("16:00");
   const [selectedTechIds, setSelectedTechIds] = useState<string[]>([]);
   const [includeAttachments, setIncludeAttachments] = useState(true);
+
+  // Reset all fields when dialog opens with fresh data
+  useEffect(() => {
+    if (!open) return;
+    const initialDate = parseInitialDate();
+    setTitle(findVal("oppdragstittel") || summary?.oppdragstittel || `Oppgave fra ${submissionNo || "bestilling"}`);
+    setDescription(findVal("arbeidsbeskrivelse", "detaljert_arbeidsbeskrivelse", "beskrivelse") || "");
+    setAddress(findVal("anleggsadresse", "oppdragssted", "adresse") || "");
+    setCustomer(findVal("firmanavn", "kundenavn", "kunde") || summary?.kundenavn || "");
+    setStartDate(initialDate);
+    setEndDate(initialDate);
+    setStartTime("08:00");
+    setEndTime("16:00");
+    setSelectedTechIds([]);
+    setIncludeAttachments(true);
+    // Log values for debugging
+    console.log("[AssignResourceTask] values keys:", Object.keys(values));
+    console.log("[AssignResourceTask] values:", values);
+    console.log("[AssignResourceTask] summary:", summary);
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const applyTime = (date: Date | undefined, time: string): Date => {
     const d = date ? new Date(date) : new Date();
