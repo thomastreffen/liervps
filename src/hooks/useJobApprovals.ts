@@ -9,6 +9,8 @@ export interface TechApproval {
   comment: string | null;
   proposedStart: string | null;
   proposedEnd: string | null;
+  remindersPaused: boolean;
+  createdAt: string | null;
 }
 
 export function useJobApprovals(jobId: string | null | undefined) {
@@ -22,7 +24,7 @@ export function useJobApprovals(jobId: string | null | undefined) {
       // Fetch approvals with technician names via user lookup
       const { data, error } = await supabase
         .from("job_approvals")
-        .select("technician_user_id, status, responded_at, comment, proposed_start, proposed_end")
+        .select("technician_user_id, status, responded_at, comment, proposed_start, proposed_end, reminders_paused, created_at")
         .eq("job_id", jobId)
         .order("created_at", { ascending: true });
 
@@ -45,7 +47,7 @@ export function useJobApprovals(jobId: string | null | undefined) {
       }
 
       setApprovals(
-        data.map((d) => ({
+        data.map((d: any) => ({
           technicianUserId: d.technician_user_id,
           technicianName: nameMap.get(d.technician_user_id) || "Ukjent",
           status: d.status,
@@ -53,6 +55,8 @@ export function useJobApprovals(jobId: string | null | undefined) {
           comment: d.comment,
           proposedStart: d.proposed_start,
           proposedEnd: d.proposed_end,
+          remindersPaused: d.reminders_paused ?? false,
+          createdAt: d.created_at ?? null,
         }))
       );
     } catch {

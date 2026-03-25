@@ -4310,6 +4310,7 @@ export type Database = {
           reminder_config: Json | null
           reminder_count: number
           reminder_profile: string
+          reminders_paused: boolean
           responded_at: string | null
           response_required: boolean
           status: string
@@ -4329,6 +4330,7 @@ export type Database = {
           reminder_config?: Json | null
           reminder_count?: number
           reminder_profile?: string
+          reminders_paused?: boolean
           responded_at?: string | null
           response_required?: boolean
           status?: string
@@ -4348,6 +4350,7 @@ export type Database = {
           reminder_config?: Json | null
           reminder_count?: number
           reminder_profile?: string
+          reminders_paused?: boolean
           responded_at?: string | null
           response_required?: boolean
           status?: string

@@ -1,0 +1,1 @@
+ALTER TABLE public.job_approvals ADD COLUMN IF NOT EXISTS reminders_paused boolean NOT NULL DEFAULT false;
