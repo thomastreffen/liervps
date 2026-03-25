@@ -17,8 +17,6 @@ import {
   Target,
   BookOpen,
   CalendarOff,
-  PackageSearch,
-  ShoppingCart,
   ClipboardList,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
