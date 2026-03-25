@@ -140,6 +140,21 @@ export default function OrderFormDetailPage() {
     return map;
   }, [values]);
 
+  // Helper to find value by prefix (handles suffixed keys like "epost_kunde_abc123")
+  const findVal = useCallback((...prefixes: string[]): string => {
+    for (const prefix of prefixes) {
+      if (valuesMap[prefix]) return String(valuesMap[prefix]);
+      const key = Object.keys(valuesMap).find(k => k.startsWith(prefix));
+      if (key && valuesMap[key]) return String(valuesMap[key]);
+    }
+    return "";
+  }, [valuesMap]);
+
+  const bestillerEpost = useMemo(() =>
+    findVal("bestiller_epost", "epost_kunde", "epost", "kontakt_epost"),
+    [findVal]
+  );
+
   // Collect all template fields for dynamic quality assessment
   const allTemplateFields = useMemo(() => {
     return sections.flatMap((s: any) => (s.fields || []).map((f: any) => ({
