@@ -52,6 +52,8 @@ export function useApprovalSummaries(eventIds: string[]) {
           lastRemindedAt: row.last_reminded_at,
           responseRequired: row.response_required ?? true,
           createdAt: row.created_at,
+          hasPaused: false,
+          eventStartTime: null,
         });
       }
       const s = map.get(jobId)!;
