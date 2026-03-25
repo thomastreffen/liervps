@@ -276,6 +276,7 @@ export const ResourceCalendar = memo(function ResourceCalendar({
           isOvernight,
           isMultiTech: assignment.isMultiTech,
           assignedTechId: tech.id,
+          approvalSummary: approvalSummaries.get(ev.id) ?? null,
         },
         editable: effectiveCanWrite,
       });
