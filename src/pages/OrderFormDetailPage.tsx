@@ -538,6 +538,8 @@ export default function OrderFormDetailPage() {
         open={requestInfoOpen}
         onOpenChange={setRequestInfoOpen}
         submissionId={id!}
+        submissionNo={submission.submission_no}
+        bestillerEpost={valuesMap.bestiller_epost || valuesMap.epost_kunde || valuesMap[Object.keys(valuesMap).find(k => k.startsWith("epost_kunde")) || ""] || ""}
       />
       <ConvertDialog
         open={convertOpen}
@@ -554,6 +556,12 @@ export default function OrderFormDetailPage() {
         values={valuesMap}
         summary={submission.summary as Record<string, any> | null}
         submissionNo={submission.submission_no}
+      />
+      <AttachmentPreviewDrawer
+        open={previewAttIdx !== null}
+        onClose={() => setPreviewAttIdx(null)}
+        attachments={attachments as any[]}
+        initialIndex={previewAttIdx ?? 0}
       />
     </div>
   );
