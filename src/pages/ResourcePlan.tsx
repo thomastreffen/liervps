@@ -173,6 +173,11 @@ export default function ResourcePlan() {
   const { events: calEvents, refetch: refetchCalendarEvents } = useCalendarEvents(selectedTechId, referenceDate, effectiveCompanyId, scopedCompanyTechIds);
   const approvalEventIds = useMemo(() => calEvents.map(e => e.id), [calEvents]);
   const { summaries: approvalSummaries } = useApprovalSummaries(approvalEventIds);
+  const [followUpFilter, setFollowUpFilter] = useState<FollowUpCategory>(null);
+  const followUpJobIds = useMemo(
+    () => getFilteredJobIds(followUpFilter, approvalSummaries, calEvents),
+    [followUpFilter, approvalSummaries, calEvents]
+  );
 
   const refreshPlanData = useCallback(async () => {
     setRefreshKey((k) => k + 1);
