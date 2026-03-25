@@ -142,7 +142,18 @@ Deno.serve(async (req) => {
     console.log(msg);
   };
 
-  log("=== APPROVAL REMINDER RUN START ===");
+  // Parse request body for manual trigger
+  let manualJobId: string | null = null;
+  let isManual = false;
+  try {
+    const body = await req.json();
+    if (body?.jobId) {
+      manualJobId = body.jobId;
+      isManual = body.manual === true;
+    }
+  } catch { /* no body = cron trigger */ }
+
+  log(`=== APPROVAL REMINDER RUN START ${isManual ? "(MANUAL)" : "(CRON)"} ===`);
 
   try {
     // ── KILL SWITCH: Check ALL company settings for global enabled flag ──
@@ -160,12 +171,19 @@ Deno.serve(async (req) => {
     log(`Kill-switch check: ${enabledCompanies.size} companies enabled, ${disabledCompanies.size} disabled`);
 
     // 1. Fetch pending approvals that need reminders
-    const { data: pendingApprovals, error: apErr } = await supabase
+    let query = supabase
       .from("job_approvals")
-      .select("id, job_id, technician_user_id, token, status, response_required, reminder_profile, reminder_config, reminder_count, last_reminded_at, created_at, expires_at")
+      .select("id, job_id, technician_user_id, token, status, response_required, reminder_profile, reminder_config, reminder_count, last_reminded_at, created_at, expires_at, reminders_paused")
       .eq("status", "pending")
       .eq("response_required", true)
+      .eq("reminders_paused", false)
       .neq("reminder_profile", "none");
+
+    if (manualJobId) {
+      query = query.eq("job_id", manualJobId);
+    }
+
+    const { data: pendingApprovals, error: apErr } = await query;
 
     if (apErr) throw apErr;
     log(`Found ${pendingApprovals?.length ?? 0} pending approvals`);
