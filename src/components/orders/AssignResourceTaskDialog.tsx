@@ -23,9 +23,9 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { UserPlus, CalendarDays, Paperclip, CalendarIcon, Clock } from "lucide-react";
+import { UserPlus, CalendarDays, Paperclip, CalendarIcon, Clock, ArrowRight } from "lucide-react";
 import { TechnicianMultiSelect } from "@/components/TechnicianMultiSelect";
-import { format, parse, setHours, setMinutes } from "date-fns";
+import { format, setHours, setMinutes } from "date-fns";
 import { nb } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 
