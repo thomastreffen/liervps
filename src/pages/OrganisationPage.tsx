@@ -47,6 +47,9 @@ export default function OrganisationPage() {
         <TabsContent value="profile">
           <CompanyProfileTab />
         </TabsContent>
+        <TabsContent value="reminders">
+          <ReminderSettingsTab />
+        </TabsContent>
       </Tabs>
     </div>
   );
