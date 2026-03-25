@@ -215,6 +215,9 @@ function buildGraphBody(
     body: { contentType: "HTML", content: html },
     start: { dateTime: toLocalDateTimeString(normalizedStart), timeZone: "Europe/Oslo" },
     end: { dateTime: toLocalDateTimeString(normalizedEnd), timeZone: "Europe/Oslo" },
+    showAs: "busy",
+    isReminderOn: true,
+    reminderMinutesBeforeStart: 15,
     categories: ["MCS"],
   };
 
