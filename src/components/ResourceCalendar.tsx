@@ -861,6 +861,7 @@ export const ResourceCalendar = memo(function ResourceCalendar({
           }
 
           // ── Regular event – assignment-based block ──
+          const acceptanceInfo = ACCEPTANCE_ICON_MAP[props.status as string];
           const eventTooltip = (
             <div className="space-y-1 text-xs max-w-[240px]">
               <p className="font-semibold">{arg.event.title}</p>
@@ -868,6 +869,7 @@ export const ResourceCalendar = memo(function ResourceCalendar({
               {props.customer && <p className="text-muted-foreground">Kunde: {props.customer}</p>}
               <p className="text-muted-foreground">{arg.timeText}</p>
               {props.techNames && <p>Montører: {props.techNames}</p>}
+              {acceptanceInfo && <p className="text-muted-foreground">Svar: {acceptanceInfo.title}</p>}
               {props.calendarEvent?.address && (
                 <p className="flex items-center gap-1">
                   <MapPin className="h-3 w-3 shrink-0" />
