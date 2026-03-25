@@ -510,7 +510,7 @@ export const ResourceCalendar = memo(function ResourceCalendar({
     );
 
     return result;
-  }, [calendarEvents, getBusySlotsForDay, technicianId, technicianMap, techColorMap, referenceDate, effectiveCanWrite, effectiveCanViewExternal, hideExternalEvents, visibleScheduleBlocks, isMonthView]);
+  }, [calendarEvents, getBusySlotsForDay, technicianId, technicianMap, techColorMap, referenceDate, effectiveCanWrite, effectiveCanViewExternal, hideExternalEvents, visibleScheduleBlocks, isMonthView, approvalSummaries]);
 
   const handleEventClick = useCallback((info: EventClickArg) => {
     const props = info.event.extendedProps as Record<string, any>;
