@@ -947,7 +947,10 @@ export const ResourceCalendar = memo(function ResourceCalendar({
             <Tooltip>
               <TooltipTrigger asChild>
                 <div
-                  className="fc-event-internal px-2 py-1 overflow-hidden h-full cursor-grab active:cursor-grabbing select-none"
+                  className={cn(
+                    "fc-event-internal px-2 py-1 overflow-hidden h-full cursor-grab active:cursor-grabbing select-none",
+                    props.dimmed && "opacity-25 transition-opacity"
+                  )}
                 >
                   <div className="flex items-center gap-1">
                     {props.techAvatarId && (
