@@ -15,7 +15,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
-import { Trash2, RotateCcw, Loader2, FolderKanban, Calculator, ReceiptText, Archive, UserPlus, FileSignature, MessageSquare } from "lucide-react";
+import { Trash2, RotateCcw, Loader2, FolderKanban, Calculator, ReceiptText, Archive, UserPlus, FileSignature, MessageSquare, ClipboardList } from "lucide-react";
 import { toast } from "sonner";
 
 interface DeletedItem {
@@ -23,7 +23,7 @@ interface DeletedItem {
   title: string;
   subtitle?: string;
   deleted_at: string;
-  type: "job" | "calculation" | "offer" | "lead" | "contract" | "conversation";
+  type: "job" | "calculation" | "offer" | "lead" | "contract" | "conversation" | "order";
 }
 
 export default function TrashPage() {
