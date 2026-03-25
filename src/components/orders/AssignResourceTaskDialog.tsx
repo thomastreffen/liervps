@@ -156,11 +156,12 @@ export function AssignResourceTaskDialog({
       if (includeAttachments && attachments.length > 0) {
         const attMeta: any[] = [];
         for (const att of attachments) {
-          if (!att.storage_path) continue;
+          const storagePath = att.storage_path || att.file_path;
+          if (!storagePath) continue;
           const newPath = `${activeCompanyId}/${newEvent.id}/${att.file_name}`;
           const { data: fileData } = await supabase.storage
             .from("order-form-attachments")
-            .download(att.storage_path);
+            .download(storagePath);
           if (fileData) {
             await supabase.storage
               .from("job-attachments")
