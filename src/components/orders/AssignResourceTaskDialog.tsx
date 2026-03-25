@@ -137,7 +137,7 @@ export function AssignResourceTaskDialog({
           customer: customer || null,
           start_time: startTime.toISOString(),
           end_time: endTime.toISOString(),
-          status: "pending" as any,
+          status: "scheduled" as any,
           project_type: "service",
           created_by: user?.id,
           source_order_form_id: submissionId,
