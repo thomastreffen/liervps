@@ -424,30 +424,6 @@ const App = () => (
                   </ProtectedRoute>
                 }
                />
-              <Route
-                path="/admin/suppliers"
-                element={
-                  <ProtectedRoute requiredRoles={["admin", "super_admin"]}>
-                    <SuppliersPage />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/admin/suppliers/:id"
-                element={
-                  <ProtectedRoute requiredRoles={["admin", "super_admin"]}>
-                    <SupplierDetailPage />
-                  </ProtectedRoute>
-                }
-               />
-
-              {/* Product module */}
-              <Route path="/products" element={<ProductsPage />} />
-              <Route path="/products/:id" element={<ProductDetailPage />} />
-
-              {/* Purchase module */}
-              <Route path="/purchasing" element={<PurchaseOrdersPage />} />
-              <Route path="/purchasing/:id" element={<PurchaseOrderDetailPage />} />
 
               {/* Order Forms module */}
               <Route path="/orders" element={<OrderFormsPage />} />
