@@ -40,6 +40,8 @@ import { UnplannedProjectsBanner } from "@/components/resource-plan/UnplannedPro
 import { UnplannedJobsStrip } from "@/components/resource-plan/UnplannedJobsStrip";
 import { FollowUpStrip, getFilteredJobIds, type FollowUpCategory } from "@/components/resource-plan/FollowUpStrip";
 import { RecommendedActions } from "@/components/resource-plan/RecommendedActions";
+import { CapacityGapsStrip } from "@/components/resource-plan/CapacityGapsStrip";
+import { useCapacityGaps, type CapacityGap } from "@/hooks/useCapacityGaps";
 import { useUnplannedProjects } from "@/hooks/useUnplannedProjects";
 import { addMinutes } from "date-fns";
 import { useCompanyContext } from "@/hooks/useCompanyContext";
