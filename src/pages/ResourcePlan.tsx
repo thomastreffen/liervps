@@ -862,6 +862,7 @@ export default function ResourcePlan() {
           operatingEndHour={operatingHours.endHour}
           hasNightHours={operatingHours.hasNightHours}
           approvalSummaries={approvalSummaries}
+          highlightEventIds={followUpJobIds}
         />
         </div>
       </div>
