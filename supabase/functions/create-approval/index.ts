@@ -265,6 +265,9 @@ Deno.serve(async (req) => {
             technician_user_id: tech.user_id,
             status: "approved",
             responded_at: new Date().toISOString(),
+            response_required: rRequired,
+            reminder_profile: rProfile,
+            reminder_config: rConfig,
           })
           .select("token")
           .single();
