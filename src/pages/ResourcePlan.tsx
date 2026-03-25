@@ -1005,6 +1005,10 @@ export default function ResourcePlan() {
           hasNightHours={operatingHours.hasNightHours}
           approvalSummaries={approvalSummaries}
           highlightEventIds={followUpJobIds}
+          onMonthDayClick={(date) => {
+            setReferenceDate(date);
+            setCalendarView("timeGridDay");
+          }}
         />
         </div>
       </div>

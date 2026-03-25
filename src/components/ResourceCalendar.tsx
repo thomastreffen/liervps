@@ -58,6 +58,7 @@ interface ResourceCalendarProps {
   hasNightHours?: boolean;
   approvalSummaries?: Map<string, ApprovalSummary>;
   highlightEventIds?: Set<string> | null;
+  onMonthDayClick?: (date: Date) => void;
 }
 
 function mergeExternalSlots(slots: ExternalBusySlot[]): ExternalBusySlot[] {
@@ -149,6 +150,7 @@ export const ResourceCalendar = memo(function ResourceCalendar({
   hasNightHours = false,
   approvalSummaries = new Map(),
   highlightEventIds,
+  onMonthDayClick,
 }: ResourceCalendarProps) {
   const effectiveCanWrite = canWriteEvents ?? isAdmin;
   const effectiveCanViewExternal = canViewExternalDetails ?? isSuperAdmin;
@@ -158,6 +160,69 @@ export const ResourceCalendar = memo(function ResourceCalendar({
 
   const isMonthView = calendarView === "dayGridMonth";
   const isDayView = calendarView === "timeGridDay";
+
+  // ── Month heatmap: per-day summaries ──
+  const monthDaySummaries = useMemo(() => {
+    if (!isMonthView) return new Map<string, { eventCount: number; techCount: number; pending: number; risk: number; percent: number }>();
+    const map = new Map<string, { events: Set<string>; techs: Set<string>; pending: number; risk: number; totalMinutes: number }>();
+
+    const getDayKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+    for (const ev of calendarEvents) {
+      // Iterate through each day the event spans
+      let cursor = new Date(ev.start);
+      const end = ev.end;
+      while (cursor < end) {
+        const dk = getDayKey(cursor);
+        if (!map.has(dk)) map.set(dk, { events: new Set(), techs: new Set(), pending: 0, risk: 0, totalMinutes: 0 });
+        const entry = map.get(dk)!;
+        entry.events.add(ev.id);
+        for (const t of ev.technicians) entry.techs.add(t.id);
+
+        // Calculate minutes for this day
+        const dayStart = new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate());
+        const dayEnd = new Date(dayStart);
+        dayEnd.setDate(dayEnd.getDate() + 1);
+        const segStart = Math.max(ev.start.getTime(), dayStart.getTime());
+        const segEnd = Math.min(ev.end.getTime(), dayEnd.getTime());
+        entry.totalMinutes += Math.max(0, (segEnd - segStart) / 60000);
+
+        const nextDay = new Date(cursor);
+        nextDay.setDate(nextDay.getDate() + 1);
+        nextDay.setHours(0, 0, 0, 0);
+        cursor = nextDay;
+      }
+
+      // Approval data
+      const summary = approvalSummaries.get(ev.id);
+      if (summary) {
+        const dk = getDayKey(ev.start);
+        const entry = map.get(dk);
+        if (entry) {
+          entry.pending += summary.pending;
+          if ((summary.declined > 0 || summary.changeRequest > 0)) entry.risk++;
+          const hoursUntil = (ev.start.getTime() - Date.now()) / 3600000;
+          if (summary.pending > 0 && hoursUntil > 0 && hoursUntil < 12) entry.risk++;
+        }
+      }
+    }
+
+    const WORK_DAY_MINUTES = 480; // 8h per tech
+    const techCount = technicianMap.size || 1;
+    const totalDayCapacity = WORK_DAY_MINUTES * techCount;
+
+    const result = new Map<string, { eventCount: number; techCount: number; pending: number; risk: number; percent: number }>();
+    for (const [dk, entry] of map) {
+      result.set(dk, {
+        eventCount: entry.events.size,
+        techCount: entry.techs.size,
+        pending: entry.pending,
+        risk: entry.risk,
+        percent: Math.min(100, (entry.totalMinutes / totalDayCapacity) * 100),
+      });
+    }
+    return result;
+  }, [isMonthView, calendarEvents, approvalSummaries, technicianMap]);
 
   useEffect(() => {
     const api = calendarRef.current?.getApi();
@@ -711,7 +776,7 @@ export const ResourceCalendar = memo(function ResourceCalendar({
     <TooltipProvider delayDuration={300}>
     <div ref={setWrapperRef} className="fc-wrapper rounded-2xl border border-border/30 bg-card shadow-card overflow-hidden">
       <FullCalendar
-        key={`fc-${hideExternalEvents ? "hide" : "show"}`}
+        key={`fc-${hideExternalEvents ? "hide" : "show"}-${isMonthView ? "month" : "other"}`}
         ref={calendarRef}
         plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin, listPlugin]}
         initialView={calendarView}
@@ -719,7 +784,7 @@ export const ResourceCalendar = memo(function ResourceCalendar({
         headerToolbar={false}
         locale="nb"
         firstDay={1}
-        height={800}
+        height={isMonthView ? 720 : 800}
         scrollTimeReset={false}
         allDaySlot={false}
         slotMinTime={slotMinTime}
@@ -731,13 +796,13 @@ export const ResourceCalendar = memo(function ResourceCalendar({
         nowIndicator={true}
         selectable={effectiveCanWrite}
         selectMirror={true}
-        editable={effectiveCanWrite}
-        eventDurationEditable={effectiveCanWrite}
-        eventStartEditable={effectiveCanWrite}
+        editable={effectiveCanWrite && !isMonthView}
+        eventDurationEditable={effectiveCanWrite && !isMonthView}
+        eventStartEditable={effectiveCanWrite && !isMonthView}
         snapDuration="00:15:00"
-        droppable={true}
+        droppable={!isMonthView}
         drop={handleExternalDrop}
-        events={fcEvents}
+        events={isMonthView ? [] : fcEvents}
         eventClick={handleEventClick}
         select={handleDateSelect}
         eventDrop={handleEventDrop}
@@ -745,7 +810,7 @@ export const ResourceCalendar = memo(function ResourceCalendar({
         slotEventOverlap={true}
         eventOverlap={true}
         eventOrder="start,-duration,allDay,title"
-        eventMaxStack={4}
+        eventMaxStack={isMonthView ? 0 : 4}
         eventMinHeight={32}
         eventContent={(arg) => {
           const props = arg.event.extendedProps;
@@ -1054,6 +1119,94 @@ export const ResourceCalendar = memo(function ResourceCalendar({
             </div>
           );
         }}
+        dayCellDidMount={isMonthView ? (arg) => {
+          const dk = `${arg.date.getFullYear()}-${String(arg.date.getMonth() + 1).padStart(2, "0")}-${String(arg.date.getDate()).padStart(2, "0")}`;
+          const summary = monthDaySummaries.get(dk);
+          const el = arg.el;
+          if (!summary || summary.eventCount === 0) {
+            el.style.backgroundColor = "";
+            return;
+          }
+          const pct = summary.percent;
+          if (summary.risk > 0) {
+            el.style.backgroundColor = `hsl(0 65% 52% / ${Math.min(0.12 + pct * 0.001, 0.18)})`;
+          } else if (pct >= 80) {
+            el.style.backgroundColor = `hsl(38 92% 50% / ${Math.min(0.08 + pct * 0.001, 0.16)})`;
+          } else if (pct >= 40) {
+            el.style.backgroundColor = `hsl(38 92% 50% / 0.06)`;
+          } else {
+            el.style.backgroundColor = `hsl(152 50% 38% / ${Math.min(0.04 + pct * 0.001, 0.10)})`;
+          }
+        } : undefined}
+        dayCellContent={isMonthView ? (arg) => {
+          const isToday = new Date().toDateString() === arg.date.toDateString();
+          const dk = `${arg.date.getFullYear()}-${String(arg.date.getMonth() + 1).padStart(2, "0")}-${String(arg.date.getDate()).padStart(2, "0")}`;
+          const summary = monthDaySummaries.get(dk);
+
+          return (
+            <div
+              className="w-full h-full p-1 cursor-pointer min-h-[80px] flex flex-col"
+              onClick={() => onMonthDayClick?.(arg.date)}
+            >
+              {/* Date number */}
+              <div className="flex items-center justify-between mb-1">
+                <span className={cn(
+                  "text-sm font-bold tabular-nums",
+                  isToday ? "text-primary-foreground bg-primary rounded-full w-6 h-6 flex items-center justify-center" : "text-foreground",
+                  arg.isOther && "text-muted-foreground/40"
+                )}>
+                  {arg.date.getDate()}
+                </span>
+                {summary && summary.percent >= 80 && (
+                  <span className="h-2 w-2 rounded-full bg-warning shrink-0" title={`${Math.round(summary.percent)}% belastning`} />
+                )}
+                {summary && summary.risk > 0 && (
+                  <span className="h-2 w-2 rounded-full bg-destructive shrink-0" title={`${summary.risk} risikoer`} />
+                )}
+              </div>
+
+              {/* Day summary */}
+              {summary && summary.eventCount > 0 && !arg.isOther && (
+                <div className="flex flex-col gap-0.5 mt-auto">
+                  <div className="flex items-center gap-1.5 text-[10px]">
+                    <span className="font-semibold text-foreground">{summary.eventCount} oppdr.</span>
+                    <span className="text-muted-foreground">· {summary.techCount} mont.</span>
+                  </div>
+                  {(summary.pending > 0 || summary.risk > 0) && (
+                    <div className="flex items-center gap-1.5 text-[9px]">
+                      {summary.pending > 0 && (
+                        <span className="flex items-center gap-0.5 text-warning font-medium">
+                          <Clock className="h-2 w-2" />{summary.pending}
+                        </span>
+                      )}
+                      {summary.risk > 0 && (
+                        <span className="flex items-center gap-0.5 text-destructive font-medium">
+                          <AlertTriangle className="h-2 w-2" />{summary.risk}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  {/* Capacity bar */}
+                  <div className="w-full h-1 rounded-full bg-muted overflow-hidden mt-0.5">
+                    <div
+                      className="h-full rounded-full transition-all"
+                      style={{
+                        width: `${Math.min(summary.percent, 100)}%`,
+                        backgroundColor: summary.risk > 0
+                          ? "hsl(0 65% 52%)"
+                          : summary.percent >= 80
+                            ? "hsl(38 92% 50%)"
+                            : summary.percent >= 40
+                              ? "hsl(38 92% 50% / 0.7)"
+                              : "hsl(152 50% 38%)",
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        } : undefined}
         loading={() => {}}
       />
     </div>

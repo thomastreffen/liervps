@@ -295,6 +295,26 @@
   padding: 1px 4px;
   margin-bottom: 2px;
 }
+
+/* ═══ Month heatmap view ═══ */
+.fc-wrapper .fc .fc-daygrid-body .fc-daygrid-day {
+  transition: background-color 0.2s ease;
+}
+.fc-wrapper .fc .fc-daygrid-day:hover {
+  filter: brightness(0.97);
+}
+.fc-wrapper .fc .fc-daygrid-day-frame {
+  min-height: 80px;
+}
+.fc-wrapper .fc .fc-daygrid-day-top {
+  display: none; /* We render our own date number via dayCellContent */
+}
+.fc-wrapper .fc .fc-daygrid-day-events {
+  display: none; /* Hide individual events in month – we show summaries instead */
+}
+.fc-wrapper .fc .fc-daygrid-day-bottom {
+  display: none;
+}
 .fc-wrapper .fc .fc-list-event td {
   border-color: hsl(220 14% 92%);
 }
