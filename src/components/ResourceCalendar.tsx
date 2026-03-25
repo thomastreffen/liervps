@@ -279,6 +279,7 @@ export const ResourceCalendar = memo(function ResourceCalendar({
           isMultiTech: assignment.isMultiTech,
           assignedTechId: tech.id,
           approvalSummary: approvalSummaries.get(ev.id) ?? null,
+          dimmed: highlightEventIds ? !highlightEventIds.has(ev.id) : false,
         },
         editable: effectiveCanWrite,
       });
