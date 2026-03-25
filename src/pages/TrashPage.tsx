@@ -138,6 +138,7 @@ export default function TrashPage() {
           <TabsTrigger value="calculation" className="gap-1"><Calculator className="h-3 w-3" />Kalkulasjoner ({countByType("calculation")})</TabsTrigger>
           <TabsTrigger value="offer" className="gap-1"><ReceiptText className="h-3 w-3" />Tilbud ({countByType("offer")})</TabsTrigger>
           <TabsTrigger value="conversation" className="gap-1"><MessageSquare className="h-3 w-3" />Samtaler ({countByType("conversation")})</TabsTrigger>
+          <TabsTrigger value="order" className="gap-1"><ClipboardList className="h-3 w-3" />Bestillinger ({countByType("order")})</TabsTrigger>
         </TabsList>
       </Tabs>
 
