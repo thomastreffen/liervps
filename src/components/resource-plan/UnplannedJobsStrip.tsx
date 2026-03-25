@@ -142,16 +142,16 @@ export function UnplannedJobsStrip({ companyId }: UnplannedJobsStripProps) {
   if (loading || jobs.length === 0) return null;
 
   return (
-    <div className="mb-4 border border-border/40 rounded-xl bg-card/80 backdrop-blur-sm overflow-hidden">
+    <div className="mb-1 border border-border/30 rounded-lg bg-card/60 overflow-hidden">
       <button
         onClick={() => setExpanded((v) => !v)}
-        className="w-full flex items-center gap-2 px-4 py-2.5 border-b border-border/30 bg-muted/30 hover:bg-muted/50 transition-colors"
+        className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-muted/40 transition-colors"
       >
-        <FolderKanban className="h-4 w-4 text-primary" />
-        <span className="text-sm font-semibold">Uplanlagte jobber</span>
-        <Badge variant="secondary" className="text-[10px] h-5">{jobs.length}</Badge>
-        <span className="text-[10px] text-muted-foreground ml-auto mr-2">Dra til kalender for å planlegge</span>
-        {expanded ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />}
+        <FolderKanban className="h-3.5 w-3.5 text-primary" />
+        <span className="text-[11px] font-semibold">Uplanlagte jobber</span>
+        <Badge variant="secondary" className="text-[9px] h-4 px-1.5">{jobs.length}</Badge>
+        <span className="text-[9px] text-muted-foreground ml-auto mr-1">Dra til kalender</span>
+        {expanded ? <ChevronUp className="h-3 w-3 text-muted-foreground" /> : <ChevronDown className="h-3 w-3 text-muted-foreground" />}
       </button>
 
       {expanded && (

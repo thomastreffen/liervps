@@ -1,5 +1,5 @@
-import { useMemo } from "react";
-import { Send, UserPlus, AlertCircle, ArrowRight } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Send, UserPlus, AlertCircle, ArrowRight, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ApprovalSummary } from "@/hooks/useApprovalSummaries";
 import type { CalendarEvent } from "@/hooks/useCalendarEvents";
@@ -8,7 +8,6 @@ interface Action {
   id: string;
   icon: typeof Send;
   label: string;
-  detail: string;
   severity: "critical" | "warning" | "info";
   jobId: string;
 }
@@ -19,13 +18,11 @@ interface Props {
   onActionClick: (jobId: string) => void;
 }
 
-const SEVERITY_STYLES: Record<string, string> = {
-  critical: "border-destructive/30 bg-destructive/5 text-destructive hover:bg-destructive/10",
-  warning: "border-amber-500/30 bg-amber-500/5 text-amber-700 dark:text-amber-400 hover:bg-amber-500/10",
-  info: "border-border/50 bg-muted/30 text-muted-foreground hover:bg-muted/50",
-};
+const MAX_VISIBLE = 3;
 
 export function RecommendedActions({ summaries, events, onActionClick }: Props) {
+  const [showAll, setShowAll] = useState(false);
+
   const eventMap = useMemo(() => {
     const m = new Map<string, CalendarEvent>();
     for (const e of events) m.set(e.id, e);
@@ -41,80 +38,60 @@ export function RecommendedActions({ summaries, events, onActionClick }: Props) 
       const hoursUntilStart = (event.start.getTime() - Date.now()) / (1000 * 60 * 60);
       const eventTitle = event.title?.replace("SERVICE – ", "") || "Oppdrag";
 
-      // Critical: Starting soon without response
       if (s.pending > 0 && hoursUntilStart > 0 && hoursUntilStart < 12) {
-        result.push({
-          id: `urgent-${jobId}`,
-          icon: AlertCircle,
-          label: `Følg opp ${eventTitle}`,
-          detail: "Starter snart – mangler svar",
-          severity: "critical",
-          jobId,
-        });
+        result.push({ id: `urgent-${jobId}`, icon: AlertCircle, label: `Følg opp ${eventTitle}`, severity: "critical", jobId });
       }
-
-      // Warning: Declined – suggest replacement
       if (s.declined > 0 || s.changeRequest > 0) {
-        result.push({
-          id: `replace-${jobId}`,
-          icon: UserPlus,
-          label: `Bytt montør for ${eventTitle}`,
-          detail: s.declined > 0 ? "Avslag registrert" : "Tidsendring foreslått",
-          severity: "warning",
-          jobId,
-        });
+        result.push({ id: `replace-${jobId}`, icon: UserPlus, label: `Bytt montør – ${eventTitle}`, severity: "warning", jobId });
       }
-
-      // Info: Send reminder to pending
       if (s.pending > 0 && s.responseRequired && s.reminderCount < 3 && !(hoursUntilStart > 0 && hoursUntilStart < 12)) {
-        result.push({
-          id: `remind-${jobId}`,
-          icon: Send,
-          label: `Send påminnelse (${s.pending} montør${s.pending > 1 ? "er" : ""})`,
-          detail: eventTitle,
-          severity: "info",
-          jobId,
-        });
+        result.push({ id: `remind-${jobId}`, icon: Send, label: `Påminnelse (${s.pending}) – ${eventTitle}`, severity: "info", jobId });
       }
     }
 
-    // Sort: critical first, then warning, then info
     const order = { critical: 0, warning: 1, info: 2 };
     result.sort((a, b) => order[a.severity] - order[b.severity]);
-
-    return result.slice(0, 5); // Max 5 suggestions
+    return result.slice(0, 8);
   }, [summaries, eventMap]);
 
   if (actions.length === 0) return null;
 
+  const visible = showAll ? actions : actions.slice(0, MAX_VISIBLE);
+  const hiddenCount = actions.length - MAX_VISIBLE;
+
+  const severityDot: Record<string, string> = {
+    critical: "bg-destructive",
+    warning: "bg-warning",
+    info: "bg-muted-foreground/40",
+  };
+
   return (
-    <div className="px-1 py-1.5 space-y-1.5">
-      <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-        Anbefalte handlinger
+    <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+      <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground shrink-0 mr-0.5">
+        Handlinger
       </span>
-      <div className="flex flex-col gap-1">
-        {actions.map((action) => {
-          const Icon = action.icon;
-          return (
-            <button
-              key={action.id}
-              type="button"
-              onClick={() => onActionClick(action.jobId)}
-              className={cn(
-                "flex items-center gap-2 rounded-lg border px-3 py-2 text-left transition-all group",
-                SEVERITY_STYLES[action.severity],
-              )}
-            >
-              <Icon className="h-3.5 w-3.5 shrink-0" />
-              <div className="flex-1 min-w-0">
-                <p className="text-[11px] font-medium truncate">{action.label}</p>
-                <p className="text-[10px] opacity-70 truncate">{action.detail}</p>
-              </div>
-              <ArrowRight className="h-3 w-3 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
-            </button>
-          );
-        })}
-      </div>
+      {visible.map((action) => (
+        <button
+          key={action.id}
+          type="button"
+          onClick={() => onActionClick(action.jobId)}
+          className="inline-flex items-center gap-1 rounded-md border border-border/30 px-2 py-0.5 text-[11px] text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all group shrink-0"
+        >
+          <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", severityDot[action.severity])} />
+          <span className="truncate max-w-[180px]">{action.label}</span>
+          <ArrowRight className="h-2.5 w-2.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+        </button>
+      ))}
+      {!showAll && hiddenCount > 0 && (
+        <button
+          type="button"
+          onClick={() => setShowAll(true)}
+          className="inline-flex items-center gap-0.5 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+        >
+          +{hiddenCount}
+          <ChevronDown className="h-2.5 w-2.5" />
+        </button>
+      )}
     </div>
   );
 }
