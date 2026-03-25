@@ -910,8 +910,13 @@ export function EventDrawer({
           </section>
 
           {/* ═══ SECTION: PÅMINNELSE ═══ */}
-          {!isEditing && eventType === "project" && techIds.length > 0 && (
-            <ReminderProfileSelect value={reminderConfig} onChange={setReminderConfig} disabled={readOnly} />
+          {eventType === "project" && techIds.length > 0 && (
+            <ReminderProfileSelect
+              value={reminderConfig}
+              onChange={setReminderConfig}
+              disabled={readOnly}
+              companyRemindersDisabled={reminderSettings?.enabled === false}
+            />
           )}
 
           {/* ═══ SECTION: BESKRIVELSE ═══ */}
