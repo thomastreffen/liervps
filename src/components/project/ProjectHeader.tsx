@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { nb } from "date-fns/locale";
 import { JobStatusBadge } from "@/components/JobStatusBadge";
+import { getExecutionStatus, getAcceptanceFromLegacy, BILLING_STATUSES } from "@/lib/job-status";
 import { SourceMetadataBadge } from "@/components/SourceMetadataBadge";
 import {
   ArrowLeft,
@@ -152,7 +153,13 @@ export function ProjectHeader({
 
           {/* Meta row – single line on mobile */}
           <div className="flex items-center justify-center gap-2 sm:gap-3 mt-1.5 sm:mt-3 flex-wrap">
-            <JobStatusBadge status={status} />
+            <JobStatusBadge status={getExecutionStatus(status)} size="sm" />
+            {getAcceptanceFromLegacy(status) && (
+              <JobStatusBadge status={getAcceptanceFromLegacy(status)!} size="sm" />
+            )}
+            {BILLING_STATUSES.includes(status) && (
+              <JobStatusBadge status={status} size="sm" />
+            )}
             {customer && (
               <span className="text-xs sm:text-sm text-muted-foreground">{customer}</span>
             )}

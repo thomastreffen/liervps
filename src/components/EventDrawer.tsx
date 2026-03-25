@@ -20,7 +20,9 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { TechnicianMultiSelect } from "./TechnicianMultiSelect";
-import { JobStatusBadge } from "./JobStatusBadge";
+import { JobStatusBadge, JobStatusGroup } from "./JobStatusBadge";
+import { useJobApprovals } from "@/hooks/useJobApprovals";
+import { getExecutionStatus, BILLING_STATUSES, ACCEPTANCE_STATUSES } from "@/lib/job-status";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -166,6 +168,9 @@ export function EventDrawer({
 
   // Thread unread tracking
   const { unreadCount: threadUnreadCount } = useTaskThreadReads(editEvent?.id);
+
+  // Per-technician approval statuses
+  const { approvals: techApprovals } = useJobApprovals(editEvent?.id);
 
   // Populate form from props
   useEffect(() => {
@@ -749,7 +754,7 @@ export function EventDrawer({
 
           {/* Edit mode: job info */}
           {isEditing && editEvent && (
-            <div className="space-y-1.5">
+            <div className="space-y-3">
               {(editEvent.internalNumber || editEvent.jobNumber) && (
                 <span className="inline-block font-mono text-[11px] font-semibold bg-primary/10 text-primary rounded px-2 py-0.5">
                   {(() => {
@@ -768,7 +773,22 @@ export function EventDrawer({
                 {editEvent.address && (
                   <span className="flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5" />{editEvent.address}</span>
                 )}
-                <JobStatusBadge status={editEvent.status} />
+              </div>
+
+              {/* ── Grouped status display ── */}
+              <div className="rounded-lg border border-border/40 bg-card p-3">
+                <JobStatusGroup
+                  executionStatus={getExecutionStatus(editEvent.status)}
+                  acceptanceStatuses={
+                    techApprovals.length > 0
+                      ? techApprovals.map((a) => ({ techName: a.technicianName.split(" ")[0], status: a.status }))
+                      : editEvent.technicians.map((t) => ({
+                          techName: t.name.split(" ")[0],
+                          status: ACCEPTANCE_STATUSES.includes(editEvent.status) ? (editEvent.status === "approved" ? "approved" : editEvent.status === "rejected" ? "declined" : editEvent.status === "time_change_proposed" ? "change_request" : "pending") : "approved",
+                        }))
+                  }
+                  billingStatus={BILLING_STATUSES.includes(editEvent.status) ? editEvent.status : null}
+                />
               </div>
             </div>
           )}

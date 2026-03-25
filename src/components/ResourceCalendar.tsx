@@ -13,12 +13,13 @@ import {
   filterScheduleBlocksByTechnician,
   getRenderableAssignments,
 } from "@/lib/resource-plan-assignment-identity";
-import { Lock, CalendarCheck, AlertTriangle, Globe, Monitor, MapPin, Moon, Users } from "lucide-react";
+import { Lock, CalendarCheck, AlertTriangle, Globe, Monitor, MapPin, Moon, Users, Check, Clock, X, Clock4 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { TechAvatar } from "@/components/TechAvatar";
 import { format } from "date-fns";
 import { nb } from "date-fns/locale";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 interface TechLookup {
   name: string;
@@ -85,14 +86,26 @@ function hexToRgba(hex: string, alpha: number): string {
   return `rgba(${r},${g},${b},${alpha})`;
 }
 
+// Execution status colors (primary calendar block indication)
 const statusDotColors: Record<string, string> = {
-  planned: "#1E3A8A",
-  requested: "#D97706",
   scheduled: "#2563EB",
   in_progress: "#059669",
   completed: "#6B7280",
-  done: "#6B7280",
+  ready_for_invoicing: "#D97706",
   invoiced: "#9CA3AF",
+  // Legacy / acceptance statuses mapped to execution context
+  planned: "#2563EB",
+  requested: "#2563EB", // in plan = effectively scheduled
+  approved: "#2563EB",
+  done: "#6B7280",
+};
+
+// Acceptance status icon config for small indicator on calendar blocks
+const ACCEPTANCE_ICON_MAP: Record<string, { Icon: typeof Check; className: string; title: string }> = {
+  requested: { Icon: Clock, className: "text-amber-300", title: "Forespurt" },
+  approved: { Icon: Check, className: "text-emerald-300", title: "Godkjent" },
+  time_change_proposed: { Icon: Clock4, className: "text-blue-300", title: "Tidsendring" },
+  rejected: { Icon: X, className: "text-red-300", title: "Avslått" },
 };
 
 const matchStateColors: Record<string, { bg: string; border: string; text: string }> = {
@@ -848,6 +861,7 @@ export const ResourceCalendar = memo(function ResourceCalendar({
           }
 
           // ── Regular event – assignment-based block ──
+          const acceptanceInfo = ACCEPTANCE_ICON_MAP[props.status as string];
           const eventTooltip = (
             <div className="space-y-1 text-xs max-w-[240px]">
               <p className="font-semibold">{arg.event.title}</p>
@@ -855,6 +869,7 @@ export const ResourceCalendar = memo(function ResourceCalendar({
               {props.customer && <p className="text-muted-foreground">Kunde: {props.customer}</p>}
               <p className="text-muted-foreground">{arg.timeText}</p>
               {props.techNames && <p>Montører: {props.techNames}</p>}
+              {acceptanceInfo && <p className="text-muted-foreground">Svar: {acceptanceInfo.title}</p>}
               {props.calendarEvent?.address && (
                 <p className="flex items-center gap-1">
                   <MapPin className="h-3 w-3 shrink-0" />
@@ -888,12 +903,19 @@ export const ResourceCalendar = memo(function ResourceCalendar({
                         {props.jobNumber}
                       </span>
                     )}
-                    {!props.jobNumber && (
-                      <span
-                        className="h-1.5 w-1.5 rounded-full shrink-0 ml-auto border border-white/30"
-                        style={{ backgroundColor: props.statusDot }}
-                      />
-                    )}
+                    {/* Acceptance status indicator */}
+                    {(() => {
+                      const acceptanceInfo = ACCEPTANCE_ICON_MAP[props.status as string];
+                      if (acceptanceInfo) {
+                        const AccIcon = acceptanceInfo.Icon;
+                        return (
+                          <span className={cn("shrink-0", props.jobNumber ? "" : "ml-auto")} title={acceptanceInfo.title}>
+                            <AccIcon className={cn("h-2.5 w-2.5", acceptanceInfo.className)} />
+                          </span>
+                        );
+                      }
+                      return null;
+                    })()}
                   </div>
                   <p className="text-[11px] font-semibold leading-tight truncate text-white">
                     {arg.event.title}
