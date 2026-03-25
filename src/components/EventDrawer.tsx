@@ -853,6 +853,22 @@ export function EventDrawer({
                   readOnly={readOnly}
                 />
               )}
+
+              {/* ═══ TECH REPLACEMENT SUGGESTION ═══ */}
+              {approvalSummary && editEvent && (approvalSummary.declined > 0 || approvalSummary.changeRequest > 0 || (approvalSummary.pending > 0 && (editEvent.start.getTime() - Date.now()) < 12 * 60 * 60 * 1000)) && (
+                <TechReplacementSuggestion
+                  summary={approvalSummary}
+                  eventStart={editEvent.start}
+                  availableTechs={allTechnicians}
+                  assignedTechIds={editEvent.technicianIds || []}
+                  insights={techInsights}
+                  onSelectTech={(techId) => {
+                    if (!techIds.includes(techId)) {
+                      setTechIds([...techIds, techId]);
+                    }
+                  }}
+                />
+              )}
             </div>
           )}
 
