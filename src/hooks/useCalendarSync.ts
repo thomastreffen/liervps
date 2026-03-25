@@ -83,22 +83,37 @@ export function useCalendarSync() {
     }
   }, []);
 
-  const syncDelete = useCallback(async (eventId: string) => {
+  const syncDelete = useCallback(async (eventId: string): Promise<"deleted" | "not_found" | "error" | "no_token" | "unknown"> => {
     try {
       const { data, error } = await supabase.functions.invoke("calendar-write-sync", {
         body: { action: "delete", event_id: eventId },
       });
       if (error) {
         console.error("[CalendarSync] delete invoke error:", error);
-        return;
+        return "error";
+      }
+      if (data?.status === "deleted") {
+        return "deleted";
+      }
+      if (data?.status === "not_found") {
+        toast.warning("Outlook-hendelsen kunne ikke bekreftes slettet", {
+          description: "Oppgaven ble fjernet fra planen, men Outlook-koblingen må kanskje ryddes opp manuelt.",
+        });
+        return "not_found";
+      }
+      if (data?.status === "no_token") {
+        return "no_token";
       }
       if (data?.status === "error") {
         toast.error("Outlook-event ble ikke slettet", {
           description: `Feilkode ${data.code}`,
         });
+        return "error";
       }
+      return "unknown";
     } catch (err) {
       console.error("[CalendarSync] delete exception:", err);
+      return "error";
     }
   }, []);
 

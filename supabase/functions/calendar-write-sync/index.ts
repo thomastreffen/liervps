@@ -675,6 +675,7 @@ Deno.serve(async (req) => {
     const hasCreated = results.some(r => r.status === "created");
     const hasUpdated = results.some(r => r.status === "updated");
     const hasDeleted = results.some(r => r.status === "deleted");
+    const hasNotFound = results.some(r => r.status === "not_found");
     const hasConflict = results.some(r => r.status === "conflict");
     const hasError = results.some(r => r.status === "error");
     const hasAlreadyExists = results.some(r => r.status === "already_exists");
@@ -685,6 +686,7 @@ Deno.serve(async (req) => {
     else if (action === "update" && hasUpdated) overallStatus = "updated";
     else if (action === "force_update" && (hasUpdated || hasCreated)) overallStatus = "force_updated";
     else if (action === "delete" && hasDeleted) overallStatus = "deleted";
+    else if (action === "delete" && hasNotFound) overallStatus = "not_found";
     else if (hasConflict) overallStatus = "conflict";
     else if (hasError) overallStatus = "error";
     else if (results.every(r => r.status === "no_token")) overallStatus = "no_token";
@@ -699,7 +701,7 @@ Deno.serve(async (req) => {
       }).eq("id", event_id);
     }
 
-    if (action === "delete") {
+    if (action === "delete" && overallStatus === "deleted") {
       await supabaseAdmin.from("events").update({
         microsoft_event_id: null,
         microsoft_etag: null,
