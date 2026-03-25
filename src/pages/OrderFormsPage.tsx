@@ -318,6 +318,18 @@ export default function OrderFormsPage() {
                       <span className="text-[11px] text-muted-foreground">
                         {format(new Date(sub.submitted_at), "d. MMM yyyy", { locale: nb })}
                       </span>
+                      {isAdmin && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={(e) => handleSoftDelete(e, sub)}
+                          disabled={deletingId === sub.id}
+                          title="Flytt til papirkurv"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </CardContent>
