@@ -1090,6 +1090,15 @@ export const ResourceCalendar = memo(function ResourceCalendar({
         }}
         dayHeaderContent={(arg) => {
           const isToday = new Date().toDateString() === arg.date.toDateString();
+          if (isMonthView) {
+            return (
+              <div className="py-1.5 text-center">
+                <div className={cn("text-xs uppercase tracking-widest font-semibold", isToday ? "text-primary" : "text-muted-foreground")}>
+                  {arg.date.toLocaleDateString("nb-NO", { weekday: "short" })}
+                </div>
+              </div>
+            );
+          }
           const dayCap = dayCapacities?.find(
             (d) => d.date.toDateString() === arg.date.toDateString()
           );
@@ -1101,7 +1110,7 @@ export const ResourceCalendar = memo(function ResourceCalendar({
               <div className={`text-base font-bold ${isToday ? "text-primary" : ""}`}>
                 {arg.date.getDate()}
               </div>
-              {dayCap && !isMonthView && (
+              {dayCap && (
                 <div className="mt-0.5 flex flex-col items-center gap-0.5">
                   <div className="w-8 h-1 rounded-full bg-muted overflow-hidden">
                     <div
