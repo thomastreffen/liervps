@@ -58,7 +58,7 @@ const CATEGORIES: CategoryDef[] = [
     filter: (jobId, s, event) => {
       if (!event || s.pending === 0) return false;
       const hoursUntilStart = (event.start.getTime() - Date.now()) / (1000 * 60 * 60);
-      return hoursUntilStart > 0 && hoursUntilStart < 24;
+      return hoursUntilStart > 0 && hoursUntilStart < 12;
     },
   },
 ];
