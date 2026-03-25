@@ -524,6 +524,9 @@ export function EventDrawer({
     endDate !== format(editEvent.end, "yyyy-MM-dd") ||
     endTime !== format(editEvent.end, "HH:mm") ||
     title !== editEvent.title ||
+    description !== (editEvent.description || "") ||
+    customer !== (editEvent.customer || "") ||
+    address !== (editEvent.address || "") ||
     JSON.stringify([...techIds].sort()) !== JSON.stringify(editEvent.technicians.map((t) => t.id).sort())
   ) : true;
 
