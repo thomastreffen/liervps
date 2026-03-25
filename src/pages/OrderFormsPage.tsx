@@ -1,7 +1,8 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Search, ClipboardList, AlertTriangle, Mail, MailX, ArrowRight, Download } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { Plus, Search, ClipboardList, AlertTriangle, Mail, MailX, ArrowRight, Download, Trash2 } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompanyContext } from "@/hooks/useCompanyContext";
 import { Button } from "@/components/ui/button";
@@ -40,6 +41,9 @@ const STATUS_TABS: { key: OrderFormSubmissionStatus | "all"; label: string }[] =
 export default function OrderFormsPage() {
   const navigate = useNavigate();
   const { activeCompanyId } = useCompanyContext();
+  const { isAdmin } = useAuth();
+  const queryClient = useQueryClient();
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [qualityFilter, setQualityFilter] = useState<string>("all");
   const [extraFilter, setExtraFilter] = useState<string>("all");
@@ -54,6 +58,7 @@ export default function OrderFormsPage() {
         .from("order_form_submissions")
         .select("*, order_form_templates(name, slug)")
         .eq("company_id", activeCompanyId!)
+        .is("deleted_at", null)
         .order("submitted_at", { ascending: false })
         .limit(500);
 
@@ -126,6 +131,20 @@ export default function OrderFormsPage() {
 
     return result;
   }, [submissions, search, qualityFilter, sortBy, extraFilter]);
+
+  // Soft delete handler
+  const handleSoftDelete = async (e: React.MouseEvent, sub: any) => {
+    e.stopPropagation();
+    if (!confirm(`Flytte ${sub.submission_no} til papirkurven?`)) return;
+    setDeletingId(sub.id);
+    const { data: { user } } = await supabase.auth.getUser();
+    await supabase.from("order_form_submissions").update({
+      deleted_at: new Date().toISOString(),
+      deleted_by: user?.id,
+    } as any).eq("id", sub.id);
+    queryClient.invalidateQueries({ queryKey: ["order-form-submissions"] });
+    setDeletingId(null);
+  };
 
   // Status counts
   const statusCounts: Record<string, number> = {};
@@ -249,7 +268,7 @@ export default function OrderFormsPage() {
             return (
               <Card
                 key={sub.id}
-                className="hover:shadow-md transition-shadow cursor-pointer"
+                className="hover:shadow-md transition-shadow cursor-pointer group"
                 onClick={() => navigate(`/orders/${sub.id}`)}
               >
                 <CardContent className="p-4">
@@ -299,6 +318,18 @@ export default function OrderFormsPage() {
                       <span className="text-[11px] text-muted-foreground">
                         {format(new Date(sub.submitted_at), "d. MMM yyyy", { locale: nb })}
                       </span>
+                      {isAdmin && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={(e) => handleSoftDelete(e, sub)}
+                          disabled={deletingId === sub.id}
+                          title="Flytt til papirkurv"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </CardContent>
