@@ -885,6 +885,7 @@ export default function ResourcePlan() {
                 </Badge>
               </div>
             </div>
+            )}
           </>
         )}
 
