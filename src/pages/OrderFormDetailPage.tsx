@@ -336,7 +336,7 @@ export default function OrderFormDetailPage() {
           <Mail className="h-3.5 w-3.5 mr-1" />
           {hasNotification ? "Send varsling på nytt" : "Send varsling manuelt"}
         </Button>
-        {valuesMap.bestiller_epost && !hasConfirmation && (
+        {bestillerEpost && !hasConfirmation && (
           <Button
             variant="outline" size="sm"
             onClick={() => sendNotification.mutate("confirmation")}
