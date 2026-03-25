@@ -327,7 +327,7 @@ export default function OrderFormBuilderPage() {
         </div>
         <div className="flex items-center gap-1.5">
           {template.is_active && (
-            <PublishLinkActions slug={template.slug} audienceType={template.audience_type} />
+            <PublishLinkActions template={template} />
           )}
           <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setPreviewMode(true)}>
             <Eye className="h-3.5 w-3.5 mr-1" />
@@ -431,13 +431,21 @@ export default function OrderFormBuilderPage() {
   );
 }
 
-function PublishLinkActions({ slug, audienceType }: { slug: string; audienceType: string }) {
+function PublishLinkActions({ template }: { template: any }) {
   const [copied, setCopied] = useState(false);
-  const internalUrl = `${window.location.origin}/orders/new/${slug}`;
-  const publicUrl = `${window.location.origin}/bestilling/${slug}`;
-  const isExternal = audienceType === "external" || audienceType === "both";
+  const internalUrl = `${window.location.origin}/orders/new/${template.slug}`;
+  const publicUrl = `${window.location.origin}/bestilling/${template.slug}`;
+  const isExternal = template.audience_type === "external" || template.audience_type === "both";
+  const url = isExternal ? publicUrl : internalUrl;
 
-  const copyLink = (url: string) => {
+  const accessLabel = (() => {
+    if (template.audience_type === "internal") return "Intern · Krever innlogging";
+    const login = template.requires_login ? "Krever innlogging" : "Åpent uten innlogging";
+    const catalog = template.show_in_catalog ? "Vises på bestillingssiden" : "Kun via direkte lenke";
+    return `${template.audience_type === "external" ? "Ekstern" : "Intern + ekstern"} · ${login} · ${catalog}`;
+  })();
+
+  const copyLink = () => {
     navigator.clipboard.writeText(url);
     setCopied(true);
     toast.success("Lenke kopiert");
@@ -445,22 +453,13 @@ function PublishLinkActions({ slug, audienceType }: { slug: string; audienceType
   };
 
   return (
-    <div className="flex items-center gap-1">
-      <Button
-        variant="outline"
-        size="sm"
-        className="h-8 text-xs"
-        onClick={() => copyLink(isExternal ? publicUrl : internalUrl)}
-      >
+    <div className="flex items-center gap-1.5">
+      <Badge variant="outline" className="text-[10px] font-normal max-w-[280px] truncate">{accessLabel}</Badge>
+      <Button variant="outline" size="sm" className="h-8 text-xs" onClick={copyLink}>
         {copied ? <Check className="h-3.5 w-3.5 mr-1" /> : <Copy className="h-3.5 w-3.5 mr-1" />}
         {copied ? "Kopiert!" : "Kopier lenke"}
       </Button>
-      <Button
-        variant="outline"
-        size="sm"
-        className="h-8 text-xs"
-        onClick={() => window.open(isExternal ? publicUrl : internalUrl, "_blank")}
-      >
+      <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => window.open(url, "_blank")}>
         <ExternalLink className="h-3.5 w-3.5 mr-1" />
         Åpne skjema
       </Button>
@@ -478,29 +477,119 @@ function TemplateSettingsForm({ template, onSave }: { template: any; onSave: (u:
     send_email_to: (template.send_email_to || []).join(", "),
     audience_type: template.audience_type || "both",
     on_submit_action: template.on_submit_action || "queue",
+    requires_login: template.requires_login ?? false,
+    show_in_catalog: template.show_in_catalog ?? true,
   });
 
+  const accessSummary = (() => {
+    const parts: string[] = [];
+    if (form.audience_type === "internal") {
+      parts.push("Intern");
+      parts.push("Krever innlogging");
+    } else {
+      parts.push(form.audience_type === "external" ? "Ekstern" : "Intern + ekstern");
+      parts.push(form.requires_login ? "Krever innlogging" : "Åpent uten innlogging");
+      parts.push(form.show_in_catalog ? "Vises på bestillingssiden" : "Kun via direkte lenke");
+    }
+    return parts.join(" · ");
+  })();
+
   return (
-    <div className="space-y-4 mt-4">
-      <div><Label className="text-xs">Navn</Label><Input value={form.name} onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))} /></div>
-      <div><Label className="text-xs">Intern tittel</Label><Input value={form.internal_title} onChange={(e) => setForm((p) => ({ ...p, internal_title: e.target.value }))} /></div>
-      <div><Label className="text-xs">Ekstern tittel</Label><Input value={form.external_title} onChange={(e) => setForm((p) => ({ ...p, external_title: e.target.value }))} /></div>
-      <div><Label className="text-xs">Beskrivelse</Label><Textarea value={form.description} onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))} /></div>
-      <div><Label className="text-xs">Bekreftelsestekst</Label><Textarea value={form.confirmation_text} onChange={(e) => setForm((p) => ({ ...p, confirmation_text: e.target.value }))} /></div>
-      <div><Label className="text-xs">E-post mottaker(e)</Label><Input value={form.send_email_to} onChange={(e) => setForm((p) => ({ ...p, send_email_to: e.target.value }))} placeholder="Kommaseparert" /></div>
-      <div>
-        <Label className="text-xs">Målgruppe</Label>
-        <Select value={form.audience_type} onValueChange={(v) => setForm((p) => ({ ...p, audience_type: v }))}>
-          <SelectTrigger><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="internal">Intern</SelectItem>
-            <SelectItem value="external">Ekstern</SelectItem>
-            <SelectItem value="both">Begge</SelectItem>
-          </SelectContent>
-        </Select>
+    <div className="space-y-5 mt-4">
+      {/* General */}
+      <div className="space-y-3">
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Generelt</p>
+        <div><Label className="text-xs">Navn</Label><Input value={form.name} onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))} /></div>
+        <div><Label className="text-xs">Intern tittel</Label><Input value={form.internal_title} onChange={(e) => setForm((p) => ({ ...p, internal_title: e.target.value }))} /></div>
+        <div><Label className="text-xs">Ekstern tittel</Label><Input value={form.external_title} onChange={(e) => setForm((p) => ({ ...p, external_title: e.target.value }))} /></div>
+        <div><Label className="text-xs">Beskrivelse</Label><Textarea value={form.description} onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))} /></div>
+        <div><Label className="text-xs">Bekreftelsestekst</Label><Textarea value={form.confirmation_text} onChange={(e) => setForm((p) => ({ ...p, confirmation_text: e.target.value }))} /></div>
+        <div><Label className="text-xs">E-post mottaker(e)</Label><Input value={form.send_email_to} onChange={(e) => setForm((p) => ({ ...p, send_email_to: e.target.value }))} placeholder="Kommaseparert" /></div>
       </div>
-      <div>
-        <Label className="text-xs">Ved innsending</Label>
+
+      {/* Målgruppe */}
+      <div className="space-y-3">
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Målgruppe</p>
+        <div>
+          <Label className="text-xs">Hvem er skjemaet for?</Label>
+          <Select value={form.audience_type} onValueChange={(v) => setForm((p) => ({ ...p, audience_type: v, ...(v === "internal" ? { requires_login: true, show_in_catalog: false } : {}) }))}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="internal">Kun intern</SelectItem>
+              <SelectItem value="external">Kun ekstern</SelectItem>
+              <SelectItem value="both">Intern + ekstern</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      {/* Tilgjengelighet */}
+      {form.audience_type !== "internal" && (
+        <div className="space-y-3">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Tilgjengelighet</p>
+          <div className="space-y-2">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="radio"
+                name="requires_login"
+                checked={!form.requires_login}
+                onChange={() => setForm((p) => ({ ...p, requires_login: false }))}
+                className="accent-primary"
+              />
+              <span className="text-xs">Åpent uten innlogging</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="radio"
+                name="requires_login"
+                checked={form.requires_login}
+                onChange={() => setForm((p) => ({ ...p, requires_login: true }))}
+                className="accent-primary"
+              />
+              <span className="text-xs">Krever innlogging</span>
+            </label>
+          </div>
+        </div>
+      )}
+
+      {/* Synlighet */}
+      {form.audience_type !== "internal" && (
+        <div className="space-y-3">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Synlighet</p>
+          <div className="space-y-2">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="radio"
+                name="show_in_catalog"
+                checked={form.show_in_catalog}
+                onChange={() => setForm((p) => ({ ...p, show_in_catalog: true }))}
+                className="accent-primary"
+              />
+              <span className="text-xs">Vis på offentlig bestillingsside</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="radio"
+                name="show_in_catalog"
+                checked={!form.show_in_catalog}
+                onChange={() => setForm((p) => ({ ...p, show_in_catalog: false }))}
+                className="accent-primary"
+              />
+              <span className="text-xs">Kun tilgjengelig via direkte lenke</span>
+            </label>
+          </div>
+        </div>
+      )}
+
+      {/* Status summary */}
+      <div className="rounded-lg border border-border bg-muted/30 p-3">
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">Oppsummering</p>
+        <p className="text-xs text-foreground">{accessSummary}</p>
+      </div>
+
+      {/* Ved innsending */}
+      <div className="space-y-3">
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Handling ved innsending</p>
         <Select value={form.on_submit_action} onValueChange={(v) => setForm((p) => ({ ...p, on_submit_action: v }))}>
           <SelectTrigger><SelectValue /></SelectTrigger>
           <SelectContent>
@@ -510,6 +599,7 @@ function TemplateSettingsForm({ template, onSave }: { template: any; onSave: (u:
           </SelectContent>
         </Select>
       </div>
+
       <Button className="w-full" onClick={() => onSave({
         ...form,
         send_email_to: form.send_email_to ? form.send_email_to.split(",").map((s: string) => s.trim()).filter(Boolean) : null,
