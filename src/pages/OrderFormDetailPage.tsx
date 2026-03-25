@@ -32,6 +32,7 @@ import { QualityIssuesPanel } from "@/components/orders/QualityIssuesPanel";
 import { RequestInfoDialog } from "@/components/orders/RequestInfoDialog";
 import { ConvertDialog } from "@/components/orders/ConvertDialog";
 import { TripletexExportPanel } from "@/components/orders/TripletexExportPanel";
+import { AttachmentPreviewDrawer } from "@/components/orders/AttachmentPreviewDrawer";
 
 export default function OrderFormDetailPage() {
   const { id } = useParams<{ id: string }>();
