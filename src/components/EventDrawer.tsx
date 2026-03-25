@@ -910,7 +910,7 @@ export function EventDrawer({
           </section>
 
           {/* ═══ SECTION: PÅMINNELSE ═══ */}
-          {eventType === "project" && techIds.length > 0 && (
+          {(isEditing || eventType === "project") && techIds.length > 0 && (
             <ReminderProfileSelect
               value={reminderConfig}
               onChange={setReminderConfig}
