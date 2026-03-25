@@ -47,6 +47,18 @@ Deno.serve(async (req) => {
     const valMap: Record<string, any> = {};
     (values || []).forEach((v: any) => { valMap[v.field_key] = v.value; });
 
+    // Smart field resolver: finds values by field key prefix (handles suffixed keys like "firmanavn_abc123")
+    const findVal = (...prefixes: string[]): string => {
+      for (const prefix of prefixes) {
+        // Exact match first
+        if (valMap[prefix]) return String(valMap[prefix]);
+        // Prefix match (for keys with generated suffixes)
+        const key = Object.keys(valMap).find(k => k.startsWith(prefix));
+        if (key && valMap[key]) return String(valMap[key]);
+      }
+      return "";
+    };
+
     // Fetch attachments
     const { data: attachments } = await supabase
       .from("order_form_submission_attachments")
@@ -60,20 +72,20 @@ Deno.serve(async (req) => {
       : "https://mcsressurs.lovable.app";
     const detailUrl = `${appUrl}/orders/${submission_id}`;
 
-    // Smart fallback resolution for key fields
-    const kundenavn = valMap.kundenavn || valMap.firmanavn || valMap.kunde_navn || summary.kundenavn || summary.firmanavn || "Ikke angitt";
-    const oppdragstittel = valMap.oppdragstittel || valMap.oppdragssted || summary.oppdragstittel || template?.name || "Bestilling";
-    const hastegrad = valMap.hastegrad || summary.hastegrad || "Normal";
+    // Smart fallback resolution for key fields using prefix matching
+    const kundenavn = findVal("firmanavn", "kundenavn", "kunde_navn") || (summary as any).kundenavn || (summary as any).firmanavn || "Ikke angitt";
+    const oppdragstittel = findVal("oppdragstittel", "oppdragssted") || (summary as any).oppdragstittel || template?.name || "Bestilling";
+    const hastegrad = findVal("hastegrad") || (summary as any).hastegrad || "Normal";
     const bestillingstype = submission.requester_type === "internal" ? "Intern" : "Ekstern";
     const priorityEmoji = hastegrad === "Kritisk stopp" ? "🔴" : hastegrad === "Høy" ? "🟠" : "";
-    const bestillerNavn = valMap.bestiller_navn || valMap.kontaktperson || valMap.kontaktperson_navn || summary.bestiller_navn || valMap.bestiller_epost || "Ikke angitt";
-    const bestillerEpost = valMap.bestiller_epost || valMap.epost_kunde || valMap.epost || "";
-    const bestillerTelefon = valMap.bestiller_telefon || valMap.telefon_kunde || valMap.telefon || "";
-    const anleggsadresse = valMap.anleggsadresse || valMap.oppdragssted || valMap.adresse || "";
-    const materialansvar = valMap.materialansvar || "Ikke angitt";
-    const referanse = valMap.referanse_po || valMap.fakturamerking_po || valMap.midlertidig_referanse || valMap.po_nummer || "Ikke angitt";
-    const onsketDato = valMap.onsket_utfort_dato || valMap.onsket_dato || "Ikke angitt";
-    const arbeidsbeskrivelse = valMap.detaljert_arbeidsbeskrivelse || valMap.arbeidsbeskrivelse || valMap.beskrivelse || "";
+    const bestillerNavn = findVal("bestiller_navn", "kontaktperson", "kontaktperson_kunde") || (summary as any).bestiller_navn || "Ikke angitt";
+    const bestillerEpost = findVal("bestiller_epost", "epost_kunde", "epost", "kontakt_epost") || "";
+    const bestillerTelefon = findVal("bestiller_telefon", "telefon_kunde", "telefon", "kontakt_telefon") || "";
+    const anleggsadresse = findVal("anleggsadresse", "oppdragssted", "adresse") || "";
+    const materialansvar = findVal("materialansvar") || "Ikke angitt";
+    const referanse = findVal("referanse_po", "fakturamerking_po", "midlertidig_referanse", "po_nummer") || "Ikke angitt";
+    const onsketDato = findVal("onsket_utfort_dato", "onsket_dato", "oensket_dato") || "Ikke angitt";
+    const arbeidsbeskrivelse = findVal("detaljert_arbeidsbeskrivelse", "arbeidsbeskrivelse", "beskrivelse") || "";
 
     // Build email based on type
     let subject = "";

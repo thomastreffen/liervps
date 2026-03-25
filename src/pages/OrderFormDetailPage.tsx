@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -32,6 +32,7 @@ import { QualityIssuesPanel } from "@/components/orders/QualityIssuesPanel";
 import { RequestInfoDialog } from "@/components/orders/RequestInfoDialog";
 import { ConvertDialog } from "@/components/orders/ConvertDialog";
 import { TripletexExportPanel } from "@/components/orders/TripletexExportPanel";
+import { AttachmentPreviewDrawer } from "@/components/orders/AttachmentPreviewDrawer";
 
 export default function OrderFormDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -42,6 +43,7 @@ export default function OrderFormDetailPage() {
   const [requestInfoOpen, setRequestInfoOpen] = useState(false);
   const [convertOpen, setConvertOpen] = useState(false);
   const [tripletexOpen, setTripletexOpen] = useState(false);
+  const [previewAttIdx, setPreviewAttIdx] = useState<number | null>(null);
 
   const { data: submission, isLoading } = useQuery({
     queryKey: ["order-form-submission", id],
@@ -138,9 +140,34 @@ export default function OrderFormDetailPage() {
     return map;
   }, [values]);
 
+  // Helper to find value by prefix (handles suffixed keys like "epost_kunde_abc123")
+  const findVal = useCallback((...prefixes: string[]): string => {
+    for (const prefix of prefixes) {
+      if (valuesMap[prefix]) return String(valuesMap[prefix]);
+      const key = Object.keys(valuesMap).find(k => k.startsWith(prefix));
+      if (key && valuesMap[key]) return String(valuesMap[key]);
+    }
+    return "";
+  }, [valuesMap]);
+
+  const bestillerEpost = useMemo(() =>
+    findVal("bestiller_epost", "epost_kunde", "epost", "kontakt_epost"),
+    [findVal]
+  );
+
+  // Collect all template fields for dynamic quality assessment
+  const allTemplateFields = useMemo(() => {
+    return sections.flatMap((s: any) => (s.fields || []).map((f: any) => ({
+      field_key: f.field_key,
+      label: f.label,
+      field_type: f.field_type,
+      is_required: f.is_required,
+    })));
+  }, [sections]);
+
   const qualityResult: QualityResult = useMemo(() => {
-    return computeQualityScore(valuesMap, attachments as any);
-  }, [valuesMap, attachments]);
+    return computeQualityScore(valuesMap, attachments as any, allTemplateFields);
+  }, [valuesMap, attachments, allTemplateFields]);
 
   const updateStatus = useMutation({
     mutationFn: async (newStatus: string) => {
@@ -309,7 +336,7 @@ export default function OrderFormDetailPage() {
           <Mail className="h-3.5 w-3.5 mr-1" />
           {hasNotification ? "Send varsling på nytt" : "Send varsling manuelt"}
         </Button>
-        {valuesMap.bestiller_epost && !hasConfirmation && (
+        {bestillerEpost && !hasConfirmation && (
           <Button
             variant="outline" size="sm"
             onClick={() => sendNotification.mutate("confirmation")}
@@ -416,9 +443,16 @@ export default function OrderFormDetailPage() {
                     <div key={cat}>
                       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">{cat}</p>
                       <div className="space-y-1.5">
-                        {files.map((att: any) => (
-                          <AttachmentRow key={att.id} attachment={att} />
-                        ))}
+                        {files.map((att: any) => {
+                          const globalIdx = attachments.findIndex((a: any) => a.id === att.id);
+                          return (
+                            <AttachmentRow
+                              key={att.id}
+                              attachment={att}
+                              onPreview={() => setPreviewAttIdx(globalIdx)}
+                            />
+                          );
+                        })}
                       </div>
                     </div>
                   ))}
@@ -519,6 +553,8 @@ export default function OrderFormDetailPage() {
         open={requestInfoOpen}
         onOpenChange={setRequestInfoOpen}
         submissionId={id!}
+        submissionNo={submission.submission_no}
+        bestillerEpost={bestillerEpost}
       />
       <ConvertDialog
         open={convertOpen}
@@ -536,48 +572,30 @@ export default function OrderFormDetailPage() {
         summary={submission.summary as Record<string, any> | null}
         submissionNo={submission.submission_no}
       />
+      <AttachmentPreviewDrawer
+        open={previewAttIdx !== null}
+        onClose={() => setPreviewAttIdx(null)}
+        attachments={attachments as any[]}
+        initialIndex={previewAttIdx ?? 0}
+      />
     </div>
   );
 }
 
-function AttachmentRow({ attachment }: { attachment: any }) {
-  const [downloading, setDownloading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const handleDownload = async () => {
-    setDownloading(true);
-    setError(null);
-    try {
-      const { data, error: dlErr } = await supabase.storage
-        .from("order-form-attachments")
-        .createSignedUrl(attachment.file_path, 300);
-      if (dlErr || !data?.signedUrl) throw new Error("Kunne ikke laste ned filen");
-      window.open(data.signedUrl, "_blank");
-    } catch (err: any) {
-      setError(err.message || "Nedlasting feilet");
-    } finally {
-      setDownloading(false);
-    }
-  };
-
+function AttachmentRow({ attachment, onPreview }: { attachment: any; onPreview?: () => void }) {
   return (
-    <div className="flex items-center gap-2 text-sm p-2 rounded-lg bg-muted/30">
+    <button
+      type="button"
+      onClick={() => onPreview?.()}
+      className="flex items-center gap-2 text-sm p-2 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors w-full text-left cursor-pointer"
+    >
       <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
       <span className="truncate flex-1 font-medium">{attachment.file_name}</span>
       <span className="text-[10px] text-muted-foreground">
         {attachment.file_size ? (attachment.file_size < 1024 * 1024 ? `${Math.round(attachment.file_size / 1024)} KB` : `${(attachment.file_size / 1024 / 1024).toFixed(1)} MB`) : ""}
       </span>
-      <button
-        type="button"
-        onClick={handleDownload}
-        disabled={downloading}
-        className="text-primary hover:text-primary/80 shrink-0"
-        title="Last ned"
-      >
-        <Download className="h-3.5 w-3.5" />
-      </button>
-      {error && <span className="text-[10px] text-destructive">{error}</span>}
-    </div>
+      <Download className="h-3.5 w-3.5 text-primary shrink-0" />
+    </button>
   );
 }
 

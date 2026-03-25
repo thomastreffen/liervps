@@ -1,4 +1,5 @@
 // Quality score engine for order form submissions
+// Now uses dynamic field analysis instead of hardcoded field keys
 
 export type QualityLevel = "green" | "yellow" | "red";
 
@@ -22,103 +23,81 @@ const QUALITY_LABELS: Record<QualityLevel, { label: string; color: string; dotCl
 export { QUALITY_LABELS };
 
 /**
- * Compute quality score for a "Bestill service" submission.
- * values: Record<field_key, value>
- * attachments: { category?: string }[]
+ * Field descriptor from the template, used for dynamic quality assessment
+ */
+interface FieldDescriptor {
+  field_key: string;
+  label: string;
+  field_type: string;
+  is_required: boolean;
+}
+
+/**
+ * Compute quality score dynamically based on actual template fields and submitted values.
+ * 
+ * @param values - Record<field_key, value> of submitted answers
+ * @param attachments - Array of attachment metadata
+ * @param templateFields - Optional array of field descriptors from the template
  */
 export function computeQualityScore(
   values: Record<string, any>,
-  attachments: { category?: string; file_name?: string }[] = []
+  attachments: { category?: string; file_name?: string }[] = [],
+  templateFields?: FieldDescriptor[]
 ): QualityResult {
   const issues: QualityIssue[] = [];
 
-  // Required core fields
-  const requiredCore: { key: string; label: string }[] = [
-    { key: "kundenavn", label: "Kundenavn" },
-    { key: "oppdragssted", label: "Oppdragssted" },
-    { key: "anleggsadresse", label: "Anleggsadresse" },
-    { key: "materialansvar", label: "Materialansvar" },
-  ];
-
-  for (const { key, label } of requiredCore) {
-    if (!values[key]) {
-      issues.push({ severity: "error", message: `${label} mangler`, field_key: key });
+  if (templateFields && templateFields.length > 0) {
+    // Dynamic mode: check required fields from the template definition
+    for (const field of templateFields) {
+      if (!field.is_required) continue;
+      const val = values[field.field_key];
+      if (val == null || val === "" || (Array.isArray(val) && val.length === 0)) {
+        issues.push({
+          severity: "error",
+          message: `${field.label} mangler`,
+          field_key: field.field_key,
+        });
+      }
+    }
+  } else {
+    // Fallback: try to detect common field patterns by key prefix matching
+    const fieldKeys = Object.keys(values);
+    
+    // Check if customer/company info exists (look for common patterns)
+    const hasCustomerInfo = fieldKeys.some(k => 
+      k.startsWith("firmanavn") || k.startsWith("kundenavn") || k.startsWith("kunde_")
+    );
+    if (!hasCustomerInfo && fieldKeys.length > 0) {
+      // Only flag if the form has some fields but no customer identifier
+      const hasAnyFilledField = fieldKeys.some(k => {
+        const v = values[k];
+        return v != null && v !== "";
+      });
+      if (!hasAnyFilledField) {
+        issues.push({ severity: "warning", message: "Ingen felt er utfylt" });
+      }
     }
   }
 
-  // PO / reference
-  const hasPO = !!values["referanse_po"];
-  const poIkkeOpprettet = values["po_ikke_opprettet"] === true || values["po_ikke_opprettet"] === "true";
-  const hasMidlertidigRef = !!values["midlertidig_referanse"];
-
-  if (!hasPO && !poIkkeOpprettet && !hasMidlertidigRef) {
-    issues.push({ severity: "error", message: "Mangler PO/referanse eller midlertidig referanse", field_key: "referanse_po" });
-  } else if (poIkkeOpprettet && !hasMidlertidigRef) {
-    issues.push({ severity: "warning", message: "PO ikke opprettet – midlertidig referanse bør oppgis", field_key: "midlertidig_referanse" });
-  }
-
-  // Technical documentation for complex work types
-  const typeArbeid = values["type_arbeid"];
-  const complexTypes = ["Ombygging tavle", "Utvidelse"];
-  const isComplex = complexTypes.includes(typeArbeid);
-
-  const hasTegninger = values["tegninger_vedlagt"] === true || values["tegninger_vedlagt"] === "true";
-  const hasBilder = values["bilder_vedlagt"] === true || values["bilder_vedlagt"] === "true";
-  const hasMaterialliste = values["materialliste_vedlagt"] === true || values["materialliste_vedlagt"] === "true";
-
-  const hasAttTegning = attachments.some(a => a.category === "Tegning");
-  const hasAttBilde = attachments.some(a => a.category === "Bilde");
-  const hasAttMaterial = attachments.some(a => a.category === "Materialliste");
-
-  if (isComplex) {
-    if (!hasTegninger && !hasAttTegning) {
-      issues.push({ severity: "error", message: "Ombygging/utvidelse uten vedlagte tegninger", field_key: "tegninger_vedlagt" });
+  // Check if file upload fields have matching attachments
+  if (templateFields) {
+    const fileFields = templateFields.filter(f => 
+      f.field_type === "file_upload" || f.field_type === "image_upload"
+    );
+    // Only flag required file fields that are missing attachments
+    for (const ff of fileFields) {
+      if (!ff.is_required) continue;
+      const hasAttachment = attachments.some(a => 
+        a.file_name || a.category
+      );
+      if (!hasAttachment) {
+        issues.push({
+          severity: "warning",
+          message: `${ff.label} mangler`,
+          field_key: ff.field_key,
+        });
+      }
     }
-    if (!hasBilder && !hasAttBilde) {
-      issues.push({ severity: "warning", message: "Ingen bilder vedlagt for ombygging/utvidelse", field_key: "bilder_vedlagt" });
-    }
-    if (!hasMaterialliste && !hasAttMaterial) {
-      issues.push({ severity: "warning", message: "Materialliste mangler for ombygging/utvidelse", field_key: "materialliste_vedlagt" });
-    }
-  }
-
-  // Internal orders should have stricter requirements
-  const bestillingstype = values["bestillingstype"];
-  if (bestillingstype === "intern" || bestillingstype === "Intern") {
-    if (!values["intern_avdeling"]) {
-      issues.push({ severity: "warning", message: "Intern avdeling ikke angitt", field_key: "intern_avdeling" });
-    }
-    // Check intern kontroll
-    const kontrollKeys = [
-      "kundeinfo_kontrollert", "anleggsadresse_kontrollert",
-      "tegninger_vurdert", "bilder_vurdert", "materialbehov_avklart",
-      "po_avklart", "klar_for_planlegging",
-    ];
-    const kontrollDone = kontrollKeys.filter(k => values[k] === true || values[k] === "true").length;
-    if (kontrollDone < 4) {
-      issues.push({ severity: "warning", message: "Intern kontroll er ufullstendig", field_key: "intern_kontroll" });
-    }
-  }
-
-  // Urgency vs contact info
-  const hastegrad = values["hastegrad"];
-  if (hastegrad === "Kritisk stopp" || hastegrad === "Høy") {
-    if (!values["bestiller_telefon"] && !values["telefon_kunde"]) {
-      issues.push({ severity: "error", message: "Kritisk/høy hastegrad uten kontakttelefon", field_key: "bestiller_telefon" });
-    }
-  }
-
-  // Material responsibility details
-  const materialansvar = values["materialansvar"];
-  if (materialansvar === "Bestiller / kunde leverer alt" || materialansvar === "Deles mellom partene") {
-    if (!values["hva_leverer_bestiller"]) {
-      issues.push({ severity: "warning", message: "Materialansvar deles, men hva bestiller leverer er ikke beskrevet", field_key: "hva_leverer_bestiller" });
-    }
-  }
-
-  // No attachments at all
-  if (attachments.length === 0) {
-    issues.push({ severity: "warning", message: "Ingen vedlegg lagt ved bestillingen" });
   }
 
   // Compute score

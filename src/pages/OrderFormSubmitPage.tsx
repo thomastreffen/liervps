@@ -176,8 +176,11 @@ export default function OrderFormSubmitPage() {
       };
       const priority = hastegradMap[formData.hastegrad] || "normal";
 
-      // Compute quality score
-      const qualityResult = computeQualityScore(formData, attachments.map(a => ({ category: a.category, file_name: a.file.name })));
+      // Compute quality score with template fields
+      const templateFields = template.sections.flatMap((s: any) => (s.fields || []).map((f: any) => ({
+        field_key: f.field_key, label: f.label, field_type: f.field_type, is_required: f.is_required,
+      })));
+      const qualityResult = computeQualityScore(formData, attachments.map(a => ({ category: a.category, file_name: a.file.name })), templateFields);
 
       // Insert submission
       const { error: subErr } = await supabase.from("order_form_submissions").insert({
@@ -394,8 +397,11 @@ export default function OrderFormSubmitPage() {
       })}
 
       {/* Pre-submit quality warnings */}
-      {Object.keys(formData).length > 3 && (() => {
-        const previewQuality = computeQualityScore(formData, attachments.map(a => ({ category: a.category, file_name: a.file.name })));
+      {Object.keys(formData).length > 3 && template && (() => {
+        const templateFields = template.sections.flatMap((s: any) => (s.fields || []).map((f: any) => ({
+          field_key: f.field_key, label: f.label, field_type: f.field_type, is_required: f.is_required,
+        })));
+        const previewQuality = computeQualityScore(formData, attachments.map(a => ({ category: a.category, file_name: a.file.name })), templateFields);
         if (previewQuality.issues.length > 0) {
           return <QualityIssuesPanel result={previewQuality} />;
         }
