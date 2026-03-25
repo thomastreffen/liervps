@@ -77,7 +77,7 @@ export default function TrashPage() {
 
   const restore = async (item: DeletedItem) => {
     setOperating(item.id);
-    const table = item.type === "job" ? "events" : item.type === "calculation" ? "calculations" : item.type === "lead" ? "leads" : item.type === "contract" ? "contracts" : item.type === "conversation" ? "conversation_threads" : "offers";
+    const table = item.type === "job" ? "events" : item.type === "calculation" ? "calculations" : item.type === "lead" ? "leads" : item.type === "contract" ? "contracts" : item.type === "conversation" ? "conversation_threads" : item.type === "order" ? "order_form_submissions" : "offers";
     await (supabase as any).from(table).update({ deleted_at: null, deleted_by: null }).eq("id", item.id);
     toast.success("Gjenopprettet", { description: item.title });
     setItems(prev => prev.filter(i => i.id !== item.id));
