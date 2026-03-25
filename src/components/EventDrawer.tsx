@@ -834,10 +834,7 @@ export function EventDrawer({
                   eventStart={editEvent.start}
                   summary={approvalSummary}
                   approvals={techApprovals}
-                  onRefresh={() => {
-                    // Trigger refetch of approvals data
-                    window.location.reload();
-                  }}
+                  onRefresh={refreshApprovalData}
                   readOnly={readOnly}
                 />
               )}
