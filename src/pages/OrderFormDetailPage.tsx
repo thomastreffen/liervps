@@ -330,6 +330,10 @@ export default function OrderFormDetailPage() {
           <Download className="h-3.5 w-3.5 mr-1" />
           Tripletex
         </Button>
+        <Button variant="outline" size="sm" onClick={() => setAssignTaskOpen(true)}>
+          <UserPlus className="h-3.5 w-3.5 mr-1" />
+          Tildel ressursoppgave
+        </Button>
         <Button
           variant="outline" size="sm"
           onClick={() => sendNotification.mutate("new_order")}
