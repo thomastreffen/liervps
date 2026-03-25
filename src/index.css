@@ -306,13 +306,14 @@
 .fc-wrapper .fc .fc-daygrid-day-frame {
   min-height: 80px;
 }
-.fc-wrapper .fc .fc-daygrid-day-top {
-  display: none; /* We render our own date number via dayCellContent */
+/* Month heatmap: show custom dayCellContent, hide default event blocks */
+.fc-wrapper .fc .fc-daygrid-body .fc-daygrid-day-top {
+  padding: 0;
 }
-.fc-wrapper .fc .fc-daygrid-day-events {
-  display: none; /* Hide individual events in month – we show summaries instead */
+.fc-wrapper .fc .fc-daygrid-body .fc-daygrid-day-events {
+  display: none;
 }
-.fc-wrapper .fc .fc-daygrid-day-bottom {
+.fc-wrapper .fc .fc-daygrid-body .fc-daygrid-day-bottom {
   display: none;
 }
 .fc-wrapper .fc .fc-list-event td {
