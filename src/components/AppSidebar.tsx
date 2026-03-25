@@ -59,7 +59,6 @@ const mainNav = [
   { title: "Fravær", url: "/absence", icon: CalendarOff, moduleKey: "absence", modulePermission: "module.absence" },
   { title: "Fakturagrunnlag", url: "/invoice-basis", icon: Receipt, moduleKey: "invoice_basis", modulePermission: "module.invoice_basis", requiredPermission: "jobs.view_pricing" },
   { title: "Bestillinger", url: "/orders", icon: ClipboardList, moduleKey: "orders", modulePermission: "module.orders" },
-  { title: "Bestillinger", url: "/orders", icon: ClipboardList, moduleKey: "orders", modulePermission: "module.orders" },
   { title: "Fagstøtte", url: "/fag", icon: BookOpen, moduleKey: "fag", modulePermission: "module.fag", requiredPermission: "regulation.review" },
 ];
 
