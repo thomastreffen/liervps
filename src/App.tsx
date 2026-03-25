@@ -78,16 +78,10 @@ import AiMatcherReportPage from "./pages/AiMatcherReportPage";
 import InvoiceBasisPage from "./pages/InvoiceBasisPage";
 import ModuleManagementPage from "./pages/ModuleManagementPage";
 import TripletexImportPage from "./pages/TripletexImportPage";
-import SuppliersPage from "./pages/SuppliersPage";
-import SupplierDetailPage from "./pages/SupplierDetailPage";
 import ManagementPage from "./pages/ManagementPage";
 import AbsencePage from "./pages/AbsencePage";
 import MyDayPage from "./pages/MyDayPage";
 import CompanyMigrationPage from "./pages/CompanyMigrationPage";
-import ProductsPage from "./pages/ProductsPage";
-import ProductDetailPage from "./pages/ProductDetailPage";
-import PurchaseOrdersPage from "./pages/PurchaseOrdersPage";
-import PurchaseOrderDetailPage from "./pages/PurchaseOrderDetailPage";
 import HelpCenterPage from "./pages/HelpCenterPage";
 import OrderFormsPage from "./pages/OrderFormsPage";
 import OrderFormDetailPage from "./pages/OrderFormDetailPage";
@@ -430,30 +424,6 @@ const App = () => (
                   </ProtectedRoute>
                 }
                />
-              <Route
-                path="/admin/suppliers"
-                element={
-                  <ProtectedRoute requiredRoles={["admin", "super_admin"]}>
-                    <SuppliersPage />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/admin/suppliers/:id"
-                element={
-                  <ProtectedRoute requiredRoles={["admin", "super_admin"]}>
-                    <SupplierDetailPage />
-                  </ProtectedRoute>
-                }
-               />
-
-              {/* Product module */}
-              <Route path="/products" element={<ProductsPage />} />
-              <Route path="/products/:id" element={<ProductDetailPage />} />
-
-              {/* Purchase module */}
-              <Route path="/purchasing" element={<PurchaseOrdersPage />} />
-              <Route path="/purchasing/:id" element={<PurchaseOrderDetailPage />} />
 
               {/* Order Forms module */}
               <Route path="/orders" element={<OrderFormsPage />} />
