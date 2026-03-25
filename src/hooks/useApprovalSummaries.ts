@@ -12,6 +12,8 @@ export interface ApprovalSummary {
   lastRemindedAt: string | null;
   responseRequired: boolean;
   createdAt: string | null;
+  hasPaused: boolean;
+  eventStartTime: string | null;
 }
 
 export function useApprovalSummaries(eventIds: string[]) {
