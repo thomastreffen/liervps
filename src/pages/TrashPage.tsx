@@ -102,6 +102,7 @@ export default function TrashPage() {
     if (type === "lead") return <UserPlus className="h-3.5 w-3.5" />;
     if (type === "contract") return <FileSignature className="h-3.5 w-3.5" />;
     if (type === "conversation") return <MessageSquare className="h-3.5 w-3.5" />;
+    if (type === "order") return <ClipboardList className="h-3.5 w-3.5" />;
     return <ReceiptText className="h-3.5 w-3.5" />;
   };
 
