@@ -945,6 +945,14 @@ export default function ResourcePlan() {
           />
         )}
 
+        {/* Capacity gaps (hidden in focus mode) */}
+        {!isMobile && !focusMode && canReadBusy && (
+          <CapacityGapsStrip
+            summary={capacityGapsSummary}
+            onGapClick={handleGapClick}
+          />
+        )}
+
         {/* Unscheduled tasks strip (hidden in focus mode) */}
         {!focusMode && (
           <TaskResourceStrip
