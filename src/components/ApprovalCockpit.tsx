@@ -49,6 +49,12 @@ export function ApprovalCockpit({ jobId, eventStart, summary, approvals, onRefre
   const hasChange = s.changeRequest > 0;
   const hasPending = s.pending > 0;
   const isPaused = approvals.some((a) => a.status === "pending" && a.remindersPaused);
+  const hoursUntilStart = (eventStart.getTime() - Date.now()) / (1000 * 60 * 60);
+  const isRisk = hasPending && hoursUntilStart > 0 && hoursUntilStart < 12;
+
+  // Tech insights
+  const techUserIds = useMemo(() => approvals.map(a => a.technicianUserId), [approvals]);
+  const { insights } = useTechnicianInsights(techUserIds);
 
   // Build timeline from approvals + event_logs
   const loadTimeline = useCallback(async () => {
