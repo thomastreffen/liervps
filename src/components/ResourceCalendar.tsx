@@ -85,14 +85,26 @@ function hexToRgba(hex: string, alpha: number): string {
   return `rgba(${r},${g},${b},${alpha})`;
 }
 
+// Execution status colors (primary calendar block indication)
 const statusDotColors: Record<string, string> = {
-  planned: "#1E3A8A",
-  requested: "#D97706",
   scheduled: "#2563EB",
   in_progress: "#059669",
   completed: "#6B7280",
-  done: "#6B7280",
+  ready_for_invoicing: "#D97706",
   invoiced: "#9CA3AF",
+  // Legacy / acceptance statuses mapped to execution context
+  planned: "#2563EB",
+  requested: "#2563EB", // in plan = effectively scheduled
+  approved: "#2563EB",
+  done: "#6B7280",
+};
+
+// Acceptance status icon config for small indicator on calendar blocks
+const ACCEPTANCE_ICON_MAP: Record<string, { Icon: typeof Check; className: string; title: string }> = {
+  requested: { Icon: Clock, className: "text-amber-300", title: "Forespurt" },
+  approved: { Icon: Check, className: "text-emerald-300", title: "Godkjent" },
+  time_change_proposed: { Icon: Clock4, className: "text-blue-300", title: "Tidsendring" },
+  rejected: { Icon: X, className: "text-red-300", title: "Avslått" },
 };
 
 const matchStateColors: Record<string, { bg: string; border: string; text: string }> = {
