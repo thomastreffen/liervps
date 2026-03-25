@@ -21,14 +21,17 @@ interface RequestInfoDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   submissionId: string;
+  submissionNo?: string;
+  bestillerEpost?: string;
 }
 
-export function RequestInfoDialog({ open, onOpenChange, submissionId }: RequestInfoDialogProps) {
+export function RequestInfoDialog({ open, onOpenChange, submissionId, submissionNo, bestillerEpost }: RequestInfoDialogProps) {
   const { user } = useAuth();
   const qc = useQueryClient();
   const [selected, setSelected] = useState<string[]>([]);
   const [freeText, setFreeText] = useState("");
   const [setMissingStatus, setSetMissingStatus] = useState(true);
+  const [sendEmail, setSendEmail] = useState(!!bestillerEpost);
 
   const mutation = useMutation({
     mutationFn: async () => {
@@ -65,12 +68,32 @@ export function RequestInfoDialog({ open, onOpenChange, submissionId }: RequestI
           })
           .eq("id", submissionId);
       }
+
+      // Send email notification to bestiller if toggled and email available
+      if (sendEmail && bestillerEpost) {
+        try {
+          await supabase.functions.invoke("order-form-notify", {
+            body: {
+              submission_id: submissionId,
+              notification_type: "missing_info",
+              missing_items: selected,
+              free_text: freeText,
+            },
+          });
+        } catch (err) {
+          console.error("Failed to send missing info email:", err);
+          // Don't fail the whole operation if email fails
+        }
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["order-form-submission", submissionId] });
       qc.invalidateQueries({ queryKey: ["order-form-comments", submissionId] });
       qc.invalidateQueries({ queryKey: ["order-form-activity", submissionId] });
-      toast.success("Forespørsel registrert");
+      toast.success(sendEmail && bestillerEpost 
+        ? "Forespørsel sendt til bestiller" 
+        : "Forespørsel registrert internt"
+      );
       setSelected([]);
       setFreeText("");
       onOpenChange(false);
@@ -116,6 +139,19 @@ export function RequestInfoDialog({ open, onOpenChange, submissionId }: RequestI
             <Switch checked={setMissingStatus} onCheckedChange={setSetMissingStatus} />
             <Label className="text-sm font-normal">Sett status til «Mangler info»</Label>
           </div>
+          {bestillerEpost && (
+            <div className="flex items-center gap-2">
+              <Switch checked={sendEmail} onCheckedChange={setSendEmail} />
+              <Label className="text-sm font-normal">
+                Send e-post til bestiller ({bestillerEpost})
+              </Label>
+            </div>
+          )}
+          {!bestillerEpost && (
+            <p className="text-xs text-muted-foreground">
+              Ingen e-postadresse funnet for bestiller – forespørselen lagres kun internt.
+            </p>
+          )}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Avbryt</Button>
@@ -123,7 +159,7 @@ export function RequestInfoDialog({ open, onOpenChange, submissionId }: RequestI
             disabled={selected.length === 0 && !freeText.trim()}
             onClick={() => mutation.mutate()}
           >
-            Send forespørsel
+            {sendEmail && bestillerEpost ? "Send forespørsel" : "Registrer internt"}
           </Button>
         </DialogFooter>
       </DialogContent>
