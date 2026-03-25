@@ -24,7 +24,7 @@ export function useJobApprovals(jobId: string | null | undefined) {
       // Fetch approvals with technician names via user lookup
       const { data, error } = await supabase
         .from("job_approvals")
-        .select("technician_user_id, status, responded_at, comment, proposed_start, proposed_end")
+        .select("technician_user_id, status, responded_at, comment, proposed_start, proposed_end, reminders_paused, created_at")
         .eq("job_id", jobId)
         .order("created_at", { ascending: true });
 
