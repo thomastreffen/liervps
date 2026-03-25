@@ -146,6 +146,7 @@ export const ResourceCalendar = memo(function ResourceCalendar({
   operatingStartHour = 7,
   operatingEndHour = 16,
   hasNightHours = false,
+  approvalSummaries = new Map(),
 }: ResourceCalendarProps) {
   const effectiveCanWrite = canWriteEvents ?? isAdmin;
   const effectiveCanViewExternal = canViewExternalDetails ?? isSuperAdmin;
