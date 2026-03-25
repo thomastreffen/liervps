@@ -812,6 +812,18 @@ export default function ResourcePlan() {
           />
         )}
 
+        {/* Recommended actions */}
+        {!isMobile && (
+          <RecommendedActions
+            summaries={approvalSummaries}
+            events={calEvents}
+            onActionClick={(jobId) => {
+              const event = calEvents.find(e => e.id === jobId);
+              if (event) handleEventClick(event);
+            }}
+          />
+        )}
+
         {/* Unscheduled tasks strip */}
         <TaskResourceStrip
           technicianUserId={null}
