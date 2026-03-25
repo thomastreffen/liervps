@@ -248,80 +248,100 @@ export function AssignResourceTaskDialog({
               />
             </div>
 
-            {/* Date & time section */}
+            {/* Date & time section - Fra / Til */}
             <div className="space-y-3">
-              <Label className="text-xs flex items-center gap-1.5">
-                <CalendarDays className="h-3.5 w-3.5" />
-                Dato og tid
-              </Label>
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Tidspunkt</p>
 
-              {/* Date picker */}
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-full justify-start text-left font-normal",
-                      !selectedDate && "text-muted-foreground"
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {selectedDate
-                      ? format(selectedDate, "EEEE d. MMMM yyyy", { locale: nb })
-                      : "Velg dato"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={selectedDate}
-                    onSelect={setSelectedDate}
-                    initialFocus
-                    className={cn("p-3 pointer-events-auto")}
-                    locale={nb}
-                  />
-                </PopoverContent>
-              </Popover>
-
-              {/* Start time & duration */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label className="text-xs flex items-center gap-1">
-                    <Clock className="h-3 w-3" />
-                    Starttid
-                  </Label>
-                  <select
-                    value={startHour}
-                    onChange={(e) => setStartHour(Number(e.target.value))}
-                    className="mt-1 w-full h-9 rounded-md border border-input bg-background px-3 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring"
-                  >
-                    {HOUR_OPTIONS.map((h) => (
-                      <option key={h} value={h}>
-                        {String(h).padStart(2, "0")}:00
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <Label className="text-xs">Varighet</Label>
-                  <select
-                    value={durationHours}
-                    onChange={(e) => setDurationHours(Number(e.target.value))}
-                    className="mt-1 w-full h-9 rounded-md border border-input bg-background px-3 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring"
-                  >
-                    {DURATION_OPTIONS.map((d) => (
-                      <option key={d} value={d}>
-                        {d} time{d !== 1 ? "r" : ""}
-                      </option>
-                    ))}
-                  </select>
+              {/* FRA */}
+              <div>
+                <Label className="text-xs text-muted-foreground">Fra</Label>
+                <div className="flex items-center gap-2 mt-1">
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" size="sm" className={cn("flex-1 justify-start text-left font-normal", !startDate && "text-muted-foreground")}>
+                        <CalendarIcon className="mr-2 h-3.5 w-3.5" />
+                        {startDate ? format(startDate, "dd.MM.yyyy", { locale: nb }) : "Velg dato"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={startDate}
+                        onSelect={(d) => {
+                          setStartDate(d);
+                          if (!endDate || (d && endDate < d)) setEndDate(d);
+                        }}
+                        initialFocus
+                        className={cn("p-3 pointer-events-auto")}
+                        locale={nb}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                  <div className="flex items-center gap-1">
+                    <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                    <select
+                      value={startTime}
+                      onChange={(e) => setStartTime(e.target.value)}
+                      className="h-8 rounded-md border border-input bg-background px-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                    >
+                      {TIME_OPTIONS.map((t) => (
+                        <option key={`s-${t}`} value={t}>{t}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
               </div>
 
-              {/* Preview */}
-              {selectedDate && (
-                <p className="text-xs text-muted-foreground">
-                  {format(selectedDate, "d. MMM", { locale: nb })} kl. {String(startHour).padStart(2, "0")}:00 – {String(startHour + durationHours).padStart(2, "0")}:00 ({durationHours}t)
+              <div className="flex justify-center">
+                <ArrowRight className="h-4 w-4 text-muted-foreground" />
+              </div>
+
+              {/* TIL */}
+              <div>
+                <Label className="text-xs text-muted-foreground">Til</Label>
+                <div className="flex items-center gap-2 mt-1">
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" size="sm" className={cn("flex-1 justify-start text-left font-normal", !endDate && "text-muted-foreground")}>
+                        <CalendarIcon className="mr-2 h-3.5 w-3.5" />
+                        {endDate ? format(endDate, "dd.MM.yyyy", { locale: nb }) : "Velg dato"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={endDate}
+                        onSelect={setEndDate}
+                        initialFocus
+                        className={cn("p-3 pointer-events-auto")}
+                        locale={nb}
+                        disabled={(date) => startDate ? date < startDate : false}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                  <div className="flex items-center gap-1">
+                    <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                    <select
+                      value={endTime}
+                      onChange={(e) => setEndTime(e.target.value)}
+                      className="h-8 rounded-md border border-input bg-background px-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                    >
+                      {TIME_OPTIONS.map((t) => (
+                        <option key={`e-${t}`} value={t}>{t}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Tidsrom preview */}
+              {startDate && endDate && (
+                <p className="text-xs font-medium text-muted-foreground">
+                  <span className="uppercase tracking-wider">Tidsrom</span>
+                  <br />
+                  <span className="text-foreground">
+                    {format(computedStart, "dd.MM.yyyy HH:mm")} → {format(computedEnd, "dd.MM.yyyy HH:mm")}
+                  </span>
                 </p>
               )}
             </div>
