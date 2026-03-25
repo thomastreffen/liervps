@@ -90,13 +90,13 @@ export function AssignResourceTaskDialog({
     findVal("oppdragstittel") || summary?.oppdragstittel || `Oppgave fra ${submissionNo || "bestilling"}`
   );
   const [description, setDescription] = useState(
-    findVal("detaljert_arbeidsbeskrivelse", "beskrivelse", "arbeidsbeskrivelse") || ""
+    findVal("arbeidsbeskrivelse", "detaljert_arbeidsbeskrivelse", "beskrivelse") || ""
   );
   const [address, setAddress] = useState(
-    findVal("anleggsadresse", "adresse") || ""
+    findVal("anleggsadresse", "oppdragssted", "adresse") || ""
   );
   const [customer, setCustomer] = useState(
-    findVal("kundenavn", "kunde", "firmanavn") || summary?.kundenavn || ""
+    findVal("firmanavn", "kundenavn", "kunde") || summary?.kundenavn || ""
   );
   const [startDate, setStartDate] = useState<Date | undefined>(parseInitialDate());
   const [startTime, setStartTime] = useState("08:00");
