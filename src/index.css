@@ -363,3 +363,31 @@
 .fc-night-shading .fc-timegrid-slot[data-time^="19:"] {
   background-color: hsl(var(--muted) / 0.15);
 }
+
+/* ═══ Focus mode: compact calendar blocks ═══ */
+.focus-mode .fc-wrapper .fc .fc-timegrid-slot {
+  height: 2rem;
+}
+.focus-mode .fc-wrapper .fc .fc-timegrid-event {
+  border-radius: 6px;
+  min-height: 20px !important;
+}
+.focus-mode .fc-wrapper .fc .fc-timegrid-event-harness {
+  margin-right: 1px;
+}
+.focus-mode .fc-event-internal {
+  padding: 2px 4px !important;
+}
+.focus-mode .fc-event-internal p {
+  font-size: 9px !important;
+  line-height: 1.2 !important;
+}
+.focus-mode .fc-event-internal span {
+  font-size: 7px !important;
+}
+.focus-mode .fc-wrapper .fc .fc-timegrid-slot-label {
+  font-size: 0.6rem;
+}
+.focus-mode .fc-wrapper .fc .fc-col-header-cell {
+  padding: 2px 0;
+}
