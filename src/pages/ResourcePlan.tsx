@@ -45,6 +45,52 @@ import { addMinutes } from "date-fns";
 import { useCompanyContext } from "@/hooks/useCompanyContext";
 import { QuickProjectSearch } from "@/components/resource-plan/QuickProjectSearch";
 import { findLinkedScheduleBlockIds, findScheduleBlockForAssignment } from "@/lib/resource-plan-assignment-identity";
+import { cn } from "@/lib/utils";
+
+/* Compact tech list for collapsed sidebar – shows initials only */
+function CompactTechList({
+  technicians,
+  selectedId,
+  onSelect,
+  filterIds,
+}: {
+  technicians: Array<{ id: string; name: string; color?: string }>;
+  selectedId: string | null;
+  onSelect: (id: string | null) => void;
+  filterIds?: Set<string> | null;
+}) {
+  const filtered = filterIds ? technicians.filter(t => filterIds.has(t.id)) : technicians;
+  return (
+    <div className="flex flex-col gap-1">
+      {filtered.map(t => {
+        const initials = t.name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
+        const isActive = selectedId === t.id;
+        return (
+          <TooltipProvider key={t.id} delayDuration={100}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={() => onSelect(isActive ? null : t.id)}
+                  className={cn(
+                    "h-8 w-10 rounded-md text-[10px] font-bold transition-all flex items-center justify-center mx-auto",
+                    isActive
+                      ? "ring-2 ring-primary text-primary-foreground"
+                      : "text-muted-foreground hover:bg-muted"
+                  )}
+                  style={isActive ? { backgroundColor: t.color || "hsl(var(--primary))" } : undefined}
+                >
+                  {initials}
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="right" className="text-xs">{t.name}</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        );
+      })}
+    </div>
+  );
+}
 
 type CalendarViewType = "timeGridDay" | "timeGridWeek" | "dayGridMonth" | "listWeek";
 
