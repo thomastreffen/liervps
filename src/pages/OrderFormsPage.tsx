@@ -132,6 +132,20 @@ export default function OrderFormsPage() {
     return result;
   }, [submissions, search, qualityFilter, sortBy, extraFilter]);
 
+  // Soft delete handler
+  const handleSoftDelete = async (e: React.MouseEvent, sub: any) => {
+    e.stopPropagation();
+    if (!confirm(`Flytte ${sub.submission_no} til papirkurven?`)) return;
+    setDeletingId(sub.id);
+    const { data: { user } } = await supabase.auth.getUser();
+    await supabase.from("order_form_submissions").update({
+      deleted_at: new Date().toISOString(),
+      deleted_by: user?.id,
+    } as any).eq("id", sub.id);
+    queryClient.invalidateQueries({ queryKey: ["order-form-submissions"] });
+    setDeletingId(null);
+  };
+
   // Status counts
   const statusCounts: Record<string, number> = {};
   submissions.forEach((s: any) => {
