@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -8,10 +8,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { cn } from "@/lib/utils";
 import {
   Bell, BellOff, Clock, Check, AlertTriangle, Zap,
-  Pause, Play, CheckCircle2, History, Send, ChevronDown
+  Pause, Play, CheckCircle2, History, Send, ChevronDown, TrendingUp, TrendingDown, AlertCircle
 } from "lucide-react";
 import { getNextReminderInfo, type ApprovalSummary } from "@/hooks/useApprovalSummaries";
 import type { TechApproval } from "@/hooks/useJobApprovals";
+import { useTechnicianInsights } from "@/hooks/useTechnicianInsights";
 
 const PROFILE_LABELS: Record<string, string> = {
   standard: "Standard",
@@ -48,6 +49,12 @@ export function ApprovalCockpit({ jobId, eventStart, summary, approvals, onRefre
   const hasChange = s.changeRequest > 0;
   const hasPending = s.pending > 0;
   const isPaused = approvals.some((a) => a.status === "pending" && a.remindersPaused);
+  const hoursUntilStart = (eventStart.getTime() - Date.now()) / (1000 * 60 * 60);
+  const isRisk = hasPending && hoursUntilStart > 0 && hoursUntilStart < 12;
+
+  // Tech insights
+  const techUserIds = useMemo(() => approvals.map(a => a.technicianUserId), [approvals]);
+  const { insights } = useTechnicianInsights(techUserIds);
 
   // Build timeline from approvals + event_logs
   const loadTimeline = useCallback(async () => {
@@ -266,6 +273,16 @@ export function ApprovalCockpit({ jobId, eventStart, summary, approvals, onRefre
         )}
       </div>
 
+      {/* ── RISK BANNER ── */}
+      {isRisk && (
+        <div className="flex items-center gap-2 rounded-md bg-destructive/10 border border-destructive/30 px-2.5 py-1.5">
+          <AlertCircle className="h-3.5 w-3.5 text-destructive shrink-0" />
+          <span className="text-[11px] font-semibold text-destructive">
+            ⚠ Risiko – starter om {hoursUntilStart < 1 ? `${Math.round(hoursUntilStart * 60)} min` : `${Math.round(hoursUntilStart)}t`} uten fullt svar
+          </span>
+        </div>
+      )}
+
       {/* ── NEXT REMINDER ── */}
       {hasPending && (
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -277,6 +294,33 @@ export function ApprovalCockpit({ jobId, eventStart, summary, approvals, onRefre
           ) : (
             <span>{nextReminder.label}</span>
           )}
+        </div>
+      )}
+
+      {/* ── TECH INSIGHTS ── */}
+      {approvals.filter(a => a.status === "pending").length > 0 && (
+        <div className="space-y-0.5">
+          {approvals.filter(a => a.status === "pending").map(a => {
+            const insight = insights.get(a.technicianUserId);
+            if (!insight || !insight.label) return null;
+            return (
+              <div key={a.technicianUserId} className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                {insight.label === "Svarer raskt" ? (
+                  <TrendingUp className="h-2.5 w-2.5 text-emerald-500 shrink-0" />
+                ) : (
+                  <TrendingDown className="h-2.5 w-2.5 text-amber-500 shrink-0" />
+                )}
+                <span>{a.technicianName.split(" ")[0]}: {insight.label}</span>
+                {insight.avgResponseMinutes !== null && (
+                  <span className="opacity-60">
+                    (snitt {insight.avgResponseMinutes < 60
+                      ? `${insight.avgResponseMinutes}m`
+                      : `${Math.round(insight.avgResponseMinutes / 60)}t`})
+                  </span>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 

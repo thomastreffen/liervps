@@ -872,6 +872,11 @@ export const ResourceCalendar = memo(function ResourceCalendar({
           const acceptanceInfo = ACCEPTANCE_ICON_MAP[props.status as string];
           const approvalSum = props.approvalSummary as ApprovalSummary | null;
 
+          // Risk: starting within 12h and still has pending responses
+          const calEvent = props.calendarEvent as CalendarEvent | undefined;
+          const hoursUntilStart = calEvent ? (calEvent.start.getTime() - Date.now()) / (1000 * 60 * 60) : Infinity;
+          const isRisk = approvalSum && approvalSum.pending > 0 && hoursUntilStart > 0 && hoursUntilStart < 12;
+
           // Determine up to 2 status icons (priority: ❗ → ⏱ → ⚡ → 🚫 → ✅)
           const statusIcons: Array<{ icon: typeof Check; className: string; title: string }> = [];
           if (approvalSum) {
@@ -899,7 +904,6 @@ export const ResourceCalendar = memo(function ResourceCalendar({
             : null;
 
           // Enhanced tooltip
-          const calEvent = props.calendarEvent as CalendarEvent | undefined;
           const nextReminder = approvalSum && calEvent
             ? getNextReminderInfo(approvalSum, calEvent.start)
             : null;
@@ -948,8 +952,9 @@ export const ResourceCalendar = memo(function ResourceCalendar({
               <TooltipTrigger asChild>
                 <div
                   className={cn(
-                    "fc-event-internal px-2 py-1 overflow-hidden h-full cursor-grab active:cursor-grabbing select-none",
-                    props.dimmed && "opacity-25 transition-opacity"
+                    "fc-event-internal px-2 py-1 overflow-hidden h-full cursor-grab active:cursor-grabbing select-none relative",
+                    props.dimmed && "opacity-25 transition-opacity",
+                    isRisk && "ring-1 ring-red-400/60"
                   )}
                 >
                   <div className="flex items-center gap-1">
@@ -1006,6 +1011,11 @@ export const ResourceCalendar = memo(function ResourceCalendar({
                     <p className="text-[9px] text-white/70 truncate">{props.customer}</p>
                   )}
                   <span className="text-[8px] text-white/50 block">{arg.timeText}</span>
+                  {isRisk && (
+                    <span className="absolute bottom-0.5 right-1 text-[7px] font-bold uppercase tracking-wider bg-red-500/80 text-white rounded px-1 py-px">
+                      ⚠ Risiko
+                    </span>
+                  )}
                 </div>
               </TooltipTrigger>
               <TooltipContent side="top">{eventTooltip}</TooltipContent>

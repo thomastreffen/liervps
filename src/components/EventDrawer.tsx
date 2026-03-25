@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useProjectSuggestions, type ProjectSuggestion } from "@/hooks/useProjectSuggestions";
 import { ProjectSuggestionList } from "./ProjectSuggestionList";
 import { FileUpload } from "./FileUpload";
@@ -7,6 +7,9 @@ import type { Attachment } from "@/lib/mock-data";
 import { TaskThreadPanel } from "@/components/task-thread";
 import { ReminderProfileSelect, type ReminderConfig } from "@/components/ReminderProfileSelect";
 import { ApprovalCockpit } from "@/components/ApprovalCockpit";
+import { TechReplacementSuggestion } from "@/components/TechReplacementSuggestion";
+import { useTechnicianInsights } from "@/hooks/useTechnicianInsights";
+import { useTechnicians } from "@/hooks/useTechnicians";
 import { useTaskThreadReads } from "@/hooks/useTaskThreadReads";
 import { useReminderSettings } from "@/hooks/useReminderSettings";
 import { useApprovalSummaries, getNextReminderInfo } from "@/hooks/useApprovalSummaries";
@@ -187,6 +190,18 @@ export function EventDrawer({
   const { summaries: approvalSummaryMap, refetch: refetchSummaries } = useApprovalSummaries(editEvent ? [editEvent.id] : []);
   const approvalSummary = editEvent ? approvalSummaryMap.get(editEvent.id) : undefined;
   const refreshApprovalData = useCallback(() => { refetchApprovals(); refetchSummaries(); }, [refetchApprovals, refetchSummaries]);
+
+  // Available technicians for replacement suggestions
+  const { technicians: allTechnicians } = useTechnicians(editEvent ? (editEvent as any).companyId || activeCompanyId : activeCompanyId);
+  const techInsightUserIds = useMemo(() => {
+    const ids = techApprovals.map(a => a.technicianUserId);
+    // Also include available techs for replacement scoring
+    for (const t of allTechnicians) {
+      if (t.id && !ids.includes(t.id)) ids.push(t.id);
+    }
+    return ids;
+  }, [techApprovals, allTechnicians]);
+  const { insights: techInsights } = useTechnicianInsights(techInsightUserIds);
 
   // Populate form from props
   useEffect(() => {
@@ -836,6 +851,22 @@ export function EventDrawer({
                   approvals={techApprovals}
                   onRefresh={refreshApprovalData}
                   readOnly={readOnly}
+                />
+              )}
+
+              {/* ═══ TECH REPLACEMENT SUGGESTION ═══ */}
+              {approvalSummary && editEvent && (approvalSummary.declined > 0 || approvalSummary.changeRequest > 0 || (approvalSummary.pending > 0 && (editEvent.start.getTime() - Date.now()) < 12 * 60 * 60 * 1000)) && (
+                <TechReplacementSuggestion
+                  summary={approvalSummary}
+                  eventStart={editEvent.start}
+                  availableTechs={allTechnicians}
+                  assignedTechIds={editEvent.technicianIds || []}
+                  insights={techInsights}
+                  onSelectTech={(techId) => {
+                    if (!techIds.includes(techId)) {
+                      setTechIds([...techIds, techId]);
+                    }
+                  }}
                 />
               )}
             </div>

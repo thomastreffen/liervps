@@ -39,6 +39,7 @@ import { CapacityStatusBar } from "@/components/resource-plan/CapacityStatusBar"
 import { UnplannedProjectsBanner } from "@/components/resource-plan/UnplannedProjectsBanner";
 import { UnplannedJobsStrip } from "@/components/resource-plan/UnplannedJobsStrip";
 import { FollowUpStrip, getFilteredJobIds, type FollowUpCategory } from "@/components/resource-plan/FollowUpStrip";
+import { RecommendedActions } from "@/components/resource-plan/RecommendedActions";
 import { useUnplannedProjects } from "@/hooks/useUnplannedProjects";
 import { addMinutes } from "date-fns";
 import { useCompanyContext } from "@/hooks/useCompanyContext";
@@ -808,6 +809,18 @@ export default function ResourcePlan() {
             events={calEvents}
             activeFilter={followUpFilter}
             onFilterChange={setFollowUpFilter}
+          />
+        )}
+
+        {/* Recommended actions */}
+        {!isMobile && (
+          <RecommendedActions
+            summaries={approvalSummaries}
+            events={calEvents}
+            onActionClick={(jobId) => {
+              const event = calEvents.find(e => e.id === jobId);
+              if (event) handleEventClick(event);
+            }}
           />
         )}
 
