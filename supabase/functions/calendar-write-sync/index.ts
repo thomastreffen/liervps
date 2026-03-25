@@ -147,6 +147,66 @@ function isSameInstant(left: string | null | undefined, right: string | null | u
   return Math.abs(leftMs - rightMs) <= toleranceMs;
 }
 
+function toGraphComparableIso(dateTime: string | null | undefined, timeZone: string | null | undefined): string | null {
+  if (!dateTime) return null;
+
+  const tz = (timeZone || "").trim();
+  if (!tz || tz === "UTC") {
+    return dateTime.endsWith("Z") ? dateTime : `${dateTime}Z`;
+  }
+
+  if (tz === "Europe/Oslo" || tz === "W. Europe Standard Time") {
+    const hasOffset = /([zZ]|[+-]\d{2}:?\d{2})$/.test(dateTime);
+    if (hasOffset) return new Date(dateTime).toISOString();
+
+    const [datePart, timePart = "00:00:00"] = dateTime.split("T");
+    const [year, month, day] = datePart.split("-").map(Number);
+    const [hour, minute, second] = timePart.split(":").map(Number);
+    if ([year, month, day, hour, minute].some(Number.isNaN)) return null;
+
+    const utcGuess = new Date(Date.UTC(year, month - 1, day, hour || 0, minute || 0, second || 0));
+    const osloParts = new Intl.DateTimeFormat("sv-SE", {
+      timeZone: "Europe/Oslo",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
+    }).formatToParts(utcGuess);
+    const get = (type: string) => osloParts.find((part) => part.type === type)?.value || "00";
+    const osloAsUtcMs = Date.UTC(
+      Number(get("year")),
+      Number(get("month")) - 1,
+      Number(get("day")),
+      Number(get("hour")),
+      Number(get("minute")),
+      Number(get("second"))
+    );
+    const wantedAsUtcMs = Date.UTC(year, month - 1, day, hour || 0, minute || 0, second || 0);
+    const offsetMs = osloAsUtcMs - utcGuess.getTime();
+
+    return new Date(wantedAsUtcMs - offsetMs).toISOString();
+  }
+
+  const parsed = new Date(dateTime);
+  return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
+}
+
+function isSameOsloDay(left: string | null | undefined, right: string | null | undefined): boolean {
+  if (!left || !right) return false;
+
+  const formatter = new Intl.DateTimeFormat("sv-SE", {
+    timeZone: "Europe/Oslo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+
+  return formatter.format(new Date(left)) === formatter.format(new Date(right));
+}
+
 /* ── Build Graph event body ── */
 function buildGraphBody(
   event: any,
@@ -349,20 +409,28 @@ async function deleteGraphEventWithFallbacks(
 
     const matchedGraphEvents = (viewData?.value || []).filter((graphEvent: any) => {
       const graphBody = graphEvent?.body?.content || "";
+      const graphStart = toGraphComparableIso(graphEvent?.start?.dateTime, graphEvent?.start?.timeZone);
+      const graphEnd = toGraphComparableIso(graphEvent?.end?.dateTime, graphEvent?.end?.timeZone);
       const graphSubject = normalizeText(graphEvent?.subject);
       const graphLocation = normalizeText(
         graphEvent?.location?.displayName || graphEvent?.location?.address?.street
       );
+      const graphCategories = Array.isArray(graphEvent?.categories)
+        ? graphEvent.categories.map((category: string) => normalizeText(category))
+        : [];
+      const graphHasMcsCategory = graphCategories.includes("mcs");
       const markerMatch = graphBody.includes(expectedMarker);
-      const timeMatch = isSameInstant(graphEvent?.start?.dateTime, startTime) &&
-        isSameInstant(graphEvent?.end?.dateTime, endTime);
+      const timeMatch = isSameInstant(graphStart, startTime, 65 * 60 * 1000) &&
+        isSameInstant(graphEnd, endTime, 65 * 60 * 1000);
       const subjectMatch = !!expectedTitle && (
         graphSubject.includes(expectedTitle) ||
-        (!!expectedSubject && graphSubject === expectedSubject)
+        (!!expectedSubject && graphSubject === expectedSubject) ||
+        (!!event.internal_number && graphSubject.includes(normalizeText(event.internal_number)))
       );
       const addressMatch = !!expectedAddress && graphLocation.includes(expectedAddress);
+      const legacyMcsMatch = graphHasMcsCategory && subjectMatch && isSameOsloDay(graphStart, startTime);
 
-      return markerMatch || (timeMatch && (subjectMatch || addressMatch));
+      return markerMatch || (timeMatch && (subjectMatch || addressMatch)) || legacyMcsMatch;
     });
 
     for (const graphEvent of matchedGraphEvents) {
