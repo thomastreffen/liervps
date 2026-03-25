@@ -150,6 +150,7 @@ export const ResourceCalendar = memo(function ResourceCalendar({
   hasNightHours = false,
   approvalSummaries = new Map(),
   highlightEventIds,
+  onMonthDayClick,
 }: ResourceCalendarProps) {
   const effectiveCanWrite = canWriteEvents ?? isAdmin;
   const effectiveCanViewExternal = canViewExternalDetails ?? isSuperAdmin;
