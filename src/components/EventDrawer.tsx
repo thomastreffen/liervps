@@ -5,6 +5,7 @@ import { FileUpload } from "./FileUpload";
 import { AttachmentList } from "./AttachmentList";
 import type { Attachment } from "@/lib/mock-data";
 import { TaskThreadPanel } from "@/components/task-thread";
+import { ReminderProfileSelect, type ReminderConfig } from "@/components/ReminderProfileSelect";
 import { useTaskThreadReads } from "@/hooks/useTaskThreadReads";
 import {
   Sheet,
