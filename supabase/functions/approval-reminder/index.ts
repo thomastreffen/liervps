@@ -15,6 +15,9 @@ const PROFILES: Record<string, number[]> = {
   none: [],
 };
 
+// Buffer: don't send reminders if event starts within 30 min
+const START_BUFFER_MINUTES = 30;
+
 async function getValidMsToken(supabaseAdmin: any, userId: string): Promise<string | null> {
   const { data } = await supabaseAdmin.auth.admin.getUserById(userId);
   if (!data?.user) return null;
@@ -113,6 +116,14 @@ function buildReminderEmail(
   return { subject, body };
 }
 
+// Blocked event statuses — reminders should never be sent for these
+const BLOCKED_EVENT_STATUSES = new Set([
+  "completed", "finished", "ferdig",
+  "invoiced", "fakturert",
+  "cancelled", "canceled", "avlyst",
+  "ready_for_invoicing",
+]);
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -134,10 +145,24 @@ Deno.serve(async (req) => {
   log("=== APPROVAL REMINDER RUN START ===");
 
   try {
+    // ── KILL SWITCH: Check ALL company settings for global enabled flag ──
+    const { data: allSettings } = await supabase
+      .from("company_reminder_settings")
+      .select("company_id, enabled");
+
+    const enabledCompanies = new Set<string>();
+    const disabledCompanies = new Set<string>();
+    for (const s of allSettings || []) {
+      if (s.enabled) enabledCompanies.add(s.company_id);
+      else disabledCompanies.add(s.company_id);
+    }
+
+    log(`Kill-switch check: ${enabledCompanies.size} companies enabled, ${disabledCompanies.size} disabled`);
+
     // 1. Fetch pending approvals that need reminders
     const { data: pendingApprovals, error: apErr } = await supabase
       .from("job_approvals")
-      .select("id, job_id, technician_user_id, token, status, response_required, reminder_profile, reminder_config, reminder_count, last_reminded_at, created_at")
+      .select("id, job_id, technician_user_id, token, status, response_required, reminder_profile, reminder_config, reminder_count, last_reminded_at, created_at, expires_at")
       .eq("status", "pending")
       .eq("response_required", true)
       .neq("reminder_profile", "none");
@@ -151,11 +176,11 @@ Deno.serve(async (req) => {
       });
     }
 
-    // 2. Get company settings for fallback
+    // 2. Fetch job details for validation
     const jobIds = [...new Set(pendingApprovals.map((a: any) => a.job_id))];
     const { data: jobs } = await supabase
       .from("events")
-      .select("id, title, customer, address, start_time, end_time, company_id, job_number, internal_number, created_by")
+      .select("id, title, customer, address, start_time, end_time, company_id, job_number, internal_number, created_by, status, deleted_at, billing_status")
       .in("id", jobIds);
 
     const jobMap = new Map<string, any>();
@@ -165,7 +190,7 @@ Deno.serve(async (req) => {
       if (j.company_id) companyIds.add(j.company_id);
     }
 
-    // Fetch company settings
+    // Fetch company settings for intervals/max
     const { data: companySettings } = await supabase
       .from("company_reminder_settings")
       .select("*")
@@ -192,11 +217,61 @@ Deno.serve(async (req) => {
     let skipped = 0;
 
     for (const approval of pendingApprovals as any[]) {
+      const aid = approval.id.slice(0, 8);
       const job = jobMap.get(approval.job_id);
-      if (!job) { skipped++; continue; }
+
+      // ── GUARD: Job must exist ──
+      if (!job) {
+        log(`[ApprovalReminder][Skip] approval=${aid} reason=job_not_found`);
+        skipped++;
+        continue;
+      }
+
+      // ── GUARD: Job must not be deleted ──
+      if (job.deleted_at) {
+        log(`[ApprovalReminder][Skip] approval=${aid} reason=job_deleted`);
+        skipped++;
+        continue;
+      }
+
+      // ── GUARD: Company reminders must be enabled (kill-switch) ──
+      if (job.company_id && disabledCompanies.has(job.company_id)) {
+        log(`[ApprovalReminder][Skip] approval=${aid} reason=company_reminders_disabled`);
+        skipped++;
+        continue;
+      }
+
+      // ── GUARD: Event status must not be completed/invoiced/cancelled ──
+      const eventStatus = (job.status || "").toLowerCase();
+      const billingStatus = (job.billing_status || "").toLowerCase();
+      if (BLOCKED_EVENT_STATUSES.has(eventStatus) || BLOCKED_EVENT_STATUSES.has(billingStatus)) {
+        log(`[ApprovalReminder][Skip] approval=${aid} reason=blocked_status event_status=${eventStatus} billing_status=${billingStatus}`);
+        skipped++;
+        continue;
+      }
+
+      // ── GUARD: Event start_time must be in the future (with buffer) ──
+      const eventStart = new Date(job.start_time);
+      const bufferMs = START_BUFFER_MINUTES * 60 * 1000;
+      if (now.getTime() >= eventStart.getTime() - bufferMs) {
+        log(`[ApprovalReminder][Skip] approval=${aid} reason=past_event start_time=${job.start_time}`);
+        skipped++;
+        continue;
+      }
+
+      // ── GUARD: Approval token must not be expired ──
+      if (approval.expires_at && new Date(approval.expires_at) <= now) {
+        log(`[ApprovalReminder][Skip] approval=${aid} reason=token_expired expires_at=${approval.expires_at}`);
+        skipped++;
+        continue;
+      }
 
       const tech = techMap.get(approval.technician_user_id);
-      if (!tech?.email) { skipped++; continue; }
+      if (!tech?.email) {
+        log(`[ApprovalReminder][Skip] approval=${aid} reason=no_tech_email`);
+        skipped++;
+        continue;
+      }
 
       const companySetting = settingsMap.get(job.company_id);
 
@@ -213,27 +288,32 @@ Deno.serve(async (req) => {
         maxReminders = companySetting?.max_reminders ?? 3;
       }
 
-      if (intervals.length === 0) { skipped++; continue; }
+      if (intervals.length === 0) {
+        log(`[ApprovalReminder][Skip] approval=${aid} reason=no_intervals profile=${approval.reminder_profile}`);
+        skipped++;
+        continue;
+      }
 
       const currentCount = approval.reminder_count || 0;
+
+      // ── GUARD: Max reminders reached ──
       if (currentCount >= maxReminders || currentCount >= intervals.length) {
+        log(`[ApprovalReminder][Skip] approval=${aid} reason=max_reminders_reached count=${currentCount} max=${maxReminders}`);
         skipped++;
         continue;
       }
 
       // Check if enough time has passed
-      const intervalMinutes = intervals[currentCount];
       const createdAt = new Date(approval.created_at).getTime();
       const elapsed = (now.getTime() - createdAt) / 60000;
 
-      // Total time that must elapse = sum of intervals up to currentCount + next interval
       let totalRequired = 0;
       for (let i = 0; i <= currentCount; i++) {
         totalRequired += intervals[i];
       }
 
       if (elapsed < totalRequired) {
-        log(`SKIP approval=${approval.id.slice(0, 8)}: ${Math.round(elapsed)}min < ${totalRequired}min required`);
+        log(`[ApprovalReminder][Skip] approval=${aid} reason=too_early elapsed=${Math.round(elapsed)}min required=${totalRequired}min`);
         skipped++;
         continue;
       }
@@ -241,10 +321,14 @@ Deno.serve(async (req) => {
       // Don't resend if last reminder was very recent (< 5 min)
       if (approval.last_reminded_at) {
         const sinceLastReminder = (now.getTime() - new Date(approval.last_reminded_at).getTime()) / 60000;
-        if (sinceLastReminder < 5) { skipped++; continue; }
+        if (sinceLastReminder < 5) {
+          log(`[ApprovalReminder][Skip] approval=${aid} reason=recently_reminded since_last=${Math.round(sinceLastReminder)}min`);
+          skipped++;
+          continue;
+        }
       }
 
-      // Send reminder email via MS Graph
+      // ── ALL GUARDS PASSED — Send reminder ──
       const displayNumber = job.job_number || job.internal_number || "—";
       const { subject, body } = buildReminderEmail(job, tech.name, approval.token, displayNumber, currentCount + 1);
 
@@ -255,7 +339,6 @@ Deno.serve(async (req) => {
       }
 
       if (!msToken) {
-        // Try any admin
         const { data: admins } = await supabase
           .from("user_roles")
           .select("user_id")
@@ -268,7 +351,7 @@ Deno.serve(async (req) => {
       }
 
       if (!msToken) {
-        log(`SKIP approval=${approval.id.slice(0, 8)}: no MS token available`);
+        log(`[ApprovalReminder][Skip] approval=${aid} reason=no_ms_token`);
         skipped++;
         continue;
       }
@@ -291,7 +374,7 @@ Deno.serve(async (req) => {
 
         if (!emailRes.ok) {
           const errText = await emailRes.text();
-          log(`ERROR sending reminder to ${tech.email}: ${errText}`);
+          log(`[ApprovalReminder][Error] approval=${aid} reason=email_send_failed error=${errText.slice(0, 200)}`);
           continue;
         }
 
@@ -306,7 +389,7 @@ Deno.serve(async (req) => {
           .eq("id", approval.id);
 
         sent++;
-        log(`SENT reminder #${newCount} to ${tech.email} for job ${approval.job_id.slice(0, 8)}`);
+        log(`[ApprovalReminder][Send] approval=${aid} tech=${tech.email} job=${approval.job_id.slice(0, 8)} reminder=#${newCount} reason=reminder_due`);
 
         // Log to event_logs
         await supabase.from("event_logs").insert({
@@ -316,7 +399,7 @@ Deno.serve(async (req) => {
           change_summary: `Påminnelse #${newCount} sendt til ${tech.name}`,
         });
 
-        // Check if we should notify manager
+        // Check if we should escalate to manager
         if (newCount >= maxReminders) {
           const shouldNotifyManager = approval.reminder_profile === "custom"
             ? approval.reminder_config?.notifyManager
@@ -335,11 +418,11 @@ Deno.serve(async (req) => {
               entity_id: approval.job_id,
               actor_name: tech.name,
             });
-            log(`ESCALATED to manager for job ${approval.job_id.slice(0, 8)}`);
+            log(`[ApprovalReminder][Escalate] approval=${aid} reason=max_reminders_reached_notify_manager`);
           }
         }
       } catch (emailErr: any) {
-        log(`ERROR sending reminder: ${emailErr.message}`);
+        log(`[ApprovalReminder][Error] approval=${aid} reason=exception error=${emailErr.message}`);
       }
     }
 
@@ -350,7 +433,7 @@ Deno.serve(async (req) => {
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err: any) {
-    log(`FATAL ERROR: ${err.message}`);
+    log(`[ApprovalReminder][Fatal] error=${err.message}`);
     console.error(err);
     return new Response(
       JSON.stringify({ ok: false, error: err.message, logs }),
