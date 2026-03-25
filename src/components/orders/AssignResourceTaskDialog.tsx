@@ -71,7 +71,7 @@ export function AssignResourceTaskDialog({
 
   // Parse initial date from submission
   const parseInitialDate = (): Date | undefined => {
-    const raw = findVal("onsket_utfort_dato", "onsket_dato", "dato", "oensket_utfoert_dato");
+    const raw = findVal("oensket_dato", "onsket_utfort_dato", "onsket_dato", "dato", "oensket_utfoert_dato");
     if (!raw) return undefined;
     try {
       // Handle various formats: "2026-03-25", "25.03.2026", etc.
