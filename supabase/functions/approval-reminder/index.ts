@@ -409,7 +409,7 @@ Deno.serve(async (req) => {
           .eq("id", approval.id);
 
         sent++;
-        log(`[ApprovalReminder][Send] approval=${aid} tech=${tech.email} job=${approval.job_id.slice(0, 8)} reminder=#${newCount} reason=reminder_due`);
+        log(`[ApprovalReminder][Send] approval=${aid} tech=${tech.email} job=${approval.job_id.slice(0, 8)} reminder=#${newCount} reason=${isManual ? "manual_trigger" : "reminder_due"}`);
 
         // Log to event_logs
         await supabase.from("event_logs").insert({
