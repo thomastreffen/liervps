@@ -801,6 +801,16 @@ export default function ResourcePlan() {
           <UnplannedJobsStrip companyId={effectiveCompanyId} />
         )}
 
+        {/* Follow-up strip */}
+        {!isMobile && (
+          <FollowUpStrip
+            summaries={approvalSummaries}
+            events={calEvents}
+            activeFilter={followUpFilter}
+            onFilterChange={setFollowUpFilter}
+          />
+        )}
+
         {/* Unscheduled tasks strip */}
         <TaskResourceStrip
           technicianUserId={null}
