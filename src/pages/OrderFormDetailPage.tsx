@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import {
   ArrowLeft, MessageSquare, Clock, Paperclip, AlertTriangle,
-  ArrowRight, FileText, Download, Mail, MailCheck, MailX, ExternalLink,
+  ArrowRight, FileText, Download, Mail, MailCheck, MailX, ExternalLink, UserPlus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -33,6 +33,7 @@ import { RequestInfoDialog } from "@/components/orders/RequestInfoDialog";
 import { ConvertDialog } from "@/components/orders/ConvertDialog";
 import { TripletexExportPanel } from "@/components/orders/TripletexExportPanel";
 import { AttachmentPreviewDrawer } from "@/components/orders/AttachmentPreviewDrawer";
+import { AssignResourceTaskDialog } from "@/components/orders/AssignResourceTaskDialog";
 
 export default function OrderFormDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -43,6 +44,7 @@ export default function OrderFormDetailPage() {
   const [requestInfoOpen, setRequestInfoOpen] = useState(false);
   const [convertOpen, setConvertOpen] = useState(false);
   const [tripletexOpen, setTripletexOpen] = useState(false);
+  const [assignTaskOpen, setAssignTaskOpen] = useState(false);
   const [previewAttIdx, setPreviewAttIdx] = useState<number | null>(null);
 
   const { data: submission, isLoading } = useQuery({
@@ -328,6 +330,10 @@ export default function OrderFormDetailPage() {
           <Download className="h-3.5 w-3.5 mr-1" />
           Tripletex
         </Button>
+        <Button variant="outline" size="sm" onClick={() => setAssignTaskOpen(true)}>
+          <UserPlus className="h-3.5 w-3.5 mr-1" />
+          Tildel ressursoppgave
+        </Button>
         <Button
           variant="outline" size="sm"
           onClick={() => sendNotification.mutate("new_order")}
@@ -571,6 +577,15 @@ export default function OrderFormDetailPage() {
         values={valuesMap}
         summary={submission.summary as Record<string, any> | null}
         submissionNo={submission.submission_no}
+      />
+      <AssignResourceTaskDialog
+        open={assignTaskOpen}
+        onOpenChange={setAssignTaskOpen}
+        submissionId={id!}
+        submissionNo={submission.submission_no}
+        summary={submission.summary as Record<string, any> | null}
+        values={valuesMap}
+        attachments={attachments as any[]}
       />
       <AttachmentPreviewDrawer
         open={previewAttIdx !== null}
