@@ -516,7 +516,14 @@ export function EventDrawer({
               await supabase.from("events").update({ status: "scheduled" } as any).eq("id", createdId);
               syncCreate(createdId);
             } else {
-              await supabase.functions.invoke("create-approval", { body: { job_id: createdId } });
+              await supabase.functions.invoke("create-approval", {
+                body: {
+                  job_id: createdId,
+                  reminder_profile: reminderConfig.profile,
+                  reminder_config: reminderConfig.profile === "custom" ? reminderConfig.custom : null,
+                  response_required: reminderConfig.responseRequired,
+                },
+              });
               syncCreate(createdId);
             }
           }
