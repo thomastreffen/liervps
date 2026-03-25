@@ -223,7 +223,7 @@ export function EventDrawer({
     setEditCompanyName(null);
     setEditCompanyId(null);
     setDrawerTab("details");
-    setReminderConfig({ responseRequired: true, profile: "standard" });
+    setReminderConfig({ responseRequired: true, profile: "company_default" });
     setSelectedCompanyId(isAllCompanies ? (companies.length === 1 ? companies[0].id : null) : activeCompanyId);
 
     // Load existing attachments for edit mode
