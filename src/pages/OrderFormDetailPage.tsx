@@ -43,6 +43,7 @@ export default function OrderFormDetailPage() {
   const [requestInfoOpen, setRequestInfoOpen] = useState(false);
   const [convertOpen, setConvertOpen] = useState(false);
   const [tripletexOpen, setTripletexOpen] = useState(false);
+  const [previewAttIdx, setPreviewAttIdx] = useState<number | null>(null);
 
   const { data: submission, isLoading } = useQuery({
     queryKey: ["order-form-submission", id],
