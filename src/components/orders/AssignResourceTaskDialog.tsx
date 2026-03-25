@@ -196,6 +196,15 @@ export function AssignResourceTaskDialog({
         created_by: user?.id,
       });
 
+      // Trigger Outlook calendar sync for each assigned technician
+      try {
+        await supabase.functions.invoke("calendar-write-sync", {
+          body: { action: "create", event_id: newEvent.id },
+        });
+      } catch (e) {
+        console.warn("[AssignResourceTask] Calendar sync failed:", e);
+      }
+
       return newEvent;
     },
     onSuccess: (newEvent) => {
