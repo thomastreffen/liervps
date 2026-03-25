@@ -6,6 +6,7 @@ import { AttachmentList } from "./AttachmentList";
 import type { Attachment } from "@/lib/mock-data";
 import { TaskThreadPanel } from "@/components/task-thread";
 import { ReminderProfileSelect, type ReminderConfig } from "@/components/ReminderProfileSelect";
+import { ApprovalCockpit } from "@/components/ApprovalCockpit";
 import { useTaskThreadReads } from "@/hooks/useTaskThreadReads";
 import { useReminderSettings } from "@/hooks/useReminderSettings";
 import { useApprovalSummaries, getNextReminderInfo } from "@/hooks/useApprovalSummaries";
