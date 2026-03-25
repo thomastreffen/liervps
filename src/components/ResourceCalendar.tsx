@@ -7,13 +7,15 @@ import listPlugin from "@fullcalendar/list";
 import type { EventInput, EventDropArg, DateSelectArg, EventClickArg } from "@fullcalendar/core";
 import { useCalendarEvents, type CalendarEvent } from "@/hooks/useCalendarEvents";
 import type { ExternalBusySlot } from "@/hooks/useExternalBusy";
+import type { ApprovalSummary } from "@/hooks/useApprovalSummaries";
+import { getNextReminderInfo } from "@/hooks/useApprovalSummaries";
 import type { DayCapacity } from "@/hooks/useCapacity";
 import type { ScheduleBlock } from "@/hooks/useScheduleBlocks";
 import {
   filterScheduleBlocksByTechnician,
   getRenderableAssignments,
 } from "@/lib/resource-plan-assignment-identity";
-import { Lock, CalendarCheck, AlertTriangle, Globe, Monitor, MapPin, Moon, Users, Check, Clock, X, Clock4 } from "lucide-react";
+import { Lock, CalendarCheck, AlertTriangle, Globe, Monitor, MapPin, Moon, Users, Check, Clock, X, Clock4, Zap, BellOff } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { TechAvatar } from "@/components/TechAvatar";
 import { format } from "date-fns";
@@ -54,6 +56,7 @@ interface ResourceCalendarProps {
   operatingStartHour?: number;
   operatingEndHour?: number;
   hasNightHours?: boolean;
+  approvalSummaries?: Map<string, ApprovalSummary>;
 }
 
 function mergeExternalSlots(slots: ExternalBusySlot[]): ExternalBusySlot[] {
@@ -143,6 +146,7 @@ export const ResourceCalendar = memo(function ResourceCalendar({
   operatingStartHour = 7,
   operatingEndHour = 16,
   hasNightHours = false,
+  approvalSummaries = new Map(),
 }: ResourceCalendarProps) {
   const effectiveCanWrite = canWriteEvents ?? isAdmin;
   const effectiveCanViewExternal = canViewExternalDetails ?? isSuperAdmin;
@@ -272,6 +276,7 @@ export const ResourceCalendar = memo(function ResourceCalendar({
           isOvernight,
           isMultiTech: assignment.isMultiTech,
           assignedTechId: tech.id,
+          approvalSummary: approvalSummaries.get(ev.id) ?? null,
         },
         editable: effectiveCanWrite,
       });
@@ -505,7 +510,7 @@ export const ResourceCalendar = memo(function ResourceCalendar({
     );
 
     return result;
-  }, [calendarEvents, getBusySlotsForDay, technicianId, technicianMap, techColorMap, referenceDate, effectiveCanWrite, effectiveCanViewExternal, hideExternalEvents, visibleScheduleBlocks, isMonthView]);
+  }, [calendarEvents, getBusySlotsForDay, technicianId, technicianMap, techColorMap, referenceDate, effectiveCanWrite, effectiveCanViewExternal, hideExternalEvents, visibleScheduleBlocks, isMonthView, approvalSummaries]);
 
   const handleEventClick = useCallback((info: EventClickArg) => {
     const props = info.event.extendedProps as Record<string, any>;
@@ -862,19 +867,75 @@ export const ResourceCalendar = memo(function ResourceCalendar({
 
           // ── Regular event – assignment-based block ──
           const acceptanceInfo = ACCEPTANCE_ICON_MAP[props.status as string];
+          const approvalSum = props.approvalSummary as ApprovalSummary | null;
+
+          // Determine up to 2 status icons (priority: ❗ → ⏱ → ⚡ → 🚫 → ✅)
+          const statusIcons: Array<{ icon: typeof Check; className: string; title: string }> = [];
+          if (approvalSum) {
+            if (approvalSum.declined > 0 || approvalSum.changeRequest > 0) {
+              statusIcons.push({ icon: AlertTriangle, className: "text-red-300", title: "Avslått/tidsendring" });
+            }
+            if (approvalSum.pending > 0) {
+              statusIcons.push({ icon: Clock, className: "text-amber-300", title: "Venter på svar" });
+            }
+            if (approvalSum.reminderProfile === "urgent") {
+              statusIcons.push({ icon: Zap, className: "text-amber-300", title: "Haster" });
+            }
+            if (approvalSum.reminderProfile === "none" || !approvalSum.responseRequired) {
+              statusIcons.push({ icon: BellOff, className: "text-white/50", title: "Ingen påminnelse" });
+            }
+            if (approvalSum.total > 0 && approvalSum.approved === approvalSum.total) {
+              statusIcons.push({ icon: Check, className: "text-emerald-300", title: "Alle godkjent" });
+            }
+          }
+          const visibleIcons = statusIcons.slice(0, 2);
+
+          // Progress label for multi-tech
+          const progressLabel = approvalSum && approvalSum.total > 1
+            ? `${approvalSum.approved}/${approvalSum.total}`
+            : null;
+
+          // Enhanced tooltip
+          const calEvent = props.calendarEvent as CalendarEvent | undefined;
+          const nextReminder = approvalSum && calEvent
+            ? getNextReminderInfo(approvalSum, calEvent.start)
+            : null;
+
+          const profileLabels: Record<string, string> = {
+            standard: "Standard", urgent: "Haster", none: "Ingen", company_default: "Selskapsstandard", custom: "Egendefinert",
+          };
+
           const eventTooltip = (
-            <div className="space-y-1 text-xs max-w-[240px]">
+            <div className="space-y-1.5 text-xs max-w-[260px]">
               <p className="font-semibold">{arg.event.title}</p>
               {props.jobNumber && <p className="font-mono text-[10px] text-white/80">{props.jobNumber}</p>}
               {props.customer && <p className="text-muted-foreground">Kunde: {props.customer}</p>}
               <p className="text-muted-foreground">{arg.timeText}</p>
               {props.techNames && <p>Montører: {props.techNames}</p>}
-              {acceptanceInfo && <p className="text-muted-foreground">Svar: {acceptanceInfo.title}</p>}
-              {props.calendarEvent?.address && (
+              {calEvent?.address && (
                 <p className="flex items-center gap-1">
                   <MapPin className="h-3 w-3 shrink-0" />
-                  {props.calendarEvent.address}
+                  {calEvent.address}
                 </p>
+              )}
+              {approvalSum && approvalSum.total > 0 && (
+                <div className="border-t border-border/30 pt-1.5 space-y-0.5">
+                  <p className="font-medium">
+                    Svar: {approvalSum.approved}/{approvalSum.total} godkjent
+                    {approvalSum.declined > 0 && ` · ${approvalSum.declined} avslått`}
+                    {approvalSum.changeRequest > 0 && ` · ${approvalSum.changeRequest} tidsendring`}
+                  </p>
+                  {nextReminder && (
+                    <p className="text-muted-foreground">
+                      {nextReminder.nextAt
+                        ? `Neste påminnelse: ${format(nextReminder.nextAt, "HH:mm", { locale: nb })}`
+                        : nextReminder.label}
+                    </p>
+                  )}
+                  <p className="text-muted-foreground">
+                    Profil: {profileLabels[approvalSum.reminderProfile || "standard"] || approvalSum.reminderProfile}
+                  </p>
+                </div>
               )}
             </div>
           );
@@ -898,19 +959,34 @@ export const ResourceCalendar = memo(function ResourceCalendar({
                     {props.isMultiTech && (
                       <Users className="h-2.5 w-2.5 shrink-0 text-white/60" />
                     )}
+                    {/* Progress badge for multi-tech */}
+                    {progressLabel && (
+                      <span className="text-[8px] font-bold bg-white/20 text-white/90 rounded px-1 shrink-0">
+                        {progressLabel}
+                      </span>
+                    )}
                     {props.jobNumber && (
                       <span className="text-[8px] font-mono font-semibold bg-white/20 text-white/90 rounded px-1 shrink-0 ml-auto">
                         {props.jobNumber}
                       </span>
                     )}
-                    {/* Acceptance status indicator */}
-                    {(() => {
-                      const acceptanceInfo = ACCEPTANCE_ICON_MAP[props.status as string];
-                      if (acceptanceInfo) {
-                        const AccIcon = acceptanceInfo.Icon;
+                    {/* Status icons (max 2) */}
+                    {visibleIcons.map((si, idx) => {
+                      const SIcon = si.icon;
+                      return (
+                        <span key={idx} className={cn("shrink-0", idx === 0 && !props.jobNumber ? "ml-auto" : "")} title={si.title}>
+                          <SIcon className={cn("h-2.5 w-2.5", si.className)} />
+                        </span>
+                      );
+                    })}
+                    {/* Fallback: legacy acceptance icon if no approval summary */}
+                    {visibleIcons.length === 0 && (() => {
+                      const ai = ACCEPTANCE_ICON_MAP[props.status as string];
+                      if (ai) {
+                        const AccIcon = ai.Icon;
                         return (
-                          <span className={cn("shrink-0", props.jobNumber ? "" : "ml-auto")} title={acceptanceInfo.title}>
-                            <AccIcon className={cn("h-2.5 w-2.5", acceptanceInfo.className)} />
+                          <span className={cn("shrink-0", props.jobNumber ? "" : "ml-auto")} title={ai.title}>
+                            <AccIcon className={cn("h-2.5 w-2.5", ai.className)} />
                           </span>
                         );
                       }

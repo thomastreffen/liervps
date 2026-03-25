@@ -8,6 +8,7 @@ import { TaskThreadPanel } from "@/components/task-thread";
 import { ReminderProfileSelect, type ReminderConfig } from "@/components/ReminderProfileSelect";
 import { useTaskThreadReads } from "@/hooks/useTaskThreadReads";
 import { useReminderSettings } from "@/hooks/useReminderSettings";
+import { useApprovalSummaries, getNextReminderInfo } from "@/hooks/useApprovalSummaries";
 import {
   Sheet,
   SheetContent,
@@ -50,6 +51,10 @@ import {
   Users,
   Building,
   MessageSquare,
+  Bell,
+  Zap,
+  BellOff,
+  Check,
 } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel,
@@ -178,6 +183,8 @@ export function EventDrawer({
 
   // Per-technician approval statuses
   const { approvals: techApprovals } = useJobApprovals(editEvent?.id);
+  const { summaries: approvalSummaryMap } = useApprovalSummaries(editEvent ? [editEvent.id] : []);
+  const approvalSummary = editEvent ? approvalSummaryMap.get(editEvent.id) : undefined;
 
   // Populate form from props
   useEffect(() => {
@@ -817,6 +824,72 @@ export function EventDrawer({
                   billingStatus={BILLING_STATUSES.includes(editEvent.status) ? editEvent.status : null}
                 />
               </div>
+
+              {/* ═══ APPROVAL COCKPIT ═══ */}
+              {approvalSummary && approvalSummary.total > 0 && (() => {
+                const s = approvalSummary;
+                const nextReminder = getNextReminderInfo(s, editEvent.start);
+                const profileLabels: Record<string, string> = {
+                  standard: "Standard", urgent: "Haster", none: "Ingen",
+                  company_default: "Selskapsstandard", custom: "Egendefinert",
+                };
+                const allApproved = s.approved === s.total;
+                const hasDeclined = s.declined > 0;
+                const hasChange = s.changeRequest > 0;
+                const isUrgent = s.reminderProfile === "urgent";
+
+                return (
+                  <div className={cn(
+                    "rounded-lg border p-3 space-y-2",
+                    allApproved ? "border-emerald-500/30 bg-emerald-500/5" :
+                    hasDeclined ? "border-destructive/30 bg-destructive/5" :
+                    hasChange ? "border-blue-500/30 bg-blue-500/5" :
+                    "border-amber-500/30 bg-amber-500/5"
+                  )}>
+                    <div className="flex items-center gap-2">
+                      {allApproved ? (
+                        <Check className="h-4 w-4 text-emerald-600 shrink-0" />
+                      ) : hasDeclined ? (
+                        <AlertTriangle className="h-4 w-4 text-destructive shrink-0" />
+                      ) : (
+                        <Clock className="h-4 w-4 text-amber-600 shrink-0" />
+                      )}
+                      <span className="text-sm font-semibold">
+                        {allApproved
+                          ? "Alle montører har godkjent"
+                          : hasDeclined
+                            ? `Avslått av ${s.declined} montør`
+                            : `Venter på svar (${s.approved}/${s.total} godkjent)`}
+                      </span>
+                      {isUrgent && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-400 px-2 py-0.5 text-[10px] font-semibold">
+                          <Zap className="h-2.5 w-2.5" /> Haster
+                        </span>
+                      )}
+                    </div>
+
+                    {s.pending > 0 && (
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <Bell className="h-3 w-3 shrink-0" />
+                        {nextReminder.nextAt ? (
+                          <span>Neste påminnelse kl {format(nextReminder.nextAt, "HH:mm")}</span>
+                        ) : (
+                          <span>{nextReminder.label}</span>
+                        )}
+                      </div>
+                    )}
+
+                    <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                      <span>Profil: {profileLabels[s.reminderProfile || "standard"] || s.reminderProfile}</span>
+                      {!s.responseRequired && (
+                        <span className="flex items-center gap-1 text-amber-600">
+                          <BellOff className="h-3 w-3" /> Ingen oppfølging
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           )}
 

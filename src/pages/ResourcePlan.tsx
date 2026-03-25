@@ -22,6 +22,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { useTechnicians } from "@/hooks/useTechnicians";
 import { useExternalBusy } from "@/hooks/useExternalBusy";
 import { useCalendarEvents, type CalendarEvent } from "@/hooks/useCalendarEvents";
+import { useApprovalSummaries } from "@/hooks/useApprovalSummaries";
 import { useCapacity } from "@/hooks/useCapacity";
 import { useTechnicianNowStatus, getContiguousFreeMinutes } from "@/hooks/useTechnicianNowStatus";
 import { useCalendarSync } from "@/hooks/useCalendarSync";
@@ -169,6 +170,8 @@ export default function ResourcePlan() {
   }, []);
 
   const { events: calEvents, refetch: refetchCalendarEvents } = useCalendarEvents(selectedTechId, referenceDate, effectiveCompanyId, scopedCompanyTechIds);
+  const approvalEventIds = useMemo(() => calEvents.map(e => e.id), [calEvents]);
+  const { summaries: approvalSummaries } = useApprovalSummaries(approvalEventIds);
 
   const refreshPlanData = useCallback(async () => {
     setRefreshKey((k) => k + 1);
@@ -842,6 +845,7 @@ export default function ResourcePlan() {
           operatingStartHour={operatingHours.startHour}
           operatingEndHour={operatingHours.endHour}
           hasNightHours={operatingHours.hasNightHours}
+          approvalSummaries={approvalSummaries}
         />
         </div>
       </div>

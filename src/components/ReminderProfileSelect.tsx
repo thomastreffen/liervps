@@ -179,8 +179,25 @@ export function ReminderProfileSelect({ value, onChange, disabled, companyRemind
               </div>
             </div>
           )}
+
+          {/* Explanatory text based on selected profile */}
+          <div className="rounded-lg bg-muted/50 px-3 py-2">
+            <p className="text-[11px] text-muted-foreground leading-relaxed">
+              {value.profile === "standard" && "Påminnelser sendes etter 2t, 24t og 48t hvis montør ikke svarer."}
+              {value.profile === "company_default" && "Påminnelser sendes basert på selskapets standardinnstillinger."}
+              {value.profile === "urgent" && "Påminnelser sendes etter 30min, 2t og 6t hvis montør ikke svarer."}
+              {value.profile === "none" && "⚠️ Montør vil ikke få oppfølging automatisk."}
+              {value.profile === "custom" && value.custom && `Påminnelser sendes etter ${formatMinutes(value.custom.reminder1Minutes)}, ${formatMinutes(value.custom.reminder2Minutes)} og ${formatMinutes(value.custom.reminder3Minutes)}.`}
+            </p>
+          </div>
         </>
       )}
     </section>
   );
+}
+
+function formatMinutes(m: number): string {
+  if (m < 60) return `${m}min`;
+  const h = Math.floor(m / 60);
+  return m % 60 > 0 ? `${h}t ${m % 60}m` : `${h}t`;
 }
