@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import {
   ArrowLeft, MessageSquare, Clock, Paperclip, AlertTriangle,
-  ArrowRight, FileText, Download, Mail, MailCheck, MailX, ExternalLink,
+  ArrowRight, FileText, Download, Mail, MailCheck, MailX, ExternalLink, UserPlus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
