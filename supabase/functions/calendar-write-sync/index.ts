@@ -489,26 +489,67 @@ async function syncForTechnician(
   }
 
   if (action === "delete") {
-    if (!existingCalEventId) {
-      return { techId: tech.id, techName: tech.name, status: "no_calendar_event" };
-    }
-
-    const res = await fetch(
-      `https://graph.microsoft.com/v1.0/users/${techEmail}/events/${existingCalEventId}`,
-      { method: "DELETE", headers: { Authorization: `Bearer ${msToken}` } }
+    const deleteResult = await deleteGraphEventWithFallbacks(
+      supabaseAdmin,
+      event,
+      tech,
+      eventTechRow,
+      msToken
     );
 
-    if (!res.ok && res.status !== 404) {
-      console.error(`[calendar-write-sync] DELETE failed for ${techEmail}:`, res.status);
-      return { techId: tech.id, techName: tech.name, status: "error", code: res.status };
+    if (!deleteResult.deleted) {
+      console.warn(
+        `[calendar-write-sync] DELETE could not confirm removal for ${techEmail}:`,
+        JSON.stringify(deleteResult.attempts)
+      );
+
+      if (deleteResult.all404) {
+        await logAction(
+          "outlook_delete_unconfirmed",
+          `Outlook-event kunne ikke bekreftes slettet for ${tech.name} (kun 404 på kjente ID-er)`
+        );
+        return {
+          techId: tech.id,
+          techName: tech.name,
+          status: "not_found",
+          code: 404,
+          attempts: deleteResult.attempts,
+        };
+      }
+
+      const lastStatus = deleteResult.attempts.at(-1)?.status ?? "delete_failed";
+      console.error(`[calendar-write-sync] DELETE failed for ${techEmail}:`, lastStatus);
+      return {
+        techId: tech.id,
+        techName: tech.name,
+        status: "error",
+        code: lastStatus,
+        attempts: deleteResult.attempts,
+      };
     }
 
-    await supabaseAdmin.from("event_technicians")
-      .update({ calendar_event_id: null })
-      .eq("id", eventTechRow.id);
+    await Promise.all([
+      supabaseAdmin.from("event_technicians")
+        .update({ calendar_event_id: null })
+        .eq("id", eventTechRow.id),
+      supabaseAdmin.from("job_calendar_links")
+        .update({
+          sync_status: "unlinked",
+          calendar_event_id: null,
+          calendar_event_url: null,
+        } as any)
+        .eq("job_id", event.id)
+        .eq("user_id", userId)
+        .eq("provider", "microsoft"),
+    ]);
 
     await logAction("outlook_deleted", `Outlook-event slettet for ${tech.name}`);
-    return { techId: tech.id, techName: tech.name, status: "deleted" };
+    return {
+      techId: tech.id,
+      techName: tech.name,
+      status: "deleted",
+      calendarEventId: deleteResult.deletedEventId,
+    };
   }
 
   return { techId: tech.id, techName: tech.name, status: "unknown_action" };
