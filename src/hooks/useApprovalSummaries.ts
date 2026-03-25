@@ -29,7 +29,7 @@ export function useApprovalSummaries(eventIds: string[]) {
 
     const { data, error } = await supabase
       .from("job_approvals")
-      .select("job_id, status, reminder_profile, reminder_count, last_reminded_at, response_required, created_at")
+      .select("job_id, status, reminder_profile, reminder_count, last_reminded_at, response_required, created_at, reminders_paused")
       .in("job_id", eventIds);
 
     if (error || !data) {
