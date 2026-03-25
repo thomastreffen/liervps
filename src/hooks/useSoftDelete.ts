@@ -11,7 +11,8 @@ type SoftDeletableTable =
   | "cases"
   | "customers"
   | "customer_accounts"
-  | "technicians";
+  | "technicians"
+  | "order_form_submissions";
 
 const TABLE_LABELS: Record<SoftDeletableTable, string> = {
   events: "Oppdrag",
@@ -23,6 +24,7 @@ const TABLE_LABELS: Record<SoftDeletableTable, string> = {
   customers: "Kunde",
   customer_accounts: "Kundekonto",
   technicians: "Montør",
+  order_form_submissions: "Bestilling",
 };
 
 interface UseSoftDeleteOptions {
