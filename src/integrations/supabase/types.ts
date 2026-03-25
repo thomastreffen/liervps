@@ -6068,6 +6068,8 @@ export type Database = {
           converted_to_id: string | null
           converted_to_type: string | null
           created_at: string
+          deleted_at: string | null
+          deleted_by: string | null
           id: string
           linked_customer_id: string | null
           linked_project_id: string | null
@@ -6093,6 +6095,8 @@ export type Database = {
           converted_to_id?: string | null
           converted_to_type?: string | null
           created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
           id?: string
           linked_customer_id?: string | null
           linked_project_id?: string | null
@@ -6118,6 +6122,8 @@ export type Database = {
           converted_to_id?: string | null
           converted_to_type?: string | null
           created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
           id?: string
           linked_customer_id?: string | null
           linked_project_id?: string | null
