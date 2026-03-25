@@ -845,6 +845,7 @@ export default function ResourcePlan() {
           operatingStartHour={operatingHours.startHour}
           operatingEndHour={operatingHours.endHour}
           hasNightHours={operatingHours.hasNightHours}
+          approvalSummaries={approvalSummaries}
         />
         </div>
       </div>
