@@ -191,6 +191,18 @@ export function EventDrawer({
   const approvalSummary = editEvent ? approvalSummaryMap.get(editEvent.id) : undefined;
   const refreshApprovalData = useCallback(() => { refetchApprovals(); refetchSummaries(); }, [refetchApprovals, refetchSummaries]);
 
+  // Available technicians for replacement suggestions
+  const { technicians: allTechnicians } = useTechnicians(editEvent ? (editEvent as any).companyId || activeCompanyId : activeCompanyId);
+  const techInsightUserIds = useMemo(() => {
+    const ids = techApprovals.map(a => a.technicianUserId);
+    // Also include available techs for replacement scoring
+    for (const t of allTechnicians) {
+      if (t.id && !ids.includes(t.id)) ids.push(t.id);
+    }
+    return ids;
+  }, [techApprovals, allTechnicians]);
+  const { insights: techInsights } = useTechnicianInsights(techInsightUserIds);
+
   // Populate form from props
   useEffect(() => {
     if (!open) return;
