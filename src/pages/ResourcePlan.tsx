@@ -742,9 +742,27 @@ export default function ResourcePlan() {
                 {canWriteEvents && (
                   <Button onClick={handleNewEvent} size="sm" className="gap-1.5 rounded-lg h-8">
                     <Plus className="h-4 w-4" />
-                    Ny aktivitet
+                    {!focusMode && "Ny aktivitet"}
                   </Button>
                 )}
+
+                <TooltipProvider delayDuration={200}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant={focusMode ? "default" : "outline"}
+                        size="icon"
+                        className="h-8 w-8 rounded-lg"
+                        onClick={toggleFocusMode}
+                      >
+                        {focusMode ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" className="text-xs">
+                      {focusMode ? "Vis alt" : "Fokusmodus"}
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </div>
             </div>
 
