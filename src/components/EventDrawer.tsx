@@ -824,7 +824,6 @@ export function EventDrawer({
                   billingStatus={BILLING_STATUSES.includes(editEvent.status) ? editEvent.status : null}
                 />
               </div>
-              </div>
 
               {/* ═══ APPROVAL COCKPIT ═══ */}
               {approvalSummary && approvalSummary.total > 0 && (() => {
