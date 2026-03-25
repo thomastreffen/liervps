@@ -161,7 +161,7 @@ export function AssignResourceTaskDialog({
           const newPath = `${activeCompanyId}/${newEvent.id}/${att.file_name}`;
           const { data: fileData } = await supabase.storage
             .from("order-form-attachments")
-            .download(att.storage_path);
+            .download(storagePath);
           if (fileData) {
             await supabase.storage
               .from("job-attachments")
