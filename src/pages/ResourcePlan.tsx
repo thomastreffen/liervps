@@ -889,8 +889,8 @@ export default function ResourcePlan() {
           </>
         )}
 
-        {/* Capacity status bar */}
-        {!isMobile && canReadBusy && techCapacities.length > 0 && (
+        {/* Capacity status bar (hidden in focus mode) */}
+        {!isMobile && !focusMode && canReadBusy && techCapacities.length > 0 && (
           <CapacityStatusBar
             techCapacities={techCapacities}
             todayDayIndex={todayDayIndex}
@@ -899,15 +899,15 @@ export default function ResourcePlan() {
           />
         )}
 
-        {/* Unplanned projects warning */}
-        {!isMobile && <UnplannedProjectsBanner count={unplannedCount} />}
+        {/* Unplanned projects warning (hidden in focus mode) */}
+        {!isMobile && !focusMode && <UnplannedProjectsBanner count={unplannedCount} />}
 
-        {/* Draggable unplanned jobs */}
-        {!isMobile && canWriteEvents && (
+        {/* Draggable unplanned jobs (hidden in focus mode) */}
+        {!isMobile && !focusMode && canWriteEvents && (
           <UnplannedJobsStrip companyId={effectiveCompanyId} />
         )}
 
-        {/* Follow-up strip */}
+        {/* Follow-up strip (shown as compact in focus mode) */}
         {!isMobile && (
           <FollowUpStrip
             summaries={approvalSummaries}
@@ -917,8 +917,8 @@ export default function ResourcePlan() {
           />
         )}
 
-        {/* Recommended actions */}
-        {!isMobile && (
+        {/* Recommended actions (hidden in focus mode) */}
+        {!isMobile && !focusMode && (
           <RecommendedActions
             summaries={approvalSummaries}
             events={calEvents}
@@ -929,11 +929,13 @@ export default function ResourcePlan() {
           />
         )}
 
-        {/* Unscheduled tasks strip */}
-        <TaskResourceStrip
-          technicianUserId={null}
-          referenceDate={referenceDate}
-        />
+        {/* Unscheduled tasks strip (hidden in focus mode) */}
+        {!focusMode && (
+          <TaskResourceStrip
+            technicianUserId={null}
+            referenceDate={referenceDate}
+          />
+        )}
 
         {/* Interactive FullCalendar */}
         <div onTouchStart={isMobile ? handleTouchStart : undefined} onTouchEnd={isMobile ? handleTouchEnd : undefined}>
