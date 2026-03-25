@@ -2,11 +2,10 @@ import { useState } from "react";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Bell, ChevronDown, ChevronUp } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Bell, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export type ReminderProfile = "standard" | "urgent" | "none" | "custom";
+export type ReminderProfile = "company_default" | "standard" | "urgent" | "none" | "custom";
 
 export interface ReminderConfig {
   responseRequired: boolean;
@@ -19,10 +18,11 @@ export interface ReminderConfig {
   };
 }
 
-const PROFILES: Record<Exclude<ReminderProfile, "custom">, { label: string; desc: string; color: string }> = {
-  standard: { label: "Standard", desc: "2t → 24t → 48t", color: "bg-blue-500/10 text-blue-700 dark:text-blue-400" },
-  urgent: { label: "Haster", desc: "30min → 2t → 6t", color: "bg-amber-500/10 text-amber-700 dark:text-amber-400" },
-  none: { label: "Ingen påminnelse", desc: "Ingen automatisk oppfølging", color: "bg-muted text-muted-foreground" },
+const PROFILES: Record<Exclude<ReminderProfile, "custom">, { label: string; desc: string }> = {
+  company_default: { label: "Selskapsstandard", desc: "Bruk globale innstillinger" },
+  standard: { label: "Standard", desc: "2t → 24t → 48t" },
+  urgent: { label: "Haster", desc: "30min → 2t → 6t" },
+  none: { label: "Ingen påminnelse", desc: "Ingen automatisk oppfølging" },
 };
 
 const TIME_OPTIONS = [
@@ -40,23 +40,23 @@ interface Props {
   value: ReminderConfig;
   onChange: (config: ReminderConfig) => void;
   disabled?: boolean;
+  /** When true, shows a warning that company reminders are disabled */
+  companyRemindersDisabled?: boolean;
 }
 
-export function ReminderProfileSelect({ value, onChange, disabled }: Props) {
-  const [showCustom, setShowCustom] = useState(value.profile === "custom");
+export function ReminderProfileSelect({ value, onChange, disabled, companyRemindersDisabled }: Props) {
+  const [showCustom] = useState(value.profile === "custom");
 
   const setProfile = (p: ReminderProfile) => {
     if (p === "none") {
       onChange({ responseRequired: false, profile: "none" });
     } else if (p === "custom") {
-      setShowCustom(true);
       onChange({
         responseRequired: true,
         profile: "custom",
         custom: value.custom || { reminder1Minutes: 120, reminder2Minutes: 1440, reminder3Minutes: 2880, notifyManager: false },
       });
     } else {
-      setShowCustom(false);
       onChange({ responseRequired: true, profile: p });
     }
   };
@@ -68,6 +68,16 @@ export function ReminderProfileSelect({ value, onChange, disabled }: Props) {
         Svar og påminnelse
       </h3>
 
+      {/* Company reminders disabled warning */}
+      {companyRemindersDisabled && (
+        <div className="flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2">
+          <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
+          <span className="text-xs text-amber-700 dark:text-amber-400">
+            Påminnelser er deaktivert i selskapsinnstillinger
+          </span>
+        </div>
+      )}
+
       <div className="flex items-center justify-between rounded-xl border border-border/40 p-3">
         <div>
           <p className="text-xs font-medium">Krev bekreftelse fra montør</p>
@@ -75,13 +85,28 @@ export function ReminderProfileSelect({ value, onChange, disabled }: Props) {
         </div>
         <Switch
           checked={value.responseRequired}
-          onCheckedChange={(v) => onChange({ ...value, responseRequired: v, profile: v ? value.profile === "none" ? "standard" : value.profile : "none" })}
+          onCheckedChange={(v) => onChange({ ...value, responseRequired: v, profile: v ? value.profile === "none" ? "company_default" : value.profile : "none" })}
           disabled={disabled}
         />
       </div>
 
       {value.responseRequired && (
         <>
+          {/* Profile badge for selected profile */}
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-muted-foreground">Valgt:</span>
+            <span className={cn(
+              "inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium",
+              value.profile === "urgent" && "bg-amber-500/10 text-amber-700 dark:text-amber-400",
+              value.profile === "standard" && "bg-blue-500/10 text-blue-700 dark:text-blue-400",
+              value.profile === "company_default" && "bg-primary/10 text-primary",
+              value.profile === "none" && "bg-muted text-muted-foreground",
+              value.profile === "custom" && "bg-violet-500/10 text-violet-700 dark:text-violet-400",
+            )}>
+              {value.profile === "custom" ? "Egendefinert" : PROFILES[value.profile]?.label}
+            </span>
+          </div>
+
           <div className="grid grid-cols-2 gap-2">
             {(Object.entries(PROFILES) as [Exclude<ReminderProfile, "custom">, typeof PROFILES["standard"]][]).map(([key, cfg]) => (
               <button
@@ -105,7 +130,7 @@ export function ReminderProfileSelect({ value, onChange, disabled }: Props) {
               disabled={disabled}
               onClick={() => setProfile("custom")}
               className={cn(
-                "rounded-xl border p-2.5 text-left transition-all",
+                "rounded-xl border p-2.5 text-left transition-all col-span-2",
                 value.profile === "custom"
                   ? "border-primary bg-primary/5 ring-1 ring-primary"
                   : "border-border/40 hover:border-border/70"
@@ -116,7 +141,7 @@ export function ReminderProfileSelect({ value, onChange, disabled }: Props) {
             </button>
           </div>
 
-          {value.profile === "custom" && showCustom && value.custom && (
+          {value.profile === "custom" && value.custom && (
             <div className="space-y-2 rounded-lg border border-border/40 bg-card p-3">
               {(["reminder1Minutes", "reminder2Minutes", "reminder3Minutes"] as const).map((key, i) => (
                 <div key={key} className="flex items-center gap-2">
