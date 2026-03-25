@@ -32,6 +32,10 @@ export default function OrganisationPage() {
             <Paintbrush className="h-3.5 w-3.5" />
             Profil & merkevare
           </TabsTrigger>
+          <TabsTrigger value="reminders" className="gap-1.5">
+            <Bell className="h-3.5 w-3.5" />
+            Påminnelser
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="companies">
