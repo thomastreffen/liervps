@@ -167,8 +167,10 @@ export function AssignResourceTaskDialog({
               .from("job-attachments")
               .upload(newPath, fileData, { contentType: att.mime_type });
           }
+          const { data: urlData } = supabase.storage.from("job-attachments").getPublicUrl(newPath);
           attMeta.push({
             name: att.file_name,
+            url: urlData.publicUrl,
             path: newPath,
             size: att.file_size,
             type: att.mime_type,
@@ -193,6 +195,15 @@ export function AssignResourceTaskDialog({
         },
         created_by: user?.id,
       });
+
+      // Trigger Outlook calendar sync for each assigned technician
+      try {
+        await supabase.functions.invoke("calendar-write-sync", {
+          body: { action: "create", event_id: newEvent.id },
+        });
+      } catch (e) {
+        console.warn("[AssignResourceTask] Calendar sync failed:", e);
+      }
 
       return newEvent;
     },
