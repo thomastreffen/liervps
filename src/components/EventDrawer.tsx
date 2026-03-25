@@ -886,6 +886,11 @@ export function EventDrawer({
             <TechnicianMultiSelect selectedIds={techIds} onChange={setTechIds} disabled={readOnly} />
           </section>
 
+          {/* ═══ SECTION: PÅMINNELSE ═══ */}
+          {!isEditing && eventType === "project" && techIds.length > 0 && (
+            <ReminderProfileSelect value={reminderConfig} onChange={setReminderConfig} disabled={readOnly} />
+          )}
+
           {/* ═══ SECTION: BESKRIVELSE ═══ */}
           {(mode === "new" || isEditing) && (
             <section className="space-y-3">
