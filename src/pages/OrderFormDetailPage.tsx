@@ -140,9 +140,19 @@ export default function OrderFormDetailPage() {
     return map;
   }, [values]);
 
+  // Collect all template fields for dynamic quality assessment
+  const allTemplateFields = useMemo(() => {
+    return sections.flatMap((s: any) => (s.fields || []).map((f: any) => ({
+      field_key: f.field_key,
+      label: f.label,
+      field_type: f.field_type,
+      is_required: f.is_required,
+    })));
+  }, [sections]);
+
   const qualityResult: QualityResult = useMemo(() => {
-    return computeQualityScore(valuesMap, attachments as any);
-  }, [valuesMap, attachments]);
+    return computeQualityScore(valuesMap, attachments as any, allTemplateFields);
+  }, [valuesMap, attachments, allTemplateFields]);
 
   const updateStatus = useMutation({
     mutationFn: async (newStatus: string) => {
