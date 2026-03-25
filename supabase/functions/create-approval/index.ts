@@ -190,13 +190,17 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { job_id } = await req.json();
+    const { job_id, reminder_profile, reminder_config, response_required } = await req.json();
     if (!job_id) {
       return new Response(JSON.stringify({ error: "Missing job_id" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    const rProfile = reminder_profile || "standard";
+    const rConfig = reminder_config || null;
+    const rRequired = response_required !== false;
 
     // Fetch job
     const { data: job, error: jobErr } = await supabaseAdmin
