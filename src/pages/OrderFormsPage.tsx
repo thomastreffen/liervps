@@ -58,6 +58,7 @@ export default function OrderFormsPage() {
         .from("order_form_submissions")
         .select("*, order_form_templates(name, slug)")
         .eq("company_id", activeCompanyId!)
+        .is("deleted_at", null)
         .order("submitted_at", { ascending: false })
         .limit(500);
 
