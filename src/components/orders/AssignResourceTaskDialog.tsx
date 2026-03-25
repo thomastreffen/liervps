@@ -167,8 +167,10 @@ export function AssignResourceTaskDialog({
               .from("job-attachments")
               .upload(newPath, fileData, { contentType: att.mime_type });
           }
+          const { data: urlData } = supabase.storage.from("job-attachments").getPublicUrl(newPath);
           attMeta.push({
             name: att.file_name,
+            url: urlData.publicUrl,
             path: newPath,
             size: att.file_size,
             type: att.mime_type,
