@@ -86,7 +86,7 @@ export default function TrashPage() {
 
   const permanentDelete = async (item: DeletedItem) => {
     setOperating(item.id);
-    const table = item.type === "job" ? "events" : item.type === "calculation" ? "calculations" : item.type === "lead" ? "leads" : item.type === "contract" ? "contracts" : item.type === "conversation" ? "conversation_threads" : "offers";
+    const table = item.type === "job" ? "events" : item.type === "calculation" ? "calculations" : item.type === "lead" ? "leads" : item.type === "contract" ? "contracts" : item.type === "conversation" ? "conversation_threads" : item.type === "order" ? "order_form_submissions" : "offers";
     await (supabase as any).from(table).delete().eq("id", item.id);
     toast.success("Permanent slettet", { description: item.title });
     setItems(prev => prev.filter(i => i.id !== item.id));
