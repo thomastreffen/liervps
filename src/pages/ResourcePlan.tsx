@@ -22,6 +22,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { useTechnicians } from "@/hooks/useTechnicians";
 import { useExternalBusy } from "@/hooks/useExternalBusy";
 import { useCalendarEvents, type CalendarEvent } from "@/hooks/useCalendarEvents";
+import { useApprovalSummaries } from "@/hooks/useApprovalSummaries";
 import { useCapacity } from "@/hooks/useCapacity";
 import { useTechnicianNowStatus, getContiguousFreeMinutes } from "@/hooks/useTechnicianNowStatus";
 import { useCalendarSync } from "@/hooks/useCalendarSync";
