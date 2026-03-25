@@ -183,9 +183,10 @@ export function EventDrawer({
   const { unreadCount: threadUnreadCount } = useTaskThreadReads(editEvent?.id);
 
   // Per-technician approval statuses
-  const { approvals: techApprovals } = useJobApprovals(editEvent?.id);
-  const { summaries: approvalSummaryMap } = useApprovalSummaries(editEvent ? [editEvent.id] : []);
+  const { approvals: techApprovals, refetch: refetchApprovals } = useJobApprovals(editEvent?.id);
+  const { summaries: approvalSummaryMap, refetch: refetchSummaries } = useApprovalSummaries(editEvent ? [editEvent.id] : []);
   const approvalSummary = editEvent ? approvalSummaryMap.get(editEvent.id) : undefined;
+  const refreshApprovalData = useCallback(() => { refetchApprovals(); refetchSummaries(); }, [refetchApprovals, refetchSummaries]);
 
   // Populate form from props
   useEffect(() => {
