@@ -56,6 +56,7 @@ interface ResourceCalendarProps {
   operatingStartHour?: number;
   operatingEndHour?: number;
   hasNightHours?: boolean;
+  approvalSummaries?: Map<string, ApprovalSummary>;
 }
 
 function mergeExternalSlots(slots: ExternalBusySlot[]): ExternalBusySlot[] {
