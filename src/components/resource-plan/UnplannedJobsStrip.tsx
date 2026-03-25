@@ -155,7 +155,7 @@ export function UnplannedJobsStrip({ companyId }: UnplannedJobsStripProps) {
       </button>
 
       {expanded && (
-        <div ref={containerRef} className="flex gap-2 p-3 overflow-x-auto">
+        <div ref={containerRef} className="flex gap-2 p-2 overflow-x-auto border-t border-border/20">
           {jobs.map((job) => {
             const estimatedMin = (job.estimated_hours || 8) * 60;
             const jobNum = job.internal_number;
