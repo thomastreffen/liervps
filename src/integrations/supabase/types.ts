@@ -6287,7 +6287,9 @@ export type Database = {
           is_active: boolean
           name: string
           on_submit_action: string
+          requires_login: boolean
           send_email_to: string[] | null
+          show_in_catalog: boolean
           slug: string
           updated_at: string
         }
@@ -6305,7 +6307,9 @@ export type Database = {
           is_active?: boolean
           name: string
           on_submit_action?: string
+          requires_login?: boolean
           send_email_to?: string[] | null
+          show_in_catalog?: boolean
           slug: string
           updated_at?: string
         }
@@ -6323,7 +6327,9 @@ export type Database = {
           is_active?: boolean
           name?: string
           on_submit_action?: string
+          requires_login?: boolean
           send_email_to?: string[] | null
+          show_in_catalog?: boolean
           slug?: string
           updated_at?: string
         }
