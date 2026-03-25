@@ -578,6 +578,15 @@ export default function OrderFormDetailPage() {
         summary={submission.summary as Record<string, any> | null}
         submissionNo={submission.submission_no}
       />
+      <AssignResourceTaskDialog
+        open={assignTaskOpen}
+        onOpenChange={setAssignTaskOpen}
+        submissionId={id!}
+        submissionNo={submission.submission_no}
+        summary={submission.summary as Record<string, any> | null}
+        values={valuesMap}
+        attachments={attachments as any[]}
+      />
       <AttachmentPreviewDrawer
         open={previewAttIdx !== null}
         onClose={() => setPreviewAttIdx(null)}
