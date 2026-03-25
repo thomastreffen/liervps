@@ -71,7 +71,7 @@ export function AssignResourceTaskDialog({
 
   // Parse initial date from submission
   const parseInitialDate = (): Date | undefined => {
-    const raw = findVal("onsket_utfort_dato", "onsket_dato", "dato", "oensket_utfoert_dato");
+    const raw = findVal("oensket_dato", "onsket_utfort_dato", "onsket_dato", "dato", "oensket_utfoert_dato");
     if (!raw) return undefined;
     try {
       // Handle various formats: "2026-03-25", "25.03.2026", etc.
@@ -90,13 +90,13 @@ export function AssignResourceTaskDialog({
     findVal("oppdragstittel") || summary?.oppdragstittel || `Oppgave fra ${submissionNo || "bestilling"}`
   );
   const [description, setDescription] = useState(
-    findVal("detaljert_arbeidsbeskrivelse", "beskrivelse", "arbeidsbeskrivelse") || ""
+    findVal("arbeidsbeskrivelse", "detaljert_arbeidsbeskrivelse", "beskrivelse") || ""
   );
   const [address, setAddress] = useState(
-    findVal("anleggsadresse", "adresse") || ""
+    findVal("anleggsadresse", "oppdragssted", "adresse") || ""
   );
   const [customer, setCustomer] = useState(
-    findVal("kundenavn", "kunde", "firmanavn") || summary?.kundenavn || ""
+    findVal("firmanavn", "kundenavn", "kunde") || summary?.kundenavn || ""
   );
   const [startDate, setStartDate] = useState<Date | undefined>(parseInitialDate());
   const [startTime, setStartTime] = useState("08:00");
@@ -137,7 +137,7 @@ export function AssignResourceTaskDialog({
           customer: customer || null,
           start_time: startTime.toISOString(),
           end_time: endTime.toISOString(),
-          status: "pending" as any,
+          status: "scheduled" as any,
           project_type: "service",
           created_by: user?.id,
           source_order_form_id: submissionId,
