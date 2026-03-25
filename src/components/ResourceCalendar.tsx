@@ -15,7 +15,7 @@ import {
   filterScheduleBlocksByTechnician,
   getRenderableAssignments,
 } from "@/lib/resource-plan-assignment-identity";
-import { Lock, CalendarCheck, AlertTriangle, Globe, Monitor, MapPin, Moon, Users, Check, Clock, X, Clock4 } from "lucide-react";
+import { Lock, CalendarCheck, AlertTriangle, Globe, Monitor, MapPin, Moon, Users, Check, Clock, X, Clock4, Zap, BellOff } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { TechAvatar } from "@/components/TechAvatar";
 import { format } from "date-fns";
