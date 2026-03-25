@@ -141,7 +141,7 @@ export function EventDrawer({
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
   const [reminderConfig, setReminderConfig] = useState<ReminderConfig>({
     responseRequired: true,
-    profile: "standard",
+    profile: "company_default",
   });
 
   // Existing job search
