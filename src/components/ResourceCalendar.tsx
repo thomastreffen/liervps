@@ -872,6 +872,11 @@ export const ResourceCalendar = memo(function ResourceCalendar({
           const acceptanceInfo = ACCEPTANCE_ICON_MAP[props.status as string];
           const approvalSum = props.approvalSummary as ApprovalSummary | null;
 
+          // Risk: starting within 12h and still has pending responses
+          const calEvent = props.calendarEvent as CalendarEvent | undefined;
+          const hoursUntilStart = calEvent ? (calEvent.start.getTime() - Date.now()) / (1000 * 60 * 60) : Infinity;
+          const isRisk = approvalSum && approvalSum.pending > 0 && hoursUntilStart > 0 && hoursUntilStart < 12;
+
           // Determine up to 2 status icons (priority: ❗ → ⏱ → ⚡ → 🚫 → ✅)
           const statusIcons: Array<{ icon: typeof Check; className: string; title: string }> = [];
           if (approvalSum) {
