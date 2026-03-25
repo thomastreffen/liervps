@@ -131,6 +131,22 @@ function normalizeEventTimes(event: any): { startTime: string; endTime: string }
   return { startTime: start.toISOString(), endTime: end.toISOString() };
 }
 
+function normalizeText(value: string | null | undefined): string {
+  return (value || "")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+function isSameInstant(left: string | null | undefined, right: string | null | undefined, toleranceMs = 5 * 60 * 1000): boolean {
+  if (!left || !right) return false;
+  const leftMs = new Date(left).getTime();
+  const rightMs = new Date(right).getTime();
+  if (Number.isNaN(leftMs) || Number.isNaN(rightMs)) return false;
+  return Math.abs(leftMs - rightMs) <= toleranceMs;
+}
+
 /* ── Build Graph event body ── */
 function buildGraphBody(
   event: any,
@@ -236,7 +252,8 @@ async function deleteGraphEventWithFallbacks(
   event: any,
   tech: any,
   eventTechRow: any,
-  msToken: string
+  msToken: string,
+  customer?: any
 ): Promise<{
   deleted: boolean;
   deletedEventId: string | null;
@@ -272,13 +289,19 @@ async function deleteGraphEventWithFallbacks(
 
   const attempts: Array<{ source: string; eventId: string; status: number }> = [];
 
-  for (const [eventId, source] of candidateIds.entries()) {
+  const deleteCandidate = async (source: string, eventId: string) => {
     const res = await fetch(
       `https://graph.microsoft.com/v1.0/users/${tech.email}/events/${eventId}`,
       { method: "DELETE", headers: { Authorization: `Bearer ${msToken}` } }
     );
 
     attempts.push({ source, eventId, status: res.status });
+
+    return res;
+  };
+
+  for (const [eventId, source] of candidateIds.entries()) {
+    const res = await deleteCandidate(source, eventId);
 
     if (res.ok) {
       return {
@@ -288,6 +311,74 @@ async function deleteGraphEventWithFallbacks(
         all404: false,
       };
     }
+  }
+
+  const { startTime, endTime } = normalizeEventTimes(event);
+  const searchStart = new Date(new Date(startTime).getTime() - 48 * 60 * 60 * 1000).toISOString();
+  const searchEnd = new Date(new Date(endTime).getTime() + 48 * 60 * 60 * 1000).toISOString();
+
+  const calendarViewParams = new URLSearchParams({
+    startDateTime: searchStart,
+    endDateTime: searchEnd,
+    "$top": "100",
+    "$select": "id,subject,start,end,body,location,categories",
+  });
+
+  const viewRes = await fetch(
+    `https://graph.microsoft.com/v1.0/users/${tech.email}/calendarView?${calendarViewParams.toString()}`,
+    {
+      headers: {
+        Authorization: `Bearer ${msToken}`,
+        Prefer: 'outlook.timezone="UTC", outlook.body-content-type="html"',
+      },
+    }
+  );
+
+  if (viewRes.ok) {
+    const viewData = await viewRes.json();
+    const expectedMarker = `MCS_EVENT_ID:${event.id}`;
+    const expectedTitle = normalizeText(event.title);
+    const expectedAddress = normalizeText(event.address);
+    const expectedSubject = normalizeText(
+      buildGraphBody(event, customer, {
+        eventTechnicianId: eventTechRow?.id || null,
+        technicianId: tech.id,
+        techName: tech.name,
+      }).subject
+    );
+
+    const matchedGraphEvents = (viewData?.value || []).filter((graphEvent: any) => {
+      const graphBody = graphEvent?.body?.content || "";
+      const graphSubject = normalizeText(graphEvent?.subject);
+      const graphLocation = normalizeText(
+        graphEvent?.location?.displayName || graphEvent?.location?.address?.street
+      );
+      const markerMatch = graphBody.includes(expectedMarker);
+      const timeMatch = isSameInstant(graphEvent?.start?.dateTime, startTime) &&
+        isSameInstant(graphEvent?.end?.dateTime, endTime);
+      const subjectMatch = !!expectedTitle && (
+        graphSubject.includes(expectedTitle) ||
+        (!!expectedSubject && graphSubject === expectedSubject)
+      );
+      const addressMatch = !!expectedAddress && graphLocation.includes(expectedAddress);
+
+      return markerMatch || (timeMatch && (subjectMatch || addressMatch));
+    });
+
+    for (const graphEvent of matchedGraphEvents) {
+      if (!graphEvent?.id || candidateIds.has(graphEvent.id)) continue;
+      const res = await deleteCandidate("calendar_view_match", graphEvent.id);
+      if (res.ok) {
+        return {
+          deleted: true,
+          deletedEventId: graphEvent.id,
+          attempts,
+          all404: false,
+        };
+      }
+    }
+  } else {
+    attempts.push({ source: "calendar_view_lookup", eventId: "lookup_failed", status: viewRes.status });
   }
 
   return {
@@ -494,7 +585,8 @@ async function syncForTechnician(
       event,
       tech,
       eventTechRow,
-      msToken
+      msToken,
+      customer
     );
 
     if (!deleteResult.deleted) {
@@ -528,10 +620,7 @@ async function syncForTechnician(
       };
     }
 
-    await Promise.all([
-      supabaseAdmin.from("event_technicians")
-        .update({ calendar_event_id: null })
-        .eq("id", eventTechRow.id),
+    const cleanupOps: Promise<any>[] = [
       supabaseAdmin.from("job_calendar_links")
         .update({
           sync_status: "unlinked",
@@ -541,7 +630,17 @@ async function syncForTechnician(
         .eq("job_id", event.id)
         .eq("user_id", userId)
         .eq("provider", "microsoft"),
-    ]);
+    ];
+
+    if (eventTechRow.id) {
+      cleanupOps.unshift(
+        supabaseAdmin.from("event_technicians")
+          .update({ calendar_event_id: null })
+          .eq("id", eventTechRow.id)
+      );
+    }
+
+    await Promise.all(cleanupOps);
 
     await logAction("outlook_deleted", `Outlook-event slettet for ${tech.name}`);
     return {
@@ -638,6 +737,21 @@ Deno.serve(async (req) => {
         eventTechRow: { id: et.id, calendar_event_id: et.calendar_event_id },
         tech: et.technicians,
       }));
+
+    if (techRows.length === 0 && action === "delete" && event.technician_id) {
+      const { data: fallbackTech } = await supabaseAdmin
+        .from("technicians")
+        .select("id, name, email, user_id")
+        .eq("id", event.technician_id)
+        .maybeSingle();
+
+      if (fallbackTech?.user_id) {
+        techRows.push({
+          eventTechRow: { id: null, calendar_event_id: event.microsoft_event_id || null },
+          tech: fallbackTech,
+        });
+      }
+    }
 
     if (techRows.length === 0) {
       console.log("[calendar-write-sync] No technicians with user_id for event", event_id);
