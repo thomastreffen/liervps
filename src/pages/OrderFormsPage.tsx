@@ -41,6 +41,9 @@ const STATUS_TABS: { key: OrderFormSubmissionStatus | "all"; label: string }[] =
 export default function OrderFormsPage() {
   const navigate = useNavigate();
   const { activeCompanyId } = useCompanyContext();
+  const { isAdmin } = useAuth();
+  const queryClient = useQueryClient();
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [qualityFilter, setQualityFilter] = useState<string>("all");
   const [extraFilter, setExtraFilter] = useState<string>("all");
