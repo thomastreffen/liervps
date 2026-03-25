@@ -273,6 +273,16 @@ export function ApprovalCockpit({ jobId, eventStart, summary, approvals, onRefre
         )}
       </div>
 
+      {/* ── RISK BANNER ── */}
+      {isRisk && (
+        <div className="flex items-center gap-2 rounded-md bg-destructive/10 border border-destructive/30 px-2.5 py-1.5">
+          <AlertCircle className="h-3.5 w-3.5 text-destructive shrink-0" />
+          <span className="text-[11px] font-semibold text-destructive">
+            ⚠ Risiko – starter om {hoursUntilStart < 1 ? `${Math.round(hoursUntilStart * 60)} min` : `${Math.round(hoursUntilStart)}t`} uten fullt svar
+          </span>
+        </div>
+      )}
+
       {/* ── NEXT REMINDER ── */}
       {hasPending && (
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -284,6 +294,33 @@ export function ApprovalCockpit({ jobId, eventStart, summary, approvals, onRefre
           ) : (
             <span>{nextReminder.label}</span>
           )}
+        </div>
+      )}
+
+      {/* ── TECH INSIGHTS ── */}
+      {approvals.filter(a => a.status === "pending").length > 0 && (
+        <div className="space-y-0.5">
+          {approvals.filter(a => a.status === "pending").map(a => {
+            const insight = insights.get(a.technicianUserId);
+            if (!insight || !insight.label) return null;
+            return (
+              <div key={a.technicianUserId} className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                {insight.label === "Svarer raskt" ? (
+                  <TrendingUp className="h-2.5 w-2.5 text-emerald-500 shrink-0" />
+                ) : (
+                  <TrendingDown className="h-2.5 w-2.5 text-amber-500 shrink-0" />
+                )}
+                <span>{a.technicianName.split(" ")[0]}: {insight.label}</span>
+                {insight.avgResponseMinutes !== null && (
+                  <span className="opacity-60">
+                    (snitt {insight.avgResponseMinutes < 60
+                      ? `${insight.avgResponseMinutes}m`
+                      : `${Math.round(insight.avgResponseMinutes / 60)}t`})
+                  </span>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 
