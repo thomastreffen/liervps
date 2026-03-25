@@ -137,6 +137,10 @@ export function EventDrawer({
   const [submitted, setSubmitted] = useState(false);
   const [clientRequestId, setClientRequestId] = useState(() => crypto.randomUUID());
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
+  const [reminderConfig, setReminderConfig] = useState<ReminderConfig>({
+    responseRequired: true,
+    profile: "standard",
+  });
 
   // Existing job search
   const [searchQuery, setSearchQuery] = useState("");
