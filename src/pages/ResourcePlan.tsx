@@ -12,7 +12,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Plus, CalendarDays, ChevronLeft, ChevronRight, RotateCcw, UserCheck, UserMinus, Clock,
-  Calendar, List, Bell, Sun, Moon, Sunrise, ZoomIn, Filter,
+  Calendar, List, Bell, Sun, Moon, Sunrise, ZoomIn, Filter, Maximize2, Minimize2, PanelLeftClose, PanelLeftOpen,
 } from "lucide-react";
 import { useOperatingHours, type ZoomLevel } from "@/hooks/useOperatingHours";
 import { setWorkHours } from "@/hooks/useTechnicianNowStatus";
@@ -45,6 +45,52 @@ import { addMinutes } from "date-fns";
 import { useCompanyContext } from "@/hooks/useCompanyContext";
 import { QuickProjectSearch } from "@/components/resource-plan/QuickProjectSearch";
 import { findLinkedScheduleBlockIds, findScheduleBlockForAssignment } from "@/lib/resource-plan-assignment-identity";
+import { cn } from "@/lib/utils";
+
+/* Compact tech list for collapsed sidebar – shows initials only */
+function CompactTechList({
+  technicians,
+  selectedId,
+  onSelect,
+  filterIds,
+}: {
+  technicians: Array<{ id: string; name: string; color?: string }>;
+  selectedId: string | null;
+  onSelect: (id: string | null) => void;
+  filterIds?: Set<string> | null;
+}) {
+  const filtered = filterIds ? technicians.filter(t => filterIds.has(t.id)) : technicians;
+  return (
+    <div className="flex flex-col gap-1">
+      {filtered.map(t => {
+        const initials = t.name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
+        const isActive = selectedId === t.id;
+        return (
+          <TooltipProvider key={t.id} delayDuration={100}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={() => onSelect(isActive ? null : t.id)}
+                  className={cn(
+                    "h-8 w-10 rounded-md text-[10px] font-bold transition-all flex items-center justify-center mx-auto",
+                    isActive
+                      ? "ring-2 ring-primary text-primary-foreground"
+                      : "text-muted-foreground hover:bg-muted"
+                  )}
+                  style={isActive ? { backgroundColor: t.color || "hsl(var(--primary))" } : undefined}
+                >
+                  {initials}
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="right" className="text-xs">{t.name}</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        );
+      })}
+    </div>
+  );
+}
 
 type CalendarViewType = "timeGridDay" | "timeGridWeek" | "dayGridMonth" | "listWeek";
 
@@ -99,6 +145,20 @@ export default function ResourcePlan() {
   const [externalBlocksCapacity, setExternalBlocksCapacity] = useState(true);
   const [minFreeMinutes, setMinFreeMinutes] = useState<number | null>(null);
   const [calendarView, setCalendarView] = useState<CalendarViewType>(getStoredView);
+  const [focusMode, setFocusMode] = useState(() => {
+    try { return localStorage.getItem("resourceplan_focus") === "true"; } catch { return false; }
+  });
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  const toggleFocusMode = useCallback(() => {
+    setFocusMode(prev => {
+      const next = !prev;
+      try { localStorage.setItem("resourceplan_focus", String(next)); } catch {}
+      if (next) setSidebarCollapsed(true);
+      else setSidebarCollapsed(false);
+      return next;
+    });
+  }, []);
 
   const [referenceDate, setReferenceDate] = useState<Date>(new Date());
 
@@ -522,25 +582,47 @@ export default function ResourcePlan() {
     : null;
 
   return (
-    <div className="flex flex-1 overflow-hidden h-full">
+    <div className={cn("flex flex-1 overflow-hidden h-full", focusMode && "focus-mode")}>
       {!isMobile && (
-        <aside className="w-56 shrink-0 border-r border-border/30 bg-card/50 overflow-y-auto p-3">
-          <TechnicianList
-            technicians={technicians}
-            isGlobalScope={effectiveCompanyId === null}
-            selectedId={selectedTechId}
-            onSelect={setSelectedTechId}
-            allowDeselect
-            filterIds={filteredTechForSidebar}
-            nowStatusMap={canReadBusy ? nowStatusMap : undefined}
-            onColorChange={handleTechColorChange}
-            techDayPercents={canReadBusy ? techDayPercents : undefined}
-            techWeekCapacities={canReadBusy ? techWeekCapacities : undefined}
-          />
+        <aside className={cn(
+          "shrink-0 border-r border-border/30 bg-card/50 overflow-y-auto transition-all duration-200",
+          sidebarCollapsed ? "w-14 p-1.5" : "w-56 p-3"
+        )}>
+          {/* Sidebar collapse toggle */}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-full h-7 text-[10px] mb-2 gap-1"
+            onClick={() => setSidebarCollapsed(v => !v)}
+          >
+            {sidebarCollapsed ? <PanelLeftOpen className="h-3.5 w-3.5" /> : <PanelLeftClose className="h-3.5 w-3.5" />}
+            {!sidebarCollapsed && "Minimer"}
+          </Button>
+          {sidebarCollapsed ? (
+            <CompactTechList
+              technicians={technicians}
+              selectedId={selectedTechId}
+              onSelect={setSelectedTechId}
+              filterIds={filteredTechForSidebar}
+            />
+          ) : (
+            <TechnicianList
+              technicians={technicians}
+              isGlobalScope={effectiveCompanyId === null}
+              selectedId={selectedTechId}
+              onSelect={setSelectedTechId}
+              allowDeselect
+              filterIds={filteredTechForSidebar}
+              nowStatusMap={canReadBusy ? nowStatusMap : undefined}
+              onColorChange={handleTechColorChange}
+              techDayPercents={canReadBusy ? techDayPercents : undefined}
+              techWeekCapacities={canReadBusy ? techWeekCapacities : undefined}
+            />
+          )}
         </aside>
       )}
 
-      <div className="flex-1 overflow-y-auto p-2 sm:p-4 lg:p-6 relative">
+      <div className={cn("flex-1 overflow-y-auto relative", focusMode ? "p-2" : "p-2 sm:p-4 lg:p-6")}>
         {isMobile ? (
           <MobileResourceHeader
             technicians={technicians}
@@ -565,8 +647,11 @@ export default function ResourcePlan() {
           />
         ) : (
           <>
-            {/* ═══ PRIMARY ROW ═══ */}
-            <div className="flex items-center justify-between mb-2">
+            {/* ═══ PRIMARY ROW (sticky in focus mode) ═══ */}
+            <div className={cn(
+              "flex items-center justify-between mb-2",
+              focusMode && "sticky top-0 z-20 bg-background/95 backdrop-blur-sm py-1.5 -mx-2 px-2 border-b border-border/20"
+            )}>
               {/* Left: Title + selected tech */}
               <div className="flex items-center gap-3 min-w-0">
                 <h1 className="text-lg font-bold tracking-tight flex items-center gap-2 shrink-0">
@@ -657,13 +742,32 @@ export default function ResourcePlan() {
                 {canWriteEvents && (
                   <Button onClick={handleNewEvent} size="sm" className="gap-1.5 rounded-lg h-8">
                     <Plus className="h-4 w-4" />
-                    Ny aktivitet
+                    {!focusMode && "Ny aktivitet"}
                   </Button>
                 )}
+
+                <TooltipProvider delayDuration={200}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant={focusMode ? "default" : "outline"}
+                        size="icon"
+                        className="h-8 w-8 rounded-lg"
+                        onClick={toggleFocusMode}
+                      >
+                        {focusMode ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" className="text-xs">
+                      {focusMode ? "Vis alt" : "Fokusmodus"}
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </div>
             </div>
 
-            {/* ═══ SECONDARY ROW ═══ */}
+            {/* ═══ SECONDARY ROW (hidden in focus mode) ═══ */}
+            {!focusMode && (
             <div className="flex items-center justify-between mb-3 gap-2 py-1.5 px-3 bg-muted/30 rounded-lg border border-border/20">
               <div className="flex items-center gap-3 flex-wrap">
                 {/* Capacity filter chips */}
@@ -781,11 +885,12 @@ export default function ResourcePlan() {
                 </Badge>
               </div>
             </div>
+            )}
           </>
         )}
 
-        {/* Capacity status bar */}
-        {!isMobile && canReadBusy && techCapacities.length > 0 && (
+        {/* Capacity status bar (hidden in focus mode) */}
+        {!isMobile && !focusMode && canReadBusy && techCapacities.length > 0 && (
           <CapacityStatusBar
             techCapacities={techCapacities}
             todayDayIndex={todayDayIndex}
@@ -794,15 +899,15 @@ export default function ResourcePlan() {
           />
         )}
 
-        {/* Unplanned projects warning */}
-        {!isMobile && <UnplannedProjectsBanner count={unplannedCount} />}
+        {/* Unplanned projects warning (hidden in focus mode) */}
+        {!isMobile && !focusMode && <UnplannedProjectsBanner count={unplannedCount} />}
 
-        {/* Draggable unplanned jobs */}
-        {!isMobile && canWriteEvents && (
+        {/* Draggable unplanned jobs (hidden in focus mode) */}
+        {!isMobile && !focusMode && canWriteEvents && (
           <UnplannedJobsStrip companyId={effectiveCompanyId} />
         )}
 
-        {/* Follow-up strip */}
+        {/* Follow-up strip (shown as compact in focus mode) */}
         {!isMobile && (
           <FollowUpStrip
             summaries={approvalSummaries}
@@ -812,8 +917,8 @@ export default function ResourcePlan() {
           />
         )}
 
-        {/* Recommended actions */}
-        {!isMobile && (
+        {/* Recommended actions (hidden in focus mode) */}
+        {!isMobile && !focusMode && (
           <RecommendedActions
             summaries={approvalSummaries}
             events={calEvents}
@@ -824,11 +929,13 @@ export default function ResourcePlan() {
           />
         )}
 
-        {/* Unscheduled tasks strip */}
-        <TaskResourceStrip
-          technicianUserId={null}
-          referenceDate={referenceDate}
-        />
+        {/* Unscheduled tasks strip (hidden in focus mode) */}
+        {!focusMode && (
+          <TaskResourceStrip
+            technicianUserId={null}
+            referenceDate={referenceDate}
+          />
+        )}
 
         {/* Interactive FullCalendar */}
         <div onTouchStart={isMobile ? handleTouchStart : undefined} onTouchEnd={isMobile ? handleTouchEnd : undefined}>
