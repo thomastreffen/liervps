@@ -393,7 +393,14 @@ export function EventDrawer({
           await supabase.from("event_technicians").insert(
             toAdd.map((tid) => ({ event_id: editEvent.id, technician_id: tid }))
           );
-          await supabase.functions.invoke("create-approval", { body: { job_id: editEvent.id } });
+          await supabase.functions.invoke("create-approval", {
+            body: {
+              job_id: editEvent.id,
+              reminder_profile: reminderConfig.profile,
+              reminder_config: reminderConfig.profile === "custom" ? reminderConfig.custom : null,
+              response_required: reminderConfig.responseRequired,
+            },
+          });
         }
         syncUpdate(editEvent.id);
 
