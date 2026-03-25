@@ -538,23 +538,45 @@ export default function ResourcePlan() {
   return (
     <div className="flex flex-1 overflow-hidden h-full">
       {!isMobile && (
-        <aside className="w-56 shrink-0 border-r border-border/30 bg-card/50 overflow-y-auto p-3">
-          <TechnicianList
-            technicians={technicians}
-            isGlobalScope={effectiveCompanyId === null}
-            selectedId={selectedTechId}
-            onSelect={setSelectedTechId}
-            allowDeselect
-            filterIds={filteredTechForSidebar}
-            nowStatusMap={canReadBusy ? nowStatusMap : undefined}
-            onColorChange={handleTechColorChange}
-            techDayPercents={canReadBusy ? techDayPercents : undefined}
-            techWeekCapacities={canReadBusy ? techWeekCapacities : undefined}
-          />
+        <aside className={cn(
+          "shrink-0 border-r border-border/30 bg-card/50 overflow-y-auto transition-all duration-200",
+          sidebarCollapsed ? "w-14 p-1.5" : "w-56 p-3"
+        )}>
+          {/* Sidebar collapse toggle */}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-full h-7 text-[10px] mb-2 gap-1"
+            onClick={() => setSidebarCollapsed(v => !v)}
+          >
+            {sidebarCollapsed ? <PanelLeftOpen className="h-3.5 w-3.5" /> : <PanelLeftClose className="h-3.5 w-3.5" />}
+            {!sidebarCollapsed && "Minimer"}
+          </Button>
+          {sidebarCollapsed ? (
+            <CompactTechList
+              technicians={technicians}
+              selectedId={selectedTechId}
+              onSelect={setSelectedTechId}
+              filterIds={filteredTechForSidebar}
+            />
+          ) : (
+            <TechnicianList
+              technicians={technicians}
+              isGlobalScope={effectiveCompanyId === null}
+              selectedId={selectedTechId}
+              onSelect={setSelectedTechId}
+              allowDeselect
+              filterIds={filteredTechForSidebar}
+              nowStatusMap={canReadBusy ? nowStatusMap : undefined}
+              onColorChange={handleTechColorChange}
+              techDayPercents={canReadBusy ? techDayPercents : undefined}
+              techWeekCapacities={canReadBusy ? techWeekCapacities : undefined}
+            />
+          )}
         </aside>
       )}
 
-      <div className="flex-1 overflow-y-auto p-2 sm:p-4 lg:p-6 relative">
+      <div className={cn("flex-1 overflow-y-auto relative", focusMode ? "p-2" : "p-2 sm:p-4 lg:p-6")}>
         {isMobile ? (
           <MobileResourceHeader
             technicians={technicians}
