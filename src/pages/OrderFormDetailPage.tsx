@@ -567,44 +567,20 @@ export default function OrderFormDetailPage() {
   );
 }
 
-function AttachmentRow({ attachment }: { attachment: any }) {
-  const [downloading, setDownloading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const handleDownload = async () => {
-    setDownloading(true);
-    setError(null);
-    try {
-      const { data, error: dlErr } = await supabase.storage
-        .from("order-form-attachments")
-        .createSignedUrl(attachment.file_path, 300);
-      if (dlErr || !data?.signedUrl) throw new Error("Kunne ikke laste ned filen");
-      window.open(data.signedUrl, "_blank");
-    } catch (err: any) {
-      setError(err.message || "Nedlasting feilet");
-    } finally {
-      setDownloading(false);
-    }
-  };
-
+function AttachmentRow({ attachment, onPreview }: { attachment: any; onPreview?: () => void }) {
   return (
-    <div className="flex items-center gap-2 text-sm p-2 rounded-lg bg-muted/30">
+    <button
+      type="button"
+      onClick={() => onPreview?.()}
+      className="flex items-center gap-2 text-sm p-2 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors w-full text-left cursor-pointer"
+    >
       <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
       <span className="truncate flex-1 font-medium">{attachment.file_name}</span>
       <span className="text-[10px] text-muted-foreground">
         {attachment.file_size ? (attachment.file_size < 1024 * 1024 ? `${Math.round(attachment.file_size / 1024)} KB` : `${(attachment.file_size / 1024 / 1024).toFixed(1)} MB`) : ""}
       </span>
-      <button
-        type="button"
-        onClick={handleDownload}
-        disabled={downloading}
-        className="text-primary hover:text-primary/80 shrink-0"
-        title="Last ned"
-      >
-        <Download className="h-3.5 w-3.5" />
-      </button>
-      {error && <span className="text-[10px] text-destructive">{error}</span>}
-    </div>
+      <Download className="h-3.5 w-3.5 text-primary shrink-0" />
+    </button>
   );
 }
 
