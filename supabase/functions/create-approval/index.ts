@@ -296,6 +296,9 @@ Deno.serve(async (req) => {
         .insert({
           job_id: job_id,
           technician_user_id: tech.user_id,
+          response_required: rRequired,
+          reminder_profile: rProfile,
+          reminder_config: rConfig,
         })
         .select("token")
         .single();
