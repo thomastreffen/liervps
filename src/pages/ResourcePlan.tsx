@@ -170,6 +170,8 @@ export default function ResourcePlan() {
   }, []);
 
   const { events: calEvents, refetch: refetchCalendarEvents } = useCalendarEvents(selectedTechId, referenceDate, effectiveCompanyId, scopedCompanyTechIds);
+  const approvalEventIds = useMemo(() => calEvents.map(e => e.id), [calEvents]);
+  const { summaries: approvalSummaries } = useApprovalSummaries(approvalEventIds);
 
   const refreshPlanData = useCallback(async () => {
     setRefreshKey((k) => k + 1);
