@@ -575,20 +575,18 @@ export function EventDrawer({
                   {editEvent.jobNumber}
                 </span>
               )}
-              {/* Clicked tech indicator */}
-              {clickedTechName && (
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <User className="h-3 w-3 shrink-0" />
-                  <span>Valgt montør: <span className="font-medium text-foreground">{clickedTechName}</span></span>
-                </div>
-              )}
-              {/* Other assigned techs */}
-              {isMultiTech && otherTechNames.length > 0 && (
+              {/* Compact technician line */}
+              {isMultiTech ? (
                 <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                   <Users className="h-3 w-3 shrink-0" />
-                  <span>Tildelt også: {otherTechNames.join(", ")}</span>
+                  <span>Montører: <span className="font-medium text-foreground">{editEvent.technicians.map((t) => t.name.split(" ")[0]).join(", ")}</span></span>
                 </div>
-              )}
+              ) : clickedTechName ? (
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <User className="h-3 w-3 shrink-0" />
+                  <span>Montør: <span className="font-medium text-foreground">{clickedTechName}</span></span>
+                </div>
+              ) : null}
             </div>
           )}
         </SheetHeader>
