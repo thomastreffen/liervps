@@ -112,6 +112,7 @@ export default function TrashPage() {
     if (type === "lead") return "Lead";
     if (type === "contract") return "Kontrakt";
     if (type === "conversation") return "Samtale";
+    if (type === "order") return "Bestilling";
     return "Tilbud";
   };
 
