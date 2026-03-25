@@ -9,6 +9,8 @@ export interface TechApproval {
   comment: string | null;
   proposedStart: string | null;
   proposedEnd: string | null;
+  remindersPaused: boolean;
+  createdAt: string | null;
 }
 
 export function useJobApprovals(jobId: string | null | undefined) {
