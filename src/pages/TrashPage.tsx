@@ -36,13 +36,14 @@ export default function TrashPage() {
 
   const fetchDeleted = async () => {
     setLoading(true);
-    const [jobsRes, calcsRes, offersRes, leadsRes, contractsRes, convsRes] = await Promise.all([
+    const [jobsRes, calcsRes, offersRes, leadsRes, contractsRes, convsRes, ordersRes] = await Promise.all([
       supabase.from("events").select("id, title, customer, deleted_at").not("deleted_at", "is", null).order("deleted_at", { ascending: false }),
       supabase.from("calculations").select("id, project_title, customer_name, deleted_at").not("deleted_at", "is", null).order("deleted_at", { ascending: false }),
       supabase.from("offers").select("id, offer_number, deleted_at, calculations(customer_name)").not("deleted_at", "is", null).order("deleted_at", { ascending: false }),
       supabase.from("leads").select("id, company_name, contact_name, deleted_at").not("deleted_at", "is", null).order("deleted_at", { ascending: false }),
       supabase.from("contracts").select("id, title, counterparty_name, deleted_at").not("deleted_at", "is", null).order("deleted_at", { ascending: false }),
       (supabase as any).from("conversation_threads").select("id, title, deleted_at").not("deleted_at", "is", null).order("deleted_at", { ascending: false }),
+      supabase.from("order_form_submissions").select("id, submission_no, summary, deleted_at, order_form_templates(name)").not("deleted_at", "is", null).order("deleted_at", { ascending: false }),
     ]);
 
     const all: DeletedItem[] = [];
