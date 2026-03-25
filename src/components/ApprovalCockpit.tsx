@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -8,10 +8,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { cn } from "@/lib/utils";
 import {
   Bell, BellOff, Clock, Check, AlertTriangle, Zap,
-  Pause, Play, CheckCircle2, History, Send, ChevronDown
+  Pause, Play, CheckCircle2, History, Send, ChevronDown, TrendingUp, TrendingDown, AlertCircle
 } from "lucide-react";
 import { getNextReminderInfo, type ApprovalSummary } from "@/hooks/useApprovalSummaries";
 import type { TechApproval } from "@/hooks/useJobApprovals";
+import { useTechnicianInsights } from "@/hooks/useTechnicianInsights";
 
 const PROFILE_LABELS: Record<string, string> = {
   standard: "Standard",
