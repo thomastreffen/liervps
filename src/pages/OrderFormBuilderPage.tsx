@@ -431,13 +431,21 @@ export default function OrderFormBuilderPage() {
   );
 }
 
-function PublishLinkActions({ slug, audienceType }: { slug: string; audienceType: string }) {
+function PublishLinkActions({ template }: { template: any }) {
   const [copied, setCopied] = useState(false);
-  const internalUrl = `${window.location.origin}/orders/new/${slug}`;
-  const publicUrl = `${window.location.origin}/bestilling/${slug}`;
-  const isExternal = audienceType === "external" || audienceType === "both";
+  const internalUrl = `${window.location.origin}/orders/new/${template.slug}`;
+  const publicUrl = `${window.location.origin}/bestilling/${template.slug}`;
+  const isExternal = template.audience_type === "external" || template.audience_type === "both";
+  const url = isExternal ? publicUrl : internalUrl;
 
-  const copyLink = (url: string) => {
+  const accessLabel = (() => {
+    if (template.audience_type === "internal") return "Intern · Krever innlogging";
+    const login = template.requires_login ? "Krever innlogging" : "Åpent uten innlogging";
+    const catalog = template.show_in_catalog ? "Vises på bestillingssiden" : "Kun via direkte lenke";
+    return `${template.audience_type === "external" ? "Ekstern" : "Intern + ekstern"} · ${login} · ${catalog}`;
+  })();
+
+  const copyLink = () => {
     navigator.clipboard.writeText(url);
     setCopied(true);
     toast.success("Lenke kopiert");
@@ -445,22 +453,13 @@ function PublishLinkActions({ slug, audienceType }: { slug: string; audienceType
   };
 
   return (
-    <div className="flex items-center gap-1">
-      <Button
-        variant="outline"
-        size="sm"
-        className="h-8 text-xs"
-        onClick={() => copyLink(isExternal ? publicUrl : internalUrl)}
-      >
+    <div className="flex items-center gap-1.5">
+      <Badge variant="outline" className="text-[10px] font-normal max-w-[280px] truncate">{accessLabel}</Badge>
+      <Button variant="outline" size="sm" className="h-8 text-xs" onClick={copyLink}>
         {copied ? <Check className="h-3.5 w-3.5 mr-1" /> : <Copy className="h-3.5 w-3.5 mr-1" />}
         {copied ? "Kopiert!" : "Kopier lenke"}
       </Button>
-      <Button
-        variant="outline"
-        size="sm"
-        className="h-8 text-xs"
-        onClick={() => window.open(isExternal ? publicUrl : internalUrl, "_blank")}
-      >
+      <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => window.open(url, "_blank")}>
         <ExternalLink className="h-3.5 w-3.5 mr-1" />
         Åpne skjema
       </Button>
