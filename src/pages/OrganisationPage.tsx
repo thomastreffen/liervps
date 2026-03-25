@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Building, FolderTree, Paintbrush } from "lucide-react";
+import { Building, FolderTree, Paintbrush, Bell } from "lucide-react";
 import { CompaniesTab } from "@/components/access-control/CompaniesTab";
 import { DepartmentsTab } from "@/components/access-control/DepartmentsTab";
 import { CompanyProfileTab } from "@/components/access-control/CompanyProfileTab";
+import { ReminderSettingsTab } from "@/components/access-control/ReminderSettingsTab";
 
 export default function OrganisationPage() {
   const [tab, setTab] = useState("companies");
