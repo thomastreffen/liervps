@@ -12,6 +12,8 @@ export interface ApprovalSummary {
   lastRemindedAt: string | null;
   responseRequired: boolean;
   createdAt: string | null;
+  hasPaused: boolean;
+  eventStartTime: string | null;
 }
 
 export function useApprovalSummaries(eventIds: string[]) {
@@ -27,7 +29,7 @@ export function useApprovalSummaries(eventIds: string[]) {
 
     const { data, error } = await supabase
       .from("job_approvals")
-      .select("job_id, status, reminder_profile, reminder_count, last_reminded_at, response_required, created_at")
+      .select("job_id, status, reminder_profile, reminder_count, last_reminded_at, response_required, created_at, reminders_paused")
       .in("job_id", eventIds);
 
     if (error || !data) {
@@ -50,6 +52,8 @@ export function useApprovalSummaries(eventIds: string[]) {
           lastRemindedAt: row.last_reminded_at,
           responseRequired: row.response_required ?? true,
           createdAt: row.created_at,
+          hasPaused: false,
+          eventStartTime: null,
         });
       }
       const s = map.get(jobId)!;
@@ -58,6 +62,7 @@ export function useApprovalSummaries(eventIds: string[]) {
       else if (row.status === "declined") s.declined++;
       else if (row.status === "change_request") s.changeRequest++;
       else s.pending++;
+      if ((row as any).reminders_paused) s.hasPaused = true;
       // Use highest reminder_count across approvals
       if ((row.reminder_count ?? 0) > s.reminderCount) {
         s.reminderCount = row.reminder_count ?? 0;

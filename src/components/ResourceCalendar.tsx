@@ -57,6 +57,7 @@ interface ResourceCalendarProps {
   operatingEndHour?: number;
   hasNightHours?: boolean;
   approvalSummaries?: Map<string, ApprovalSummary>;
+  highlightEventIds?: Set<string> | null;
 }
 
 function mergeExternalSlots(slots: ExternalBusySlot[]): ExternalBusySlot[] {
@@ -147,6 +148,7 @@ export const ResourceCalendar = memo(function ResourceCalendar({
   operatingEndHour = 16,
   hasNightHours = false,
   approvalSummaries = new Map(),
+  highlightEventIds,
 }: ResourceCalendarProps) {
   const effectiveCanWrite = canWriteEvents ?? isAdmin;
   const effectiveCanViewExternal = canViewExternalDetails ?? isSuperAdmin;
@@ -277,6 +279,7 @@ export const ResourceCalendar = memo(function ResourceCalendar({
           isMultiTech: assignment.isMultiTech,
           assignedTechId: tech.id,
           approvalSummary: approvalSummaries.get(ev.id) ?? null,
+          dimmed: highlightEventIds ? !highlightEventIds.has(ev.id) : false,
         },
         editable: effectiveCanWrite,
       });
@@ -510,7 +513,7 @@ export const ResourceCalendar = memo(function ResourceCalendar({
     );
 
     return result;
-  }, [calendarEvents, getBusySlotsForDay, technicianId, technicianMap, techColorMap, referenceDate, effectiveCanWrite, effectiveCanViewExternal, hideExternalEvents, visibleScheduleBlocks, isMonthView, approvalSummaries]);
+  }, [calendarEvents, getBusySlotsForDay, technicianId, technicianMap, techColorMap, referenceDate, effectiveCanWrite, effectiveCanViewExternal, hideExternalEvents, visibleScheduleBlocks, isMonthView, approvalSummaries, highlightEventIds]);
 
   const handleEventClick = useCallback((info: EventClickArg) => {
     const props = info.event.extendedProps as Record<string, any>;
@@ -944,7 +947,10 @@ export const ResourceCalendar = memo(function ResourceCalendar({
             <Tooltip>
               <TooltipTrigger asChild>
                 <div
-                  className="fc-event-internal px-2 py-1 overflow-hidden h-full cursor-grab active:cursor-grabbing select-none"
+                  className={cn(
+                    "fc-event-internal px-2 py-1 overflow-hidden h-full cursor-grab active:cursor-grabbing select-none",
+                    props.dimmed && "opacity-25 transition-opacity"
+                  )}
                 >
                   <div className="flex items-center gap-1">
                     {props.techAvatarId && (

@@ -38,6 +38,7 @@ import { MobileResourceHeader } from "@/components/resource-plan/MobileResourceH
 import { CapacityStatusBar } from "@/components/resource-plan/CapacityStatusBar";
 import { UnplannedProjectsBanner } from "@/components/resource-plan/UnplannedProjectsBanner";
 import { UnplannedJobsStrip } from "@/components/resource-plan/UnplannedJobsStrip";
+import { FollowUpStrip, getFilteredJobIds, type FollowUpCategory } from "@/components/resource-plan/FollowUpStrip";
 import { useUnplannedProjects } from "@/hooks/useUnplannedProjects";
 import { addMinutes } from "date-fns";
 import { useCompanyContext } from "@/hooks/useCompanyContext";
@@ -172,6 +173,11 @@ export default function ResourcePlan() {
   const { events: calEvents, refetch: refetchCalendarEvents } = useCalendarEvents(selectedTechId, referenceDate, effectiveCompanyId, scopedCompanyTechIds);
   const approvalEventIds = useMemo(() => calEvents.map(e => e.id), [calEvents]);
   const { summaries: approvalSummaries } = useApprovalSummaries(approvalEventIds);
+  const [followUpFilter, setFollowUpFilter] = useState<FollowUpCategory>(null);
+  const followUpJobIds = useMemo(
+    () => getFilteredJobIds(followUpFilter, approvalSummaries, calEvents),
+    [followUpFilter, approvalSummaries, calEvents]
+  );
 
   const refreshPlanData = useCallback(async () => {
     setRefreshKey((k) => k + 1);
@@ -795,6 +801,16 @@ export default function ResourcePlan() {
           <UnplannedJobsStrip companyId={effectiveCompanyId} />
         )}
 
+        {/* Follow-up strip */}
+        {!isMobile && (
+          <FollowUpStrip
+            summaries={approvalSummaries}
+            events={calEvents}
+            activeFilter={followUpFilter}
+            onFilterChange={setFollowUpFilter}
+          />
+        )}
+
         {/* Unscheduled tasks strip */}
         <TaskResourceStrip
           technicianUserId={null}
@@ -846,6 +862,7 @@ export default function ResourcePlan() {
           operatingEndHour={operatingHours.endHour}
           hasNightHours={operatingHours.hasNightHours}
           approvalSummaries={approvalSummaries}
+          highlightEventIds={followUpJobIds}
         />
         </div>
       </div>
