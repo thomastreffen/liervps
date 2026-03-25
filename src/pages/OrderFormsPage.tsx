@@ -1,7 +1,8 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Search, ClipboardList, AlertTriangle, Mail, MailX, ArrowRight, Download } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { Plus, Search, ClipboardList, AlertTriangle, Mail, MailX, ArrowRight, Download, Trash2 } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompanyContext } from "@/hooks/useCompanyContext";
 import { Button } from "@/components/ui/button";
