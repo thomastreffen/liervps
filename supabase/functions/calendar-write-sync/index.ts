@@ -231,6 +231,73 @@ function buildGraphBody(
   return body;
 }
 
+async function deleteGraphEventWithFallbacks(
+  supabaseAdmin: any,
+  event: any,
+  tech: any,
+  eventTechRow: any,
+  msToken: string
+): Promise<{
+  deleted: boolean;
+  deletedEventId: string | null;
+  attempts: Array<{ source: string; eventId: string; status: number }>;
+  all404: boolean;
+}> {
+  const candidateIds = new Map<string, string>();
+  const addCandidate = (source: string, value: string | null | undefined) => {
+    if (!value || value.startsWith("pending:")) return;
+    if (!candidateIds.has(value)) candidateIds.set(value, source);
+  };
+
+  addCandidate("event_technicians", eventTechRow.calendar_event_id);
+  addCandidate("events.microsoft_event_id", event.microsoft_event_id);
+
+  const [{ data: calLinks }, { data: scheduleBlocks }] = await Promise.all([
+    supabaseAdmin
+      .from("job_calendar_links")
+      .select("calendar_event_id")
+      .eq("job_id", event.id)
+      .eq("user_id", tech.user_id)
+      .eq("provider", "microsoft"),
+    supabaseAdmin
+      .from("schedule_blocks")
+      .select("outlook_event_id")
+      .eq("project_id", event.id)
+      .eq("technician_id", tech.id)
+      .limit(20),
+  ]);
+
+  for (const link of calLinks || []) addCandidate("job_calendar_links", link.calendar_event_id as string | null);
+  for (const block of scheduleBlocks || []) addCandidate("schedule_blocks", block.outlook_event_id as string | null);
+
+  const attempts: Array<{ source: string; eventId: string; status: number }> = [];
+
+  for (const [eventId, source] of candidateIds.entries()) {
+    const res = await fetch(
+      `https://graph.microsoft.com/v1.0/users/${tech.email}/events/${eventId}`,
+      { method: "DELETE", headers: { Authorization: `Bearer ${msToken}` } }
+    );
+
+    attempts.push({ source, eventId, status: res.status });
+
+    if (res.ok) {
+      return {
+        deleted: true,
+        deletedEventId: eventId,
+        attempts,
+        all404: false,
+      };
+    }
+  }
+
+  return {
+    deleted: false,
+    deletedEventId: null,
+    attempts,
+    all404: attempts.length > 0 && attempts.every((attempt) => attempt.status === 404),
+  };
+}
+
 /* ── Resolve caller user_id from token ── */
 async function resolveCallerUserId(req: Request, supabaseAdmin: any): Promise<string | null> {
   const authHeader = req.headers.get("Authorization");
