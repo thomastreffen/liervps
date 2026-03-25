@@ -268,7 +268,7 @@ export default function OrderFormsPage() {
             return (
               <Card
                 key={sub.id}
-                className="hover:shadow-md transition-shadow cursor-pointer"
+                className="hover:shadow-md transition-shadow cursor-pointer group"
                 onClick={() => navigate(`/orders/${sub.id}`)}
               >
                 <CardContent className="p-4">
