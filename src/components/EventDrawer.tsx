@@ -436,7 +436,14 @@ export function EventDrawer({
           await supabase.from("event_technicians").insert(
             newTechs.map((tid) => ({ event_id: selectedJobId, technician_id: tid }))
           );
-          await supabase.functions.invoke("create-approval", { body: { job_id: selectedJobId } });
+          await supabase.functions.invoke("create-approval", {
+            body: {
+              job_id: selectedJobId,
+              reminder_profile: reminderConfig.profile,
+              reminder_config: reminderConfig.profile === "custom" ? reminderConfig.custom : null,
+              response_required: reminderConfig.responseRequired,
+            },
+          });
         }
 
         // Upload attachments for existing job
