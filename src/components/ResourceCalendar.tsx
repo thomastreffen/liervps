@@ -58,6 +58,7 @@ interface ResourceCalendarProps {
   hasNightHours?: boolean;
   approvalSummaries?: Map<string, ApprovalSummary>;
   highlightEventIds?: Set<string> | null;
+  onMonthDayClick?: (date: Date) => void;
 }
 
 function mergeExternalSlots(slots: ExternalBusySlot[]): ExternalBusySlot[] {
