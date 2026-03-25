@@ -190,13 +190,17 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { job_id } = await req.json();
+    const { job_id, reminder_profile, reminder_config, response_required } = await req.json();
     if (!job_id) {
       return new Response(JSON.stringify({ error: "Missing job_id" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    const rProfile = reminder_profile || "standard";
+    const rConfig = reminder_config || null;
+    const rRequired = response_required !== false;
 
     // Fetch job
     const { data: job, error: jobErr } = await supabaseAdmin
@@ -261,6 +265,9 @@ Deno.serve(async (req) => {
             technician_user_id: tech.user_id,
             status: "approved",
             responded_at: new Date().toISOString(),
+            response_required: rRequired,
+            reminder_profile: rProfile,
+            reminder_config: rConfig,
           })
           .select("token")
           .single();
@@ -289,6 +296,9 @@ Deno.serve(async (req) => {
         .insert({
           job_id: job_id,
           technician_user_id: tech.user_id,
+          response_required: rRequired,
+          reminder_profile: rProfile,
+          reminder_config: rConfig,
         })
         .select("token")
         .single();

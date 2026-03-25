@@ -5,6 +5,7 @@ import { FileUpload } from "./FileUpload";
 import { AttachmentList } from "./AttachmentList";
 import type { Attachment } from "@/lib/mock-data";
 import { TaskThreadPanel } from "@/components/task-thread";
+import { ReminderProfileSelect, type ReminderConfig } from "@/components/ReminderProfileSelect";
 import { useTaskThreadReads } from "@/hooks/useTaskThreadReads";
 import {
   Sheet,
@@ -136,6 +137,10 @@ export function EventDrawer({
   const [submitted, setSubmitted] = useState(false);
   const [clientRequestId, setClientRequestId] = useState(() => crypto.randomUUID());
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
+  const [reminderConfig, setReminderConfig] = useState<ReminderConfig>({
+    responseRequired: true,
+    profile: "standard",
+  });
 
   // Existing job search
   const [searchQuery, setSearchQuery] = useState("");
@@ -216,6 +221,7 @@ export function EventDrawer({
     setEditCompanyName(null);
     setEditCompanyId(null);
     setDrawerTab("details");
+    setReminderConfig({ responseRequired: true, profile: "standard" });
     setSelectedCompanyId(isAllCompanies ? (companies.length === 1 ? companies[0].id : null) : activeCompanyId);
 
     // Load existing attachments for edit mode
@@ -387,7 +393,14 @@ export function EventDrawer({
           await supabase.from("event_technicians").insert(
             toAdd.map((tid) => ({ event_id: editEvent.id, technician_id: tid }))
           );
-          await supabase.functions.invoke("create-approval", { body: { job_id: editEvent.id } });
+          await supabase.functions.invoke("create-approval", {
+            body: {
+              job_id: editEvent.id,
+              reminder_profile: reminderConfig.profile,
+              reminder_config: reminderConfig.profile === "custom" ? reminderConfig.custom : null,
+              response_required: reminderConfig.responseRequired,
+            },
+          });
         }
         syncUpdate(editEvent.id);
 
@@ -423,7 +436,14 @@ export function EventDrawer({
           await supabase.from("event_technicians").insert(
             newTechs.map((tid) => ({ event_id: selectedJobId, technician_id: tid }))
           );
-          await supabase.functions.invoke("create-approval", { body: { job_id: selectedJobId } });
+          await supabase.functions.invoke("create-approval", {
+            body: {
+              job_id: selectedJobId,
+              reminder_profile: reminderConfig.profile,
+              reminder_config: reminderConfig.profile === "custom" ? reminderConfig.custom : null,
+              response_required: reminderConfig.responseRequired,
+            },
+          });
         }
 
         // Upload attachments for existing job
@@ -496,7 +516,14 @@ export function EventDrawer({
               await supabase.from("events").update({ status: "scheduled" } as any).eq("id", createdId);
               syncCreate(createdId);
             } else {
-              await supabase.functions.invoke("create-approval", { body: { job_id: createdId } });
+              await supabase.functions.invoke("create-approval", {
+                body: {
+                  job_id: createdId,
+                  reminder_profile: reminderConfig.profile,
+                  reminder_config: reminderConfig.profile === "custom" ? reminderConfig.custom : null,
+                  response_required: reminderConfig.responseRequired,
+                },
+              });
               syncCreate(createdId);
             }
           }
@@ -879,6 +906,11 @@ export function EventDrawer({
             </h3>
             <TechnicianMultiSelect selectedIds={techIds} onChange={setTechIds} disabled={readOnly} />
           </section>
+
+          {/* ═══ SECTION: PÅMINNELSE ═══ */}
+          {!isEditing && eventType === "project" && techIds.length > 0 && (
+            <ReminderProfileSelect value={reminderConfig} onChange={setReminderConfig} disabled={readOnly} />
+          )}
 
           {/* ═══ SECTION: BESKRIVELSE ═══ */}
           {(mode === "new" || isEditing) && (

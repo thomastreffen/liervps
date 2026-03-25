@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Building, FolderTree, Paintbrush } from "lucide-react";
+import { Building, FolderTree, Paintbrush, Bell } from "lucide-react";
 import { CompaniesTab } from "@/components/access-control/CompaniesTab";
 import { DepartmentsTab } from "@/components/access-control/DepartmentsTab";
 import { CompanyProfileTab } from "@/components/access-control/CompanyProfileTab";
+import { ReminderSettingsTab } from "@/components/access-control/ReminderSettingsTab";
 
 export default function OrganisationPage() {
   const [tab, setTab] = useState("companies");
@@ -31,6 +32,10 @@ export default function OrganisationPage() {
             <Paintbrush className="h-3.5 w-3.5" />
             Profil & merkevare
           </TabsTrigger>
+          <TabsTrigger value="reminders" className="gap-1.5">
+            <Bell className="h-3.5 w-3.5" />
+            Påminnelser
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="companies">
@@ -41,6 +46,9 @@ export default function OrganisationPage() {
         </TabsContent>
         <TabsContent value="profile">
           <CompanyProfileTab />
+        </TabsContent>
+        <TabsContent value="reminders">
+          <ReminderSettingsTab />
         </TabsContent>
       </Tabs>
     </div>
