@@ -513,7 +513,7 @@ export const ResourceCalendar = memo(function ResourceCalendar({
     );
 
     return result;
-  }, [calendarEvents, getBusySlotsForDay, technicianId, technicianMap, techColorMap, referenceDate, effectiveCanWrite, effectiveCanViewExternal, hideExternalEvents, visibleScheduleBlocks, isMonthView, approvalSummaries]);
+  }, [calendarEvents, getBusySlotsForDay, technicianId, technicianMap, techColorMap, referenceDate, effectiveCanWrite, effectiveCanViewExternal, hideExternalEvents, visibleScheduleBlocks, isMonthView, approvalSummaries, highlightEventIds]);
 
   const handleEventClick = useCallback((info: EventClickArg) => {
     const props = info.event.extendedProps as Record<string, any>;
