@@ -893,6 +893,56 @@ export type Database = {
         }
         Relationships: []
       }
+      company_reminder_settings: {
+        Row: {
+          company_id: string
+          created_at: string
+          enabled: boolean
+          escalation_delay_minutes: number
+          id: string
+          max_reminders: number
+          notify_manager: boolean
+          reminder_1_minutes: number
+          reminder_2_minutes: number
+          reminder_3_minutes: number
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          enabled?: boolean
+          escalation_delay_minutes?: number
+          id?: string
+          max_reminders?: number
+          notify_manager?: boolean
+          reminder_1_minutes?: number
+          reminder_2_minutes?: number
+          reminder_3_minutes?: number
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          enabled?: boolean
+          escalation_delay_minutes?: number
+          id?: string
+          max_reminders?: number
+          notify_manager?: boolean
+          reminder_1_minutes?: number
+          reminder_2_minutes?: number
+          reminder_3_minutes?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_reminder_settings_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: true
+            referencedRelation: "internal_companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       company_settings: {
         Row: {
           address: string | null
@@ -4253,10 +4303,15 @@ export type Database = {
           expires_at: string
           id: string
           job_id: string
+          last_reminded_at: string | null
           outlook_event_id: string | null
           proposed_end: string | null
           proposed_start: string | null
+          reminder_config: Json | null
+          reminder_count: number
+          reminder_profile: string
           responded_at: string | null
+          response_required: boolean
           status: string
           technician_user_id: string
           token: string
@@ -4267,10 +4322,15 @@ export type Database = {
           expires_at?: string
           id?: string
           job_id: string
+          last_reminded_at?: string | null
           outlook_event_id?: string | null
           proposed_end?: string | null
           proposed_start?: string | null
+          reminder_config?: Json | null
+          reminder_count?: number
+          reminder_profile?: string
           responded_at?: string | null
+          response_required?: boolean
           status?: string
           technician_user_id: string
           token?: string
@@ -4281,10 +4341,15 @@ export type Database = {
           expires_at?: string
           id?: string
           job_id?: string
+          last_reminded_at?: string | null
           outlook_event_id?: string | null
           proposed_end?: string | null
           proposed_start?: string | null
+          reminder_config?: Json | null
+          reminder_count?: number
+          reminder_profile?: string
           responded_at?: string | null
+          response_required?: boolean
           status?: string
           technician_user_id?: string
           token?: string
