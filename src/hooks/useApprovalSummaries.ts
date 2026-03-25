@@ -62,6 +62,7 @@ export function useApprovalSummaries(eventIds: string[]) {
       else if (row.status === "declined") s.declined++;
       else if (row.status === "change_request") s.changeRequest++;
       else s.pending++;
+      if ((row as any).reminders_paused) s.hasPaused = true;
       // Use highest reminder_count across approvals
       if ((row.reminder_count ?? 0) > s.reminderCount) {
         s.reminderCount = row.reminder_count ?? 0;
