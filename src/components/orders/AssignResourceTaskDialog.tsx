@@ -39,8 +39,13 @@ interface AssignResourceTaskDialogProps {
   attachments: any[];
 }
 
-const HOUR_OPTIONS = Array.from({ length: 15 }, (_, i) => i + 6); // 06-20
-const DURATION_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8, 10, 12];
+// Generate time options in 15-min intervals for full 24h
+const TIME_OPTIONS: string[] = [];
+for (let h = 0; h < 24; h++) {
+  for (let m = 0; m < 60; m += 15) {
+    TIME_OPTIONS.push(`${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`);
+  }
+}
 
 export function AssignResourceTaskDialog({
   open,
