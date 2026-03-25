@@ -33,6 +33,7 @@ import { RequestInfoDialog } from "@/components/orders/RequestInfoDialog";
 import { ConvertDialog } from "@/components/orders/ConvertDialog";
 import { TripletexExportPanel } from "@/components/orders/TripletexExportPanel";
 import { AttachmentPreviewDrawer } from "@/components/orders/AttachmentPreviewDrawer";
+import { AssignResourceTaskDialog } from "@/components/orders/AssignResourceTaskDialog";
 
 export default function OrderFormDetailPage() {
   const { id } = useParams<{ id: string }>();
