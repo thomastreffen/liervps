@@ -183,6 +183,8 @@ export function EventDrawer({
 
   // Per-technician approval statuses
   const { approvals: techApprovals } = useJobApprovals(editEvent?.id);
+  const { summaries: approvalSummaryMap } = useApprovalSummaries(editEvent ? [editEvent.id] : []);
+  const approvalSummary = editEvent ? approvalSummaryMap.get(editEvent.id) : undefined;
 
   // Populate form from props
   useEffect(() => {
