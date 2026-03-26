@@ -267,22 +267,72 @@ export default function InboxPage() {
     if (selectedId) fetchItems(selectedId);
   }, [selectedId, fetchItems]);
 
-  const syncInbox = async () => {
+  const syncInbox = useCallback(async (silent = false) => {
     setSyncing(true);
     try {
       const { data, error } = await supabase.functions.invoke("inbox-sync");
       if (error) throw error;
       if (data?.ms_reauth) {
-        toast.error("Microsoft-tilkobling må fornyes. Gå til Integrasjoner.");
+        if (!silent) toast.error("Microsoft-tilkobling må fornyes. Gå til Integrasjoner.");
         return;
       }
-      toast.success(`Synkronisert! ${data?.new_cases || 0} nye henvendelser, ${data?.new_items || 0} nye meldinger.`);
+      setLastSyncAt(new Date());
+      const newCases = data?.new_cases || 0;
+      const newItems = data?.new_items || 0;
+      if (!silent) {
+        toast.success(`Synkronisert! ${newCases} nye henvendelser, ${newItems} nye meldinger.`);
+      } else if (newCases > 0 || newItems > 0) {
+        toast.info(`${newCases} nye henvendelser, ${newItems} nye meldinger`);
+      }
       await fetchCases();
     } catch (err: any) {
-      toast.error("Synkronisering feilet: " + (err.message || "Ukjent feil"));
+      if (!silent) toast.error("Synkronisering feilet: " + (err.message || "Ukjent feil"));
+      console.error("Inbox sync error:", err);
     } finally {
       setSyncing(false);
     }
+  }, [fetchCases]);
+
+  // Auto-sync interval
+  useEffect(() => {
+    if (!autoSyncActive) {
+      if (autoSyncRef.current) clearInterval(autoSyncRef.current);
+      autoSyncRef.current = null;
+      return;
+    }
+    // Initial silent sync on mount
+    syncInbox(true);
+    autoSyncRef.current = setInterval(() => {
+      syncInbox(true);
+    }, AUTO_SYNC_INTERVAL_MS);
+    return () => {
+      if (autoSyncRef.current) clearInterval(autoSyncRef.current);
+    };
+  }, [autoSyncActive, syncInbox]);
+
+  // Realtime subscription for cases
+  useEffect(() => {
+    const channel = supabase
+      .channel("cases-realtime")
+      .on("postgres_changes", {
+        event: "*",
+        schema: "public",
+        table: "cases",
+      }, () => fetchCases())
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [fetchCases]);
+
+  const softDeleteCase = async (c: Case) => {
+    if (!user) return;
+    if (!confirm(`Er du sikker på at du vil slette sak "${c.title || c.case_number}"?`)) return;
+    await supabase.from("cases").update({
+      deleted_at: new Date().toISOString(),
+      deleted_by: user.id,
+    } as any).eq("id", c.id);
+    setCases(prev => prev.filter(x => x.id !== c.id));
+    if (selectedId === c.id) setSelectedId(null);
+    toast.success("Sak slettet");
   };
 
   const openCase = (c: Case) => {
