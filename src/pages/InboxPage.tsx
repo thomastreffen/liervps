@@ -887,6 +887,7 @@ export default function InboxPage() {
               onConvertProject={() => convertToProject(selectedCase)}
               onConvertLead={() => convertToLead(selectedCase)}
               onArchive={() => archiveCase(selectedCase)}
+              onDelete={() => softDeleteCase(selectedCase)}
               onCaseUpdated={() => { fetchCases(); fetchItems(selectedCase.id); }}
               companyUsers={companyUsers}
               currentUserId={user?.id || ""}
