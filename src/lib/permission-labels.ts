@@ -234,7 +234,7 @@ export const PERMISSION_CATEGORIES: { category: string; description: string; key
     keys: [
       "resourceplan.view", "resourceplan.view_busy", "resourceplan.view_external_blocks",
       "resourceplan.view_external_titles", "resourceplan.view_external_details",
-      "resourceplan.schedule", "resourceplan.edit_others", "resourceplan.cross_company",
+      "resourceplan.schedule", "resourceplan.edit_others",
     ],
   },
   {
