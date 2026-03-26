@@ -1216,6 +1216,16 @@ function CaseDetail({
           </Card>
         )}
 
+        {/* Always show delete for closed/archived/converted cases */}
+        {["converted", "closed", "archived"].includes(caseData.status) && (
+          <div className="flex gap-2">
+            <Button size="sm" variant="ghost" onClick={onDelete} className="gap-1.5 text-destructive hover:text-destructive">
+              <Trash2 className="h-4 w-4" />
+              Slett
+            </Button>
+          </div>
+        )}
+
         <PlanJobDialog
           open={planJobOpen}
           onOpenChange={setPlanJobOpen}
