@@ -24,8 +24,8 @@ interface UserRow {
   name: string;
   technician_id: string | null;
   is_archived: boolean;
-  role_assignments: { role_id: string; role_name: string }[];
-  memberships: { company_id: string; department_id: string | null; company_name: string; department_name: string | null }[];
+  global_role_assignments: { role_id: string; role_name: string }[];
+  memberships: { company_id: string; department_id: string | null; role_id: string | null; company_name: string; department_name: string | null; role_name: string | null }[];
   overrides: { permission_key: string; allowed: boolean }[];
 }
 
