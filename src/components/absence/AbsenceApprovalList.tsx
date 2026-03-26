@@ -4,7 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, CheckCircle, XCircle, CalendarOff } from "lucide-react";
+import { Loader2, CheckCircle, XCircle, CalendarOff, Pencil, Trash2 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -25,6 +25,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { AbsenceEditDialog, type AbsenceEditData } from "./AbsenceEditDialog";
 
 export function AbsenceApprovalList() {
   const { user } = useAuth();
@@ -33,6 +34,8 @@ export function AbsenceApprovalList() {
   const [acting, setActing] = useState<string | null>(null);
   const [rejectDialog, setRejectDialog] = useState<{ id: string } | null>(null);
   const [rejectReason, setRejectReason] = useState("");
+  const [editAbsence, setEditAbsence] = useState<AbsenceEditData | null>(null);
+  const [deleteDialog, setDeleteDialog] = useState<{ id: string; name: string } | null>(null);
 
   const handleApprove = useCallback(async (id: string) => {
     setActing(id);
@@ -75,6 +78,23 @@ export function AbsenceApprovalList() {
       refetch();
     }
   }, [user, rejectDialog, rejectReason, refetch]);
+
+  const handleDelete = useCallback(async () => {
+    if (!deleteDialog) return;
+    setActing(deleteDialog.id);
+    const { error } = await supabase
+      .from("absence_requests")
+      .delete()
+      .eq("id", deleteDialog.id);
+    setActing(null);
+    setDeleteDialog(null);
+    if (error) {
+      toast.error("Feil ved sletting", { description: error.message });
+    } else {
+      toast.success("Fraværet er slettet");
+      refetch();
+    }
+  }, [deleteDialog, refetch]);
 
   return (
     <div className="space-y-4">
@@ -130,35 +150,64 @@ export function AbsenceApprovalList() {
                 )}
               </div>
 
-              {r.status === "pending" && (
-                <div className="flex gap-2 shrink-0">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => handleApprove(r.id)}
-                    disabled={acting === r.id}
-                    className="text-green-700 border-green-500/30 hover:bg-green-500/10"
-                  >
-                    {acting === r.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle className="h-3.5 w-3.5 mr-1" />}
-                    Godkjenn
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setRejectDialog({ id: r.id })}
-                    disabled={acting === r.id}
-                    className="text-destructive border-destructive/30 hover:bg-destructive/10"
-                  >
-                    <XCircle className="h-3.5 w-3.5 mr-1" />
-                    Avslå
-                  </Button>
-                </div>
-              )}
+              <div className="flex gap-2 shrink-0 flex-wrap items-center">
+                {r.status === "pending" && (
+                  <>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleApprove(r.id)}
+                      disabled={acting === r.id}
+                      className="text-green-700 border-green-500/30 hover:bg-green-500/10"
+                    >
+                      {acting === r.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle className="h-3.5 w-3.5 mr-1" />}
+                      Godkjenn
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setRejectDialog({ id: r.id })}
+                      disabled={acting === r.id}
+                      className="text-destructive border-destructive/30 hover:bg-destructive/10"
+                    >
+                      <XCircle className="h-3.5 w-3.5 mr-1" />
+                      Avslå
+                    </Button>
+                  </>
+                )}
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setEditAbsence({
+                    id: r.id,
+                    absence_type: r.absence_type,
+                    start_date: r.start_date,
+                    end_date: r.end_date,
+                    start_time: r.start_time,
+                    end_time: r.end_time,
+                    is_full_day: r.is_full_day,
+                    comment: r.comment,
+                    status: r.status,
+                  })}
+                  className="h-8 w-8 p-0"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setDeleteDialog({ id: r.id, name: r.person_name })}
+                  className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              </div>
             </div>
           ))}
         </div>
       )}
 
+      {/* Reject dialog */}
       <AlertDialog open={!!rejectDialog} onOpenChange={(o) => !o && setRejectDialog(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -180,6 +229,32 @@ export function AbsenceApprovalList() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Delete dialog */}
+      <AlertDialog open={!!deleteDialog} onOpenChange={(o) => !o && setDeleteDialog(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Slett fravær</AlertDialogTitle>
+            <AlertDialogDescription>
+              Er du sikker på at du vil slette fraværet for {deleteDialog?.name}? Dette kan ikke angres.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Avbryt</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Slett
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Edit dialog */}
+      <AbsenceEditDialog
+        open={!!editAbsence}
+        onOpenChange={(o) => !o && setEditAbsence(null)}
+        absence={editAbsence}
+        onSaved={refetch}
+      />
     </div>
   );
 }
