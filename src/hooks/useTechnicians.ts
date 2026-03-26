@@ -13,15 +13,16 @@ export interface TechnicianInfo {
  * Fetches plannable technicians.
  * Uses employment_profiles.is_plannable_resource as the per-company source of truth.
  * If companyId is provided, returns only technicians plannable in that company.
- * If companyId is null/undefined, returns all technicians plannable in ANY company.
+ * If companyId is null/undefined, returns technicians plannable in any of the allowedCompanyIds.
+ * allowedCompanyIds restricts results to only companies the user has access to.
  */
-export function useTechnicians(companyId?: string | null) {
+export function useTechnicians(companyId?: string | null, allowedCompanyIds?: string[]) {
   const [technicians, setTechnicians] = useState<TechnicianInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const prevKey = useRef<string>("");
 
   useEffect(() => {
-    const key = companyId || "all";
+    const key = companyId || (allowedCompanyIds?.join(",") || "none");
     if (key === prevKey.current && technicians.length > 0) return;
     prevKey.current = key;
     setLoading(true);
@@ -36,6 +37,14 @@ export function useTechnicians(companyId?: string | null) {
 
       if (companyId) {
         epQuery = epQuery.eq("company_id", companyId);
+      } else if (allowedCompanyIds && allowedCompanyIds.length > 0) {
+        // When "all companies" is selected, restrict to user's allowed companies
+        epQuery = epQuery.in("company_id", allowedCompanyIds);
+      } else {
+        // No access — return empty
+        setTechnicians([]);
+        setLoading(false);
+        return;
       }
 
       const { data: profiles } = await epQuery;
@@ -83,7 +92,7 @@ export function useTechnicians(companyId?: string | null) {
     }
 
     fetch();
-  }, [companyId]);
+  }, [companyId, allowedCompanyIds?.join(",")]);
 
   return { technicians, loading };
 }

@@ -17,7 +17,7 @@ export interface CalendarEvent extends Job {
   technicians: TechnicianInfo[];
 }
 
-export function useCalendarEvents(technicianId: string | null, referenceDate?: Date, companyId?: string | null, scopedTechnicianIds?: string[]) {
+export function useCalendarEvents(technicianId: string | null, referenceDate?: Date, companyId?: string | null, scopedTechnicianIds?: string[], allowedCompanyIds?: string[]) {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -67,6 +67,8 @@ export function useCalendarEvents(technicianId: string | null, referenceDate?: D
 
       if (companyId) {
         query = query.eq("company_id", companyId);
+      } else if (allowedCompanyIds && allowedCompanyIds.length > 0) {
+        query = query.in("company_id", allowedCompanyIds);
       }
 
       const { data, error } = await query;
@@ -150,7 +152,7 @@ export function useCalendarEvents(technicianId: string | null, referenceDate?: D
     } finally {
       setLoading(false);
     }
-  }, [technicianId, weekStartISO, weekEndISO, companyId, scopedTechnicianIds?.join(",")]);
+  }, [technicianId, weekStartISO, weekEndISO, companyId, scopedTechnicianIds?.join(","), allowedCompanyIds?.join(",")]);
 
   useEffect(() => {
     fetchEvents();

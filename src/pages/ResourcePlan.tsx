@@ -117,7 +117,7 @@ export default function ResourcePlan() {
   const navigate = useNavigate();
   const { isAdmin, isSuperAdmin } = useAuth();
   const { hasPermission } = usePermissions();
-  const { activeCompanyId } = useCompanyContext();
+  const { activeCompanyId, allowedCompanyIds } = useCompanyContext();
   const canReadBusy = hasPermission("calendar.read_busy");
   const canViewExternal = hasPermission("calendar.view_external");
   const canPlanResources = hasPermission("resource_plan.plan_resources") || hasPermission("resourceplan.schedule");
@@ -141,7 +141,7 @@ export default function ResourcePlan() {
     });
   }, [activeCompanyId]);
 
-  const { technicians } = useTechnicians(effectiveCompanyId);
+  const { technicians } = useTechnicians(effectiveCompanyId, allowedCompanyIds);
   const [selectedTechId, setSelectedTechId] = useState<string | null>(null);
   const [capacityFilter, setCapacityFilter] = useState<"all" | "available" | "partial">("all");
   const [externalBlocksCapacity, setExternalBlocksCapacity] = useState(true);
@@ -180,7 +180,7 @@ export default function ResourcePlan() {
     }
   }, [selectedTechId, technicians]);
 
-  const unplannedCount = useUnplannedProjects(effectiveCompanyId);
+  const unplannedCount = useUnplannedProjects(effectiveCompanyId, allowedCompanyIds);
 
   const { busySlots, getBusySlotsForDay, getExternalBusyMinutesForDay, refetch: refetchBusySlots } = useExternalBusy(
     canReadBusy ? selectedTechId : "__disabled__",
@@ -213,7 +213,7 @@ export default function ResourcePlan() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [refreshKey, setRefreshKey] = useState(0);
 
-  const { blocks: scheduleBlocks, refetch: refetchBlocks, removeBlockOptimistic } = useScheduleBlocks(referenceDate, selectedTechId, undefined, effectiveCompanyId);
+  const { blocks: scheduleBlocks, refetch: refetchBlocks, removeBlockOptimistic } = useScheduleBlocks(referenceDate, selectedTechId, undefined, effectiveCompanyId, allowedCompanyIds);
   const isCurrentWeek = isSameWeek(referenceDate, new Date(), { weekStartsOn: 1 });
   const weekStart = startOfWeek(referenceDate, { weekStartsOn: 1 });
 
@@ -233,7 +233,7 @@ export default function ResourcePlan() {
     setColorOverrides((prev) => new Map(prev).set(techId, color));
   }, []);
 
-  const { events: calEvents, refetch: refetchCalendarEvents } = useCalendarEvents(selectedTechId, referenceDate, effectiveCompanyId, scopedCompanyTechIds);
+  const { events: calEvents, refetch: refetchCalendarEvents } = useCalendarEvents(selectedTechId, referenceDate, effectiveCompanyId, scopedCompanyTechIds, allowedCompanyIds);
   const approvalEventIds = useMemo(() => calEvents.map(e => e.id), [calEvents]);
   const { summaries: approvalSummaries } = useApprovalSummaries(approvalEventIds);
   const [followUpFilter, setFollowUpFilter] = useState<FollowUpCategory>(null);

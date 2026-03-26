@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useCallback, useMemo, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -18,6 +18,8 @@ interface CompanyContextType {
   userMemberships: { company_id: string; department_id: string | null }[];
   /** True when user explicitly chose "all companies" */
   isAllCompanies: boolean;
+  /** Company IDs the user actually has membership in */
+  allowedCompanyIds: string[];
 }
 
 const CompanyContext = createContext<CompanyContextType | undefined>(undefined);
@@ -54,18 +56,24 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
         }))
       );
 
-      // Get all active companies
-      const { data: comps } = await supabase
-        .from("internal_companies")
-        .select("id, name, org_number")
-        .eq("is_active", true)
-        .order("name");
+      // Get only companies the user has membership in
+      const memberCompanyIds = [...new Set((memberships || []).map((m: any) => m.company_id))];
 
-      const companyList: Company[] = (comps || []).map((c: any) => ({
-        id: c.id,
-        name: c.name,
-        org_number: c.org_number,
-      }));
+      let companyList: Company[] = [];
+      if (memberCompanyIds.length > 0) {
+        const { data: comps } = await supabase
+          .from("internal_companies")
+          .select("id, name, org_number")
+          .eq("is_active", true)
+          .in("id", memberCompanyIds)
+          .order("name");
+
+        companyList = (comps || []).map((c: any) => ({
+          id: c.id,
+          name: c.name,
+          org_number: c.org_number,
+        }));
+      }
 
       setCompanies(companyList);
 
@@ -101,10 +109,11 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const activeCompany = companies.find((c) => c.id === activeCompanyId) || null;
+  const allowedCompanyIds = useMemo(() => companies.map((c) => c.id), [companies]);
 
   return (
     <CompanyContext.Provider
-      value={{ companies, activeCompanyId, activeCompany, setActiveCompanyId, loading, userMemberships, isAllCompanies }}
+      value={{ companies, activeCompanyId, activeCompany, setActiveCompanyId, loading, userMemberships, isAllCompanies, allowedCompanyIds }}
     >
       {children}
     </CompanyContext.Provider>

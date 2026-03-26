@@ -1,12 +1,11 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
-export function useUnplannedProjects(companyId?: string | null) {
+export function useUnplannedProjects(companyId?: string | null, allowedCompanyIds?: string[]) {
   const [count, setCount] = useState(0);
 
   useEffect(() => {
     async function fetch() {
-      // Projects that are not deleted, not archived, status in early stages, and have no schedule blocks
       let query = supabase
         .from("events")
         .select("id", { count: "exact", head: true })
@@ -17,6 +16,8 @@ export function useUnplannedProjects(companyId?: string | null) {
 
       if (companyId) {
         query = query.eq("company_id", companyId);
+      } else if (allowedCompanyIds && allowedCompanyIds.length > 0) {
+        query = query.in("company_id", allowedCompanyIds);
       }
 
       const { count: total, error } = await query;
@@ -27,10 +28,9 @@ export function useUnplannedProjects(companyId?: string | null) {
     }
 
     fetch();
-    // Re-check every 60s
     const interval = setInterval(fetch, 60000);
     return () => clearInterval(interval);
-  }, [companyId]);
+  }, [companyId, allowedCompanyIds?.join(",")]);
 
   return count;
 }

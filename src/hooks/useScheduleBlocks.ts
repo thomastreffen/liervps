@@ -63,7 +63,8 @@ export function useScheduleBlocks(
   referenceDate: Date,
   technicianId?: string | null,
   technicianIds?: string[],
-  companyId?: string | null
+  companyId?: string | null,
+  allowedCompanyIds?: string[]
 ) {
   const [blocks, setBlocks] = useState<ScheduleBlock[]>([]);
   const [loading, setLoading] = useState(false);
@@ -104,6 +105,8 @@ export function useScheduleBlocks(
       // Filter by company scope
       if (companyId) {
         query = query.eq("company_id", companyId);
+      } else if (allowedCompanyIds && allowedCompanyIds.length > 0) {
+        query = query.in("company_id", allowedCompanyIds);
       }
 
       // Filter by technician(s)

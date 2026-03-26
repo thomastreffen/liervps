@@ -8900,6 +8900,10 @@ export type Database = {
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
       sweep_orphan_schedule_blocks: { Args: never; Returns: Json }
+      user_has_company_access: {
+        Args: { _auth_user_id: string; _company_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       app_role: "admin" | "montør" | "super_admin" | "customer_user"
