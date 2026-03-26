@@ -97,11 +97,13 @@ export function UsersAccessTab() {
         ...u,
         technician_id: tech?.id || null,
         is_archived: !!tech?.archived_at,
-        role_assignments: (assignments as any[] || []).filter((a: any) => a.user_id === u.id).map((a: any) => ({ role_id: a.role_id, role_name: roleMap.get(a.role_id) || "?" })),
+        global_role_assignments: (assignments as any[] || []).filter((a: any) => a.user_id === u.id).map((a: any) => ({ role_id: a.role_id, role_name: roleMap.get(a.role_id) || "?" })),
         memberships: (memberships as any[] || []).filter((m: any) => m.user_id === u.id).map((m: any) => ({
           company_id: m.company_id, department_id: m.department_id,
+          role_id: m.role_id || null,
           company_name: compMap.get(m.company_id) || "?",
           department_name: m.department_id ? deptMap.get(m.department_id) || "?" : null,
+          role_name: m.role_id ? roleMap.get(m.role_id) || null : null,
         })),
         overrides: (overridesData as any[] || []).filter((o: any) => o.user_id === u.id).map((o: any) => ({ permission_key: o.permission_key, allowed: o.allowed })),
       };
