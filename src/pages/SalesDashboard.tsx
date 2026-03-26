@@ -42,6 +42,7 @@ export default function SalesDashboard() {
         .order("created_at", { ascending: false })
         .limit(20);
       if (activeCompanyId) calcsQuery = calcsQuery.eq("company_id", activeCompanyId);
+      else if (allowedCompanyIds.length > 0) calcsQuery = calcsQuery.in("company_id", allowedCompanyIds);
       const calcsRes = await calcsQuery;
 
       const leads = leadsRes.data || [];
