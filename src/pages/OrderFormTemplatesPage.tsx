@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompanyContext } from "@/hooks/useCompanyContext";
 import { useAuth } from "@/hooks/useAuth";
-import { Plus, FileText, MoreHorizontal, Pencil, Tag, Settings2, Eye, EyeOff, Globe, Lock, Link as LinkIcon } from "lucide-react";
+import { Plus, FileText, MoreHorizontal, Pencil, Tag, Settings2, Eye, EyeOff, Globe, Lock, Link as LinkIcon, Trash2, ArchiveRestore } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
