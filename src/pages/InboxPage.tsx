@@ -642,10 +642,30 @@ export default function InboxPage() {
                 ))}
               </SelectContent>
             </Select>
-            <Button onClick={syncInbox} disabled={syncing} variant="outline" size="sm">
-              <RefreshCw className={`h-4 w-4 mr-2 ${syncing ? "animate-spin" : ""}`} />
-              {syncing ? "Synkroniserer..." : "Synk e-post"}
-            </Button>
+            <div className="flex items-center gap-2">
+              {/* Auto-sync indicator */}
+              <button
+                onClick={() => setAutoSyncActive(prev => !prev)}
+                className={`flex items-center gap-1.5 text-xs px-2 py-1 rounded-md border transition-colors ${
+                  autoSyncActive
+                    ? "border-primary/30 bg-primary/5 text-primary"
+                    : "border-border text-muted-foreground"
+                }`}
+                title={autoSyncActive ? "Auto-synk aktiv (hvert 3. min) – klikk for å deaktivere" : "Auto-synk deaktivert – klikk for å aktivere"}
+              >
+                {autoSyncActive ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
+                {autoSyncActive ? "Auto" : "Av"}
+              </button>
+              {lastSyncAt && (
+                <span className="text-[10px] text-muted-foreground whitespace-nowrap">
+                  Sist: {formatDistanceToNow(lastSyncAt, { addSuffix: true, locale: nb })}
+                </span>
+              )}
+              <Button onClick={() => syncInbox(false)} disabled={syncing} variant="outline" size="sm">
+                <RefreshCw className={`h-4 w-4 mr-2 ${syncing ? "animate-spin" : ""}`} />
+                {syncing ? "Synkroniserer..." : "Synk e-post"}
+              </Button>
+            </div>
           </div>
         </div>
 
