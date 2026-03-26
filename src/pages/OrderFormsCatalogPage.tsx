@@ -12,7 +12,6 @@ export default function OrderFormsCatalogPage() {
   const [search, setSearch] = useState("");
   const [activeCat, setActiveCat] = useState<string>("all");
 
-  // Catalog settings (editable header)
   const { data: settings } = useQuery({
     queryKey: ["catalog-settings"],
     queryFn: async () => {
@@ -25,7 +24,7 @@ export default function OrderFormsCatalogPage() {
     },
   });
 
-  // Categories
+  // Only active + show_in_catalog categories
   const { data: categories = [] } = useQuery({
     queryKey: ["public-categories"],
     queryFn: async () => {
@@ -33,58 +32,68 @@ export default function OrderFormsCatalogPage() {
         .from("order_form_categories")
         .select("*")
         .eq("is_active", true)
+        .eq("show_in_catalog", true)
         .order("sort_order");
       return data || [];
     },
   });
 
-  // Templates
   const { data: templates = [], isLoading } = useQuery({
     queryKey: ["public-order-form-templates"],
     queryFn: async () => {
       const { data } = await (supabase as any)
         .from("order_form_templates")
-        .select("id, name, external_title, description, slug, audience_type, show_in_catalog, category, category_id, requires_login")
+        .select("id, name, external_title, description, slug, audience_type, show_in_catalog, category, category_id, requires_login, is_active")
         .eq("is_active", true)
-        .in("audience_type", ["external", "both"])
         .eq("show_in_catalog", true)
+        .in("audience_type", ["external", "both"])
         .order("name");
       return data || [];
     },
   });
 
-  // Group templates by category
+  // Strict catalog rules: only show templates whose category is active+visible
+  const visibleTemplates = useMemo(() => {
+    const activeCatIds = new Set(categories.map((c: any) => c.id));
+    return templates.filter((t: any) => {
+      // Must have a category that is active and show_in_catalog
+      if (!t.category_id) return false;
+      return activeCatIds.has(t.category_id);
+    });
+  }, [templates, categories]);
+
   const grouped = useMemo(() => {
-    let filtered = templates;
+    let filtered = visibleTemplates;
     if (search) {
       const q = search.toLowerCase();
       filtered = filtered.filter((t: any) =>
         (t.external_title || t.name).toLowerCase().includes(q) ||
-        t.description?.toLowerCase().includes(q) ||
-        t.category?.toLowerCase().includes(q)
+        t.description?.toLowerCase().includes(q)
       );
     }
     if (activeCat !== "all") {
-      filtered = filtered.filter((t: any) => {
-        const catMatch = categories.find((c: any) => c.id === activeCat);
-        return catMatch ? (t.category_id === catMatch.id || t.category === catMatch.name) : false;
-      });
+      filtered = filtered.filter((t: any) => t.category_id === activeCat);
     }
 
-    const groups: Record<string, any[]> = {};
-    for (const t of filtered) {
-      const catName = t.category || "Annet";
-      if (!groups[catName]) groups[catName] = [];
-      groups[catName].push(t);
+    // Group by category, following category sort order
+    const groups: { cat: any; items: any[] }[] = [];
+    for (const cat of categories) {
+      const items = filtered.filter((t: any) => t.category_id === cat.id);
+      if (items.length > 0) {
+        groups.push({ cat, items });
+      }
     }
     return groups;
-  }, [templates, search, activeCat, categories]);
+  }, [visibleTemplates, search, activeCat, categories]);
 
-  const categoryNames = useMemo(() => {
-    const names = new Set<string>();
-    templates.forEach((t: any) => names.add(t.category || "Annet"));
-    return Array.from(names);
-  }, [templates]);
+  // Only show filter chips for categories that have visible templates
+  const filterCategories = useMemo(() => {
+    const activeCatIds = new Set(categories.map((c: any) => c.id));
+    const catsWithTemplates = new Set(
+      visibleTemplates.map((t: any) => t.category_id).filter((id: string) => activeCatIds.has(id))
+    );
+    return categories.filter((c: any) => catsWithTemplates.has(c.id));
+  }, [categories, visibleTemplates]);
 
   if (isLoading) {
     return (
@@ -100,7 +109,6 @@ export default function OrderFormsCatalogPage() {
   return (
     <div className="min-h-screen bg-background">
       <div className="max-w-4xl mx-auto px-6 py-12 space-y-8">
-        {/* Editable header */}
         <div className="text-center space-y-3">
           <h1 className="text-3xl font-bold text-foreground">{title}</h1>
           <p className="text-base text-muted-foreground max-w-xl mx-auto">{subtitle}</p>
@@ -112,7 +120,6 @@ export default function OrderFormsCatalogPage() {
           )}
         </div>
 
-        {/* Search + category filter */}
         <div className="flex flex-col sm:flex-row gap-3 items-center">
           <div className="relative flex-1 w-full max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -123,7 +130,7 @@ export default function OrderFormsCatalogPage() {
               className="pl-9"
             />
           </div>
-          {categoryNames.length > 1 && (
+          {filterCategories.length > 1 && (
             <div className="flex gap-1.5 flex-wrap">
               <button
                 onClick={() => setActiveCat("all")}
@@ -135,7 +142,7 @@ export default function OrderFormsCatalogPage() {
               >
                 Alle
               </button>
-              {categories.map((cat: any) => (
+              {filterCategories.map((cat: any) => (
                 <button
                   key={cat.id}
                   onClick={() => setActiveCat(cat.id)}
@@ -152,21 +159,23 @@ export default function OrderFormsCatalogPage() {
           )}
         </div>
 
-        {/* Grouped templates */}
-        {Object.keys(grouped).length === 0 ? (
+        {grouped.length === 0 ? (
           <div className="text-center py-16">
             <FileText className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
             <p className="text-sm text-muted-foreground">Ingen bestillingsskjemaer funnet.</p>
           </div>
         ) : (
           <div className="space-y-8">
-            {Object.entries(grouped).map(([catName, items]) => (
-              <div key={catName}>
+            {grouped.map(({ cat, items }) => (
+              <div key={cat.id}>
                 <div className="flex items-center gap-2 mb-3">
                   <Tag className="h-4 w-4 text-primary" />
-                  <h2 className="text-lg font-semibold text-foreground">{catName}</h2>
+                  <h2 className="text-lg font-semibold text-foreground">{cat.name}</h2>
                   <span className="text-xs text-muted-foreground">({items.length})</span>
                 </div>
+                {cat.description && (
+                  <p className="text-xs text-muted-foreground mb-3 pl-6">{cat.description}</p>
+                )}
                 <div className="grid gap-3 sm:grid-cols-2">
                   {items.map((t: any) => (
                     <Card key={t.id} className="hover:shadow-md transition-shadow group">
@@ -183,9 +192,6 @@ export default function OrderFormsCatalogPage() {
                               <p className="text-xs text-muted-foreground line-clamp-2 pl-6">{t.description}</p>
                             )}
                             <div className="flex items-center gap-1.5 pl-6">
-                              {t.audience_type === "internal" && (
-                                <Badge variant="outline" className="text-[10px]">Intern</Badge>
-                              )}
                               {t.requires_login && (
                                 <Badge variant="outline" className="text-[10px]">Krever innlogging</Badge>
                               )}

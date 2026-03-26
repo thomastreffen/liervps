@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompanyContext } from "@/hooks/useCompanyContext";
 import { useAuth } from "@/hooks/useAuth";
-import { Plus, FileText, MoreHorizontal, Pencil, Trash2, Tag, Settings2 } from "lucide-react";
+import { Plus, FileText, MoreHorizontal, Pencil, Tag, Settings2, Eye, EyeOff, Globe, Lock, Link as LinkIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -12,6 +12,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -129,6 +130,35 @@ export default function OrderFormTemplatesPage() {
     },
   });
 
+  const toggleCatalog = useMutation({
+    mutationFn: async ({ id, show_in_catalog }: { id: string; show_in_catalog: boolean }) => {
+      const { error } = await supabase
+        .from("order_form_templates")
+        .update({ show_in_catalog })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["order-form-templates"] });
+      toast.success("Synlighet oppdatert");
+    },
+  });
+
+  // Compute visibility status for each template
+  const getVisibilityInfo = (tmpl: any) => {
+    const cat = categories.find((c: any) => c.id === tmpl.category_id);
+    const issues: string[] = [];
+
+    if (!tmpl.is_active) issues.push("Inaktiv");
+    if (!tmpl.show_in_catalog) issues.push("Kun direkte lenke");
+    if (!tmpl.category_id) issues.push("Mangler kategori");
+    if (cat && !cat.is_active) issues.push("Kategori inaktiv");
+    if (cat && !cat.show_in_catalog) issues.push("Kategori skjult");
+
+    const visible = tmpl.is_active && tmpl.show_in_catalog && tmpl.category_id && cat?.is_active && cat?.show_in_catalog;
+    return { visible, issues, cat };
+  };
+
   return (
     <div className="space-y-6 p-6 max-w-5xl mx-auto">
       <div className="flex items-center justify-between">
@@ -166,54 +196,84 @@ export default function OrderFormTemplatesPage() {
         </div>
       ) : (
         <div className="space-y-2">
-          {templates.map((tmpl: any) => (
-            <Card key={tmpl.id} className="hover:shadow-md transition-shadow">
-              <CardContent className="p-4 flex items-center justify-between">
-                <div
-                  className="flex items-center gap-3 min-w-0 cursor-pointer flex-1"
-                  onClick={() => navigate(`/admin/order-forms/${tmpl.id}`)}
-                >
-                  <FileText className="h-5 w-5 text-muted-foreground shrink-0" />
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-semibold">{tmpl.name}</span>
-                      <Badge variant={tmpl.is_active ? "default" : "secondary"} className="text-[10px]">
-                        {tmpl.is_active ? "Aktiv" : "Inaktiv"}
-                      </Badge>
-                      {tmpl.category && (
-                        <Badge variant="outline" className="text-[10px] gap-1">
-                          <Tag className="h-2.5 w-2.5" />
-                          {tmpl.category}
+          {templates.map((tmpl: any) => {
+            const vis = getVisibilityInfo(tmpl);
+            return (
+              <Card key={tmpl.id} className="hover:shadow-md transition-shadow">
+                <CardContent className="p-4 flex items-center justify-between">
+                  <div
+                    className="flex items-center gap-3 min-w-0 cursor-pointer flex-1"
+                    onClick={() => navigate(`/admin/order-forms/${tmpl.id}`)}
+                  >
+                    <FileText className="h-5 w-5 text-muted-foreground shrink-0" />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-sm font-semibold">{tmpl.name}</span>
+                        {/* Active/inactive */}
+                        <Badge variant={tmpl.is_active ? "default" : "secondary"} className="text-[10px]">
+                          {tmpl.is_active ? "Aktiv" : "Inaktiv"}
                         </Badge>
-                      )}
-                      <Badge variant="outline" className="text-[10px]">
-                        {tmpl.audience_type === "internal" ? "Intern" : tmpl.audience_type === "external" ? "Ekstern" : "Begge"}
-                      </Badge>
+                        {/* Category */}
+                        {vis.cat ? (
+                          <Badge variant="outline" className="text-[10px] gap-1">
+                            <Tag className="h-2.5 w-2.5" />
+                            {vis.cat.name}
+                            {!vis.cat.is_active && <span className="text-destructive ml-0.5">●</span>}
+                          </Badge>
+                        ) : (
+                          <Badge variant="destructive" className="text-[10px]">Ingen kategori</Badge>
+                        )}
+                        {/* Audience */}
+                        <Badge variant="outline" className="text-[10px]">
+                          {tmpl.audience_type === "internal" ? "Intern" : tmpl.audience_type === "external" ? "Ekstern" : "Begge"}
+                        </Badge>
+                        {/* Catalog visibility */}
+                        {vis.visible ? (
+                          <Badge variant="outline" className="text-[10px] bg-green-50 text-green-700 border-green-200 gap-1">
+                            <Globe className="h-2.5 w-2.5" />
+                            Synlig på /bestilling
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-700 border-amber-200 gap-1">
+                            {tmpl.show_in_catalog ? <EyeOff className="h-2.5 w-2.5" /> : <LinkIcon className="h-2.5 w-2.5" />}
+                            {vis.issues[0] || "Skjult"}
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground truncate mt-0.5">
+                        {tmpl.description || `/${tmpl.slug}`}
+                        {!tmpl.requires_login && " · Åpent uten innlogging"}
+                      </p>
                     </div>
-                    <p className="text-xs text-muted-foreground truncate">
-                      {tmpl.description || `/${tmpl.slug}`}
-                    </p>
                   </div>
-                </div>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-8 w-8">
-                      <MoreHorizontal className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => navigate(`/admin/order-forms/${tmpl.id}`)}>
-                      <Pencil className="h-3.5 w-3.5 mr-2" />
-                      Rediger
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => toggleActive.mutate({ id: tmpl.id, is_active: !tmpl.is_active })}>
-                      {tmpl.is_active ? "Deaktiver" : "Aktiver"}
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </CardContent>
-            </Card>
-          ))}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8">
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => navigate(`/admin/order-forms/${tmpl.id}`)}>
+                        <Pencil className="h-3.5 w-3.5 mr-2" />
+                        Rediger
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => toggleActive.mutate({ id: tmpl.id, is_active: !tmpl.is_active })}>
+                        {tmpl.is_active ? "Deaktiver" : "Aktiver"}
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => toggleCatalog.mutate({ id: tmpl.id, show_in_catalog: !tmpl.show_in_catalog })}>
+                        {tmpl.show_in_catalog ? (
+                          <><EyeOff className="h-3.5 w-3.5 mr-2" /> Skjul fra katalog</>
+                        ) : (
+                          <><Eye className="h-3.5 w-3.5 mr-2" /> Vis i katalog</>
+                        )}
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
 
@@ -241,18 +301,21 @@ export default function OrderFormTemplatesPage() {
               />
             </div>
             <div>
-              <Label>Kategori</Label>
+              <Label>Kategori *</Label>
               <Select
                 value={newTemplate.category_id}
                 onValueChange={(v) => setNewTemplate((p) => ({ ...p, category_id: v }))}
               >
                 <SelectTrigger><SelectValue placeholder="Velg kategori" /></SelectTrigger>
                 <SelectContent>
-                  {categories.map((c: any) => (
+                  {categories.filter((c: any) => c.is_active).map((c: any) => (
                     <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+              {categories.length === 0 && (
+                <p className="text-xs text-amber-600 mt-1">Opprett en kategori først via Kategorier-knappen</p>
+              )}
             </div>
             <div>
               <Label>Beskrivelse</Label>
@@ -309,21 +372,21 @@ export default function OrderFormTemplatesPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateOpen(false)}>Avbryt</Button>
-            <Button onClick={() => createMutation.mutate()} disabled={!newTemplate.name}>
+            <Button
+              onClick={() => createMutation.mutate()}
+              disabled={!newTemplate.name || !newTemplate.category_id}
+            >
               Opprett
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Category Manager */}
       <CategoryManager
         open={catManagerOpen}
         onOpenChange={setCatManagerOpen}
         companyId={activeCompanyId}
       />
-
-      {/* Catalog Settings */}
       <CatalogSettingsDialog
         open={catalogSettingsOpen}
         onOpenChange={setCatalogSettingsOpen}
