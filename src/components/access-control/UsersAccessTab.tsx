@@ -47,7 +47,7 @@ export function UsersAccessTab() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<UserRow | null>(null);
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
-  const [selectedMemberships, setSelectedMemberships] = useState<{ company_id: string; department_id: string | null }[]>([]);
+  const [selectedMemberships, setSelectedMemberships] = useState<{ company_id: string; department_id: string | null; role_id: string | null }[]>([]);
   const [overrides, setOverrides] = useState<Record<string, "allow" | "deny" | "inherit">>({});
   const [saving, setSaving] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
