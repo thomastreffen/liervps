@@ -138,7 +138,7 @@ export default function OverviewPage() {
     else if (allowedCompanyIds.length > 0) overbookedQuery = overbookedQuery.in("company_id", allowedCompanyIds);
 
     // Fetch sales action data
-    const leadsPromise = fetchActiveLeads("id, status, updated_at, next_action_type, next_action_date", activeCompanyId);
+    const leadsPromise = fetchActiveLeads("id, status, updated_at, next_action_type, next_action_date", activeCompanyId, allowedCompanyIds);
     let calcsQuery = supabase
       .from("calculations")
       .select("id, status, lead_id, created_at")
