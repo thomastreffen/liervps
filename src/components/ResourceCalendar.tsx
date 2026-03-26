@@ -886,6 +886,28 @@ export const ResourceCalendar = memo(function ResourceCalendar({
 
           if (calendarView === "listWeek") return undefined;
 
+          // Absence block rendering
+          if (props.isAbsence) {
+            return (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="flex items-center gap-1.5 px-2 py-1 h-full cursor-default select-none">
+                    <CalendarOff className="h-3 w-3 shrink-0 opacity-90" />
+                    <span className="text-[11px] font-bold truncate">{props.absenceLabel}</span>
+                    <span className="text-[10px] opacity-80 truncate">– {props.techName}</span>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="top">
+                  <div className="space-y-1 text-xs max-w-[220px]">
+                    <p className="font-semibold">{props.absenceLabel}</p>
+                    <p>{props.techFullName}</p>
+                    {props.comment && <p className="text-muted-foreground italic">{props.comment}</p>}
+                  </div>
+                </TooltipContent>
+              </Tooltip>
+            );
+          }
+
           // Schedule block rendering
           if (props.isScheduleBlock) {
             const StateIcon = props.matchState === "needs_confirmation" ? AlertTriangle
