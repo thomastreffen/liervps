@@ -28,6 +28,7 @@ import { useTechnicianNowStatus, getContiguousFreeMinutes } from "@/hooks/useTec
 import { useCalendarSync } from "@/hooks/useCalendarSync";
 import { OutlookConflictDialog } from "@/components/OutlookConflictDialog";
 import { useConfirmationCount, useScheduleBlocks, type ScheduleBlock } from "@/hooks/useScheduleBlocks";
+import { useAbsenceBlocks } from "@/hooks/useAbsenceBlocks";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
