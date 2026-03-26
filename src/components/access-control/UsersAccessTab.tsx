@@ -72,7 +72,7 @@ export function UsersAccessTab() {
     ] = await Promise.all([
       supabase.from("user_role_assignments").select("user_id, role_id"),
       supabase.from("roles").select("id, name").order("name"),
-      supabase.from("user_memberships").select("user_id, company_id, department_id"),
+      supabase.from("user_memberships").select("user_id, company_id, department_id, role_id"),
       supabase.from("internal_companies").select("id, name").eq("is_active", true),
       supabase.from("departments").select("id, name, company_id").eq("is_active", true),
       supabase.from("user_permission_overrides").select("user_id, permission_key, allowed"),
