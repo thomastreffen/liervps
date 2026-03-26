@@ -50,9 +50,22 @@ export default function PeoplePage() {
   // Superadmins get their own local filter; regular users follow global activeCompanyId
   const [localCompanyFilter, setLocalCompanyFilter] = useState<string>("__all__");
 
+  // For superadmins, fetch all companies for the local filter
+  useEffect(() => {
+    if (isSuperAdmin) {
+      supabase.from("internal_companies").select("id, name").eq("is_active", true).order("name")
+        .then(({ data }) => setAllCompanies(data as any[] || []));
+    }
+  }, [isSuperAdmin]);
+
+  // Determine effective company filter
+  const effectiveCompanyId = isSuperAdmin
+    ? (localCompanyFilter === "__all__" ? null : localCompanyFilter)
+    : activeCompanyId;
+
   useEffect(() => {
     fetchPeople();
-  }, [showArchived, activeCompanyId]);
+  }, [showArchived, effectiveCompanyId, isSuperAdmin]);
 
   const fetchPeople = async () => {
     setLoading(true);
@@ -63,7 +76,7 @@ export default function PeoplePage() {
       { data: accounts },
       { data: userRoles },
       { data: roles },
-      { data: companies },
+      { data: companies: compsData },
       { data: departments },
     ] = await Promise.all([
       supabase.from("people").select("id, full_name, email, is_active, created_at").order("full_name"),
@@ -75,7 +88,7 @@ export default function PeoplePage() {
       supabase.from("departments").select("id, name"),
     ]);
 
-    const compMap = new Map((companies as any[] || []).map((c: any) => [c.id, c.name]));
+    const compMap = new Map((compsData as any[] || []).map((c: any) => [c.id, c.name]));
     const deptMap = new Map((departments as any[] || []).map((d: any) => [d.id, d.name]));
     const roleMap = new Map((roles as any[] || []).map((r: any) => [r.id, r.name]));
 
@@ -102,9 +115,8 @@ export default function PeoplePage() {
 
     const rows: PersonRow[] = (peopleData as any[] || []).map((p: any) => {
       const eps = profilesByPerson.get(p.id) || [];
-      // Find the profile for active company, or fallback to first
-      const ep = activeCompanyId
-        ? eps.find((e: any) => e.company_id === activeCompanyId) || eps[0]
+      const ep = effectiveCompanyId
+        ? eps.find((e: any) => e.company_id === effectiveCompanyId) || eps[0]
         : eps[0];
       const ua = accountMap.get(p.id);
       return {
@@ -125,16 +137,27 @@ export default function PeoplePage() {
       };
     });
 
-    // Filter to people who have a profile in active company (or show all if no active company)
+    // Filter by company
     let filtered = rows;
-    if (activeCompanyId) {
+    if (effectiveCompanyId) {
+      // Specific company selected
       const personIdsInCompany = new Set(
         (profiles as any[] || [])
-          .filter((ep: any) => ep.company_id === activeCompanyId)
+          .filter((ep: any) => ep.company_id === effectiveCompanyId)
           .map((ep: any) => ep.person_id)
       );
       filtered = rows.filter((r) => personIdsInCompany.has(r.id));
+    } else if (!isSuperAdmin && allowedCompanyIds.length > 0) {
+      // Regular user with "Alle mine selskaper" – restrict to their memberships
+      const allowedSet = new Set(allowedCompanyIds);
+      const personIdsInAllowed = new Set(
+        (profiles as any[] || [])
+          .filter((ep: any) => allowedSet.has(ep.company_id))
+          .map((ep: any) => ep.person_id)
+      );
+      filtered = rows.filter((r) => personIdsInAllowed.has(r.id));
     }
+    // else: superadmin with __all__ → show everything
 
     filtered = showArchived ? filtered : filtered.filter((r) => !r.archived_at);
     setPeople(filtered);
