@@ -233,7 +233,7 @@ export default function ResourcePlan() {
     setColorOverrides((prev) => new Map(prev).set(techId, color));
   }, []);
 
-  const { events: calEvents, refetch: refetchCalendarEvents } = useCalendarEvents(selectedTechId, referenceDate, effectiveCompanyId, scopedCompanyTechIds);
+  const { events: calEvents, refetch: refetchCalendarEvents } = useCalendarEvents(selectedTechId, referenceDate, effectiveCompanyId, scopedCompanyTechIds, allowedCompanyIds);
   const approvalEventIds = useMemo(() => calEvents.map(e => e.id), [calEvents]);
   const { summaries: approvalSummaries } = useApprovalSummaries(approvalEventIds);
   const [followUpFilter, setFollowUpFilter] = useState<FollowUpCategory>(null);

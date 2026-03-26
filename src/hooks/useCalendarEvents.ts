@@ -152,7 +152,7 @@ export function useCalendarEvents(technicianId: string | null, referenceDate?: D
     } finally {
       setLoading(false);
     }
-  }, [technicianId, weekStartISO, weekEndISO, companyId, scopedTechnicianIds?.join(",")]);
+  }, [technicianId, weekStartISO, weekEndISO, companyId, scopedTechnicianIds?.join(","), allowedCompanyIds?.join(",")]);
 
   useEffect(() => {
     fetchEvents();
