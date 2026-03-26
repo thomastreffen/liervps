@@ -8424,6 +8424,7 @@ export type Database = {
           department_id: string | null
           id: string
           is_active: boolean
+          role_id: string | null
           user_id: string
         }
         Insert: {
@@ -8432,6 +8433,7 @@ export type Database = {
           department_id?: string | null
           id?: string
           is_active?: boolean
+          role_id?: string | null
           user_id: string
         }
         Update: {
@@ -8440,6 +8442,7 @@ export type Database = {
           department_id?: string | null
           id?: string
           is_active?: boolean
+          role_id?: string | null
           user_id?: string
         }
         Relationships: [
@@ -8455,6 +8458,13 @@ export type Database = {
             columns: ["department_id"]
             isOneToOne: false
             referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_memberships_role_id_fkey"
+            columns: ["role_id"]
+            isOneToOne: false
+            referencedRelation: "roles"
             referencedColumns: ["id"]
           },
         ]

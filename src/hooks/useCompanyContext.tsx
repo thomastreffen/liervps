@@ -15,7 +15,7 @@ interface CompanyContextType {
   activeCompany: Company | null;
   setActiveCompanyId: (id: string | null) => void;
   loading: boolean;
-  userMemberships: { company_id: string; department_id: string | null }[];
+  userMemberships: { company_id: string; department_id: string | null; role_id: string | null }[];
   /** True when user explicitly chose "all companies" */
   isAllCompanies: boolean;
   /** Company IDs the user actually has membership in */
@@ -30,7 +30,7 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
   const [activeCompanyId, setActiveCompanyIdState] = useState<string | null>(null);
   const [isAllCompanies, setIsAllCompanies] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [userMemberships, setUserMemberships] = useState<{ company_id: string; department_id: string | null }[]>([]);
+  const [userMemberships, setUserMemberships] = useState<{ company_id: string; department_id: string | null; role_id: string | null }[]>([]);
 
   useEffect(() => {
     if (!user) {
@@ -45,7 +45,7 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
       // Get user memberships
       const { data: memberships } = await supabase
         .from("user_memberships")
-        .select("company_id, department_id")
+        .select("company_id, department_id, role_id")
         .eq("user_id", user!.id)
         .eq("is_active", true);
 
@@ -53,6 +53,7 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
         (memberships || []).map((m: any) => ({
           company_id: m.company_id,
           department_id: m.department_id,
+          role_id: m.role_id,
         }))
       );
 

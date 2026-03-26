@@ -90,7 +90,8 @@ import OrderFormTemplatesPage from "./pages/OrderFormTemplatesPage";
 import OrderFormBuilderPage from "./pages/OrderFormBuilderPage";
 import OrderFormPublicPage from "./pages/OrderFormPublicPage";
 import OrderFormsCatalogPage from "./pages/OrderFormsCatalogPage";
-import { CompanyProvider } from "@/hooks/useCompanyContext";
+import { CompanyProvider, useCompanyContext } from "@/hooks/useCompanyContext";
+import { ActiveCompanyForPermissions } from "@/hooks/usePermissions";
 import { PreviewModeProvider } from "@/hooks/usePreviewMode";
 import PortalLogin from "./pages/portal/PortalLogin";
 import PortalActivate from "./pages/portal/PortalActivate";
@@ -108,6 +109,16 @@ import { PortalProvider } from "@/hooks/usePortal";
 
 const queryClient = new QueryClient();
 
+/** Bridge: provides activeCompanyId to the permissions system */
+function PermissionCompanyBridge({ children }: { children: React.ReactNode }) {
+  const { activeCompanyId } = useCompanyContext();
+  return (
+    <ActiveCompanyForPermissions value={activeCompanyId}>
+      {children}
+    </ActiveCompanyForPermissions>
+  );
+}
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
@@ -116,6 +127,7 @@ const App = () => (
       <BrowserRouter>
         <AuthProvider>
           <CompanyProvider>
+          <PermissionCompanyBridge>
           <PreviewModeProvider>
           <Routes>
             <Route path="/login" element={<Login />} />
@@ -450,6 +462,7 @@ const App = () => (
             <Route path="*" element={<NotFound />} />
           </Routes>
           </PreviewModeProvider>
+          </PermissionCompanyBridge>
           </CompanyProvider>
         </AuthProvider>
       </BrowserRouter>
