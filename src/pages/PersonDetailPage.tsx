@@ -304,20 +304,43 @@ export default function PersonDetailPage() {
         );
       }
 
-      // Save permission overrides (v2 + legacy sync)
-      await supabase.from("user_permission_overrides_v2").delete().eq("user_account_id", account.id);
+      // Save permission overrides (v2 + legacy sync) — scoped to selected company
+      // Only delete overrides for the currently selected company (preserve other companies' overrides)
+      if (overrideCompanyId) {
+        await supabase.from("user_permission_overrides_v2")
+          .delete()
+          .eq("user_account_id", account.id)
+          .eq("scope_company_id", overrideCompanyId);
+      } else {
+        // Fallback: delete global (null company) overrides only
+        await supabase.from("user_permission_overrides_v2")
+          .delete()
+          .eq("user_account_id", account.id)
+          .is("scope_company_id", null);
+      }
       const rows: any[] = Object.entries(overrides).map(([key, mode]) => ({
         user_account_id: account.id, permission_key: key, mode,
+        scope_company_id: overrideCompanyId || null,
       }));
       if (scopeOverride !== "inherit") {
-        rows.push({ user_account_id: account.id, permission_key: scopeOverride, mode: "allow" });
+        rows.push({ user_account_id: account.id, permission_key: scopeOverride, mode: "allow", scope_company_id: overrideCompanyId || null });
       }
       if (rows.length > 0) {
         await supabase.from("user_permission_overrides_v2").insert(rows);
       }
 
+      // Update allOverridesV2 cache
+      const remaining = allOverridesV2.filter((o: any) =>
+        overrideCompanyId ? o.scope_company_id !== overrideCompanyId : o.scope_company_id !== null
+      );
+      setAllOverridesV2([...remaining, ...rows.map(r => ({ ...r, scope_company_id: r.scope_company_id }))]);
+
+      // Legacy sync — flatten all v2 overrides to v1 (global)
+      const { data: allV2 } = await supabase.from("user_permission_overrides_v2")
+        .select("permission_key, mode")
+        .eq("user_account_id", account.id);
       await supabase.from("user_permission_overrides").delete().eq("user_id", account.auth_user_id);
-      const legacyRows = rows.map((r) => ({
+      const legacyRows = (allV2 || []).map((r: any) => ({
         user_id: account.auth_user_id,
         permission_key: r.permission_key,
         allowed: r.mode === "allow",
