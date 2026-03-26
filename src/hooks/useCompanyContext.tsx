@@ -18,6 +18,8 @@ interface CompanyContextType {
   userMemberships: { company_id: string; department_id: string | null }[];
   /** True when user explicitly chose "all companies" */
   isAllCompanies: boolean;
+  /** Company IDs the user actually has membership in */
+  allowedCompanyIds: string[];
 }
 
 const CompanyContext = createContext<CompanyContextType | undefined>(undefined);
