@@ -963,6 +963,7 @@ function CaseDetail({
   onConvertProject,
   onConvertLead,
   onArchive,
+  onDelete,
   onCaseUpdated,
   companyUsers,
   currentUserId,
@@ -978,6 +979,7 @@ function CaseDetail({
   onConvertProject: () => void;
   onConvertLead: () => void;
   onArchive: () => void;
+  onDelete: () => void;
   onCaseUpdated: () => void;
   companyUsers: { id: string; name: string }[];
   currentUserId: string;
