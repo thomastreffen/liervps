@@ -148,6 +148,36 @@ export default function OrderFormTemplatesPage() {
     },
   });
 
+  const softDeleteTemplate = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await (supabase as any)
+        .from("order_form_templates")
+        .update({ deleted_at: new Date().toISOString(), deleted_by: user?.id })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["order-form-templates"] });
+      toast.success("Mal flyttet til papirkurv");
+    },
+    onError: (err: any) => toast.error(err.message),
+  });
+
+  const restoreTemplate = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await (supabase as any)
+        .from("order_form_templates")
+        .update({ deleted_at: null, deleted_by: null })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["order-form-templates"] });
+      toast.success("Mal gjenopprettet");
+    },
+    onError: (err: any) => toast.error(err.message),
+  });
+
   // Compute visibility status for each template
   const getVisibilityInfo = (tmpl: any) => {
     const cat = categories.find((c: any) => c.id === tmpl.category_id);
