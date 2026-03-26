@@ -393,7 +393,13 @@ export function PermissionsPanel({
               </div>
             </div>
 
-            {/* Override hint */}
+            {/* Per-company info */}
+            {onOverrideCompanyChange && overrideCompanyId && (
+              <p className="text-[11px] text-muted-foreground">
+                Overstyringer nedenfor gjelder kun for <span className="font-medium text-foreground">{companies.find(c => c.id === overrideCompanyId)?.name || "valgt selskap"}</span>. Bytt selskap i nedtrekk for å se/endre andre.
+              </p>
+            )}
+
             {overrideCount >= 5 && (
               <div className="rounded-md border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-900/20 p-3 flex gap-2">
                 <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
