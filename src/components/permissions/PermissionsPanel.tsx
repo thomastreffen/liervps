@@ -125,7 +125,11 @@ export function PermissionsPanel({
           delete newOverrides[key];
         }
       } else if (eff.source === "role") {
-        newOverrides[key] = "deny";
+        if (eff.allowed) {
+          newOverrides[key] = "deny";
+        } else {
+          newOverrides[key] = "allow";
+        }
       } else {
         newOverrides[key] = "allow";
       }
