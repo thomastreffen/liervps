@@ -190,6 +190,28 @@ export default function PersonDetailPage() {
     setLoading(false);
   }, [id]);
 
+  const applyOverridesForCompany = (allOv: any[], companyId: string | null) => {
+    const ov: Record<string, "allow" | "deny"> = {};
+    let sc = "inherit";
+    for (const o of allOv) {
+      // Match: global overrides (no scope_company_id) OR matching company
+      if (!o.scope_company_id || o.scope_company_id === companyId) {
+        if (o.permission_key.startsWith("scope.view.")) {
+          if (o.mode === "allow") sc = o.permission_key;
+        } else {
+          ov[o.permission_key] = o.mode;
+        }
+      }
+    }
+    setOverrides(ov);
+    setScopeOverride(sc);
+  };
+
+  const handleOverrideCompanyChange = (companyId: string) => {
+    setOverrideCompanyId(companyId);
+    applyOverridesForCompany(allOverridesV2, companyId);
+  };
+
   const buildRolePermMaps = (assignedRoleIds: string[], rpData: any[], rolesData: any[]) => {
     const rp: Record<string, boolean> = {};
     const srcMap: Record<string, string> = {};
