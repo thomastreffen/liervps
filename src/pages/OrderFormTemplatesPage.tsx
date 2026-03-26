@@ -319,6 +319,33 @@ export default function OrderFormTemplatesPage() {
         </div>
       )}
 
+      {/* Deleted templates */}
+      {deletedTemplates.length > 0 && (
+        <div className="space-y-2 pt-4 border-t border-border">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Slettede maler ({deletedTemplates.length})</p>
+          {deletedTemplates.map((tmpl: any) => (
+            <Card key={tmpl.id} className="opacity-60 hover:opacity-80 transition-opacity">
+              <CardContent className="p-3 flex items-center justify-between">
+                <div className="flex items-center gap-2 min-w-0">
+                  <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <span className="text-sm text-muted-foreground line-through">{tmpl.name}</span>
+                  <Badge variant="destructive" className="text-[10px]">Slettet</Badge>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs gap-1"
+                  onClick={() => restoreTemplate.mutate(tmpl.id)}
+                >
+                  <ArchiveRestore className="h-3 w-3" />
+                  Gjenopprett
+                </Button>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
       {/* Create dialog */}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent>
