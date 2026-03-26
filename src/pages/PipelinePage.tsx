@@ -36,7 +36,7 @@ const STALE_DAYS = 7;
 export default function PipelinePage() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { activeCompanyId } = useCompanyContext();
+  const { activeCompanyId, allowedCompanyIds } = useCompanyContext();
   const [cards, setCards] = useState<PipelineCard[]>([]);
   const [loading, setLoading] = useState(true);
   const [dragging, setDragging] = useState<string | null>(null);
