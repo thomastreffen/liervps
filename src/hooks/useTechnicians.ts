@@ -92,7 +92,7 @@ export function useTechnicians(companyId?: string | null, allowedCompanyIds?: st
     }
 
     fetch();
-  }, [companyId]);
+  }, [companyId, allowedCompanyIds?.join(",")]);
 
   return { technicians, loading };
 }
