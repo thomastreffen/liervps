@@ -121,14 +121,16 @@ export function useRbac(): RbacState {
         };
       }
 
-      // Then apply overrides (wins)
+      // Then apply overrides (only global ones without company scope)
       for (const o of (overrides as any[] || [])) {
-        merged[o.permission_key] = {
-          key: o.permission_key,
-          allowed: o.mode === "allow",
-          source: "override",
-          mode: o.mode,
-        };
+        if (!o.scope_company_id) {
+          merged[o.permission_key] = {
+            key: o.permission_key,
+            allowed: o.mode === "allow",
+            source: "override",
+            mode: o.mode,
+          };
+        }
       }
 
       setPermissions(merged);
