@@ -146,6 +146,7 @@ export default function OverviewPage() {
       .in("status", ["sent", "generated"])
       .limit(100);
     if (activeCompanyId) calcsQuery = calcsQuery.eq("company_id", activeCompanyId);
+    else if (allowedCompanyIds.length > 0) calcsQuery = calcsQuery.in("company_id", allowedCompanyIds);
 
     const [
       taskCountsRes, blocksRes, myEventsResult, plannedBlocksRes,
