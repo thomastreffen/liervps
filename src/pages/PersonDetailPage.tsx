@@ -102,6 +102,8 @@ export default function PersonDetailPage() {
   const [rolePermissions, setRolePermissions] = useState<Record<string, boolean>>({});
   const [rolePermSourceMap, setRolePermSourceMap] = useState<Record<string, string>>({});
   const [allRolePerms, setAllRolePerms] = useState<any[]>([]);
+  const [allOverridesV2, setAllOverridesV2] = useState<any[]>([]);
+  const [overrideCompanyId, setOverrideCompanyId] = useState<string | null>(null);
 
   // Audit tab
   const [auditEntries, setAuditEntries] = useState<AuditEntry[]>([]);
@@ -162,7 +164,7 @@ export default function PersonDetailPage() {
       ] = await Promise.all([
         supabase.from("user_roles_v2").select("role_id").eq("user_account_id", ua.id),
         supabase.from("user_scopes").select("company_id, department_id").eq("user_account_id", ua.id),
-        supabase.from("user_permission_overrides_v2").select("permission_key, mode").eq("user_account_id", ua.id),
+        supabase.from("user_permission_overrides_v2").select("permission_key, mode, scope_company_id").eq("user_account_id", ua.id),
         supabase.from("role_permissions").select("role_id, permission_key, allowed"),
         supabase.from("audit_log").select("*").eq("target_id", id).order("created_at", { ascending: false }).limit(50),
       ]);
@@ -172,26 +174,43 @@ export default function PersonDetailPage() {
       setAllRolePerms((rpData as any[]) || []);
       setScopes((usData as any[] || []).map((s: any) => ({ company_id: s.company_id, department_id: s.department_id })));
 
-      // Build role permissions map + source map
-      buildRolePermMaps(assignedRoleIds, rpData as any[], rolesData as any[]);
+      // Store all v2 overrides for per-company filtering
+      const allOv = (uoData as any[] || []);
+      setAllOverridesV2(allOv);
 
-      // Build overrides
-      const ov: Record<string, "allow" | "deny"> = {};
-      let sc = "inherit";
-      for (const o of (uoData as any[] || [])) {
+      // Set initial override company to first membership company
+      const firstCompanyId = overrideCompanyId || (usData as any[] || [])[0]?.company_id || null;
+      setOverrideCompanyId(firstCompanyId);
+
+      // Build overrides filtered by selected company
+      applyOverridesForCompany(allOv, firstCompanyId);
+      setAuditEntries((auditData as any[]) || []);
+    }
+
+    setLoading(false);
+  }, [id]);
+
+  const applyOverridesForCompany = (allOv: any[], companyId: string | null) => {
+    const ov: Record<string, "allow" | "deny"> = {};
+    let sc = "inherit";
+    for (const o of allOv) {
+      // Match: global overrides (no scope_company_id) OR matching company
+      if (!o.scope_company_id || o.scope_company_id === companyId) {
         if (o.permission_key.startsWith("scope.view.")) {
           if (o.mode === "allow") sc = o.permission_key;
         } else {
           ov[o.permission_key] = o.mode;
         }
       }
-      setOverrides(ov);
-      setScopeOverride(sc);
-      setAuditEntries((auditData as any[]) || []);
     }
+    setOverrides(ov);
+    setScopeOverride(sc);
+  };
 
-    setLoading(false);
-  }, [id]);
+  const handleOverrideCompanyChange = (companyId: string) => {
+    setOverrideCompanyId(companyId);
+    applyOverridesForCompany(allOverridesV2, companyId);
+  };
 
   const buildRolePermMaps = (assignedRoleIds: string[], rpData: any[], rolesData: any[]) => {
     const rp: Record<string, boolean> = {};
@@ -285,20 +304,43 @@ export default function PersonDetailPage() {
         );
       }
 
-      // Save permission overrides (v2 + legacy sync)
-      await supabase.from("user_permission_overrides_v2").delete().eq("user_account_id", account.id);
+      // Save permission overrides (v2 + legacy sync) — scoped to selected company
+      // Only delete overrides for the currently selected company (preserve other companies' overrides)
+      if (overrideCompanyId) {
+        await supabase.from("user_permission_overrides_v2")
+          .delete()
+          .eq("user_account_id", account.id)
+          .eq("scope_company_id", overrideCompanyId);
+      } else {
+        // Fallback: delete global (null company) overrides only
+        await supabase.from("user_permission_overrides_v2")
+          .delete()
+          .eq("user_account_id", account.id)
+          .is("scope_company_id", null);
+      }
       const rows: any[] = Object.entries(overrides).map(([key, mode]) => ({
         user_account_id: account.id, permission_key: key, mode,
+        scope_company_id: overrideCompanyId || null,
       }));
       if (scopeOverride !== "inherit") {
-        rows.push({ user_account_id: account.id, permission_key: scopeOverride, mode: "allow" });
+        rows.push({ user_account_id: account.id, permission_key: scopeOverride, mode: "allow", scope_company_id: overrideCompanyId || null });
       }
       if (rows.length > 0) {
         await supabase.from("user_permission_overrides_v2").insert(rows);
       }
 
+      // Update allOverridesV2 cache
+      const remaining = allOverridesV2.filter((o: any) =>
+        overrideCompanyId ? o.scope_company_id !== overrideCompanyId : o.scope_company_id !== null
+      );
+      setAllOverridesV2([...remaining, ...rows.map(r => ({ ...r, scope_company_id: r.scope_company_id }))]);
+
+      // Legacy sync — flatten all v2 overrides to v1 (global)
+      const { data: allV2 } = await supabase.from("user_permission_overrides_v2")
+        .select("permission_key, mode")
+        .eq("user_account_id", account.id);
       await supabase.from("user_permission_overrides").delete().eq("user_id", account.auth_user_id);
-      const legacyRows = rows.map((r) => ({
+      const legacyRows = (allV2 || []).map((r: any) => ({
         user_id: account.auth_user_id,
         permission_key: r.permission_key,
         allowed: r.mode === "allow",
@@ -683,6 +725,8 @@ export default function PersonDetailPage() {
                 companies={companies}
                 saving={saving}
                 onSave={handleSaveAll}
+                overrideCompanyId={overrideCompanyId}
+                onOverrideCompanyChange={handleOverrideCompanyChange}
               />
             </TabsContent>
           )}

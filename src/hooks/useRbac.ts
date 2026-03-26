@@ -102,10 +102,10 @@ export function useRbac(): RbacState {
         }
       }
 
-      // Get overrides
+      // Get overrides (global + no company scope filter here since useRbac has no company context)
       const { data: overrides } = await supabase
         .from("user_permission_overrides_v2")
-        .select("permission_key, mode")
+        .select("permission_key, mode, scope_company_id")
         .eq("user_account_id", ua.id);
 
       // Merge
@@ -121,14 +121,16 @@ export function useRbac(): RbacState {
         };
       }
 
-      // Then apply overrides (wins)
+      // Then apply overrides (only global ones without company scope)
       for (const o of (overrides as any[] || [])) {
-        merged[o.permission_key] = {
-          key: o.permission_key,
-          allowed: o.mode === "allow",
-          source: "override",
-          mode: o.mode,
-        };
+        if (!o.scope_company_id) {
+          merged[o.permission_key] = {
+            key: o.permission_key,
+            allowed: o.mode === "allow",
+            source: "override",
+            mode: o.mode,
+          };
+        }
       }
 
       setPermissions(merged);

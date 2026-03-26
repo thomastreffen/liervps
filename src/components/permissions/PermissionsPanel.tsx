@@ -62,6 +62,8 @@ interface Props {
   saving: boolean;
   onSave: () => void;
   showOnlyOverrides?: boolean;
+  overrideCompanyId?: string | null;
+  onOverrideCompanyChange?: (companyId: string) => void;
 }
 
 export function PermissionsPanel({
@@ -81,6 +83,8 @@ export function PermissionsPanel({
   onCopyFrom,
   saving,
   onSave,
+  overrideCompanyId,
+  onOverrideCompanyChange,
 }: Props) {
   const [search, setSearch] = useState("");
   const [onlyOverrides, setOnlyOverrides] = useState(false);
@@ -355,6 +359,23 @@ export function PermissionsPanel({
             <div className="flex items-center justify-between flex-wrap gap-2">
               <h3 className="text-sm font-semibold">Rettigheter</h3>
               <div className="flex items-center gap-2 flex-wrap">
+                {/* Company selector for overrides */}
+                {onOverrideCompanyChange && companies.length > 1 && (
+                  <Select
+                    value={overrideCompanyId || "__none__"}
+                    onValueChange={(v) => onOverrideCompanyChange(v === "__none__" ? companies[0]?.id || "" : v)}
+                  >
+                    <SelectTrigger className="h-8 w-[200px] text-xs">
+                      <Building className="h-3 w-3 mr-1.5 text-muted-foreground" />
+                      <SelectValue placeholder="Velg selskap" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {companies.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
                 {overrideCount > 0 && (
                   <Button
                     variant="ghost"
@@ -372,7 +393,13 @@ export function PermissionsPanel({
               </div>
             </div>
 
-            {/* Override hint */}
+            {/* Per-company info */}
+            {onOverrideCompanyChange && overrideCompanyId && (
+              <p className="text-[11px] text-muted-foreground">
+                Overstyringer nedenfor gjelder kun for <span className="font-medium text-foreground">{companies.find(c => c.id === overrideCompanyId)?.name || "valgt selskap"}</span>. Bytt selskap i nedtrekk for å se/endre andre.
+              </p>
+            )}
+
             {overrideCount >= 5 && (
               <div className="rounded-md border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-900/20 p-3 flex gap-2">
                 <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
