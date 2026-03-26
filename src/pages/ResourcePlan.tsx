@@ -976,6 +976,7 @@ export default function ResourcePlan() {
           getBusySlotsForDay={canReadBusy ? getBusySlotsForDay : undefined}
           dayCapacities={canReadBusy ? aggregatedDays : undefined}
           scheduleBlocks={scheduleBlocks}
+          absenceBlocks={absenceBlocks}
           onEventClick={handleEventClick}
           onScheduleBlockClick={(block) => {
             console.info("[ResourcePlan][OpenScheduleBlock]", {
