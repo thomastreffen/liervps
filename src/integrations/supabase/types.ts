@@ -26,6 +26,7 @@ export type Database = {
           end_time: string | null
           id: string
           is_full_day: boolean
+          outlook_event_id: string | null
           person_id: string
           rejection_reason: string | null
           requested_by: string | null
@@ -45,6 +46,7 @@ export type Database = {
           end_time?: string | null
           id?: string
           is_full_day?: boolean
+          outlook_event_id?: string | null
           person_id: string
           rejection_reason?: string | null
           requested_by?: string | null
@@ -64,6 +66,7 @@ export type Database = {
           end_time?: string | null
           id?: string
           is_full_day?: boolean
+          outlook_event_id?: string | null
           person_id?: string
           rejection_reason?: string | null
           requested_by?: string | null
