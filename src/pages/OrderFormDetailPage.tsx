@@ -269,7 +269,7 @@ export default function OrderFormDetailPage() {
 
   return (
     <div className="space-y-6 p-6 max-w-6xl mx-auto">
-      {/* Header */}
+      {/* Ticket header */}
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="icon" onClick={() => navigate("/orders")}>
           <ArrowLeft className="h-4 w-4" />
@@ -282,31 +282,63 @@ export default function OrderFormDetailPage() {
               <Badge className={priorityConfig.color}>{priorityConfig.label}</Badge>
             )}
             <QualityBadge score={qualityResult.score} />
+            {sub.order_form_templates?.category && (
+              <Badge variant="outline" className="text-[10px] gap-1">
+                <Tag className="h-2.5 w-2.5" />
+                {sub.order_form_templates.category}
+              </Badge>
+            )}
           </div>
           <p className="text-sm text-muted-foreground mt-0.5">
             {sub.order_form_templates?.name} ·{" "}
             {format(new Date(submission.submitted_at), "d. MMMM yyyy HH:mm", { locale: nb })}
-            {submission.requester_type === "internal" && " · Intern bestilling"}
+            {(sub as any).channel && ` · ${CHANNEL_LABELS[(sub as any).channel] || (sub as any).channel}`}
           </p>
         </div>
       </div>
 
-      {/* Top summary bar */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+      {/* Ticket info bar */}
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 p-3 rounded-lg bg-muted/30 border">
         {[
-          { label: "Kunde", value: (submission.summary as any)?.kundenavn },
-          { label: "Oppdrag", value: (submission.summary as any)?.oppdragstittel },
-          { label: "Hastegrad", value: (submission.summary as any)?.hastegrad },
-          { label: "Type", value: submission.requester_type === "internal" ? "Intern" : "Ekstern" },
-          { label: "Status", value: statusConfig?.label },
-          { label: "Bestiller", value: (submission.summary as any)?.bestiller_navn },
+          { label: "Innsender", value: (sub as any).submitter_name || (submission.summary as any)?.bestiller_navn || "–" },
+          { label: "E-post", value: (sub as any).submitter_email || bestillerEpost || "–" },
+          { label: "Kunde", value: (submission.summary as any)?.kundenavn || "–" },
+          { label: "Oppdrag", value: (submission.summary as any)?.oppdragstittel || "–" },
+          { label: "Hastegrad", value: (submission.summary as any)?.hastegrad || "–" },
+          { label: "Kanal", value: CHANNEL_LABELS[(sub as any).channel] || "–" },
+          { label: "Ansvarlig", value: sub.assigned_to ? "Tildelt" : "Ikke tildelt" },
         ].map(({ label, value }) => (
           <div key={label} className="text-sm">
-            <span className="text-muted-foreground text-xs">{label}</span>
-            <p className="font-medium truncate">{value || "–"}</p>
+            <span className="text-muted-foreground text-[10px] uppercase tracking-wider">{label}</span>
+            <p className="font-medium truncate text-xs">{value}</p>
           </div>
         ))}
       </div>
+
+      {/* Linked entities */}
+      {(sub.converted_to_id || sub.linked_case_id) && (
+        <div className="flex flex-wrap gap-2">
+          {sub.converted_to_id && (
+            <Badge variant="outline" className="text-[10px] gap-1 cursor-pointer hover:bg-muted" onClick={() => {
+              const url = sub.converted_to_type === "case"
+                ? `/cases/${sub.converted_to_id}`
+                : `/projects/plan?openTask=${sub.converted_to_id}`;
+              navigate(url);
+            }}>
+              <LinkIcon className="h-2.5 w-2.5" />
+              {sub.converted_to_type === "case" ? "Sak" : "Oppgave"} koblet
+              <ExternalLink className="h-2.5 w-2.5" />
+            </Badge>
+          )}
+          {sub.linked_case_id && (
+            <Badge variant="outline" className="text-[10px] gap-1 cursor-pointer hover:bg-muted" onClick={() => navigate(`/inbox`)}>
+              <LinkIcon className="h-2.5 w-2.5" />
+              Postkontor-sak
+              <ExternalLink className="h-2.5 w-2.5" />
+            </Badge>
+          )}
+        </div>
+      )}
 
       {/* Quick actions */}
       <div className="flex flex-wrap gap-2">
