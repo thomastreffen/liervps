@@ -190,6 +190,8 @@ const NEXT_ACTION_ICONS: Record<CaseNextAction, React.ElementType> = {
 };
 
 // ─── Main Page ───────────────────────────────
+const AUTO_SYNC_INTERVAL_MS = 3 * 60 * 1000; // 3 minutes
+
 export default function InboxPage() {
   const navigate = useNavigate();
   const { user, isAdmin } = useAuth();
@@ -204,6 +206,9 @@ export default function InboxPage() {
   const [selectedMailbox, setSelectedMailbox] = useState<string>("all");
   const [companyUsers, setCompanyUsers] = useState<{ id: string; name: string }[]>([]);
   const [assigningTo, setAssigningTo] = useState<string | null>(null);
+  const [lastSyncAt, setLastSyncAt] = useState<Date | null>(null);
+  const [autoSyncActive, setAutoSyncActive] = useState(true);
+  const autoSyncRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const selectedCase = cases.find((c) => c.id === selectedId);
   const selectedItems = items.filter((i) => i.case_id === selectedId);
