@@ -232,6 +232,7 @@ export default function InboxPage() {
     let query = supabase
       .from("cases")
       .select("*")
+      .is("deleted_at", null)
       .not("status", "eq", "archived")
       .order("updated_at", { ascending: false })
       .limit(200);
