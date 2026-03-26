@@ -62,6 +62,8 @@ export default function EmployeesPage() {
 
     if (activeCompanyId) {
       epQuery = epQuery.eq("company_id", activeCompanyId);
+    } else if (allowedCompanyIds.length > 0) {
+      epQuery = epQuery.in("company_id", allowedCompanyIds);
     }
 
     if (personIds.length > 0) {
