@@ -35,7 +35,7 @@ const PAGE_SIZE = 20;
 
 export default function CustomersPage() {
   const navigate = useNavigate();
-  const { activeCompanyId } = useCompanyContext();
+  const { activeCompanyId, allowedCompanyIds } = useCompanyContext();
   const { tags } = useCustomerTags();
   const { levels, getLevelByCode } = useCustomerValueLevels();
   const [customers, setCustomers] = useState<CustomerRow[]>([]);
