@@ -1208,6 +1208,10 @@ function CaseDetail({
                 <Lock className="h-4 w-4" />
                 Arkiver
               </Button>
+              <Button size="sm" variant="ghost" onClick={onDelete} className="gap-1.5 text-destructive hover:text-destructive">
+                <Trash2 className="h-4 w-4" />
+                Slett
+              </Button>
             </div>
           </Card>
         )}
