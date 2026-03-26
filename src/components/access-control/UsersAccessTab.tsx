@@ -378,10 +378,6 @@ export function UsersAccessTab() {
                     </div>
                   </CollapsibleContent>
                 </Collapsible>
-                      );
-                    })}
-                  </div>
-                </div>
 
                 <Separator />
 
