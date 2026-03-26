@@ -216,6 +216,7 @@ export default function ResourcePlan() {
   const [refreshKey, setRefreshKey] = useState(0);
 
   const { blocks: scheduleBlocks, refetch: refetchBlocks, removeBlockOptimistic } = useScheduleBlocks(referenceDate, selectedTechId, undefined, effectiveCompanyId, allowedCompanyIds);
+  const { absenceBlocks } = useAbsenceBlocks(referenceDate, selectedTechId, effectiveCompanyId, allowedCompanyIds);
   const isCurrentWeek = isSameWeek(referenceDate, new Date(), { weekStartsOn: 1 });
   const weekStart = startOfWeek(referenceDate, { weekStartsOn: 1 });
 
