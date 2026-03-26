@@ -289,10 +289,19 @@ export default function OrderFormDetailPage() {
               </Badge>
             )}
           </div>
+          {/* Meaningful subtitle with fallback chain */}
           <p className="text-sm text-muted-foreground mt-0.5">
-            {sub.order_form_templates?.name} ·{" "}
-            {format(new Date(submission.submitted_at), "d. MMMM yyyy HH:mm", { locale: nb })}
-            {(sub as any).channel && ` · ${CHANNEL_LABELS[(sub as any).channel] || (sub as any).channel}`}
+            {(() => {
+              const parts: string[] = [];
+              const tmplName = sub.order_form_templates?.name;
+              if (tmplName) parts.push(tmplName);
+              const title = (sub as any).submitter_name || (submission.summary as any)?.kundenavn || (submission.summary as any)?.bestiller_navn;
+              if (title) parts.push(title);
+              if ((submission.summary as any)?.oppdragstittel) parts.push((submission.summary as any).oppdragstittel);
+              parts.push(format(new Date(submission.submitted_at), "d. MMMM yyyy HH:mm", { locale: nb }));
+              if ((sub as any).channel) parts.push(CHANNEL_LABELS[(sub as any).channel] || (sub as any).channel);
+              return parts.join(" · ");
+            })()}
           </p>
         </div>
       </div>
