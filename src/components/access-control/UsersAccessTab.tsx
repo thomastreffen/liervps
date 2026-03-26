@@ -183,7 +183,7 @@ export function UsersAccessTab() {
       const { error: delMem } = await supabase.from("user_memberships").delete().eq("user_id", uid);
       if (delMem) throw new Error(`Medlemskap-sletting feilet: ${delMem.message}`);
       if (selectedMemberships.length > 0) {
-        const { error: insMem } = await supabase.from("user_memberships").insert(selectedMemberships.map((m) => ({ user_id: uid, company_id: m.company_id, department_id: m.department_id })));
+        const { error: insMem } = await supabase.from("user_memberships").insert(selectedMemberships.map((m) => ({ user_id: uid, company_id: m.company_id, department_id: m.department_id, role_id: m.role_id })));
         if (insMem) throw new Error(`Medlemskap-tildeling feilet: ${insMem.message}`);
       }
 
