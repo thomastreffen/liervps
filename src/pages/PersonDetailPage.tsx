@@ -164,7 +164,7 @@ export default function PersonDetailPage() {
       ] = await Promise.all([
         supabase.from("user_roles_v2").select("role_id").eq("user_account_id", ua.id),
         supabase.from("user_scopes").select("company_id, department_id").eq("user_account_id", ua.id),
-        supabase.from("user_permission_overrides_v2").select("permission_key, mode").eq("user_account_id", ua.id),
+        supabase.from("user_permission_overrides_v2").select("permission_key, mode, scope_company_id").eq("user_account_id", ua.id),
         supabase.from("role_permissions").select("role_id, permission_key, allowed"),
         supabase.from("audit_log").select("*").eq("target_id", id).order("created_at", { ascending: false }).limit(50),
       ]);
