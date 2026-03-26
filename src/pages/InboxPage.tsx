@@ -40,6 +40,9 @@ import {
   ReceiptText,
   Hammer,
   ArrowRightLeft,
+  Trash2,
+  Wifi,
+  WifiOff,
 } from "lucide-react";
 import { PlanJobDialog } from "@/components/PlanJobDialog";
 import { CaseAssignmentBanner } from "@/components/cases/CaseAssignmentBanner";
