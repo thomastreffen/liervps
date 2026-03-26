@@ -19,7 +19,7 @@ interface TechRow {
 
 export default function EmployeesPage() {
   const navigate = useNavigate();
-  const { activeCompanyId } = useCompanyContext();
+  const { activeCompanyId, allowedCompanyIds } = useCompanyContext();
   const [technicians, setTechnicians] = useState<TechRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [showArchived, setShowArchived] = useState(false);
