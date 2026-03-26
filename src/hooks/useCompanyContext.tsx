@@ -25,7 +25,7 @@ interface CompanyContextType {
 const CompanyContext = createContext<CompanyContextType | undefined>(undefined);
 
 export function CompanyProvider({ children }: { children: ReactNode }) {
-  const { user } = useAuth();
+  const { user, isSuperAdmin } = useAuth();
   const [companies, setCompanies] = useState<Company[]>([]);
   const [activeCompanyId, setActiveCompanyIdState] = useState<string | null>(null);
   const [isAllCompanies, setIsAllCompanies] = useState(false);
@@ -57,23 +57,24 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
         }))
       );
 
-      // Get only companies the user has membership in
       const memberCompanyIds = [...new Set((memberships || []).map((m: any) => m.company_id))];
 
       let companyList: Company[] = [];
-      if (memberCompanyIds.length > 0) {
+      if (isSuperAdmin) {
+        const { data: comps } = await supabase
+          .from("internal_companies")
+          .select("id, name, org_number")
+          .eq("is_active", true)
+          .order("name");
+        companyList = (comps || []).map((c: any) => ({ id: c.id, name: c.name, org_number: c.org_number }));
+      } else if (memberCompanyIds.length > 0) {
         const { data: comps } = await supabase
           .from("internal_companies")
           .select("id, name, org_number")
           .eq("is_active", true)
           .in("id", memberCompanyIds)
           .order("name");
-
-        companyList = (comps || []).map((c: any) => ({
-          id: c.id,
-          name: c.name,
-          org_number: c.org_number,
-        }));
+        companyList = (comps || []).map((c: any) => ({ id: c.id, name: c.name, org_number: c.org_number }));
       }
 
       setCompanies(companyList);
@@ -95,7 +96,7 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
     }
 
     fetch();
-  }, [user]);
+  }, [user, isSuperAdmin]);
 
   const setActiveCompanyId = useCallback((id: string | null) => {
     if (id === null) {

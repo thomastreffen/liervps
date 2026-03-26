@@ -1,4 +1,5 @@
 import { useCompanyContext } from "@/hooks/useCompanyContext";
+import { useAuth } from "@/hooks/useAuth";
 import {
   Select,
   SelectContent,
@@ -10,10 +11,10 @@ import { Building, Globe } from "lucide-react";
 
 export function CompanySelector() {
   const { companies, activeCompanyId, isAllCompanies, setActiveCompanyId } = useCompanyContext();
+  const { isSuperAdmin } = useAuth();
 
-  // Only show selector if user has access to multiple companies
-  const hasMultipleCompanies = companies.length > 1;
-  if (!hasMultipleCompanies) return null;
+  const showSelector = companies.length > 1 || (isSuperAdmin && companies.length > 0);
+  if (!showSelector) return null;
 
   const displayValue = isAllCompanies ? "__all__" : (activeCompanyId || "");
 
@@ -32,7 +33,7 @@ export function CompanySelector() {
           <SelectValue placeholder="Velg selskap" />
         </SelectTrigger>
         <SelectContent>
-          {hasMultipleCompanies && (
+          {companies.length > 1 && (
             <SelectItem value="__all__">
               <span className="flex items-center gap-1.5">
                 <Globe className="h-3 w-3" />
