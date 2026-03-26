@@ -187,7 +187,31 @@ export default function PeoplePage() {
             Samlet oversikt over ansatte og brukere
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
+          {/* Superadmin: local company filter */}
+          {isSuperAdmin && (
+            <Select value={localCompanyFilter} onValueChange={setLocalCompanyFilter}>
+              <SelectTrigger className="w-[200px] h-9 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">
+                  <span className="flex items-center gap-1.5">
+                    <Globe className="h-3 w-3" />
+                    Alle selskaper
+                  </span>
+                </SelectItem>
+                {allCompanies.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    <span className="flex items-center gap-1.5">
+                      <Building className="h-3 w-3" />
+                      {c.name}
+                    </span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
           <div className="relative">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
