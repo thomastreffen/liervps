@@ -582,19 +582,20 @@ export const ResourceCalendar = memo(function ResourceCalendar({
       const techFirstName = ab.technicianName?.split(" ")[0] || "";
 
       if (ab.isFullDay) {
-        // Render as all-day event
+        // Render full-day absence as a normal working-day block inside the day grid,
+        // not in FullCalendar's all-day row, so it becomes visible in resource planning.
         const dayStart = new Date(ab.date);
-        dayStart.setHours(7, 0, 0, 0);
+        dayStart.setHours(operatingStartHour, 0, 0, 0);
         const dayEnd = new Date(ab.date);
-        dayEnd.setHours(16, 0, 0, 0);
+        dayEnd.setHours(operatingEndHour, 0, 0, 0);
 
         result.push({
           id: ab.id,
           title: `${ab.label} – ${techFirstName}`,
           start: dayStart,
           end: dayEnd,
-          allDay: true,
-          backgroundColor: hexToRgba(colors.bg, 0.85),
+          allDay: false,
+          backgroundColor: hexToRgba(colors.bg, 0.9),
           borderColor: colors.border,
           textColor: colors.text,
           editable: false,
