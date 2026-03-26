@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import DOMPurify from "dompurify";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -40,6 +40,9 @@ import {
   ReceiptText,
   Hammer,
   ArrowRightLeft,
+  Trash2,
+  Wifi,
+  WifiOff,
 } from "lucide-react";
 import { PlanJobDialog } from "@/components/PlanJobDialog";
 import { CaseAssignmentBanner } from "@/components/cases/CaseAssignmentBanner";
@@ -187,6 +190,8 @@ const NEXT_ACTION_ICONS: Record<CaseNextAction, React.ElementType> = {
 };
 
 // ─── Main Page ───────────────────────────────
+const AUTO_SYNC_INTERVAL_MS = 3 * 60 * 1000; // 3 minutes
+
 export default function InboxPage() {
   const navigate = useNavigate();
   const { user, isAdmin } = useAuth();
@@ -201,6 +206,9 @@ export default function InboxPage() {
   const [selectedMailbox, setSelectedMailbox] = useState<string>("all");
   const [companyUsers, setCompanyUsers] = useState<{ id: string; name: string }[]>([]);
   const [assigningTo, setAssigningTo] = useState<string | null>(null);
+  const [lastSyncAt, setLastSyncAt] = useState<Date | null>(null);
+  const [autoSyncActive, setAutoSyncActive] = useState(true);
+  const autoSyncRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const selectedCase = cases.find((c) => c.id === selectedId);
   const selectedItems = items.filter((i) => i.case_id === selectedId);
@@ -224,6 +232,7 @@ export default function InboxPage() {
     let query = supabase
       .from("cases")
       .select("*")
+      .is("deleted_at", null)
       .not("status", "eq", "archived")
       .order("updated_at", { ascending: false })
       .limit(200);
@@ -258,22 +267,72 @@ export default function InboxPage() {
     if (selectedId) fetchItems(selectedId);
   }, [selectedId, fetchItems]);
 
-  const syncInbox = async () => {
+  const syncInbox = useCallback(async (silent = false) => {
     setSyncing(true);
     try {
       const { data, error } = await supabase.functions.invoke("inbox-sync");
       if (error) throw error;
       if (data?.ms_reauth) {
-        toast.error("Microsoft-tilkobling må fornyes. Gå til Integrasjoner.");
+        if (!silent) toast.error("Microsoft-tilkobling må fornyes. Gå til Integrasjoner.");
         return;
       }
-      toast.success(`Synkronisert! ${data?.new_cases || 0} nye henvendelser, ${data?.new_items || 0} nye meldinger.`);
+      setLastSyncAt(new Date());
+      const newCases = data?.new_cases || 0;
+      const newItems = data?.new_items || 0;
+      if (!silent) {
+        toast.success(`Synkronisert! ${newCases} nye henvendelser, ${newItems} nye meldinger.`);
+      } else if (newCases > 0 || newItems > 0) {
+        toast.info(`${newCases} nye henvendelser, ${newItems} nye meldinger`);
+      }
       await fetchCases();
     } catch (err: any) {
-      toast.error("Synkronisering feilet: " + (err.message || "Ukjent feil"));
+      if (!silent) toast.error("Synkronisering feilet: " + (err.message || "Ukjent feil"));
+      console.error("Inbox sync error:", err);
     } finally {
       setSyncing(false);
     }
+  }, [fetchCases]);
+
+  // Auto-sync interval
+  useEffect(() => {
+    if (!autoSyncActive) {
+      if (autoSyncRef.current) clearInterval(autoSyncRef.current);
+      autoSyncRef.current = null;
+      return;
+    }
+    // Initial silent sync on mount
+    syncInbox(true);
+    autoSyncRef.current = setInterval(() => {
+      syncInbox(true);
+    }, AUTO_SYNC_INTERVAL_MS);
+    return () => {
+      if (autoSyncRef.current) clearInterval(autoSyncRef.current);
+    };
+  }, [autoSyncActive, syncInbox]);
+
+  // Realtime subscription for cases
+  useEffect(() => {
+    const channel = supabase
+      .channel("cases-realtime")
+      .on("postgres_changes", {
+        event: "*",
+        schema: "public",
+        table: "cases",
+      }, () => fetchCases())
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [fetchCases]);
+
+  const softDeleteCase = async (c: Case) => {
+    if (!user) return;
+    if (!confirm(`Er du sikker på at du vil slette sak "${c.title || c.case_number}"?`)) return;
+    await supabase.from("cases").update({
+      deleted_at: new Date().toISOString(),
+      deleted_by: user.id,
+    } as any).eq("id", c.id);
+    setCases(prev => prev.filter(x => x.id !== c.id));
+    if (selectedId === c.id) setSelectedId(null);
+    toast.success("Sak slettet");
   };
 
   const openCase = (c: Case) => {
@@ -583,10 +642,30 @@ export default function InboxPage() {
                 ))}
               </SelectContent>
             </Select>
-            <Button onClick={syncInbox} disabled={syncing} variant="outline" size="sm">
-              <RefreshCw className={`h-4 w-4 mr-2 ${syncing ? "animate-spin" : ""}`} />
-              {syncing ? "Synkroniserer..." : "Synk e-post"}
-            </Button>
+            <div className="flex items-center gap-2">
+              {/* Auto-sync indicator */}
+              <button
+                onClick={() => setAutoSyncActive(prev => !prev)}
+                className={`flex items-center gap-1.5 text-xs px-2 py-1 rounded-md border transition-colors ${
+                  autoSyncActive
+                    ? "border-primary/30 bg-primary/5 text-primary"
+                    : "border-border text-muted-foreground"
+                }`}
+                title={autoSyncActive ? "Auto-synk aktiv (hvert 3. min) – klikk for å deaktivere" : "Auto-synk deaktivert – klikk for å aktivere"}
+              >
+                {autoSyncActive ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
+                {autoSyncActive ? "Auto" : "Av"}
+              </button>
+              {lastSyncAt && (
+                <span className="text-[10px] text-muted-foreground whitespace-nowrap">
+                  Sist: {formatDistanceToNow(lastSyncAt, { addSuffix: true, locale: nb })}
+                </span>
+              )}
+              <Button onClick={() => syncInbox(false)} disabled={syncing} variant="outline" size="sm">
+                <RefreshCw className={`h-4 w-4 mr-2 ${syncing ? "animate-spin" : ""}`} />
+                {syncing ? "Synkroniserer..." : "Synk e-post"}
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -654,7 +733,7 @@ export default function InboxPage() {
               <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
                 <Mail className="h-10 w-10 mb-3 opacity-40" />
                 <p className="text-sm font-medium">Ingen saker</p>
-                <p className="text-xs mt-1">Klikk «Synk e-post» for å hente fra postboksen</p>
+                <p className="text-xs mt-1">{autoSyncActive ? "Auto-synk er aktiv – nye saker vil dukke opp automatisk" : "Slå på auto-synk eller klikk «Synk e-post»"}</p>
               </div>
             ) : (() => {
               // When searching, group results by bucket
@@ -808,6 +887,7 @@ export default function InboxPage() {
               onConvertProject={() => convertToProject(selectedCase)}
               onConvertLead={() => convertToLead(selectedCase)}
               onArchive={() => archiveCase(selectedCase)}
+              onDelete={() => softDeleteCase(selectedCase)}
               onCaseUpdated={() => { fetchCases(); fetchItems(selectedCase.id); }}
               companyUsers={companyUsers}
               currentUserId={user?.id || ""}
@@ -883,6 +963,7 @@ function CaseDetail({
   onConvertProject,
   onConvertLead,
   onArchive,
+  onDelete,
   onCaseUpdated,
   companyUsers,
   currentUserId,
@@ -898,6 +979,7 @@ function CaseDetail({
   onConvertProject: () => void;
   onConvertLead: () => void;
   onArchive: () => void;
+  onDelete: () => void;
   onCaseUpdated: () => void;
   companyUsers: { id: string; name: string }[];
   currentUserId: string;
@@ -1125,6 +1207,10 @@ function CaseDetail({
               <Button size="sm" variant="ghost" onClick={onArchive} className="gap-1.5 text-muted-foreground">
                 <Lock className="h-4 w-4" />
                 Arkiver
+              </Button>
+              <Button size="sm" variant="ghost" onClick={onDelete} className="gap-1.5 text-destructive hover:text-destructive">
+                <Trash2 className="h-4 w-4" />
+                Slett
               </Button>
             </div>
           </Card>
