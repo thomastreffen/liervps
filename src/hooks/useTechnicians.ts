@@ -13,9 +13,10 @@ export interface TechnicianInfo {
  * Fetches plannable technicians.
  * Uses employment_profiles.is_plannable_resource as the per-company source of truth.
  * If companyId is provided, returns only technicians plannable in that company.
- * If companyId is null/undefined, returns all technicians plannable in ANY company.
+ * If companyId is null/undefined, returns technicians plannable in any of the allowedCompanyIds.
+ * allowedCompanyIds restricts results to only companies the user has access to.
  */
-export function useTechnicians(companyId?: string | null) {
+export function useTechnicians(companyId?: string | null, allowedCompanyIds?: string[]) {
   const [technicians, setTechnicians] = useState<TechnicianInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const prevKey = useRef<string>("");
