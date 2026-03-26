@@ -117,7 +117,7 @@ export default function ResourcePlan() {
   const navigate = useNavigate();
   const { isAdmin, isSuperAdmin } = useAuth();
   const { hasPermission } = usePermissions();
-  const { activeCompanyId } = useCompanyContext();
+  const { activeCompanyId, allowedCompanyIds } = useCompanyContext();
   const canReadBusy = hasPermission("calendar.read_busy");
   const canViewExternal = hasPermission("calendar.view_external");
   const canPlanResources = hasPermission("resource_plan.plan_resources") || hasPermission("resourceplan.schedule");
