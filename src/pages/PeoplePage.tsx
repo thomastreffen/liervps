@@ -76,7 +76,7 @@ export default function PeoplePage() {
       { data: accounts },
       { data: userRoles },
       { data: roles },
-      { data: companies: compsData },
+      { data: compsData },
       { data: departments },
     ] = await Promise.all([
       supabase.from("people").select("id, full_name, email, is_active, created_at").order("full_name"),
