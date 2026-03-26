@@ -1,4 +1,6 @@
 import { useRef, useCallback, useMemo, useEffect, useState, memo } from "react";
+import type { AbsenceBlock } from "@/hooks/useAbsenceBlocks";
+import { CalendarOff } from "lucide-react";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
