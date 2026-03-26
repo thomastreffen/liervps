@@ -67,6 +67,8 @@ export function useCalendarEvents(technicianId: string | null, referenceDate?: D
 
       if (companyId) {
         query = query.eq("company_id", companyId);
+      } else if (allowedCompanyIds && allowedCompanyIds.length > 0) {
+        query = query.in("company_id", allowedCompanyIds);
       }
 
       const { data, error } = await query;
