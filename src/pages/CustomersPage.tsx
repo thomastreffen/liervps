@@ -70,6 +70,7 @@ export default function CustomersPage() {
         .not("customer_id", "is", null)
         .is("deleted_at", null);
       if (activeCompanyId) projectQuery = projectQuery.eq("company_id", activeCompanyId);
+      else if (allowedCompanyIds.length > 0) projectQuery = projectQuery.in("company_id", allowedCompanyIds);
       const { data: projectCounts } = await projectQuery;
 
       const countMap = new Map<string, number>();
