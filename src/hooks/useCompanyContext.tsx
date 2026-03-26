@@ -30,7 +30,7 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
   const [activeCompanyId, setActiveCompanyIdState] = useState<string | null>(null);
   const [isAllCompanies, setIsAllCompanies] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [userMemberships, setUserMemberships] = useState<{ company_id: string; department_id: string | null }[]>([]);
+  const [userMemberships, setUserMemberships] = useState<{ company_id: string; department_id: string | null; role_id: string | null }[]>([]);
 
   useEffect(() => {
     if (!user) {
