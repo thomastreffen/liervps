@@ -128,7 +128,7 @@ export function usePermissions(): PermissionState {
         merged[(o as any).permission_key] = (o as any).allowed;
       }
 
-      // 5. Apply v2 overrides if user_account exists
+      // 5. Apply v2 overrides if user_account exists (scoped to activeCompanyId)
       const { data: ua2 } = await supabase
         .from("user_accounts")
         .select("id")
@@ -137,13 +137,18 @@ export function usePermissions(): PermissionState {
         .maybeSingle();
 
       if (ua2) {
+        // Fetch all v2 overrides for this user
         const { data: v2Overrides } = await supabase
           .from("user_permission_overrides_v2")
-          .select("permission_key, mode")
+          .select("permission_key, mode, scope_company_id")
           .eq("user_account_id", ua2.id);
 
         for (const o of v2Overrides || []) {
-          merged[(o as any).permission_key] = (o as any).mode === "allow";
+          const ov = o as any;
+          // Apply if: global override (no company) OR matches active company
+          if (!ov.scope_company_id || ov.scope_company_id === activeCompanyId) {
+            merged[ov.permission_key] = ov.mode === "allow";
+          }
         }
       }
 
