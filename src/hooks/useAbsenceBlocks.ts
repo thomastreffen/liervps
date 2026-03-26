@@ -131,9 +131,7 @@ export function useAbsenceBlocks(
       const result: AbsenceBlock[] = [];
 
       for (const absence of absences) {
-        const authUserId = personToAuth.get(absence.person_id);
-        if (!authUserId) continue;
-        const tech = authToTech.get(authUserId);
+        const tech = personToTech.get(absence.person_id);
         if (!tech) continue;
 
         // Filter by technician if specified
