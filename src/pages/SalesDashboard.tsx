@@ -23,7 +23,7 @@ interface KpiItem {
 
 export default function SalesDashboard() {
   const nav = useNavigate();
-  const { activeCompanyId } = useCompanyContext();
+  const { activeCompanyId, allowedCompanyIds } = useCompanyContext();
   const [recentOffers, setRecentOffers] = useState<RecentOffer[]>([]);
   const [actions, setActions] = useState<ActionItem[]>([]);
   const [loading, setLoading] = useState(true);
