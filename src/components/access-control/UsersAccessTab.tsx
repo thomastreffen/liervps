@@ -245,18 +245,15 @@ export function UsersAccessTab() {
                     <Badge key={i} variant="outline" className="text-[10px] gap-1">
                       <Building className="h-3 w-3" />
                       {m.company_name}{m.department_name ? ` / ${m.department_name}` : ""}
-                      {m.role_name && (
+                      {m.role_name ? (
                         <span className="ml-0.5 text-primary font-medium">({m.role_name})</span>
+                      ) : (
+                        <span className="ml-0.5 text-muted-foreground italic">
+                          ({u.global_role_assignments[0]?.role_name || "Ingen rolle"} ↩)
+                        </span>
                       )}
                     </Badge>
                   ))}
-                  {u.global_role_assignments.length > 0 && !u.memberships.some(m => m.role_id) && (
-                    u.global_role_assignments.map((r) => (
-                      <Badge key={r.role_id} variant="secondary" className="text-[10px] gap-1">
-                        <Shield className="h-3 w-3" />{r.role_name} <span className="text-muted-foreground">(global)</span>
-                      </Badge>
-                    ))
-                  )}
                   {u.overrides.length > 0 && (
                     <Badge variant="destructive" className="text-[10px] gap-1">
                       <ShieldAlert className="h-3 w-3" />{u.overrides.length} overstyringer
