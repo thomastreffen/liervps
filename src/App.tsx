@@ -462,6 +462,7 @@ const App = () => (
             <Route path="*" element={<NotFound />} />
           </Routes>
           </PreviewModeProvider>
+          </PermissionCompanyBridge>
           </CompanyProvider>
         </AuthProvider>
       </BrowserRouter>
