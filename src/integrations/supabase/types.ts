@@ -6014,6 +6014,85 @@ export type Database = {
           },
         ]
       }
+      order_form_catalog_settings: {
+        Row: {
+          company_id: string
+          contact_info: string | null
+          help_text: string | null
+          id: string
+          is_active: boolean | null
+          subtitle: string | null
+          title: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          company_id: string
+          contact_info?: string | null
+          help_text?: string | null
+          id?: string
+          is_active?: boolean | null
+          subtitle?: string | null
+          title?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          company_id?: string
+          contact_info?: string | null
+          help_text?: string | null
+          id?: string
+          is_active?: boolean | null
+          subtitle?: string | null
+          title?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_form_catalog_settings_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: true
+            referencedRelation: "internal_companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      order_form_categories: {
+        Row: {
+          company_id: string
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          slug: string
+          sort_order: number | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          slug: string
+          sort_order?: number | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          slug?: string
+          sort_order?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_form_categories_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "internal_companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       order_form_comments: {
         Row: {
           body: string
@@ -6131,6 +6210,9 @@ export type Database = {
       order_form_submissions: {
         Row: {
           assigned_to: string | null
+          channel: string | null
+          closed_at: string | null
+          closed_by: string | null
           company_id: string
           confirmation_sent_at: string | null
           converted_to_id: string | null
@@ -6139,6 +6221,8 @@ export type Database = {
           deleted_at: string | null
           deleted_by: string | null
           id: string
+          last_activity_at: string | null
+          linked_case_id: string | null
           linked_customer_id: string | null
           linked_project_id: string | null
           notification_error: string | null
@@ -6152,12 +6236,18 @@ export type Database = {
           submission_no: string
           submitted_at: string
           submitted_by: string | null
+          submitter_email: string | null
+          submitter_name: string | null
+          submitter_user_id: string | null
           summary: Json | null
           template_id: string
           updated_at: string
         }
         Insert: {
           assigned_to?: string | null
+          channel?: string | null
+          closed_at?: string | null
+          closed_by?: string | null
           company_id: string
           confirmation_sent_at?: string | null
           converted_to_id?: string | null
@@ -6166,6 +6256,8 @@ export type Database = {
           deleted_at?: string | null
           deleted_by?: string | null
           id?: string
+          last_activity_at?: string | null
+          linked_case_id?: string | null
           linked_customer_id?: string | null
           linked_project_id?: string | null
           notification_error?: string | null
@@ -6179,12 +6271,18 @@ export type Database = {
           submission_no?: string
           submitted_at?: string
           submitted_by?: string | null
+          submitter_email?: string | null
+          submitter_name?: string | null
+          submitter_user_id?: string | null
           summary?: Json | null
           template_id: string
           updated_at?: string
         }
         Update: {
           assigned_to?: string | null
+          channel?: string | null
+          closed_at?: string | null
+          closed_by?: string | null
           company_id?: string
           confirmation_sent_at?: string | null
           converted_to_id?: string | null
@@ -6193,6 +6291,8 @@ export type Database = {
           deleted_at?: string | null
           deleted_by?: string | null
           id?: string
+          last_activity_at?: string | null
+          linked_case_id?: string | null
           linked_customer_id?: string | null
           linked_project_id?: string | null
           notification_error?: string | null
@@ -6206,6 +6306,9 @@ export type Database = {
           submission_no?: string
           submitted_at?: string
           submitted_by?: string | null
+          submitter_email?: string | null
+          submitter_name?: string | null
+          submitter_user_id?: string | null
           summary?: Json | null
           template_id?: string
           updated_at?: string
@@ -6216,6 +6319,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "internal_companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_form_submissions_linked_case_id_fkey"
+            columns: ["linked_case_id"]
+            isOneToOne: false
+            referencedRelation: "cases"
             referencedColumns: ["id"]
           },
           {
@@ -6350,13 +6460,19 @@ export type Database = {
         Row: {
           audience_type: string
           category: string | null
+          category_id: string | null
           company_id: string
           confirmation_text: string | null
           created_at: string
           created_by: string | null
+          default_handling_rule: string | null
+          default_priority: string | null
+          default_status: string | null
           description: string | null
+          external_help_text: string | null
           external_title: string | null
           id: string
+          internal_help_text: string | null
           internal_title: string | null
           is_active: boolean
           name: string
@@ -6370,13 +6486,19 @@ export type Database = {
         Insert: {
           audience_type?: string
           category?: string | null
+          category_id?: string | null
           company_id: string
           confirmation_text?: string | null
           created_at?: string
           created_by?: string | null
+          default_handling_rule?: string | null
+          default_priority?: string | null
+          default_status?: string | null
           description?: string | null
+          external_help_text?: string | null
           external_title?: string | null
           id?: string
+          internal_help_text?: string | null
           internal_title?: string | null
           is_active?: boolean
           name: string
@@ -6390,13 +6512,19 @@ export type Database = {
         Update: {
           audience_type?: string
           category?: string | null
+          category_id?: string | null
           company_id?: string
           confirmation_text?: string | null
           created_at?: string
           created_by?: string | null
+          default_handling_rule?: string | null
+          default_priority?: string | null
+          default_status?: string | null
           description?: string | null
+          external_help_text?: string | null
           external_title?: string | null
           id?: string
+          internal_help_text?: string | null
           internal_title?: string | null
           is_active?: boolean
           name?: string
@@ -6408,6 +6536,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "order_form_templates_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "order_form_categories"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "order_form_templates_company_id_fkey"
             columns: ["company_id"]

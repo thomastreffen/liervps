@@ -71,14 +71,22 @@ export interface OrderFormTemplate {
   name: string;
   slug: string;
   category: string | null;
+  category_id: string | null;
   audience_type: "internal" | "external" | "both";
   internal_title: string | null;
   external_title: string | null;
   description: string | null;
+  internal_help_text: string | null;
+  external_help_text: string | null;
   confirmation_text: string | null;
   send_email_to: string[] | null;
   on_submit_action: "queue" | "create_case" | "create_task";
+  default_status: string;
+  default_priority: string;
+  default_handling_rule: string;
   is_active: boolean;
+  requires_login: boolean;
+  show_in_catalog: boolean;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -115,30 +123,34 @@ export interface OrderFormField {
   created_at: string;
 }
 
-// ── Submission ──
+// ── Submission / Ticket Status Model ──
 
 export type OrderFormSubmissionStatus =
   | "new"
+  | "under_review"
   | "missing_info"
-  | "ready_for_review"
+  | "waiting_customer"
+  | "waiting_internal"
+  | "ready_for_planning"
+  | "task_created"
   | "in_progress"
-  | "planned"
-  | "converted"
-  | "rejected"
-  | "closed";
+  | "closed"
+  | "rejected";
 
 export const ORDER_STATUS_CONFIG: Record<
   OrderFormSubmissionStatus,
   { label: string; color: string; dotClass: string }
 > = {
-  new: { label: "Ny bestilling", color: "bg-blue-100 text-blue-800", dotClass: "bg-blue-500" },
+  new: { label: "Ny", color: "bg-blue-100 text-blue-800", dotClass: "bg-blue-500" },
+  under_review: { label: "Til vurdering", color: "bg-indigo-100 text-indigo-800", dotClass: "bg-indigo-500" },
   missing_info: { label: "Mangler info", color: "bg-amber-100 text-amber-800", dotClass: "bg-amber-500" },
-  ready_for_review: { label: "Klar for vurdering", color: "bg-indigo-100 text-indigo-800", dotClass: "bg-indigo-500" },
-  in_progress: { label: "Under behandling", color: "bg-purple-100 text-purple-800", dotClass: "bg-purple-500" },
-  planned: { label: "Planlagt", color: "bg-cyan-100 text-cyan-800", dotClass: "bg-cyan-500" },
-  converted: { label: "Konvertert til oppdrag", color: "bg-green-100 text-green-800", dotClass: "bg-green-500" },
-  rejected: { label: "Avvist", color: "bg-red-100 text-red-800", dotClass: "bg-red-500" },
+  waiting_customer: { label: "Venter kunde", color: "bg-orange-100 text-orange-800", dotClass: "bg-orange-500" },
+  waiting_internal: { label: "Venter internt", color: "bg-yellow-100 text-yellow-800", dotClass: "bg-yellow-500" },
+  ready_for_planning: { label: "Klar for planlegging", color: "bg-cyan-100 text-cyan-800", dotClass: "bg-cyan-500" },
+  task_created: { label: "Oppgave opprettet", color: "bg-teal-100 text-teal-800", dotClass: "bg-teal-500" },
+  in_progress: { label: "Under arbeid", color: "bg-purple-100 text-purple-800", dotClass: "bg-purple-500" },
   closed: { label: "Lukket", color: "bg-muted text-muted-foreground", dotClass: "bg-muted-foreground" },
+  rejected: { label: "Avvist", color: "bg-red-100 text-red-800", dotClass: "bg-red-500" },
 };
 
 export const ORDER_PRIORITY_CONFIG: Record<string, { label: string; color: string }> = {
@@ -146,6 +158,14 @@ export const ORDER_PRIORITY_CONFIG: Record<string, { label: string; color: strin
   high: { label: "Høy", color: "bg-orange-100 text-orange-800" },
   normal: { label: "Normal", color: "bg-muted text-muted-foreground" },
   low: { label: "Lav", color: "bg-muted text-muted-foreground" },
+};
+
+export const CHANNEL_LABELS: Record<string, string> = {
+  public_form: "Offentlig skjema",
+  internal_form: "Internt skjema",
+  logged_in_user: "Innlogget bruker",
+  email: "E-post",
+  manual: "Manuell",
 };
 
 export interface OrderFormSubmission {
@@ -160,13 +180,21 @@ export interface OrderFormSubmission {
   submitted_at: string;
   linked_customer_id: string | null;
   linked_project_id: string | null;
+  linked_case_id: string | null;
   assigned_to: string | null;
   priority: string;
+  channel: string;
+  submitter_name: string | null;
+  submitter_email: string | null;
+  submitter_user_id: string | null;
   summary: Record<string, any> | null;
+  last_activity_at: string | null;
+  closed_at: string | null;
   created_at: string;
   updated_at: string;
   // Joined
   template?: OrderFormTemplate;
+  order_form_templates?: { name: string; slug: string; category?: string | null };
 }
 
 export interface OrderFormSubmissionValue {
@@ -211,6 +239,31 @@ export interface OrderFormActivityEntry {
 
 export interface OrderFormTemplateWithStructure extends OrderFormTemplate {
   sections: (OrderFormSection & { fields: OrderFormField[] })[];
+}
+
+// ── Category ──
+
+export interface OrderFormCategory {
+  id: string;
+  company_id: string;
+  name: string;
+  slug: string;
+  sort_order: number;
+  is_active: boolean;
+  created_at: string;
+}
+
+// ── Catalog Settings ──
+
+export interface OrderFormCatalogSettings {
+  id: string;
+  company_id: string;
+  title: string;
+  subtitle: string;
+  help_text: string | null;
+  contact_info: string | null;
+  is_active: boolean;
+  updated_at: string;
 }
 
 // ── "Bestill service" default sections ──

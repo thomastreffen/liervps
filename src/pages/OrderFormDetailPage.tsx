@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   ArrowLeft, MessageSquare, Clock, Paperclip, AlertTriangle,
   ArrowRight, FileText, Download, Mail, MailCheck, MailX, ExternalLink, UserPlus,
+  Tag, User, LinkIcon, X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +15,7 @@ import { toast } from "sonner";
 import {
   ORDER_STATUS_CONFIG,
   ORDER_PRIORITY_CONFIG,
+  CHANNEL_LABELS,
   type OrderFormSubmissionStatus,
 } from "@/types/order-forms";
 import { format } from "date-fns";
@@ -267,7 +269,7 @@ export default function OrderFormDetailPage() {
 
   return (
     <div className="space-y-6 p-6 max-w-6xl mx-auto">
-      {/* Header */}
+      {/* Ticket header */}
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="icon" onClick={() => navigate("/orders")}>
           <ArrowLeft className="h-4 w-4" />
@@ -280,36 +282,68 @@ export default function OrderFormDetailPage() {
               <Badge className={priorityConfig.color}>{priorityConfig.label}</Badge>
             )}
             <QualityBadge score={qualityResult.score} />
+            {sub.order_form_templates?.category && (
+              <Badge variant="outline" className="text-[10px] gap-1">
+                <Tag className="h-2.5 w-2.5" />
+                {sub.order_form_templates.category}
+              </Badge>
+            )}
           </div>
           <p className="text-sm text-muted-foreground mt-0.5">
             {sub.order_form_templates?.name} ·{" "}
             {format(new Date(submission.submitted_at), "d. MMMM yyyy HH:mm", { locale: nb })}
-            {submission.requester_type === "internal" && " · Intern bestilling"}
+            {(sub as any).channel && ` · ${CHANNEL_LABELS[(sub as any).channel] || (sub as any).channel}`}
           </p>
         </div>
       </div>
 
-      {/* Top summary bar */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+      {/* Ticket info bar */}
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 p-3 rounded-lg bg-muted/30 border">
         {[
-          { label: "Kunde", value: (submission.summary as any)?.kundenavn },
-          { label: "Oppdrag", value: (submission.summary as any)?.oppdragstittel },
-          { label: "Hastegrad", value: (submission.summary as any)?.hastegrad },
-          { label: "Type", value: submission.requester_type === "internal" ? "Intern" : "Ekstern" },
-          { label: "Status", value: statusConfig?.label },
-          { label: "Bestiller", value: (submission.summary as any)?.bestiller_navn },
+          { label: "Innsender", value: (sub as any).submitter_name || (submission.summary as any)?.bestiller_navn || "–" },
+          { label: "E-post", value: (sub as any).submitter_email || bestillerEpost || "–" },
+          { label: "Kunde", value: (submission.summary as any)?.kundenavn || "–" },
+          { label: "Oppdrag", value: (submission.summary as any)?.oppdragstittel || "–" },
+          { label: "Hastegrad", value: (submission.summary as any)?.hastegrad || "–" },
+          { label: "Kanal", value: CHANNEL_LABELS[(sub as any).channel] || "–" },
+          { label: "Ansvarlig", value: sub.assigned_to ? "Tildelt" : "Ikke tildelt" },
         ].map(({ label, value }) => (
           <div key={label} className="text-sm">
-            <span className="text-muted-foreground text-xs">{label}</span>
-            <p className="font-medium truncate">{value || "–"}</p>
+            <span className="text-muted-foreground text-[10px] uppercase tracking-wider">{label}</span>
+            <p className="font-medium truncate text-xs">{value}</p>
           </div>
         ))}
       </div>
 
+      {/* Linked entities */}
+      {(sub.converted_to_id || sub.linked_case_id) && (
+        <div className="flex flex-wrap gap-2">
+          {sub.converted_to_id && (
+            <Badge variant="outline" className="text-[10px] gap-1 cursor-pointer hover:bg-muted" onClick={() => {
+              const url = sub.converted_to_type === "case"
+                ? `/cases/${sub.converted_to_id}`
+                : `/projects/plan?openTask=${sub.converted_to_id}`;
+              navigate(url);
+            }}>
+              <LinkIcon className="h-2.5 w-2.5" />
+              {sub.converted_to_type === "case" ? "Sak" : "Oppgave"} koblet
+              <ExternalLink className="h-2.5 w-2.5" />
+            </Badge>
+          )}
+          {sub.linked_case_id && (
+            <Badge variant="outline" className="text-[10px] gap-1 cursor-pointer hover:bg-muted" onClick={() => navigate(`/inbox`)}>
+              <LinkIcon className="h-2.5 w-2.5" />
+              Postkontor-sak
+              <ExternalLink className="h-2.5 w-2.5" />
+            </Badge>
+          )}
+        </div>
+      )}
+
       {/* Quick actions */}
       <div className="flex flex-wrap gap-2">
         <Select value={submission.status} onValueChange={(v) => updateStatus.mutate(v)}>
-          <SelectTrigger className="w-48">
+          <SelectTrigger className="w-52">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -322,17 +356,17 @@ export default function OrderFormDetailPage() {
           <AlertTriangle className="h-3.5 w-3.5 mr-1" />
           Be om mer info
         </Button>
+        <Button variant="outline" size="sm" onClick={() => setAssignTaskOpen(true)}>
+          <UserPlus className="h-3.5 w-3.5 mr-1" />
+          Opprett oppgave
+        </Button>
         <Button variant="outline" size="sm" onClick={() => setConvertOpen(true)} disabled={!!sub.converted_to_id}>
           <ArrowRight className="h-3.5 w-3.5 mr-1" />
-          Konverter
+          Konverter til sak
         </Button>
         <Button variant="outline" size="sm" onClick={() => setTripletexOpen(true)}>
           <Download className="h-3.5 w-3.5 mr-1" />
           Tripletex
-        </Button>
-        <Button variant="outline" size="sm" onClick={() => setAssignTaskOpen(true)}>
-          <UserPlus className="h-3.5 w-3.5 mr-1" />
-          Tildel ressursoppgave
         </Button>
         <Button
           variant="outline" size="sm"
@@ -340,7 +374,7 @@ export default function OrderFormDetailPage() {
           disabled={sendNotification.isPending}
         >
           <Mail className="h-3.5 w-3.5 mr-1" />
-          {hasNotification ? "Send varsling på nytt" : "Send varsling manuelt"}
+          {hasNotification ? "Send varsling på nytt" : "Send varsling"}
         </Button>
         {bestillerEpost && !hasConfirmation && (
           <Button
@@ -351,6 +385,17 @@ export default function OrderFormDetailPage() {
             <MailCheck className="h-3.5 w-3.5 mr-1" />
             Send bekreftelse
           </Button>
+        )}
+        {submission.status !== "closed" && submission.status !== "rejected" && (
+          <>
+            <Button variant="outline" size="sm" onClick={() => updateStatus.mutate("closed")} className="text-muted-foreground">
+              <X className="h-3.5 w-3.5 mr-1" />
+              Lukk
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => updateStatus.mutate("rejected")} className="text-destructive hover:text-destructive">
+              Avvis
+            </Button>
+          </>
         )}
       </div>
 
