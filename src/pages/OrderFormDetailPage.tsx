@@ -343,7 +343,7 @@ export default function OrderFormDetailPage() {
       {/* Quick actions */}
       <div className="flex flex-wrap gap-2">
         <Select value={submission.status} onValueChange={(v) => updateStatus.mutate(v)}>
-          <SelectTrigger className="w-48">
+          <SelectTrigger className="w-52">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -356,17 +356,17 @@ export default function OrderFormDetailPage() {
           <AlertTriangle className="h-3.5 w-3.5 mr-1" />
           Be om mer info
         </Button>
+        <Button variant="outline" size="sm" onClick={() => setAssignTaskOpen(true)}>
+          <UserPlus className="h-3.5 w-3.5 mr-1" />
+          Opprett oppgave
+        </Button>
         <Button variant="outline" size="sm" onClick={() => setConvertOpen(true)} disabled={!!sub.converted_to_id}>
           <ArrowRight className="h-3.5 w-3.5 mr-1" />
-          Konverter
+          Konverter til sak
         </Button>
         <Button variant="outline" size="sm" onClick={() => setTripletexOpen(true)}>
           <Download className="h-3.5 w-3.5 mr-1" />
           Tripletex
-        </Button>
-        <Button variant="outline" size="sm" onClick={() => setAssignTaskOpen(true)}>
-          <UserPlus className="h-3.5 w-3.5 mr-1" />
-          Tildel ressursoppgave
         </Button>
         <Button
           variant="outline" size="sm"
@@ -374,7 +374,7 @@ export default function OrderFormDetailPage() {
           disabled={sendNotification.isPending}
         >
           <Mail className="h-3.5 w-3.5 mr-1" />
-          {hasNotification ? "Send varsling på nytt" : "Send varsling manuelt"}
+          {hasNotification ? "Send varsling på nytt" : "Send varsling"}
         </Button>
         {bestillerEpost && !hasConfirmation && (
           <Button
@@ -385,6 +385,17 @@ export default function OrderFormDetailPage() {
             <MailCheck className="h-3.5 w-3.5 mr-1" />
             Send bekreftelse
           </Button>
+        )}
+        {submission.status !== "closed" && submission.status !== "rejected" && (
+          <>
+            <Button variant="outline" size="sm" onClick={() => updateStatus.mutate("closed")} className="text-muted-foreground">
+              <X className="h-3.5 w-3.5 mr-1" />
+              Lukk
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => updateStatus.mutate("rejected")} className="text-destructive hover:text-destructive">
+              Avvis
+            </Button>
+          </>
         )}
       </div>
 
