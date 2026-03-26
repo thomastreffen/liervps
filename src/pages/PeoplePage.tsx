@@ -348,7 +348,7 @@ export default function PeoplePage() {
                             try {
                               const { data: { session } } = await supabase.auth.getSession();
                               const res = await supabase.functions.invoke("create-person", {
-                                body: { full_name: person.full_name, email: person.email, company_id: activeCompanyId, send_invite: true },
+                                body: { full_name: person.full_name, email: person.email, company_id: effectiveCompanyId || activeCompanyId, send_invite: true },
                               });
                               if (res.error) throw res.error;
                               toast.success("Invitasjon sendt på nytt");
