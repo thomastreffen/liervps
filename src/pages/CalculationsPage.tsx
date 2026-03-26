@@ -49,6 +49,7 @@ export default function CalculationsPage() {
       .is("deleted_at", null)
       .order("created_at", { ascending: false });
     if (activeCompanyId) query = query.eq("company_id", activeCompanyId);
+    else if (allowedCompanyIds.length > 0) query = query.in("company_id", allowedCompanyIds);
     const { data } = await query;
     if (data) setCalcs(data as CalcRow[]);
     setLoading(false);
