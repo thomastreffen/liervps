@@ -55,6 +55,12 @@ interface UserAccountData {
 interface RoleOption { id: string; name: string; description?: string | null; }
 interface CompanyOption { id: string; name: string; departments: { id: string; name: string }[]; }
 
+interface MembershipRow {
+  company_id: string;
+  department_id: string | null;
+  role_id: string | null;
+}
+
 interface AuditEntry {
   id: string;
   action: string;
@@ -103,7 +109,9 @@ export default function PersonDetailPage() {
   const [rolePermSourceMap, setRolePermSourceMap] = useState<Record<string, string>>({});
   const [allRolePerms, setAllRolePerms] = useState<any[]>([]);
   const [allOverridesV2, setAllOverridesV2] = useState<any[]>([]);
+  const [membershipRoles, setMembershipRoles] = useState<Record<string, string | null>>({});
   const [overrideCompanyId, setOverrideCompanyId] = useState<string | null>(null);
+  const [effectiveRoleName, setEffectiveRoleName] = useState<string | null>(null);
 
   // Audit tab
   const [auditEntries, setAuditEntries] = useState<AuditEntry[]>([]);
@@ -157,33 +165,43 @@ export default function PersonDetailPage() {
       const ua = uaData as any;
       const [
         { data: urData },
-        { data: usData },
+        { data: membershipData },
         { data: uoData },
         { data: rpData },
         { data: auditData },
       ] = await Promise.all([
         supabase.from("user_roles_v2").select("role_id").eq("user_account_id", ua.id),
-        supabase.from("user_scopes").select("company_id, department_id").eq("user_account_id", ua.id),
+        supabase.from("user_memberships").select("company_id, department_id, role_id").eq("user_id", ua.auth_user_id).eq("is_active", true),
         supabase.from("user_permission_overrides_v2").select("permission_key, mode, scope_company_id").eq("user_account_id", ua.id),
         supabase.from("role_permissions").select("role_id, permission_key, allowed"),
         supabase.from("audit_log").select("*").eq("target_id", id).order("created_at", { ascending: false }).limit(50),
       ]);
 
       const assignedRoleIds = (urData as any[] || []).map((r: any) => r.role_id);
+      const memberships = (membershipData as MembershipRow[]) || [];
+      const membershipRoleMap = memberships.reduce<Record<string, string | null>>((acc, membership) => {
+        if (membership.department_id === null) {
+          acc[membership.company_id] = membership.role_id || null;
+        }
+        return acc;
+      }, {});
+
       setAssignedRoles(assignedRoleIds);
       setAllRolePerms((rpData as any[]) || []);
-      setScopes((usData as any[] || []).map((s: any) => ({ company_id: s.company_id, department_id: s.department_id })));
+      setScopes(memberships.map((membership) => ({ company_id: membership.company_id, department_id: membership.department_id })));
+      setMembershipRoles(membershipRoleMap);
 
       // Store all v2 overrides for per-company filtering
       const allOv = (uoData as any[] || []);
       setAllOverridesV2(allOv);
 
       // Set initial override company to first membership company
-      const firstCompanyId = overrideCompanyId || (usData as any[] || [])[0]?.company_id || null;
+      const firstCompanyId = overrideCompanyId || memberships[0]?.company_id || null;
       setOverrideCompanyId(firstCompanyId);
 
       // Build overrides filtered by selected company
       applyOverridesForCompany(allOv, firstCompanyId);
+      buildRolePermMaps(firstCompanyId, membershipRoleMap, assignedRoleIds, (rpData as any[]) || [], (rolesData as any[]) || []);
       setAuditEntries((auditData as any[]) || []);
     }
 
@@ -210,27 +228,52 @@ export default function PersonDetailPage() {
   const handleOverrideCompanyChange = (companyId: string) => {
     setOverrideCompanyId(companyId);
     applyOverridesForCompany(allOverridesV2, companyId);
+    buildRolePermMaps(companyId, membershipRoles, assignedRoles, allRolePerms, roles);
   };
 
-  const buildRolePermMaps = (assignedRoleIds: string[], rpData: any[], rolesData: any[]) => {
+  const buildRolePermMaps = (
+    companyId: string | null,
+    membershipRoleMap: Record<string, string | null>,
+    fallbackRoleIds: string[],
+    rpData: any[],
+    rolesData: any[]
+  ) => {
+    const companyRoleId = companyId ? membershipRoleMap[companyId] || null : null;
+    const effectiveRoleIds = companyRoleId ? [companyRoleId] : fallbackRoleIds;
     const rp: Record<string, boolean> = {};
     const srcMap: Record<string, string> = {};
     const roleNameMap = new Map((rolesData || []).map((r: any) => [r.id, r.name]));
+    const roleNames = effectiveRoleIds.map((roleId) => roleNameMap.get(roleId)).filter(Boolean);
+
     for (const p of (rpData || [])) {
-      if (assignedRoleIds.includes(p.role_id) && p.allowed) {
+      if (effectiveRoleIds.includes(p.role_id) && p.allowed) {
         rp[p.permission_key] = true;
         srcMap[p.permission_key] = roleNameMap.get(p.role_id) || "Rolle";
       }
     }
+
     setRolePermissions(rp);
     setRolePermSourceMap(srcMap);
+    setEffectiveRoleName(roleNames.length > 0 ? roleNames.join(", ") : null);
   };
 
   // When assignedRoles change locally, rebuild perm maps
   const handleAssignedRolesChange = useCallback((newRoles: string[]) => {
     setAssignedRoles(newRoles);
-    buildRolePermMaps(newRoles, allRolePerms, roles);
-  }, [allRolePerms, roles]);
+    buildRolePermMaps(overrideCompanyId, membershipRoles, newRoles, allRolePerms, roles);
+  }, [allRolePerms, membershipRoles, overrideCompanyId, roles]);
+
+  const handleSelectedCompanyRoleChange = useCallback((roleId: string | null) => {
+    if (!overrideCompanyId) return;
+
+    const nextMembershipRoles = {
+      ...membershipRoles,
+      [overrideCompanyId]: roleId,
+    };
+
+    setMembershipRoles(nextMembershipRoles);
+    buildRolePermMaps(overrideCompanyId, nextMembershipRoles, assignedRoles, allRolePerms, roles);
+  }, [allRolePerms, assignedRoles, membershipRoles, overrideCompanyId, roles]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -300,7 +343,12 @@ export default function PersonDetailPage() {
       await supabase.from("user_memberships").delete().eq("user_id", account.auth_user_id);
       if (scopes.length > 0) {
         await supabase.from("user_memberships").insert(
-          scopes.map((s) => ({ user_id: account.auth_user_id, company_id: s.company_id, department_id: s.department_id }))
+          scopes.map((s) => ({
+            user_id: account.auth_user_id,
+            company_id: s.company_id,
+            department_id: s.department_id,
+            role_id: s.department_id === null ? (membershipRoles[s.company_id] ?? null) : null,
+          }))
         );
       }
 
@@ -727,6 +775,9 @@ export default function PersonDetailPage() {
                 onSave={handleSaveAll}
                 overrideCompanyId={overrideCompanyId}
                 onOverrideCompanyChange={handleOverrideCompanyChange}
+                selectedCompanyRoleId={overrideCompanyId ? (membershipRoles[overrideCompanyId] ?? null) : null}
+                onSelectedCompanyRoleChange={handleSelectedCompanyRoleChange}
+                effectiveRoleName={effectiveRoleName}
               />
             </TabsContent>
           )}

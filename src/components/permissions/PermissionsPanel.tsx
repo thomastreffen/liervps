@@ -64,6 +64,9 @@ interface Props {
   showOnlyOverrides?: boolean;
   overrideCompanyId?: string | null;
   onOverrideCompanyChange?: (companyId: string) => void;
+  selectedCompanyRoleId?: string | null;
+  onSelectedCompanyRoleChange?: (roleId: string | null) => void;
+  effectiveRoleName?: string | null;
 }
 
 export function PermissionsPanel({
@@ -85,6 +88,9 @@ export function PermissionsPanel({
   onSave,
   overrideCompanyId,
   onOverrideCompanyChange,
+  selectedCompanyRoleId,
+  onSelectedCompanyRoleChange,
+  effectiveRoleName,
 }: Props) {
   const [search, setSearch] = useState("");
   const [onlyOverrides, setOnlyOverrides] = useState(false);
@@ -95,12 +101,17 @@ export function PermissionsPanel({
       const ov = overrides[key];
       if (ov === "allow") return { key, allowed: true, source: "override", overrideMode: "allow" };
       if (ov === "deny") return { key, allowed: false, source: "override", overrideMode: "deny" };
-      if (rolePermissions[key]) {
-        return { key, allowed: true, source: "role", roleName: rolePermSourceMap[key] || "Rolle" };
+      if (effectiveRoleName) {
+        return {
+          key,
+          allowed: rolePermissions[key] === true,
+          source: "role",
+          roleName: rolePermSourceMap[key] || effectiveRoleName,
+        };
       }
       return { key, allowed: false, source: "none" };
     },
-    [overrides, rolePermissions, rolePermSourceMap]
+    [effectiveRoleName, overrides, rolePermissions, rolePermSourceMap]
   );
 
   const handleCheckboxClick = useCallback(
@@ -181,6 +192,21 @@ export function PermissionsPanel({
   }, [search, onlyOverrides, overrides]);
 
   const overrideCount = Object.keys(overrides).length + (scopeOverride !== "inherit" ? 1 : 0);
+  const selectedCompanyIds = [...new Set(scopes.map((scope) => scope.company_id))];
+  const selectableCompanies = companies.filter((company) => selectedCompanyIds.includes(company.id));
+  const selectedCompany = companies.find((company) => company.id === overrideCompanyId) || selectableCompanies[0] || companies[0] || null;
+  const selectedCompanyName = selectedCompany?.name || "valgt selskap";
+  const selectedCompanyScope = scopes
+    .filter((scope) => scope.company_id === selectedCompany?.id)
+    .map((scope) => {
+      if (!scope.department_id) return "Hele selskapet";
+      const department = selectedCompany?.departments.find((item) => item.id === scope.department_id);
+      return department?.name || "Ukjent avdeling";
+    })
+    .join(", ");
+  const effectivePermissions = PERMISSION_CATEGORIES.flatMap((category) => category.keys).map(getEffective);
+  const allowedCount = effectivePermissions.filter((permission) => permission.allowed).length;
+  const deniedCount = effectivePermissions.length - allowedCount;
 
   const scopeDisplay = useMemo(() => {
     if (scopes.length === 0) return "Ingen tilgang konfigurert";
@@ -210,20 +236,20 @@ export function PermissionsPanel({
         <div className="rounded-lg border bg-muted/30 p-4 sm:p-5 space-y-2">
           <h3 className="text-sm font-semibold flex items-center gap-1.5">
             <Eye className="h-4 w-4 text-muted-foreground" />
-            Tilgangsoppsummering
+            Fasit for {selectedCompanyName}
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5 text-sm">
             <div className="flex gap-2">
-              <span className="text-muted-foreground">Rolle(r):</span>
-              <span className="font-medium">{roleNames}</span>
+              <span className="text-muted-foreground">Rollegrunnlag:</span>
+              <span className="font-medium">{effectiveRoleName || "Ingen rolle"}</span>
             </div>
             <div className="flex gap-2">
-              <span className="text-muted-foreground">Omfang:</span>
-              <span className="font-medium">{scopeDisplay}</span>
+              <span className="text-muted-foreground">Omfang i selskapet:</span>
+              <span className="font-medium">{selectedCompanyScope || "Ingen tilgang"}</span>
             </div>
             <div className="flex gap-2">
-              <span className="text-muted-foreground">Tilgangstype:</span>
-              <span className="font-medium">{accessType}</span>
+              <span className="text-muted-foreground">Resultat:</span>
+              <span className="font-medium">{allowedCount} på · {deniedCount} av</span>
             </div>
             <div className="flex gap-2">
               <span className="text-muted-foreground">Overstyringer:</span>
@@ -232,56 +258,71 @@ export function PermissionsPanel({
               </span>
             </div>
           </div>
-        </div>
-
-        {/* ─── Mode toggle ────────────────────────────────── */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Info className="h-4 w-4 text-muted-foreground" />
-            <p className="text-xs text-muted-foreground">
-              <strong>Rolle</strong> gir standardrettigheter. <strong>Omfang</strong> bestemmer hva brukeren ser. <strong>Rettigheter</strong> er detaljert tilgangskontroll.
-            </p>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <Label htmlFor="advanced-mode" className="text-xs cursor-pointer text-muted-foreground">Avansert</Label>
-            <Switch
-              id="advanced-mode"
-              checked={advancedMode}
-              onCheckedChange={setAdvancedMode}
-            />
+          <div className="flex flex-wrap gap-2 pt-1">
+            <Badge variant="secondary" className="text-[10px]">På via rolle</Badge>
+            <Badge variant="default" className="text-[10px]">På manuelt gitt</Badge>
+            <Badge variant="outline" className="text-[10px]">Av via rolle</Badge>
+            <Badge variant="destructive" className="text-[10px]">Av manuelt fjernet</Badge>
           </div>
         </div>
 
-        {/* ─── Section A: Roller ──────────────────────────────── */}
+        {/* ─── Section A: Valgt selskap og rolle ───────────────── */}
         <section className="rounded-lg border p-4 sm:p-5 space-y-4">
           <div className="flex items-center gap-2">
             <Shield className="h-4 w-4 text-primary" />
-            <h3 className="text-sm font-semibold">Roller</h3>
+            <h3 className="text-sm font-semibold">Rolle og fasit per selskap</h3>
           </div>
           <p className="text-[11px] text-muted-foreground -mt-2">
-            Roller gir standardrettigheter. Velg én eller flere.
+            Velg selskap og se faktisk tilgang for akkurat det selskapet. Rollevalg oppdaterer standardrettighetene umiddelbart.
           </p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {roles.map((r) => (
-              <label
-                key={r.id}
-                className="flex items-start gap-2.5 cursor-pointer rounded-md border p-3 hover:bg-accent/40 transition-colors"
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Valgt selskap</Label>
+              <Select
+                value={selectedCompany?.id || overrideCompanyId || "__none__"}
+                onValueChange={(value) => value !== "__none__" && onOverrideCompanyChange?.(value)}
               >
-                <Checkbox
-                  checked={assignedRoles.includes(r.id)}
-                  onCheckedChange={() => toggleRole(r.id)}
-                  className="mt-0.5"
-                />
-                <div className="min-w-0">
-                  <span className="text-sm font-medium">{r.name}</span>
-                  {r.description && (
-                    <p className="text-[11px] text-muted-foreground line-clamp-2">
-                      {r.description}
-                    </p>
-                  )}
-                </div>
-              </label>
-            ))}
+                <SelectTrigger className="h-9">
+                  <SelectValue placeholder="Velg selskap" />
+                </SelectTrigger>
+                <SelectContent>
+                  {selectableCompanies.map((company) => (
+                    <SelectItem key={company.id} value={company.id}>{company.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Rolle i {selectedCompanyName}</Label>
+              <Select
+                value={selectedCompanyRoleId || "__none__"}
+                onValueChange={(value) => onSelectedCompanyRoleChange?.(value === "__none__" ? null : value)}
+                disabled={!selectedCompany || !onSelectedCompanyRoleChange}
+              >
+                <SelectTrigger className="h-9">
+                  <SelectValue placeholder="Velg rolle" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Ingen selskapsrolle</SelectItem>
+                  {roles.map((role) => (
+                    <SelectItem key={role.id} value={role.id}>{role.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="rounded-md border bg-muted/30 p-3 text-sm space-y-1">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <span className="text-muted-foreground">Faktisk rollegrunnlag nå</span>
+              <Badge variant={effectiveRoleName ? "secondary" : "outline"} className="text-[10px]">
+                {effectiveRoleName || "Ingen rolle"}
+              </Badge>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Rettighetslisten under viser ferdig evaluert tilgang for {selectedCompanyName}: rollebaserte standardrettigheter + selskapsspesifikke overrides.
+            </p>
           </div>
         </section>
 
@@ -300,8 +341,25 @@ export function PermissionsPanel({
             </p>
           </div>
 
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-2">
+              <Info className="h-4 w-4 text-muted-foreground" />
+              <p className="text-xs text-muted-foreground">
+                <strong>Omfang</strong> styrer hvilke selskaper/avdelinger brukeren ser. <strong>Rettigheter</strong> under viser hva brukeren faktisk kan gjøre i valgt selskap.
+              </p>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <Label htmlFor="advanced-mode" className="text-xs cursor-pointer text-muted-foreground">Avansert</Label>
+              <Switch
+                id="advanced-mode"
+                checked={advancedMode}
+                onCheckedChange={setAdvancedMode}
+              />
+            </div>
+          </div>
+
           {advancedMode && (
-            <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex items-center gap-3 flex-wrap pt-1">
               <Label className="text-xs shrink-0">Synlighetsomfang:</Label>
               <Select value={scopeOverride} onValueChange={onScopeOverrideChange}>
                 <SelectTrigger className="w-[280px]">
@@ -353,29 +411,11 @@ export function PermissionsPanel({
           </div>
         </section>
 
-        {/* ─── Section B: Rettigheter (advanced only) ─────────── */}
-        {advancedMode && (
-          <section className="rounded-lg border p-4 sm:p-5 space-y-4">
+        {/* ─── Section B: Rettigheter ─────────────────────────── */}
+        <section className="rounded-lg border p-4 sm:p-5 space-y-4">
             <div className="flex items-center justify-between flex-wrap gap-2">
-              <h3 className="text-sm font-semibold">Rettigheter</h3>
+              <h3 className="text-sm font-semibold">Rettigheter i {selectedCompanyName}</h3>
               <div className="flex items-center gap-2 flex-wrap">
-                {/* Company selector for overrides */}
-                {onOverrideCompanyChange && companies.length > 1 && (
-                  <Select
-                    value={overrideCompanyId || "__none__"}
-                    onValueChange={(v) => onOverrideCompanyChange(v === "__none__" ? companies[0]?.id || "" : v)}
-                  >
-                    <SelectTrigger className="h-8 w-[200px] text-xs">
-                      <Building className="h-3 w-3 mr-1.5 text-muted-foreground" />
-                      <SelectValue placeholder="Velg selskap" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {companies.map((c) => (
-                        <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
                 {overrideCount > 0 && (
                   <Button
                     variant="ghost"
@@ -393,12 +433,9 @@ export function PermissionsPanel({
               </div>
             </div>
 
-            {/* Per-company info */}
-            {onOverrideCompanyChange && overrideCompanyId && (
-              <p className="text-[11px] text-muted-foreground">
-                Overstyringer nedenfor gjelder kun for <span className="font-medium text-foreground">{companies.find(c => c.id === overrideCompanyId)?.name || "valgt selskap"}</span>. Bytt selskap i nedtrekk for å se/endre andre.
-              </p>
-            )}
+            <p className="text-[11px] text-muted-foreground">
+              Statusene under er ferdig evaluert for <span className="font-medium text-foreground">{selectedCompanyName}</span>. Manuelle endringer lagres kun på dette selskapet.
+            </p>
 
             {overrideCount >= 5 && (
               <div className="rounded-md border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-900/20 p-3 flex gap-2">
@@ -476,26 +513,13 @@ export function PermissionsPanel({
               </p>
             )}
           </section>
-        )}
-
-        {/* Non-advanced: show read-only effective summary */}
-        {!advancedMode && overrideCount > 0 && (
-          <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-900/20 p-3 flex items-start gap-2">
-            <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-            <div>
-              <p className="text-xs text-amber-700 dark:text-amber-300">
-                Denne brukeren har {overrideCount} manuell{overrideCount > 1 ? "e" : ""} overstyring{overrideCount > 1 ? "er" : ""}. Slå på «Avansert» for å se og endre dem.
-              </p>
-            </div>
-          </div>
-        )}
 
         {/* ─── Sticky save bar ────────────────────────────────── */}
         <div className="sticky bottom-0 bg-background/95 backdrop-blur border-t py-3 -mx-4 px-4 sm:-mx-5 sm:px-5 flex items-center justify-between">
           <p className="text-xs text-muted-foreground">
-            {overrideCount > 0
-              ? `${overrideCount} overstyring${overrideCount > 1 ? "er" : ""} aktiv`
-              : "Ingen overstyringer"}
+            {effectiveRoleName
+              ? `${selectedCompanyName}: ${allowedCount} på · ${deniedCount} av`
+              : `${selectedCompanyName}: ingen rollegrunnlag valgt`}
           </p>
           <Button onClick={onSave} disabled={saving}>
             {saving ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : null}
@@ -549,24 +573,20 @@ function PermissionRow({
       <div className="flex items-center gap-1.5 shrink-0">
         {effective.source === "override" ? (
           <Badge
-            variant="outline"
-            className={`text-[10px] ${
-              effective.overrideMode === "allow"
-                ? "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800"
-                : "bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-900/20 dark:text-orange-400 dark:border-orange-800"
-            }`}
+            variant={effective.overrideMode === "allow" ? "default" : "destructive"}
+            className="text-[10px]"
           >
-            {effective.overrideMode === "allow" ? "✎ Manuelt gitt" : "✎ Manuelt fjernet"}
+            {effective.overrideMode === "allow" ? "På manuelt gitt" : "Av manuelt fjernet"}
           </Badge>
-        ) : effective.allowed ? (
+        ) : effective.source === "role" ? (
           <Badge
-            variant="outline"
-            className="text-[10px] bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800"
+            variant={effective.allowed ? "secondary" : "outline"}
+            className="text-[10px]"
           >
-            Via rolle
+            {effective.allowed ? "På via rolle" : "Av via rolle"}
           </Badge>
         ) : (
-          <span className="text-[10px] text-muted-foreground">Ingen tilgang</span>
+          <Badge variant="outline" className="text-[10px]">Ingen rolle</Badge>
         )}
 
         <span className="text-[10px] text-muted-foreground whitespace-nowrap">
