@@ -229,6 +229,7 @@ export function AssignResourceTaskDialog({
       return newEvent;
     },
     onSuccess: (newEvent) => {
+      qc.invalidateQueries({ queryKey: ["order-form-submission", submissionId] });
       qc.invalidateQueries({ queryKey: ["order-form-activity", submissionId] });
       toast.success("Ressursoppgave opprettet", {
         action: {
