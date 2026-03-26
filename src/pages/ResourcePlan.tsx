@@ -180,7 +180,7 @@ export default function ResourcePlan() {
     }
   }, [selectedTechId, technicians]);
 
-  const unplannedCount = useUnplannedProjects(effectiveCompanyId);
+  const unplannedCount = useUnplannedProjects(effectiveCompanyId, allowedCompanyIds);
 
   const { busySlots, getBusySlotsForDay, getExternalBusyMinutesForDay, refetch: refetchBusySlots } = useExternalBusy(
     canReadBusy ? selectedTechId : "__disabled__",
