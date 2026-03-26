@@ -359,6 +359,23 @@ export function PermissionsPanel({
             <div className="flex items-center justify-between flex-wrap gap-2">
               <h3 className="text-sm font-semibold">Rettigheter</h3>
               <div className="flex items-center gap-2 flex-wrap">
+                {/* Company selector for overrides */}
+                {onOverrideCompanyChange && companies.length > 1 && (
+                  <Select
+                    value={overrideCompanyId || "__none__"}
+                    onValueChange={(v) => onOverrideCompanyChange(v === "__none__" ? companies[0]?.id || "" : v)}
+                  >
+                    <SelectTrigger className="h-8 w-[200px] text-xs">
+                      <Building className="h-3 w-3 mr-1.5 text-muted-foreground" />
+                      <SelectValue placeholder="Velg selskap" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {companies.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
                 {overrideCount > 0 && (
                   <Button
                     variant="ghost"
