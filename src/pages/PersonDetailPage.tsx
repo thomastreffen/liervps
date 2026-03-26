@@ -725,6 +725,8 @@ export default function PersonDetailPage() {
                 companies={companies}
                 saving={saving}
                 onSave={handleSaveAll}
+                overrideCompanyId={overrideCompanyId}
+                onOverrideCompanyChange={handleOverrideCompanyChange}
               />
             </TabsContent>
           )}
