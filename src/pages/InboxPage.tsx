@@ -733,7 +733,7 @@ export default function InboxPage() {
               <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
                 <Mail className="h-10 w-10 mb-3 opacity-40" />
                 <p className="text-sm font-medium">Ingen saker</p>
-                <p className="text-xs mt-1">Klikk «Synk e-post» for å hente fra postboksen</p>
+                <p className="text-xs mt-1">{autoSyncActive ? "Auto-synk er aktiv – nye saker vil dukke opp automatisk" : "Slå på auto-synk eller klikk «Synk e-post»"}</p>
               </div>
             ) : (() => {
               // When searching, group results by bucket
