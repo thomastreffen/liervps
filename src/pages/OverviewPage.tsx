@@ -34,7 +34,7 @@ interface ActionItem {
 export default function OverviewPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { activeCompanyId } = useCompanyContext();
+  const { activeCompanyId, allowedCompanyIds } = useCompanyContext();
   const [dataLoading, setDataLoading] = useState(true);
   const [projects, setProjects] = useState<ProjectCardData[]>([]);
   const [dayBlocks, setDayBlocks] = useState<DayBlock[]>([]);
