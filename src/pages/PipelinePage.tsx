@@ -36,7 +36,7 @@ const STALE_DAYS = 7;
 export default function PipelinePage() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { activeCompanyId } = useCompanyContext();
+  const { activeCompanyId, allowedCompanyIds } = useCompanyContext();
   const [cards, setCards] = useState<PipelineCard[]>([]);
   const [loading, setLoading] = useState(true);
   const [dragging, setDragging] = useState<string | null>(null);
@@ -50,7 +50,7 @@ export default function PipelinePage() {
   useEffect(() => {
     (async () => {
       setLoading(true);
-      const { data: leads } = await fetchActiveLeads("*", activeCompanyId);
+      const { data: leads } = await fetchActiveLeads("*", activeCompanyId, allowedCompanyIds);
       const activeLeads = (leads || []).filter((l: any) => l.status !== "lost");
 
       const leadIds = activeLeads.map((l: any) => l.id);

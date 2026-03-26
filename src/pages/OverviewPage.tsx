@@ -34,7 +34,7 @@ interface ActionItem {
 export default function OverviewPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { activeCompanyId } = useCompanyContext();
+  const { activeCompanyId, allowedCompanyIds } = useCompanyContext();
   const [dataLoading, setDataLoading] = useState(true);
   const [projects, setProjects] = useState<ProjectCardData[]>([]);
   const [dayBlocks, setDayBlocks] = useState<DayBlock[]>([]);
@@ -67,6 +67,7 @@ export default function OverviewPage() {
       .order("updated_at", { ascending: false })
       .limit(6);
     if (activeCompanyId) projectQuery = projectQuery.eq("company_id", activeCompanyId);
+    else if (allowedCompanyIds.length > 0) projectQuery = projectQuery.in("company_id", allowedCompanyIds);
 
     const [projectsRes, techRes] = await Promise.all([projectQuery, techPromise]);
 
@@ -126,6 +127,7 @@ export default function OverviewPage() {
       .in("status", ["approved", "in_progress", "scheduled"])
       .is("deleted_at", null);
     if (activeCompanyId) allProjectsQuery = allProjectsQuery.eq("company_id", activeCompanyId);
+    else if (allowedCompanyIds.length > 0) allProjectsQuery = allProjectsQuery.in("company_id", allowedCompanyIds);
 
     let overbookedQuery = supabase.from("schedule_blocks")
       .select("technician_id, start_at, end_at")
@@ -133,9 +135,10 @@ export default function OverviewPage() {
       .gte("start_at", new Date(new Date().setHours(0, 0, 0, 0)).toISOString())
       .lt("start_at", new Date(new Date().setHours(24, 0, 0, 0)).toISOString());
     if (activeCompanyId) overbookedQuery = overbookedQuery.eq("company_id", activeCompanyId);
+    else if (allowedCompanyIds.length > 0) overbookedQuery = overbookedQuery.in("company_id", allowedCompanyIds);
 
     // Fetch sales action data
-    const leadsPromise = fetchActiveLeads("id, status, updated_at, next_action_type, next_action_date", activeCompanyId);
+    const leadsPromise = fetchActiveLeads("id, status, updated_at, next_action_type, next_action_date", activeCompanyId, allowedCompanyIds);
     let calcsQuery = supabase
       .from("calculations")
       .select("id, status, lead_id, created_at")
@@ -143,6 +146,7 @@ export default function OverviewPage() {
       .in("status", ["sent", "generated"])
       .limit(100);
     if (activeCompanyId) calcsQuery = calcsQuery.eq("company_id", activeCompanyId);
+    else if (allowedCompanyIds.length > 0) calcsQuery = calcsQuery.in("company_id", allowedCompanyIds);
 
     const [
       taskCountsRes, blocksRes, myEventsResult, plannedBlocksRes,

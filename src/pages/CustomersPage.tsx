@@ -35,7 +35,7 @@ const PAGE_SIZE = 20;
 
 export default function CustomersPage() {
   const navigate = useNavigate();
-  const { activeCompanyId } = useCompanyContext();
+  const { activeCompanyId, allowedCompanyIds } = useCompanyContext();
   const { tags } = useCustomerTags();
   const { levels, getLevelByCode } = useCustomerValueLevels();
   const [customers, setCustomers] = useState<CustomerRow[]>([]);
@@ -56,6 +56,8 @@ export default function CustomersPage() {
 
     if (activeCompanyId) {
       query = query.eq("company_id", activeCompanyId);
+    } else if (allowedCompanyIds.length > 0) {
+      query = query.in("company_id", allowedCompanyIds);
     }
 
     const { data } = await query;
@@ -68,6 +70,7 @@ export default function CustomersPage() {
         .not("customer_id", "is", null)
         .is("deleted_at", null);
       if (activeCompanyId) projectQuery = projectQuery.eq("company_id", activeCompanyId);
+      else if (allowedCompanyIds.length > 0) projectQuery = projectQuery.in("company_id", allowedCompanyIds);
       const { data: projectCounts } = await projectQuery;
 
       const countMap = new Map<string, number>();
@@ -99,6 +102,7 @@ export default function CustomersPage() {
         .is("deleted_at", null)
         .order("start_time", { ascending: false });
       if (activeCompanyId) activityQuery = activityQuery.eq("company_id", activeCompanyId);
+      else if (allowedCompanyIds.length > 0) activityQuery = activityQuery.in("company_id", allowedCompanyIds);
       const { data: activities } = await activityQuery;
 
       const activityMap = new Map<string, string>();

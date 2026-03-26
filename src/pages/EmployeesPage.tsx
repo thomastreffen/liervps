@@ -19,7 +19,7 @@ interface TechRow {
 
 export default function EmployeesPage() {
   const navigate = useNavigate();
-  const { activeCompanyId } = useCompanyContext();
+  const { activeCompanyId, allowedCompanyIds } = useCompanyContext();
   const [technicians, setTechnicians] = useState<TechRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [showArchived, setShowArchived] = useState(false);
@@ -62,6 +62,8 @@ export default function EmployeesPage() {
 
     if (activeCompanyId) {
       epQuery = epQuery.eq("company_id", activeCompanyId);
+    } else if (allowedCompanyIds.length > 0) {
+      epQuery = epQuery.in("company_id", allowedCompanyIds);
     }
 
     if (personIds.length > 0) {

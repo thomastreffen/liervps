@@ -23,7 +23,7 @@ interface KpiItem {
 
 export default function SalesDashboard() {
   const nav = useNavigate();
-  const { activeCompanyId } = useCompanyContext();
+  const { activeCompanyId, allowedCompanyIds } = useCompanyContext();
   const [recentOffers, setRecentOffers] = useState<RecentOffer[]>([]);
   const [actions, setActions] = useState<ActionItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -34,7 +34,7 @@ export default function SalesDashboard() {
       const now = new Date();
       const d7 = new Date(now.getTime() - 7 * 86400000).toISOString();
 
-      const leadsRes = await fetchActiveLeads("id, company_name, status, lead_ref_code, updated_at, next_action_date, next_action_type", activeCompanyId);
+      const leadsRes = await fetchActiveLeads("id, company_name, status, lead_ref_code, updated_at, next_action_date, next_action_type", activeCompanyId, allowedCompanyIds);
       let calcsQuery = supabase
         .from("calculations")
         .select("id, project_title, customer_name, status, total_price, created_at, lead_id")
@@ -42,6 +42,7 @@ export default function SalesDashboard() {
         .order("created_at", { ascending: false })
         .limit(20);
       if (activeCompanyId) calcsQuery = calcsQuery.eq("company_id", activeCompanyId);
+      else if (allowedCompanyIds.length > 0) calcsQuery = calcsQuery.in("company_id", allowedCompanyIds);
       const calcsRes = await calcsQuery;
 
       const leads = leadsRes.data || [];

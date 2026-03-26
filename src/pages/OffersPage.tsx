@@ -37,7 +37,7 @@ const PAGE_SIZE = 20;
 export default function OffersPage() {
   const navigate = useNavigate();
   const { isAdmin } = useAuth();
-  const { activeCompanyId } = useCompanyContext();
+  const { activeCompanyId, allowedCompanyIds } = useCompanyContext();
   const [calcs, setCalcs] = useState<CalcRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -54,6 +54,7 @@ export default function OffersPage() {
       .is("deleted_at", null)
       .order("created_at", { ascending: false });
     if (activeCompanyId) query = query.eq("company_id", activeCompanyId);
+    else if (allowedCompanyIds.length > 0) query = query.in("company_id", allowedCompanyIds);
     const { data } = await query;
     if (data) setCalcs(data as any[]);
     setLoading(false);
