@@ -37,7 +37,7 @@ const PAGE_SIZE = 20;
 export default function OffersPage() {
   const navigate = useNavigate();
   const { isAdmin } = useAuth();
-  const { activeCompanyId } = useCompanyContext();
+  const { activeCompanyId, allowedCompanyIds } = useCompanyContext();
   const [calcs, setCalcs] = useState<CalcRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
