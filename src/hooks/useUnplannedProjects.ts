@@ -28,10 +28,9 @@ export function useUnplannedProjects(companyId?: string | null, allowedCompanyId
     }
 
     fetch();
-    // Re-check every 60s
     const interval = setInterval(fetch, 60000);
     return () => clearInterval(interval);
-  }, [companyId]);
+  }, [companyId, allowedCompanyIds?.join(",")]);
 
   return count;
 }
