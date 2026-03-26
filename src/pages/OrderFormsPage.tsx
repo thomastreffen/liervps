@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Search, ClipboardList, AlertTriangle, Mail, MailX, ArrowRight, Download, Trash2 } from "lucide-react";
+import { Plus, Search, ClipboardList, AlertTriangle, Mail, MailX, ArrowRight, Trash2, User, Tag, Paperclip } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -12,6 +12,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import {
   ORDER_STATUS_CONFIG,
   ORDER_PRIORITY_CONFIG,
+  CHANNEL_LABELS,
   type OrderFormSubmissionStatus,
 } from "@/types/order-forms";
 import { format } from "date-fns";
@@ -29,13 +30,15 @@ import {
 const STATUS_TABS: { key: OrderFormSubmissionStatus | "all"; label: string }[] = [
   { key: "all", label: "Alle" },
   { key: "new", label: "Ny" },
+  { key: "under_review", label: "Til vurdering" },
   { key: "missing_info", label: "Mangler info" },
-  { key: "ready_for_review", label: "Klar for vurdering" },
-  { key: "in_progress", label: "Under behandling" },
-  { key: "planned", label: "Planlagt" },
-  { key: "converted", label: "Konvertert" },
-  { key: "rejected", label: "Avvist" },
+  { key: "waiting_customer", label: "Venter kunde" },
+  { key: "waiting_internal", label: "Venter internt" },
+  { key: "ready_for_planning", label: "Klar for planlegging" },
+  { key: "task_created", label: "Oppgave opprettet" },
+  { key: "in_progress", label: "Under arbeid" },
   { key: "closed", label: "Lukket" },
+  { key: "rejected", label: "Avvist" },
 ];
 
 export default function OrderFormsPage() {
@@ -45,8 +48,9 @@ export default function OrderFormsPage() {
   const queryClient = useQueryClient();
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [qualityFilter, setQualityFilter] = useState<string>("all");
-  const [extraFilter, setExtraFilter] = useState<string>("all");
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [priorityFilter, setPriorityFilter] = useState<string>("all");
+  const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState<string>("newest");
 
@@ -56,7 +60,7 @@ export default function OrderFormsPage() {
     queryFn: async () => {
       let query = supabase
         .from("order_form_submissions")
-        .select("*, order_form_templates(name, slug)")
+        .select("*, order_form_templates(name, slug, category)")
         .eq("company_id", activeCompanyId!)
         .is("deleted_at", null)
         .order("submitted_at", { ascending: false })
@@ -87,33 +91,33 @@ export default function OrderFormsPage() {
     },
   });
 
+  // Extract unique categories from submissions
+  const categoryOptions = useMemo(() => {
+    const cats = new Set<string>();
+    submissions.forEach((s: any) => {
+      const cat = s.order_form_templates?.category;
+      if (cat) cats.add(cat);
+    });
+    return Array.from(cats).sort();
+  }, [submissions]);
+
   const filtered = useMemo(() => {
     let result = submissions.filter((s: any) => {
       if (search) {
         const q = search.toLowerCase();
         const match =
           s.submission_no?.toLowerCase().includes(q) ||
-          (s as any).order_form_templates?.name?.toLowerCase().includes(q) ||
+          s.order_form_templates?.name?.toLowerCase().includes(q) ||
           s.summary?.oppdragstittel?.toLowerCase().includes(q) ||
-          s.summary?.kundenavn?.toLowerCase().includes(q);
+          s.summary?.kundenavn?.toLowerCase().includes(q) ||
+          (s as any).submitter_name?.toLowerCase().includes(q) ||
+          (s as any).submitter_email?.toLowerCase().includes(q);
         if (!match) return false;
       }
-      if (qualityFilter !== "all" && s.quality_score !== qualityFilter) return false;
-      
-      // Extra filters
-      if (extraFilter === "not_notified" && s.notification_sent_at) return false;
-      if (extraFilter === "not_converted" && s.converted_to_type) return false;
-      if (extraFilter === "exported" && !s.converted_to_type) {
-        // check activity log - simplified: show those already converted
-        return false;
-      }
-      if (extraFilter === "needs_action") {
-        const isNew = s.status === "new";
-        const isMissing = s.status === "missing_info";
-        const isRed = s.quality_score === "red";
-        if (!isNew && !isMissing && !isRed) return false;
-      }
-      
+      if (categoryFilter !== "all" && s.order_form_templates?.category !== categoryFilter) return false;
+      if (priorityFilter !== "all" && s.priority !== priorityFilter) return false;
+      if (assigneeFilter === "unassigned" && s.assigned_to) return false;
+      if (assigneeFilter === "assigned" && !s.assigned_to) return false;
       return true;
     });
 
@@ -122,17 +126,15 @@ export default function OrderFormsPage() {
       result = [...result].sort((a: any, b: any) =>
         (priorityOrder[a.priority] ?? 2) - (priorityOrder[b.priority] ?? 2)
       );
-    } else if (sortBy === "quality") {
-      const qualityOrder: Record<string, number> = { red: 0, yellow: 1, green: 2 };
+    } else if (sortBy === "activity") {
       result = [...result].sort((a: any, b: any) =>
-        (qualityOrder[a.quality_score] ?? 2) - (qualityOrder[b.quality_score] ?? 2)
+        new Date(b.last_activity_at || b.submitted_at).getTime() - new Date(a.last_activity_at || a.submitted_at).getTime()
       );
     }
 
     return result;
-  }, [submissions, search, qualityFilter, sortBy, extraFilter]);
+  }, [submissions, search, categoryFilter, priorityFilter, assigneeFilter, sortBy]);
 
-  // Soft delete handler
   const handleSoftDelete = async (e: React.MouseEvent, sub: any) => {
     e.stopPropagation();
     if (!confirm(`Flytte ${sub.submission_no} til papirkurven?`)) return;
@@ -152,19 +154,18 @@ export default function OrderFormsPage() {
     statusCounts[s.status] = (statusCounts[s.status] || 0) + 1;
   });
 
-  // Needs action count
   const needsActionCount = submissions.filter((s: any) =>
-    s.status === "new" || s.status === "missing_info" || s.quality_score === "red"
+    s.status === "new" || s.status === "missing_info" || s.status === "waiting_customer"
   ).length;
 
   return (
-    <div className="space-y-6 p-6 max-w-7xl mx-auto">
+    <div className="space-y-5 p-6 max-w-7xl mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Bestillinger</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            {submissions.length} bestillinger totalt
+            {submissions.length} tickets totalt
             {needsActionCount > 0 && (
               <span className="text-amber-600 font-medium"> · {needsActionCount} krever handling</span>
             )}
@@ -185,6 +186,7 @@ export default function OrderFormsPage() {
         {STATUS_TABS.map((tab) => {
           const count = tab.key === "all" ? submissions.length : statusCounts[tab.key] || 0;
           const active = statusFilter === tab.key;
+          if (tab.key !== "all" && count === 0) return null;
           return (
             <button
               key={tab.key}
@@ -197,9 +199,7 @@ export default function OrderFormsPage() {
             >
               {tab.label}
               {count > 0 && (
-                <span className={`ml-1.5 ${active ? "opacity-80" : "opacity-60"}`}>
-                  {count}
-                </span>
+                <span className={`ml-1.5 ${active ? "opacity-80" : "opacity-60"}`}>{count}</span>
               )}
             </button>
           );
@@ -211,32 +211,45 @@ export default function OrderFormsPage() {
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Søk bestillingsnummer, kunde, oppdrag..."
+            placeholder="Søk ticket-nr, kunde, innsender..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9"
           />
         </div>
-        <Select value={qualityFilter} onValueChange={setQualityFilter}>
-          <SelectTrigger className="w-44">
-            <SelectValue placeholder="Kvalitet" />
+        {categoryOptions.length > 0 && (
+          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+            <SelectTrigger className="w-40">
+              <SelectValue placeholder="Kategori" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Alle kategorier</SelectItem>
+              {categoryOptions.map((c) => (
+                <SelectItem key={c} value={c}>{c}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+        <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+          <SelectTrigger className="w-36">
+            <SelectValue placeholder="Prioritet" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Alle kvaliteter</SelectItem>
-            <SelectItem value="red">🔴 Utilstrekkelig</SelectItem>
-            <SelectItem value="yellow">🟡 Noe mangler</SelectItem>
-            <SelectItem value="green">🟢 Komplett</SelectItem>
+            <SelectItem value="all">Alle prioriteter</SelectItem>
+            <SelectItem value="critical">Kritisk</SelectItem>
+            <SelectItem value="high">Høy</SelectItem>
+            <SelectItem value="normal">Normal</SelectItem>
+            <SelectItem value="low">Lav</SelectItem>
           </SelectContent>
         </Select>
-        <Select value={extraFilter} onValueChange={setExtraFilter}>
-          <SelectTrigger className="w-48">
-            <SelectValue placeholder="Vis" />
+        <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
+          <SelectTrigger className="w-36">
+            <SelectValue placeholder="Ansvarlig" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Alle</SelectItem>
-            <SelectItem value="needs_action">Krever handling</SelectItem>
-            <SelectItem value="not_notified">Ikke varslet</SelectItem>
-            <SelectItem value="not_converted">Ikke konvertert</SelectItem>
+            <SelectItem value="unassigned">Uten ansvarlig</SelectItem>
+            <SelectItem value="assigned">Med ansvarlig</SelectItem>
           </SelectContent>
         </Select>
         <Select value={sortBy} onValueChange={setSortBy}>
@@ -246,12 +259,12 @@ export default function OrderFormsPage() {
           <SelectContent>
             <SelectItem value="newest">Nyeste først</SelectItem>
             <SelectItem value="priority">Hastegrad</SelectItem>
-            <SelectItem value="quality">Kvalitet</SelectItem>
+            <SelectItem value="activity">Siste aktivitet</SelectItem>
           </SelectContent>
         </Select>
       </div>
 
-      {/* List */}
+      {/* Ticket list */}
       {isLoading ? (
         <div className="text-center py-12 text-muted-foreground">Laster...</div>
       ) : filtered.length === 0 ? (
@@ -260,63 +273,70 @@ export default function OrderFormsPage() {
           <p className="text-sm text-muted-foreground font-medium">Ingen bestillinger funnet</p>
         </div>
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           {filtered.map((sub: any) => {
             const statusConfig = ORDER_STATUS_CONFIG[sub.status as OrderFormSubmissionStatus];
             const priorityConfig = ORDER_PRIORITY_CONFIG[sub.priority];
             const qs = (sub.quality_score || "green") as QualityLevel;
+            const category = sub.order_form_templates?.category;
+            const channel = CHANNEL_LABELS[(sub as any).channel] || "";
             return (
               <Card
                 key={sub.id}
-                className="hover:shadow-md transition-shadow cursor-pointer group"
+                className="hover:shadow-md transition-shadow cursor-pointer group border-l-4"
+                style={{ borderLeftColor: statusConfig?.dotClass ? undefined : "transparent" }}
                 onClick={() => navigate(`/orders/${sub.id}`)}
               >
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3 min-w-0">
+                <CardContent className="p-3.5">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
                       <QualityDot score={qs} />
-                      <div className="min-w-0">
+                      <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="text-sm font-semibold text-foreground">
                             {sub.submission_no}
                           </span>
+                          {category && (
+                            <Badge variant="outline" className="text-[10px] gap-1">
+                              <Tag className="h-2.5 w-2.5" />
+                              {category}
+                            </Badge>
+                          )}
                           <Badge variant="outline" className="text-[10px]">
-                            {(sub as any).order_form_templates?.name || "Ukjent mal"}
+                            {sub.order_form_templates?.name || "Ukjent"}
                           </Badge>
                           {sub.priority !== "normal" && priorityConfig && (
                             <Badge className={`text-[10px] ${priorityConfig.color}`}>
                               {priorityConfig.label}
                             </Badge>
                           )}
-                          {sub.requester_type === "internal" && (
-                            <Badge variant="outline" className="text-[10px]">Intern</Badge>
-                          )}
-                          {sub.status === "missing_info" && (
-                            <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
+                          {channel && (
+                            <span className="text-[10px] text-muted-foreground/70">{channel}</span>
                           )}
                         </div>
-                        <p className="text-xs text-muted-foreground mt-0.5 truncate">
-                          {sub.summary?.kundenavn && `${sub.summary.kundenavn} · `}
-                          {sub.summary?.oppdragstittel || "Ingen tittel"}
-                        </p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <p className="text-xs text-muted-foreground truncate">
+                            {(sub as any).submitter_name || sub.summary?.kundenavn || "Ukjent innsender"}
+                            {sub.summary?.oppdragstittel && ` · ${sub.summary.oppdragstittel}`}
+                          </p>
+                          {sub.assigned_to && (
+                            <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
+                              <User className="h-2.5 w-2.5" />
+                              Tildelt
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      {/* Status indicators */}
-                      {sub.notification_sent_at && (
-                        <Mail className="h-3.5 w-3.5 text-green-500" />
-                      )}
-                      {sub.notification_error && !sub.notification_sent_at && (
-                        <MailX className="h-3.5 w-3.5 text-red-500" />
-                      )}
                       {sub.converted_to_type && (
                         <ArrowRight className="h-3.5 w-3.5 text-green-500" />
                       )}
                       <Badge className={`text-[10px] ${statusConfig?.color || ""}`}>
                         {statusConfig?.label || sub.status}
                       </Badge>
-                      <span className="text-[11px] text-muted-foreground">
-                        {format(new Date(sub.submitted_at), "d. MMM yyyy", { locale: nb })}
+                      <span className="text-[11px] text-muted-foreground whitespace-nowrap">
+                        {format(new Date(sub.submitted_at), "d. MMM", { locale: nb })}
                       </span>
                       {isAdmin && (
                         <Button
