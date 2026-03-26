@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompanyContext } from "@/hooks/useCompanyContext";
 import { useAuth } from "@/hooks/useAuth";
-import { Plus, FileText, MoreHorizontal, Pencil, Tag, Settings2, Eye, EyeOff, Globe, Lock, Link as LinkIcon } from "lucide-react";
+import { Plus, FileText, MoreHorizontal, Pencil, Tag, Settings2, Eye, EyeOff, Globe, Lock, Link as LinkIcon, Trash2, ArchiveRestore } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -68,7 +68,7 @@ export default function OrderFormTemplatesPage() {
     },
   });
 
-  const { data: templates = [], isLoading } = useQuery({
+  const { data: allTemplates = [], isLoading } = useQuery({
     queryKey: ["order-form-templates", activeCompanyId],
     enabled: !!activeCompanyId,
     queryFn: async () => {
@@ -81,6 +81,10 @@ export default function OrderFormTemplatesPage() {
       return data || [];
     },
   });
+
+  // Split into active and deleted
+  const templates = allTemplates.filter((t: any) => !t.deleted_at);
+  const deletedTemplates = allTemplates.filter((t: any) => !!t.deleted_at);
 
   const createMutation = useMutation({
     mutationFn: async () => {
@@ -142,6 +146,36 @@ export default function OrderFormTemplatesPage() {
       qc.invalidateQueries({ queryKey: ["order-form-templates"] });
       toast.success("Synlighet oppdatert");
     },
+  });
+
+  const softDeleteTemplate = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await (supabase as any)
+        .from("order_form_templates")
+        .update({ deleted_at: new Date().toISOString(), deleted_by: user?.id })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["order-form-templates"] });
+      toast.success("Mal flyttet til papirkurv");
+    },
+    onError: (err: any) => toast.error(err.message),
+  });
+
+  const restoreTemplate = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await (supabase as any)
+        .from("order_form_templates")
+        .update({ deleted_at: null, deleted_by: null })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["order-form-templates"] });
+      toast.success("Mal gjenopprettet");
+    },
+    onError: (err: any) => toast.error(err.message),
   });
 
   // Compute visibility status for each template
@@ -268,12 +302,47 @@ export default function OrderFormTemplatesPage() {
                           <><Eye className="h-3.5 w-3.5 mr-2" /> Vis i katalog</>
                         )}
                       </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        className="text-destructive focus:text-destructive"
+                        onClick={() => softDeleteTemplate.mutate(tmpl.id)}
+                      >
+                        <Trash2 className="h-3.5 w-3.5 mr-2" />
+                        Slett mal
+                      </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </CardContent>
               </Card>
             );
           })}
+        </div>
+      )}
+
+      {/* Deleted templates */}
+      {deletedTemplates.length > 0 && (
+        <div className="space-y-2 pt-4 border-t border-border">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Slettede maler ({deletedTemplates.length})</p>
+          {deletedTemplates.map((tmpl: any) => (
+            <Card key={tmpl.id} className="opacity-60 hover:opacity-80 transition-opacity">
+              <CardContent className="p-3 flex items-center justify-between">
+                <div className="flex items-center gap-2 min-w-0">
+                  <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <span className="text-sm text-muted-foreground line-through">{tmpl.name}</span>
+                  <Badge variant="destructive" className="text-[10px]">Slettet</Badge>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs gap-1"
+                  onClick={() => restoreTemplate.mutate(tmpl.id)}
+                >
+                  <ArchiveRestore className="h-3 w-3" />
+                  Gjenopprett
+                </Button>
+              </CardContent>
+            </Card>
+          ))}
         </div>
       )}
 

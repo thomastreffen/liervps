@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, Save, Eye, Settings, Link2, ExternalLink, Copy, Check } from "lucide-react";
+import { ArrowLeft, Save, Eye, Settings, Link2, ExternalLink, Copy, Check, Tag } from "lucide-react";
+import { useCompanyContext } from "@/hooks/useCompanyContext";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
@@ -324,6 +325,12 @@ export default function OrderFormBuilderPage() {
           <Badge variant={template.is_active ? "default" : "secondary"} className="text-[10px]">
             {template.is_active ? "Publisert" : "Kladd"}
           </Badge>
+          {template.category && (
+            <Badge variant="outline" className="text-[10px] gap-1">
+              <Tag className="h-2.5 w-2.5" />
+              {template.category}
+            </Badge>
+          )}
         </div>
         <div className="flex items-center gap-1.5">
           {template.is_active && (
@@ -468,6 +475,20 @@ function PublishLinkActions({ template }: { template: any }) {
 }
 
 function TemplateSettingsForm({ template, onSave }: { template: any; onSave: (u: any) => void }) {
+  const { activeCompanyId } = useCompanyContext();
+  const { data: categories = [] } = useQuery({
+    queryKey: ["order-form-categories", activeCompanyId],
+    enabled: !!activeCompanyId,
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from("order_form_categories")
+        .select("*")
+        .eq("company_id", activeCompanyId!)
+        .order("sort_order");
+      return data || [];
+    },
+  });
+
   const [form, setForm] = useState({
     name: template.name || "",
     internal_title: template.internal_title || "",
@@ -479,7 +500,10 @@ function TemplateSettingsForm({ template, onSave }: { template: any; onSave: (u:
     on_submit_action: template.on_submit_action || "queue",
     requires_login: template.requires_login ?? false,
     show_in_catalog: template.show_in_catalog ?? true,
+    category_id: template.category_id || "__none__",
   });
+
+  const selectedCat = categories.find((c: any) => c.id === form.category_id);
 
   const accessSummary = (() => {
     const parts: string[] = [];
@@ -491,6 +515,8 @@ function TemplateSettingsForm({ template, onSave }: { template: any; onSave: (u:
       parts.push(form.requires_login ? "Krever innlogging" : "Åpent uten innlogging");
       parts.push(form.show_in_catalog ? "Vises på bestillingssiden" : "Kun via direkte lenke");
     }
+    if (selectedCat) parts.push(`Kategori: ${selectedCat.name}`);
+    else parts.push("Ingen kategori");
     return parts.join(" · ");
   })();
 
@@ -505,6 +531,26 @@ function TemplateSettingsForm({ template, onSave }: { template: any; onSave: (u:
         <div><Label className="text-xs">Beskrivelse</Label><Textarea value={form.description} onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))} /></div>
         <div><Label className="text-xs">Bekreftelsestekst</Label><Textarea value={form.confirmation_text} onChange={(e) => setForm((p) => ({ ...p, confirmation_text: e.target.value }))} /></div>
         <div><Label className="text-xs">E-post mottaker(e)</Label><Input value={form.send_email_to} onChange={(e) => setForm((p) => ({ ...p, send_email_to: e.target.value }))} placeholder="Kommaseparert" /></div>
+      </div>
+
+      {/* Kategori */}
+      <div className="space-y-3">
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Kategori</p>
+        <div>
+          <Label className="text-xs">Kategori</Label>
+          <Select value={form.category_id} onValueChange={(v) => setForm((p) => ({ ...p, category_id: v }))}>
+            <SelectTrigger><SelectValue placeholder="Velg kategori" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__none__">Ingen kategori</SelectItem>
+              {categories.filter((c: any) => c.is_active).map((c: any) => (
+                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {form.category_id === "__none__" && form.show_in_catalog && (
+            <p className="text-[10px] text-amber-600 mt-1">⚠️ Skjema uten kategori vises ikke i katalogen</p>
+          )}
+        </div>
       </div>
 
       {/* Målgruppe */}
@@ -600,10 +646,16 @@ function TemplateSettingsForm({ template, onSave }: { template: any; onSave: (u:
         </Select>
       </div>
 
-      <Button className="w-full" onClick={() => onSave({
-        ...form,
-        send_email_to: form.send_email_to ? form.send_email_to.split(",").map((s: string) => s.trim()).filter(Boolean) : null,
-      })}>
+      <Button className="w-full" onClick={() => {
+        const catId = form.category_id === "__none__" ? null : form.category_id;
+        const catName = categories.find((c: any) => c.id === catId)?.name || null;
+        onSave({
+          ...form,
+          category_id: catId,
+          category: catName,
+          send_email_to: form.send_email_to ? form.send_email_to.split(",").map((s: string) => s.trim()).filter(Boolean) : null,
+        });
+      }}>
         Lagre innstillinger
       </Button>
     </div>

@@ -6474,6 +6474,8 @@ export type Database = {
           default_handling_rule: string | null
           default_priority: string | null
           default_status: string | null
+          deleted_at: string | null
+          deleted_by: string | null
           description: string | null
           external_help_text: string | null
           external_title: string | null
@@ -6500,6 +6502,8 @@ export type Database = {
           default_handling_rule?: string | null
           default_priority?: string | null
           default_status?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
           description?: string | null
           external_help_text?: string | null
           external_title?: string | null
@@ -6526,6 +6530,8 @@ export type Database = {
           default_handling_rule?: string | null
           default_priority?: string | null
           default_status?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
           description?: string | null
           external_help_text?: string | null
           external_title?: string | null

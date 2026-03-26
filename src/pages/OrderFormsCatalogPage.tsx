@@ -43,9 +43,10 @@ export default function OrderFormsCatalogPage() {
     queryFn: async () => {
       const { data } = await (supabase as any)
         .from("order_form_templates")
-        .select("id, name, external_title, description, slug, audience_type, show_in_catalog, category, category_id, requires_login, is_active")
+        .select("id, name, external_title, description, slug, audience_type, show_in_catalog, category, category_id, requires_login, is_active, deleted_at")
         .eq("is_active", true)
         .eq("show_in_catalog", true)
+        .is("deleted_at", null)
         .in("audience_type", ["external", "both"])
         .order("name");
       return data || [];
