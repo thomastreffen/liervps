@@ -291,31 +291,42 @@ export function UsersAccessTab() {
 
                 <Separator />
 
-                {/* Memberships */}
+                {/* Memberships – multi-select */}
                 <div>
-                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Selskap & Avdelinger</Label>
-                  <p className="text-[11px] text-muted-foreground mb-2">Bestemmer hvilke selskaper og avdelinger brukeren har tilgang til.</p>
+                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Selskapstilgang</Label>
+                  <p className="text-[11px] text-muted-foreground mb-2">
+                    Velg hvilke selskaper brukeren skal ha tilgang til. Brukeren ser kun data fra valgte selskaper.
+                    {selectedMemberships.length > 1 && (
+                      <span className="block mt-1 text-primary font-medium">
+                        ✓ Brukeren har tilgang til {selectedMemberships.filter(m => !m.department_id).length} selskaper og kan velge mellom dem.
+                      </span>
+                    )}
+                  </p>
                   <div className="space-y-3 mt-2">
-                    {companies.map((c) => (
-                      <div key={c.id}>
-                        <label className="flex items-center gap-2 cursor-pointer text-sm font-medium">
-                          <Checkbox
-                            checked={selectedMemberships.some((m) => m.company_id === c.id && m.department_id === null)}
-                            onCheckedChange={() => toggleMembership(c.id, null)}
-                          />
-                          {c.name} <span className="text-xs text-muted-foreground">(hele selskapet)</span>
-                        </label>
-                        {c.departments.map((d) => (
-                          <label key={d.id} className="flex items-center gap-2 cursor-pointer text-sm ml-6 mt-1">
+                    {companies.map((c) => {
+                      const hasCompanyAccess = selectedMemberships.some((m) => m.company_id === c.id);
+                      return (
+                        <div key={c.id} className={cn("p-2 rounded-md border", hasCompanyAccess ? "border-primary/30 bg-primary/5" : "border-transparent")}>
+                          <label className="flex items-center gap-2 cursor-pointer text-sm font-medium">
                             <Checkbox
-                              checked={selectedMemberships.some((m) => m.company_id === c.id && m.department_id === d.id)}
-                              onCheckedChange={() => toggleMembership(c.id, d.id)}
+                              checked={selectedMemberships.some((m) => m.company_id === c.id && m.department_id === null)}
+                              onCheckedChange={() => toggleMembership(c.id, null)}
                             />
-                            {d.name}
+                            <Building className="h-3.5 w-3.5 text-muted-foreground" />
+                            {c.name} <span className="text-xs text-muted-foreground">(hele selskapet)</span>
                           </label>
-                        ))}
-                      </div>
-                    ))}
+                          {c.departments.map((d) => (
+                            <label key={d.id} className="flex items-center gap-2 cursor-pointer text-sm ml-6 mt-1">
+                              <Checkbox
+                                checked={selectedMemberships.some((m) => m.company_id === c.id && m.department_id === d.id)}
+                                onCheckedChange={() => toggleMembership(c.id, d.id)}
+                              />
+                              {d.name}
+                            </label>
+                          ))}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
 

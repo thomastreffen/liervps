@@ -1,5 +1,4 @@
 import { useCompanyContext } from "@/hooks/useCompanyContext";
-import { usePermissions } from "@/hooks/usePermissions";
 import {
   Select,
   SelectContent,
@@ -11,10 +10,10 @@ import { Building, Globe } from "lucide-react";
 
 export function CompanySelector() {
   const { companies, activeCompanyId, isAllCompanies, setActiveCompanyId } = useCompanyContext();
-  const { hasPermission } = usePermissions();
-  const canCrossCompany = hasPermission("resourceplan.cross_company") || hasPermission("scope.view.all");
 
-  if (companies.length <= 1 && !canCrossCompany) return null;
+  // Only show selector if user has access to multiple companies
+  const hasMultipleCompanies = companies.length > 1;
+  if (!hasMultipleCompanies) return null;
 
   const displayValue = isAllCompanies ? "__all__" : (activeCompanyId || "");
 
@@ -33,11 +32,11 @@ export function CompanySelector() {
           <SelectValue placeholder="Velg selskap" />
         </SelectTrigger>
         <SelectContent>
-          {canCrossCompany && (
+          {hasMultipleCompanies && (
             <SelectItem value="__all__">
               <span className="flex items-center gap-1.5">
                 <Globe className="h-3 w-3" />
-                Alle selskaper
+                Alle mine selskaper
               </span>
             </SelectItem>
           )}

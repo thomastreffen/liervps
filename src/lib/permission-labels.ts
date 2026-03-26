@@ -108,7 +108,7 @@ export const PERMISSION_LABELS: Record<string, PermissionMeta> = {
   "resource_plan.plan_resources": { label: "Planlegge ressurser (v3)", description: "Kan opprette, redigere og flytte planlagte aktiviteter i ressursplanen.", category: "Ressursplan" },
   "resourceplan.edit_others": { label: "Endre andres planlagte aktiviteter", description: "Kan flytte og endre varighet på aktiviteter planlagt av andre.", category: "Ressursplan" },
   "resource_plan.edit_others": { label: "Endre andres aktiviteter (v3)", description: "Kan endre og flytte aktiviteter planlagt av andre brukere.", category: "Ressursplan" },
-  "resourceplan.cross_company": { label: "Se ressursplan på tvers av selskaper", description: "Kan se ressurser og aktiviteter fra alle selskaper i ressursplanen.", category: "Ressursplan" },
+  "resourceplan.cross_company": { label: "Se ressursplan på tvers (utgått)", description: "Utgått – selskapstilgang styres nå av medlemskap. Beholdt for bakoverkompatibilitet.", category: "Ressursplan" },
 
   // ── Absence ──
   "absence.create_self": { label: "Søke fravær for seg selv", category: "Fravær" },
@@ -234,7 +234,7 @@ export const PERMISSION_CATEGORIES: { category: string; description: string; key
     keys: [
       "resourceplan.view", "resourceplan.view_busy", "resourceplan.view_external_blocks",
       "resourceplan.view_external_titles", "resourceplan.view_external_details",
-      "resourceplan.schedule", "resourceplan.edit_others", "resourceplan.cross_company",
+      "resourceplan.schedule", "resourceplan.edit_others",
     ],
   },
   {
