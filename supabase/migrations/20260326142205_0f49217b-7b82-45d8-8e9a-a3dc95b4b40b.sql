@@ -1,0 +1,1 @@
+ALTER TABLE public.absence_requests ADD COLUMN IF NOT EXISTS outlook_event_id text;

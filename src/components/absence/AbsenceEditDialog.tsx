@@ -80,6 +80,15 @@ export function AbsenceEditDialog({ open, onOpenChange, absence, onSaved }: Prop
       toast.error("Feil ved lagring", { description: error.message });
     } else {
       toast.success("Fraværet er oppdatert");
+      // If approved, sync updated times to Outlook
+      if (absence.status === "approved") {
+        supabase.functions.invoke("absence-calendar-sync", {
+          body: { action: "update", absence_id: absence.id },
+        }).then(({ data, error: syncErr }) => {
+          if (syncErr) console.error("[AbsenceSync] update error:", syncErr);
+          else if (data?.status === "updated") toast.success("Outlook-kalender oppdatert");
+        });
+      }
       onSaved();
       onOpenChange(false);
     }
