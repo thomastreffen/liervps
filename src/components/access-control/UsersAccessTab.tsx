@@ -146,8 +146,14 @@ export function UsersAccessTab() {
     setSelectedMemberships((prev) => {
       const exists = prev.some((m) => m.company_id === companyId && m.department_id === deptId);
       if (exists) return prev.filter((m) => !(m.company_id === companyId && m.department_id === deptId));
-      return [...prev, { company_id: companyId, department_id: deptId }];
+      return [...prev, { company_id: companyId, department_id: deptId, role_id: null }];
     });
+  };
+
+  const setMembershipRole = (companyId: string, roleId: string | null) => {
+    setSelectedMemberships((prev) =>
+      prev.map((m) => m.company_id === companyId ? { ...m, role_id: roleId } : m)
+    );
   };
 
   const cycleOverride = (key: string) => {
