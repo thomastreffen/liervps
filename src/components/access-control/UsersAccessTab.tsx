@@ -281,123 +281,108 @@ export function UsersAccessTab() {
               <DialogTitle>Rediger tilgang: {selectedUser?.name}</DialogTitle>
             </DialogHeader>
             <ScrollArea className="h-[500px] pr-4">
-              <div className="space-y-6">
-                {/* Memberships with per-company roles */}
+              <div className="space-y-5">
+                {/* Primary: Company → Role */}
                 <div>
-                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Selskapstilgang og roller</Label>
-                  <p className="text-[11px] text-muted-foreground mb-2">
-                    Velg hvilke selskaper brukeren har tilgang til, og hvilken rolle de skal ha i hvert selskap.
-                    {selectedMemberships.length > 1 && (
-                      <span className="block mt-1 text-primary font-medium">
-                        ✓ Brukeren har tilgang til {selectedMemberships.filter(m => !m.department_id).length} selskaper med individuelle roller.
-                      </span>
-                    )}
+                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Tilgang</Label>
+                  <p className="text-[11px] text-muted-foreground mb-3">
+                    Velg selskaper og hvilken rolle brukeren skal ha i hvert.
                   </p>
-                  <div className="space-y-3 mt-2">
+                  <div className="space-y-2">
                     {companies.map((c) => {
-                      const hasCompanyAccess = selectedMemberships.some((m) => m.company_id === c.id);
+                      const hasMembership = selectedMemberships.some((m) => m.company_id === c.id && m.department_id === null);
                       const companyMembership = selectedMemberships.find((m) => m.company_id === c.id && m.department_id === null);
                       return (
-                        <div key={c.id} className={cn("p-3 rounded-md border", hasCompanyAccess ? "border-primary/30 bg-primary/5" : "border-border")}>
-                          <div className="flex items-center justify-between gap-2">
-                            <label className="flex items-center gap-2 cursor-pointer text-sm font-medium">
-                              <Checkbox
-                                checked={selectedMemberships.some((m) => m.company_id === c.id && m.department_id === null)}
-                                onCheckedChange={() => toggleMembership(c.id, null)}
-                              />
-                              <Building className="h-3.5 w-3.5 text-muted-foreground" />
-                              {c.name}
-                            </label>
-                            {hasCompanyAccess && (
-                              <div className="flex items-center gap-1.5">
-                                <Select
-                                  value={companyMembership?.role_id || "__none__"}
-                                  onValueChange={(val) => setMembershipRole(c.id, val === "__none__" ? null : val)}
-                                >
-                                  <SelectTrigger className="h-7 w-[160px] text-xs">
-                                    <SelectValue placeholder="Velg rolle" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="__none__">
-                                      <span className="text-muted-foreground">Arv global rolle</span>
-                                    </SelectItem>
-                                    {roles.map((r) => (
-                                      <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                                {!companyMembership?.role_id && (
-                                  <Badge variant="outline" className="text-[9px] shrink-0 text-muted-foreground">↩ Fallback</Badge>
-                                )}
-                              </div>
+                        <div key={c.id} className={cn(
+                          "rounded-lg border transition-colors",
+                          hasMembership ? "border-primary/40 bg-primary/5" : "border-border"
+                        )}>
+                          <div className="flex items-center gap-3 p-3">
+                            <Checkbox
+                              checked={hasMembership}
+                              onCheckedChange={() => toggleMembership(c.id, null)}
+                            />
+                            <div className="flex-1 min-w-0">
+                              <span className="text-sm font-medium">{c.name}</span>
+                            </div>
+                            {hasMembership && (
+                              <Select
+                                value={companyMembership?.role_id || "__none__"}
+                                onValueChange={(val) => setMembershipRole(c.id, val === "__none__" ? null : val)}
+                              >
+                                <SelectTrigger className="h-8 w-[180px] text-xs">
+                                  <SelectValue placeholder="Velg rolle" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="__none__">
+                                    <span className="text-muted-foreground italic">Ingen rolle valgt</span>
+                                  </SelectItem>
+                                  {roles.map((r) => (
+                                    <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
                             )}
                           </div>
-                          {c.departments.map((d) => (
-                            <label key={d.id} className="flex items-center gap-2 cursor-pointer text-sm ml-6 mt-1.5">
-                              <Checkbox
-                                checked={selectedMemberships.some((m) => m.company_id === c.id && m.department_id === d.id)}
-                                onCheckedChange={() => toggleMembership(c.id, d.id)}
-                              />
-                              {d.name}
-                            </label>
-                          ))}
+                          {hasMembership && c.departments.length > 0 && (
+                            <div className="px-3 pb-2 space-y-1 border-t border-border/50 pt-2 ml-7">
+                              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Avdelinger</p>
+                              {c.departments.map((d) => (
+                                <label key={d.id} className="flex items-center gap-2 cursor-pointer text-xs">
+                                  <Checkbox
+                                    checked={selectedMemberships.some((m) => m.company_id === c.id && m.department_id === d.id)}
+                                    onCheckedChange={() => toggleMembership(c.id, d.id)}
+                                  />
+                                  {d.name}
+                                </label>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       );
                     })}
                   </div>
+                  {selectedMemberships.filter(m => !m.department_id).length === 0 && (
+                    <p className="text-xs text-amber-600 mt-2">⚠ Brukeren har ingen selskapstilgang</p>
+                  )}
                 </div>
 
                 <Separator />
 
-                {/* Global fallback role */}
-                <Collapsible>
-                  <CollapsibleTrigger asChild>
-                    <Button variant="ghost" size="sm" className="w-full justify-between text-muted-foreground">
-                      <span className="flex items-center gap-2">
-                        <Shield className="h-4 w-4" />
-                        Global fallback-rolle
-                        {selectedRoles.length > 0 && (
-                          <Badge variant="secondary" className="text-[10px]">{selectedRoles.length} valgt</Badge>
-                        )}
-                      </span>
-                      <ChevronDown className="h-4 w-4" />
-                    </Button>
-                  </CollapsibleTrigger>
-                  <CollapsibleContent className="pt-2">
-                    <p className="text-[11px] text-muted-foreground mb-2">
-                      Brukes kun for selskaper der ingen spesifikk rolle er satt. Anbefalt: sett rolle per selskap i stedet.
-                    </p>
-                    <div className="space-y-1.5">
-                      {roles.map((r) => (
-                        <label key={r.id} className="flex items-center gap-2 cursor-pointer text-sm">
-                          <Checkbox checked={selectedRoles.includes(r.id)} onCheckedChange={() => selectRole(r.id)} />
-                          {r.name}
-                        </label>
-                      ))}
-                    </div>
-                  </CollapsibleContent>
-                </Collapsible>
-
-                <Separator />
-
-                {/* Advanced overrides – collapsed by default */}
+                {/* Advanced: overrides + global fallback – collapsed */}
                 <Collapsible open={showAdvanced} onOpenChange={setShowAdvanced}>
                   <CollapsibleTrigger asChild>
                     <Button variant="ghost" size="sm" className="w-full justify-between text-muted-foreground">
-                      <span className="flex items-center gap-2">
-                        <ShieldAlert className="h-4 w-4" />
-                        Vis detaljerte rettigheter
-                        {activeOverrideCount > 0 && (
-                          <Badge variant="destructive" className="text-[10px]">{activeOverrideCount} aktive</Badge>
+                      <span className="flex items-center gap-2 text-xs">
+                        <ShieldAlert className="h-3.5 w-3.5" />
+                        Avanserte innstillinger
+                        {(activeOverrideCount > 0 || selectedRoles.length > 0) && (
+                          <Badge variant="secondary" className="text-[10px]">
+                            {activeOverrideCount + selectedRoles.length} aktive
+                          </Badge>
                         )}
                       </span>
-                      <ChevronDown className={`h-4 w-4 transition-transform ${showAdvanced ? "rotate-180" : ""}`} />
+                      <ChevronDown className={cn("h-4 w-4 transition-transform", showAdvanced && "rotate-180")} />
                     </Button>
                   </CollapsibleTrigger>
                   <CollapsibleContent className="space-y-5 pt-3">
-                    <p className="text-[11px] text-muted-foreground">
-                      Overstyringer gjelder kun denne brukeren og overskriver rollens standardinnstillinger. Klikk for å veksle mellom Tillat / Nekt / Arv fra rolle.
-                    </p>
+                    {/* Global fallback role */}
+                    <div>
+                      <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Global fallback-rolle</Label>
+                      <p className="text-[10px] text-muted-foreground mb-2">
+                        Brukes kun for selskaper uten egen rolle. Normalt ikke nødvendig.
+                      </p>
+                      <div className="space-y-1">
+                        {roles.map((r) => (
+                          <label key={r.id} className="flex items-center gap-2 cursor-pointer text-sm">
+                            <Checkbox checked={selectedRoles.includes(r.id)} onCheckedChange={() => selectRole(r.id)} />
+                            {r.name}
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+
+                    <Separator />
 
                     {/* Scope override */}
                     <div>
@@ -415,44 +400,52 @@ export function UsersAccessTab() {
                       </Select>
                     </div>
 
+                    <Separator />
+
                     {/* Per-category overrides */}
-                    {PERMISSION_CATEGORIES.map((group) => (
-                      <div key={group.category}>
-                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{group.category}</p>
-                        <div className="space-y-1 mt-1.5">
-                          {group.keys.map((key) => {
-                            const state = overrides[key] || "inherit";
-                            const desc = getPermDescription(key);
-                            return (
-                              <button
-                                key={key}
-                                type="button"
-                                onClick={() => cycleOverride(key)}
-                                className="w-full flex items-center justify-between text-xs py-1.5 px-2 rounded hover:bg-accent/50 transition-colors"
-                              >
-                                <span className="flex items-center gap-1.5 text-left">
-                                  {getPermLabel(key)}
-                                  {desc && (
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <Info className="h-3 w-3 text-muted-foreground shrink-0" />
-                                      </TooltipTrigger>
-                                      <TooltipContent side="right" className="max-w-[250px] text-xs">{desc}</TooltipContent>
-                                    </Tooltip>
-                                  )}
-                                </span>
-                                <Badge
-                                  variant={state === "allow" ? "default" : state === "deny" ? "destructive" : "outline"}
-                                  className="text-[10px] shrink-0"
+                    <div>
+                      <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Rettighetsoverstyringer</Label>
+                      <p className="text-[10px] text-muted-foreground mb-2">
+                        Klikk for å veksle mellom Tillat / Nekt / Arv fra rolle.
+                      </p>
+                      {PERMISSION_CATEGORIES.map((group) => (
+                        <div key={group.category} className="mb-3">
+                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{group.category}</p>
+                          <div className="space-y-1 mt-1">
+                            {group.keys.map((key) => {
+                              const state = overrides[key] || "inherit";
+                              const desc = getPermDescription(key);
+                              return (
+                                <button
+                                  key={key}
+                                  type="button"
+                                  onClick={() => cycleOverride(key)}
+                                  className="w-full flex items-center justify-between text-xs py-1.5 px-2 rounded hover:bg-accent/50 transition-colors"
                                 >
-                                  {state === "allow" ? "Tillat" : state === "deny" ? "Nekt" : "Arv"}
-                                </Badge>
-                              </button>
-                            );
-                          })}
+                                  <span className="flex items-center gap-1.5 text-left">
+                                    {getPermLabel(key)}
+                                    {desc && (
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <Info className="h-3 w-3 text-muted-foreground shrink-0" />
+                                        </TooltipTrigger>
+                                        <TooltipContent side="right" className="max-w-[250px] text-xs">{desc}</TooltipContent>
+                                      </Tooltip>
+                                    )}
+                                  </span>
+                                  <Badge
+                                    variant={state === "allow" ? "default" : state === "deny" ? "destructive" : "outline"}
+                                    className="text-[10px] shrink-0"
+                                  >
+                                    {state === "allow" ? "Tillat" : state === "deny" ? "Nekt" : "Arv"}
+                                  </Badge>
+                                </button>
+                              );
+                            })}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </CollapsibleContent>
                 </Collapsible>
               </div>
