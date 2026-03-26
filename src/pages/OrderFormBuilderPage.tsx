@@ -325,6 +325,12 @@ export default function OrderFormBuilderPage() {
           <Badge variant={template.is_active ? "default" : "secondary"} className="text-[10px]">
             {template.is_active ? "Publisert" : "Kladd"}
           </Badge>
+          {template.category && (
+            <Badge variant="outline" className="text-[10px] gap-1">
+              <Tag className="h-2.5 w-2.5" />
+              {template.category}
+            </Badge>
+          )}
         </div>
         <div className="flex items-center gap-1.5">
           {template.is_active && (
