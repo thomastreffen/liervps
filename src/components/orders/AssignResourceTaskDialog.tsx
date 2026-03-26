@@ -196,6 +196,15 @@ export function AssignResourceTaskDialog({
         }
       }
 
+      // Auto-update ticket status to "task_created"
+      await supabase
+        .from("order_form_submissions")
+        .update({
+          status: "task_created",
+          last_activity_at: new Date().toISOString(),
+        })
+        .eq("id", submissionId);
+
       await supabase.from("order_form_activity_log").insert({
         submission_id: submissionId,
         event_type: "converted_to_order",
