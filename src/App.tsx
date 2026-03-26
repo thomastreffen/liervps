@@ -109,6 +109,16 @@ import { PortalProvider } from "@/hooks/usePortal";
 
 const queryClient = new QueryClient();
 
+/** Bridge: provides activeCompanyId to the permissions system */
+function PermissionCompanyBridge({ children }: { children: React.ReactNode }) {
+  const { activeCompanyId } = useCompanyContext();
+  return (
+    <ActiveCompanyForPermissions value={activeCompanyId}>
+      {children}
+    </ActiveCompanyForPermissions>
+  );
+}
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
@@ -117,6 +127,7 @@ const App = () => (
       <BrowserRouter>
         <AuthProvider>
           <CompanyProvider>
+          <PermissionCompanyBridge>
           <PreviewModeProvider>
           <Routes>
             <Route path="/login" element={<Login />} />
