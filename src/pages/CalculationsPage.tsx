@@ -34,7 +34,7 @@ const PAGE_SIZE = 20;
 export default function CalculationsPage() {
   const navigate = useNavigate();
   const { hasPermission } = usePermissions();
-  const { activeCompanyId } = useCompanyContext();
+  const { activeCompanyId, allowedCompanyIds } = useCompanyContext();
   const [calcs, setCalcs] = useState<CalcRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
