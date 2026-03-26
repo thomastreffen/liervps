@@ -91,6 +91,11 @@ export function AbsenceApprovalList() {
   const handleDelete = useCallback(async () => {
     if (!deleteDialog) return;
     setActing(deleteDialog.id);
+    // Delete from Outlook first (fire-and-forget)
+    supabase.functions.invoke("absence-calendar-sync", {
+      body: { action: "delete", absence_id: deleteDialog.id },
+    }).catch((e) => console.error("[AbsenceSync] delete error:", e));
+
     const { error } = await supabase
       .from("absence_requests")
       .delete()
