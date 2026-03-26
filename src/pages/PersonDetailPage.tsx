@@ -102,6 +102,8 @@ export default function PersonDetailPage() {
   const [rolePermissions, setRolePermissions] = useState<Record<string, boolean>>({});
   const [rolePermSourceMap, setRolePermSourceMap] = useState<Record<string, string>>({});
   const [allRolePerms, setAllRolePerms] = useState<any[]>([]);
+  const [allOverridesV2, setAllOverridesV2] = useState<any[]>([]);
+  const [overrideCompanyId, setOverrideCompanyId] = useState<string | null>(null);
 
   // Audit tab
   const [auditEntries, setAuditEntries] = useState<AuditEntry[]>([]);
