@@ -302,6 +302,14 @@ export default function OrderFormTemplatesPage() {
                           <><Eye className="h-3.5 w-3.5 mr-2" /> Vis i katalog</>
                         )}
                       </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        className="text-destructive focus:text-destructive"
+                        onClick={() => softDeleteTemplate.mutate(tmpl.id)}
+                      >
+                        <Trash2 className="h-3.5 w-3.5 mr-2" />
+                        Slett mal
+                      </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </CardContent>
