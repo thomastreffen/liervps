@@ -288,48 +288,53 @@ export function UsersAccessTab() {
             </DialogHeader>
             <ScrollArea className="h-[500px] pr-4">
               <div className="space-y-6">
-                {/* Roles */}
+                {/* Memberships with per-company roles */}
                 <div>
-                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Roller</Label>
-                  <p className="text-[11px] text-muted-foreground mb-2">Velg hvilke roller denne brukeren skal ha. Rollene bestemmer standardrettigheter.</p>
-                  <div className="space-y-1.5 mt-2">
-                    {roles.map((r) => (
-                      <label key={r.id} className="flex items-center gap-2 cursor-pointer text-sm">
-                        <Checkbox checked={selectedRoles.includes(r.id)} onCheckedChange={() => selectRole(r.id)} />
-                        {r.name}
-                      </label>
-                    ))}
-                  </div>
-                </div>
-
-                <Separator />
-
-                {/* Memberships – multi-select */}
-                <div>
-                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Selskapstilgang</Label>
+                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Selskapstilgang og roller</Label>
                   <p className="text-[11px] text-muted-foreground mb-2">
-                    Velg hvilke selskaper brukeren skal ha tilgang til. Brukeren ser kun data fra valgte selskaper.
+                    Velg hvilke selskaper brukeren har tilgang til, og hvilken rolle de skal ha i hvert selskap.
                     {selectedMemberships.length > 1 && (
                       <span className="block mt-1 text-primary font-medium">
-                        ✓ Brukeren har tilgang til {selectedMemberships.filter(m => !m.department_id).length} selskaper og kan velge mellom dem.
+                        ✓ Brukeren har tilgang til {selectedMemberships.filter(m => !m.department_id).length} selskaper med individuelle roller.
                       </span>
                     )}
                   </p>
                   <div className="space-y-3 mt-2">
                     {companies.map((c) => {
                       const hasCompanyAccess = selectedMemberships.some((m) => m.company_id === c.id);
+                      const companyMembership = selectedMemberships.find((m) => m.company_id === c.id && m.department_id === null);
                       return (
-                        <div key={c.id} className={cn("p-2 rounded-md border", hasCompanyAccess ? "border-primary/30 bg-primary/5" : "border-transparent")}>
-                          <label className="flex items-center gap-2 cursor-pointer text-sm font-medium">
-                            <Checkbox
-                              checked={selectedMemberships.some((m) => m.company_id === c.id && m.department_id === null)}
-                              onCheckedChange={() => toggleMembership(c.id, null)}
-                            />
-                            <Building className="h-3.5 w-3.5 text-muted-foreground" />
-                            {c.name} <span className="text-xs text-muted-foreground">(hele selskapet)</span>
-                          </label>
+                        <div key={c.id} className={cn("p-3 rounded-md border", hasCompanyAccess ? "border-primary/30 bg-primary/5" : "border-border")}>
+                          <div className="flex items-center justify-between gap-2">
+                            <label className="flex items-center gap-2 cursor-pointer text-sm font-medium">
+                              <Checkbox
+                                checked={selectedMemberships.some((m) => m.company_id === c.id && m.department_id === null)}
+                                onCheckedChange={() => toggleMembership(c.id, null)}
+                              />
+                              <Building className="h-3.5 w-3.5 text-muted-foreground" />
+                              {c.name}
+                            </label>
+                            {hasCompanyAccess && (
+                              <Select
+                                value={companyMembership?.role_id || "__none__"}
+                                onValueChange={(val) => setMembershipRole(c.id, val === "__none__" ? null : val)}
+                              >
+                                <SelectTrigger className="h-7 w-[160px] text-xs">
+                                  <SelectValue placeholder="Velg rolle" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="__none__">
+                                    <span className="text-muted-foreground">Global rolle (fallback)</span>
+                                  </SelectItem>
+                                  {roles.map((r) => (
+                                    <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            )}
+                          </div>
                           {c.departments.map((d) => (
-                            <label key={d.id} className="flex items-center gap-2 cursor-pointer text-sm ml-6 mt-1">
+                            <label key={d.id} className="flex items-center gap-2 cursor-pointer text-sm ml-6 mt-1.5">
                               <Checkbox
                                 checked={selectedMemberships.some((m) => m.company_id === c.id && m.department_id === d.id)}
                                 onCheckedChange={() => toggleMembership(c.id, d.id)}
@@ -338,6 +343,41 @@ export function UsersAccessTab() {
                             </label>
                           ))}
                         </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <Separator />
+
+                {/* Global fallback role */}
+                <Collapsible>
+                  <CollapsibleTrigger asChild>
+                    <Button variant="ghost" size="sm" className="w-full justify-between text-muted-foreground">
+                      <span className="flex items-center gap-2">
+                        <Shield className="h-4 w-4" />
+                        Global fallback-rolle
+                        {selectedRoles.length > 0 && (
+                          <Badge variant="secondary" className="text-[10px]">{selectedRoles.length} valgt</Badge>
+                        )}
+                      </span>
+                      <ChevronDown className="h-4 w-4" />
+                    </Button>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="pt-2">
+                    <p className="text-[11px] text-muted-foreground mb-2">
+                      Brukes kun for selskaper der ingen spesifikk rolle er satt. Anbefalt: sett rolle per selskap i stedet.
+                    </p>
+                    <div className="space-y-1.5">
+                      {roles.map((r) => (
+                        <label key={r.id} className="flex items-center gap-2 cursor-pointer text-sm">
+                          <Checkbox checked={selectedRoles.includes(r.id)} onCheckedChange={() => selectRole(r.id)} />
+                          {r.name}
+                        </label>
+                      ))}
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
                       );
                     })}
                   </div>
