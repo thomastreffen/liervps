@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompanyContext } from "@/hooks/useCompanyContext";
 import { useAuth } from "@/hooks/useAuth";
-import { Plus, FileText, MoreHorizontal, Copy, Pencil, Trash2 } from "lucide-react";
+import { Plus, FileText, MoreHorizontal, Pencil, Trash2, Tag, Settings2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -32,6 +32,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
+import { CategoryManager } from "@/components/orders/admin/CategoryManager";
+import { CatalogSettingsDialog } from "@/components/orders/admin/CatalogSettingsDialog";
 
 export default function OrderFormTemplatesPage() {
   const navigate = useNavigate();
@@ -39,12 +41,30 @@ export default function OrderFormTemplatesPage() {
   const { activeCompanyId } = useCompanyContext();
   const { user } = useAuth();
   const [createOpen, setCreateOpen] = useState(false);
+  const [catManagerOpen, setCatManagerOpen] = useState(false);
+  const [catalogSettingsOpen, setCatalogSettingsOpen] = useState(false);
   const [newTemplate, setNewTemplate] = useState({
     name: "",
     slug: "",
     description: "",
     audience_type: "both",
-    category: "",
+    category_id: "",
+    default_status: "new",
+    default_priority: "normal",
+    default_handling_rule: "queue",
+  });
+
+  const { data: categories = [] } = useQuery({
+    queryKey: ["order-form-categories", activeCompanyId],
+    enabled: !!activeCompanyId,
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from("order_form_categories")
+        .select("*")
+        .eq("company_id", activeCompanyId!)
+        .order("sort_order");
+      return data || [];
+    },
   });
 
   const { data: templates = [], isLoading } = useQuery({
@@ -64,6 +84,7 @@ export default function OrderFormTemplatesPage() {
   const createMutation = useMutation({
     mutationFn: async () => {
       const slug = newTemplate.slug || newTemplate.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+      const catName = categories.find((c: any) => c.id === newTemplate.category_id)?.name || null;
       const { data, error } = await supabase
         .from("order_form_templates")
         .insert({
@@ -72,9 +93,13 @@ export default function OrderFormTemplatesPage() {
           slug,
           description: newTemplate.description || null,
           audience_type: newTemplate.audience_type,
-          category: newTemplate.category || null,
+          category: catName,
+          category_id: newTemplate.category_id || null,
+          default_status: newTemplate.default_status,
+          default_priority: newTemplate.default_priority,
+          default_handling_rule: newTemplate.default_handling_rule,
           created_by: user?.id,
-        })
+        } as any)
         .select()
         .single();
       if (error) throw error;
@@ -83,7 +108,7 @@ export default function OrderFormTemplatesPage() {
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ["order-form-templates"] });
       setCreateOpen(false);
-      setNewTemplate({ name: "", slug: "", description: "", audience_type: "both", category: "" });
+      setNewTemplate({ name: "", slug: "", description: "", audience_type: "both", category_id: "", default_status: "new", default_priority: "normal", default_handling_rule: "queue" });
       toast.success("Mal opprettet");
       navigate(`/admin/order-forms/${data.id}`);
     },
@@ -110,13 +135,23 @@ export default function OrderFormTemplatesPage() {
         <div>
           <h1 className="text-2xl font-bold text-foreground">Bestillingsskjema-maler</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Opprett og administrer bestillingsskjema
+            Opprett og administrer bestillingsskjema og kategorier
           </p>
         </div>
-        <Button onClick={() => setCreateOpen(true)}>
-          <Plus className="h-4 w-4 mr-1" />
-          Ny mal
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => setCatalogSettingsOpen(true)}>
+            <Settings2 className="h-4 w-4 mr-1" />
+            Portalinnstillinger
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => setCatManagerOpen(true)}>
+            <Tag className="h-4 w-4 mr-1" />
+            Kategorier
+          </Button>
+          <Button onClick={() => setCreateOpen(true)}>
+            <Plus className="h-4 w-4 mr-1" />
+            Ny mal
+          </Button>
+        </div>
       </div>
 
       {isLoading ? (
@@ -146,8 +181,14 @@ export default function OrderFormTemplatesPage() {
                         {tmpl.is_active ? "Aktiv" : "Inaktiv"}
                       </Badge>
                       {tmpl.category && (
-                        <Badge variant="outline" className="text-[10px]">{tmpl.category}</Badge>
+                        <Badge variant="outline" className="text-[10px] gap-1">
+                          <Tag className="h-2.5 w-2.5" />
+                          {tmpl.category}
+                        </Badge>
                       )}
+                      <Badge variant="outline" className="text-[10px]">
+                        {tmpl.audience_type === "internal" ? "Intern" : tmpl.audience_type === "external" ? "Ekstern" : "Begge"}
+                      </Badge>
                     </div>
                     <p className="text-xs text-muted-foreground truncate">
                       {tmpl.description || `/${tmpl.slug}`}
@@ -200,33 +241,70 @@ export default function OrderFormTemplatesPage() {
               />
             </div>
             <div>
+              <Label>Kategori</Label>
+              <Select
+                value={newTemplate.category_id}
+                onValueChange={(v) => setNewTemplate((p) => ({ ...p, category_id: v }))}
+              >
+                <SelectTrigger><SelectValue placeholder="Velg kategori" /></SelectTrigger>
+                <SelectContent>
+                  {categories.map((c: any) => (
+                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
               <Label>Beskrivelse</Label>
               <Textarea
                 value={newTemplate.description}
                 onChange={(e) => setNewTemplate((p) => ({ ...p, description: e.target.value }))}
               />
             </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Målgruppe</Label>
+                <Select
+                  value={newTemplate.audience_type}
+                  onValueChange={(v) => setNewTemplate((p) => ({ ...p, audience_type: v }))}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="internal">Intern</SelectItem>
+                    <SelectItem value="external">Ekstern</SelectItem>
+                    <SelectItem value="both">Begge</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Standard prioritet</Label>
+                <Select
+                  value={newTemplate.default_priority}
+                  onValueChange={(v) => setNewTemplate((p) => ({ ...p, default_priority: v }))}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="critical">Kritisk</SelectItem>
+                    <SelectItem value="high">Høy</SelectItem>
+                    <SelectItem value="normal">Normal</SelectItem>
+                    <SelectItem value="low">Lav</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
             <div>
-              <Label>Målgruppe</Label>
+              <Label>Håndteringsregel ved innsending</Label>
               <Select
-                value={newTemplate.audience_type}
-                onValueChange={(v) => setNewTemplate((p) => ({ ...p, audience_type: v }))}
+                value={newTemplate.default_handling_rule}
+                onValueChange={(v) => setNewTemplate((p) => ({ ...p, default_handling_rule: v }))}
               >
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="internal">Intern</SelectItem>
-                  <SelectItem value="external">Ekstern</SelectItem>
-                  <SelectItem value="both">Begge</SelectItem>
+                  <SelectItem value="queue">Legg i kø</SelectItem>
+                  <SelectItem value="create_case">Opprett sak automatisk</SelectItem>
+                  <SelectItem value="create_task">Opprett oppgave automatisk</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
-            <div>
-              <Label>Kategori</Label>
-              <Input
-                value={newTemplate.category}
-                onChange={(e) => setNewTemplate((p) => ({ ...p, category: e.target.value }))}
-                placeholder="Service, Reklamasjon..."
-              />
             </div>
           </div>
           <DialogFooter>
@@ -237,6 +315,20 @@ export default function OrderFormTemplatesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Category Manager */}
+      <CategoryManager
+        open={catManagerOpen}
+        onOpenChange={setCatManagerOpen}
+        companyId={activeCompanyId}
+      />
+
+      {/* Catalog Settings */}
+      <CatalogSettingsDialog
+        open={catalogSettingsOpen}
+        onOpenChange={setCatalogSettingsOpen}
+        companyId={activeCompanyId}
+      />
     </div>
   );
 }
