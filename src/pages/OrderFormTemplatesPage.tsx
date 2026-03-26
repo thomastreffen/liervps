@@ -68,7 +68,7 @@ export default function OrderFormTemplatesPage() {
     },
   });
 
-  const { data: templates = [], isLoading } = useQuery({
+  const { data: allTemplates = [], isLoading } = useQuery({
     queryKey: ["order-form-templates", activeCompanyId],
     enabled: !!activeCompanyId,
     queryFn: async () => {
@@ -81,6 +81,10 @@ export default function OrderFormTemplatesPage() {
       return data || [];
     },
   });
+
+  // Split into active and deleted
+  const templates = allTemplates.filter((t: any) => !t.deleted_at);
+  const deletedTemplates = allTemplates.filter((t: any) => !!t.deleted_at);
 
   const createMutation = useMutation({
     mutationFn: async () => {
