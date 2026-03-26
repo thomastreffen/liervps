@@ -15,7 +15,7 @@ interface CompanyContextType {
   activeCompany: Company | null;
   setActiveCompanyId: (id: string | null) => void;
   loading: boolean;
-  userMemberships: { company_id: string; department_id: string | null }[];
+  userMemberships: { company_id: string; department_id: string | null; role_id: string | null }[];
   /** True when user explicitly chose "all companies" */
   isAllCompanies: boolean;
   /** Company IDs the user actually has membership in */
