@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Loader2, Users, Archive, Search, Plus, UserPlus, CloudDownload, MoreHorizontal, Shield, Mail, Pencil } from "lucide-react";
+import { Loader2, Users, Archive, Search, Plus, UserPlus, CloudDownload, MoreHorizontal, Shield, Mail, Pencil, Globe, Building } from "lucide-react";
 import { toast } from "sonner";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
@@ -15,8 +15,10 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CreatePersonDialog } from "@/components/CreatePersonDialog";
 import { useCompanyContext } from "@/hooks/useCompanyContext";
+import { useAuth } from "@/hooks/useAuth";
 
 interface PersonRow {
   id: string;
@@ -37,12 +39,16 @@ interface PersonRow {
 
 export default function PeoplePage() {
   const navigate = useNavigate();
-  const { activeCompanyId } = useCompanyContext();
+  const { activeCompanyId, companies, allowedCompanyIds } = useCompanyContext();
+  const { isSuperAdmin } = useAuth();
   const [people, setPeople] = useState<PersonRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [showArchived, setShowArchived] = useState(false);
   const [search, setSearch] = useState("");
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [allCompanies, setAllCompanies] = useState<{ id: string; name: string }[]>([]);
+  // Superadmins get their own local filter; regular users follow global activeCompanyId
+  const [localCompanyFilter, setLocalCompanyFilter] = useState<string>("__all__");
 
   useEffect(() => {
     fetchPeople();
