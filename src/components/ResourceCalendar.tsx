@@ -133,6 +133,7 @@ export const ResourceCalendar = memo(function ResourceCalendar({
   getBusySlotsForDay,
   dayCapacities,
   scheduleBlocks = [],
+  absenceBlocks = [],
   onEventClick,
   onScheduleBlockClick,
   onDateSelect,
