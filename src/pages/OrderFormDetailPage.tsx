@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import {
   ORDER_STATUS_CONFIG,
   ORDER_PRIORITY_CONFIG,
+  CHANNEL_LABELS,
   type OrderFormSubmissionStatus,
 } from "@/types/order-forms";
 import { format } from "date-fns";
