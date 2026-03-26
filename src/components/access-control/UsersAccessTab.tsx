@@ -119,8 +119,8 @@ export function UsersAccessTab() {
 
   const openEdit = (u: UserRow) => {
     setSelectedUser(u);
-    setSelectedRoles(u.role_assignments.map((r) => r.role_id));
-    setSelectedMemberships(u.memberships.map((m) => ({ company_id: m.company_id, department_id: m.department_id })));
+    setSelectedRoles(u.global_role_assignments.map((r) => r.role_id));
+    setSelectedMemberships(u.memberships.map((m) => ({ company_id: m.company_id, department_id: m.department_id, role_id: m.role_id })));
 
     const ov: Record<string, "allow" | "deny" | "inherit"> = {};
     let scope = "inherit";
