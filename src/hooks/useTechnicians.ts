@@ -22,7 +22,7 @@ export function useTechnicians(companyId?: string | null, allowedCompanyIds?: st
   const prevKey = useRef<string>("");
 
   useEffect(() => {
-    const key = companyId || "all";
+    const key = companyId || (allowedCompanyIds?.join(",") || "none");
     if (key === prevKey.current && technicians.length > 0) return;
     prevKey.current = key;
     setLoading(true);
@@ -37,6 +37,14 @@ export function useTechnicians(companyId?: string | null, allowedCompanyIds?: st
 
       if (companyId) {
         epQuery = epQuery.eq("company_id", companyId);
+      } else if (allowedCompanyIds && allowedCompanyIds.length > 0) {
+        // When "all companies" is selected, restrict to user's allowed companies
+        epQuery = epQuery.in("company_id", allowedCompanyIds);
+      } else {
+        // No access — return empty
+        setTechnicians([]);
+        setLoading(false);
+        return;
       }
 
       const { data: profiles } = await epQuery;
