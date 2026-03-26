@@ -124,7 +124,8 @@ export default function ResourcePlan() {
   const canWriteEvents = canPlanResources || hasPermission("calendar.write_events");
   const canDeleteEvents = hasPermission("calendar.delete_events");
   const canEditOthers = hasPermission("resource_plan.edit_others") || hasPermission("resourceplan.edit_others");
-  const canCrossCompany = hasPermission("resourceplan.cross_company") || hasPermission("scope.view.all");
+  // Cross-company access is now driven by memberships, not a separate permission
+  const canCrossCompany = allowedCompanyIds.length > 1;
   const drawerReadOnly = !canPlanResources;
   const confirmationCount = useConfirmationCount();
   const syncHealth = useSyncHealth(isAdmin);
