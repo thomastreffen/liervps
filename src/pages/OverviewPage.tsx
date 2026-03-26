@@ -127,6 +127,7 @@ export default function OverviewPage() {
       .in("status", ["approved", "in_progress", "scheduled"])
       .is("deleted_at", null);
     if (activeCompanyId) allProjectsQuery = allProjectsQuery.eq("company_id", activeCompanyId);
+    else if (allowedCompanyIds.length > 0) allProjectsQuery = allProjectsQuery.in("company_id", allowedCompanyIds);
 
     let overbookedQuery = supabase.from("schedule_blocks")
       .select("technician_id, start_at, end_at")
