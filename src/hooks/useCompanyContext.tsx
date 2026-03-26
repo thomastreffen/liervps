@@ -109,10 +109,11 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const activeCompany = companies.find((c) => c.id === activeCompanyId) || null;
+  const allowedCompanyIds = useMemo(() => companies.map((c) => c.id), [companies]);
 
   return (
     <CompanyContext.Provider
-      value={{ companies, activeCompanyId, activeCompany, setActiveCompanyId, loading, userMemberships, isAllCompanies }}
+      value={{ companies, activeCompanyId, activeCompany, setActiveCompanyId, loading, userMemberships, isAllCompanies, allowedCompanyIds }}
     >
       {children}
     </CompanyContext.Provider>
