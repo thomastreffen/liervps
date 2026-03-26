@@ -141,7 +141,7 @@ export default function ResourcePlan() {
     });
   }, [activeCompanyId]);
 
-  const { technicians } = useTechnicians(effectiveCompanyId);
+  const { technicians } = useTechnicians(effectiveCompanyId, allowedCompanyIds);
   const [selectedTechId, setSelectedTechId] = useState<string | null>(null);
   const [capacityFilter, setCapacityFilter] = useState<"all" | "available" | "partial">("all");
   const [externalBlocksCapacity, setExternalBlocksCapacity] = useState(true);
