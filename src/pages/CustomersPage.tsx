@@ -102,6 +102,7 @@ export default function CustomersPage() {
         .is("deleted_at", null)
         .order("start_time", { ascending: false });
       if (activeCompanyId) activityQuery = activityQuery.eq("company_id", activeCompanyId);
+      else if (allowedCompanyIds.length > 0) activityQuery = activityQuery.in("company_id", allowedCompanyIds);
       const { data: activities } = await activityQuery;
 
       const activityMap = new Map<string, string>();
