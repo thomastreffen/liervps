@@ -225,7 +225,7 @@ export default function InboxPage() {
     );
   }, []);
 
-  const { activeCompanyId } = useCompanyContext();
+  const { activeCompanyId, allowedCompanyIds } = useCompanyContext();
 
   const fetchCases = useCallback(async () => {
     setLoading(true);
@@ -237,6 +237,7 @@ export default function InboxPage() {
       .order("updated_at", { ascending: false })
       .limit(200);
     if (activeCompanyId) query = query.eq("company_id", activeCompanyId);
+    else if (allowedCompanyIds.length > 0) query = query.in("company_id", allowedCompanyIds);
     const { data, error } = await query;
 
     if (error) {
