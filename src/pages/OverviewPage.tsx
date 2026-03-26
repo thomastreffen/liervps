@@ -135,6 +135,7 @@ export default function OverviewPage() {
       .gte("start_at", new Date(new Date().setHours(0, 0, 0, 0)).toISOString())
       .lt("start_at", new Date(new Date().setHours(24, 0, 0, 0)).toISOString());
     if (activeCompanyId) overbookedQuery = overbookedQuery.eq("company_id", activeCompanyId);
+    else if (allowedCompanyIds.length > 0) overbookedQuery = overbookedQuery.in("company_id", allowedCompanyIds);
 
     // Fetch sales action data
     const leadsPromise = fetchActiveLeads("id, status, updated_at, next_action_type, next_action_date", activeCompanyId);
