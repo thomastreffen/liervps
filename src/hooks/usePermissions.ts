@@ -15,6 +15,10 @@ const PreviewPermissionCtx = createContext<PreviewOverride | null>(null);
 /** Used by PreviewModeProvider to inject override permissions */
 export const PreviewPermissionOverrideProvider = PreviewPermissionCtx.Provider;
 
+// Active company context for per-company role resolution
+const ActiveCompanyCtx = createContext<string | null>(null);
+export const ActiveCompanyForPermissions = ActiveCompanyCtx.Provider;
+
 export interface PermissionState {
   permissions: Record<string, boolean>;
   scope: "own" | "company" | "all";
@@ -25,13 +29,13 @@ export interface PermissionState {
 
 /**
  * Permissions hook – DB is the SINGLE SOURCE OF TRUTH.
- * No hardcoded admin defaults. All permissions come from:
- *   1. role_permissions (via user_role_assignments)
- *   2. user_permission_overrides
+ * Per-company roles (user_memberships.role_id) take precedence over global roles.
+ * Falls back to global user_role_assignments when no per-company role is set.
  */
 export function usePermissions(): PermissionState {
   const { user } = useAuth();
   const preview = useContext(PreviewPermissionCtx);
+  const activeCompanyId = useContext(ActiveCompanyCtx);
   const [permissions, setPermissions] = useState<Record<string, boolean>>({});
   const [scope, setScope] = useState<"own" | "company" | "all">("own");
   const [loading, setLoading] = useState(true);
@@ -45,34 +49,58 @@ export function usePermissions(): PermissionState {
     }
 
     try {
-      // Fetch from v1 assignments (user_role_assignments)
-      const { data: assignments } = await supabase
-        .from("user_role_assignments")
-        .select("role_id")
-        .eq("user_id", user.id);
-
-      const roleIds = assignments?.map((a: any) => a.role_id) || [];
-
-      // Also fetch from v2 assignments (user_roles_v2 via user_accounts)
-      const { data: ua } = await supabase
-        .from("user_accounts")
-        .select("id")
-        .eq("auth_user_id", user.id)
-        .eq("is_active", true)
-        .maybeSingle();
-
-      if (ua) {
-        const { data: v2Roles } = await supabase
-          .from("user_roles_v2")
+      // 1. Check for per-company role via user_memberships
+      let membershipRoleId: string | null = null;
+      if (activeCompanyId) {
+        const { data: membership } = await supabase
+          .from("user_memberships")
           .select("role_id")
-          .eq("user_account_id", ua.id);
-        for (const r of v2Roles || []) {
-          if (!roleIds.includes((r as any).role_id)) {
-            roleIds.push((r as any).role_id);
+          .eq("user_id", user.id)
+          .eq("company_id", activeCompanyId)
+          .eq("is_active", true)
+          .not("role_id", "is", null)
+          .maybeSingle();
+
+        membershipRoleId = (membership as any)?.role_id || null;
+      }
+
+      // 2. Get role IDs: per-company role takes precedence, else fall back to global assignments
+      let roleIds: string[] = [];
+
+      if (membershipRoleId) {
+        // Per-company role is the primary source
+        roleIds = [membershipRoleId];
+      } else {
+        // Fallback: global v1 assignments
+        const { data: assignments } = await supabase
+          .from("user_role_assignments")
+          .select("role_id")
+          .eq("user_id", user.id);
+
+        roleIds = assignments?.map((a: any) => a.role_id) || [];
+
+        // Also merge v2 assignments
+        const { data: ua } = await supabase
+          .from("user_accounts")
+          .select("id")
+          .eq("auth_user_id", user.id)
+          .eq("is_active", true)
+          .maybeSingle();
+
+        if (ua) {
+          const { data: v2Roles } = await supabase
+            .from("user_roles_v2")
+            .select("role_id")
+            .eq("user_account_id", ua.id);
+          for (const r of v2Roles || []) {
+            if (!roleIds.includes((r as any).role_id)) {
+              roleIds.push((r as any).role_id);
+            }
           }
         }
       }
 
+      // 3. Resolve permissions from roles
       let rolePerms: Record<string, boolean> = {};
       if (roleIds.length > 0) {
         const { data: rp } = await supabase
@@ -89,7 +117,7 @@ export function usePermissions(): PermissionState {
         }
       }
 
-      // Fetch v1 overrides
+      // 4. Apply v1 overrides
       const { data: overrides } = await supabase
         .from("user_permission_overrides")
         .select("permission_key, allowed")
@@ -100,12 +128,19 @@ export function usePermissions(): PermissionState {
         merged[(o as any).permission_key] = (o as any).allowed;
       }
 
-      // Fetch v2 overrides if user_account exists
-      if (ua) {
+      // 5. Apply v2 overrides if user_account exists
+      const { data: ua2 } = await supabase
+        .from("user_accounts")
+        .select("id")
+        .eq("auth_user_id", user.id)
+        .eq("is_active", true)
+        .maybeSingle();
+
+      if (ua2) {
         const { data: v2Overrides } = await supabase
           .from("user_permission_overrides_v2")
           .select("permission_key, mode")
-          .eq("user_account_id", ua.id);
+          .eq("user_account_id", ua2.id);
 
         for (const o of v2Overrides || []) {
           merged[(o as any).permission_key] = (o as any).mode === "allow";
@@ -122,7 +157,7 @@ export function usePermissions(): PermissionState {
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, activeCompanyId]);
 
   useEffect(() => {
     fetchPermissions();
@@ -130,7 +165,6 @@ export function usePermissions(): PermissionState {
 
   const hasPermission = useCallback(
     (key: string) => {
-      // If preview mode is active, use preview permissions
       if (preview?.active) {
         return preview.permissions[key] === true;
       }
@@ -139,7 +173,6 @@ export function usePermissions(): PermissionState {
     [permissions, preview]
   );
 
-  // If preview mode is active, override with preview permissions
   if (preview?.active) {
     return {
       permissions: preview.permissions,
