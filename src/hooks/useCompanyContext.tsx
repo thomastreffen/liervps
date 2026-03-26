@@ -56,18 +56,24 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
         }))
       );
 
-      // Get all active companies
-      const { data: comps } = await supabase
-        .from("internal_companies")
-        .select("id, name, org_number")
-        .eq("is_active", true)
-        .order("name");
+      // Get only companies the user has membership in
+      const memberCompanyIds = [...new Set((memberships || []).map((m: any) => m.company_id))];
 
-      const companyList: Company[] = (comps || []).map((c: any) => ({
-        id: c.id,
-        name: c.name,
-        org_number: c.org_number,
-      }));
+      let companyList: Company[] = [];
+      if (memberCompanyIds.length > 0) {
+        const { data: comps } = await supabase
+          .from("internal_companies")
+          .select("id, name, org_number")
+          .eq("is_active", true)
+          .in("id", memberCompanyIds)
+          .order("name");
+
+        companyList = (comps || []).map((c: any) => ({
+          id: c.id,
+          name: c.name,
+          org_number: c.org_number,
+        }));
+      }
 
       setCompanies(companyList);
 
