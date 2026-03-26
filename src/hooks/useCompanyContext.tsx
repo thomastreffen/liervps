@@ -45,7 +45,7 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
       // Get user memberships
       const { data: memberships } = await supabase
         .from("user_memberships")
-        .select("company_id, department_id")
+        .select("company_id, department_id, role_id")
         .eq("user_id", user!.id)
         .eq("is_active", true);
 
@@ -53,6 +53,7 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
         (memberships || []).map((m: any) => ({
           company_id: m.company_id,
           department_id: m.department_id,
+          role_id: m.role_id,
         }))
       );
 
