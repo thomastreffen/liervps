@@ -639,10 +639,16 @@ function TemplateSettingsForm({ template, onSave }: { template: any; onSave: (u:
         </Select>
       </div>
 
-      <Button className="w-full" onClick={() => onSave({
-        ...form,
-        send_email_to: form.send_email_to ? form.send_email_to.split(",").map((s: string) => s.trim()).filter(Boolean) : null,
-      })}>
+      <Button className="w-full" onClick={() => {
+        const catId = form.category_id === "__none__" ? null : form.category_id;
+        const catName = categories.find((c: any) => c.id === catId)?.name || null;
+        onSave({
+          ...form,
+          category_id: catId,
+          category: catName,
+          send_email_to: form.send_email_to ? form.send_email_to.split(",").map((s: string) => s.trim()).filter(Boolean) : null,
+        });
+      }}>
         Lagre innstillinger
       </Button>
     </div>
