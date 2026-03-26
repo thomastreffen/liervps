@@ -174,21 +174,16 @@ export default function PersonDetailPage() {
       setAllRolePerms((rpData as any[]) || []);
       setScopes((usData as any[] || []).map((s: any) => ({ company_id: s.company_id, department_id: s.department_id })));
 
-      // Build role permissions map + source map
-      buildRolePermMaps(assignedRoleIds, rpData as any[], rolesData as any[]);
+      // Store all v2 overrides for per-company filtering
+      const allOv = (uoData as any[] || []);
+      setAllOverridesV2(allOv);
 
-      // Build overrides
-      const ov: Record<string, "allow" | "deny"> = {};
-      let sc = "inherit";
-      for (const o of (uoData as any[] || [])) {
-        if (o.permission_key.startsWith("scope.view.")) {
-          if (o.mode === "allow") sc = o.permission_key;
-        } else {
-          ov[o.permission_key] = o.mode;
-        }
-      }
-      setOverrides(ov);
-      setScopeOverride(sc);
+      // Set initial override company to first membership company
+      const firstCompanyId = overrideCompanyId || (usData as any[] || [])[0]?.company_id || null;
+      setOverrideCompanyId(firstCompanyId);
+
+      // Build overrides filtered by selected company
+      applyOverridesForCompany(allOv, firstCompanyId);
       setAuditEntries((auditData as any[]) || []);
     }
 
