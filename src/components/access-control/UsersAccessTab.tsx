@@ -241,23 +241,20 @@ export function UsersAccessTab() {
                 </div>
                 <p className="text-xs text-muted-foreground truncate">{u.email}</p>
                 <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                  {u.memberships.map((m, i) => (
-                    <Badge key={i} variant="outline" className="text-[10px] gap-1">
-                      <Building className="h-3 w-3" />
-                      {m.company_name}{m.department_name ? ` / ${m.department_name}` : ""}
-                      {m.role_name ? (
-                        <span className="ml-0.5 text-primary font-medium">({m.role_name})</span>
-                      ) : (
-                        <span className="ml-0.5 text-muted-foreground italic">
-                          ({u.global_role_assignments[0]?.role_name || "Ingen rolle"} ↩)
-                        </span>
-                      )}
-                    </Badge>
-                  ))}
-                  {u.overrides.length > 0 && (
-                    <Badge variant="destructive" className="text-[10px] gap-1">
-                      <ShieldAlert className="h-3 w-3" />{u.overrides.length} overstyringer
-                    </Badge>
+                  {u.memberships.map((m, i) => {
+                    const effectiveRole = m.role_name || u.global_role_assignments[0]?.role_name || null;
+                    return (
+                      <Badge key={i} variant="outline" className="text-[10px] gap-1">
+                        <Building className="h-3 w-3" />
+                        {m.company_name}{m.department_name ? ` / ${m.department_name}` : ""}
+                        {effectiveRole && (
+                          <span className={cn("ml-0.5 font-medium", m.role_name ? "text-primary" : "text-muted-foreground")}>{effectiveRole}</span>
+                        )}
+                      </Badge>
+                    );
+                  })}
+                  {u.memberships.length === 0 && (
+                    <Badge variant="outline" className="text-[10px] text-muted-foreground">Ingen tilgang</Badge>
                   )}
                 </div>
               </div>
