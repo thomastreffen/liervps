@@ -67,6 +67,7 @@ export default function OverviewPage() {
       .order("updated_at", { ascending: false })
       .limit(6);
     if (activeCompanyId) projectQuery = projectQuery.eq("company_id", activeCompanyId);
+    else if (allowedCompanyIds.length > 0) projectQuery = projectQuery.in("company_id", allowedCompanyIds);
 
     const [projectsRes, techRes] = await Promise.all([projectQuery, techPromise]);
 
