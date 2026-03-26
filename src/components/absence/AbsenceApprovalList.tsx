@@ -53,6 +53,15 @@ export function AbsenceApprovalList() {
     } else {
       toast.success("Forespørsel godkjent");
       refetch();
+      // Sync to Outlook calendar
+      supabase.functions.invoke("absence-calendar-sync", {
+        body: { action: "create", absence_id: id },
+      }).then(({ data, error: syncErr }) => {
+        if (syncErr) console.error("[AbsenceSync] invoke error:", syncErr);
+        else if (data?.status === "created") toast.success("Synkronisert til Outlook-kalender");
+        else if (data?.status === "no_token") console.log("[AbsenceSync] No MS token for user");
+        else if (data?.status === "error") toast.warning("Outlook-synk feilet", { description: `Kode ${data.code}` });
+      });
     }
   }, [user, refetch]);
 
