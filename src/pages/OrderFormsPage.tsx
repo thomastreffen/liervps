@@ -316,8 +316,14 @@ export default function OrderFormsPage() {
                         </div>
                         <div className="flex items-center gap-2 mt-0.5">
                           <p className="text-xs text-muted-foreground truncate">
-                            {(sub as any).submitter_name || sub.summary?.kundenavn || "Ukjent innsender"}
-                            {sub.summary?.oppdragstittel && ` · ${sub.summary.oppdragstittel}`}
+                            {(() => {
+                              const parts: string[] = [];
+                              const name = (sub as any).submitter_name || sub.summary?.kundenavn || sub.summary?.bestiller_navn;
+                              if (name) parts.push(name);
+                              if (sub.summary?.oppdragstittel) parts.push(sub.summary.oppdragstittel);
+                              if (sub.summary?.oppdragssted) parts.push(sub.summary.oppdragssted);
+                              return parts.length > 0 ? parts.join(" · ") : sub.order_form_templates?.name || "–";
+                            })()}
                           </p>
                           {sub.assigned_to && (
                             <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
