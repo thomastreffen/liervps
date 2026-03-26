@@ -76,38 +76,57 @@ export function useAbsenceBlocks(
         return;
       }
 
-      // 2. Map person_id → technician_id via user_accounts → technicians
+      // 2. Map person_id → technician. Try two strategies:
+      //    A) person_id IS the technician_id directly (people table shares IDs with technicians)
+      //    B) person_id → user_accounts.person_id → auth_user_id → technicians.user_id
       const personIds = [...new Set(absences.map((a: any) => a.person_id))];
 
-      const { data: accounts } = await supabase
-        .from("user_accounts")
-        .select("person_id, auth_user_id")
-        .in("person_id", personIds)
-        .eq("is_active", true);
-
-      if (!accounts || accounts.length === 0) {
-        setBlocks([]);
-        setLoading(false);
-        return;
-      }
-
-      const authUserIds = accounts.map((a: any) => a.auth_user_id).filter(Boolean);
-
-      const { data: techs } = await supabase
+      // Strategy A: direct match person_id = technician.id
+      const { data: directTechs } = await supabase
         .from("technicians")
-        .select("id, name, user_id")
+        .select("id, name")
         .is("archived_at", null)
-        .in("user_id", authUserIds);
+        .in("id", personIds);
 
-      if (!techs || techs.length === 0) {
+      const personToTech = new Map<string, { id: string; name: string }>();
+      if (directTechs) {
+        for (const t of directTechs) {
+          personToTech.set(t.id, { id: t.id, name: t.name });
+        }
+      }
+
+      // Strategy B: for unmatched person_ids, try via user_accounts
+      const unmatchedIds = personIds.filter((pid) => !personToTech.has(pid));
+      if (unmatchedIds.length > 0) {
+        const { data: accounts } = await supabase
+          .from("user_accounts")
+          .select("person_id, auth_user_id")
+          .in("person_id", unmatchedIds)
+          .eq("is_active", true);
+
+        if (accounts && accounts.length > 0) {
+          const authUserIds = accounts.map((a: any) => a.auth_user_id).filter(Boolean);
+          const { data: indirectTechs } = await supabase
+            .from("technicians")
+            .select("id, name, user_id")
+            .is("archived_at", null)
+            .in("user_id", authUserIds);
+
+          if (indirectTechs) {
+            const authToTech = new Map(indirectTechs.map((t: any) => [t.user_id, { id: t.id, name: t.name }]));
+            for (const acc of accounts) {
+              const tech = authToTech.get(acc.auth_user_id);
+              if (tech) personToTech.set(acc.person_id, tech);
+            }
+          }
+        }
+      }
+
+      if (personToTech.size === 0) {
         setBlocks([]);
         setLoading(false);
         return;
       }
-
-      // Build lookup: person_id → technician
-      const personToAuth = new Map(accounts.map((a: any) => [a.person_id, a.auth_user_id]));
-      const authToTech = new Map(techs.map((t: any) => [t.user_id, { id: t.id, name: t.name }]));
 
       const result: AbsenceBlock[] = [];
 
