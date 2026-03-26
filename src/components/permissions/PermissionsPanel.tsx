@@ -62,6 +62,8 @@ interface Props {
   saving: boolean;
   onSave: () => void;
   showOnlyOverrides?: boolean;
+  overrideCompanyId?: string | null;
+  onOverrideCompanyChange?: (companyId: string) => void;
 }
 
 export function PermissionsPanel({
@@ -81,6 +83,8 @@ export function PermissionsPanel({
   onCopyFrom,
   saving,
   onSave,
+  overrideCompanyId,
+  onOverrideCompanyChange,
 }: Props) {
   const [search, setSearch] = useState("");
   const [onlyOverrides, setOnlyOverrides] = useState(false);
