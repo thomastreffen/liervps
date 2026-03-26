@@ -312,22 +312,27 @@ export function UsersAccessTab() {
                               {c.name}
                             </label>
                             {hasCompanyAccess && (
-                              <Select
-                                value={companyMembership?.role_id || "__none__"}
-                                onValueChange={(val) => setMembershipRole(c.id, val === "__none__" ? null : val)}
-                              >
-                                <SelectTrigger className="h-7 w-[160px] text-xs">
-                                  <SelectValue placeholder="Velg rolle" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="__none__">
-                                    <span className="text-muted-foreground">Global rolle (fallback)</span>
-                                  </SelectItem>
-                                  {roles.map((r) => (
-                                    <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
+                              <div className="flex items-center gap-1.5">
+                                <Select
+                                  value={companyMembership?.role_id || "__none__"}
+                                  onValueChange={(val) => setMembershipRole(c.id, val === "__none__" ? null : val)}
+                                >
+                                  <SelectTrigger className="h-7 w-[160px] text-xs">
+                                    <SelectValue placeholder="Velg rolle" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="__none__">
+                                      <span className="text-muted-foreground">Arv global rolle</span>
+                                    </SelectItem>
+                                    {roles.map((r) => (
+                                      <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                                {!companyMembership?.role_id && (
+                                  <Badge variant="outline" className="text-[9px] shrink-0 text-muted-foreground">↩ Fallback</Badge>
+                                )}
+                              </div>
                             )}
                           </div>
                           {c.departments.map((d) => (
