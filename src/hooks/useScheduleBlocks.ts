@@ -63,7 +63,8 @@ export function useScheduleBlocks(
   referenceDate: Date,
   technicianId?: string | null,
   technicianIds?: string[],
-  companyId?: string | null
+  companyId?: string | null,
+  allowedCompanyIds?: string[]
 ) {
   const [blocks, setBlocks] = useState<ScheduleBlock[]>([]);
   const [loading, setLoading] = useState(false);
