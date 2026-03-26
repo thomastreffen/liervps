@@ -6059,27 +6059,33 @@ export type Database = {
         Row: {
           company_id: string
           created_at: string | null
+          description: string | null
           id: string
           is_active: boolean | null
           name: string
+          show_in_catalog: boolean
           slug: string
           sort_order: number | null
         }
         Insert: {
           company_id: string
           created_at?: string | null
+          description?: string | null
           id?: string
           is_active?: boolean | null
           name: string
+          show_in_catalog?: boolean
           slug: string
           sort_order?: number | null
         }
         Update: {
           company_id?: string
           created_at?: string | null
+          description?: string | null
           id?: string
           is_active?: boolean | null
           name?: string
+          show_in_catalog?: boolean
           slug?: string
           sort_order?: number | null
         }
