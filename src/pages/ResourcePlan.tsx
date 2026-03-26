@@ -28,6 +28,7 @@ import { useTechnicianNowStatus, getContiguousFreeMinutes } from "@/hooks/useTec
 import { useCalendarSync } from "@/hooks/useCalendarSync";
 import { OutlookConflictDialog } from "@/components/OutlookConflictDialog";
 import { useConfirmationCount, useScheduleBlocks, type ScheduleBlock } from "@/hooks/useScheduleBlocks";
+import { useAbsenceBlocks } from "@/hooks/useAbsenceBlocks";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -215,6 +216,7 @@ export default function ResourcePlan() {
   const [refreshKey, setRefreshKey] = useState(0);
 
   const { blocks: scheduleBlocks, refetch: refetchBlocks, removeBlockOptimistic } = useScheduleBlocks(referenceDate, selectedTechId, undefined, effectiveCompanyId, allowedCompanyIds);
+  const { absenceBlocks } = useAbsenceBlocks(referenceDate, selectedTechId, effectiveCompanyId, allowedCompanyIds);
   const isCurrentWeek = isSameWeek(referenceDate, new Date(), { weekStartsOn: 1 });
   const weekStart = startOfWeek(referenceDate, { weekStartsOn: 1 });
 
@@ -974,6 +976,7 @@ export default function ResourcePlan() {
           getBusySlotsForDay={canReadBusy ? getBusySlotsForDay : undefined}
           dayCapacities={canReadBusy ? aggregatedDays : undefined}
           scheduleBlocks={scheduleBlocks}
+          absenceBlocks={absenceBlocks}
           onEventClick={handleEventClick}
           onScheduleBlockClick={(block) => {
             console.info("[ResourcePlan][OpenScheduleBlock]", {

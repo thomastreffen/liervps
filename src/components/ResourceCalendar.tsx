@@ -1,4 +1,6 @@
 import { useRef, useCallback, useMemo, useEffect, useState, memo } from "react";
+import type { AbsenceBlock } from "@/hooks/useAbsenceBlocks";
+import { CalendarOff } from "lucide-react";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
@@ -38,6 +40,7 @@ interface ResourceCalendarProps {
   getBusySlotsForDay?: (date: Date) => ExternalBusySlot[];
   dayCapacities?: DayCapacity[];
   scheduleBlocks?: ScheduleBlock[];
+  absenceBlocks?: AbsenceBlock[];
   onEventClick?: (event: CalendarEvent, clickedTechId?: string) => void;
   onScheduleBlockClick?: (block: ScheduleBlock) => void;
   onDateSelect?: (start: Date, end: Date) => void;
@@ -130,6 +133,7 @@ export const ResourceCalendar = memo(function ResourceCalendar({
   getBusySlotsForDay,
   dayCapacities,
   scheduleBlocks = [],
+  absenceBlocks = [],
   onEventClick,
   onScheduleBlockClick,
   onDateSelect,
@@ -559,26 +563,90 @@ export const ResourceCalendar = memo(function ResourceCalendar({
       });
     }
 
-    console.info(
-      "[ResourceCalendar][RenderMap]",
-      result.map((ev) => ({
-        render_key: ev.id,
-        source: (ev.extendedProps as any)?.source ?? "unknown",
-        event_id: (ev.extendedProps as any)?.eventId ?? null,
-        event_technician_id: (ev.extendedProps as any)?.eventTechnicianId ?? null,
-        technician_id: (ev.extendedProps as any)?.technicianId ?? null,
-        schedule_block_id: (ev.extendedProps as any)?.scheduleBlockId ?? null,
-        calendar_event_id: (ev.extendedProps as any)?.calendarEventId ?? null,
-        outlook_event_id: (ev.extendedProps as any)?.outlookEventId ?? null,
-        display_name: (ev.extendedProps as any)?.displayName ?? null,
-        title: ev.title,
-        start: ev.start instanceof Date ? ev.start.toISOString() : ev.start,
-        end: ev.end instanceof Date ? ev.end.toISOString() : ev.end,
-      }))
-    );
+    // ── Absence blocks ──
+    const ABSENCE_COLORS: Record<string, { bg: string; border: string; text: string }> = {
+      ferie: { bg: "#F59E0B", border: "#D97706", text: "#FFFFFF" },
+      egenmelding: { bg: "#F97316", border: "#EA580C", text: "#FFFFFF" },
+      sykemelding: { bg: "#EF4444", border: "#DC2626", text: "#FFFFFF" },
+      avspasering: { bg: "#3B82F6", border: "#2563EB", text: "#FFFFFF" },
+      permisjon: { bg: "#8B5CF6", border: "#7C3AED", text: "#FFFFFF" },
+      kurs: { bg: "#22C55E", border: "#16A34A", text: "#FFFFFF" },
+      annet: { bg: "#6B7280", border: "#4B5563", text: "#FFFFFF" },
+    };
+
+    for (const ab of absenceBlocks) {
+      // Filter by selected technician
+      if (technicianId && ab.technicianId !== technicianId) continue;
+
+      const colors = ABSENCE_COLORS[ab.absenceType] || ABSENCE_COLORS.annet;
+      const techFirstName = ab.technicianName?.split(" ")[0] || "";
+
+      if (ab.isFullDay) {
+        // Render as all-day event
+        const dayStart = new Date(ab.date);
+        dayStart.setHours(7, 0, 0, 0);
+        const dayEnd = new Date(ab.date);
+        dayEnd.setHours(16, 0, 0, 0);
+
+        result.push({
+          id: ab.id,
+          title: `${ab.label} – ${techFirstName}`,
+          start: dayStart,
+          end: dayEnd,
+          allDay: true,
+          backgroundColor: hexToRgba(colors.bg, 0.85),
+          borderColor: colors.border,
+          textColor: colors.text,
+          editable: false,
+          extendedProps: {
+            source: "absence",
+            renderKey: ab.id,
+            isAbsence: true,
+            absenceType: ab.absenceType,
+            absenceLabel: ab.label,
+            technicianId: ab.technicianId,
+            techName: techFirstName,
+            techFullName: ab.technicianName,
+            comment: ab.comment,
+            displayName: ab.technicianName,
+          },
+        });
+      } else {
+        // Partial day absence with specific times
+        const startParts = (ab.startTime || "08:00").split(":");
+        const endParts = (ab.endTime || "16:00").split(":");
+        const start = new Date(ab.date);
+        start.setHours(parseInt(startParts[0]), parseInt(startParts[1] || "0"), 0, 0);
+        const end = new Date(ab.date);
+        end.setHours(parseInt(endParts[0]), parseInt(endParts[1] || "0"), 0, 0);
+
+        result.push({
+          id: ab.id,
+          title: `${ab.label} – ${techFirstName}`,
+          start,
+          end,
+          backgroundColor: hexToRgba(colors.bg, 0.85),
+          borderColor: colors.border,
+          textColor: colors.text,
+          editable: false,
+          extendedProps: {
+            source: "absence",
+            renderKey: ab.id,
+            isAbsence: true,
+            absenceType: ab.absenceType,
+            absenceLabel: ab.label,
+            technicianId: ab.technicianId,
+            techName: techFirstName,
+            techFullName: ab.technicianName,
+            comment: ab.comment,
+            displayName: ab.technicianName,
+          },
+        });
+      }
+    }
 
     return result;
-  }, [calendarEvents, getBusySlotsForDay, technicianId, technicianMap, techColorMap, referenceDate, effectiveCanWrite, effectiveCanViewExternal, hideExternalEvents, visibleScheduleBlocks, isMonthView, approvalSummaries, highlightEventIds]);
+  }, [calendarEvents, getBusySlotsForDay, technicianId, technicianMap, techColorMap, referenceDate, effectiveCanWrite, effectiveCanViewExternal, hideExternalEvents, visibleScheduleBlocks, isMonthView, approvalSummaries, highlightEventIds, absenceBlocks]);
 
   const handleEventClick = useCallback((info: EventClickArg) => {
     const props = info.event.extendedProps as Record<string, any>;
@@ -787,7 +855,7 @@ export const ResourceCalendar = memo(function ResourceCalendar({
         height={isMonthView ? "auto" : 800}
         contentHeight={isMonthView ? "auto" : undefined}
         scrollTimeReset={false}
-        allDaySlot={false}
+        allDaySlot={absenceBlocks.length > 0}
         slotMinTime={slotMinTime}
         slotMaxTime={slotMaxTime}
         slotDuration={slotDuration}
@@ -817,6 +885,28 @@ export const ResourceCalendar = memo(function ResourceCalendar({
           const props = arg.event.extendedProps;
 
           if (calendarView === "listWeek") return undefined;
+
+          // Absence block rendering
+          if (props.isAbsence) {
+            return (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="flex items-center gap-1.5 px-2 py-1 h-full cursor-default select-none">
+                    <CalendarOff className="h-3 w-3 shrink-0 opacity-90" />
+                    <span className="text-[11px] font-bold truncate">{props.absenceLabel}</span>
+                    <span className="text-[10px] opacity-80 truncate">– {props.techName}</span>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="top">
+                  <div className="space-y-1 text-xs max-w-[220px]">
+                    <p className="font-semibold">{props.absenceLabel}</p>
+                    <p>{props.techFullName}</p>
+                    {props.comment && <p className="text-muted-foreground italic">{props.comment}</p>}
+                  </div>
+                </TooltipContent>
+              </Tooltip>
+            );
+          }
 
           // Schedule block rendering
           if (props.isScheduleBlock) {
