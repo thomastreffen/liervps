@@ -337,7 +337,7 @@ export const ResourceCalendar = memo(function ResourceCalendar({
           displayName: tech.name,
           customer: ev.customer,
           status: ev.status,
-          jobNumber: ev.internalNumber || ev.jobNumber || null,
+          jobNumber: (ev as any).projectNumber || ev.internalNumber || ev.jobNumber || null,
           techNames: assignment.technicianNames,
           techName: techFirstName,
           techFullName: tech.name,

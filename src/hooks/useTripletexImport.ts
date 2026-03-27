@@ -135,7 +135,7 @@ export function useTripletexImport() {
     const [{ data: existing }, { data: customers }] = await Promise.all([
       supabase
         .from("events")
-        .select("id, title, project_number, external_tripletex_id, customer, project_type")
+        .select("id, title, project_number, external_tripletex_id, external_system, external_project_id, customer, project_type, normalized_name")
         .is("deleted_at", null),
       supabase
         .from("customers")
@@ -155,13 +155,17 @@ export function useTripletexImport() {
       customerByName.set(c.name.toLowerCase().trim(), { id: c.id, name: c.name });
     });
 
-    // Build exact-match maps for projects
+    // Build exact-match maps for projects (multiple match paths)
     const byProjectNumber = new Map<string, { id: string; title: string; customer: string | null }>();
     const byTripletexId = new Map<string, { id: string; title: string; customer: string | null }>();
+    const byExternalId = new Map<string, { id: string; title: string; customer: string | null }>();
 
     allProjects.forEach(e => {
-      if (e.project_number) byProjectNumber.set(e.project_number.toLowerCase(), { id: e.id, title: e.title, customer: e.customer });
+      if ((e as any).project_number) byProjectNumber.set(((e as any).project_number as string).toLowerCase(), { id: e.id, title: e.title, customer: e.customer });
       if ((e as any).external_tripletex_id) byTripletexId.set(((e as any).external_tripletex_id as string).toLowerCase(), { id: e.id, title: e.title, customer: e.customer });
+      if ((e as any).external_system === 'tripletex' && (e as any).external_project_id) {
+        byExternalId.set(((e as any).external_project_id as string).toLowerCase(), { id: e.id, title: e.title, customer: e.customer });
+      }
     });
 
     const maps: CustomerMaps = { customerByOrgNr, customerByTripletexId, customerByName };
@@ -186,7 +190,15 @@ export function useTripletexImport() {
         error = "Mangler prosjektnummer";
         action = "ignore";
       } else {
-        // 1. Exact match on tripletex ID
+        // 1. Exact match on external_system='tripletex' + external_project_id
+        const externalMatch = byExternalId.get(projectNumber.toLowerCase());
+        if (externalMatch) {
+          matchStatus = "match";
+          matchedEntityId = externalMatch.id;
+          matchedEntityTitle = externalMatch.title;
+          action = "update";
+        } else {
+        // 2. Exact match on tripletex ID (legacy field)
         const tripletexMatch = byTripletexId.get(projectNumber.toLowerCase());
         if (tripletexMatch) {
           matchStatus = "match";
@@ -219,12 +231,11 @@ export function useTripletexImport() {
               candidates = fuzzyMatches;
               matchedEntityId = fuzzyMatches[0].id;
               matchedEntityTitle = fuzzyMatches[0].title;
-              action = "create";
             }
           }
         }
+        }
       }
-
       // Resolve customer
       const resolvedCustomerId = customerName || customerNumber
         ? resolveCustomerFromMaps(maps, customerName, customerNumber) ?? undefined
@@ -443,6 +454,8 @@ export function useTripletexImport() {
             if (row.action === "link" && row.matchedEntityId) {
               await supabase.from("events").update({
                 external_tripletex_id: row.projectNumber,
+                external_system: 'tripletex',
+                external_project_id: row.projectNumber,
                 customer: row.customerName || undefined,
                 customer_id: customerId || undefined,
               } as any).eq("id", row.matchedEntityId);
@@ -461,6 +474,8 @@ export function useTripletexImport() {
                 project_type: "project",
                 company_id: companyId,
                 external_tripletex_id: row.projectNumber,
+                external_system: 'tripletex',
+                external_project_id: row.projectNumber,
                 created_by: user.id,
               } as any).select("id").single();
 
@@ -479,6 +494,8 @@ export function useTripletexImport() {
                 customer_id: customerId || undefined,
                 description: row.description || undefined,
                 external_tripletex_id: row.projectNumber,
+                external_system: 'tripletex',
+                external_project_id: row.projectNumber,
               } as any).eq("id", row.matchedEntityId);
               updated++;
               await insertResult(logId, row.projectNumber, "project", "updated", "Oppdatert", row.raw, row.matchedEntityId);

@@ -98,6 +98,7 @@ export default function JobDetail() {
       status: data.status as JobStatus,
       jobNumber: data.job_number,
       internalNumber: data.internal_number,
+      projectNumber: (data as any).project_number ?? null,
       proposedStart: data.proposed_start ? new Date(data.proposed_start) : undefined,
       proposedEnd: data.proposed_end ? new Date(data.proposed_end) : undefined,
       createdAt: data.created_at ? new Date(data.created_at) : undefined,
@@ -146,6 +147,7 @@ export default function JobDetail() {
         <ProjectHeader
           jobNumber={job.jobNumber ?? null}
           internalNumber={job.internalNumber ?? null}
+          projectNumber={(job as any).projectNumber ?? null}
           title={job.title}
           customer={job.customer}
           address={job.address}

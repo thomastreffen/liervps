@@ -181,8 +181,20 @@ export function QuickProjectSearch({ onPlanProject }: QuickProjectSearchProps) {
                   <FolderKanban className="h-4 w-4 text-primary shrink-0 mt-0.5" />
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5 flex-wrap">
+                      {/* Primary: project_number if available */}
+                      {r.project_number && (
+                        <span className="text-[10px] font-mono font-bold bg-primary/10 text-primary rounded px-1 py-0.5 shrink-0">
+                          {r.project_number}
+                        </span>
+                      )}
+                      {/* Secondary: internal_number (dimmed if project_number exists) */}
                       {r.internal_number && (
-                        <span className="text-[9px] font-mono font-bold bg-primary/10 text-primary rounded px-1 py-0.5 shrink-0">
+                        <span className={cn(
+                          "text-[9px] font-mono rounded px-1 py-0.5 shrink-0",
+                          r.project_number
+                            ? "text-muted-foreground bg-muted/30"
+                            : "font-bold bg-primary/10 text-primary"
+                        )}>
                           {r.internal_number}
                         </span>
                       )}
@@ -197,9 +209,6 @@ export function QuickProjectSearch({ onPlanProject }: QuickProjectSearchProps) {
                       </Badge>
                       {r.job_number && (
                         <span className="text-[9px] text-muted-foreground">#{r.job_number}</span>
-                      )}
-                      {r.project_number && (
-                        <span className="text-[9px] text-muted-foreground">P:{r.project_number}</span>
                       )}
                       {r.external_tripletex_id && (
                         <span className="text-[9px] text-muted-foreground">TX:{r.external_tripletex_id}</span>

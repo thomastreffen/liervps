@@ -1,6 +1,6 @@
 import { type ProjectSuggestion } from "@/hooks/useProjectSuggestions";
 import { Badge } from "@/components/ui/badge";
-import { Link2, Loader2 } from "lucide-react";
+import { Link2, Loader2, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface ProjectSuggestionListProps {
@@ -21,18 +21,43 @@ export function ProjectSuggestionList({ suggestions, loading, onSelect, selected
 
   if (suggestions.length === 0) return null;
 
+  const hasExactMatch = suggestions.some(s => s.matchScore >= 90);
+
   return (
-    <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 overflow-hidden">
-      <div className="flex items-center gap-1.5 px-3 py-1.5 border-b border-amber-500/20 bg-amber-500/10">
-        <Link2 className="h-3 w-3 text-amber-600" />
-        <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-700">
-          Mulig duplikat – koble til eksisterende?
+    <div className={cn(
+      "rounded-lg border overflow-hidden",
+      hasExactMatch
+        ? "border-primary/40 bg-primary/5"
+        : "border-amber-500/30 bg-amber-500/5"
+    )}>
+      <div className={cn(
+        "flex items-center gap-1.5 px-3 py-1.5 border-b",
+        hasExactMatch
+          ? "border-primary/20 bg-primary/10"
+          : "border-amber-500/20 bg-amber-500/10"
+      )}>
+        {hasExactMatch ? (
+          <Link2 className="h-3 w-3 text-primary" />
+        ) : (
+          <AlertTriangle className="h-3 w-3 text-amber-600" />
+        )}
+        <span className={cn(
+          "text-[10px] font-semibold uppercase tracking-wider",
+          hasExactMatch ? "text-primary" : "text-amber-700"
+        )}>
+          {hasExactMatch ? "Mente du dette prosjektet?" : "Mulig duplikat – koble til eksisterende?"}
         </span>
       </div>
-      <div className="max-h-40 overflow-y-auto p-1 space-y-0.5">
+      <div className="max-h-48 overflow-y-auto p-1 space-y-0.5">
         {suggestions.map((s) => {
-          const num = s.internal_number || s.job_number;
-          const displayId = num ? (num.startsWith("JOB-") ? num : `JOB-${num}`) : null;
+          // Prefer project_number as primary display ID
+          const displayId = s.project_number
+            ? s.project_number
+            : s.internal_number
+              ? (s.internal_number.startsWith("JOB-") ? s.internal_number : `JOB-${s.internal_number}`)
+              : s.job_number
+                ? `#${s.job_number}`
+                : null;
 
           return (
             <button
@@ -43,24 +68,26 @@ export function ProjectSuggestionList({ suggestions, loading, onSelect, selected
                 "w-full text-left rounded-md px-3 py-2 text-sm transition-colors",
                 selectedId === s.id
                   ? "bg-primary/10 border border-primary/30"
-                  : "hover:bg-muted"
+                  : s.matchScore >= 90
+                    ? "bg-primary/5 hover:bg-primary/10 border border-transparent"
+                    : "hover:bg-muted"
               )}
             >
               <div className="flex items-center gap-2">
-                <span className="font-medium truncate flex-1">{s.title}</span>
                 {displayId && (
-                  <span className="text-[9px] font-mono font-bold bg-primary/15 text-primary rounded px-1 py-0.5 shrink-0">
+                  <span className="text-[10px] font-mono font-bold bg-primary/15 text-primary rounded px-1.5 py-0.5 shrink-0">
                     {displayId}
                   </span>
                 )}
+                <span className="font-medium truncate flex-1">{s.title}</span>
               </div>
               <div className="flex items-center gap-2 mt-0.5 text-xs text-muted-foreground">
                 {s.customer && <span>{s.customer}</span>}
                 <Badge variant="outline" className="text-[9px] h-4 px-1">
-                  treff: {s.matchField}
+                  {s.matchField}
                 </Badge>
-                {s.external_tripletex_number && (
-                  <span className="text-[9px] opacity-60">TX: {s.external_tripletex_number}</span>
+                {s.external_tripletex_id && (
+                  <span className="text-[9px] opacity-60">TX: {s.external_tripletex_id}</span>
                 )}
               </div>
             </button>
