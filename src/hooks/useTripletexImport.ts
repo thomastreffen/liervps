@@ -231,12 +231,11 @@ export function useTripletexImport() {
               candidates = fuzzyMatches;
               matchedEntityId = fuzzyMatches[0].id;
               matchedEntityTitle = fuzzyMatches[0].title;
-              action = "create";
             }
           }
         }
+        }
       }
-
       // Resolve customer
       const resolvedCustomerId = customerName || customerNumber
         ? resolveCustomerFromMaps(maps, customerName, customerNumber) ?? undefined
