@@ -137,6 +137,7 @@ export function useCalendarEvents(technicianId: string | null, referenceDate?: D
           status: e.status as JobStatus,
           jobNumber: e.job_number,
           internalNumber: e.internal_number,
+          projectNumber: (e as any).project_number ?? null,
           proposedStart: e.proposed_start ? parseUtc(e.proposed_start) : undefined,
           proposedEnd: e.proposed_end ? parseUtc(e.proposed_end) : undefined,
           createdAt: e.created_at ? parseUtc(e.created_at) : undefined,

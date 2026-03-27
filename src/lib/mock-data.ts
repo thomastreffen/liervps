@@ -45,6 +45,7 @@ export interface Job {
   status: JobStatus;
   jobNumber?: string | null;
   internalNumber?: string | null;
+  projectNumber?: string | null;
   proposedStart?: Date;
   proposedEnd?: Date;
   attachments?: Attachment[];
