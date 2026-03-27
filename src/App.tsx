@@ -435,6 +435,7 @@ const App = () => (
                     <ProjectDuplicatesPage />
                   </ProtectedRoute>
                 }
+              />
               <Route
                 path="/admin/company-migration"
                 element={
