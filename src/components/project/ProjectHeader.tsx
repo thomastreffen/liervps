@@ -50,6 +50,7 @@ interface ProjectHeaderProps {
 export function ProjectHeader({
   jobNumber,
   internalNumber,
+  projectNumber,
   title,
   customer,
   start,
