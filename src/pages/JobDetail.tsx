@@ -98,6 +98,7 @@ export default function JobDetail() {
       status: data.status as JobStatus,
       jobNumber: data.job_number,
       internalNumber: data.internal_number,
+      projectNumber: (data as any).project_number ?? null,
       proposedStart: data.proposed_start ? new Date(data.proposed_start) : undefined,
       proposedEnd: data.proposed_end ? new Date(data.proposed_end) : undefined,
       createdAt: data.created_at ? new Date(data.created_at) : undefined,
