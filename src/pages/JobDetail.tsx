@@ -146,6 +146,7 @@ export default function JobDetail() {
         <ProjectHeader
           jobNumber={job.jobNumber ?? null}
           internalNumber={job.internalNumber ?? null}
+          projectNumber={(job as any).projectNumber ?? null}
           title={job.title}
           customer={job.customer}
           address={job.address}
