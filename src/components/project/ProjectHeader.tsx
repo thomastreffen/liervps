@@ -30,6 +30,7 @@ import type { JobStatus } from "@/lib/job-status";
 interface ProjectHeaderProps {
   jobNumber: string | null;
   internalNumber: string | null;
+  projectNumber?: string | null;
   title: string;
   customer: string;
   address: string;
