@@ -3153,6 +3153,8 @@ export type Database = {
           editing_by: string | null
           editing_started_at: string | null
           end_time: string
+          external_project_id: string | null
+          external_system: string | null
           external_tripletex_id: string | null
           id: string
           internal_number: string | null
@@ -3161,9 +3163,11 @@ export type Database = {
           meeting_created_by: string | null
           meeting_id: string | null
           meeting_join_url: string | null
+          merged_into_project_id: string | null
           microsoft_etag: string | null
           microsoft_event_id: string | null
           next_contract_deadline: string | null
+          normalized_name: string | null
           offer_id: string | null
           outlook_deleted_at: string | null
           outlook_last_synced_at: string | null
@@ -3225,6 +3229,8 @@ export type Database = {
           editing_by?: string | null
           editing_started_at?: string | null
           end_time: string
+          external_project_id?: string | null
+          external_system?: string | null
           external_tripletex_id?: string | null
           id?: string
           internal_number?: string | null
@@ -3233,9 +3239,11 @@ export type Database = {
           meeting_created_by?: string | null
           meeting_id?: string | null
           meeting_join_url?: string | null
+          merged_into_project_id?: string | null
           microsoft_etag?: string | null
           microsoft_event_id?: string | null
           next_contract_deadline?: string | null
+          normalized_name?: string | null
           offer_id?: string | null
           outlook_deleted_at?: string | null
           outlook_last_synced_at?: string | null
@@ -3297,6 +3305,8 @@ export type Database = {
           editing_by?: string | null
           editing_started_at?: string | null
           end_time?: string
+          external_project_id?: string | null
+          external_system?: string | null
           external_tripletex_id?: string | null
           id?: string
           internal_number?: string | null
@@ -3305,9 +3315,11 @@ export type Database = {
           meeting_created_by?: string | null
           meeting_id?: string | null
           meeting_join_url?: string | null
+          merged_into_project_id?: string | null
           microsoft_etag?: string | null
           microsoft_event_id?: string | null
           next_contract_deadline?: string | null
+          normalized_name?: string | null
           offer_id?: string | null
           outlook_deleted_at?: string | null
           outlook_last_synced_at?: string | null
@@ -3357,6 +3369,13 @@ export type Database = {
             columns: ["department_id"]
             isOneToOne: false
             referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "events_merged_into_project_id_fkey"
+            columns: ["merged_into_project_id"]
+            isOneToOne: false
+            referencedRelation: "events"
             referencedColumns: ["id"]
           },
           {
