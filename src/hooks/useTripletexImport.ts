@@ -135,7 +135,7 @@ export function useTripletexImport() {
     const [{ data: existing }, { data: customers }] = await Promise.all([
       supabase
         .from("events")
-        .select("id, title, project_number, external_tripletex_id, customer, project_type")
+        .select("id, title, project_number, external_tripletex_id, external_system, external_project_id, customer, project_type, normalized_name")
         .is("deleted_at", null),
       supabase
         .from("customers")
@@ -155,13 +155,17 @@ export function useTripletexImport() {
       customerByName.set(c.name.toLowerCase().trim(), { id: c.id, name: c.name });
     });
 
-    // Build exact-match maps for projects
+    // Build exact-match maps for projects (multiple match paths)
     const byProjectNumber = new Map<string, { id: string; title: string; customer: string | null }>();
     const byTripletexId = new Map<string, { id: string; title: string; customer: string | null }>();
+    const byExternalId = new Map<string, { id: string; title: string; customer: string | null }>();
 
     allProjects.forEach(e => {
-      if (e.project_number) byProjectNumber.set(e.project_number.toLowerCase(), { id: e.id, title: e.title, customer: e.customer });
+      if ((e as any).project_number) byProjectNumber.set(((e as any).project_number as string).toLowerCase(), { id: e.id, title: e.title, customer: e.customer });
       if ((e as any).external_tripletex_id) byTripletexId.set(((e as any).external_tripletex_id as string).toLowerCase(), { id: e.id, title: e.title, customer: e.customer });
+      if ((e as any).external_system === 'tripletex' && (e as any).external_project_id) {
+        byExternalId.set(((e as any).external_project_id as string).toLowerCase(), { id: e.id, title: e.title, customer: e.customer });
+      }
     });
 
     const maps: CustomerMaps = { customerByOrgNr, customerByTripletexId, customerByName };
