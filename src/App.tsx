@@ -78,6 +78,7 @@ import AiMatcherReportPage from "./pages/AiMatcherReportPage";
 import InvoiceBasisPage from "./pages/InvoiceBasisPage";
 import ModuleManagementPage from "./pages/ModuleManagementPage";
 import TripletexImportPage from "./pages/TripletexImportPage";
+import ProjectDuplicatesPage from "./pages/ProjectDuplicatesPage";
 import ManagementPage from "./pages/ManagementPage";
 import AbsencePage from "./pages/AbsencePage";
 import MyDayPage from "./pages/MyDayPage";
