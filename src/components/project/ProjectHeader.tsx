@@ -120,14 +120,21 @@ export function ProjectHeader({
           <h1 className="text-xl sm:text-3xl font-extrabold text-foreground tracking-tight">
             {title}
           </h1>
-          {(internalNumber || jobNumber) && (
-            <span className="inline-block font-mono text-xs font-semibold bg-primary/10 text-primary rounded-md px-2 py-0.5 mt-1">
-              {(() => {
-                const num = internalNumber || jobNumber || "";
-                return num.startsWith("JOB-") ? num : `JOB-${num}`;
-              })()}
-            </span>
-          )}
+          <div className="flex items-center justify-center gap-2 mt-1 flex-wrap">
+            {projectNumber && (
+              <span className="inline-block font-mono text-xs font-semibold bg-primary/10 text-primary rounded-md px-2 py-0.5">
+                {projectNumber}
+              </span>
+            )}
+            {(internalNumber || jobNumber) && (
+              <span className={`inline-block font-mono text-xs rounded-md px-2 py-0.5 ${projectNumber ? 'text-muted-foreground bg-muted/50' : 'font-semibold bg-primary/10 text-primary'}`}>
+                {(() => {
+                  const num = internalNumber || jobNumber || "";
+                  return num.startsWith("JOB-") ? num : `JOB-${num}`;
+                })()}
+              </span>
+            )}
+          </div>
 
           {/* Source badge */}
           {(externalTripletexId || companyName) && (
