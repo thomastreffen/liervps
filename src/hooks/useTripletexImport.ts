@@ -454,6 +454,8 @@ export function useTripletexImport() {
             if (row.action === "link" && row.matchedEntityId) {
               await supabase.from("events").update({
                 external_tripletex_id: row.projectNumber,
+                external_system: 'tripletex',
+                external_project_id: row.projectNumber,
                 customer: row.customerName || undefined,
                 customer_id: customerId || undefined,
               } as any).eq("id", row.matchedEntityId);
@@ -472,6 +474,8 @@ export function useTripletexImport() {
                 project_type: "project",
                 company_id: companyId,
                 external_tripletex_id: row.projectNumber,
+                external_system: 'tripletex',
+                external_project_id: row.projectNumber,
                 created_by: user.id,
               } as any).select("id").single();
 
@@ -490,6 +494,8 @@ export function useTripletexImport() {
                 customer_id: customerId || undefined,
                 description: row.description || undefined,
                 external_tripletex_id: row.projectNumber,
+                external_system: 'tripletex',
+                external_project_id: row.projectNumber,
               } as any).eq("id", row.matchedEntityId);
               updated++;
               await insertResult(logId, row.projectNumber, "project", "updated", "Oppdatert", row.raw, row.matchedEntityId);
