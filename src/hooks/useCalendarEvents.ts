@@ -43,6 +43,7 @@ export function useCalendarEvents(technicianId: string | null, referenceDate?: D
           status,
           job_number,
           internal_number,
+          project_number,
           microsoft_event_id,
           proposed_start,
           proposed_end,
