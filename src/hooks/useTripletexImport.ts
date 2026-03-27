@@ -190,7 +190,15 @@ export function useTripletexImport() {
         error = "Mangler prosjektnummer";
         action = "ignore";
       } else {
-        // 1. Exact match on tripletex ID
+        // 1. Exact match on external_system='tripletex' + external_project_id
+        const externalMatch = byExternalId.get(projectNumber.toLowerCase());
+        if (externalMatch) {
+          matchStatus = "match";
+          matchedEntityId = externalMatch.id;
+          matchedEntityTitle = externalMatch.title;
+          action = "update";
+        } else {
+        // 2. Exact match on tripletex ID (legacy field)
         const tripletexMatch = byTripletexId.get(projectNumber.toLowerCase());
         if (tripletexMatch) {
           matchStatus = "match";
