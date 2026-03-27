@@ -806,13 +806,27 @@ export function EventDrawer({
           {/* Edit mode: job info */}
           {isEditing && editEvent && (
             <div className="space-y-3">
-              {(editEvent.internalNumber || editEvent.jobNumber) && (
-                <span className="inline-block font-mono text-[11px] font-semibold bg-primary/10 text-primary rounded px-2 py-0.5">
-                  {(() => {
-                    const num = editEvent.internalNumber || editEvent.jobNumber || "";
-                    return num.startsWith("JOB-") ? num : `JOB-${num}`;
-                  })()}
-                </span>
+              {((editEvent as any).projectNumber || editEvent.internalNumber || editEvent.jobNumber) && (
+                <div className="flex items-center gap-2 flex-wrap">
+                  {(editEvent as any).projectNumber && (
+                    <span className="inline-block font-mono text-[11px] font-semibold bg-primary/10 text-primary rounded px-2 py-0.5">
+                      {(editEvent as any).projectNumber}
+                    </span>
+                  )}
+                  {(editEvent.internalNumber || editEvent.jobNumber) && (
+                    <span className={cn(
+                      "inline-block font-mono text-[10px] rounded px-1.5 py-0.5",
+                      (editEvent as any).projectNumber
+                        ? "text-muted-foreground bg-muted/50"
+                        : "font-semibold bg-primary/10 text-primary"
+                    )}>
+                      {(() => {
+                        const num = editEvent.internalNumber || editEvent.jobNumber || "";
+                        return num.startsWith("JOB-") ? num : `JOB-${num}`;
+                      })()}
+                    </span>
+                  )}
+                </div>
               )}
               <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
                 {editCompanyName && (
