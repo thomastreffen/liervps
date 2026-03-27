@@ -622,12 +622,24 @@ export function EventDrawer({
           {/* Multi-tech context banner */}
           {isEditing && editEvent && (
             <div className="space-y-1.5 pt-1">
-              {/* JOB-ID badge */}
-              {editEvent.jobNumber && (
-                <span className="inline-block font-mono text-[11px] font-semibold bg-primary/10 text-primary rounded-md px-2 py-0.5">
-                  {editEvent.jobNumber}
-                </span>
-              )}
+              {/* Primary identifier badges */}
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {(editEvent as any).projectNumber && (
+                  <span className="inline-block font-mono text-[11px] font-semibold bg-primary/10 text-primary rounded-md px-2 py-0.5">
+                    {(editEvent as any).projectNumber}
+                  </span>
+                )}
+                {editEvent.jobNumber && (
+                  <span className={cn(
+                    "inline-block font-mono text-[10px] rounded-md px-1.5 py-0.5",
+                    (editEvent as any).projectNumber
+                      ? "text-muted-foreground bg-muted/50"
+                      : "font-semibold bg-primary/10 text-primary"
+                  )}>
+                    {editEvent.jobNumber}
+                  </span>
+                )}
+              </div>
               {/* Compact technician line */}
               {isMultiTech ? (
                 <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
