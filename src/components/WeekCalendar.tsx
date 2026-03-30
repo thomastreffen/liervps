@@ -187,6 +187,7 @@ export function WeekCalendar({
         const dayJobs = getJobsForDay(day);
         const isToday = isDateToday(day);
         const isWeekend = day.getDay() === 0 || day.getDay() === 6;
+        const holidayName = getHolidayName(day);
         const bookedMinutes = getBookedMinutesForDay(day);
         const externalMinutes = getExternalBusyMinutesForDay?.(day) ?? 0;
         const totalMinutes = bookedMinutes + externalMinutes;
