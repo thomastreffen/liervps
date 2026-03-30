@@ -208,6 +208,8 @@ export function WeekCalendar({
                 "px-3 py-2.5 text-center border-b border-border/30 select-none",
                 isToday
                   ? "bg-primary text-primary-foreground"
+                  : holidayName
+                  ? "bg-destructive/8"
                   : "bg-card"
               )}
             >
@@ -223,6 +225,19 @@ export function WeekCalendar({
               )}>
                 {format(day, "d")}
               </p>
+              {holidayName && (
+                <div className={cn(
+                  "mt-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5",
+                  isToday
+                    ? "bg-primary-foreground/20 text-primary-foreground"
+                    : "bg-destructive/10 text-destructive"
+                )}>
+                  <Star className="h-2.5 w-2.5 fill-current" />
+                  <span className="text-[9px] font-bold uppercase tracking-wide">
+                    {holidayName} – fri
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Utilization bar */}
