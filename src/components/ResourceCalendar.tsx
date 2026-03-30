@@ -1182,12 +1182,19 @@ export const ResourceCalendar = memo(function ResourceCalendar({
         }}
         dayHeaderContent={(arg) => {
           const isToday = new Date().toDateString() === arg.date.toDateString();
+          const dateKey = `${arg.date.getFullYear()}-${String(arg.date.getMonth() + 1).padStart(2, "0")}-${String(arg.date.getDate()).padStart(2, "0")}`;
+          const holidayName = holidayMap.get(dateKey);
           if (isMonthView) {
             return (
               <div className="py-1.5 text-center">
                 <div className={cn("text-xs uppercase tracking-widest font-semibold", isToday ? "text-primary" : "text-muted-foreground")}>
                   {arg.date.toLocaleDateString("nb-NO", { weekday: "short" })}
                 </div>
+                {holidayName && (
+                  <div className="mt-0.5 text-[9px] font-semibold text-amber-700 dark:text-amber-400 truncate max-w-[80px] mx-auto">
+                    {holidayName}
+                  </div>
+                )}
               </div>
             );
           }
@@ -1202,6 +1209,13 @@ export const ResourceCalendar = memo(function ResourceCalendar({
               <div className={`text-base font-bold ${isToday ? "text-primary" : ""}`}>
                 {arg.date.getDate()}
               </div>
+              {holidayName && (
+                <div className="mt-0.5 rounded-full bg-amber-100 dark:bg-amber-900/40 px-2 py-px inline-block">
+                  <span className="text-[9px] font-semibold text-amber-800 dark:text-amber-300 whitespace-nowrap">
+                    {holidayName}
+                  </span>
+                </div>
+              )}
               {dayCap && (
                 <div className="mt-0.5 flex flex-col items-center gap-0.5">
                   <div className="w-8 h-1 rounded-full bg-muted overflow-hidden">
