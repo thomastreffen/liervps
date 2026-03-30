@@ -647,6 +647,33 @@ export const ResourceCalendar = memo(function ResourceCalendar({
       }
     }
 
+    // ── Norwegian public holidays (Google Calendar–style banner) ──
+    const refYear = referenceDate.getFullYear();
+    const holidayYears = [refYear - 1, refYear, refYear + 1];
+    for (const yr of holidayYears) {
+      for (const h of getNorwegianHolidays(yr)) {
+        const nextDay = new Date(h.date);
+        nextDay.setDate(nextDay.getDate() + 1);
+        result.push({
+          id: `holiday-${h.date.toISOString()}`,
+          title: h.name,
+          start: h.date,
+          end: nextDay,
+          allDay: true,
+          display: "block",
+          backgroundColor: "#D4A017",
+          borderColor: "#B8860B",
+          textColor: "#FFFFFF",
+          editable: false,
+          extendedProps: {
+            source: "holiday",
+            isHoliday: true,
+            holidayName: h.name,
+          },
+        });
+      }
+    }
+
     return result;
   }, [calendarEvents, getBusySlotsForDay, technicianId, technicianMap, techColorMap, referenceDate, effectiveCanWrite, effectiveCanViewExternal, hideExternalEvents, visibleScheduleBlocks, isMonthView, approvalSummaries, highlightEventIds, absenceBlocks]);
 
