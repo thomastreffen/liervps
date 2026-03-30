@@ -5,7 +5,8 @@ import { useCalendarEvents, type CalendarEvent } from "@/hooks/useCalendarEvents
 import { JOB_STATUS_CONFIG, type JobStatus } from "@/lib/job-status";
 import { cn } from "@/lib/utils";
 import { JobStatusBadge } from "./JobStatusBadge";
-import { AlertTriangle, Lock, MapPin, Moon } from "lucide-react";
+import { AlertTriangle, Lock, MapPin, Moon, Star } from "lucide-react";
+import { getHolidayName } from "@/lib/norwegian-holidays";
 import { useIsMobile } from "@/hooks/use-mobile";
 import type { ExternalBusySlot } from "@/hooks/useExternalBusy";
 
