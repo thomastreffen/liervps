@@ -647,36 +647,21 @@ export const ResourceCalendar = memo(function ResourceCalendar({
       }
     }
 
-    // ── Norwegian public holidays (Google Calendar–style banner) ──
-    const refYear = referenceDate.getFullYear();
-    const holidayYears = [refYear - 1, refYear, refYear + 1];
-    for (const yr of holidayYears) {
-      for (const h of getNorwegianHolidays(yr)) {
-        const nextDay = new Date(h.date);
-        nextDay.setDate(nextDay.getDate() + 1);
-        result.push({
-          id: `holiday-${h.date.toISOString()}`,
-          title: h.name,
-          start: h.date,
-          end: nextDay,
-          allDay: true,
-          display: "block",
-          backgroundColor: "#D4A017",
-          borderColor: "#B8860B",
-          textColor: "#FFFFFF",
-          editable: false,
-          extendedProps: {
-            source: "holiday",
-            isHoliday: true,
-            holidayName: h.name,
-          },
-        });
-      }
-    }
-
     return result;
   }, [calendarEvents, getBusySlotsForDay, technicianId, technicianMap, techColorMap, referenceDate, effectiveCanWrite, effectiveCanViewExternal, hideExternalEvents, visibleScheduleBlocks, isMonthView, approvalSummaries, highlightEventIds, absenceBlocks]);
 
+  // Holiday lookup map for date headers
+  const holidayMap = useMemo(() => {
+    const map = new Map<string, string>();
+    const yr = referenceDate.getFullYear();
+    for (const y of [yr - 1, yr, yr + 1]) {
+      for (const h of getNorwegianHolidays(y)) {
+        const k = `${h.date.getFullYear()}-${String(h.date.getMonth() + 1).padStart(2, "0")}-${String(h.date.getDate()).padStart(2, "0")}`;
+        map.set(k, h.name);
+      }
+    }
+    return map;
+  }, [referenceDate]);
   const handleEventClick = useCallback((info: EventClickArg) => {
     const props = info.event.extendedProps as Record<string, any>;
 
@@ -884,8 +869,7 @@ export const ResourceCalendar = memo(function ResourceCalendar({
         height={isMonthView ? "auto" : 800}
         contentHeight={isMonthView ? "auto" : undefined}
         scrollTimeReset={false}
-        allDaySlot={true}
-        allDayText=""
+        allDaySlot={false}
         slotMinTime={slotMinTime}
         slotMaxTime={slotMaxTime}
         slotDuration={slotDuration}
@@ -1210,12 +1194,19 @@ export const ResourceCalendar = memo(function ResourceCalendar({
         }}
         dayHeaderContent={(arg) => {
           const isToday = new Date().toDateString() === arg.date.toDateString();
+          const dateKey = `${arg.date.getFullYear()}-${String(arg.date.getMonth() + 1).padStart(2, "0")}-${String(arg.date.getDate()).padStart(2, "0")}`;
+          const holidayName = holidayMap.get(dateKey);
           if (isMonthView) {
             return (
               <div className="py-1.5 text-center">
                 <div className={cn("text-xs uppercase tracking-widest font-semibold", isToday ? "text-primary" : "text-muted-foreground")}>
                   {arg.date.toLocaleDateString("nb-NO", { weekday: "short" })}
                 </div>
+                {holidayName && (
+                  <div className="mt-0.5 text-[9px] font-semibold text-amber-700 dark:text-amber-400 truncate max-w-[80px] mx-auto">
+                    {holidayName}
+                  </div>
+                )}
               </div>
             );
           }
@@ -1230,6 +1221,13 @@ export const ResourceCalendar = memo(function ResourceCalendar({
               <div className={`text-base font-bold ${isToday ? "text-primary" : ""}`}>
                 {arg.date.getDate()}
               </div>
+              {holidayName && (
+                <div className="mt-0.5 rounded-full bg-amber-100 dark:bg-amber-900/40 px-2 py-px inline-block">
+                  <span className="text-[9px] font-semibold text-amber-800 dark:text-amber-300 whitespace-nowrap">
+                    {holidayName}
+                  </span>
+                </div>
+              )}
               {dayCap && (
                 <div className="mt-0.5 flex flex-col items-center gap-0.5">
                   <div className="w-8 h-1 rounded-full bg-muted overflow-hidden">

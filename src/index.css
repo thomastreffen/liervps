@@ -296,25 +296,6 @@
   margin-bottom: 2px;
 }
 
-/* ═══ Holiday all-day row (Google Calendar style) ═══ */
-.fc-wrapper .fc .fc-daygrid-body-natural .fc-daygrid-day-events {
-  display: flex !important;
-}
-.fc-wrapper .fc .fc-timegrid .fc-daygrid-body {
-  border-bottom: 1px solid hsl(220 14% 90%);
-}
-.fc-wrapper .fc .fc-timegrid .fc-daygrid-event-harness {
-  margin: 0 2px;
-}
-.fc-wrapper .fc .fc-timegrid .fc-daygrid-event {
-  border-radius: 4px;
-  border-left-width: 0;
-  font-size: 11px;
-  font-weight: 600;
-  padding: 2px 8px;
-  margin: 1px 0;
-  letter-spacing: 0.01em;
-}
 
 
 .fc-wrapper .fc .fc-daygrid-body .fc-daygrid-day {
