@@ -662,7 +662,7 @@ export const ResourceCalendar = memo(function ResourceCalendar({
     }
     return map;
   }, [referenceDate]);
-
+  const handleEventClick = useCallback((info: EventClickArg) => {
     const props = info.event.extendedProps as Record<string, any>;
 
     console.info("[ResourceCalendar][Click]", {
