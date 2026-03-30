@@ -5,7 +5,8 @@ import { useCalendarEvents, type CalendarEvent } from "@/hooks/useCalendarEvents
 import { JOB_STATUS_CONFIG, type JobStatus } from "@/lib/job-status";
 import { cn } from "@/lib/utils";
 import { JobStatusBadge } from "./JobStatusBadge";
-import { AlertTriangle, Lock, MapPin, Moon } from "lucide-react";
+import { AlertTriangle, Lock, MapPin, Moon, Star } from "lucide-react";
+import { getHolidayName } from "@/lib/norwegian-holidays";
 import { useIsMobile } from "@/hooks/use-mobile";
 import type { ExternalBusySlot } from "@/hooks/useExternalBusy";
 
@@ -186,6 +187,7 @@ export function WeekCalendar({
         const dayJobs = getJobsForDay(day);
         const isToday = isDateToday(day);
         const isWeekend = day.getDay() === 0 || day.getDay() === 6;
+        const holidayName = getHolidayName(day);
         const bookedMinutes = getBookedMinutesForDay(day);
         const externalMinutes = getExternalBusyMinutesForDay?.(day) ?? 0;
         const totalMinutes = bookedMinutes + externalMinutes;
@@ -206,6 +208,8 @@ export function WeekCalendar({
                 "px-3 py-2.5 text-center border-b border-border/30 select-none",
                 isToday
                   ? "bg-primary text-primary-foreground"
+                  : holidayName
+                  ? "bg-destructive/8"
                   : "bg-card"
               )}
             >
@@ -221,6 +225,19 @@ export function WeekCalendar({
               )}>
                 {format(day, "d")}
               </p>
+              {holidayName && (
+                <div className={cn(
+                  "mt-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5",
+                  isToday
+                    ? "bg-primary-foreground/20 text-primary-foreground"
+                    : "bg-destructive/10 text-destructive"
+                )}>
+                  <Star className="h-2.5 w-2.5 fill-current" />
+                  <span className="text-[9px] font-bold uppercase tracking-wide">
+                    {holidayName} – fri
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Utilization bar */}
