@@ -650,7 +650,19 @@ export const ResourceCalendar = memo(function ResourceCalendar({
     return result;
   }, [calendarEvents, getBusySlotsForDay, technicianId, technicianMap, techColorMap, referenceDate, effectiveCanWrite, effectiveCanViewExternal, hideExternalEvents, visibleScheduleBlocks, isMonthView, approvalSummaries, highlightEventIds, absenceBlocks]);
 
-  const handleEventClick = useCallback((info: EventClickArg) => {
+  // Holiday lookup map for date headers
+  const holidayMap = useMemo(() => {
+    const map = new Map<string, string>();
+    const yr = referenceDate.getFullYear();
+    for (const y of [yr - 1, yr, yr + 1]) {
+      for (const h of getNorwegianHolidays(y)) {
+        const k = `${h.date.getFullYear()}-${String(h.date.getMonth() + 1).padStart(2, "0")}-${String(h.date.getDate()).padStart(2, "0")}`;
+        map.set(k, h.name);
+      }
+    }
+    return map;
+  }, [referenceDate]);
+
     const props = info.event.extendedProps as Record<string, any>;
 
     console.info("[ResourceCalendar][Click]", {
