@@ -71,6 +71,9 @@ export default function OrderFormDetailPage() {
   const [assignSearch, setAssignSearch] = useState("");
   const [notifyOnStatusChange, setNotifyOnStatusChange] = useState(false);
   const [notifyOnAssign, setNotifyOnAssign] = useState(false);
+  const [recipientOverrideOpen, setRecipientOverrideOpen] = useState(false);
+  const [recipientOverrideEmail, setRecipientOverrideEmail] = useState("");
+  const [recipientOverrideName, setRecipientOverrideName] = useState("");
 
   const { data: submission, isLoading } = useQuery({
     queryKey: ["order-form-submission", id],
