@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import {
-  GripVertical, Plus, ChevronDown, ChevronRight, Eye, EyeOff,
+  GripVertical, Plus, ChevronDown, ChevronRight, Eye, EyeOff, ArrowUp, ArrowDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
