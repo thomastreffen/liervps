@@ -182,6 +182,18 @@ export default function OrderFormSubmitPage() {
       })));
       const qualityResult = computeQualityScore(formData, attachments.map(a => ({ category: a.category, file_name: a.file.name })), templateFields);
 
+      // Resolve notification recipient from form data
+      const findFormVal = (...keys: string[]) => {
+        for (const k of keys) {
+          if (formData[k]) return String(formData[k]);
+          const match = Object.keys(formData).find(fk => fk.startsWith(k));
+          if (match && formData[match]) return String(formData[match]);
+        }
+        return null;
+      };
+      const recipientEmail = findFormVal("bestiller_epost", "epost_kunde", "epost", "kontakt_epost");
+      const recipientName = findFormVal("bestiller_navn", "kontaktperson", "kontaktperson_kunde");
+
       // Insert submission
       const { error: subErr } = await supabase.from("order_form_submissions").insert({
         id: submissionId,
@@ -195,6 +207,11 @@ export default function OrderFormSubmitPage() {
         summary,
         quality_score: qualityResult.score,
         quality_issues: qualityResult.issues,
+        submitter_email: recipientEmail,
+        submitter_name: recipientName,
+        notification_recipient_email: recipientEmail,
+        notification_recipient_name: recipientName,
+        notification_recipient_source: "auto",
       } as any);
       if (subErr) throw subErr;
 
