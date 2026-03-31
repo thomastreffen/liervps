@@ -227,10 +227,23 @@ export default function OrderFormDetailPage() {
     return "";
   }, [valuesMap]);
 
-  const bestillerEpost = useMemo(() =>
-    findVal("bestiller_epost", "epost_kunde", "epost", "kontakt_epost"),
-    [findVal]
-  );
+  // Resolve notification recipient with explicit fallback chain
+  const resolvedRecipient = useMemo(() => {
+    const sub = submission as any;
+    const recipientEmail = sub?.notification_recipient_email
+      || sub?.submitter_email
+      || findVal("bestiller_epost", "epost_kunde", "epost", "kontakt_epost")
+      || "";
+    const recipientName = sub?.notification_recipient_name
+      || sub?.submitter_name
+      || findVal("bestiller_navn", "kontaktperson", "kontaktperson_kunde")
+      || "";
+    const recipientSource = sub?.notification_recipient_source || "auto";
+    const isManual = recipientSource === "manual";
+    return { email: recipientEmail, name: recipientName, source: recipientSource, isManual };
+  }, [submission, findVal]);
+
+  const bestillerEpost = resolvedRecipient.email;
 
   const allTemplateFields = useMemo(() => {
     return sections.flatMap((s: any) => (s.fields || []).map((f: any) => ({
