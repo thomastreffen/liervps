@@ -68,6 +68,8 @@ export default function OrderFormDetailPage() {
   const [previewAttIdx, setPreviewAttIdx] = useState<number | null>(null);
   const [assignPopoverOpen, setAssignPopoverOpen] = useState(false);
   const [assignSearch, setAssignSearch] = useState("");
+  const [notifyOnStatusChange, setNotifyOnStatusChange] = useState(false);
+  const [notifyOnAssign, setNotifyOnAssign] = useState(false);
 
   const { data: submission, isLoading } = useQuery({
     queryKey: ["order-form-submission", id],
