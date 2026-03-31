@@ -2,11 +2,11 @@ import { useState, useMemo, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { format } from "date-fns";
+import { format, formatDistanceToNow } from "date-fns";
 import { nb } from "date-fns/locale";
 import {
   CheckCircle2, Clock, FileText, Loader2, AlertCircle,
-  Send, Upload, Paperclip, ChevronRight, MessageSquare, X,
+  Send, Upload, Paperclip, MessageSquare, X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -28,15 +28,15 @@ function StatusProgress({ status }: { status: ExternalStatus }) {
   const isNeedsInfo = status === "needs_info";
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       {/* Step bar */}
       <div className="flex items-center gap-1">
-        {steps.map((s, i) => {
+        {steps.map((s) => {
           const stepConfig = EXTERNAL_STATUS_CONFIG[s];
           const isActive = stepConfig.step <= currentStep;
           const isCurrent = s === status || (isNeedsInfo && s === "processing");
           return (
-            <div key={s} className="flex-1 flex flex-col items-center gap-1">
+            <div key={s} className="flex-1 flex flex-col items-center gap-1.5">
               <div
                 className={cn(
                   "h-2 w-full rounded-full transition-colors",
@@ -55,13 +55,98 @@ function StatusProgress({ status }: { status: ExternalStatus }) {
         })}
       </div>
 
-      {/* Current status badge */}
-      <div className="flex items-center gap-2">
-        <div className={cn("h-3 w-3 rounded-full", config.color)} />
-        <span className="text-sm font-semibold text-foreground">{config.label}</span>
+      {/* Current status */}
+      <div className="space-y-1">
+        <div className="flex items-center gap-2">
+          <div className={cn("h-3 w-3 rounded-full", config.color)} />
+          <span className="text-base font-semibold text-foreground">{config.label}</span>
+        </div>
+        <p className="text-sm text-muted-foreground">{config.longDescription}</p>
       </div>
-      <p className="text-sm text-muted-foreground">{config.description}</p>
     </div>
+  );
+}
+
+/* ── Customer timeline ── */
+function CustomerTimeline({ submissionId }: { submissionId: string }) {
+  const { data: events = [] } = useQuery({
+    queryKey: ["tracking-timeline", submissionId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("order_form_activity_log")
+        .select("*")
+        .eq("submission_id", submissionId)
+        .in("event_type", [
+          "submitted", "status_changed", "missing_info_requested",
+          "customer_reply", "converted_to_order", "notification_sent",
+        ])
+        .order("created_at", { ascending: true });
+      return data || [];
+    },
+  });
+
+  const timelineLabels: Record<string, string> = {
+    submitted: "Bestilling mottatt",
+    missing_info_requested: "Vi ba om mer informasjon",
+    customer_reply: "Du sendte svar",
+    converted_to_order: "Oppgave opprettet",
+    notification_sent: "Oppdatering sendt",
+  };
+
+  const statusChangeLabel = (payload: any): string | null => {
+    const statusLabels: Record<string, string> = {
+      task_created: "Oppgaven er planlagt",
+      in_progress: "Arbeidet er startet",
+      closed: "Bestillingen er ferdig behandlet",
+      ready_for_planning: "Klar for planlegging",
+    };
+    return statusLabels[payload?.to] || null;
+  };
+
+  const visibleEvents = events.filter((e: any) => {
+    if (e.event_type === "status_changed") return !!statusChangeLabel(e.payload);
+    if (e.event_type === "notification_sent" && e.payload?.type === "new_order") return false;
+    return !!timelineLabels[e.event_type];
+  }).slice(0, 8);
+
+  if (visibleEvents.length <= 1) return null;
+
+  return (
+    <Card>
+      <CardContent className="pt-5 pb-4">
+        <h3 className="text-sm font-semibold text-foreground mb-3">
+          <Clock className="h-3.5 w-3.5 inline mr-1.5" />
+          Hendelseslogg
+        </h3>
+        <div className="space-y-3">
+          {visibleEvents.map((e: any) => {
+            const label = e.event_type === "status_changed"
+              ? statusChangeLabel(e.payload)
+              : timelineLabels[e.event_type];
+            const isCustomer = e.event_type === "customer_reply";
+            return (
+              <div key={e.id} className="flex gap-3 items-start">
+                <div className={cn(
+                  "h-2 w-2 rounded-full mt-1.5 shrink-0",
+                  isCustomer ? "bg-primary" : "bg-muted-foreground/40",
+                )} />
+                <div className="flex-1 min-w-0">
+                  <p className={cn(
+                    "text-sm",
+                    isCustomer ? "font-medium text-foreground" : "text-foreground",
+                  )}>
+                    {label}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground">
+                    {format(new Date(e.created_at), "d. MMM yyyy 'kl.' HH:mm", { locale: nb })}
+                  </p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -73,7 +158,6 @@ export default function OrderTrackingPage() {
   const [replyFiles, setReplyFiles] = useState<File[]>([]);
   const [showReplyForm, setShowReplyForm] = useState(false);
 
-  // Fetch submission by tracking token
   const { data: submission, isLoading, error } = useQuery({
     queryKey: ["tracking", token],
     enabled: !!token,
@@ -88,7 +172,6 @@ export default function OrderTrackingPage() {
     },
   });
 
-  // Fetch form values
   const { data: values = [] } = useQuery({
     queryKey: ["tracking-values", submission?.id],
     enabled: !!submission?.id,
@@ -101,7 +184,6 @@ export default function OrderTrackingPage() {
     },
   });
 
-  // Fetch shared comments
   const { data: comments = [] } = useQuery({
     queryKey: ["tracking-comments", submission?.id],
     enabled: !!submission?.id,
@@ -116,7 +198,6 @@ export default function OrderTrackingPage() {
     },
   });
 
-  // Fetch attachments
   const { data: attachments = [] } = useQuery({
     queryKey: ["tracking-attachments", submission?.id],
     enabled: !!submission?.id,
@@ -130,7 +211,6 @@ export default function OrderTrackingPage() {
     },
   });
 
-  // Update last viewed
   useEffect(() => {
     if (submission?.id) {
       supabase.from("order_form_submissions")
@@ -140,13 +220,11 @@ export default function OrderTrackingPage() {
     }
   }, [submission?.id]);
 
-  // Submit customer reply
   const submitReply = useMutation({
     mutationFn: async () => {
       if (!replyText.trim() && replyFiles.length === 0) return;
       if (!submission) return;
 
-      // Insert comment
       if (replyText.trim()) {
         await supabase.from("order_form_comments").insert({
           submission_id: submission.id,
@@ -158,7 +236,6 @@ export default function OrderTrackingPage() {
         } as any);
       }
 
-      // Upload files
       for (const file of replyFiles) {
         const path = `${(submission as any).company_id}/${submission.id}/reply_${Date.now()}_${file.name}`;
         await supabase.storage.from("order-form-attachments").upload(path, file);
@@ -172,12 +249,10 @@ export default function OrderTrackingPage() {
         } as any);
       }
 
-      // Update last reply timestamp
       await supabase.from("order_form_submissions")
         .update({ customer_last_reply_at: new Date().toISOString(), last_activity_at: new Date().toISOString() } as any)
         .eq("id", submission.id);
 
-      // Log activity
       await supabase.from("order_form_activity_log").insert({
         submission_id: submission.id,
         event_type: "customer_reply",
@@ -190,6 +265,7 @@ export default function OrderTrackingPage() {
       setShowReplyForm(false);
       qc.invalidateQueries({ queryKey: ["tracking-comments", submission?.id] });
       qc.invalidateQueries({ queryKey: ["tracking-attachments", submission?.id] });
+      qc.invalidateQueries({ queryKey: ["tracking-timeline", submission?.id] });
       toast.success("Svaret ditt er sendt!");
     },
     onError: () => {
@@ -197,7 +273,6 @@ export default function OrderTrackingPage() {
     },
   });
 
-  // Build summary
   const valuesMap = useMemo(() => {
     const m: Record<string, any> = {};
     values.forEach((v: any) => { m[v.field_key] = v.value; });
@@ -206,9 +281,11 @@ export default function OrderTrackingPage() {
 
   const sub = submission as any;
   const externalStatus: ExternalStatus = sub?.external_status || "received";
-  const statusConfig = EXTERNAL_STATUS_CONFIG[externalStatus] || EXTERNAL_STATUS_CONFIG.received;
   const templateName = sub?.order_form_templates?.external_title || sub?.order_form_templates?.name || "Bestilling";
   const needsInfo = externalStatus === "needs_info";
+
+  // Compute last activity
+  const lastUpdated = sub?.last_activity_at || sub?.updated_at || sub?.submitted_at;
 
   if (isLoading) {
     return (
@@ -232,18 +309,15 @@ export default function OrderTrackingPage() {
     );
   }
 
-  // Relevant summary fields
   const summaryFields = [
     { key: "kundenavn", label: "Kunde" },
     { key: "firmanavn", label: "Firma" },
     { key: "bestiller_navn", label: "Bestiller" },
     { key: "kontaktperson_kunde", label: "Kontaktperson" },
     { key: "anleggsadresse", label: "Oppdragssted" },
-    { key: "firmanavn_adresse", label: "Adresse" },
     { key: "oensket_dato", label: "Ønsket dato" },
     { key: "oensket_tid", label: "Ønsket tid" },
     { key: "referanse_po", label: "Referanse/PO" },
-    { key: "midlertidig_referanse", label: "Referanse" },
     { key: "oppdragstittel", label: "Oppdrag" },
   ];
 
@@ -261,9 +335,15 @@ export default function OrderTrackingPage() {
           <h1 className="text-xl sm:text-2xl font-bold text-foreground">
             Bestilling {sub.submission_no}
           </h1>
-          <p className="text-sm text-muted-foreground">
-            Sendt {format(new Date(sub.submitted_at || sub.created_at), "d. MMMM yyyy 'kl.' HH:mm", { locale: nb })}
-          </p>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
+            <span>Sendt {format(new Date(sub.submitted_at || sub.created_at), "d. MMMM yyyy", { locale: nb })}</span>
+            {lastUpdated && (
+              <span className="flex items-center gap-1">
+                <Clock className="h-3 w-3" />
+                Oppdatert {formatDistanceToNow(new Date(lastUpdated), { addSuffix: true, locale: nb })}
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Status progress */}
@@ -317,35 +397,10 @@ export default function OrderTrackingPage() {
           </Card>
         )}
 
-        {/* Attachments */}
-        {attachments.length > 0 && (
-          <Card>
-            <CardContent className="pt-5 pb-4">
-              <h3 className="text-sm font-semibold text-foreground mb-3">
-                <Paperclip className="h-3.5 w-3.5 inline mr-1.5" />
-                Vedlegg ({attachments.length})
-              </h3>
-              <div className="space-y-2">
-                {attachments.map((att: any) => (
-                  <div key={att.id} className="flex items-center gap-2 text-sm">
-                    <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
-                    <span className="flex-1 truncate text-foreground">{att.file_name}</span>
-                    {att.file_size && (
-                      <span className="text-xs text-muted-foreground">
-                        {(att.file_size / 1024).toFixed(0)} KB
-                      </span>
-                    )}
-                    {att.field_key === "customer_reply" && (
-                      <Badge variant="outline" className="text-[9px]">Ettersendt</Badge>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
+        {/* Customer timeline */}
+        <CustomerTimeline submissionId={submission.id} />
 
-        {/* Messages / timeline */}
+        {/* Messages */}
         {comments.length > 0 && (
           <Card>
             <CardContent className="pt-5 pb-4">
@@ -380,6 +435,34 @@ export default function OrderTrackingPage() {
           </Card>
         )}
 
+        {/* Attachments */}
+        {attachments.length > 0 && (
+          <Card>
+            <CardContent className="pt-5 pb-4">
+              <h3 className="text-sm font-semibold text-foreground mb-3">
+                <Paperclip className="h-3.5 w-3.5 inline mr-1.5" />
+                Vedlegg ({attachments.length})
+              </h3>
+              <div className="space-y-2">
+                {attachments.map((att: any) => (
+                  <div key={att.id} className="flex items-center gap-2 text-sm">
+                    <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+                    <span className="flex-1 truncate text-foreground">{att.file_name}</span>
+                    {att.file_size && (
+                      <span className="text-xs text-muted-foreground">
+                        {(att.file_size / 1024).toFixed(0)} KB
+                      </span>
+                    )}
+                    {att.field_key === "customer_reply" && (
+                      <Badge variant="outline" className="text-[9px]">Ettersendt</Badge>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Reply form */}
         {(showReplyForm || needsInfo) && (
           <Card>
@@ -395,7 +478,6 @@ export default function OrderTrackingPage() {
                 className="text-sm"
               />
 
-              {/* File upload */}
               <div>
                 <label className="flex items-center gap-2 cursor-pointer text-sm text-muted-foreground hover:text-foreground transition-colors">
                   <Upload className="h-4 w-4" />
