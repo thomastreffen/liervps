@@ -248,12 +248,17 @@ export default function OrderFormDetailPage() {
     status_changed: "Status endret",
     missing_info_requested: "Forespørsel om mer info",
     comment_added: "Kommentar lagt til",
+    customer_reply: "Svar fra bestiller",
     converted_to_case: "Konvertert til sak",
     converted_to_order: "Konvertert til oppdrag",
     notification_sent: "E-postvarsling sendt",
     notification_failed: "E-postsending feilet",
     exported_to_tripletex: "Eksportert til Tripletex",
   };
+
+  const trackingUrl = sub.public_tracking_token
+    ? `${window.location.origin}/bestilling/status/${sub.public_tracking_token}`
+    : null;
 
   // Group attachments by category
   const attByCategory: Record<string, any[]> = {};
