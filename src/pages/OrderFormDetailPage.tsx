@@ -744,17 +744,21 @@ export default function OrderFormDetailPage() {
         </div>
       </div>
 
+      {/* Linked task section - prominent */}
+      <LinkedTaskSection
+        submissionId={id!}
+        convertedToId={sub.converted_to_id}
+        convertedToType={sub.converted_to_type}
+      />
+
       {/* Linked entities + notification status */}
       <div className="flex flex-wrap gap-2">
-        {sub.converted_to_id && (
+        {sub.converted_to_id && sub.converted_to_type === "case" && (
           <Badge variant="outline" className="text-[10px] gap-1 cursor-pointer hover:bg-muted" onClick={() => {
-            const url = sub.converted_to_type === "case"
-              ? `/cases/${sub.converted_to_id}`
-              : `/projects/plan?openTask=${sub.converted_to_id}`;
-            navigate(url);
+            navigate(`/cases/${sub.converted_to_id}`);
           }}>
             <LinkIcon className="h-2.5 w-2.5" />
-            {sub.converted_to_type === "case" ? "Sak" : "Oppgave"} koblet
+            Sak koblet
             <ExternalLink className="h-2.5 w-2.5" />
           </Badge>
         )}
