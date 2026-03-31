@@ -84,13 +84,18 @@ export default function OrderConvertPage() {
 
   // Populate when data loads
   const [initialized, setInitialized] = useState(false);
-  if (!initialized && submission) {
-    setTitle(valuesMap.oppdragstittel || summary?.oppdragstittel || "");
-    setDescription(valuesMap.detaljert_arbeidsbeskrivelse || "");
-    setAddress(valuesMap.anleggsadresse || "");
-    setCustomer(valuesMap.kundenavn || summary?.kundenavn || "");
-    setInitialized(true);
-  }
+  
+  useMemo(() => {
+    if (!initialized && submission && values.length > 0) {
+      const vm: Record<string, any> = {};
+      for (const v of values) vm[(v as any).field_key] = (v as any).value;
+      setTitle(vm.oppdragstittel || (submission.summary as any)?.oppdragstittel || "");
+      setDescription(vm.detaljert_arbeidsbeskrivelse || "");
+      setAddress(vm.anleggsadresse || "");
+      setCustomer(vm.kundenavn || (submission.summary as any)?.kundenavn || "");
+      setInitialized(true);
+    }
+  }, [submission, values, initialized]);
 
   const priorityMap: Record<string, string> = {
     "Kritisk stopp": "critical",
