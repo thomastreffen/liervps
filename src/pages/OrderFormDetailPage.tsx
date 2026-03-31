@@ -65,7 +65,7 @@ export default function OrderFormDetailPage() {
   const [comment, setComment] = useState("");
   const [commentVisibility, setCommentVisibility] = useState<"internal" | "shared">("internal");
   const [requestInfoOpen, setRequestInfoOpen] = useState(false);
-  const [convertOpen, setConvertOpen] = useState(false);
+  const [convertOpen] = useState(false); // kept for compat, now navigates
   const [tripletexOpen, setTripletexOpen] = useState(false);
   const [assignTaskOpen, setAssignTaskOpen] = useState(false);
   const [previewAttIdx, setPreviewAttIdx] = useState<number | null>(null);
