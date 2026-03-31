@@ -25,6 +25,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
+import { ShareFormDialog } from "@/components/orders/admin/ShareFormDialog";
 
 export default function OrderFormBuilderPage() {
   const { id } = useParams<{ id: string }>();
