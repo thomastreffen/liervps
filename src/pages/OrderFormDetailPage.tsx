@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   ArrowLeft, MessageSquare, Clock, Paperclip, AlertTriangle,
   ArrowRight, FileText, Download, Mail, MailCheck, MailX, ExternalLink, UserPlus,
-  Tag, User, LinkIcon, X, MoreHorizontal, Eye, Send, Globe,
+  Tag, User, LinkIcon, X, MoreHorizontal, Eye, Send, Globe, UserCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -36,7 +36,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { useAuth } from "@/hooks/useAuth";
+import { useCompanyContext } from "@/hooks/useCompanyContext";
 import { computeQualityScore, type QualityResult } from "@/lib/order-quality";
 import { QualityBadge } from "@/components/orders/QualityBadge";
 import { QualityIssuesPanel } from "@/components/orders/QualityIssuesPanel";
@@ -45,12 +51,14 @@ import { ConvertDialog } from "@/components/orders/ConvertDialog";
 import { TripletexExportPanel } from "@/components/orders/TripletexExportPanel";
 import { AttachmentPreviewDrawer } from "@/components/orders/AttachmentPreviewDrawer";
 import { AssignResourceTaskDialog } from "@/components/orders/AssignResourceTaskDialog";
+import { Input } from "@/components/ui/input";
 
 export default function OrderFormDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const qc = useQueryClient();
   const { user } = useAuth();
+  const { activeCompanyId } = useCompanyContext();
   const [comment, setComment] = useState("");
   const [commentVisibility, setCommentVisibility] = useState<"internal" | "shared">("internal");
   const [requestInfoOpen, setRequestInfoOpen] = useState(false);
@@ -58,6 +66,8 @@ export default function OrderFormDetailPage() {
   const [tripletexOpen, setTripletexOpen] = useState(false);
   const [assignTaskOpen, setAssignTaskOpen] = useState(false);
   const [previewAttIdx, setPreviewAttIdx] = useState<number | null>(null);
+  const [assignPopoverOpen, setAssignPopoverOpen] = useState(false);
+  const [assignSearch, setAssignSearch] = useState("");
 
   const { data: submission, isLoading } = useQuery({
     queryKey: ["order-form-submission", id],

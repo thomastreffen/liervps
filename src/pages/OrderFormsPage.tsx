@@ -72,7 +72,27 @@ export default function OrderFormsPage() {
       }
       const { data, error } = await query;
       if (error) throw error;
-      return data || [];
+
+      // Resolve assignee names
+      const assigneeIds = [...new Set((data || []).map((s: any) => s.assigned_to).filter(Boolean))];
+      let assigneeMap = new Map<string, string>();
+      if (assigneeIds.length > 0) {
+        const { data: accounts } = await supabase
+          .from("user_accounts")
+          .select("auth_user_id, person:people(full_name)")
+          .in("auth_user_id", assigneeIds)
+          .eq("is_active", true);
+        if (accounts) {
+          (accounts as any[]).forEach(a => {
+            if (a.person?.full_name) assigneeMap.set(a.auth_user_id, a.person.full_name);
+          });
+        }
+      }
+
+      return (data || []).map((s: any) => ({
+        ...s,
+        _assignee_name: assigneeMap.get(s.assigned_to) || null,
+      }));
     },
   });
 
