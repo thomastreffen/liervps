@@ -6123,28 +6123,37 @@ export type Database = {
       }
       order_form_comments: {
         Row: {
+          author_name: string | null
           body: string
           comment_type: string
           created_at: string
           created_by: string | null
           id: string
+          is_customer_reply: boolean | null
           submission_id: string
+          visibility: string | null
         }
         Insert: {
+          author_name?: string | null
           body: string
           comment_type?: string
           created_at?: string
           created_by?: string | null
           id?: string
+          is_customer_reply?: boolean | null
           submission_id: string
+          visibility?: string | null
         }
         Update: {
+          author_name?: string | null
           body?: string
           comment_type?: string
           created_at?: string
           created_by?: string | null
           id?: string
+          is_customer_reply?: boolean | null
           submission_id?: string
+          visibility?: string | null
         }
         Relationships: [
           {
@@ -6238,6 +6247,7 @@ export type Database = {
       order_form_submissions: {
         Row: {
           assigned_to: string | null
+          auto_notify_on_status_change: boolean | null
           channel: string | null
           closed_at: string | null
           closed_by: string | null
@@ -6246,8 +6256,12 @@ export type Database = {
           converted_to_id: string | null
           converted_to_type: string | null
           created_at: string
+          customer_last_reply_at: string | null
+          customer_last_viewed_at: string | null
           deleted_at: string | null
           deleted_by: string | null
+          external_status: string | null
+          external_status_updated_at: string | null
           id: string
           last_activity_at: string | null
           linked_case_id: string | null
@@ -6256,6 +6270,7 @@ export type Database = {
           notification_error: string | null
           notification_sent_at: string | null
           priority: string
+          public_tracking_token: string | null
           quality_issues: Json | null
           quality_score: string | null
           requester_type: string
@@ -6273,6 +6288,7 @@ export type Database = {
         }
         Insert: {
           assigned_to?: string | null
+          auto_notify_on_status_change?: boolean | null
           channel?: string | null
           closed_at?: string | null
           closed_by?: string | null
@@ -6281,8 +6297,12 @@ export type Database = {
           converted_to_id?: string | null
           converted_to_type?: string | null
           created_at?: string
+          customer_last_reply_at?: string | null
+          customer_last_viewed_at?: string | null
           deleted_at?: string | null
           deleted_by?: string | null
+          external_status?: string | null
+          external_status_updated_at?: string | null
           id?: string
           last_activity_at?: string | null
           linked_case_id?: string | null
@@ -6291,6 +6311,7 @@ export type Database = {
           notification_error?: string | null
           notification_sent_at?: string | null
           priority?: string
+          public_tracking_token?: string | null
           quality_issues?: Json | null
           quality_score?: string | null
           requester_type?: string
@@ -6308,6 +6329,7 @@ export type Database = {
         }
         Update: {
           assigned_to?: string | null
+          auto_notify_on_status_change?: boolean | null
           channel?: string | null
           closed_at?: string | null
           closed_by?: string | null
@@ -6316,8 +6338,12 @@ export type Database = {
           converted_to_id?: string | null
           converted_to_type?: string | null
           created_at?: string
+          customer_last_reply_at?: string | null
+          customer_last_viewed_at?: string | null
           deleted_at?: string | null
           deleted_by?: string | null
+          external_status?: string | null
+          external_status_updated_at?: string | null
           id?: string
           last_activity_at?: string | null
           linked_case_id?: string | null
@@ -6326,6 +6352,7 @@ export type Database = {
           notification_error?: string | null
           notification_sent_at?: string | null
           priority?: string
+          public_tracking_token?: string | null
           quality_issues?: Json | null
           quality_score?: string | null
           requester_type?: string
