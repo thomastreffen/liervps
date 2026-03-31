@@ -137,11 +137,15 @@ Deno.serve(async (req) => {
       subject = `Bestilling mottatt: ${submission.submission_no} - ${oppdragstittel}`;
       recipients = [bestillerEpost];
 
+      const trackingToken = submission.public_tracking_token;
+      const trackingUrl = trackingToken ? `${appUrl}/bestilling/status/${trackingToken}` : null;
+
       bodyHtml = buildConfirmationEmail({
         submissionNo: submission.submission_no,
         kundenavn,
         oppdragstittel,
         detailUrl,
+        trackingUrl,
       });
 
       await supabase.from("order_form_submissions")
@@ -157,6 +161,9 @@ Deno.serve(async (req) => {
       subject = `Forespørsel om mer info: ${submission.submission_no} - ${oppdragstittel}`;
       recipients = [bestillerEpost];
 
+      const trackingToken = submission.public_tracking_token;
+      const trackingUrl = trackingToken ? `${appUrl}/bestilling/status/${trackingToken}` : null;
+
       bodyHtml = buildMissingInfoEmail({
         submissionNo: submission.submission_no,
         kundenavn,
@@ -164,6 +171,72 @@ Deno.serve(async (req) => {
         missingItems: missing_items || [],
         freeText: free_text || "",
         detailUrl,
+        trackingUrl,
+      });
+
+    } else if (notification_type === "customer_update") {
+      // Generic customer update notification - triggered by status changes, assignments, etc.
+      if (!bestillerEpost) {
+        return json({ success: false, reason: "no_bestiller_email" });
+      }
+
+      const { event_key, custom_message } = body;
+      recipients = [bestillerEpost];
+
+      const trackingToken = submission.public_tracking_token;
+      const trackingUrl = trackingToken ? `${appUrl}/bestilling/status/${trackingToken}` : null;
+
+      const eventTemplates: Record<string, { subject: string; heading: string; body: string; color: string; colorFg: string }> = {
+        assigned: {
+          subject: `Oppdatering: ${submission.submission_no} - Ansvarlig tildelt`,
+          heading: "Ansvarlig er tildelt",
+          body: "Det er nå satt en ansvarlig for oppfølging av din bestilling. Vi vil holde deg oppdatert om videre fremdrift.",
+          color: "#DBEAFE", colorFg: "#1E40AF",
+        },
+        status_changed: {
+          subject: `Oppdatering: ${submission.submission_no} - Status endret`,
+          heading: "Status er oppdatert",
+          body: "Statusen på din bestilling er oppdatert. Sjekk sporingslenken for detaljer.",
+          color: "#DBEAFE", colorFg: "#1E40AF",
+        },
+        task_created: {
+          subject: `Oppdatering: ${submission.submission_no} - Oppgave opprettet`,
+          heading: "Oppgave er opprettet",
+          body: "Det er nå opprettet en oppgave for din bestilling og arbeidet vil bli planlagt.",
+          color: "#DBEAFE", colorFg: "#1E40AF",
+        },
+        in_progress: {
+          subject: `Oppdatering: ${submission.submission_no} - Under arbeid`,
+          heading: "Arbeidet er i gang",
+          body: "Vi har startet arbeidet med din bestilling.",
+          color: "#FEF3C7", colorFg: "#92400E",
+        },
+        completed: {
+          subject: `Oppdatering: ${submission.submission_no} - Ferdig behandlet`,
+          heading: "Bestillingen er ferdig behandlet",
+          body: "Din bestilling er nå ferdig behandlet. Ta gjerne kontakt om du har spørsmål.",
+          color: "#DCFCE7", colorFg: "#166534",
+        },
+        rejected: {
+          subject: `Oppdatering: ${submission.submission_no} - Avvist`,
+          heading: "Bestillingen er avvist",
+          body: "Din bestilling er dessverre avvist. Ta gjerne kontakt for mer informasjon.",
+          color: "#FEE2E2", colorFg: "#991B1B",
+        },
+      };
+
+      const tmpl = eventTemplates[event_key] || eventTemplates.status_changed;
+      subject = tmpl.subject;
+
+      bodyHtml = buildCustomerUpdateEmail({
+        submissionNo: submission.submission_no,
+        kundenavn,
+        oppdragstittel,
+        heading: tmpl.heading,
+        bodyText: custom_message || tmpl.body,
+        headingBg: tmpl.color,
+        headingFg: tmpl.colorFg,
+        trackingUrl,
       });
     }
 
@@ -273,8 +346,15 @@ function buildNewOrderEmail(p: {
 }
 
 function buildConfirmationEmail(p: {
-  submissionNo: string; kundenavn: string; oppdragstittel: string; detailUrl: string;
+  submissionNo: string; kundenavn: string; oppdragstittel: string; detailUrl: string; trackingUrl: string | null;
 }): string {
+  const trackingHtml = p.trackingUrl
+    ? `<p style="font-size:14px;color:#374151;">Du kan følge statusen på bestillingen din her:</p>
+       <div style="margin:16px 0;">
+         <a href="${p.trackingUrl}" style="display:inline-block;background:#2563EB;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;font-size:14px;font-weight:500;">Følg bestillingen</a>
+       </div>`
+    : "";
+
   return `
 <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:640px;margin:0 auto;padding:20px;">
   <div style="background:#DCFCE7;border-radius:8px;padding:16px;margin-bottom:16px;">
@@ -284,6 +364,7 @@ function buildConfirmationEmail(p: {
   <p style="font-size:14px;color:#374151;">Hei,</p>
   <p style="font-size:14px;color:#374151;">Vi har mottatt bestillingen din for <strong>${p.oppdragstittel}</strong> (kunde: ${p.kundenavn}).</p>
   <p style="font-size:14px;color:#374151;">Bestillingen er registrert med nummer <strong>${p.submissionNo}</strong> og vil bli behandlet av vårt serviceteam.</p>
+  ${trackingHtml}
   <p style="font-size:14px;color:#374151;">Du vil bli kontaktet dersom vi trenger mer informasjon.</p>
   <p style="color:#9CA3AF;font-size:11px;margin-top:24px;">Denne e-posten er sendt automatisk fra MCS Service.</p>
 </div>`;
@@ -291,12 +372,15 @@ function buildConfirmationEmail(p: {
 
 function buildMissingInfoEmail(p: {
   submissionNo: string; kundenavn: string; oppdragstittel: string;
-  missingItems: string[]; freeText: string; detailUrl: string;
+  missingItems: string[]; freeText: string; detailUrl: string; trackingUrl: string | null;
 }): string {
   const itemsHtml = p.missingItems.length > 0
     ? `<ul style="margin:8px 0;padding-left:20px;">${p.missingItems.map(i => `<li style="font-size:14px;color:#374151;margin:4px 0;">${i}</li>`).join("")}</ul>`
     : "";
   const freeTextHtml = p.freeText ? `<div style="margin:12px 0;padding:12px;background:#FEF3C7;border-radius:6px;font-size:13px;">${p.freeText.replace(/\n/g, "<br/>")}</div>` : "";
+  const trackingHtml = p.trackingUrl
+    ? `<div style="margin:16px 0;"><a href="${p.trackingUrl}" style="display:inline-block;background:#2563EB;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;font-size:14px;font-weight:500;">Svar på forespørselen</a></div>`
+    : "";
 
   return `
 <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:640px;margin:0 auto;padding:20px;">
@@ -308,7 +392,31 @@ function buildMissingInfoEmail(p: {
   <p style="font-size:14px;color:#374151;">For å kunne behandle bestillingen din trenger vi følgende informasjon:</p>
   ${itemsHtml}
   ${freeTextHtml}
+  ${trackingHtml}
   <p style="font-size:14px;color:#374151;">Vennligst ta kontakt med oss eller oppdater bestillingen.</p>
+  <p style="color:#9CA3AF;font-size:11px;margin-top:24px;">Denne e-posten er sendt automatisk fra MCS Service.</p>
+</div>`;
+}
+
+function buildCustomerUpdateEmail(p: {
+  submissionNo: string; kundenavn: string; oppdragstittel: string;
+  heading: string; bodyText: string; headingBg: string; headingFg: string;
+  trackingUrl: string | null;
+}): string {
+  const trackingHtml = p.trackingUrl
+    ? `<div style="margin:16px 0;"><a href="${p.trackingUrl}" style="display:inline-block;background:#2563EB;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;font-size:14px;font-weight:500;">Se status på bestillingen</a></div>`
+    : "";
+
+  return `
+<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:640px;margin:0 auto;padding:20px;">
+  <div style="background:${p.headingBg};border-radius:8px;padding:16px;margin-bottom:16px;">
+    <h2 style="margin:0 0 4px;color:${p.headingFg};font-size:18px;">${p.heading}</h2>
+    <p style="margin:0;color:${p.headingFg};font-size:14px;">${p.submissionNo} · ${p.oppdragstittel}</p>
+  </div>
+  <p style="font-size:14px;color:#374151;">Hei,</p>
+  <p style="font-size:14px;color:#374151;">${p.bodyText}</p>
+  ${trackingHtml}
+  <p style="font-size:14px;color:#374151;">Har du spørsmål? Svar gjerne på denne e-posten eller bruk sporingslenken.</p>
   <p style="color:#9CA3AF;font-size:11px;margin-top:24px;">Denne e-posten er sendt automatisk fra MCS Service.</p>
 </div>`;
 }

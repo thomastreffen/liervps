@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   ArrowLeft, MessageSquare, Clock, Paperclip, AlertTriangle,
   ArrowRight, FileText, Download, Mail, MailCheck, MailX, ExternalLink, UserPlus,
-  Tag, User, LinkIcon, X, MoreHorizontal, Eye, Send, Globe, UserCheck,
+  Tag, User, LinkIcon, X, MoreHorizontal, Eye, Send, Globe, UserCheck, Bell, BellRing,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -52,6 +52,7 @@ import { TripletexExportPanel } from "@/components/orders/TripletexExportPanel";
 import { AttachmentPreviewDrawer } from "@/components/orders/AttachmentPreviewDrawer";
 import { AssignResourceTaskDialog } from "@/components/orders/AssignResourceTaskDialog";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 
 export default function OrderFormDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -68,6 +69,8 @@ export default function OrderFormDetailPage() {
   const [previewAttIdx, setPreviewAttIdx] = useState<number | null>(null);
   const [assignPopoverOpen, setAssignPopoverOpen] = useState(false);
   const [assignSearch, setAssignSearch] = useState("");
+  const [notifyOnStatusChange, setNotifyOnStatusChange] = useState(false);
+  const [notifyOnAssign, setNotifyOnAssign] = useState(false);
 
   const { data: submission, isLoading } = useQuery({
     queryKey: ["order-form-submission", id],
@@ -234,10 +237,25 @@ export default function OrderFormDetailPage() {
         payload: { from: submission?.status, to: newStatus },
         created_by: user?.id,
       });
+      // Send customer notification if toggle is on
+      if (notifyOnStatusChange) {
+        const eventKeyMap: Record<string, string> = {
+          in_progress: "in_progress",
+          closed: "completed",
+          rejected: "rejected",
+          task_created: "task_created",
+          ready_for_planning: "task_created",
+        };
+        const eventKey = eventKeyMap[newStatus] || "status_changed";
+        await supabase.functions.invoke("order-form-notify", {
+          body: { submission_id: id, notification_type: "customer_update", event_key: eventKey },
+        });
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["order-form-submission", id] });
       qc.invalidateQueries({ queryKey: ["order-form-activity", id] });
+      setNotifyOnStatusChange(false);
       toast.success("Status oppdatert");
     },
   });
@@ -291,6 +309,12 @@ export default function OrderFormDetailPage() {
           actor_user_id: user?.id,
         });
       }
+      // Send customer notification if toggle is on
+      if (notifyOnAssign && assigneeId) {
+        await supabase.functions.invoke("order-form-notify", {
+          body: { submission_id: id, notification_type: "customer_update", event_key: "assigned" },
+        });
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["order-form-submission", id] });
@@ -298,6 +322,7 @@ export default function OrderFormDetailPage() {
       qc.invalidateQueries({ queryKey: ["assignee-name"] });
       setAssignPopoverOpen(false);
       setAssignSearch("");
+      setNotifyOnAssign(false);
       toast.success("Ansvarlig oppdatert");
     },
   });
@@ -370,6 +395,12 @@ export default function OrderFormDetailPage() {
   const isWaitingOnUs = ["new", "under_review", "waiting_internal"].includes(submission.status);
   const isClosed = submission.status === "closed" || submission.status === "rejected";
 
+  // Customer notification history from activity log
+  const customerNotifications = activity.filter((a: any) =>
+    a.event_type === "notification_sent" &&
+    a.payload?.type && a.payload.type !== "new_order"
+  );
+
   return (
     <div className="space-y-5 p-6 max-w-6xl mx-auto">
       {/* Header */}
@@ -406,17 +437,30 @@ export default function OrderFormDetailPage() {
 
       {/* Primary + secondary actions */}
       <div className="flex flex-wrap items-center gap-2">
-        {/* Primary: Status */}
-        <Select value={submission.status} onValueChange={(v) => updateStatus.mutate(v)}>
-          <SelectTrigger className="w-48 h-9">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {Object.entries(ORDER_STATUS_CONFIG).map(([key, cfg]) => (
-              <SelectItem key={key} value={key}>{cfg.label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {/* Primary: Status with notify toggle */}
+        <div className="flex items-center gap-2">
+          <Select value={submission.status} onValueChange={(v) => updateStatus.mutate(v)}>
+            <SelectTrigger className="w-48 h-9">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(ORDER_STATUS_CONFIG).map(([key, cfg]) => (
+                <SelectItem key={key} value={key}>{cfg.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {bestillerEpost && (
+            <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer select-none whitespace-nowrap">
+              <Checkbox
+                checked={notifyOnStatusChange}
+                onCheckedChange={(c) => setNotifyOnStatusChange(!!c)}
+                className="h-3.5 w-3.5"
+              />
+              <Bell className="h-3 w-3" />
+              Varsle bestiller
+            </label>
+          )}
+        </div>
 
         {/* Primary: Tildel ansvarlig */}
         <Popover open={assignPopoverOpen} onOpenChange={setAssignPopoverOpen}>
@@ -468,6 +512,17 @@ export default function OrderFormDetailPage() {
                 ))
               }
             </div>
+            {bestillerEpost && (
+              <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer select-none mt-2 pt-2 border-t">
+                <Checkbox
+                  checked={notifyOnAssign}
+                  onCheckedChange={(c) => setNotifyOnAssign(!!c)}
+                  className="h-3.5 w-3.5"
+                />
+                <Bell className="h-3 w-3" />
+                Varsle bestiller
+              </label>
+            )}
           </PopoverContent>
         </Popover>
 
@@ -717,6 +772,10 @@ export default function OrderFormDetailPage() {
                   <span className="text-muted-foreground">Bekreftelse sendt</span>
                   <span className="font-medium">{hasConfirmation ? "Ja" : "Nei"}</span>
                 </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Varsler sendt til bestiller</span>
+                  <span className="font-medium">{customerNotifications.length}</span>
+                </div>
                 {lastCustomerReply && (
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Siste svar fra bestiller</span>
@@ -734,6 +793,29 @@ export default function OrderFormDetailPage() {
                   </div>
                 )}
               </div>
+
+              {/* Customer notification history */}
+              {customerNotifications.length > 0 && (
+                <div className="space-y-1.5">
+                  <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Sendte varsler</span>
+                  {customerNotifications.slice(0, 5).map((n: any) => {
+                    const typeLabels: Record<string, string> = {
+                      confirmation: "Bekreftelse",
+                      missing_info: "Mer info",
+                      customer_update: "Oppdatering",
+                    };
+                    return (
+                      <div key={n.id} className="flex items-center gap-1.5 text-[11px]">
+                        <BellRing className="h-3 w-3 text-muted-foreground shrink-0" />
+                        <span className="font-medium">{typeLabels[n.payload?.type] || "E-post"}</span>
+                        <span className="text-muted-foreground ml-auto">
+                          {format(new Date(n.created_at), "d. MMM HH:mm", { locale: nb })}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
 
               {/* Waiting indicator */}
               {isWaitingOnCustomer && (
