@@ -335,7 +335,13 @@ export default function OrderFormsPage() {
                           Venter svar
                         </span>
                       )}
-                      {sub.assigned_to && (
+                      {sub._assignee_name && (
+                        <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
+                          <User className="h-3 w-3" />
+                          {sub._assignee_name}
+                        </span>
+                      )}
+                      {sub.assigned_to && !sub._assignee_name && (
                         <User className="h-3 w-3 text-muted-foreground" />
                       )}
                       {sub.converted_to_type && (
