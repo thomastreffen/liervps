@@ -17,12 +17,31 @@ import type { ConditionalLogic } from "@/types/order-forms";
 
 export default function OrderFormPublicPage() {
   const { slug } = useParams<{ slug: string }>();
+  const [searchParams] = useSearchParams();
+  const isEmbed = searchParams.get("embed") === "1";
   const [formData, setFormData] = useState<Record<string, any>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [submissionNo, setSubmissionNo] = useState<string | null>(null);
   const [attachments, setAttachments] = useState<{ fieldKey: string; file: File }[]>([]);
+
+  // Auto-resize for iframe embedding
+  useEffect(() => {
+    if (!isEmbed) return;
+    const sendHeight = () => {
+      try {
+        window.parent.postMessage(
+          JSON.stringify({ type: "mcs-form-resize", height: document.documentElement.scrollHeight }),
+          "*"
+        );
+      } catch (_) {}
+    };
+    const observer = new ResizeObserver(sendHeight);
+    observer.observe(document.body);
+    sendHeight();
+    return () => observer.disconnect();
+  }, [isEmbed]);
 
   const { data: template, isLoading, error: loadError } = useQuery({
     queryKey: ["order-form-public", slug],
