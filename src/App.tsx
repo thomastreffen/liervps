@@ -88,6 +88,7 @@ import OrderFormsPage from "./pages/OrderFormsPage";
 import OrderFormDetailPage from "./pages/OrderFormDetailPage";
 import OrderFormSubmitPage from "./pages/OrderFormSubmitPage";
 import OrderFormTemplatesPage from "./pages/OrderFormTemplatesPage";
+import OrderConvertPage from "./pages/OrderConvertPage";
 import OrderFormBuilderPage from "./pages/OrderFormBuilderPage";
 import OrderFormPublicPage from "./pages/OrderFormPublicPage";
 import OrderFormsCatalogPage from "./pages/OrderFormsCatalogPage";
@@ -451,6 +452,7 @@ const App = () => (
               {/* Order Forms module */}
               <Route path="/orders" element={<OrderFormsPage />} />
               <Route path="/orders/:id" element={<OrderFormDetailPage />} />
+              <Route path="/orders/:id/convert" element={<OrderConvertPage />} />
               <Route path="/orders/new/:slug" element={<OrderFormSubmitPage />} />
               <Route
                 path="/admin/order-forms"

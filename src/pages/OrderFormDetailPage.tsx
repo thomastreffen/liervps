@@ -65,7 +65,7 @@ export default function OrderFormDetailPage() {
   const [comment, setComment] = useState("");
   const [commentVisibility, setCommentVisibility] = useState<"internal" | "shared">("internal");
   const [requestInfoOpen, setRequestInfoOpen] = useState(false);
-  const [convertOpen, setConvertOpen] = useState(false);
+  const [convertOpen] = useState(false); // kept for compat, now navigates
   const [tripletexOpen, setTripletexOpen] = useState(false);
   const [assignTaskOpen, setAssignTaskOpen] = useState(false);
   const [previewAttIdx, setPreviewAttIdx] = useState<number | null>(null);
@@ -693,9 +693,9 @@ export default function OrderFormDetailPage() {
               <Download className="h-3.5 w-3.5 mr-2" />
               Tripletex-eksport
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setConvertOpen(true)} disabled={!!sub.converted_to_id}>
+            <DropdownMenuItem onClick={() => navigate(`/orders/${id}/convert`)} disabled={!!sub.converted_to_id}>
               <ArrowRight className="h-3.5 w-3.5 mr-2" />
-              Konverter til sak
+              Konverter til sak / oppdrag
             </DropdownMenuItem>
             {!isClosed && (
               <>
@@ -1195,14 +1195,7 @@ export default function OrderFormDetailPage() {
         submissionNo={submission.submission_no}
         bestillerEpost={bestillerEpost}
       />
-      <ConvertDialog
-        open={convertOpen}
-        onOpenChange={setConvertOpen}
-        submissionId={id!}
-        summary={submission.summary as Record<string, any> | null}
-        values={valuesMap}
-        submissionNo={submission.submission_no}
-      />
+      {/* ConvertDialog removed — now uses /orders/:id/convert route */}
       <TripletexExportPanel
         open={tripletexOpen}
         onOpenChange={setTripletexOpen}
