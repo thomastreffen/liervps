@@ -20,6 +20,7 @@ import {
   Plus,
 } from "lucide-react";
 import { toast } from "sonner";
+import { ModernDatePicker, ModernTimePicker } from "@/components/ui/modern-date-time-picker";
 import { useAuth } from "@/hooks/useAuth";
 import type {
   FormField,
@@ -508,12 +509,10 @@ export default function FormFillPage() {
                 )}
 
                 {field.type === "time" && (
-                  <Input
-                    type="time"
+                  <ModernTimePicker
                     value={value || ""}
-                    onChange={(e) => handleAnswerChange(field.id, e.target.value)}
+                    onChange={(v) => handleAnswerChange(field.id, v)}
                     disabled={isLocked}
-                    className="rounded-xl h-9"
                   />
                 )}
 
@@ -619,12 +618,10 @@ export default function FormFillPage() {
                 )}
 
                 {field.type === "date" && (
-                  <Input
-                    type="date"
+                  <ModernDatePicker
                     value={value || ""}
-                    onChange={(e) => handleAnswerChange(field.id, e.target.value)}
+                    onChange={(v) => handleAnswerChange(field.id, v)}
                     disabled={isLocked}
-                    className="rounded-xl h-9"
                   />
                 )}
 

@@ -13,6 +13,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Check, AlertCircle, Upload, Info, Loader2, FileText as FileIcon, X } from "lucide-react";
+import { ModernDatePicker, ModernTimePicker } from "@/components/ui/modern-date-time-picker";
 import type { ConditionalLogic } from "@/types/order-forms";
 
 export default function OrderFormPublicPage() {
@@ -403,9 +404,9 @@ function PublicFieldRenderer({ field, value, onChange, error, required, onFileAd
       case "number":
         return <Input type="number" placeholder={field.placeholder || ""} value={value || ""} onChange={(e) => onChange(e.target.value)} />;
       case "date":
-        return <Input type="date" value={value || ""} onChange={(e) => onChange(e.target.value)} />;
+        return <ModernDatePicker value={value || ""} onChange={onChange} />;
       case "time": case "time_window":
-        return <Input type="time" value={value || ""} onChange={(e) => onChange(e.target.value)} />;
+        return <ModernTimePicker value={value || ""} onChange={onChange} />;
       case "dropdown":
         return (
           <Select value={value || ""} onValueChange={onChange}>
