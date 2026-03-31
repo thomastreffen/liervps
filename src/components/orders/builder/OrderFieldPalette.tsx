@@ -89,6 +89,16 @@ export type FieldBlockInsert = Pick<FieldBlock, "id" | "label" | "description" |
 
 const FIELD_BLOCKS: FieldBlock[] = [
   {
+    id: "bestiller_blokk", label: "Bestiller", icon: Star,
+    description: "Navn, e-post og telefon til bestiller – primærkilde for oppdateringer",
+    previewLayout: "2-col",
+    fields: [
+      { label: "Bestiller – Navn", type: "short_text", field_key: "bestiller_navn", is_required: true, help_text: "Navn på personen som bestiller", field_width: "full" },
+      { label: "Bestiller – E-post", type: "email", field_key: "bestiller_epost", is_required: true, help_text: "Denne e-postadressen mottar oppdateringer om bestillingen", field_width: "half" },
+      { label: "Bestiller – Telefon", type: "phone", field_key: "bestiller_telefon", help_text: "Telefonnummer til bestiller", field_width: "half" },
+    ],
+  },
+  {
     id: "customer_info", label: "Kundeinformasjon", icon: UserSearch,
     description: "Firmanavn, org.nr, kontakt, telefon, e-post",
     previewLayout: "2-col",
