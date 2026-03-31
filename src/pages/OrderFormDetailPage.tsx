@@ -202,9 +202,10 @@ export default function OrderFormDetailPage() {
       const { error } = await supabase.from("order_form_comments").insert({
         submission_id: id!,
         body: comment.trim(),
-        comment_type: "internal",
+        comment_type: commentVisibility === "shared" ? "shared_message" : "internal",
+        visibility: commentVisibility,
         created_by: user?.id,
-      });
+      } as any);
       if (error) throw error;
     },
     onSuccess: () => {
