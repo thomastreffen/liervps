@@ -261,7 +261,48 @@ export default function OrderFormDetailPage() {
     },
   });
 
-  const sendNotification = useMutation({
+  const assignResponsible = useMutation({
+    mutationFn: async (assigneeId: string | null) => {
+      const { error } = await supabase
+        .from("order_form_submissions")
+        .update({ assigned_to: assigneeId })
+        .eq("id", id!);
+      if (error) throw error;
+      // Log activity
+      const assigneeName = companyUsers.find(u => u.id === assigneeId)?.name || "Ingen";
+      await supabase.from("order_form_activity_log").insert({
+        submission_id: id!,
+        event_type: "assigned",
+        payload: { assigned_to: assigneeId, assigned_to_name: assigneeName },
+        created_by: user?.id,
+      });
+      // Create notification for assignee
+      if (assigneeId && assigneeId !== user?.id) {
+        await supabase.from("notifications").insert({
+          user_id: assigneeId,
+          company_id: submission?.company_id || activeCompanyId,
+          type: "order_assigned",
+          priority: "important",
+          title: `Du er tildelt ansvar for bestilling ${submission?.submission_no}`,
+          message: `${(submission?.summary as any)?.oppdragstittel || submission?.submission_no || "Bestilling"} er tildelt deg.`,
+          link_url: `/orders/${id}`,
+          entity_type: "order_form_submission",
+          entity_id: id,
+          actor_user_id: user?.id,
+        });
+      }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["order-form-submission", id] });
+      qc.invalidateQueries({ queryKey: ["order-form-activity", id] });
+      qc.invalidateQueries({ queryKey: ["assignee-name"] });
+      setAssignPopoverOpen(false);
+      setAssignSearch("");
+      toast.success("Ansvarlig oppdatert");
+    },
+  });
+
+
     mutationFn: async (type: string) => {
       const { data, error } = await supabase.functions.invoke("order-form-notify", {
         body: { submission_id: id, notification_type: type },
