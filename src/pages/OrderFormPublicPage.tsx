@@ -25,6 +25,7 @@ export default function OrderFormPublicPage() {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [submissionNo, setSubmissionNo] = useState<string | null>(null);
+  const [trackingToken, setTrackingToken] = useState<string | null>(null);
   const [attachments, setAttachments] = useState<{ fieldKey: string; file: File }[]>([]);
 
   // Auto-resize for iframe embedding – send height on every layout change
