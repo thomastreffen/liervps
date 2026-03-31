@@ -136,7 +136,7 @@ export default function OrderFormDetailPage() {
     },
   });
 
-  // Fetch available users for assignment
+  // Fetch available users for assignment with membership info
   const { data: companyUsers = [] } = useQuery({
     queryKey: ["company-users-for-assign", activeCompanyId],
     enabled: !!activeCompanyId,
@@ -146,10 +146,31 @@ export default function OrderFormDetailPage() {
         .select("auth_user_id, person:people(full_name)")
         .eq("is_active", true);
       if (!data) return [];
+      // Get memberships to determine cross-company status
+      const orderCompanyId = submission?.company_id;
+      let memberUserIds = new Set<string>();
+      if (orderCompanyId) {
+        const { data: memberships } = await supabase
+          .from("user_memberships")
+          .select("user_id")
+          .eq("company_id", orderCompanyId)
+          .eq("is_active", true);
+        for (const m of memberships || []) {
+          memberUserIds.add((m as any).user_id);
+        }
+      }
       return (data as any[])
         .filter(u => u.person?.full_name)
-        .map(u => ({ id: u.auth_user_id, name: u.person.full_name }))
-        .sort((a, b) => a.name.localeCompare(b.name));
+        .map(u => ({
+          id: u.auth_user_id,
+          name: u.person.full_name,
+          isCrossCompany: orderCompanyId ? !memberUserIds.has(u.auth_user_id) : false,
+        }))
+        .sort((a, b) => {
+          // Show same-company users first
+          if (a.isCrossCompany !== b.isCrossCompany) return a.isCrossCompany ? 1 : -1;
+          return a.name.localeCompare(b.name);
+        });
     },
   });
 
@@ -281,19 +302,54 @@ export default function OrderFormDetailPage() {
 
   const assignResponsible = useMutation({
     mutationFn: async (assigneeId: string | null) => {
+      const previousAssignee = sub.assigned_to;
+      const assignee = companyUsers.find(u => u.id === assigneeId);
+      const isCrossCompany = assignee?.isCrossCompany || false;
+
       const { error } = await supabase
         .from("order_form_submissions")
         .update({ assigned_to: assigneeId })
         .eq("id", id!);
       if (error) throw error;
+
+      // Handle cross-company access grant
+      if (assigneeId && isCrossCompany) {
+        // Create scoped access grant
+        await supabase.from("cross_company_access_grants").upsert({
+          user_id: assigneeId,
+          entity_type: "order_form_submission",
+          entity_id: id!,
+          source_company_id: submission?.company_id,
+          granted_by: user?.id,
+          reason: "assignment",
+          revoked_at: null,
+        }, { onConflict: "user_id,entity_type,entity_id" });
+      }
+
+      // Revoke previous cross-company grant if removing or changing assignee
+      if (previousAssignee && previousAssignee !== assigneeId) {
+        await supabase
+          .from("cross_company_access_grants")
+          .update({ revoked_at: new Date().toISOString() })
+          .eq("user_id", previousAssignee)
+          .eq("entity_type", "order_form_submission")
+          .eq("entity_id", id!)
+          .eq("reason", "assignment");
+      }
+
       // Log activity
-      const assigneeName = companyUsers.find(u => u.id === assigneeId)?.name || "Ingen";
+      const assigneeName = assignee?.name || "Ingen";
       await supabase.from("order_form_activity_log").insert({
         submission_id: id!,
         event_type: "assigned",
-        payload: { assigned_to: assigneeId, assigned_to_name: assigneeName },
+        payload: {
+          assigned_to: assigneeId,
+          assigned_to_name: assigneeName,
+          cross_company: isCrossCompany,
+        },
         created_by: user?.id,
       });
+
       // Create notification for assignee
       if (assigneeId && assigneeId !== user?.id) {
         await supabase.from("notifications").insert({
@@ -302,13 +358,14 @@ export default function OrderFormDetailPage() {
           type: "order_assigned",
           priority: "important",
           title: `Du er tildelt ansvar for bestilling ${submission?.submission_no}`,
-          message: `${(submission?.summary as any)?.oppdragstittel || submission?.submission_no || "Bestilling"} er tildelt deg.`,
+          message: `${(submission?.summary as any)?.oppdragstittel || submission?.submission_no || "Bestilling"} er tildelt deg.${isCrossCompany ? " (Tilgang gitt på tvers av selskap)" : ""}`,
           link_url: `/orders/${id}`,
           entity_type: "order_form_submission",
           entity_id: id,
           actor_user_id: user?.id,
         });
       }
+
       // Send customer notification if toggle is on
       if (notifyOnAssign && assigneeId) {
         await supabase.functions.invoke("order-form-notify", {
@@ -479,7 +536,7 @@ export default function OrderFormDetailPage() {
               )}
             </Button>
           </PopoverTrigger>
-          <PopoverContent align="start" className="w-64 p-2">
+          <PopoverContent align="start" className="w-72 p-2">
             <Input
               placeholder="Søk etter bruker..."
               value={assignSearch}
@@ -487,7 +544,7 @@ export default function OrderFormDetailPage() {
               className="h-8 text-sm mb-2"
               autoFocus
             />
-            <div className="max-h-48 overflow-y-auto space-y-0.5">
+            <div className="max-h-52 overflow-y-auto space-y-0.5">
               {sub.assigned_to && (
                 <button
                   onClick={() => assignResponsible.mutate(null)}
@@ -499,19 +556,42 @@ export default function OrderFormDetailPage() {
               )}
               {companyUsers
                 .filter(u => !assignSearch || u.name.toLowerCase().includes(assignSearch.toLowerCase()))
-                .map(u => (
-                  <button
-                    key={u.id}
-                    onClick={() => assignResponsible.mutate(u.id)}
-                    className={`w-full text-left text-xs px-2 py-1.5 rounded hover:bg-muted flex items-center gap-2 ${sub.assigned_to === u.id ? "bg-primary/10 font-medium" : ""}`}
-                  >
-                    <User className="h-3 w-3 shrink-0 text-muted-foreground" />
-                    {u.name}
-                    {sub.assigned_to === u.id && <UserCheck className="h-3 w-3 ml-auto text-primary" />}
-                  </button>
-                ))
+                .map((u, idx, arr) => {
+                  // Show separator before cross-company section
+                  const showCrossDivider = u.isCrossCompany && (idx === 0 || !arr[idx - 1]?.isCrossCompany);
+                  return (
+                    <div key={u.id}>
+                      {showCrossDivider && (
+                        <div className="text-[10px] uppercase tracking-wider text-muted-foreground px-2 pt-2 pb-1 border-t mt-1">
+                          Andre selskap
+                        </div>
+                      )}
+                      <button
+                        onClick={() => assignResponsible.mutate(u.id)}
+                        className={`w-full text-left text-xs px-2 py-1.5 rounded hover:bg-muted flex items-center gap-2 ${sub.assigned_to === u.id ? "bg-primary/10 font-medium" : ""}`}
+                      >
+                        <User className="h-3 w-3 shrink-0 text-muted-foreground" />
+                        <span className="flex-1 truncate">{u.name}</span>
+                        {u.isCrossCompany && (
+                          <Globe className="h-3 w-3 shrink-0 text-amber-500" />
+                        )}
+                        {sub.assigned_to === u.id && <UserCheck className="h-3 w-3 shrink-0 text-primary" />}
+                      </button>
+                    </div>
+                  );
+                })
               }
             </div>
+            {/* Cross-company info */}
+            {(() => {
+              const hoveredCross = companyUsers.some(u => u.isCrossCompany);
+              return hoveredCross ? (
+                <div className="text-[10px] text-amber-600 bg-amber-50 border border-amber-200 rounded p-1.5 mt-2 flex gap-1.5 items-start">
+                  <Globe className="h-3 w-3 shrink-0 mt-0.5" />
+                  <span>Brukere med <Globe className="h-2.5 w-2.5 inline" /> tilhører et annet selskap. Ved tildeling gis tilgang kun til denne bestillingen og tilhørende vedlegg, meldinger og aktivitetslogg.</span>
+                </div>
+              ) : null;
+            })()}
             {bestillerEpost && (
               <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer select-none mt-2 pt-2 border-t">
                 <Checkbox
@@ -602,6 +682,9 @@ export default function OrderFormDetailPage() {
             <p className="font-medium truncate text-xs flex items-center gap-1">
               <UserCheck className="h-3 w-3 text-primary shrink-0" />
               {assigneeName || "Laster..."}
+              {companyUsers.find(u => u.id === sub.assigned_to)?.isCrossCompany && (
+                <span title="Tildelt på tvers av selskap"><Globe className="h-3 w-3 text-amber-500 shrink-0" /></span>
+              )}
             </p>
           ) : (
             <p className="font-medium truncate text-xs text-muted-foreground">Ikke tildelt</p>

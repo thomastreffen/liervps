@@ -2079,6 +2079,50 @@ export type Database = {
           },
         ]
       }
+      cross_company_access_grants: {
+        Row: {
+          entity_id: string
+          entity_type: string
+          granted_at: string
+          granted_by: string | null
+          id: string
+          reason: string
+          revoked_at: string | null
+          source_company_id: string | null
+          user_id: string
+        }
+        Insert: {
+          entity_id: string
+          entity_type?: string
+          granted_at?: string
+          granted_by?: string | null
+          id?: string
+          reason?: string
+          revoked_at?: string | null
+          source_company_id?: string | null
+          user_id: string
+        }
+        Update: {
+          entity_id?: string
+          entity_type?: string
+          granted_at?: string
+          granted_by?: string | null
+          id?: string
+          reason?: string
+          revoked_at?: string | null
+          source_company_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cross_company_access_grants_source_company_id_fkey"
+            columns: ["source_company_id"]
+            isOneToOne: false
+            referencedRelation: "internal_companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customer_accounts: {
         Row: {
           company_id: string | null
@@ -8914,6 +8958,10 @@ export type Database = {
       get_user_account_id: { Args: { _auth_user_id: string }; Returns: string }
       get_user_scope: { Args: { _user_id: string }; Returns: string }
       get_user_scope_v2: { Args: { _auth_user_id: string }; Returns: string }
+      has_cross_company_order_access: {
+        Args: { _auth_user_id: string; _submission_id: string }
+        Returns: boolean
+      }
       has_docs_space_access: {
         Args: { _auth_user_id: string; _project_id: string }
         Returns: boolean
