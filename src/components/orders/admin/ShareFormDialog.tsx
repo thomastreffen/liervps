@@ -187,10 +187,10 @@ export function ShareFormDialog({ open, onOpenChange, template }: ShareFormDialo
         </Tabs>
 
         {!canEmbed && (
-          <div className="rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800/40 p-3 flex items-start gap-2">
-            <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
-            <div className="text-xs text-amber-800 dark:text-amber-300">
-              <p className="font-medium">Embedding er ikke tilgjengelig</p>
+          <div className="rounded-lg border border-border bg-muted/40 p-3 flex items-start gap-2">
+            <AlertTriangle className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+            <div className="text-xs text-muted-foreground">
+              <p className="font-medium text-foreground">Embedding er ikke tilgjengelig</p>
               <p className="mt-0.5">
                 {template.requires_login
                   ? "Skjemaet krever innlogging og kan ikke bygges inn på en ekstern nettside. Fjern innloggingskravet i innstillinger for å aktivere embedding."
