@@ -50,6 +50,11 @@ export interface BusinessPreset {
 }
 
 const BUSINESS_PRESETS: BusinessPreset[] = [
+  // ── Bestiller (primærkilde for oppdateringsmottaker) ──
+  { id: "bestiller_navn", label: "Bestiller – Navn", icon: Star, fieldType: "short_text", fieldKey: "bestiller_navn", helpText: "Navn på personen som bestiller", isRequired: true, fieldWidth: "half" },
+  { id: "bestiller_epost", label: "Bestiller – E-post", icon: Mail, fieldType: "email", fieldKey: "bestiller_epost", helpText: "E-post til bestiller (mottar oppdateringer)", isRequired: true, fieldWidth: "half" },
+  { id: "bestiller_telefon", label: "Bestiller – Telefon", icon: Phone, fieldType: "phone", fieldKey: "bestiller_telefon", helpText: "Telefonnummer til bestiller", fieldWidth: "half" },
+  // ── Kunde og firma ──
   { id: "firmanavn", label: "Firmanavn", icon: Building2, fieldType: "short_text", fieldKey: "firmanavn", helpText: "Navn på firma / kunde", fieldWidth: "half" },
   { id: "kontaktperson", label: "Kontaktperson", icon: User, fieldType: "short_text", fieldKey: "kontaktperson", helpText: "Navn på kontaktperson hos kunde", fieldWidth: "half" },
   { id: "epost_kunde", label: "E-post kunde", icon: Mail, fieldType: "email", fieldKey: "epost_kunde", helpText: "E-postadresse til kontaktperson", fieldWidth: "half" },
