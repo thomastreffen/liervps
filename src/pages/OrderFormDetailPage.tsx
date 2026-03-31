@@ -423,7 +423,33 @@ export default function OrderFormDetailPage() {
     },
   });
 
-  if (isLoading) return <div className="p-6 text-center text-muted-foreground">Laster...</div>;
+  const updateRecipient = useMutation({
+    mutationFn: async ({ email, name, source }: { email: string; name: string; source: string }) => {
+      const { error } = await supabase
+        .from("order_form_submissions")
+        .update({
+          notification_recipient_email: email || null,
+          notification_recipient_name: name || null,
+          notification_recipient_source: source,
+        } as any)
+        .eq("id", id!);
+      if (error) throw error;
+      await supabase.from("order_form_activity_log").insert({
+        submission_id: id!,
+        event_type: "recipient_changed",
+        payload: { email, name, source },
+        created_by: user?.id,
+      });
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["order-form-submission", id] });
+      qc.invalidateQueries({ queryKey: ["order-form-activity", id] });
+      setRecipientOverrideOpen(false);
+      toast.success("Oppdateringsmottaker endret");
+    },
+  });
+
+
   if (!submission) return <div className="p-6 text-center text-muted-foreground">Ikke funnet</div>;
 
   const statusConfig = ORDER_STATUS_CONFIG[submission.status as OrderFormSubmissionStatus];
