@@ -417,6 +417,59 @@ export default function OrderFormDetailPage() {
           </SelectContent>
         </Select>
 
+        {/* Primary: Tildel ansvarlig */}
+        <Popover open={assignPopoverOpen} onOpenChange={setAssignPopoverOpen}>
+          <PopoverTrigger asChild>
+            <Button variant={sub.assigned_to ? "outline" : "default"} size="sm">
+              {sub.assigned_to ? (
+                <>
+                  <UserCheck className="h-3.5 w-3.5 mr-1.5" />
+                  {assigneeName || "Tildelt"}
+                </>
+              ) : (
+                <>
+                  <User className="h-3.5 w-3.5 mr-1.5" />
+                  Tildel ansvarlig
+                </>
+              )}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="start" className="w-64 p-2">
+            <Input
+              placeholder="Søk etter bruker..."
+              value={assignSearch}
+              onChange={(e) => setAssignSearch(e.target.value)}
+              className="h-8 text-sm mb-2"
+              autoFocus
+            />
+            <div className="max-h-48 overflow-y-auto space-y-0.5">
+              {sub.assigned_to && (
+                <button
+                  onClick={() => assignResponsible.mutate(null)}
+                  className="w-full text-left text-xs px-2 py-1.5 rounded hover:bg-muted text-destructive"
+                >
+                  <X className="h-3 w-3 inline mr-1.5" />
+                  Fjern ansvarlig
+                </button>
+              )}
+              {companyUsers
+                .filter(u => !assignSearch || u.name.toLowerCase().includes(assignSearch.toLowerCase()))
+                .map(u => (
+                  <button
+                    key={u.id}
+                    onClick={() => assignResponsible.mutate(u.id)}
+                    className={`w-full text-left text-xs px-2 py-1.5 rounded hover:bg-muted flex items-center gap-2 ${sub.assigned_to === u.id ? "bg-primary/10 font-medium" : ""}`}
+                  >
+                    <User className="h-3 w-3 shrink-0 text-muted-foreground" />
+                    {u.name}
+                    {sub.assigned_to === u.id && <UserCheck className="h-3 w-3 ml-auto text-primary" />}
+                  </button>
+                ))
+              }
+            </div>
+          </PopoverContent>
+        </Popover>
+
         {/* Primary: Be om mer info */}
         <Button variant="outline" size="sm" onClick={() => setRequestInfoOpen(true)}>
           <AlertTriangle className="h-3.5 w-3.5 mr-1.5" />
