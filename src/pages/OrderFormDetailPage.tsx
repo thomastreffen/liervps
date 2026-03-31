@@ -54,6 +54,7 @@ import { AttachmentPreviewDrawer } from "@/components/orders/AttachmentPreviewDr
 import { AssignResourceTaskDialog } from "@/components/orders/AssignResourceTaskDialog";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
+import { LinkedTaskSection } from "@/components/orders/LinkedTaskSection";
 
 export default function OrderFormDetailPage() {
   const { id } = useParams<{ id: string }>();
