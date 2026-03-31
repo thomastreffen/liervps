@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, Save, Eye, Settings, Link2, ExternalLink, Copy, Check, Tag } from "lucide-react";
+import { ArrowLeft, Save, Eye, Settings, Link2, ExternalLink, Copy, Check, Tag, Share2 } from "lucide-react";
 import { useCompanyContext } from "@/hooks/useCompanyContext";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -25,6 +25,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
+import { ShareFormDialog } from "@/components/orders/admin/ShareFormDialog";
 
 export default function OrderFormBuilderPage() {
   const { id } = useParams<{ id: string }>();
@@ -37,6 +38,7 @@ export default function OrderFormBuilderPage() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [addSectionOpen, setAddSectionOpen] = useState(false);
   const [newSectionTitle, setNewSectionTitle] = useState("");
+  const [shareOpen, setShareOpen] = useState(false);
 
   // Load template
   const { data: template } = useQuery({
@@ -334,7 +336,10 @@ export default function OrderFormBuilderPage() {
         </div>
         <div className="flex items-center gap-1.5">
           {template.is_active && (
-            <PublishLinkActions template={template} />
+            <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={() => setShareOpen(true)}>
+              <Share2 className="h-3.5 w-3.5" />
+              Del / Embed
+            </Button>
           )}
           <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setPreviewMode(true)}>
             <Eye className="h-3.5 w-3.5 mr-1" />
@@ -434,45 +439,12 @@ export default function OrderFormBuilderPage() {
           />
         </SheetContent>
       </Sheet>
+      {/* Share / Embed Dialog */}
+      <ShareFormDialog open={shareOpen} onOpenChange={setShareOpen} template={template} />
     </div>
   );
 }
 
-function PublishLinkActions({ template }: { template: any }) {
-  const [copied, setCopied] = useState(false);
-  const internalUrl = `${window.location.origin}/orders/new/${template.slug}`;
-  const publicUrl = `${window.location.origin}/bestilling/${template.slug}`;
-  const isExternal = template.audience_type === "external" || template.audience_type === "both";
-  const url = isExternal ? publicUrl : internalUrl;
-
-  const accessLabel = (() => {
-    if (template.audience_type === "internal") return "Intern · Krever innlogging";
-    const login = template.requires_login ? "Krever innlogging" : "Åpent uten innlogging";
-    const catalog = template.show_in_catalog ? "Vises på bestillingssiden" : "Kun via direkte lenke";
-    return `${template.audience_type === "external" ? "Ekstern" : "Intern + ekstern"} · ${login} · ${catalog}`;
-  })();
-
-  const copyLink = () => {
-    navigator.clipboard.writeText(url);
-    setCopied(true);
-    toast.success("Lenke kopiert");
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  return (
-    <div className="flex items-center gap-1.5">
-      <Badge variant="outline" className="text-[10px] font-normal max-w-[280px] truncate">{accessLabel}</Badge>
-      <Button variant="outline" size="sm" className="h-8 text-xs" onClick={copyLink}>
-        {copied ? <Check className="h-3.5 w-3.5 mr-1" /> : <Copy className="h-3.5 w-3.5 mr-1" />}
-        {copied ? "Kopiert!" : "Kopier lenke"}
-      </Button>
-      <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => window.open(url, "_blank")}>
-        <ExternalLink className="h-3.5 w-3.5 mr-1" />
-        Åpne skjema
-      </Button>
-    </div>
-  );
-}
 
 function TemplateSettingsForm({ template, onSave }: { template: any; onSave: (u: any) => void }) {
   const { activeCompanyId } = useCompanyContext();

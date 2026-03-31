@@ -1,5 +1,5 @@
-import { useState, useMemo } from "react";
-import { useParams } from "react-router-dom";
+import { useState, useMemo, useEffect } from "react";
+import { useParams, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -17,12 +17,31 @@ import type { ConditionalLogic } from "@/types/order-forms";
 
 export default function OrderFormPublicPage() {
   const { slug } = useParams<{ slug: string }>();
+  const [searchParams] = useSearchParams();
+  const isEmbed = searchParams.get("embed") === "1";
   const [formData, setFormData] = useState<Record<string, any>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [submissionNo, setSubmissionNo] = useState<string | null>(null);
   const [attachments, setAttachments] = useState<{ fieldKey: string; file: File }[]>([]);
+
+  // Auto-resize for iframe embedding
+  useEffect(() => {
+    if (!isEmbed) return;
+    const sendHeight = () => {
+      try {
+        window.parent.postMessage(
+          JSON.stringify({ type: "mcs-form-resize", height: document.documentElement.scrollHeight }),
+          "*"
+        );
+      } catch (_) {}
+    };
+    const observer = new ResizeObserver(sendHeight);
+    observer.observe(document.body);
+    sendHeight();
+    return () => observer.disconnect();
+  }, [isEmbed]);
 
   const { data: template, isLoading, error: loadError } = useQuery({
     queryKey: ["order-form-public", slug],
@@ -241,8 +260,8 @@ export default function OrderFormPublicPage() {
   const errorCount = Object.keys(errors).length;
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="max-w-3xl mx-auto p-6 space-y-6">
+    <div className={isEmbed ? "bg-background" : "min-h-screen bg-background"}>
+      <div className={`max-w-3xl mx-auto ${isEmbed ? "p-4 space-y-4" : "p-6 space-y-6"}`}>
         {/* Header */}
         <div className="text-center space-y-2 py-4">
           <h1 className="text-2xl font-bold text-foreground">
