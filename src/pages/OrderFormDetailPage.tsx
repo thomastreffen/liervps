@@ -546,11 +546,23 @@ export default function OrderFormDetailPage() {
                 ) : (
                   comments.map((c: any) => (
                     <div key={c.id} className={`text-sm border-l-2 pl-3 ${
-                      c.comment_type === "missing_info_request" ? "border-amber-400" : "border-border"
+                      c.comment_type === "missing_info_request" ? "border-amber-400"
+                      : c.visibility === "shared" || c.is_customer_reply ? "border-primary/60"
+                      : "border-border"
                     }`}>
                       {c.comment_type === "missing_info_request" && (
                         <Badge variant="outline" className="text-[9px] mb-1 bg-amber-50 text-amber-700 border-amber-200">
                           Forespørsel
+                        </Badge>
+                      )}
+                      {c.visibility === "shared" && !c.is_customer_reply && (
+                        <Badge variant="outline" className="text-[9px] mb-1 bg-primary/10 text-primary border-primary/20">
+                          Delt med bestiller
+                        </Badge>
+                      )}
+                      {c.is_customer_reply && (
+                        <Badge variant="outline" className="text-[9px] mb-1 bg-green-50 text-green-700 border-green-200">
+                          Svar fra bestiller
                         </Badge>
                       )}
                       <p className="whitespace-pre-wrap">{c.body}</p>
@@ -561,22 +573,40 @@ export default function OrderFormDetailPage() {
                   ))
                 )}
               </div>
-              <div className="flex gap-2">
+              <div className="space-y-2">
                 <Textarea
                   placeholder="Skriv kommentar..."
                   value={comment}
                   onChange={(e) => setComment(e.target.value)}
                   className="min-h-[60px] text-sm"
                 />
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant={commentVisibility === "internal" ? "default" : "outline"}
+                    className="text-xs h-7"
+                    onClick={() => setCommentVisibility("internal")}
+                  >
+                    Intern
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={commentVisibility === "shared" ? "default" : "outline"}
+                    className="text-xs h-7"
+                    onClick={() => setCommentVisibility("shared")}
+                  >
+                    Del med bestiller
+                  </Button>
+                  <div className="flex-1" />
+                  <Button
+                    size="sm"
+                    disabled={!comment.trim()}
+                    onClick={() => addComment.mutate()}
+                  >
+                    Legg til
+                  </Button>
+                </div>
               </div>
-              <Button
-                size="sm"
-                className="mt-2"
-                disabled={!comment.trim()}
-                onClick={() => addComment.mutate()}
-              >
-                Legg til
-              </Button>
             </CardContent>
           </Card>
 
