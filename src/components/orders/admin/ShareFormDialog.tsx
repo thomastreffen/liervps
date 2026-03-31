@@ -36,11 +36,13 @@ export function ShareFormDialog({ open, onOpenChange, template }: ShareFormDialo
   const iframeCode = `<iframe
   src="${embedUrl}"
   width="100%"
-  height="1400"
-  style="border:0; border-radius:8px;"
+  height="800"
+  style="border:0; border-radius:8px; overflow:hidden;"
+  scrolling="no"
   loading="lazy"
   allow="clipboard-write"
-></iframe>`;
+></iframe>
+<!-- NB: Iframe har fast høyde. Bruk Script-metoden for automatisk høydejustering. -->`;
 
   const scriptCode = `<div id="mcs-order-form"></div>
 <script src="${baseUrl}/embed-form.js" data-form="${template.slug}"></script>`;
