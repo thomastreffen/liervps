@@ -149,29 +149,13 @@ export function ShareFormDialog({ open, onOpenChange, template }: ShareFormDialo
             </Button>
           </TabsContent>
 
-          {/* Iframe embed */}
-          <TabsContent value="iframe" className="space-y-3 mt-3">
-            <div>
-              <Label className="text-xs text-muted-foreground">Iframe-kode for WordPress / HTML</Label>
-              <div className="mt-1 relative">
-                <pre className="text-[11px] font-mono bg-muted/30 border border-border rounded-md p-3 whitespace-pre-wrap break-all max-h-40 overflow-auto">
-                  {iframeCode}
-                </pre>
-                <div className="absolute top-2 right-2">
-                  <CopyButton field="iframe" text={iframeCode} label="Iframe-kode" />
-                </div>
-              </div>
-              <p className="text-[11px] text-muted-foreground mt-2">
-                Lim inn i en HTML-blokk eller kodeblokk i WordPress.
-                Skjemaet tilpasser seg bredden automatisk.
-              </p>
-            </div>
-          </TabsContent>
-
-          {/* Script embed */}
+          {/* Script embed – recommended */}
           <TabsContent value="script" className="space-y-3 mt-3">
             <div>
-              <Label className="text-xs text-muted-foreground">Script-basert embedding</Label>
+              <div className="flex items-center gap-2 mb-1">
+                <Label className="text-xs text-muted-foreground">Script-basert embedding</Label>
+                <Badge className="text-[9px] px-1.5 py-0 bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300 border-0">Anbefalt for WordPress</Badge>
+              </div>
               <div className="mt-1 relative">
                 <pre className="text-[11px] font-mono bg-muted/30 border border-border rounded-md p-3 whitespace-pre-wrap break-all max-h-40 overflow-auto">
                   {scriptCode}
@@ -181,8 +165,31 @@ export function ShareFormDialog({ open, onOpenChange, template }: ShareFormDialo
                 </div>
               </div>
               <p className="text-[11px] text-muted-foreground mt-2">
-                Scriptet oppretter automatisk en iframe med riktig størrelse.
-                Lim inn der du vil at skjemaet skal vises.
+                Scriptet oppretter en iframe som automatisk justerer høyden etter innholdet.
+                Brukeren scroller siden normalt – ingen intern scrollbar.
+                Lim inn i en HTML-blokk i WordPress/Elementor.
+              </p>
+            </div>
+          </TabsContent>
+
+          {/* Iframe embed – fallback */}
+          <TabsContent value="iframe" className="space-y-3 mt-3">
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <Label className="text-xs text-muted-foreground">Iframe-kode (fallback)</Label>
+                <Badge variant="outline" className="text-[9px] px-1.5 py-0">Fast høyde</Badge>
+              </div>
+              <div className="mt-1 relative">
+                <pre className="text-[11px] font-mono bg-muted/30 border border-border rounded-md p-3 whitespace-pre-wrap break-all max-h-40 overflow-auto">
+                  {iframeCode}
+                </pre>
+                <div className="absolute top-2 right-2">
+                  <CopyButton field="iframe" text={iframeCode} label="Iframe-kode" />
+                </div>
+              </div>
+              <p className="text-[11px] text-muted-foreground mt-2">
+                Fast høyde – kan gi intern scrollbar for lengre skjema.
+                Bruk script-metoden for best opplevelse.
               </p>
             </div>
           </TabsContent>

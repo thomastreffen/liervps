@@ -26,21 +26,41 @@ export default function OrderFormPublicPage() {
   const [submissionNo, setSubmissionNo] = useState<string | null>(null);
   const [attachments, setAttachments] = useState<{ fieldKey: string; file: File }[]>([]);
 
-  // Auto-resize for iframe embedding
+  // Auto-resize for iframe embedding – send height on every layout change
   useEffect(() => {
     if (!isEmbed) return;
+
+    let lastHeight = 0;
     const sendHeight = () => {
-      try {
-        window.parent.postMessage(
-          JSON.stringify({ type: "mcs-form-resize", height: document.documentElement.scrollHeight }),
-          "*"
-        );
-      } catch (_) {}
+      const h = Math.max(
+        document.documentElement.scrollHeight,
+        document.body.scrollHeight,
+        document.documentElement.offsetHeight,
+      );
+      if (h !== lastHeight) {
+        lastHeight = h;
+        try {
+          window.parent.postMessage(
+            JSON.stringify({ type: "mcs-form-resize", height: h }),
+            "*"
+          );
+        } catch (_) {}
+      }
     };
-    const observer = new ResizeObserver(sendHeight);
-    observer.observe(document.body);
+
+    // Observe body size changes
+    const ro = new ResizeObserver(sendHeight);
+    ro.observe(document.body);
+
+    // Also observe mutations (dynamic fields, validation messages, file uploads)
+    const mo = new MutationObserver(sendHeight);
+    mo.observe(document.body, { childList: true, subtree: true, attributes: true });
+
+    // Periodic fallback for edge-cases (images loading, fonts, etc.)
+    const interval = setInterval(sendHeight, 500);
+
     sendHeight();
-    return () => observer.disconnect();
+    return () => { ro.disconnect(); mo.disconnect(); clearInterval(interval); };
   }, [isEmbed]);
 
   const { data: template, isLoading, error: loadError } = useQuery({
