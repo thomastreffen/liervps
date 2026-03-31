@@ -506,6 +506,17 @@ export default function OrderFormDetailPage() {
                 ))
               }
             </div>
+            {bestillerEpost && (
+              <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer select-none mt-2 pt-2 border-t">
+                <Checkbox
+                  checked={notifyOnAssign}
+                  onCheckedChange={(c) => setNotifyOnAssign(!!c)}
+                  className="h-3.5 w-3.5"
+                />
+                <Bell className="h-3 w-3" />
+                Varsle bestiller
+              </label>
+            )}
           </PopoverContent>
         </Popover>
 
