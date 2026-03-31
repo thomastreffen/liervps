@@ -43,6 +43,7 @@ export default function OrderFormDetailPage() {
   const qc = useQueryClient();
   const { user } = useAuth();
   const [comment, setComment] = useState("");
+  const [commentVisibility, setCommentVisibility] = useState<"internal" | "shared">("internal");
   const [requestInfoOpen, setRequestInfoOpen] = useState(false);
   const [convertOpen, setConvertOpen] = useState(false);
   const [tripletexOpen, setTripletexOpen] = useState(false);
