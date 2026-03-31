@@ -302,7 +302,7 @@ export default function OrderFormDetailPage() {
     },
   });
 
-
+  const sendNotification = useMutation({
     mutationFn: async (type: string) => {
       const { data, error } = await supabase.functions.invoke("order-form-notify", {
         body: { submission_id: id, notification_type: type },
