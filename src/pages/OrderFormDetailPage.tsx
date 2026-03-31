@@ -456,6 +456,23 @@ export default function OrderFormDetailPage() {
         )}
       </div>
 
+      {/* Tracking link */}
+      {trackingUrl && (
+        <div className="flex items-center gap-2 text-xs">
+          <LinkIcon className="h-3 w-3 text-muted-foreground" />
+          <span className="text-muted-foreground">Sporingslenke:</span>
+          <button
+            className="text-primary underline truncate max-w-xs"
+            onClick={() => { navigator.clipboard.writeText(trackingUrl); toast.success("Sporingslenke kopiert!"); }}
+          >
+            Kopiér lenke
+          </button>
+          <a href={trackingUrl} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground">
+            <ExternalLink className="h-3 w-3" />
+          </a>
+        </div>
+      )}
+
       {/* Quality issues panel - only show if there are issues */}
       {qualityResult.score !== "green" && <QualityIssuesPanel result={qualityResult} />}
 
