@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Search, ClipboardList, ArrowRight, Trash2, User, Clock, MessageSquare } from "lucide-react";
+import { Plus, Search, ClipboardList, Trash2, User, Clock, MessageSquare, AlertCircle } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -12,12 +12,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import {
   ORDER_STATUS_CONFIG,
   ORDER_PRIORITY_CONFIG,
-  CHANNEL_LABELS,
-  EXTERNAL_STATUS_CONFIG,
-  mapToExternalStatus,
   type OrderFormSubmissionStatus,
 } from "@/types/order-forms";
-import { format, formatDistanceToNow } from "date-fns";
+import { format, formatDistanceToNow, differenceInDays } from "date-fns";
 import { nb } from "date-fns/locale";
 import { QualityDot } from "@/components/orders/QualityBadge";
 import type { QualityLevel } from "@/lib/order-quality";
@@ -46,7 +43,7 @@ const STATUS_TABS: { key: OrderFormSubmissionStatus | "all"; label: string }[] =
 export default function OrderFormsPage() {
   const navigate = useNavigate();
   const { activeCompanyId } = useCompanyContext();
-  const { isAdmin } = useAuth();
+  const { isAdmin, user } = useAuth();
   const queryClient = useQueryClient();
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -73,7 +70,6 @@ export default function OrderFormsPage() {
       const { data, error } = await query;
       if (error) throw error;
 
-      // Resolve assignee names
       const assigneeIds = [...new Set((data || []).map((s: any) => s.assigned_to).filter(Boolean))];
       let assigneeMap = new Map<string, string>();
       if (assigneeIds.length > 0) {
@@ -137,6 +133,7 @@ export default function OrderFormsPage() {
       if (priorityFilter !== "all" && s.priority !== priorityFilter) return false;
       if (assigneeFilter === "unassigned" && s.assigned_to) return false;
       if (assigneeFilter === "assigned" && !s.assigned_to) return false;
+      if (assigneeFilter === "mine" && s.assigned_to !== user?.id) return false;
       return true;
     });
 
@@ -149,19 +146,23 @@ export default function OrderFormsPage() {
       result = [...result].sort((a: any, b: any) =>
         new Date(b.last_activity_at || b.submitted_at).getTime() - new Date(a.last_activity_at || a.submitted_at).getTime()
       );
+    } else if (sortBy === "stale") {
+      result = [...result].sort((a: any, b: any) =>
+        new Date(a.last_activity_at || a.submitted_at).getTime() - new Date(b.last_activity_at || b.submitted_at).getTime()
+      );
     }
 
     return result;
-  }, [submissions, search, categoryFilter, priorityFilter, assigneeFilter, sortBy]);
+  }, [submissions, search, categoryFilter, priorityFilter, assigneeFilter, sortBy, user?.id]);
 
   const handleSoftDelete = async (e: React.MouseEvent, sub: any) => {
     e.stopPropagation();
     if (!confirm(`Flytte ${sub.submission_no} til papirkurven?`)) return;
     setDeletingId(sub.id);
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user: currentUser } } = await supabase.auth.getUser();
     await supabase.from("order_form_submissions").update({
       deleted_at: new Date().toISOString(),
-      deleted_by: user?.id,
+      deleted_by: currentUser?.id,
     } as any).eq("id", sub.id);
     queryClient.invalidateQueries({ queryKey: ["order-form-submissions"] });
     setDeletingId(null);
@@ -176,6 +177,17 @@ export default function OrderFormsPage() {
     s.status === "new" || s.status === "missing_info" || s.status === "waiting_customer"
   ).length;
 
+  const myCount = submissions.filter((s: any) => s.assigned_to === user?.id).length;
+  const staleCount = submissions.filter((s: any) => {
+    if (["closed", "rejected"].includes(s.status)) return false;
+    const lastAct = s.last_activity_at || s.submitted_at;
+    return differenceInDays(new Date(), new Date(lastAct)) >= 5;
+  }).length;
+  const customerRepliedCount = submissions.filter((s: any) =>
+    s.customer_last_reply_at &&
+    (!s.last_activity_at || new Date(s.customer_last_reply_at) > new Date(s.last_activity_at))
+  ).length;
+
   return (
     <div className="space-y-5 p-6 max-w-7xl mx-auto">
       {/* Header */}
@@ -187,6 +199,9 @@ export default function OrderFormsPage() {
             {needsActionCount > 0 && (
               <span className="text-amber-600 font-medium"> · {needsActionCount} krever handling</span>
             )}
+            {staleCount > 0 && (
+              <span className="text-orange-600 font-medium"> · {staleCount} uten aktivitet</span>
+            )}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -197,6 +212,43 @@ export default function OrderFormsPage() {
             </Button>
           )}
         </div>
+      </div>
+
+      {/* Quick filters */}
+      <div className="flex flex-wrap gap-2">
+        {myCount > 0 && (
+          <Button
+            variant={assigneeFilter === "mine" ? "default" : "outline"}
+            size="sm"
+            className="text-xs h-8"
+            onClick={() => setAssigneeFilter(assigneeFilter === "mine" ? "all" : "mine")}
+          >
+            <User className="h-3 w-3 mr-1" />
+            Mine ({myCount})
+          </Button>
+        )}
+        {customerRepliedCount > 0 && (
+          <Button
+            variant={sortBy === "activity" ? "default" : "outline"}
+            size="sm"
+            className="text-xs h-8 border-green-200 text-green-700 hover:bg-green-50"
+            onClick={() => setSortBy(sortBy === "activity" ? "newest" : "activity")}
+          >
+            <MessageSquare className="h-3 w-3 mr-1" />
+            Kundesvar ({customerRepliedCount})
+          </Button>
+        )}
+        {staleCount > 0 && (
+          <Button
+            variant={sortBy === "stale" ? "default" : "outline"}
+            size="sm"
+            className="text-xs h-8 border-orange-200 text-orange-700 hover:bg-orange-50"
+            onClick={() => setSortBy(sortBy === "stale" ? "newest" : "stale")}
+          >
+            <AlertCircle className="h-3 w-3 mr-1" />
+            Ingen aktivitet ({staleCount})
+          </Button>
+        )}
       </div>
 
       {/* Status tabs */}
@@ -255,19 +307,21 @@ export default function OrderFormsPage() {
           </SelectContent>
         </Select>
         <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
-          <SelectTrigger className="w-36"><SelectValue placeholder="Ansvarlig" /></SelectTrigger>
+          <SelectTrigger className="w-40"><SelectValue placeholder="Ansvarlig" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Alle</SelectItem>
+            <SelectItem value="mine">Mine bestillinger</SelectItem>
             <SelectItem value="unassigned">Uten ansvarlig</SelectItem>
             <SelectItem value="assigned">Med ansvarlig</SelectItem>
           </SelectContent>
         </Select>
         <Select value={sortBy} onValueChange={setSortBy}>
-          <SelectTrigger className="w-36"><SelectValue placeholder="Sortering" /></SelectTrigger>
+          <SelectTrigger className="w-40"><SelectValue placeholder="Sortering" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="newest">Nyeste først</SelectItem>
             <SelectItem value="priority">Hastegrad</SelectItem>
             <SelectItem value="activity">Siste aktivitet</SelectItem>
+            <SelectItem value="stale">Lengst uten aktivitet</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -287,10 +341,17 @@ export default function OrderFormsPage() {
             const qs = (sub.quality_score || "green") as QualityLevel;
             const isWaiting = ["missing_info", "waiting_customer"].includes(sub.status);
             const isNew = sub.status === "new";
-            const externalStatus = mapToExternalStatus(sub.status as OrderFormSubmissionStatus);
-            const externalConfig = EXTERNAL_STATUS_CONFIG[externalStatus];
 
-            // Build human-readable subtitle
+            // Stale detection
+            const lastAct = sub.last_activity_at || sub.submitted_at;
+            const daysSinceActivity = differenceInDays(new Date(), new Date(lastAct));
+            const isStale = daysSinceActivity >= 5 && !["closed", "rejected"].includes(sub.status);
+
+            // Customer replied since last internal activity
+            const hasUnreadReply = sub.customer_last_reply_at &&
+              (!sub.last_activity_at || new Date(sub.customer_last_reply_at) > new Date(sub.last_activity_at));
+
+            // Build subtitle
             const name = sub.submitter_name || sub.summary?.kundenavn || sub.summary?.bestiller_navn;
             const oppdrag = sub.summary?.oppdragstittel;
             const sted = sub.summary?.oppdragssted;
@@ -299,7 +360,13 @@ export default function OrderFormsPage() {
             return (
               <Card
                 key={sub.id}
-                className={`hover:shadow-md transition-shadow cursor-pointer group ${isNew ? "border-l-4 border-l-blue-500" : isWaiting ? "border-l-4 border-l-amber-400" : ""}`}
+                className={`hover:shadow-md transition-shadow cursor-pointer group ${
+                  isNew ? "border-l-4 border-l-blue-500"
+                  : isWaiting ? "border-l-4 border-l-amber-400"
+                  : hasUnreadReply ? "border-l-4 border-l-green-500"
+                  : isStale ? "border-l-4 border-l-orange-300"
+                  : ""
+                }`}
                 onClick={() => navigate(`/orders/${sub.id}`)}
               >
                 <CardContent className="p-3.5">
@@ -307,7 +374,6 @@ export default function OrderFormsPage() {
                     <div className="flex items-center gap-3 min-w-0 flex-1">
                       <QualityDot score={qs} />
                       <div className="min-w-0 flex-1">
-                        {/* Primary line: ref + template */}
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="text-sm font-semibold text-foreground">
                             {sub.submission_no}
@@ -320,19 +386,29 @@ export default function OrderFormsPage() {
                               {ORDER_PRIORITY_CONFIG[sub.priority]?.label || sub.priority}
                             </Badge>
                           )}
+                          {hasUnreadReply && (
+                            <Badge variant="outline" className="text-[10px] font-semibold border-green-200 text-green-700 bg-green-50">
+                              <MessageSquare className="h-2.5 w-2.5 mr-0.5" />
+                              Kundesvar
+                            </Badge>
+                          )}
                         </div>
-                        {/* Secondary line: human summary */}
                         <p className="text-xs text-muted-foreground truncate mt-0.5">
                           {subtitle}
                         </p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      {/* Waiting indicator */}
                       {isWaiting && (
                         <span className="text-[10px] text-amber-600 flex items-center gap-0.5">
                           <Clock className="h-3 w-3" />
                           Venter svar
+                        </span>
+                      )}
+                      {isStale && !isWaiting && (
+                        <span className="text-[10px] text-orange-500 flex items-center gap-0.5">
+                          <AlertCircle className="h-3 w-3" />
+                          {daysSinceActivity}d
                         </span>
                       )}
                       {sub._assignee_name && (
@@ -344,10 +420,6 @@ export default function OrderFormsPage() {
                       {sub.assigned_to && !sub._assignee_name && (
                         <User className="h-3 w-3 text-muted-foreground" />
                       )}
-                      {sub.converted_to_type && (
-                        <ArrowRight className="h-3 w-3 text-green-500" />
-                      )}
-                      {/* Status badge */}
                       <Badge className={`text-[10px] ${sc?.color || ""}`}>
                         {sc?.label || sub.status}
                       </Badge>
