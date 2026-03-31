@@ -272,7 +272,23 @@ export default function OrderFormPublicPage() {
           <p className="text-sm text-muted-foreground">
             {template.confirmation_text || "Bestillingen din er registrert og vil bli behandlet. Du vil bli kontaktet ved behov."}
           </p>
-          <Button onClick={() => { setSubmitted(false); setFormData({}); setAttachments([]); setSubmissionNo(null); }}>
+          {trackingToken && (
+            <div className="pt-2 space-y-2">
+              <a
+                href={`/bestilling/status/${trackingToken}`}
+                className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary text-primary-foreground px-5 py-2.5 text-sm font-medium hover:bg-primary/90 transition-colors w-full"
+              >
+                Følg bestillingen
+              </a>
+              <p className="text-xs text-muted-foreground">
+                Du kan følge status og svare på eventuelle spørsmål via denne lenken.
+              </p>
+            </div>
+          )}
+          <Button
+            variant="outline"
+            onClick={() => { setSubmitted(false); setFormData({}); setAttachments([]); setSubmissionNo(null); setTrackingToken(null); }}
+          >
             Send ny bestilling
           </Button>
         </div>
