@@ -236,10 +236,25 @@ export default function OrderFormDetailPage() {
         payload: { from: submission?.status, to: newStatus },
         created_by: user?.id,
       });
+      // Send customer notification if toggle is on
+      if (notifyOnStatusChange) {
+        const eventKeyMap: Record<string, string> = {
+          in_progress: "in_progress",
+          closed: "completed",
+          rejected: "rejected",
+          task_created: "task_created",
+          ready_for_planning: "task_created",
+        };
+        const eventKey = eventKeyMap[newStatus] || "status_changed";
+        await supabase.functions.invoke("order-form-notify", {
+          body: { submission_id: id, notification_type: "customer_update", event_key: eventKey },
+        });
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["order-form-submission", id] });
       qc.invalidateQueries({ queryKey: ["order-form-activity", id] });
+      setNotifyOnStatusChange(false);
       toast.success("Status oppdatert");
     },
   });
