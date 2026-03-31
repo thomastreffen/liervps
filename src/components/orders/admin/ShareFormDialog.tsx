@@ -17,7 +17,7 @@ interface ShareFormDialogProps {
   template: {
     slug: string;
     name: string;
-    audience_type: "internal" | "external" | "both";
+    audience_type: string;
     requires_login: boolean;
     show_in_catalog: boolean;
     is_active: boolean;
