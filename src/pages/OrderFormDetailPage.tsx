@@ -241,9 +241,16 @@ export default function OrderFormDetailPage() {
       || sub?.submitter_name
       || findVal("bestiller_navn", "kontaktperson", "kontaktperson_kunde")
       || "";
-    const recipientSource = sub?.notification_recipient_source || "auto";
+    const recipientSource: string = sub?.notification_recipient_source || "auto";
     const isManual = recipientSource === "manual";
-    return { email: recipientEmail, name: recipientName, source: recipientSource, isManual };
+    const sourceLabel = recipientSource === "manual"
+      ? "Manuelt overstyrt"
+      : recipientSource === "bestiller_fields"
+      ? "Fra bestiller-felt i skjema"
+      : sub?.submitter_email
+      ? "Fra innsenderinformasjon"
+      : "Fallback fra skjemadata";
+    return { email: recipientEmail, name: recipientName, source: recipientSource, isManual, sourceLabel };
   }, [submission, findVal]);
 
   const bestillerEpost = resolvedRecipient.email;
@@ -866,7 +873,7 @@ export default function OrderFormDetailPage() {
                         <p className="text-xs text-muted-foreground ml-[18px]">{resolvedRecipient.name}</p>
                       )}
                       <p className="text-[10px] text-muted-foreground ml-[18px]">
-                        {resolvedRecipient.isManual ? "Manuelt overstyrt" : "Hentet fra skjema"}
+                        {resolvedRecipient.sourceLabel}
                       </p>
                     </>
                   ) : (
