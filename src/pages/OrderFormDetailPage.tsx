@@ -604,9 +604,6 @@ export default function OrderFormDetailPage() {
               </label>
             )}
           </PopoverContent>
-              </label>
-            )}
-          </PopoverContent>
         </Popover>
 
         {/* Primary: Be om mer info */}
