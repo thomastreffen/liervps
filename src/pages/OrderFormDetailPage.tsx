@@ -302,19 +302,54 @@ export default function OrderFormDetailPage() {
 
   const assignResponsible = useMutation({
     mutationFn: async (assigneeId: string | null) => {
+      const previousAssignee = sub.assigned_to;
+      const assignee = companyUsers.find(u => u.id === assigneeId);
+      const isCrossCompany = assignee?.isCrossCompany || false;
+
       const { error } = await supabase
         .from("order_form_submissions")
         .update({ assigned_to: assigneeId })
         .eq("id", id!);
       if (error) throw error;
+
+      // Handle cross-company access grant
+      if (assigneeId && isCrossCompany) {
+        // Create scoped access grant
+        await supabase.from("cross_company_access_grants").upsert({
+          user_id: assigneeId,
+          entity_type: "order_form_submission",
+          entity_id: id!,
+          source_company_id: submission?.company_id,
+          granted_by: user?.id,
+          reason: "assignment",
+          revoked_at: null,
+        }, { onConflict: "user_id,entity_type,entity_id" });
+      }
+
+      // Revoke previous cross-company grant if removing or changing assignee
+      if (previousAssignee && previousAssignee !== assigneeId) {
+        await supabase
+          .from("cross_company_access_grants")
+          .update({ revoked_at: new Date().toISOString() })
+          .eq("user_id", previousAssignee)
+          .eq("entity_type", "order_form_submission")
+          .eq("entity_id", id!)
+          .eq("reason", "assignment");
+      }
+
       // Log activity
-      const assigneeName = companyUsers.find(u => u.id === assigneeId)?.name || "Ingen";
+      const assigneeName = assignee?.name || "Ingen";
       await supabase.from("order_form_activity_log").insert({
         submission_id: id!,
         event_type: "assigned",
-        payload: { assigned_to: assigneeId, assigned_to_name: assigneeName },
+        payload: {
+          assigned_to: assigneeId,
+          assigned_to_name: assigneeName,
+          cross_company: isCrossCompany,
+        },
         created_by: user?.id,
       });
+
       // Create notification for assignee
       if (assigneeId && assigneeId !== user?.id) {
         await supabase.from("notifications").insert({
@@ -323,13 +358,14 @@ export default function OrderFormDetailPage() {
           type: "order_assigned",
           priority: "important",
           title: `Du er tildelt ansvar for bestilling ${submission?.submission_no}`,
-          message: `${(submission?.summary as any)?.oppdragstittel || submission?.submission_no || "Bestilling"} er tildelt deg.`,
+          message: `${(submission?.summary as any)?.oppdragstittel || submission?.submission_no || "Bestilling"} er tildelt deg.${isCrossCompany ? " (Tilgang gitt på tvers av selskap)" : ""}`,
           link_url: `/orders/${id}`,
           entity_type: "order_form_submission",
           entity_id: id,
           actor_user_id: user?.id,
         });
       }
+
       // Send customer notification if toggle is on
       if (notifyOnAssign && assigneeId) {
         await supabase.functions.invoke("order-form-notify", {
