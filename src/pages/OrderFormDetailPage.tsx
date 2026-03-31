@@ -395,6 +395,14 @@ export default function OrderFormDetailPage() {
   const isWaitingOnUs = ["new", "under_review", "waiting_internal"].includes(submission.status);
   const isClosed = submission.status === "closed" || submission.status === "rejected";
 
+  // Customer notification history from activity log
+  const customerNotifications = useMemo(() => {
+    return activity.filter((a: any) =>
+      a.event_type === "notification_sent" &&
+      a.payload?.type && a.payload.type !== "new_order"
+    );
+  }, [activity]);
+
   return (
     <div className="space-y-5 p-6 max-w-6xl mx-auto">
       {/* Header */}
