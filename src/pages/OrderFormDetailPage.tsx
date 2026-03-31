@@ -852,6 +852,92 @@ export default function OrderFormDetailPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
+              {/* Notification recipient */}
+              <div>
+                <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Oppdateringsmottaker</span>
+                <div className="mt-1 space-y-1">
+                  {resolvedRecipient.email ? (
+                    <>
+                      <p className="text-sm font-medium flex items-center gap-1.5">
+                        <Mail className="h-3 w-3 text-muted-foreground shrink-0" />
+                        {resolvedRecipient.email}
+                      </p>
+                      {resolvedRecipient.name && (
+                        <p className="text-xs text-muted-foreground ml-[18px]">{resolvedRecipient.name}</p>
+                      )}
+                      <p className="text-[10px] text-muted-foreground ml-[18px]">
+                        {resolvedRecipient.isManual ? "Manuelt overstyrt" : "Hentet fra skjema"}
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">Ingen e-post funnet – varsler kan ikke sendes</p>
+                  )}
+                </div>
+                <Popover open={recipientOverrideOpen} onOpenChange={(open) => {
+                  setRecipientOverrideOpen(open);
+                  if (open) {
+                    setRecipientOverrideEmail(resolvedRecipient.email);
+                    setRecipientOverrideName(resolvedRecipient.name);
+                  }
+                }}>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm" className="text-xs h-7 mt-1.5 w-full">
+                      <Mail className="h-3 w-3 mr-1" />
+                      {resolvedRecipient.email ? "Endre mottaker" : "Sett mottaker"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent align="start" className="w-72 p-3 space-y-2">
+                    <p className="text-xs font-medium">Oppdateringsmottaker</p>
+                    <p className="text-[10px] text-muted-foreground">Denne adressen brukes for bekreftelser, sporingslenker og statusoppdateringer.</p>
+                    <Input
+                      placeholder="Navn"
+                      value={recipientOverrideName}
+                      onChange={(e) => setRecipientOverrideName(e.target.value)}
+                      className="h-8 text-sm"
+                    />
+                    <Input
+                      placeholder="E-post"
+                      type="email"
+                      value={recipientOverrideEmail}
+                      onChange={(e) => setRecipientOverrideEmail(e.target.value)}
+                      className="h-8 text-sm"
+                    />
+                    <div className="flex gap-1.5">
+                      <Button
+                        size="sm"
+                        className="flex-1 text-xs h-7"
+                        disabled={!recipientOverrideEmail}
+                        onClick={() => updateRecipient.mutate({
+                          email: recipientOverrideEmail,
+                          name: recipientOverrideName,
+                          source: "manual",
+                        })}
+                      >
+                        Lagre
+                      </Button>
+                      {resolvedRecipient.isManual && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-xs h-7"
+                          onClick={() => {
+                            // Reset to auto
+                            const autoEmail = sub.submitter_email || findVal("bestiller_epost", "epost_kunde", "epost", "kontakt_epost") || "";
+                            const autoName = sub.submitter_name || findVal("bestiller_navn", "kontaktperson", "kontaktperson_kunde") || "";
+                            updateRecipient.mutate({ email: autoEmail, name: autoName, source: "auto" });
+                          }}
+                        >
+                          Tilbakestill
+                        </Button>
+                      )}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              {/* Divider */}
+              <div className="border-t" />
+
               {/* External status */}
               <div>
                 <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Bestiller ser</span>
