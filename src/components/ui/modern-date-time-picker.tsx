@@ -1,7 +1,7 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { format } from "date-fns";
 import { nb } from "date-fns/locale";
-import { Calendar as CalendarIcon, Clock, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { Calendar as CalendarIcon, Clock, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -9,37 +9,37 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { useIsMobile } from "@/hooks/use-mobile";
 
-/* ─── Quick-select presets ─── */
-const QUICK_TIMES = [
-  { label: "Morgen", value: "08:00", desc: "kl. 08:00" },
-  { label: "Formiddag", value: "10:00", desc: "kl. 10:00" },
-  { label: "Ettermiddag", value: "13:00", desc: "kl. 13:00" },
-  { label: "Fleksibelt", value: "flex", desc: "Ingen fast tid" },
-] as const;
-
+/* ─── 24/7 time slots (30-min intervals, full day) ─── */
 const TIME_SLOTS: string[] = [];
-for (let h = 7; h <= 18; h++) {
+for (let h = 0; h < 24; h++) {
   for (const m of [0, 30]) {
     TIME_SLOTS.push(`${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`);
   }
 }
 
+/* ─── Quick presets ─── */
+const QUICK_PRESETS = [
+  { label: "Morgen", value: "07:00" },
+  { label: "Formiddag", value: "10:00" },
+  { label: "Ettermiddag", value: "13:00" },
+  { label: "Kveld", value: "18:00" },
+  { label: "Natt", value: "22:00" },
+  { label: "Fleksibelt", value: "flex" },
+] as const;
+
 /* ─── Types ─── */
 interface ModernDateTimePickerProps {
-  /** ISO date string YYYY-MM-DD */
   dateValue?: string;
-  /** HH:MM or "flex" */
   timeValue?: string;
   onDateChange: (date: string) => void;
   onTimeChange?: (time: string) => void;
-  /** Show time picker */
   showTime?: boolean;
   disabled?: boolean;
   placeholder?: string;
   className?: string;
 }
 
-/* ─── Component ─── */
+/* ─── Main Component ─── */
 export function ModernDateTimePicker({
   dateValue,
   timeValue,
@@ -64,9 +64,9 @@ export function ModernDateTimePicker({
     if (!dateValue) return "";
     const d = selectedDate;
     if (!d) return dateValue;
-    let text = format(d, "d. MMMM yyyy", { locale: nb });
+    let text = format(d, "d. MMM yyyy", { locale: nb });
     if (showTime && timeValue) {
-      text += timeValue === "flex" ? " · Fleksibelt" : ` · kl. ${timeValue}`;
+      text += timeValue === "flex" ? " · Fleksibelt" : ` · ${timeValue}`;
     }
     return text;
   }, [dateValue, timeValue, selectedDate, showTime]);
@@ -94,25 +94,21 @@ export function ModernDateTimePicker({
     [onTimeChange],
   );
 
-  const handleOpen = useCallback(
-    (v: boolean) => {
-      setOpen(v);
-      if (v) setStep("date");
-    },
-    [],
-  );
+  const handleOpen = useCallback((v: boolean) => {
+    setOpen(v);
+    if (v) setStep("date");
+  }, []);
 
-  /* ─── Picker content (shared between popover & sheet) ─── */
+  /* ─── Picker content ─── */
   const pickerContent = (
     <div className="flex flex-col">
-      {/* Step indicator when time enabled */}
       {showTime && (
-        <div className="flex items-center gap-2 px-4 pt-3 pb-1">
+        <div className="flex items-center gap-2 px-3 pt-3 pb-1">
           <button
             type="button"
             onClick={() => setStep("date")}
             className={cn(
-              "flex items-center gap-1.5 text-xs font-medium rounded-full px-3 py-1 transition-colors",
+              "flex items-center gap-1 text-xs font-medium rounded-full px-2.5 py-1 transition-colors",
               step === "date"
                 ? "bg-primary text-primary-foreground"
                 : "bg-muted text-muted-foreground hover:bg-muted/80",
@@ -120,13 +116,13 @@ export function ModernDateTimePicker({
           >
             <CalendarIcon className="h-3 w-3" /> Dato
           </button>
-          <div className="h-px w-4 bg-border" />
+          <div className="h-px w-3 bg-border" />
           <button
             type="button"
             onClick={() => dateValue && setStep("time")}
             disabled={!dateValue}
             className={cn(
-              "flex items-center gap-1.5 text-xs font-medium rounded-full px-3 py-1 transition-colors",
+              "flex items-center gap-1 text-xs font-medium rounded-full px-2.5 py-1 transition-colors",
               step === "time"
                 ? "bg-primary text-primary-foreground"
                 : "bg-muted text-muted-foreground hover:bg-muted/80",
@@ -138,7 +134,6 @@ export function ModernDateTimePicker({
         </div>
       )}
 
-      {/* Date step */}
       {step === "date" && (
         <Calendar
           mode="single"
@@ -150,73 +145,24 @@ export function ModernDateTimePicker({
             today.setHours(0, 0, 0, 0);
             return d < today;
           }}
-          className={cn("p-3 pointer-events-auto", isMobile && "[&_.rdp-day]:h-11 [&_.rdp-day]:w-11 [&_.rdp-head_cell]:w-11")}
+          className={cn(
+            "p-3 pointer-events-auto",
+            isMobile && "[&_.rdp-day]:h-11 [&_.rdp-day]:w-11 [&_.rdp-head_cell]:w-11",
+          )}
           initialFocus
         />
       )}
 
-      {/* Time step */}
-      {step === "time" && (
-        <div className="p-4 space-y-4">
-          {/* Quick presets */}
-          <div>
-            <p className="text-xs font-medium text-muted-foreground mb-2">Hurtigvalg</p>
-            <div className="grid grid-cols-2 gap-2">
-              {QUICK_TIMES.map((q) => (
-                <button
-                  type="button"
-                  key={q.value}
-                  onClick={() => handleTimeSelect(q.value)}
-                  className={cn(
-                    "flex flex-col items-center justify-center rounded-xl border p-3 text-sm transition-all",
-                    "hover:border-primary hover:bg-primary/5",
-                    timeValue === q.value
-                      ? "border-primary bg-primary/10 text-primary font-medium"
-                      : "border-border text-foreground",
-                    isMobile && "p-4 text-base",
-                  )}
-                >
-                  <span className="font-medium">{q.label}</span>
-                  <span className="text-[10px] text-muted-foreground mt-0.5">{q.desc}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Grid of time slots */}
-          <div>
-            <p className="text-xs font-medium text-muted-foreground mb-2">Velg klokkeslett</p>
-            <div className="grid grid-cols-4 gap-1.5 max-h-[200px] overflow-y-auto">
-              {TIME_SLOTS.map((t) => (
-                <button
-                  type="button"
-                  key={t}
-                  onClick={() => handleTimeSelect(t)}
-                  className={cn(
-                    "rounded-lg border text-sm py-2 transition-all",
-                    "hover:border-primary hover:bg-primary/5",
-                    timeValue === t
-                      ? "border-primary bg-primary/10 text-primary font-medium"
-                      : "border-border text-foreground",
-                    isMobile && "py-3 text-base",
-                  )}
-                >
-                  {t}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
+      {step === "time" && <TimeGrid value={timeValue} onSelect={handleTimeSelect} isMobile={isMobile} />}
     </div>
   );
 
-  /* ─── Trigger button ─── */
+  /* ─── Trigger ─── */
   const triggerButton = (
     <button
       type="button"
       disabled={disabled}
-      onClick={() => handleOpen(true)}
+      onClick={() => isMobile && handleOpen(true)}
       className={cn(
         "flex items-center gap-2 w-full rounded-xl border border-input bg-background px-3 text-left text-sm transition-colors",
         "hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
@@ -241,7 +187,6 @@ export function ModernDateTimePicker({
     </button>
   );
 
-  /* ─── Mobile: bottom sheet ─── */
   if (isMobile) {
     return (
       <>
@@ -267,14 +212,89 @@ export function ModernDateTimePicker({
     );
   }
 
-  /* ─── Desktop: popover ─── */
   return (
     <Popover open={open} onOpenChange={handleOpen}>
       <PopoverTrigger asChild>{triggerButton}</PopoverTrigger>
-      <PopoverContent className="w-auto p-0" align="start">
+      <PopoverContent
+        className="w-auto p-0"
+        align="start"
+        sideOffset={4}
+        avoidCollisions={false}
+      >
         {pickerContent}
       </PopoverContent>
     </Popover>
+  );
+}
+
+/* ─── Time Grid (shared) ─── */
+function TimeGrid({
+  value,
+  onSelect,
+  isMobile,
+}: {
+  value?: string;
+  onSelect: (t: string) => void;
+  isMobile: boolean;
+}) {
+  const activeRef = useRef<HTMLButtonElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (activeRef.current && scrollRef.current) {
+      const container = scrollRef.current;
+      const el = activeRef.current;
+      container.scrollTop = el.offsetTop - container.offsetTop - 40;
+    }
+  }, []);
+
+  return (
+    <div className="p-3 space-y-3">
+      {/* Quick presets – single compact row */}
+      <div className="flex flex-wrap gap-1.5">
+        {QUICK_PRESETS.map((p) => (
+          <button
+            type="button"
+            key={p.value}
+            onClick={() => onSelect(p.value)}
+            className={cn(
+              "rounded-lg border text-xs px-2.5 py-1.5 transition-colors",
+              "hover:border-primary hover:bg-primary/5",
+              value === p.value
+                ? "border-primary bg-primary/10 text-primary font-medium"
+                : "border-border text-foreground",
+            )}
+          >
+            {p.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Full 24h grid */}
+      <div
+        ref={scrollRef}
+        className={cn("grid gap-1 overflow-y-auto", isMobile ? "grid-cols-4 max-h-[280px]" : "grid-cols-4 max-h-[220px]")}
+      >
+        {TIME_SLOTS.map((t) => (
+          <button
+            type="button"
+            key={t}
+            ref={value === t ? activeRef : undefined}
+            onClick={() => onSelect(t)}
+            className={cn(
+              "rounded-md border text-sm tabular-nums transition-colors",
+              isMobile ? "py-2.5" : "py-1.5",
+              "hover:border-primary hover:bg-primary/5",
+              value === t
+                ? "border-primary bg-primary/10 text-primary font-medium"
+                : "border-border text-foreground",
+            )}
+          >
+            {t}
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -327,64 +347,14 @@ export function ModernTimePicker({
   const displayText = value
     ? value === "flex"
       ? "Fleksibelt"
-      : `kl. ${value}`
+      : value
     : "";
-
-  const content = (
-    <div className="p-4 space-y-4">
-      <div>
-        <p className="text-xs font-medium text-muted-foreground mb-2">Hurtigvalg</p>
-        <div className="grid grid-cols-2 gap-2">
-          {QUICK_TIMES.map((q) => (
-            <button
-              type="button"
-              key={q.value}
-              onClick={() => handleSelect(q.value)}
-              className={cn(
-                "flex flex-col items-center rounded-xl border p-3 text-sm transition-all",
-                "hover:border-primary hover:bg-primary/5",
-                value === q.value
-                  ? "border-primary bg-primary/10 text-primary font-medium"
-                  : "border-border text-foreground",
-                isMobile && "p-4 text-base",
-              )}
-            >
-              <span className="font-medium">{q.label}</span>
-              <span className="text-[10px] text-muted-foreground mt-0.5">{q.desc}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-      <div>
-        <p className="text-xs font-medium text-muted-foreground mb-2">Velg klokkeslett</p>
-        <div className="grid grid-cols-4 gap-1.5 max-h-[200px] overflow-y-auto">
-          {TIME_SLOTS.map((t) => (
-            <button
-              type="button"
-              key={t}
-              onClick={() => handleSelect(t)}
-              className={cn(
-                "rounded-lg border text-sm py-2 transition-all",
-                "hover:border-primary hover:bg-primary/5",
-                value === t
-                  ? "border-primary bg-primary/10 text-primary font-medium"
-                  : "border-border text-foreground",
-                isMobile && "py-3 text-base",
-              )}
-            >
-              {t}
-            </button>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
 
   const trigger = (
     <button
       type="button"
       disabled={disabled}
-      onClick={() => setOpen(true)}
+      onClick={() => isMobile && setOpen(true)}
       className={cn(
         "flex items-center gap-2 w-full rounded-xl border border-input bg-background px-3 text-left text-sm transition-colors",
         "hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
@@ -417,7 +387,7 @@ export function ModernTimePicker({
             <SheetHeader className="pb-0">
               <SheetTitle className="text-base">Velg tidspunkt</SheetTitle>
             </SheetHeader>
-            {content}
+            <TimeGrid value={value} onSelect={handleSelect} isMobile={isMobile} />
             <div className="px-4 pb-4 pt-2">
               <Button className="w-full h-12 text-base rounded-xl" onClick={() => setOpen(false)}>
                 Ferdig
@@ -432,8 +402,8 @@ export function ModernTimePicker({
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>{trigger}</PopoverTrigger>
-      <PopoverContent className="w-auto p-0" align="start">
-        {content}
+      <PopoverContent className="w-auto p-0" align="start" sideOffset={4} avoidCollisions={false}>
+        <TimeGrid value={value} onSelect={handleSelect} isMobile={isMobile} />
       </PopoverContent>
     </Popover>
   );
