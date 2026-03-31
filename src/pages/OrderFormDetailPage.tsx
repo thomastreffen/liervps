@@ -536,7 +536,7 @@ export default function OrderFormDetailPage() {
               )}
             </Button>
           </PopoverTrigger>
-          <PopoverContent align="start" className="w-64 p-2">
+          <PopoverContent align="start" className="w-72 p-2">
             <Input
               placeholder="Søk etter bruker..."
               value={assignSearch}
@@ -544,7 +544,7 @@ export default function OrderFormDetailPage() {
               className="h-8 text-sm mb-2"
               autoFocus
             />
-            <div className="max-h-48 overflow-y-auto space-y-0.5">
+            <div className="max-h-52 overflow-y-auto space-y-0.5">
               {sub.assigned_to && (
                 <button
                   onClick={() => assignResponsible.mutate(null)}
@@ -556,19 +556,42 @@ export default function OrderFormDetailPage() {
               )}
               {companyUsers
                 .filter(u => !assignSearch || u.name.toLowerCase().includes(assignSearch.toLowerCase()))
-                .map(u => (
-                  <button
-                    key={u.id}
-                    onClick={() => assignResponsible.mutate(u.id)}
-                    className={`w-full text-left text-xs px-2 py-1.5 rounded hover:bg-muted flex items-center gap-2 ${sub.assigned_to === u.id ? "bg-primary/10 font-medium" : ""}`}
-                  >
-                    <User className="h-3 w-3 shrink-0 text-muted-foreground" />
-                    {u.name}
-                    {sub.assigned_to === u.id && <UserCheck className="h-3 w-3 ml-auto text-primary" />}
-                  </button>
-                ))
+                .map((u, idx, arr) => {
+                  // Show separator before cross-company section
+                  const showCrossDivider = u.isCrossCompany && (idx === 0 || !arr[idx - 1]?.isCrossCompany);
+                  return (
+                    <div key={u.id}>
+                      {showCrossDivider && (
+                        <div className="text-[10px] uppercase tracking-wider text-muted-foreground px-2 pt-2 pb-1 border-t mt-1">
+                          Andre selskap
+                        </div>
+                      )}
+                      <button
+                        onClick={() => assignResponsible.mutate(u.id)}
+                        className={`w-full text-left text-xs px-2 py-1.5 rounded hover:bg-muted flex items-center gap-2 ${sub.assigned_to === u.id ? "bg-primary/10 font-medium" : ""}`}
+                      >
+                        <User className="h-3 w-3 shrink-0 text-muted-foreground" />
+                        <span className="flex-1 truncate">{u.name}</span>
+                        {u.isCrossCompany && (
+                          <Globe className="h-3 w-3 shrink-0 text-amber-500" />
+                        )}
+                        {sub.assigned_to === u.id && <UserCheck className="h-3 w-3 shrink-0 text-primary" />}
+                      </button>
+                    </div>
+                  );
+                })
               }
             </div>
+            {/* Cross-company info */}
+            {(() => {
+              const hoveredCross = companyUsers.some(u => u.isCrossCompany);
+              return hoveredCross ? (
+                <div className="text-[10px] text-amber-600 bg-amber-50 border border-amber-200 rounded p-1.5 mt-2 flex gap-1.5 items-start">
+                  <Globe className="h-3 w-3 shrink-0 mt-0.5" />
+                  <span>Brukere med <Globe className="h-2.5 w-2.5 inline" /> tilhører et annet selskap. Ved tildeling gis tilgang kun til denne bestillingen og tilhørende vedlegg, meldinger og aktivitetslogg.</span>
+                </div>
+              ) : null;
+            })()}
             {bestillerEpost && (
               <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer select-none mt-2 pt-2 border-t">
                 <Checkbox
@@ -578,6 +601,9 @@ export default function OrderFormDetailPage() {
                 />
                 <Bell className="h-3 w-3" />
                 Varsle bestiller
+              </label>
+            )}
+          </PopoverContent>
               </label>
             )}
           </PopoverContent>
