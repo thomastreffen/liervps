@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import {
-  GripVertical, Plus, ChevronDown, ChevronRight, Eye, EyeOff,
+  GripVertical, Plus, ChevronDown, ChevronRight, Eye, EyeOff, ArrowUp, ArrowDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -337,6 +337,24 @@ export function BuilderCanvas({
                     <span className="text-[10px] text-muted-foreground truncate max-w-[140px] hidden lg:block">{section.description}</span>
                   )}
                   <Badge variant="outline" className="text-[10px] font-normal shrink-0">{activeFields.length} felt</Badge>
+                  <div className="flex items-center gap-0.5 shrink-0">
+                    <button
+                      disabled={sIdx === 0}
+                      onClick={(e) => { e.stopPropagation(); onMoveSection(sIdx, sIdx - 1); }}
+                      className="p-1 rounded hover:bg-muted disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
+                      title="Flytt opp"
+                    >
+                      <ArrowUp className="h-3.5 w-3.5 text-muted-foreground" />
+                    </button>
+                    <button
+                      disabled={sIdx === sections.length - 1}
+                      onClick={(e) => { e.stopPropagation(); onMoveSection(sIdx, sIdx + 1); }}
+                      className="p-1 rounded hover:bg-muted disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
+                      title="Flytt ned"
+                    >
+                      <ArrowDown className="h-3.5 w-3.5 text-muted-foreground" />
+                    </button>
+                  </div>
                   <Switch
                     checked={section.is_active !== false}
                     onCheckedChange={(v) => onToggleSectionActive(section.id, v)}
