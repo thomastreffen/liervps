@@ -471,6 +471,7 @@ export default function OrderFormDetailPage() {
     notification_failed: "E-postsending feilet",
     exported_to_tripletex: "Eksportert til Tripletex",
     assigned: "Ansvarlig tildelt",
+    recipient_changed: "Oppdateringsmottaker endret",
   };
 
   const trackingUrl = sub.public_tracking_token
