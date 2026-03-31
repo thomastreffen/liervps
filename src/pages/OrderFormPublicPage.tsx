@@ -183,6 +183,7 @@ export default function OrderFormPublicPage() {
       ["oppdragstittel", "kundenavn", "firmanavn", "bestiller_navn"].forEach((k) => { if (formData[k]) summary[k] = formData[k]; });
 
       // Resolve notification recipient from form data
+      // Priority: bestiller_ fields > epost_kunde/kontakt > fallback
       const findFormVal = (...keys: string[]) => {
         for (const k of keys) {
           if (formData[k]) return String(formData[k]);
@@ -191,8 +192,11 @@ export default function OrderFormPublicPage() {
         }
         return null;
       };
+      const hasBestillerFields = !!(formData.bestiller_epost || formData.bestiller_navn);
       const recipientEmail = findFormVal("bestiller_epost", "epost_kunde", "epost", "kontakt_epost");
       const recipientName = findFormVal("bestiller_navn", "kontaktperson", "kontaktperson_kunde");
+      const recipientPhone = findFormVal("bestiller_telefon", "telefon_kunde", "telefon", "kontakt_telefon");
+      const recipientSource = hasBestillerFields ? "bestiller_fields" : "auto";
 
       const { data: subData, error: subErr } = await supabase.from("order_form_submissions").insert({
         id: submissionId,
@@ -207,7 +211,8 @@ export default function OrderFormPublicPage() {
         submitter_name: recipientName,
         notification_recipient_email: recipientEmail,
         notification_recipient_name: recipientName,
-        notification_recipient_source: "auto",
+        notification_recipient_phone: recipientPhone,
+        notification_recipient_source: recipientSource,
       } as any).select("submission_no, public_tracking_token").single();
       if (subErr) throw subErr;
 
