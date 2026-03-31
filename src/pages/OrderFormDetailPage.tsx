@@ -533,13 +533,24 @@ export default function OrderFormDetailPage() {
           { label: "Kunde", value: (submission.summary as any)?.kundenavn || "–" },
           { label: "Oppdrag", value: (submission.summary as any)?.oppdragstittel || "–" },
           { label: "Kanal", value: CHANNEL_LABELS[sub.channel] || "–" },
-          { label: "Ansvarlig", value: sub.assigned_to ? "Tildelt" : "Ikke tildelt" },
         ].map(({ label, value }) => (
           <div key={label} className="text-sm">
             <span className="text-muted-foreground text-[10px] uppercase tracking-wider">{label}</span>
             <p className="font-medium truncate text-xs">{value}</p>
           </div>
         ))}
+        {/* Ansvarlig - interactive */}
+        <div className="text-sm">
+          <span className="text-muted-foreground text-[10px] uppercase tracking-wider">Ansvarlig</span>
+          {sub.assigned_to ? (
+            <p className="font-medium truncate text-xs flex items-center gap-1">
+              <UserCheck className="h-3 w-3 text-primary shrink-0" />
+              {assigneeName || "Laster..."}
+            </p>
+          ) : (
+            <p className="font-medium truncate text-xs text-muted-foreground">Ikke tildelt</p>
+          )}
+        </div>
       </div>
 
       {/* Linked entities + notification status */}
