@@ -137,11 +137,15 @@ Deno.serve(async (req) => {
       subject = `Bestilling mottatt: ${submission.submission_no} - ${oppdragstittel}`;
       recipients = [bestillerEpost];
 
+      const trackingToken = submission.public_tracking_token;
+      const trackingUrl = trackingToken ? `${appUrl}/bestilling/status/${trackingToken}` : null;
+
       bodyHtml = buildConfirmationEmail({
         submissionNo: submission.submission_no,
         kundenavn,
         oppdragstittel,
         detailUrl,
+        trackingUrl,
       });
 
       await supabase.from("order_form_submissions")
@@ -157,6 +161,9 @@ Deno.serve(async (req) => {
       subject = `Forespørsel om mer info: ${submission.submission_no} - ${oppdragstittel}`;
       recipients = [bestillerEpost];
 
+      const trackingToken = submission.public_tracking_token;
+      const trackingUrl = trackingToken ? `${appUrl}/bestilling/status/${trackingToken}` : null;
+
       bodyHtml = buildMissingInfoEmail({
         submissionNo: submission.submission_no,
         kundenavn,
@@ -164,6 +171,72 @@ Deno.serve(async (req) => {
         missingItems: missing_items || [],
         freeText: free_text || "",
         detailUrl,
+        trackingUrl,
+      });
+
+    } else if (notification_type === "customer_update") {
+      // Generic customer update notification - triggered by status changes, assignments, etc.
+      if (!bestillerEpost) {
+        return json({ success: false, reason: "no_bestiller_email" });
+      }
+
+      const { event_key, custom_message } = body;
+      recipients = [bestillerEpost];
+
+      const trackingToken = submission.public_tracking_token;
+      const trackingUrl = trackingToken ? `${appUrl}/bestilling/status/${trackingToken}` : null;
+
+      const eventTemplates: Record<string, { subject: string; heading: string; body: string; color: string; colorFg: string }> = {
+        assigned: {
+          subject: `Oppdatering: ${submission.submission_no} - Ansvarlig tildelt`,
+          heading: "Ansvarlig er tildelt",
+          body: "Det er nå satt en ansvarlig for oppfølging av din bestilling. Vi vil holde deg oppdatert om videre fremdrift.",
+          color: "#DBEAFE", colorFg: "#1E40AF",
+        },
+        status_changed: {
+          subject: `Oppdatering: ${submission.submission_no} - Status endret`,
+          heading: "Status er oppdatert",
+          body: "Statusen på din bestilling er oppdatert. Sjekk sporingslenken for detaljer.",
+          color: "#DBEAFE", colorFg: "#1E40AF",
+        },
+        task_created: {
+          subject: `Oppdatering: ${submission.submission_no} - Oppgave opprettet`,
+          heading: "Oppgave er opprettet",
+          body: "Det er nå opprettet en oppgave for din bestilling og arbeidet vil bli planlagt.",
+          color: "#DBEAFE", colorFg: "#1E40AF",
+        },
+        in_progress: {
+          subject: `Oppdatering: ${submission.submission_no} - Under arbeid`,
+          heading: "Arbeidet er i gang",
+          body: "Vi har startet arbeidet med din bestilling.",
+          color: "#FEF3C7", colorFg: "#92400E",
+        },
+        completed: {
+          subject: `Oppdatering: ${submission.submission_no} - Ferdig behandlet`,
+          heading: "Bestillingen er ferdig behandlet",
+          body: "Din bestilling er nå ferdig behandlet. Ta gjerne kontakt om du har spørsmål.",
+          color: "#DCFCE7", colorFg: "#166534",
+        },
+        rejected: {
+          subject: `Oppdatering: ${submission.submission_no} - Avvist`,
+          heading: "Bestillingen er avvist",
+          body: "Din bestilling er dessverre avvist. Ta gjerne kontakt for mer informasjon.",
+          color: "#FEE2E2", colorFg: "#991B1B",
+        },
+      };
+
+      const tmpl = eventTemplates[event_key] || eventTemplates.status_changed;
+      subject = tmpl.subject;
+
+      bodyHtml = buildCustomerUpdateEmail({
+        submissionNo: submission.submission_no,
+        kundenavn,
+        oppdragstittel,
+        heading: tmpl.heading,
+        bodyText: custom_message || tmpl.body,
+        headingBg: tmpl.color,
+        headingFg: tmpl.colorFg,
+        trackingUrl,
       });
     }
 
