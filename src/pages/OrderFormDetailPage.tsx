@@ -165,7 +165,7 @@ export default function OrderFormDetailPage() {
     },
   });
 
-
+  const { data: sections = [] } = useQuery({
     queryKey: ["order-form-template-structure", submission?.template_id],
     enabled: !!submission?.template_id,
     queryFn: async () => {
