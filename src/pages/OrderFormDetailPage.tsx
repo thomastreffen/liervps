@@ -308,6 +308,12 @@ export default function OrderFormDetailPage() {
           actor_user_id: user?.id,
         });
       }
+      // Send customer notification if toggle is on
+      if (notifyOnAssign && assigneeId) {
+        await supabase.functions.invoke("order-form-notify", {
+          body: { submission_id: id, notification_type: "customer_update", event_key: "assigned" },
+        });
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["order-form-submission", id] });
@@ -315,6 +321,7 @@ export default function OrderFormDetailPage() {
       qc.invalidateQueries({ queryKey: ["assignee-name"] });
       setAssignPopoverOpen(false);
       setAssignSearch("");
+      setNotifyOnAssign(false);
       toast.success("Ansvarlig oppdatert");
     },
   });
