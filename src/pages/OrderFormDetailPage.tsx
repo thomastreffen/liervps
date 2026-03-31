@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   ArrowLeft, MessageSquare, Clock, Paperclip, AlertTriangle,
   ArrowRight, FileText, Download, Mail, MailCheck, MailX, ExternalLink, UserPlus,
-  Tag, User, LinkIcon, X,
+  Tag, User, LinkIcon, X, MoreHorizontal, Eye, Send, Globe,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -16,9 +16,11 @@ import {
   ORDER_STATUS_CONFIG,
   ORDER_PRIORITY_CONFIG,
   CHANNEL_LABELS,
+  EXTERNAL_STATUS_CONFIG,
+  mapToExternalStatus,
   type OrderFormSubmissionStatus,
 } from "@/types/order-forms";
-import { format } from "date-fns";
+import { format, formatDistanceToNow } from "date-fns";
 import { nb } from "date-fns/locale";
 import {
   Select,
@@ -27,6 +29,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/hooks/useAuth";
 import { computeQualityScore, type QualityResult } from "@/lib/order-quality";
 import { QualityBadge } from "@/components/orders/QualityBadge";
@@ -124,14 +133,12 @@ export default function OrderFormDetailPage() {
         .eq("template_id", submission!.template_id)
         .order("sort_order");
       if (!secs) return [];
-
       const { data: fields } = await supabase
         .from("order_form_template_fields")
         .select("*")
         .eq("template_id", submission!.template_id)
         .eq("is_active", true)
         .order("sort_order");
-
       return secs.map((s: any) => ({
         ...s,
         fields: (fields || []).filter((f: any) => f.section_id === s.id),
@@ -145,7 +152,6 @@ export default function OrderFormDetailPage() {
     return map;
   }, [values]);
 
-  // Helper to find value by prefix (handles suffixed keys like "epost_kunde_abc123")
   const findVal = useCallback((...prefixes: string[]): string => {
     for (const prefix of prefixes) {
       if (valuesMap[prefix]) return String(valuesMap[prefix]);
@@ -160,7 +166,6 @@ export default function OrderFormDetailPage() {
     [findVal]
   );
 
-  // Collect all template fields for dynamic quality assessment
   const allTemplateFields = useMemo(() => {
     return sections.flatMap((s: any) => (s.fields || []).map((f: any) => ({
       field_key: f.field_key,
@@ -181,7 +186,6 @@ export default function OrderFormDetailPage() {
         .update({ status: newStatus })
         .eq("id", id!);
       if (error) throw error;
-
       await supabase.from("order_form_activity_log").insert({
         submission_id: id!,
         event_type: "status_changed",
@@ -211,7 +215,7 @@ export default function OrderFormDetailPage() {
     onSuccess: () => {
       setComment("");
       qc.invalidateQueries({ queryKey: ["order-form-comments", id] });
-      toast.success("Kommentar lagt til");
+      toast.success(commentVisibility === "shared" ? "Melding delt med bestiller" : "Intern kommentar lagt til");
     },
   });
 
@@ -245,15 +249,18 @@ export default function OrderFormDetailPage() {
   const priorityConfig = ORDER_PRIORITY_CONFIG[submission.priority];
   const sub = submission as any;
 
+  const externalStatus = mapToExternalStatus(submission.status as OrderFormSubmissionStatus);
+  const externalConfig = EXTERNAL_STATUS_CONFIG[externalStatus];
+
   const eventTypeLabels: Record<string, string> = {
     submitted: "Bestilling innsendt",
     status_changed: "Status endret",
-    missing_info_requested: "Forespørsel om mer info",
+    missing_info_requested: "Forespørsel om mer info sendt",
     comment_added: "Kommentar lagt til",
-    customer_reply: "Svar fra bestiller",
+    customer_reply: "Svar mottatt fra bestiller",
     converted_to_case: "Konvertert til sak",
-    converted_to_order: "Konvertert til oppdrag",
-    notification_sent: "E-postvarsling sendt",
+    converted_to_order: "Oppgave opprettet i ressursplan",
+    notification_sent: "E-post sendt",
     notification_failed: "E-postsending feilet",
     exported_to_tripletex: "Eksportert til Tripletex",
   };
@@ -262,7 +269,6 @@ export default function OrderFormDetailPage() {
     ? `${window.location.origin}/bestilling/status/${sub.public_tracking_token}`
     : null;
 
-  // Group attachments by category
   const attByCategory: Record<string, any[]> = {};
   attachments.forEach((a: any) => {
     const cat = a.category || "Annet";
@@ -273,12 +279,18 @@ export default function OrderFormDetailPage() {
   const hasNotification = !!sub.notification_sent_at;
   const hasConfirmation = !!sub.confirmation_sent_at;
   const hasError = !!sub.notification_error;
+  const sharedCount = comments.filter((c: any) => c.visibility === "shared" || c.is_customer_reply).length;
+  const customerReplies = comments.filter((c: any) => c.is_customer_reply);
+  const lastCustomerReply = customerReplies.length > 0 ? customerReplies[customerReplies.length - 1] : null;
+  const isWaitingOnCustomer = ["missing_info", "waiting_customer"].includes(submission.status);
+  const isWaitingOnUs = ["new", "under_review", "waiting_internal"].includes(submission.status);
+  const isClosed = submission.status === "closed" || submission.status === "rejected";
 
   return (
-    <div className="space-y-6 p-6 max-w-6xl mx-auto">
-      {/* Ticket header */}
-      <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={() => navigate("/orders")}>
+    <div className="space-y-5 p-6 max-w-6xl mx-auto">
+      {/* Header */}
+      <div className="flex items-start gap-3">
+        <Button variant="ghost" size="icon" onClick={() => navigate("/orders")} className="mt-1">
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div className="flex-1 min-w-0">
@@ -286,42 +298,105 @@ export default function OrderFormDetailPage() {
             <h1 className="text-xl font-bold text-foreground">{submission.submission_no}</h1>
             <Badge className={statusConfig?.color || ""}>{statusConfig?.label || submission.status}</Badge>
             {submission.priority !== "normal" && priorityConfig && (
-              <Badge className={priorityConfig.color}>{priorityConfig.label}</Badge>
-            )}
-            <QualityBadge score={qualityResult.score} />
-            {sub.order_form_templates?.category && (
-              <Badge variant="outline" className="text-[10px] gap-1">
-                <Tag className="h-2.5 w-2.5" />
-                {sub.order_form_templates.category}
+              <Badge variant="outline" className="text-[10px] font-semibold border-orange-200 text-orange-700 bg-orange-50">
+                {priorityConfig.label}
               </Badge>
             )}
           </div>
-          {/* Meaningful subtitle with fallback chain */}
           <p className="text-sm text-muted-foreground mt-0.5">
             {(() => {
               const parts: string[] = [];
               const tmplName = sub.order_form_templates?.name;
               if (tmplName) parts.push(tmplName);
-              const title = (sub as any).submitter_name || (submission.summary as any)?.kundenavn || (submission.summary as any)?.bestiller_navn;
-              if (title) parts.push(title);
+              const name = sub.submitter_name || (submission.summary as any)?.kundenavn || (submission.summary as any)?.bestiller_navn;
+              if (name) parts.push(name);
               if ((submission.summary as any)?.oppdragstittel) parts.push((submission.summary as any).oppdragstittel);
               parts.push(format(new Date(submission.submitted_at), "d. MMMM yyyy HH:mm", { locale: nb }));
-              if ((sub as any).channel) parts.push(CHANNEL_LABELS[(sub as any).channel] || (sub as any).channel);
               return parts.join(" · ");
             })()}
           </p>
         </div>
+        {/* Quality badge - subtle, separate from status */}
+        <QualityBadge score={qualityResult.score} />
+      </div>
+
+      {/* Primary + secondary actions */}
+      <div className="flex flex-wrap items-center gap-2">
+        {/* Primary: Status */}
+        <Select value={submission.status} onValueChange={(v) => updateStatus.mutate(v)}>
+          <SelectTrigger className="w-48 h-9">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {Object.entries(ORDER_STATUS_CONFIG).map(([key, cfg]) => (
+              <SelectItem key={key} value={key}>{cfg.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        {/* Primary: Be om mer info */}
+        <Button variant="outline" size="sm" onClick={() => setRequestInfoOpen(true)}>
+          <AlertTriangle className="h-3.5 w-3.5 mr-1.5" />
+          Be om mer info
+        </Button>
+
+        {/* Primary: Opprett oppgave */}
+        <Button variant="outline" size="sm" onClick={() => setAssignTaskOpen(true)}>
+          <UserPlus className="h-3.5 w-3.5 mr-1.5" />
+          Opprett oppgave
+        </Button>
+
+        {/* Secondary: overflow menu */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm" className="px-2">
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-52">
+            <DropdownMenuItem onClick={() => sendNotification.mutate("new_order")}>
+              <Mail className="h-3.5 w-3.5 mr-2" />
+              {hasNotification ? "Send varsling på nytt" : "Send varsling"}
+            </DropdownMenuItem>
+            {bestillerEpost && !hasConfirmation && (
+              <DropdownMenuItem onClick={() => sendNotification.mutate("confirmation")}>
+                <MailCheck className="h-3.5 w-3.5 mr-2" />
+                Send bekreftelse
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => setTripletexOpen(true)}>
+              <Download className="h-3.5 w-3.5 mr-2" />
+              Tripletex-eksport
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setConvertOpen(true)} disabled={!!sub.converted_to_id}>
+              <ArrowRight className="h-3.5 w-3.5 mr-2" />
+              Konverter til sak
+            </DropdownMenuItem>
+            {!isClosed && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => updateStatus.mutate("closed")}>
+                  <X className="h-3.5 w-3.5 mr-2" />
+                  Lukk bestilling
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => updateStatus.mutate("rejected")} className="text-destructive focus:text-destructive">
+                  Avvis
+                </DropdownMenuItem>
+              </>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {/* Ticket info bar */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 p-3 rounded-lg bg-muted/30 border">
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 p-3 rounded-lg bg-muted/30 border">
         {[
-          { label: "Innsender", value: (sub as any).submitter_name || (submission.summary as any)?.bestiller_navn || "–" },
-          { label: "E-post", value: (sub as any).submitter_email || bestillerEpost || "–" },
+          { label: "Innsender", value: sub.submitter_name || (submission.summary as any)?.bestiller_navn || "–" },
+          { label: "E-post", value: sub.submitter_email || bestillerEpost || "–" },
           { label: "Kunde", value: (submission.summary as any)?.kundenavn || "–" },
           { label: "Oppdrag", value: (submission.summary as any)?.oppdragstittel || "–" },
-          { label: "Hastegrad", value: (submission.summary as any)?.hastegrad || "–" },
-          { label: "Kanal", value: CHANNEL_LABELS[(sub as any).channel] || "–" },
+          { label: "Kanal", value: CHANNEL_LABELS[sub.channel] || "–" },
           { label: "Ansvarlig", value: sub.assigned_to ? "Tildelt" : "Ikke tildelt" },
         ].map(({ label, value }) => (
           <div key={label} className="text-sm">
@@ -331,92 +406,20 @@ export default function OrderFormDetailPage() {
         ))}
       </div>
 
-      {/* Linked entities */}
-      {(sub.converted_to_id || sub.linked_case_id) && (
-        <div className="flex flex-wrap gap-2">
-          {sub.converted_to_id && (
-            <Badge variant="outline" className="text-[10px] gap-1 cursor-pointer hover:bg-muted" onClick={() => {
-              const url = sub.converted_to_type === "case"
-                ? `/cases/${sub.converted_to_id}`
-                : `/projects/plan?openTask=${sub.converted_to_id}`;
-              navigate(url);
-            }}>
-              <LinkIcon className="h-2.5 w-2.5" />
-              {sub.converted_to_type === "case" ? "Sak" : "Oppgave"} koblet
-              <ExternalLink className="h-2.5 w-2.5" />
-            </Badge>
-          )}
-          {sub.linked_case_id && (
-            <Badge variant="outline" className="text-[10px] gap-1 cursor-pointer hover:bg-muted" onClick={() => navigate(`/inbox`)}>
-              <LinkIcon className="h-2.5 w-2.5" />
-              Postkontor-sak
-              <ExternalLink className="h-2.5 w-2.5" />
-            </Badge>
-          )}
-        </div>
-      )}
-
-      {/* Quick actions */}
+      {/* Linked entities + notification status */}
       <div className="flex flex-wrap gap-2">
-        <Select value={submission.status} onValueChange={(v) => updateStatus.mutate(v)}>
-          <SelectTrigger className="w-52">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {Object.entries(ORDER_STATUS_CONFIG).map(([key, cfg]) => (
-              <SelectItem key={key} value={key}>{cfg.label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Button variant="outline" size="sm" onClick={() => setRequestInfoOpen(true)}>
-          <AlertTriangle className="h-3.5 w-3.5 mr-1" />
-          Be om mer info
-        </Button>
-        <Button variant="outline" size="sm" onClick={() => setAssignTaskOpen(true)}>
-          <UserPlus className="h-3.5 w-3.5 mr-1" />
-          Opprett oppgave
-        </Button>
-        <Button variant="outline" size="sm" onClick={() => setConvertOpen(true)} disabled={!!sub.converted_to_id}>
-          <ArrowRight className="h-3.5 w-3.5 mr-1" />
-          Konverter til sak
-        </Button>
-        <Button variant="outline" size="sm" onClick={() => setTripletexOpen(true)}>
-          <Download className="h-3.5 w-3.5 mr-1" />
-          Tripletex
-        </Button>
-        <Button
-          variant="outline" size="sm"
-          onClick={() => sendNotification.mutate("new_order")}
-          disabled={sendNotification.isPending}
-        >
-          <Mail className="h-3.5 w-3.5 mr-1" />
-          {hasNotification ? "Send varsling på nytt" : "Send varsling"}
-        </Button>
-        {bestillerEpost && !hasConfirmation && (
-          <Button
-            variant="outline" size="sm"
-            onClick={() => sendNotification.mutate("confirmation")}
-            disabled={sendNotification.isPending}
-          >
-            <MailCheck className="h-3.5 w-3.5 mr-1" />
-            Send bekreftelse
-          </Button>
+        {sub.converted_to_id && (
+          <Badge variant="outline" className="text-[10px] gap-1 cursor-pointer hover:bg-muted" onClick={() => {
+            const url = sub.converted_to_type === "case"
+              ? `/cases/${sub.converted_to_id}`
+              : `/projects/plan?openTask=${sub.converted_to_id}`;
+            navigate(url);
+          }}>
+            <LinkIcon className="h-2.5 w-2.5" />
+            {sub.converted_to_type === "case" ? "Sak" : "Oppgave"} koblet
+            <ExternalLink className="h-2.5 w-2.5" />
+          </Badge>
         )}
-        {submission.status !== "closed" && submission.status !== "rejected" && (
-          <>
-            <Button variant="outline" size="sm" onClick={() => updateStatus.mutate("closed")} className="text-muted-foreground">
-              <X className="h-3.5 w-3.5 mr-1" />
-              Lukk
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => updateStatus.mutate("rejected")} className="text-destructive hover:text-destructive">
-              Avvis
-            </Button>
-          </>
-        )}
-      </div>
-
-      {/* Email & conversion status indicators */}
-      <div className="flex flex-wrap gap-2">
         {hasNotification && (
           <Badge variant="outline" className="text-[10px] bg-green-50 text-green-700 border-green-200">
             <MailCheck className="h-3 w-3 mr-1" />
@@ -432,58 +435,21 @@ export default function OrderFormDetailPage() {
         {hasError && (
           <Badge variant="outline" className="text-[10px] bg-red-50 text-red-700 border-red-200">
             <MailX className="h-3 w-3 mr-1" />
-            E-postfeil: {sub.notification_error?.substring(0, 60)}
-          </Badge>
-        )}
-        {sub.converted_to_type && (
-          <Badge variant="outline" className="text-[10px] bg-green-50 text-green-700 border-green-200">
-            <ArrowRight className="h-3 w-3 mr-1" />
-            Konvertert til {sub.converted_to_type === "case" ? "sak" : "oppdrag"}
-            {sub.converted_to_id && (
-              <button
-                className="ml-1 underline"
-                onClick={() => {
-                  const url = sub.converted_to_type === "case"
-                    ? `/cases/${sub.converted_to_id}`
-                    : `/projects/plan?openTask=${sub.converted_to_id}`;
-                  navigate(url);
-                }}
-              >
-                <ExternalLink className="h-3 w-3 inline" />
-              </button>
-            )}
+            E-postfeil
           </Badge>
         )}
       </div>
 
-      {/* Tracking link */}
-      {trackingUrl && (
-        <div className="flex items-center gap-2 text-xs">
-          <LinkIcon className="h-3 w-3 text-muted-foreground" />
-          <span className="text-muted-foreground">Sporingslenke:</span>
-          <button
-            className="text-primary underline truncate max-w-xs"
-            onClick={() => { navigator.clipboard.writeText(trackingUrl); toast.success("Sporingslenke kopiert!"); }}
-          >
-            Kopiér lenke
-          </button>
-          <a href={trackingUrl} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground">
-            <ExternalLink className="h-3 w-3" />
-          </a>
-        </div>
-      )}
-
-      {/* Quality issues panel - only show if there are issues */}
+      {/* Quality issues */}
       {qualityResult.score !== "green" && <QualityIssuesPanel result={qualityResult} />}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Main content: Sections with field values */}
+        {/* Main content */}
         <div className="lg:col-span-2 space-y-4">
           {sections.map((section: any) => {
             const sectionFields = section.fields || [];
             const hasValues = sectionFields.some((f: any) => valuesMap[f.field_key] != null);
             if (!hasValues && sectionFields.length > 0) return null;
-
             return (
               <Card key={section.id}>
                 <CardHeader className="pb-2">
@@ -512,7 +478,7 @@ export default function OrderFormDetailPage() {
             );
           })}
 
-          {/* Attachments grouped by category */}
+          {/* Attachments */}
           {attachments.length > 0 && (
             <Card>
               <CardHeader className="pb-2">
@@ -546,20 +512,109 @@ export default function OrderFormDetailPage() {
           )}
         </div>
 
-        {/* Sidebar: Comments & Activity */}
+        {/* Sidebar */}
         <div className="space-y-4">
+          {/* Customer tracking section */}
+          <Card className="border-primary/20">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Globe className="h-4 w-4 text-primary" />
+                Kundeside
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {/* External status */}
+              <div>
+                <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Bestiller ser</span>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <span className={`inline-block h-2 w-2 rounded-full ${externalConfig.color}`} />
+                  <span className="text-sm font-medium">{externalConfig.label}</span>
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-0.5">{externalConfig.description}</p>
+              </div>
+
+              {/* Tracking link */}
+              {trackingUrl && (
+                <div className="flex gap-1.5">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 text-xs h-8"
+                    onClick={() => { navigator.clipboard.writeText(trackingUrl); toast.success("Sporingslenke kopiert"); }}
+                  >
+                    <LinkIcon className="h-3 w-3 mr-1" />
+                    Kopiér lenke
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-xs h-8"
+                    asChild
+                  >
+                    <a href={trackingUrl} target="_blank" rel="noopener noreferrer">
+                      <Eye className="h-3 w-3 mr-1" />
+                      Åpne
+                    </a>
+                  </Button>
+                </div>
+              )}
+
+              {/* Customer activity summary */}
+              <div className="space-y-1.5 text-xs">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Delte meldinger</span>
+                  <span className="font-medium">{sharedCount}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Bekreftelse sendt</span>
+                  <span className="font-medium">{hasConfirmation ? "Ja" : "Nei"}</span>
+                </div>
+                {lastCustomerReply && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Siste svar fra bestiller</span>
+                    <span className="font-medium">
+                      {formatDistanceToNow(new Date(lastCustomerReply.created_at), { addSuffix: true, locale: nb })}
+                    </span>
+                  </div>
+                )}
+                {sub.customer_last_viewed_at && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Sist åpnet</span>
+                    <span className="font-medium">
+                      {formatDistanceToNow(new Date(sub.customer_last_viewed_at), { addSuffix: true, locale: nb })}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Waiting indicator */}
+              {isWaitingOnCustomer && (
+                <div className="flex items-center gap-1.5 text-xs px-2 py-1.5 rounded-md bg-amber-50 text-amber-700 border border-amber-200">
+                  <Clock className="h-3 w-3" />
+                  Venter på svar fra bestiller
+                </div>
+              )}
+              {isWaitingOnUs && !isClosed && (
+                <div className="flex items-center gap-1.5 text-xs px-2 py-1.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200">
+                  <Clock className="h-3 w-3" />
+                  Bestiller venter på oss
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           {/* Comments */}
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm flex items-center gap-2">
                 <MessageSquare className="h-4 w-4" />
-                Kommentarer
+                Meldinger
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-3 mb-3 max-h-64 overflow-y-auto">
                 {comments.length === 0 ? (
-                  <p className="text-xs text-muted-foreground">Ingen kommentarer ennå</p>
+                  <p className="text-xs text-muted-foreground">Ingen meldinger ennå</p>
                 ) : (
                   comments.map((c: any) => (
                     <div key={c.id} className={`text-sm border-l-2 pl-3 ${
@@ -569,12 +624,12 @@ export default function OrderFormDetailPage() {
                     }`}>
                       {c.comment_type === "missing_info_request" && (
                         <Badge variant="outline" className="text-[9px] mb-1 bg-amber-50 text-amber-700 border-amber-200">
-                          Forespørsel
+                          Forespørsel sendt til bestiller
                         </Badge>
                       )}
-                      {c.visibility === "shared" && !c.is_customer_reply && (
+                      {c.visibility === "shared" && !c.is_customer_reply && c.comment_type !== "missing_info_request" && (
                         <Badge variant="outline" className="text-[9px] mb-1 bg-primary/10 text-primary border-primary/20">
-                          Delt med bestiller
+                          Synlig for bestiller
                         </Badge>
                       )}
                       {c.is_customer_reply && (
@@ -582,6 +637,11 @@ export default function OrderFormDetailPage() {
                           Svar fra bestiller
                         </Badge>
                       )}
+                      {!c.visibility || (c.visibility === "internal" && !c.is_customer_reply && c.comment_type !== "missing_info_request") ? (
+                        <Badge variant="outline" className="text-[9px] mb-1 text-muted-foreground">
+                          Intern
+                        </Badge>
+                      ) : null}
                       <p className="whitespace-pre-wrap">{c.body}</p>
                       <span className="text-[10px] text-muted-foreground">
                         {format(new Date(c.created_at), "d. MMM HH:mm", { locale: nb })}
@@ -592,7 +652,7 @@ export default function OrderFormDetailPage() {
               </div>
               <div className="space-y-2">
                 <Textarea
-                  placeholder="Skriv kommentar..."
+                  placeholder="Skriv melding..."
                   value={comment}
                   onChange={(e) => setComment(e.target.value)}
                   className="min-h-[60px] text-sm"
@@ -611,7 +671,9 @@ export default function OrderFormDetailPage() {
                     variant={commentVisibility === "shared" ? "default" : "outline"}
                     className="text-xs h-7"
                     onClick={() => setCommentVisibility("shared")}
+                    title="Meldingen blir synlig på bestillerens sporingsside"
                   >
+                    <Send className="h-3 w-3 mr-1" />
                     Del med bestiller
                   </Button>
                   <div className="flex-1" />
@@ -623,6 +685,11 @@ export default function OrderFormDetailPage() {
                     Legg til
                   </Button>
                 </div>
+                {commentVisibility === "shared" && (
+                  <p className="text-[10px] text-muted-foreground">
+                    Meldingen blir synlig på bestillerens sporingsside. E-postvarsling sendes ikke automatisk.
+                  </p>
+                )}
               </div>
             </CardContent>
           </Card>

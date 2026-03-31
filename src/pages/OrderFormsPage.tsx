@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Search, ClipboardList, AlertTriangle, Mail, MailX, ArrowRight, Trash2, User, Tag, Paperclip } from "lucide-react";
+import { Plus, Search, ClipboardList, ArrowRight, Trash2, User, Clock, MessageSquare } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -13,9 +13,11 @@ import {
   ORDER_STATUS_CONFIG,
   ORDER_PRIORITY_CONFIG,
   CHANNEL_LABELS,
+  EXTERNAL_STATUS_CONFIG,
+  mapToExternalStatus,
   type OrderFormSubmissionStatus,
 } from "@/types/order-forms";
-import { format } from "date-fns";
+import { format, formatDistanceToNow } from "date-fns";
 import { nb } from "date-fns/locale";
 import { QualityDot } from "@/components/orders/QualityBadge";
 import type { QualityLevel } from "@/lib/order-quality";
@@ -65,11 +67,9 @@ export default function OrderFormsPage() {
         .is("deleted_at", null)
         .order("submitted_at", { ascending: false })
         .limit(500);
-
       if (statusFilter !== "all") {
         query = query.eq("status", statusFilter);
       }
-
       const { data, error } = await query;
       if (error) throw error;
       return data || [];
@@ -91,7 +91,6 @@ export default function OrderFormsPage() {
     },
   });
 
-  // Extract unique categories from submissions
   const categoryOptions = useMemo(() => {
     const cats = new Set<string>();
     submissions.forEach((s: any) => {
@@ -148,7 +147,6 @@ export default function OrderFormsPage() {
     setDeletingId(null);
   };
 
-  // Status counts
   const statusCounts: Record<string, number> = {};
   submissions.forEach((s: any) => {
     statusCounts[s.status] = (statusCounts[s.status] || 0) + 1;
@@ -165,7 +163,7 @@ export default function OrderFormsPage() {
         <div>
           <h1 className="text-2xl font-bold text-foreground">Bestillinger</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            {submissions.length} tickets totalt
+            {submissions.length} bestillinger
             {needsActionCount > 0 && (
               <span className="text-amber-600 font-medium"> · {needsActionCount} krever handling</span>
             )}
@@ -206,12 +204,12 @@ export default function OrderFormsPage() {
         })}
       </div>
 
-      {/* Filters row */}
+      {/* Filters */}
       <div className="flex flex-wrap gap-3 items-center">
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Søk ticket-nr, kunde, innsender..."
+            placeholder="Søk bestilling, kunde, innsender..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9"
@@ -219,21 +217,15 @@ export default function OrderFormsPage() {
         </div>
         {categoryOptions.length > 0 && (
           <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-            <SelectTrigger className="w-40">
-              <SelectValue placeholder="Kategori" />
-            </SelectTrigger>
+            <SelectTrigger className="w-40"><SelectValue placeholder="Kategori" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Alle kategorier</SelectItem>
-              {categoryOptions.map((c) => (
-                <SelectItem key={c} value={c}>{c}</SelectItem>
-              ))}
+              {categoryOptions.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
             </SelectContent>
           </Select>
         )}
         <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-          <SelectTrigger className="w-36">
-            <SelectValue placeholder="Prioritet" />
-          </SelectTrigger>
+          <SelectTrigger className="w-36"><SelectValue placeholder="Prioritet" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Alle prioriteter</SelectItem>
             <SelectItem value="critical">Kritisk</SelectItem>
@@ -243,9 +235,7 @@ export default function OrderFormsPage() {
           </SelectContent>
         </Select>
         <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
-          <SelectTrigger className="w-36">
-            <SelectValue placeholder="Ansvarlig" />
-          </SelectTrigger>
+          <SelectTrigger className="w-36"><SelectValue placeholder="Ansvarlig" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Alle</SelectItem>
             <SelectItem value="unassigned">Uten ansvarlig</SelectItem>
@@ -253,9 +243,7 @@ export default function OrderFormsPage() {
           </SelectContent>
         </Select>
         <Select value={sortBy} onValueChange={setSortBy}>
-          <SelectTrigger className="w-36">
-            <SelectValue placeholder="Sortering" />
-          </SelectTrigger>
+          <SelectTrigger className="w-36"><SelectValue placeholder="Sortering" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="newest">Nyeste først</SelectItem>
             <SelectItem value="priority">Hastegrad</SelectItem>
@@ -264,7 +252,7 @@ export default function OrderFormsPage() {
         </Select>
       </div>
 
-      {/* Ticket list */}
+      {/* List */}
       {isLoading ? (
         <div className="text-center py-12 text-muted-foreground">Laster...</div>
       ) : filtered.length === 0 ? (
@@ -275,16 +263,23 @@ export default function OrderFormsPage() {
       ) : (
         <div className="space-y-1.5">
           {filtered.map((sub: any) => {
-            const statusConfig = ORDER_STATUS_CONFIG[sub.status as OrderFormSubmissionStatus];
-            const priorityConfig = ORDER_PRIORITY_CONFIG[sub.priority];
+            const sc = ORDER_STATUS_CONFIG[sub.status as OrderFormSubmissionStatus];
             const qs = (sub.quality_score || "green") as QualityLevel;
-            const category = sub.order_form_templates?.category;
-            const channel = CHANNEL_LABELS[(sub as any).channel] || "";
+            const isWaiting = ["missing_info", "waiting_customer"].includes(sub.status);
+            const isNew = sub.status === "new";
+            const externalStatus = mapToExternalStatus(sub.status as OrderFormSubmissionStatus);
+            const externalConfig = EXTERNAL_STATUS_CONFIG[externalStatus];
+
+            // Build human-readable subtitle
+            const name = sub.submitter_name || sub.summary?.kundenavn || sub.summary?.bestiller_navn;
+            const oppdrag = sub.summary?.oppdragstittel;
+            const sted = sub.summary?.oppdragssted;
+            const subtitle = [name, oppdrag, sted].filter(Boolean).join(" · ") || sub.order_form_templates?.name || "–";
+
             return (
               <Card
                 key={sub.id}
-                className="hover:shadow-md transition-shadow cursor-pointer group border-l-4"
-                style={{ borderLeftColor: statusConfig?.dotClass ? undefined : "transparent" }}
+                className={`hover:shadow-md transition-shadow cursor-pointer group ${isNew ? "border-l-4 border-l-blue-500" : isWaiting ? "border-l-4 border-l-amber-400" : ""}`}
                 onClick={() => navigate(`/orders/${sub.id}`)}
               >
                 <CardContent className="p-3.5">
@@ -292,54 +287,43 @@ export default function OrderFormsPage() {
                     <div className="flex items-center gap-3 min-w-0 flex-1">
                       <QualityDot score={qs} />
                       <div className="min-w-0 flex-1">
+                        {/* Primary line: ref + template */}
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="text-sm font-semibold text-foreground">
                             {sub.submission_no}
                           </span>
-                          {category && (
-                            <Badge variant="outline" className="text-[10px] gap-1">
-                              <Tag className="h-2.5 w-2.5" />
-                              {category}
-                            </Badge>
-                          )}
-                          <Badge variant="outline" className="text-[10px]">
+                          <span className="text-xs text-muted-foreground">
                             {sub.order_form_templates?.name || "Ukjent"}
-                          </Badge>
-                          {sub.priority !== "normal" && priorityConfig && (
-                            <Badge className={`text-[10px] ${priorityConfig.color}`}>
-                              {priorityConfig.label}
+                          </span>
+                          {sub.priority !== "normal" && (
+                            <Badge variant="outline" className="text-[10px] font-semibold border-orange-200 text-orange-700 bg-orange-50">
+                              {ORDER_PRIORITY_CONFIG[sub.priority]?.label || sub.priority}
                             </Badge>
                           )}
-                          {channel && (
-                            <span className="text-[10px] text-muted-foreground/70">{channel}</span>
-                          )}
                         </div>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <p className="text-xs text-muted-foreground truncate">
-                            {(() => {
-                              const parts: string[] = [];
-                              const name = (sub as any).submitter_name || sub.summary?.kundenavn || sub.summary?.bestiller_navn;
-                              if (name) parts.push(name);
-                              if (sub.summary?.oppdragstittel) parts.push(sub.summary.oppdragstittel);
-                              if (sub.summary?.oppdragssted) parts.push(sub.summary.oppdragssted);
-                              return parts.length > 0 ? parts.join(" · ") : sub.order_form_templates?.name || "–";
-                            })()}
-                          </p>
-                          {sub.assigned_to && (
-                            <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
-                              <User className="h-2.5 w-2.5" />
-                              Tildelt
-                            </span>
-                          )}
-                        </div>
+                        {/* Secondary line: human summary */}
+                        <p className="text-xs text-muted-foreground truncate mt-0.5">
+                          {subtitle}
+                        </p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      {sub.converted_to_type && (
-                        <ArrowRight className="h-3.5 w-3.5 text-green-500" />
+                      {/* Waiting indicator */}
+                      {isWaiting && (
+                        <span className="text-[10px] text-amber-600 flex items-center gap-0.5">
+                          <Clock className="h-3 w-3" />
+                          Venter svar
+                        </span>
                       )}
-                      <Badge className={`text-[10px] ${statusConfig?.color || ""}`}>
-                        {statusConfig?.label || sub.status}
+                      {sub.assigned_to && (
+                        <User className="h-3 w-3 text-muted-foreground" />
+                      )}
+                      {sub.converted_to_type && (
+                        <ArrowRight className="h-3 w-3 text-green-500" />
+                      )}
+                      {/* Status badge */}
+                      <Badge className={`text-[10px] ${sc?.color || ""}`}>
+                        {sc?.label || sub.status}
                       </Badge>
                       <span className="text-[11px] text-muted-foreground whitespace-nowrap">
                         {format(new Date(sub.submitted_at), "d. MMM", { locale: nb })}
