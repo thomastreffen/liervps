@@ -260,8 +260,8 @@ export default function OrderFormPublicPage() {
   const errorCount = Object.keys(errors).length;
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="max-w-3xl mx-auto p-6 space-y-6">
+    <div className={isEmbed ? "bg-background" : "min-h-screen bg-background"}>
+      <div className={`max-w-3xl mx-auto ${isEmbed ? "p-4 space-y-4" : "p-6 space-y-6"}`}>
         {/* Header */}
         <div className="text-center space-y-2 py-4">
           <h1 className="text-2xl font-bold text-foreground">
