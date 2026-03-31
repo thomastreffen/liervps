@@ -133,7 +133,39 @@ export default function OrderFormDetailPage() {
     },
   });
 
-  const { data: sections = [] } = useQuery({
+  // Fetch available users for assignment
+  const { data: companyUsers = [] } = useQuery({
+    queryKey: ["company-users-for-assign", activeCompanyId],
+    enabled: !!activeCompanyId,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("user_accounts")
+        .select("auth_user_id, person:people(full_name)")
+        .eq("is_active", true);
+      if (!data) return [];
+      return (data as any[])
+        .filter(u => u.person?.full_name)
+        .map(u => ({ id: u.auth_user_id, name: u.person.full_name }))
+        .sort((a, b) => a.name.localeCompare(b.name));
+    },
+  });
+
+  // Resolve current assignee name
+  const { data: assigneeName } = useQuery({
+    queryKey: ["assignee-name", submission?.assigned_to],
+    enabled: !!submission?.assigned_to,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("user_accounts")
+        .select("person:people(full_name)")
+        .eq("auth_user_id", submission!.assigned_to!)
+        .eq("is_active", true)
+        .single();
+      return (data as any)?.person?.full_name || null;
+    },
+  });
+
+
     queryKey: ["order-form-template-structure", submission?.template_id],
     enabled: !!submission?.template_id,
     queryFn: async () => {
