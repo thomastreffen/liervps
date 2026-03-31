@@ -1195,14 +1195,7 @@ export default function OrderFormDetailPage() {
         submissionNo={submission.submission_no}
         bestillerEpost={bestillerEpost}
       />
-      <ConvertDialog
-        open={convertOpen}
-        onOpenChange={setConvertOpen}
-        submissionId={id!}
-        summary={submission.summary as Record<string, any> | null}
-        values={valuesMap}
-        submissionNo={submission.submission_no}
-      />
+      {/* ConvertDialog removed — now uses /orders/:id/convert route */}
       <TripletexExportPanel
         open={tripletexOpen}
         onOpenChange={setTripletexOpen}
