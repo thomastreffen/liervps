@@ -52,6 +52,7 @@ import { TripletexExportPanel } from "@/components/orders/TripletexExportPanel";
 import { AttachmentPreviewDrawer } from "@/components/orders/AttachmentPreviewDrawer";
 import { AssignResourceTaskDialog } from "@/components/orders/AssignResourceTaskDialog";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 
 export default function OrderFormDetailPage() {
   const { id } = useParams<{ id: string }>();
