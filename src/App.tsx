@@ -91,6 +91,7 @@ import OrderFormTemplatesPage from "./pages/OrderFormTemplatesPage";
 import OrderFormBuilderPage from "./pages/OrderFormBuilderPage";
 import OrderFormPublicPage from "./pages/OrderFormPublicPage";
 import OrderFormsCatalogPage from "./pages/OrderFormsCatalogPage";
+import OrderTrackingPage from "./pages/OrderTrackingPage";
 import { CompanyProvider, useCompanyContext } from "@/hooks/useCompanyContext";
 import { ActiveCompanyForPermissions } from "@/hooks/usePermissions";
 import { PreviewModeProvider } from "@/hooks/usePreviewMode";
