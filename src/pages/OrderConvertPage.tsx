@@ -85,7 +85,7 @@ export default function OrderConvertPage() {
   // Populate when data loads
   const [initialized, setInitialized] = useState(false);
   
-  useMemo(() => {
+  useEffect(() => {
     if (!initialized && submission && values.length > 0) {
       const vm: Record<string, any> = {};
       for (const v of values) vm[(v as any).field_key] = (v as any).value;
