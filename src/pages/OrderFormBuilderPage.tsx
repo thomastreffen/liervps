@@ -439,6 +439,8 @@ export default function OrderFormBuilderPage() {
           />
         </SheetContent>
       </Sheet>
+      {/* Share / Embed Dialog */}
+      <ShareFormDialog open={shareOpen} onOpenChange={setShareOpen} template={template} />
     </div>
   );
 }
