@@ -79,8 +79,17 @@ Deno.serve(async (req) => {
     const bestillingstype = submission.requester_type === "internal" ? "Intern" : "Ekstern";
     const priorityEmoji = hastegrad === "Kritisk stopp" ? "🔴" : hastegrad === "Høy" ? "🟠" : "";
     const bestillerNavn = findVal("bestiller_navn", "kontaktperson", "kontaktperson_kunde") || (summary as any).bestiller_navn || "Ikke angitt";
-    const bestillerEpost = findVal("bestiller_epost", "epost_kunde", "epost", "kontakt_epost") || "";
     const bestillerTelefon = findVal("bestiller_telefon", "telefon_kunde", "telefon", "kontakt_telefon") || "";
+
+    // Resolve notification recipient using explicit fields with fallback chain
+    const resolvedRecipientEmail = submission.notification_recipient_email
+      || submission.submitter_email
+      || findVal("bestiller_epost", "epost_kunde", "epost", "kontakt_epost")
+      || "";
+    const bestillerEpost = resolvedRecipientEmail;
+    const resolvedRecipientName = submission.notification_recipient_name
+      || submission.submitter_name
+      || bestillerNavn;
     const anleggsadresse = findVal("anleggsadresse", "oppdragssted", "adresse") || "";
     const materialansvar = findVal("materialansvar") || "Ikke angitt";
     const referanse = findVal("referanse_po", "fakturamerking_po", "midlertidig_referanse", "po_nummer") || "Ikke angitt";

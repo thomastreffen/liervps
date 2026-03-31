@@ -71,6 +71,9 @@ export default function OrderFormDetailPage() {
   const [assignSearch, setAssignSearch] = useState("");
   const [notifyOnStatusChange, setNotifyOnStatusChange] = useState(false);
   const [notifyOnAssign, setNotifyOnAssign] = useState(false);
+  const [recipientOverrideOpen, setRecipientOverrideOpen] = useState(false);
+  const [recipientOverrideEmail, setRecipientOverrideEmail] = useState("");
+  const [recipientOverrideName, setRecipientOverrideName] = useState("");
 
   const { data: submission, isLoading } = useQuery({
     queryKey: ["order-form-submission", id],
@@ -227,10 +230,23 @@ export default function OrderFormDetailPage() {
     return "";
   }, [valuesMap]);
 
-  const bestillerEpost = useMemo(() =>
-    findVal("bestiller_epost", "epost_kunde", "epost", "kontakt_epost"),
-    [findVal]
-  );
+  // Resolve notification recipient with explicit fallback chain
+  const resolvedRecipient = useMemo(() => {
+    const sub = submission as any;
+    const recipientEmail = sub?.notification_recipient_email
+      || sub?.submitter_email
+      || findVal("bestiller_epost", "epost_kunde", "epost", "kontakt_epost")
+      || "";
+    const recipientName = sub?.notification_recipient_name
+      || sub?.submitter_name
+      || findVal("bestiller_navn", "kontaktperson", "kontaktperson_kunde")
+      || "";
+    const recipientSource = sub?.notification_recipient_source || "auto";
+    const isManual = recipientSource === "manual";
+    return { email: recipientEmail, name: recipientName, source: recipientSource, isManual };
+  }, [submission, findVal]);
+
+  const bestillerEpost = resolvedRecipient.email;
 
   const allTemplateFields = useMemo(() => {
     return sections.flatMap((s: any) => (s.fields || []).map((f: any) => ({
@@ -407,7 +423,33 @@ export default function OrderFormDetailPage() {
     },
   });
 
-  if (isLoading) return <div className="p-6 text-center text-muted-foreground">Laster...</div>;
+  const updateRecipient = useMutation({
+    mutationFn: async ({ email, name, source }: { email: string; name: string; source: string }) => {
+      const { error } = await supabase
+        .from("order_form_submissions")
+        .update({
+          notification_recipient_email: email || null,
+          notification_recipient_name: name || null,
+          notification_recipient_source: source,
+        } as any)
+        .eq("id", id!);
+      if (error) throw error;
+      await supabase.from("order_form_activity_log").insert({
+        submission_id: id!,
+        event_type: "recipient_changed",
+        payload: { email, name, source },
+        created_by: user?.id,
+      });
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["order-form-submission", id] });
+      qc.invalidateQueries({ queryKey: ["order-form-activity", id] });
+      setRecipientOverrideOpen(false);
+      toast.success("Oppdateringsmottaker endret");
+    },
+  });
+
+
   if (!submission) return <div className="p-6 text-center text-muted-foreground">Ikke funnet</div>;
 
   const statusConfig = ORDER_STATUS_CONFIG[submission.status as OrderFormSubmissionStatus];
@@ -429,6 +471,7 @@ export default function OrderFormDetailPage() {
     notification_failed: "E-postsending feilet",
     exported_to_tripletex: "Eksportert til Tripletex",
     assigned: "Ansvarlig tildelt",
+    recipient_changed: "Oppdateringsmottaker endret",
   };
 
   const trackingUrl = sub.public_tracking_token
@@ -809,6 +852,92 @@ export default function OrderFormDetailPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
+              {/* Notification recipient */}
+              <div>
+                <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Oppdateringsmottaker</span>
+                <div className="mt-1 space-y-1">
+                  {resolvedRecipient.email ? (
+                    <>
+                      <p className="text-sm font-medium flex items-center gap-1.5">
+                        <Mail className="h-3 w-3 text-muted-foreground shrink-0" />
+                        {resolvedRecipient.email}
+                      </p>
+                      {resolvedRecipient.name && (
+                        <p className="text-xs text-muted-foreground ml-[18px]">{resolvedRecipient.name}</p>
+                      )}
+                      <p className="text-[10px] text-muted-foreground ml-[18px]">
+                        {resolvedRecipient.isManual ? "Manuelt overstyrt" : "Hentet fra skjema"}
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">Ingen e-post funnet – varsler kan ikke sendes</p>
+                  )}
+                </div>
+                <Popover open={recipientOverrideOpen} onOpenChange={(open) => {
+                  setRecipientOverrideOpen(open);
+                  if (open) {
+                    setRecipientOverrideEmail(resolvedRecipient.email);
+                    setRecipientOverrideName(resolvedRecipient.name);
+                  }
+                }}>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm" className="text-xs h-7 mt-1.5 w-full">
+                      <Mail className="h-3 w-3 mr-1" />
+                      {resolvedRecipient.email ? "Endre mottaker" : "Sett mottaker"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent align="start" className="w-72 p-3 space-y-2">
+                    <p className="text-xs font-medium">Oppdateringsmottaker</p>
+                    <p className="text-[10px] text-muted-foreground">Denne adressen brukes for bekreftelser, sporingslenker og statusoppdateringer.</p>
+                    <Input
+                      placeholder="Navn"
+                      value={recipientOverrideName}
+                      onChange={(e) => setRecipientOverrideName(e.target.value)}
+                      className="h-8 text-sm"
+                    />
+                    <Input
+                      placeholder="E-post"
+                      type="email"
+                      value={recipientOverrideEmail}
+                      onChange={(e) => setRecipientOverrideEmail(e.target.value)}
+                      className="h-8 text-sm"
+                    />
+                    <div className="flex gap-1.5">
+                      <Button
+                        size="sm"
+                        className="flex-1 text-xs h-7"
+                        disabled={!recipientOverrideEmail}
+                        onClick={() => updateRecipient.mutate({
+                          email: recipientOverrideEmail,
+                          name: recipientOverrideName,
+                          source: "manual",
+                        })}
+                      >
+                        Lagre
+                      </Button>
+                      {resolvedRecipient.isManual && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-xs h-7"
+                          onClick={() => {
+                            // Reset to auto
+                            const autoEmail = sub.submitter_email || findVal("bestiller_epost", "epost_kunde", "epost", "kontakt_epost") || "";
+                            const autoName = sub.submitter_name || findVal("bestiller_navn", "kontaktperson", "kontaktperson_kunde") || "";
+                            updateRecipient.mutate({ email: autoEmail, name: autoName, source: "auto" });
+                          }}
+                        >
+                          Tilbakestill
+                        </Button>
+                      )}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              {/* Divider */}
+              <div className="border-t" />
+
               {/* External status */}
               <div>
                 <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Bestiller ser</span>

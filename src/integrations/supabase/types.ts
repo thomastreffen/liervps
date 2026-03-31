@@ -6312,6 +6312,10 @@ export type Database = {
           linked_customer_id: string | null
           linked_project_id: string | null
           notification_error: string | null
+          notification_recipient_email: string | null
+          notification_recipient_name: string | null
+          notification_recipient_phone: string | null
+          notification_recipient_source: string | null
           notification_sent_at: string | null
           priority: string
           public_tracking_token: string | null
@@ -6353,6 +6357,10 @@ export type Database = {
           linked_customer_id?: string | null
           linked_project_id?: string | null
           notification_error?: string | null
+          notification_recipient_email?: string | null
+          notification_recipient_name?: string | null
+          notification_recipient_phone?: string | null
+          notification_recipient_source?: string | null
           notification_sent_at?: string | null
           priority?: string
           public_tracking_token?: string | null
@@ -6394,6 +6402,10 @@ export type Database = {
           linked_customer_id?: string | null
           linked_project_id?: string | null
           notification_error?: string | null
+          notification_recipient_email?: string | null
+          notification_recipient_name?: string | null
+          notification_recipient_phone?: string | null
+          notification_recipient_source?: string | null
           notification_sent_at?: string | null
           priority?: string
           public_tracking_token?: string | null
