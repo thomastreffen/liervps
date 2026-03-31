@@ -431,17 +431,30 @@ export default function OrderFormDetailPage() {
 
       {/* Primary + secondary actions */}
       <div className="flex flex-wrap items-center gap-2">
-        {/* Primary: Status */}
-        <Select value={submission.status} onValueChange={(v) => updateStatus.mutate(v)}>
-          <SelectTrigger className="w-48 h-9">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {Object.entries(ORDER_STATUS_CONFIG).map(([key, cfg]) => (
-              <SelectItem key={key} value={key}>{cfg.label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {/* Primary: Status with notify toggle */}
+        <div className="flex items-center gap-2">
+          <Select value={submission.status} onValueChange={(v) => updateStatus.mutate(v)}>
+            <SelectTrigger className="w-48 h-9">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(ORDER_STATUS_CONFIG).map(([key, cfg]) => (
+                <SelectItem key={key} value={key}>{cfg.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {bestillerEpost && (
+            <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer select-none whitespace-nowrap">
+              <Checkbox
+                checked={notifyOnStatusChange}
+                onCheckedChange={(c) => setNotifyOnStatusChange(!!c)}
+                className="h-3.5 w-3.5"
+              />
+              <Bell className="h-3 w-3" />
+              Varsle bestiller
+            </label>
+          )}
+        </div>
 
         {/* Primary: Tildel ansvarlig */}
         <Popover open={assignPopoverOpen} onOpenChange={setAssignPopoverOpen}>
