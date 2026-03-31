@@ -86,13 +86,29 @@ export default function OrderConvertPage() {
   const [initialized, setInitialized] = useState(false);
   
   useEffect(() => {
-    if (!initialized && submission && values.length > 0) {
+    if (!initialized && submission) {
       const vm: Record<string, any> = {};
       for (const v of values) vm[(v as any).field_key] = (v as any).value;
-      setTitle(vm.oppdragstittel || (submission.summary as any)?.oppdragstittel || "");
-      setDescription(vm.detaljert_arbeidsbeskrivelse || "");
-      setAddress(vm.anleggsadresse || "");
-      setCustomer(vm.kundenavn || (submission.summary as any)?.kundenavn || "");
+      const s = (submission.summary as Record<string, any>) || {};
+      const formValues = (submission as any).form_values as Record<string, any> | null;
+      
+      // Try multiple sources: values rows → summary → form_values
+      setTitle(
+        vm.oppdragstittel || s.oppdragstittel || s.tittel || 
+        formValues?.oppdragstittel || submission.submission_no || ""
+      );
+      setDescription(
+        vm.detaljert_arbeidsbeskrivelse || s.detaljert_arbeidsbeskrivelse || 
+        vm.beskrivelse || s.beskrivelse || formValues?.detaljert_arbeidsbeskrivelse || ""
+      );
+      setAddress(
+        vm.anleggsadresse || s.anleggsadresse || vm.oppdragssted || s.oppdragssted ||
+        vm.adresse || s.adresse || formValues?.anleggsadresse || ""
+      );
+      setCustomer(
+        vm.kundenavn || s.kundenavn || vm.kunde || s.kunde ||
+        formValues?.kundenavn || submission.submitter_name || ""
+      );
       setInitialized(true);
     }
   }, [submission, values, initialized]);
