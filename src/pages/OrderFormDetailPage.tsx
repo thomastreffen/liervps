@@ -693,9 +693,9 @@ export default function OrderFormDetailPage() {
               <Download className="h-3.5 w-3.5 mr-2" />
               Tripletex-eksport
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setConvertOpen(true)} disabled={!!sub.converted_to_id}>
+            <DropdownMenuItem onClick={() => navigate(`/orders/${id}/convert`)} disabled={!!sub.converted_to_id}>
               <ArrowRight className="h-3.5 w-3.5 mr-2" />
-              Konverter til sak
+              Konverter til sak / oppdrag
             </DropdownMenuItem>
             {!isClosed && (
               <>

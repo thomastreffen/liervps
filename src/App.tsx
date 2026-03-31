@@ -452,6 +452,7 @@ const App = () => (
               {/* Order Forms module */}
               <Route path="/orders" element={<OrderFormsPage />} />
               <Route path="/orders/:id" element={<OrderFormDetailPage />} />
+              <Route path="/orders/:id/convert" element={<OrderConvertPage />} />
               <Route path="/orders/new/:slug" element={<OrderFormSubmitPage />} />
               <Route
                 path="/admin/order-forms"
