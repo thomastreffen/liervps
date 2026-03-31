@@ -873,7 +873,7 @@ export default function OrderFormDetailPage() {
                         <p className="text-xs text-muted-foreground ml-[18px]">{resolvedRecipient.name}</p>
                       )}
                       <p className="text-[10px] text-muted-foreground ml-[18px]">
-                        {resolvedRecipient.isManual ? "Manuelt overstyrt" : "Hentet fra skjema"}
+                        {resolvedRecipient.sourceLabel}
                       </p>
                     </>
                   ) : (
