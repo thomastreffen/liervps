@@ -403,9 +403,9 @@ function PublicFieldRenderer({ field, value, onChange, error, required, onFileAd
       case "number":
         return <Input type="number" placeholder={field.placeholder || ""} value={value || ""} onChange={(e) => onChange(e.target.value)} />;
       case "date":
-        return <Input type="date" value={value || ""} onChange={(e) => onChange(e.target.value)} />;
+        return <ModernDatePicker value={value || ""} onChange={onChange} />;
       case "time": case "time_window":
-        return <Input type="time" value={value || ""} onChange={(e) => onChange(e.target.value)} />;
+        return <ModernTimePicker value={value || ""} onChange={onChange} />;
       case "dropdown":
         return (
           <Select value={value || ""} onValueChange={onChange}>
