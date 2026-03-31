@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   ArrowLeft, MessageSquare, Clock, Paperclip, AlertTriangle,
   ArrowRight, FileText, Download, Mail, MailCheck, MailX, ExternalLink, UserPlus,
-  Tag, User, LinkIcon, X, MoreHorizontal, Eye, Send, Globe,
+  Tag, User, LinkIcon, X, MoreHorizontal, Eye, Send, Globe, UserCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -36,7 +36,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { useAuth } from "@/hooks/useAuth";
+import { useCompanyContext } from "@/hooks/useCompanyContext";
 import { computeQualityScore, type QualityResult } from "@/lib/order-quality";
 import { QualityBadge } from "@/components/orders/QualityBadge";
 import { QualityIssuesPanel } from "@/components/orders/QualityIssuesPanel";
@@ -45,12 +51,14 @@ import { ConvertDialog } from "@/components/orders/ConvertDialog";
 import { TripletexExportPanel } from "@/components/orders/TripletexExportPanel";
 import { AttachmentPreviewDrawer } from "@/components/orders/AttachmentPreviewDrawer";
 import { AssignResourceTaskDialog } from "@/components/orders/AssignResourceTaskDialog";
+import { Input } from "@/components/ui/input";
 
 export default function OrderFormDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const qc = useQueryClient();
   const { user } = useAuth();
+  const { activeCompanyId } = useCompanyContext();
   const [comment, setComment] = useState("");
   const [commentVisibility, setCommentVisibility] = useState<"internal" | "shared">("internal");
   const [requestInfoOpen, setRequestInfoOpen] = useState(false);
@@ -58,6 +66,8 @@ export default function OrderFormDetailPage() {
   const [tripletexOpen, setTripletexOpen] = useState(false);
   const [assignTaskOpen, setAssignTaskOpen] = useState(false);
   const [previewAttIdx, setPreviewAttIdx] = useState<number | null>(null);
+  const [assignPopoverOpen, setAssignPopoverOpen] = useState(false);
+  const [assignSearch, setAssignSearch] = useState("");
 
   const { data: submission, isLoading } = useQuery({
     queryKey: ["order-form-submission", id],
@@ -120,6 +130,38 @@ export default function OrderFormDetailPage() {
         .eq("submission_id", id!)
         .order("created_at", { ascending: false });
       return data || [];
+    },
+  });
+
+  // Fetch available users for assignment
+  const { data: companyUsers = [] } = useQuery({
+    queryKey: ["company-users-for-assign", activeCompanyId],
+    enabled: !!activeCompanyId,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("user_accounts")
+        .select("auth_user_id, person:people(full_name)")
+        .eq("is_active", true);
+      if (!data) return [];
+      return (data as any[])
+        .filter(u => u.person?.full_name)
+        .map(u => ({ id: u.auth_user_id, name: u.person.full_name }))
+        .sort((a, b) => a.name.localeCompare(b.name));
+    },
+  });
+
+  // Resolve current assignee name
+  const { data: assigneeName } = useQuery({
+    queryKey: ["assignee-name", submission?.assigned_to],
+    enabled: !!submission?.assigned_to,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("user_accounts")
+        .select("person:people(full_name)")
+        .eq("auth_user_id", submission!.assigned_to!)
+        .eq("is_active", true)
+        .single();
+      return (data as any)?.person?.full_name || null;
     },
   });
 
@@ -219,6 +261,47 @@ export default function OrderFormDetailPage() {
     },
   });
 
+  const assignResponsible = useMutation({
+    mutationFn: async (assigneeId: string | null) => {
+      const { error } = await supabase
+        .from("order_form_submissions")
+        .update({ assigned_to: assigneeId })
+        .eq("id", id!);
+      if (error) throw error;
+      // Log activity
+      const assigneeName = companyUsers.find(u => u.id === assigneeId)?.name || "Ingen";
+      await supabase.from("order_form_activity_log").insert({
+        submission_id: id!,
+        event_type: "assigned",
+        payload: { assigned_to: assigneeId, assigned_to_name: assigneeName },
+        created_by: user?.id,
+      });
+      // Create notification for assignee
+      if (assigneeId && assigneeId !== user?.id) {
+        await supabase.from("notifications").insert({
+          user_id: assigneeId,
+          company_id: submission?.company_id || activeCompanyId,
+          type: "order_assigned",
+          priority: "important",
+          title: `Du er tildelt ansvar for bestilling ${submission?.submission_no}`,
+          message: `${(submission?.summary as any)?.oppdragstittel || submission?.submission_no || "Bestilling"} er tildelt deg.`,
+          link_url: `/orders/${id}`,
+          entity_type: "order_form_submission",
+          entity_id: id,
+          actor_user_id: user?.id,
+        });
+      }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["order-form-submission", id] });
+      qc.invalidateQueries({ queryKey: ["order-form-activity", id] });
+      qc.invalidateQueries({ queryKey: ["assignee-name"] });
+      setAssignPopoverOpen(false);
+      setAssignSearch("");
+      toast.success("Ansvarlig oppdatert");
+    },
+  });
+
   const sendNotification = useMutation({
     mutationFn: async (type: string) => {
       const { data, error } = await supabase.functions.invoke("order-form-notify", {
@@ -263,6 +346,7 @@ export default function OrderFormDetailPage() {
     notification_sent: "E-post sendt",
     notification_failed: "E-postsending feilet",
     exported_to_tripletex: "Eksportert til Tripletex",
+    assigned: "Ansvarlig tildelt",
   };
 
   const trackingUrl = sub.public_tracking_token
@@ -334,6 +418,59 @@ export default function OrderFormDetailPage() {
           </SelectContent>
         </Select>
 
+        {/* Primary: Tildel ansvarlig */}
+        <Popover open={assignPopoverOpen} onOpenChange={setAssignPopoverOpen}>
+          <PopoverTrigger asChild>
+            <Button variant={sub.assigned_to ? "outline" : "default"} size="sm">
+              {sub.assigned_to ? (
+                <>
+                  <UserCheck className="h-3.5 w-3.5 mr-1.5" />
+                  {assigneeName || "Tildelt"}
+                </>
+              ) : (
+                <>
+                  <User className="h-3.5 w-3.5 mr-1.5" />
+                  Tildel ansvarlig
+                </>
+              )}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="start" className="w-64 p-2">
+            <Input
+              placeholder="Søk etter bruker..."
+              value={assignSearch}
+              onChange={(e) => setAssignSearch(e.target.value)}
+              className="h-8 text-sm mb-2"
+              autoFocus
+            />
+            <div className="max-h-48 overflow-y-auto space-y-0.5">
+              {sub.assigned_to && (
+                <button
+                  onClick={() => assignResponsible.mutate(null)}
+                  className="w-full text-left text-xs px-2 py-1.5 rounded hover:bg-muted text-destructive"
+                >
+                  <X className="h-3 w-3 inline mr-1.5" />
+                  Fjern ansvarlig
+                </button>
+              )}
+              {companyUsers
+                .filter(u => !assignSearch || u.name.toLowerCase().includes(assignSearch.toLowerCase()))
+                .map(u => (
+                  <button
+                    key={u.id}
+                    onClick={() => assignResponsible.mutate(u.id)}
+                    className={`w-full text-left text-xs px-2 py-1.5 rounded hover:bg-muted flex items-center gap-2 ${sub.assigned_to === u.id ? "bg-primary/10 font-medium" : ""}`}
+                  >
+                    <User className="h-3 w-3 shrink-0 text-muted-foreground" />
+                    {u.name}
+                    {sub.assigned_to === u.id && <UserCheck className="h-3 w-3 ml-auto text-primary" />}
+                  </button>
+                ))
+              }
+            </div>
+          </PopoverContent>
+        </Popover>
+
         {/* Primary: Be om mer info */}
         <Button variant="outline" size="sm" onClick={() => setRequestInfoOpen(true)}>
           <AlertTriangle className="h-3.5 w-3.5 mr-1.5" />
@@ -397,13 +534,24 @@ export default function OrderFormDetailPage() {
           { label: "Kunde", value: (submission.summary as any)?.kundenavn || "–" },
           { label: "Oppdrag", value: (submission.summary as any)?.oppdragstittel || "–" },
           { label: "Kanal", value: CHANNEL_LABELS[sub.channel] || "–" },
-          { label: "Ansvarlig", value: sub.assigned_to ? "Tildelt" : "Ikke tildelt" },
         ].map(({ label, value }) => (
           <div key={label} className="text-sm">
             <span className="text-muted-foreground text-[10px] uppercase tracking-wider">{label}</span>
             <p className="font-medium truncate text-xs">{value}</p>
           </div>
         ))}
+        {/* Ansvarlig - interactive */}
+        <div className="text-sm">
+          <span className="text-muted-foreground text-[10px] uppercase tracking-wider">Ansvarlig</span>
+          {sub.assigned_to ? (
+            <p className="font-medium truncate text-xs flex items-center gap-1">
+              <UserCheck className="h-3 w-3 text-primary shrink-0" />
+              {assigneeName || "Laster..."}
+            </p>
+          ) : (
+            <p className="font-medium truncate text-xs text-muted-foreground">Ikke tildelt</p>
+          )}
+        </div>
       </div>
 
       {/* Linked entities + notification status */}
@@ -714,6 +862,9 @@ export default function OrderFormDetailPage() {
                       </span>
                       {a.payload?.from && a.payload?.to && (
                         <> · {ORDER_STATUS_CONFIG[a.payload.from as OrderFormSubmissionStatus]?.label || a.payload.from} → {ORDER_STATUS_CONFIG[a.payload.to as OrderFormSubmissionStatus]?.label || a.payload.to}</>
+                      )}
+                      {a.payload?.assigned_to_name && (
+                        <> · {a.payload.assigned_to_name}</>
                       )}
                       {a.payload?.recipients && (
                         <> · {(a.payload.recipients as string[]).join(", ")}</>
