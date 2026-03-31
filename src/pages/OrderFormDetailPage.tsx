@@ -683,7 +683,7 @@ export default function OrderFormDetailPage() {
               <UserCheck className="h-3 w-3 text-primary shrink-0" />
               {assigneeName || "Laster..."}
               {companyUsers.find(u => u.id === sub.assigned_to)?.isCrossCompany && (
-                <Globe className="h-3 w-3 text-amber-500 shrink-0" title="Tildelt på tvers av selskap" />
+                <span title="Tildelt på tvers av selskap"><Globe className="h-3 w-3 text-amber-500 shrink-0" /></span>
               )}
             </p>
           ) : (
