@@ -38,6 +38,7 @@ export default function OrderFormBuilderPage() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [addSectionOpen, setAddSectionOpen] = useState(false);
   const [newSectionTitle, setNewSectionTitle] = useState("");
+  const [shareOpen, setShareOpen] = useState(false);
 
   // Load template
   const { data: template } = useQuery({
