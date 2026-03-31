@@ -617,12 +617,10 @@ export default function FormFillPage() {
                 )}
 
                 {field.type === "date" && (
-                  <Input
-                    type="date"
+                  <ModernDatePicker
                     value={value || ""}
-                    onChange={(e) => handleAnswerChange(field.id, e.target.value)}
+                    onChange={(v) => handleAnswerChange(field.id, v)}
                     disabled={isLocked}
-                    className="rounded-xl h-9"
                   />
                 )}
 
