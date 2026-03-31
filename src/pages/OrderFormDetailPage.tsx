@@ -136,7 +136,7 @@ export default function OrderFormDetailPage() {
     },
   });
 
-  // Fetch available users for assignment
+  // Fetch available users for assignment with membership info
   const { data: companyUsers = [] } = useQuery({
     queryKey: ["company-users-for-assign", activeCompanyId],
     enabled: !!activeCompanyId,
@@ -146,10 +146,31 @@ export default function OrderFormDetailPage() {
         .select("auth_user_id, person:people(full_name)")
         .eq("is_active", true);
       if (!data) return [];
+      // Get memberships to determine cross-company status
+      const orderCompanyId = submission?.company_id;
+      let memberUserIds = new Set<string>();
+      if (orderCompanyId) {
+        const { data: memberships } = await supabase
+          .from("user_memberships")
+          .select("user_id")
+          .eq("company_id", orderCompanyId)
+          .eq("is_active", true);
+        for (const m of memberships || []) {
+          memberUserIds.add((m as any).user_id);
+        }
+      }
       return (data as any[])
         .filter(u => u.person?.full_name)
-        .map(u => ({ id: u.auth_user_id, name: u.person.full_name }))
-        .sort((a, b) => a.name.localeCompare(b.name));
+        .map(u => ({
+          id: u.auth_user_id,
+          name: u.person.full_name,
+          isCrossCompany: orderCompanyId ? !memberUserIds.has(u.auth_user_id) : false,
+        }))
+        .sort((a, b) => {
+          // Show same-company users first
+          if (a.isCrossCompany !== b.isCrossCompany) return a.isCrossCompany ? 1 : -1;
+          return a.name.localeCompare(b.name);
+        });
     },
   });
 
