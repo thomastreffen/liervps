@@ -863,6 +863,9 @@ export default function OrderFormDetailPage() {
                       {a.payload?.from && a.payload?.to && (
                         <> · {ORDER_STATUS_CONFIG[a.payload.from as OrderFormSubmissionStatus]?.label || a.payload.from} → {ORDER_STATUS_CONFIG[a.payload.to as OrderFormSubmissionStatus]?.label || a.payload.to}</>
                       )}
+                      {a.payload?.assigned_to_name && (
+                        <> · {a.payload.assigned_to_name}</>
+                      )}
                       {a.payload?.recipients && (
                         <> · {(a.payload.recipients as string[]).join(", ")}</>
                       )}
