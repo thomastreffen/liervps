@@ -154,7 +154,7 @@ export function ShareFormDialog({ open, onOpenChange, template }: ShareFormDialo
             <div>
               <div className="flex items-center gap-2 mb-1">
                 <Label className="text-xs text-muted-foreground">Script-basert embedding</Label>
-                <Badge className="text-[9px] px-1.5 py-0 bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300 border-0">Anbefalt for WordPress</Badge>
+                <Badge variant="secondary" className="text-[9px] px-1.5 py-0 border-0">Anbefalt for WordPress</Badge>
               </div>
               <div className="mt-1 relative">
                 <pre className="text-[11px] font-mono bg-muted/30 border border-border rounded-md p-3 whitespace-pre-wrap break-all max-h-40 overflow-auto">
