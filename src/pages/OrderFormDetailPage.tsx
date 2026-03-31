@@ -346,6 +346,7 @@ export default function OrderFormDetailPage() {
     notification_sent: "E-post sendt",
     notification_failed: "E-postsending feilet",
     exported_to_tripletex: "Eksportert til Tripletex",
+    assigned: "Ansvarlig tildelt",
   };
 
   const trackingUrl = sub.public_tracking_token
