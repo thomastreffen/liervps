@@ -166,15 +166,15 @@ export type ExternalStatus =
 
 export const EXTERNAL_STATUS_CONFIG: Record<
   ExternalStatus,
-  { label: string; description: string; step: number; color: string }
+  { label: string; description: string; longDescription: string; step: number; color: string }
 > = {
-  received: { label: "Mottatt", description: "Vi har mottatt bestillingen din", step: 1, color: "bg-blue-500" },
-  processing: { label: "Under behandling", description: "Vi gjennomgår bestillingen din", step: 2, color: "bg-indigo-500" },
-  needs_info: { label: "Trenger mer info", description: "Vi trenger litt mer informasjon fra deg", step: 2, color: "bg-amber-500" },
-  planned: { label: "Planlagt", description: "Oppgaven er planlagt og tildelt", step: 3, color: "bg-cyan-500" },
-  in_progress: { label: "Utføres", description: "Arbeidet er i gang", step: 4, color: "bg-purple-500" },
-  completed: { label: "Ferdig", description: "Arbeidet er fullført", step: 5, color: "bg-green-500" },
-  closed: { label: "Avsluttet", description: "Saken er avsluttet", step: 5, color: "bg-muted-foreground" },
+  received: { label: "Mottatt", description: "Vi har mottatt bestillingen din", longDescription: "Bestillingen din er registrert og ligger i køen for behandling. Du trenger ikke foreta deg noe.", step: 1, color: "bg-blue-500" },
+  processing: { label: "Under behandling", description: "Vi vurderer saken og planlegger neste steg", longDescription: "Vi gjennomgår bestillingen din og vurderer hva som trengs. Du vil bli oppdatert når det skjer noe nytt.", step: 2, color: "bg-indigo-500" },
+  needs_info: { label: "Trenger mer info", description: "Vi trenger litt mer informasjon for å gå videre", longDescription: "For at vi skal kunne gå videre med bestillingen, trenger vi mer informasjon fra deg. Se meldingene nedenfor og svar så snart du kan.", step: 2, color: "bg-amber-500" },
+  planned: { label: "Planlagt", description: "Saken er planlagt for videre arbeid", longDescription: "Bestillingen er planlagt og tildelt en ansvarlig. Vi forbereder oss på å gjennomføre oppdraget.", step: 3, color: "bg-cyan-500" },
+  in_progress: { label: "Utføres", description: "Arbeidet er i gang eller satt i utførelse", longDescription: "Arbeidet er nå i gang. Du vil få beskjed når det er fullført.", step: 4, color: "bg-purple-500" },
+  completed: { label: "Ferdig", description: "Bestillingen er ferdig behandlet", longDescription: "Alt arbeid knyttet til denne bestillingen er fullført. Kontakt oss gjerne om du har spørsmål.", step: 5, color: "bg-green-500" },
+  closed: { label: "Avsluttet", description: "Saken er avsluttet", longDescription: "Denne saken er avsluttet.", step: 5, color: "bg-muted-foreground" },
 };
 
 export const EXTERNAL_STATUS_STEPS: ExternalStatus[] = [
