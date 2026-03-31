@@ -141,6 +141,7 @@ const App = () => (
             <Route path="/activate" element={<ActivatePage />} />
             <Route path="/bestilling" element={<OrderFormsCatalogPage />} />
             <Route path="/bestilling/:slug" element={<OrderFormPublicPage />} />
+            <Route path="/bestilling/status/:token" element={<OrderTrackingPage />} />
 
             {/* Customer Portal */}
             <Route path="/portal/login" element={<PortalLogin />} />
