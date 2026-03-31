@@ -230,6 +230,7 @@ export default function OrderFormPublicPage() {
       }
 
       setSubmissionNo(subData?.submission_no || null);
+      setTrackingToken((subData as any)?.public_tracking_token || null);
       setSubmitted(true);
     } catch (err: any) {
       console.error(err);
