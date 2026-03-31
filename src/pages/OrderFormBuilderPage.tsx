@@ -336,7 +336,10 @@ export default function OrderFormBuilderPage() {
         </div>
         <div className="flex items-center gap-1.5">
           {template.is_active && (
-            <PublishLinkActions template={template} />
+            <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={() => setShareOpen(true)}>
+              <Share2 className="h-3.5 w-3.5" />
+              Del / Embed
+            </Button>
           )}
           <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setPreviewMode(true)}>
             <Eye className="h-3.5 w-3.5 mr-1" />
