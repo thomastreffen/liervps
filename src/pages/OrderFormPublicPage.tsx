@@ -190,7 +190,7 @@ export default function OrderFormPublicPage() {
         requester_type: "external",
         priority: "normal",
         summary,
-      } as any).select("submission_no").single();
+      } as any).select("submission_no, public_tracking_token").single();
       if (subErr) throw subErr;
 
       const valueRows = Object.entries(formData)
