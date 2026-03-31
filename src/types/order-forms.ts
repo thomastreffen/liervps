@@ -153,6 +153,49 @@ export const ORDER_STATUS_CONFIG: Record<
   rejected: { label: "Avvist", color: "bg-red-100 text-red-800", dotClass: "bg-red-500" },
 };
 
+// ── External (customer-facing) Status Model ──
+
+export type ExternalStatus =
+  | "received"
+  | "processing"
+  | "needs_info"
+  | "planned"
+  | "in_progress"
+  | "completed"
+  | "closed";
+
+export const EXTERNAL_STATUS_CONFIG: Record<
+  ExternalStatus,
+  { label: string; description: string; step: number; color: string }
+> = {
+  received: { label: "Mottatt", description: "Vi har mottatt bestillingen din", step: 1, color: "bg-blue-500" },
+  processing: { label: "Under behandling", description: "Vi gjennomgår bestillingen din", step: 2, color: "bg-indigo-500" },
+  needs_info: { label: "Trenger mer info", description: "Vi trenger litt mer informasjon fra deg", step: 2, color: "bg-amber-500" },
+  planned: { label: "Planlagt", description: "Oppgaven er planlagt og tildelt", step: 3, color: "bg-cyan-500" },
+  in_progress: { label: "Utføres", description: "Arbeidet er i gang", step: 4, color: "bg-purple-500" },
+  completed: { label: "Ferdig", description: "Arbeidet er fullført", step: 5, color: "bg-green-500" },
+  closed: { label: "Avsluttet", description: "Saken er avsluttet", step: 5, color: "bg-muted-foreground" },
+};
+
+export const EXTERNAL_STATUS_STEPS: ExternalStatus[] = [
+  "received", "processing", "planned", "in_progress", "completed",
+];
+
+/** Map internal status → external status */
+export function mapToExternalStatus(internal: OrderFormSubmissionStatus): ExternalStatus {
+  switch (internal) {
+    case "new": return "received";
+    case "under_review": return "processing";
+    case "missing_info": case "waiting_customer": return "needs_info";
+    case "waiting_internal": return "processing";
+    case "ready_for_planning": case "task_created": return "planned";
+    case "in_progress": return "in_progress";
+    case "closed": return "completed";
+    case "rejected": return "closed";
+    default: return "received";
+  }
+}
+
 export const ORDER_PRIORITY_CONFIG: Record<string, { label: string; color: string }> = {
   critical: { label: "Kritisk stopp", color: "bg-red-100 text-red-800" },
   high: { label: "Høy", color: "bg-orange-100 text-orange-800" },

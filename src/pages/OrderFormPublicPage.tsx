@@ -25,6 +25,7 @@ export default function OrderFormPublicPage() {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [submissionNo, setSubmissionNo] = useState<string | null>(null);
+  const [trackingToken, setTrackingToken] = useState<string | null>(null);
   const [attachments, setAttachments] = useState<{ fieldKey: string; file: File }[]>([]);
 
   // Auto-resize for iframe embedding – send height on every layout change
@@ -190,7 +191,7 @@ export default function OrderFormPublicPage() {
         requester_type: "external",
         priority: "normal",
         summary,
-      } as any).select("submission_no").single();
+      } as any).select("submission_no, public_tracking_token").single();
       if (subErr) throw subErr;
 
       const valueRows = Object.entries(formData)
@@ -229,6 +230,7 @@ export default function OrderFormPublicPage() {
       }
 
       setSubmissionNo(subData?.submission_no || null);
+      setTrackingToken((subData as any)?.public_tracking_token || null);
       setSubmitted(true);
     } catch (err: any) {
       console.error(err);
@@ -270,7 +272,23 @@ export default function OrderFormPublicPage() {
           <p className="text-sm text-muted-foreground">
             {template.confirmation_text || "Bestillingen din er registrert og vil bli behandlet. Du vil bli kontaktet ved behov."}
           </p>
-          <Button onClick={() => { setSubmitted(false); setFormData({}); setAttachments([]); setSubmissionNo(null); }}>
+          {trackingToken && (
+            <div className="pt-2 space-y-2">
+              <a
+                href={`/bestilling/status/${trackingToken}`}
+                className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary text-primary-foreground px-5 py-2.5 text-sm font-medium hover:bg-primary/90 transition-colors w-full"
+              >
+                Følg bestillingen
+              </a>
+              <p className="text-xs text-muted-foreground">
+                Du kan følge status og svare på eventuelle spørsmål via denne lenken.
+              </p>
+            </div>
+          )}
+          <Button
+            variant="outline"
+            onClick={() => { setSubmitted(false); setFormData({}); setAttachments([]); setSubmissionNo(null); setTrackingToken(null); }}
+          >
             Send ny bestilling
           </Button>
         </div>

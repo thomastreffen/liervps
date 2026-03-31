@@ -43,6 +43,7 @@ export default function OrderFormDetailPage() {
   const qc = useQueryClient();
   const { user } = useAuth();
   const [comment, setComment] = useState("");
+  const [commentVisibility, setCommentVisibility] = useState<"internal" | "shared">("internal");
   const [requestInfoOpen, setRequestInfoOpen] = useState(false);
   const [convertOpen, setConvertOpen] = useState(false);
   const [tripletexOpen, setTripletexOpen] = useState(false);
@@ -201,9 +202,10 @@ export default function OrderFormDetailPage() {
       const { error } = await supabase.from("order_form_comments").insert({
         submission_id: id!,
         body: comment.trim(),
-        comment_type: "internal",
+        comment_type: commentVisibility === "shared" ? "shared_message" : "internal",
+        visibility: commentVisibility,
         created_by: user?.id,
-      });
+      } as any);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -248,12 +250,17 @@ export default function OrderFormDetailPage() {
     status_changed: "Status endret",
     missing_info_requested: "Forespørsel om mer info",
     comment_added: "Kommentar lagt til",
+    customer_reply: "Svar fra bestiller",
     converted_to_case: "Konvertert til sak",
     converted_to_order: "Konvertert til oppdrag",
     notification_sent: "E-postvarsling sendt",
     notification_failed: "E-postsending feilet",
     exported_to_tripletex: "Eksportert til Tripletex",
   };
+
+  const trackingUrl = sub.public_tracking_token
+    ? `${window.location.origin}/bestilling/status/${sub.public_tracking_token}`
+    : null;
 
   // Group attachments by category
   const attByCategory: Record<string, any[]> = {};
@@ -449,6 +456,23 @@ export default function OrderFormDetailPage() {
         )}
       </div>
 
+      {/* Tracking link */}
+      {trackingUrl && (
+        <div className="flex items-center gap-2 text-xs">
+          <LinkIcon className="h-3 w-3 text-muted-foreground" />
+          <span className="text-muted-foreground">Sporingslenke:</span>
+          <button
+            className="text-primary underline truncate max-w-xs"
+            onClick={() => { navigator.clipboard.writeText(trackingUrl); toast.success("Sporingslenke kopiert!"); }}
+          >
+            Kopiér lenke
+          </button>
+          <a href={trackingUrl} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground">
+            <ExternalLink className="h-3 w-3" />
+          </a>
+        </div>
+      )}
+
       {/* Quality issues panel - only show if there are issues */}
       {qualityResult.score !== "green" && <QualityIssuesPanel result={qualityResult} />}
 
@@ -539,11 +563,23 @@ export default function OrderFormDetailPage() {
                 ) : (
                   comments.map((c: any) => (
                     <div key={c.id} className={`text-sm border-l-2 pl-3 ${
-                      c.comment_type === "missing_info_request" ? "border-amber-400" : "border-border"
+                      c.comment_type === "missing_info_request" ? "border-amber-400"
+                      : c.visibility === "shared" || c.is_customer_reply ? "border-primary/60"
+                      : "border-border"
                     }`}>
                       {c.comment_type === "missing_info_request" && (
                         <Badge variant="outline" className="text-[9px] mb-1 bg-amber-50 text-amber-700 border-amber-200">
                           Forespørsel
+                        </Badge>
+                      )}
+                      {c.visibility === "shared" && !c.is_customer_reply && (
+                        <Badge variant="outline" className="text-[9px] mb-1 bg-primary/10 text-primary border-primary/20">
+                          Delt med bestiller
+                        </Badge>
+                      )}
+                      {c.is_customer_reply && (
+                        <Badge variant="outline" className="text-[9px] mb-1 bg-green-50 text-green-700 border-green-200">
+                          Svar fra bestiller
                         </Badge>
                       )}
                       <p className="whitespace-pre-wrap">{c.body}</p>
@@ -554,22 +590,40 @@ export default function OrderFormDetailPage() {
                   ))
                 )}
               </div>
-              <div className="flex gap-2">
+              <div className="space-y-2">
                 <Textarea
                   placeholder="Skriv kommentar..."
                   value={comment}
                   onChange={(e) => setComment(e.target.value)}
                   className="min-h-[60px] text-sm"
                 />
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant={commentVisibility === "internal" ? "default" : "outline"}
+                    className="text-xs h-7"
+                    onClick={() => setCommentVisibility("internal")}
+                  >
+                    Intern
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={commentVisibility === "shared" ? "default" : "outline"}
+                    className="text-xs h-7"
+                    onClick={() => setCommentVisibility("shared")}
+                  >
+                    Del med bestiller
+                  </Button>
+                  <div className="flex-1" />
+                  <Button
+                    size="sm"
+                    disabled={!comment.trim()}
+                    onClick={() => addComment.mutate()}
+                  >
+                    Legg til
+                  </Button>
+                </div>
               </div>
-              <Button
-                size="sm"
-                className="mt-2"
-                disabled={!comment.trim()}
-                onClick={() => addComment.mutate()}
-              >
-                Legg til
-              </Button>
             </CardContent>
           </Card>
 

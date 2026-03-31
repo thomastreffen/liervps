@@ -91,6 +91,7 @@ import OrderFormTemplatesPage from "./pages/OrderFormTemplatesPage";
 import OrderFormBuilderPage from "./pages/OrderFormBuilderPage";
 import OrderFormPublicPage from "./pages/OrderFormPublicPage";
 import OrderFormsCatalogPage from "./pages/OrderFormsCatalogPage";
+import OrderTrackingPage from "./pages/OrderTrackingPage";
 import { CompanyProvider, useCompanyContext } from "@/hooks/useCompanyContext";
 import { ActiveCompanyForPermissions } from "@/hooks/usePermissions";
 import { PreviewModeProvider } from "@/hooks/usePreviewMode";
@@ -140,6 +141,7 @@ const App = () => (
             <Route path="/activate" element={<ActivatePage />} />
             <Route path="/bestilling" element={<OrderFormsCatalogPage />} />
             <Route path="/bestilling/:slug" element={<OrderFormPublicPage />} />
+            <Route path="/bestilling/status/:token" element={<OrderTrackingPage />} />
 
             {/* Customer Portal */}
             <Route path="/portal/login" element={<PortalLogin />} />
