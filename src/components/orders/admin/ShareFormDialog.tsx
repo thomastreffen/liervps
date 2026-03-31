@@ -121,11 +121,11 @@ export function ShareFormDialog({ open, onOpenChange, template }: ShareFormDialo
             <TabsTrigger value="link" className="flex-1 text-xs gap-1.5">
               <Link2 className="h-3.5 w-3.5" /> Lenke
             </TabsTrigger>
+            <TabsTrigger value="script" className="flex-1 text-xs gap-1.5" disabled={!canEmbed}>
+              <Code className="h-3.5 w-3.5" /> Script <Badge variant="secondary" className="ml-1 text-[9px] px-1 py-0">Anbefalt</Badge>
+            </TabsTrigger>
             <TabsTrigger value="iframe" className="flex-1 text-xs gap-1.5" disabled={!canEmbed}>
               <Code className="h-3.5 w-3.5" /> Iframe
-            </TabsTrigger>
-            <TabsTrigger value="script" className="flex-1 text-xs gap-1.5" disabled={!canEmbed}>
-              <Code className="h-3.5 w-3.5" /> Script
             </TabsTrigger>
           </TabsList>
 
