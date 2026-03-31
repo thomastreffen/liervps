@@ -23,12 +23,14 @@
 
   var iframe = document.createElement("iframe");
   iframe.src = src;
-  iframe.style.cssText = "width:100%;border:0;border-radius:8px;min-height:800px;";
+  iframe.style.cssText =
+    "width:100%;border:0;border-radius:8px;overflow:hidden;display:block;";
+  iframe.setAttribute("scrolling", "no");
   iframe.setAttribute("loading", "lazy");
   iframe.setAttribute("allow", "clipboard-write");
   iframe.title = "MCS Bestillingsskjema";
 
-  // Auto-resize via postMessage
+  // Auto-resize via postMessage – no internal scroll
   window.addEventListener("message", function (e) {
     if (e.source !== iframe.contentWindow) return;
     try {
