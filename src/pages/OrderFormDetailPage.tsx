@@ -772,6 +772,10 @@ export default function OrderFormDetailPage() {
                   <span className="text-muted-foreground">Bekreftelse sendt</span>
                   <span className="font-medium">{hasConfirmation ? "Ja" : "Nei"}</span>
                 </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Varsler sendt til bestiller</span>
+                  <span className="font-medium">{customerNotifications.length}</span>
+                </div>
                 {lastCustomerReply && (
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Siste svar fra bestiller</span>
@@ -789,6 +793,29 @@ export default function OrderFormDetailPage() {
                   </div>
                 )}
               </div>
+
+              {/* Customer notification history */}
+              {customerNotifications.length > 0 && (
+                <div className="space-y-1.5">
+                  <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Sendte varsler</span>
+                  {customerNotifications.slice(0, 5).map((n: any) => {
+                    const typeLabels: Record<string, string> = {
+                      confirmation: "Bekreftelse",
+                      missing_info: "Mer info",
+                      customer_update: "Oppdatering",
+                    };
+                    return (
+                      <div key={n.id} className="flex items-center gap-1.5 text-[11px]">
+                        <BellRing className="h-3 w-3 text-muted-foreground shrink-0" />
+                        <span className="font-medium">{typeLabels[n.payload?.type] || "E-post"}</span>
+                        <span className="text-muted-foreground ml-auto">
+                          {format(new Date(n.created_at), "d. MMM HH:mm", { locale: nb })}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
 
               {/* Waiting indicator */}
               {isWaitingOnCustomer && (
