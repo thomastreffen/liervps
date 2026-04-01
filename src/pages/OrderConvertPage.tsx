@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -20,6 +20,108 @@ import {
 import { format } from "date-fns";
 import { nb } from "date-fns/locale";
 
+const GENERIC_ADDRESS_LABELS = new Set([
+  "adresse",
+  "anleggsadresse",
+  "oppdragssted",
+  "oppdrags adresse",
+]);
+
+function normalizeFieldText(value: unknown): string {
+  if (typeof value === "string") return value.trim();
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  if (Array.isArray(value)) return value.map(normalizeFieldText).filter(Boolean).join(", ");
+  return "";
+}
+
+function matchesFieldPrefix(fieldKey: string, prefix: string): boolean {
+  const normalizedFieldKey = fieldKey.toLowerCase();
+  const normalizedPrefix = prefix.toLowerCase();
+  return normalizedFieldKey === normalizedPrefix || normalizedFieldKey.startsWith(`${normalizedPrefix}_`);
+}
+
+function uniqueTexts(values: string[]): string[] {
+  const seen = new Set<string>();
+  return values.filter((value) => {
+    const normalized = value.trim().toLowerCase();
+    if (!normalized || seen.has(normalized)) return false;
+    seen.add(normalized);
+    return true;
+  });
+}
+
+function parseDateValue(raw: string): Date | null {
+  const value = raw.trim();
+  if (!value) return null;
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const [year, month, day] = value.split("-").map(Number);
+    return new Date(year, month - 1, day);
+  }
+
+  if (/^\d{2}\.\d{2}\.\d{4}$/.test(value)) {
+    const [day, month, year] = value.split(".").map(Number);
+    return new Date(year, month - 1, day);
+  }
+
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function formatDateValue(raw: string): string {
+  const parsed = parseDateValue(raw);
+  if (!parsed) return raw;
+  return format(parsed, "d. MMMM yyyy", { locale: nb });
+}
+
+function parseTimeValue(raw: string): { hours: number; minutes: number } | null {
+  const match = raw.match(/(\d{1,2}):(\d{2})/);
+  if (!match) return null;
+
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  if (hours > 23 || minutes > 59) return null;
+
+  return { hours, minutes };
+}
+
+function formatAddressValues(values: string[]): string {
+  const filtered = uniqueTexts(values).filter(
+    (value) => !GENERIC_ADDRESS_LABELS.has(value.trim().toLowerCase())
+  );
+
+  if (filtered.length === 0) return "";
+
+  const postal = filtered.find((value) => /^\d{4}\s+\S+/.test(value));
+  const street = filtered.find((value) => value !== postal && /\d/.test(value));
+
+  if (street && postal) {
+    const rest = filtered.filter((value) => value !== street && value !== postal);
+    return [street, postal, ...rest].join(", ");
+  }
+
+  return filtered.join(", ");
+}
+
+function buildRequestedStart(dateRaw: string, timeRaw: string): Date | null {
+  const parsedDate = parseDateValue(dateRaw);
+  if (!parsedDate) return null;
+
+  const parsedTime = parseTimeValue(timeRaw);
+  const hours = parsedTime?.hours ?? 8;
+  const minutes = parsedTime?.minutes ?? 0;
+
+  return new Date(
+    parsedDate.getFullYear(),
+    parsedDate.getMonth(),
+    parsedDate.getDate(),
+    hours,
+    minutes,
+    0,
+    0,
+  );
+}
+
 export default function OrderConvertPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -38,13 +140,13 @@ export default function OrderConvertPage() {
         .from("order_form_submissions")
         .select("*, order_form_templates(name, slug)")
         .eq("id", id!)
-        .single();
+        .maybeSingle();
       if (error) throw error;
       return data;
     },
   });
 
-  const { data: values = [] } = useQuery({
+  const { data: values = [], isFetched: valuesFetched } = useQuery({
     queryKey: ["order-form-values", id],
     enabled: !!id,
     queryFn: async () => {
@@ -68,13 +170,64 @@ export default function OrderConvertPage() {
     },
   });
 
-  const valuesMap = useMemo(() => {
-    const m: Record<string, any> = {};
-    for (const v of values) m[(v as any).field_key] = (v as any).value;
-    return m;
-  }, [values]);
+  const summary = useMemo(
+    () => ((submission?.summary as Record<string, unknown> | null) ?? {}),
+    [submission]
+  );
 
-  const summary = submission?.summary as Record<string, any> | null;
+  const valueEntries = useMemo(
+    () =>
+      values
+        .map((entry: any) => ({
+          fieldKey: String(entry.field_key ?? ""),
+          value: normalizeFieldText(entry.value),
+        }))
+        .filter((entry) => entry.fieldKey && entry.value),
+    [values]
+  );
+
+  const findValues = useCallback(
+    (...prefixes: string[]) => {
+      const matches: string[] = [];
+
+      for (const prefix of prefixes) {
+        for (const entry of valueEntries) {
+          if (matchesFieldPrefix(entry.fieldKey, prefix)) {
+            matches.push(entry.value);
+          }
+        }
+      }
+
+      return uniqueTexts(matches);
+    },
+    [valueEntries]
+  );
+
+  const findValue = useCallback(
+    (...prefixes: string[]) => findValues(...prefixes)[0] ?? "",
+    [findValues]
+  );
+
+  const findSummaryValue = useCallback(
+    (...prefixes: string[]) => {
+      for (const prefix of prefixes) {
+        for (const [key, value] of Object.entries(summary)) {
+          if (matchesFieldPrefix(key, prefix)) {
+            const normalized = normalizeFieldText(value);
+            if (normalized) return normalized;
+          }
+        }
+      }
+
+      return "";
+    },
+    [summary]
+  );
+
+  const resolveValue = useCallback(
+    (...prefixes: string[]) => findValue(...prefixes) || findSummaryValue(...prefixes),
+    [findValue, findSummaryValue]
+  );
 
   // Editable target fields
   const [title, setTitle] = useState("");
@@ -82,36 +235,73 @@ export default function OrderConvertPage() {
   const [address, setAddress] = useState("");
   const [customer, setCustomer] = useState("");
 
+  const derivedTitle =
+    resolveValue("oppdragstittel", "tittel", "prosjektnavn", "emne") ||
+    submission?.submission_no ||
+    "";
+  const derivedDescription = resolveValue(
+    "detaljert_arbeidsbeskrivelse",
+    "arbeidsbeskrivelse",
+    "beskrivelse",
+    "problem_beskrivelse",
+    "melding"
+  );
+  const derivedCustomer =
+    resolveValue("kundenavn", "firmanavn", "bestiller_firma", "kunde", "company_name") ||
+    submission?.submitter_name ||
+    "";
+  const derivedAddress =
+    formatAddressValues(findValues("anleggsadresse", "oppdragssted", "adresse")) ||
+    findSummaryValue("anleggsadresse", "oppdragssted", "adresse");
+  const desiredDateRaw = resolveValue(
+    "oensket_dato",
+    "onsket_utfort_dato",
+    "onsket_dato",
+    "dato",
+    "oensket_utfoert_dato"
+  );
+  const desiredTimeRaw = resolveValue(
+    "oensket_tid",
+    "onsket_klokkeslett",
+    "onsket_tid",
+    "tidsvindu",
+    "oensket_tidspunkt",
+    "onsket_tidspunkt"
+  );
+  const desiredDateLabel = desiredDateRaw ? formatDateValue(desiredDateRaw) : "–";
+  const requestedStart = useMemo(
+    () => buildRequestedStart(desiredDateRaw, desiredTimeRaw),
+    [desiredDateRaw, desiredTimeRaw]
+  );
+
   // Populate when data loads
   const [initialized, setInitialized] = useState(false);
+
+  useEffect(() => {
+    setInitialized(false);
+    setTitle("");
+    setDescription("");
+    setAddress("");
+    setCustomer("");
+  }, [id]);
   
   useEffect(() => {
-    if (!initialized && submission) {
-      const vm: Record<string, any> = {};
-      for (const v of values) vm[(v as any).field_key] = (v as any).value;
-      const s = (submission.summary as Record<string, any>) || {};
-      const formValues = (submission as any).form_values as Record<string, any> | null;
-      
-      // Try multiple sources: values rows → summary → form_values
-      setTitle(
-        vm.oppdragstittel || s.oppdragstittel || s.tittel || 
-        formValues?.oppdragstittel || submission.submission_no || ""
-      );
-      setDescription(
-        vm.detaljert_arbeidsbeskrivelse || s.detaljert_arbeidsbeskrivelse || 
-        vm.beskrivelse || s.beskrivelse || formValues?.detaljert_arbeidsbeskrivelse || ""
-      );
-      setAddress(
-        vm.anleggsadresse || s.anleggsadresse || vm.oppdragssted || s.oppdragssted ||
-        vm.adresse || s.adresse || formValues?.anleggsadresse || ""
-      );
-      setCustomer(
-        vm.kundenavn || s.kundenavn || vm.kunde || s.kunde ||
-        formValues?.kundenavn || submission.submitter_name || ""
-      );
+    if (!initialized && submission && valuesFetched) {
+      setTitle(derivedTitle);
+      setDescription(derivedDescription);
+      setAddress(derivedAddress);
+      setCustomer(derivedCustomer);
       setInitialized(true);
     }
-  }, [submission, values, initialized]);
+  }, [
+    submission,
+    valuesFetched,
+    initialized,
+    derivedTitle,
+    derivedDescription,
+    derivedAddress,
+    derivedCustomer,
+  ]);
 
   const priorityMap: Record<string, string> = {
     "Kritisk stopp": "critical",
@@ -119,18 +309,33 @@ export default function OrderConvertPage() {
     "Normal": "medium",
     "Lav": "low",
   };
-  const hastegrad = valuesMap.hastegrad || summary?.hastegrad || "Normal";
+  const hastegrad = resolveValue("hastegrad") || "Normal";
 
   // Source info for display
-  const bestillerNavn = submission?.submitter_name || summary?.bestiller_navn || valuesMap.bestiller_navn || "–";
-  const bestillerEpost = submission?.submitter_email || summary?.bestiller_epost || valuesMap.bestiller_epost || "–";
-  const bestillerTelefon = valuesMap.bestiller_telefon || summary?.bestiller_telefon || "–";
-  const kontaktperson = valuesMap.kontaktperson_navn || summary?.kontaktperson || "–";
-  const kontaktTelefon = valuesMap.kontaktperson_telefon || "–";
-  const referanse = valuesMap.referanse_po || valuesMap.midlertidig_referanse || "–";
-  const onsketDato = valuesMap.onsket_utfort_dato || "–";
-  const onsketTid = valuesMap.onsket_klokkeslett || "–";
-  const oppdragssted = valuesMap.oppdragssted || valuesMap.anleggsadresse || "–";
+  const sub = submission as any;
+  const bestillerNavn =
+    sub?.notification_recipient_name ||
+    submission?.submitter_name ||
+    resolveValue("bestiller_navn", "kontaktperson", "kontaktperson_kunde") ||
+    "–";
+  const bestillerEpost =
+    sub?.notification_recipient_email ||
+    submission?.submitter_email ||
+    resolveValue("bestiller_epost", "epost_kunde", "epost", "kontakt_epost") ||
+    "–";
+  const bestillerTelefon =
+    sub?.notification_recipient_phone ||
+    resolveValue("bestiller_telefon", "telefon_kunde", "telefon", "kontakt_telefon") ||
+    "–";
+  const kontaktperson = resolveValue("kontaktperson_navn", "kontaktperson_kunde", "kontaktperson") || "–";
+  const kontaktTelefon =
+    resolveValue("kontaktperson_telefon", "telefon_kunde", "telefon", "kontakt_telefon") || "–";
+  const referanse =
+    resolveValue("referanse_po", "fakturamerking", "midlertidig_referanse", "po", "referanse") ||
+    "–";
+  const onsketDato = desiredDateLabel;
+  const onsketTid = desiredTimeRaw || "–";
+  const oppdragssted = derivedAddress || "–";
 
   const mutation = useMutation({
     mutationFn: async () => {
@@ -168,9 +373,7 @@ export default function OrderConvertPage() {
         }
       } else {
         const now = new Date();
-        const startTime = valuesMap.onsket_utfort_dato
-          ? new Date(valuesMap.onsket_utfort_dato + "T08:00:00")
-          : now;
+        const startTime = requestedStart || now;
         const endTime = new Date(startTime.getTime() + 8 * 60 * 60 * 1000);
 
         const { data: newEvent, error: eventErr } = await supabase
@@ -306,7 +509,7 @@ export default function OrderConvertPage() {
               <div>
                 <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5 font-medium">Kunde & kontakt</p>
                 <div className="space-y-1">
-                  <InfoRow icon={<Building2 className="h-3.5 w-3.5" />} label={valuesMap.kundenavn || summary?.kundenavn || "–"} />
+                  <InfoRow icon={<Building2 className="h-3.5 w-3.5" />} label={derivedCustomer || "–"} />
                   {kontaktperson !== "–" && <InfoRow icon={<User className="h-3.5 w-3.5" />} label={kontaktperson} sub="Kontaktperson" />}
                   {kontaktTelefon !== "–" && <InfoRow icon={<Phone className="h-3.5 w-3.5" />} label={kontaktTelefon} />}
                 </div>
@@ -343,13 +546,13 @@ export default function OrderConvertPage() {
               )}
 
               {/* Beskrivelse */}
-              {valuesMap.detaljert_arbeidsbeskrivelse && (
+              {derivedDescription && (
                 <>
                   <Separator />
                   <div>
                     <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5 font-medium">Beskrivelse fra bestiller</p>
                     <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">
-                      {valuesMap.detaljert_arbeidsbeskrivelse}
+                      {derivedDescription}
                     </p>
                   </div>
                 </>
