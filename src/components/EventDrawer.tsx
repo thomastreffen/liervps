@@ -414,6 +414,21 @@ export function EventDrawer({
 
         if (toRemove.length > 0) {
           await supabase.from("event_technicians").delete().in("id", toRemove.map((r) => r.id));
+
+          // Clean up orphaned job_approvals for removed technicians
+          const removedTechIds = toRemove.map((r) => r.technician_id);
+          const { data: removedTechs } = await supabase
+            .from("technicians")
+            .select("user_id")
+            .in("id", removedTechIds);
+          const removedUserIds = (removedTechs || []).map((t: any) => t.user_id).filter(Boolean);
+          if (removedUserIds.length > 0) {
+            await supabase
+              .from("job_approvals")
+              .delete()
+              .eq("job_id", editEvent.id)
+              .in("technician_user_id", removedUserIds);
+          }
         }
         if (toAdd.length > 0) {
           await supabase.from("event_technicians").insert(
