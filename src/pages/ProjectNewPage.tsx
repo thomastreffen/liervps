@@ -288,7 +288,7 @@ export default function ProjectNewPage() {
 
               <div className="space-y-1.5">
                 <Label>Adresse</Label>
-                <Input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Prosjektadresse" />
+                <AddressAutocomplete value={address} onChange={setAddress} placeholder="Søk prosjektadresse…" />
               </div>
 
               <TechnicianMultiSelect selectedIds={techIds} onChange={setTechIds} />

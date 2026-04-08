@@ -229,7 +229,7 @@ export function PlanJobDialog({
             <div className="space-y-3 border-t border-border/50 pt-3">
               <div className="space-y-1.5">
                 <Label>Adresse</Label>
-                <Input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="F.eks. Storgata 10, Oslo" />
+                <AddressAutocomplete value={address} onChange={setAddress} placeholder="Søk adresse…" />
               </div>
               <div className="space-y-1.5">
                 <Label>Notat til montør</Label>

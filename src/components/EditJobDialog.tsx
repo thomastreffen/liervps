@@ -258,7 +258,7 @@ export function EditJobDialog({ open, onOpenChange, jobId, onSaved }: EditJobDia
 
             <div>
               <Label>Adresse</Label>
-              <Input value={address} onChange={(e) => setAddress(e.target.value)} required className="mt-1" />
+              <AddressAutocomplete value={address} onChange={setAddress} placeholder="Søk adresse…" required className="mt-1" />
             </div>
 
             {/* Start */}
