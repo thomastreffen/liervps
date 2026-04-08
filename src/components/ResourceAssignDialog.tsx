@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { AddressAutocomplete } from "@/components/ui/address-autocomplete";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -577,7 +578,7 @@ function NewEventForm({
         </div>
         <div>
           <Label htmlFor="ra-address">Adresse</Label>
-          <Input id="ra-address" value={address} onChange={(e: any) => setAddress(e.target.value)} placeholder="Adresse" className="mt-1" />
+          <AddressAutocomplete id="ra-address" value={address} onChange={setAddress} placeholder="Søk adresse…" className="mt-1" />
         </div>
       </div>
       <div className="grid grid-cols-2 gap-4">
