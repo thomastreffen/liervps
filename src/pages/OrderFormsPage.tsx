@@ -189,12 +189,12 @@ export default function OrderFormsPage() {
   ).length;
 
   return (
-    <div className="space-y-5 p-6 max-w-7xl mx-auto">
+    <div className="space-y-4 sm:space-y-5 p-4 sm:p-6 max-w-7xl mx-auto pb-24 sm:pb-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Bestillinger</h1>
-          <p className="text-sm text-muted-foreground mt-1">
+      <div className="flex items-center justify-between gap-2">
+        <div className="min-w-0">
+          <h1 className="text-xl sm:text-2xl font-bold text-foreground">Bestillinger</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
             {submissions.length} bestillinger
             {needsActionCount > 0 && (
               <span className="text-amber-600 font-medium"> · {needsActionCount} krever handling</span>
@@ -204,11 +204,11 @@ export default function OrderFormsPage() {
             )}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           {templates.length > 0 && (
-            <Button onClick={() => navigate(`/orders/new/${templates[0].slug}`)}>
-              <Plus className="h-4 w-4 mr-1" />
-              Ny bestilling
+            <Button size="sm" onClick={() => navigate(`/orders/new/${templates[0].slug}`)}>
+              <Plus className="h-4 w-4 sm:mr-1" />
+              <span className="hidden sm:inline">Ny bestilling</span>
             </Button>
           )}
         </div>
@@ -252,7 +252,7 @@ export default function OrderFormsPage() {
       </div>
 
       {/* Status tabs */}
-      <div className="flex flex-wrap gap-1.5">
+      <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-4 px-4 sm:mx-0 sm:px-0 sm:flex-wrap scrollbar-none">
         {STATUS_TABS.map((tab) => {
           const count = tab.key === "all" ? submissions.length : statusCounts[tab.key] || 0;
           const active = statusFilter === tab.key;
@@ -261,7 +261,7 @@ export default function OrderFormsPage() {
             <button
               key={tab.key}
               onClick={() => setStatusFilter(tab.key)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap shrink-0 ${
                 active
                   ? "bg-primary text-primary-foreground"
                   : "bg-muted/60 text-muted-foreground hover:bg-muted"
@@ -277,53 +277,55 @@ export default function OrderFormsPage() {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-3 items-center">
-        <div className="relative flex-1 max-w-md">
+      <div className="flex flex-col sm:flex-row flex-wrap gap-2 sm:gap-3 items-stretch sm:items-center">
+        <div className="relative flex-1 min-w-0 sm:max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Søk bestilling, kunde, innsender..."
+            placeholder="Søk bestilling, kunde..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9"
           />
         </div>
-        {categoryOptions.length > 0 && (
-          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-            <SelectTrigger className="w-40"><SelectValue placeholder="Kategori" /></SelectTrigger>
+        <div className="flex gap-2 overflow-x-auto scrollbar-none">
+          {categoryOptions.length > 0 && (
+            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+              <SelectTrigger className="w-[130px] sm:w-40 shrink-0"><SelectValue placeholder="Kategori" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Alle kategorier</SelectItem>
+                {categoryOptions.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          )}
+          <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+            <SelectTrigger className="w-[120px] sm:w-36 shrink-0"><SelectValue placeholder="Prioritet" /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Alle kategorier</SelectItem>
-              {categoryOptions.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+              <SelectItem value="all">Alle</SelectItem>
+              <SelectItem value="critical">Kritisk</SelectItem>
+              <SelectItem value="high">Høy</SelectItem>
+              <SelectItem value="normal">Normal</SelectItem>
+              <SelectItem value="low">Lav</SelectItem>
             </SelectContent>
           </Select>
-        )}
-        <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-          <SelectTrigger className="w-36"><SelectValue placeholder="Prioritet" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Alle prioriteter</SelectItem>
-            <SelectItem value="critical">Kritisk</SelectItem>
-            <SelectItem value="high">Høy</SelectItem>
-            <SelectItem value="normal">Normal</SelectItem>
-            <SelectItem value="low">Lav</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
-          <SelectTrigger className="w-40"><SelectValue placeholder="Ansvarlig" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Alle</SelectItem>
-            <SelectItem value="mine">Mine bestillinger</SelectItem>
-            <SelectItem value="unassigned">Uten ansvarlig</SelectItem>
-            <SelectItem value="assigned">Med ansvarlig</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={sortBy} onValueChange={setSortBy}>
-          <SelectTrigger className="w-40"><SelectValue placeholder="Sortering" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="newest">Nyeste først</SelectItem>
-            <SelectItem value="priority">Hastegrad</SelectItem>
-            <SelectItem value="activity">Siste aktivitet</SelectItem>
-            <SelectItem value="stale">Lengst uten aktivitet</SelectItem>
-          </SelectContent>
-        </Select>
+          <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
+            <SelectTrigger className="w-[120px] sm:w-40 shrink-0"><SelectValue placeholder="Ansvarlig" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Alle</SelectItem>
+              <SelectItem value="mine">Mine</SelectItem>
+              <SelectItem value="unassigned">Uten ansvarlig</SelectItem>
+              <SelectItem value="assigned">Med ansvarlig</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={sortBy} onValueChange={setSortBy}>
+            <SelectTrigger className="w-[120px] sm:w-40 shrink-0"><SelectValue placeholder="Sortering" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="newest">Nyeste først</SelectItem>
+              <SelectItem value="priority">Hastegrad</SelectItem>
+              <SelectItem value="activity">Siste aktivitet</SelectItem>
+              <SelectItem value="stale">Lengst uten aktivitet</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {/* List */}
