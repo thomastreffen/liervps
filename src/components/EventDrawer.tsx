@@ -444,6 +444,50 @@ export function EventDrawer({
             },
           });
         }
+
+        // Detect time change → reset existing approvals so technicians must re-confirm
+        const timeChanged =
+          editEvent.start.getTime() !== new Date(startISO).getTime() ||
+          editEvent.end.getTime() !== new Date(endISO).getTime();
+        const remainingTechIds = techIds.filter((id) => existingIds.has(id));
+        if (timeChanged && remainingTechIds.length > 0) {
+          // Get user_ids for remaining technicians
+          const { data: remainTechs } = await supabase
+            .from("technicians")
+            .select("user_id")
+            .in("id", remainingTechIds);
+          const remainUserIds = (remainTechs || []).map((t: any) => t.user_id).filter(Boolean);
+          if (remainUserIds.length > 0) {
+            // Reset approvals to pending
+            await supabase
+              .from("job_approvals")
+              .update({
+                status: "pending",
+                responded_at: null,
+                comment: null,
+                proposed_start: null,
+                proposed_end: null,
+                reminder_count: 0,
+                last_reminded_at: null,
+                response_required: true,
+              } as any)
+              .eq("job_id", editEvent.id)
+              .in("technician_user_id", remainUserIds);
+
+            // Re-trigger approval notifications (sends new emails)
+            await supabase.functions.invoke("create-approval", {
+              body: {
+                job_id: editEvent.id,
+                reminder_profile: reminderConfig.profile,
+                reminder_config: reminderConfig.profile === "custom" ? reminderConfig.custom : null,
+                response_required: reminderConfig.responseRequired,
+                time_change: true,
+              },
+            });
+          }
+          toast.info("Tidsendring", { description: "Montør(er) er varslet om ny tid og må bekrefte på nytt." });
+        }
+
         syncUpdate(editEvent.id);
 
         // Upload new attachments

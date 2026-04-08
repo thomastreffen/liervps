@@ -65,7 +65,8 @@ function buildApprovalEmail(
   job: any,
   techName: string,
   token: string,
-  displayNumber: string
+  displayNumber: string,
+  isTimeChange: boolean = false
 ): { subject: string; body: string } {
   const startDate = new Date(job.start_time).toLocaleDateString("nb-NO", {
     weekday: "long", day: "numeric", month: "long", year: "numeric",
@@ -78,7 +79,9 @@ function buildApprovalEmail(
   const rejectUrl = `${APP_URL}/approval/${token}?action=reject`;
   const jobUrl = `${APP_URL}/jobs/${job.id}`;
 
-  const subject = `Jobbforespørsel: ${displayNumber} – ${job.title}`;
+  const subject = isTimeChange
+    ? `Tidsendring: ${displayNumber} – ${job.title}`
+    : `Jobbforespørsel: ${displayNumber} – ${job.title}`;
 
   // Build description section
   const descriptionHtml = job.description
@@ -108,7 +111,9 @@ function buildApprovalEmail(
   </div>
   <div style="border: 1px solid #e2e8f0; border-top: none; padding: 24px; border-radius: 0 0 8px 8px;">
     <p>Hei ${techName},</p>
-    <p>Du har blitt tildelt en ny jobb. Vennligst bekreft om du kan ta oppdraget.</p>
+    <p>${isTimeChange
+      ? "Tidspunktet for et oppdrag du er tildelt har blitt endret. Vennligst bekreft om du kan ta oppdraget på nytt tid."
+      : "Du har blitt tildelt en ny jobb. Vennligst bekreft om du kan ta oppdraget."}</p>
     
     <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
       <tr><td style="padding: 8px 0; color: #64748b; width: 120px;">Jobbnummer</td><td style="padding: 8px 0; font-weight: 600;">${displayNumber}</td></tr>
@@ -190,7 +195,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { job_id, reminder_profile, reminder_config, response_required } = await req.json();
+    const { job_id, reminder_profile, reminder_config, response_required, time_change } = await req.json();
     if (!job_id) {
       return new Response(JSON.stringify({ error: "Missing job_id" }), {
         status: 400,
@@ -201,6 +206,7 @@ Deno.serve(async (req) => {
     const rProfile = reminder_profile || "standard";
     const rConfig = reminder_config || null;
     const rRequired = response_required !== false;
+    const isTimeChange = time_change === true;
 
     // Fetch job
     const { data: job, error: jobErr } = await supabaseAdmin
@@ -256,7 +262,7 @@ Deno.serve(async (req) => {
     for (const tech of technicians) {
       const isSelf = tech.user_id === callerUserId;
 
-      if (isSelf) {
+      if (isSelf && !isTimeChange) {
         // Auto-approve when assigning to yourself – no email needed
         const { data: approval, error: approvalErr } = await supabaseAdmin
           .from("job_approvals")
@@ -290,28 +296,61 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      // Create approval record for other technicians
-      const { data: approval, error: approvalErr } = await supabaseAdmin
-        .from("job_approvals")
-        .insert({
-          job_id: job_id,
-          technician_user_id: tech.user_id,
-          response_required: rRequired,
-          reminder_profile: rProfile,
-          reminder_config: rConfig,
-        })
-        .select("token")
-        .single();
+      let approvalToken: string;
 
-      if (approvalErr) {
-        console.error("[create-approval] Insert error for tech:", tech.id, approvalErr);
-        results.push({ techId: tech.id, error: approvalErr.message });
-        continue;
+      if (isTimeChange) {
+        // Time change: update existing approval record with a new token
+        const newToken = crypto.randomUUID();
+        const { error: updateErr } = await supabaseAdmin
+          .from("job_approvals")
+          .update({
+            status: "pending",
+            responded_at: null,
+            comment: null,
+            proposed_start: null,
+            proposed_end: null,
+            reminder_count: 0,
+            last_reminded_at: null,
+            response_required: rRequired,
+            reminder_profile: rProfile,
+            reminder_config: rConfig,
+            token: newToken,
+            token_expires_at: new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString(),
+          })
+          .eq("job_id", job_id)
+          .eq("technician_user_id", tech.user_id);
+
+        if (updateErr) {
+          console.error("[create-approval] Time change update error:", tech.id, updateErr);
+          results.push({ techId: tech.id, error: updateErr.message });
+          continue;
+        }
+        approvalToken = newToken;
+      } else {
+        // New approval: insert record
+        const { data: approval, error: approvalErr } = await supabaseAdmin
+          .from("job_approvals")
+          .insert({
+            job_id: job_id,
+            technician_user_id: tech.user_id,
+            response_required: rRequired,
+            reminder_profile: rProfile,
+            reminder_config: rConfig,
+          })
+          .select("token")
+          .single();
+
+        if (approvalErr) {
+          console.error("[create-approval] Insert error for tech:", tech.id, approvalErr);
+          results.push({ techId: tech.id, error: approvalErr.message });
+          continue;
+        }
+        approvalToken = approval.token;
       }
 
       // Send email via Microsoft Graph
       if (msToken && tech.email) {
-        const { subject, body } = buildApprovalEmail(job, tech.name, approval.token, displayNumber);
+        const { subject, body } = buildApprovalEmail(job, tech.name, approvalToken, displayNumber, isTimeChange);
 
         try {
           const emailRes = await fetch("https://graph.microsoft.com/v1.0/me/sendMail", {
@@ -332,48 +371,55 @@ Deno.serve(async (req) => {
           if (!emailRes.ok) {
             const errText = await emailRes.text();
             console.error("[create-approval] Email send failed for:", tech.email, errText);
-            results.push({ techId: tech.id, token: approval.token, emailSent: false, error: errText });
+            results.push({ techId: tech.id, token: approvalToken, emailSent: false, error: errText });
           } else {
             console.log("[create-approval] Email sent to:", tech.email);
-            results.push({ techId: tech.id, token: approval.token, emailSent: true });
+            results.push({ techId: tech.id, token: approvalToken, emailSent: true });
           }
         } catch (emailErr) {
           console.error("[create-approval] Email exception:", emailErr);
-          results.push({ techId: tech.id, token: approval.token, emailSent: false });
+          results.push({ techId: tech.id, token: approvalToken, emailSent: false });
         }
       } else {
-        results.push({ techId: tech.id, token: approval.token, emailSent: false, reason: "No MS token or no email" });
+        results.push({ techId: tech.id, token: approvalToken, emailSent: false, reason: "No MS token or no email" });
       }
 
       // Log to event_logs
+      const logMessage = isTimeChange
+        ? `Tidsendring – ny forespørsel sendt til ${tech.name}`
+        : `Godkjenningsforespørsel sendt til ${tech.name}`;
       await supabaseAdmin.from("event_logs").insert({
         event_id: job_id,
         performed_by: callerUserId,
-        action_type: "created",
-        change_summary: `Godkjenningsforespørsel sendt til ${tech.name}`,
+        action_type: isTimeChange ? "time_change" : "created",
+        change_summary: logMessage,
       });
     }
 
-    // After processing all technicians, check if all are now approved → update job status
-    const hasSelfApproved = results.some((r: any) => r.autoApproved);
-    if (hasSelfApproved) {
-      const { data: allApprovals } = await supabaseAdmin
-        .from("job_approvals")
-        .select("status")
-        .eq("job_id", job_id);
+    // After processing: update job status
+    if (isTimeChange) {
+      // Time change: set status back to requested since approvals are reset
+      await supabaseAdmin.from("events").update({ status: "requested" }).eq("id", job_id);
+    } else {
+      const hasSelfApproved = results.some((r: any) => r.autoApproved);
+      if (hasSelfApproved) {
+        const { data: allApprovals } = await supabaseAdmin
+          .from("job_approvals")
+          .select("status")
+          .eq("job_id", job_id);
 
-      const allApproved = allApprovals && allApprovals.length > 0 && allApprovals.every((a: any) => a.status === "approved");
-      if (allApproved) {
-        await supabaseAdmin.from("events").update({ status: "scheduled" }).eq("id", job_id);
-        await supabaseAdmin.from("event_logs").insert({
-          event_id: job_id,
-          performed_by: callerUserId,
-          action_type: "status_change",
-          change_summary: "Alle montører godkjent – status satt til Planlagt",
-        });
-      } else {
-        // At least one self-approved, but others pending
-        await supabaseAdmin.from("events").update({ status: "approved" }).eq("id", job_id);
+        const allApproved = allApprovals && allApprovals.length > 0 && allApprovals.every((a: any) => a.status === "approved");
+        if (allApproved) {
+          await supabaseAdmin.from("events").update({ status: "scheduled" }).eq("id", job_id);
+          await supabaseAdmin.from("event_logs").insert({
+            event_id: job_id,
+            performed_by: callerUserId,
+            action_type: "status_change",
+            change_summary: "Alle montører godkjent – status satt til Planlagt",
+          });
+        } else {
+          await supabaseAdmin.from("events").update({ status: "approved" }).eq("id", job_id);
+        }
       }
     }
 
