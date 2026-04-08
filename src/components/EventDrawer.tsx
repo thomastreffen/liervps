@@ -447,7 +447,8 @@ export function EventDrawer({
 
         // Detect time change → reset existing approvals so technicians must re-confirm
         const timeChanged =
-          startISO !== editEvent.start_time || endISO !== editEvent.end_time;
+          editEvent.start.getTime() !== new Date(startISO).getTime() ||
+          editEvent.end.getTime() !== new Date(endISO).getTime();
         const remainingTechIds = techIds.filter((id) => existingIds.has(id));
         if (timeChanged && remainingTechIds.length > 0) {
           // Get user_ids for remaining technicians
