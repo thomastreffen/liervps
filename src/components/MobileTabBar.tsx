@@ -20,6 +20,7 @@ import {
   BookOpen,
   Gauge,
   Inbox,
+  ClipboardList,
 } from "lucide-react";
 import { useNotifications } from "@/hooks/useNotifications";
 import { useActionRequired } from "@/hooks/useActionRequired";
