@@ -262,7 +262,7 @@ Deno.serve(async (req) => {
     for (const tech of technicians) {
       const isSelf = tech.user_id === callerUserId;
 
-      if (isSelf) {
+      if (isSelf && !isTimeChange) {
         // Auto-approve when assigning to yourself – no email needed
         const { data: approval, error: approvalErr } = await supabaseAdmin
           .from("job_approvals")
@@ -296,28 +296,61 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      // Create approval record for other technicians
-      const { data: approval, error: approvalErr } = await supabaseAdmin
-        .from("job_approvals")
-        .insert({
-          job_id: job_id,
-          technician_user_id: tech.user_id,
-          response_required: rRequired,
-          reminder_profile: rProfile,
-          reminder_config: rConfig,
-        })
-        .select("token")
-        .single();
+      let approvalToken: string;
 
-      if (approvalErr) {
-        console.error("[create-approval] Insert error for tech:", tech.id, approvalErr);
-        results.push({ techId: tech.id, error: approvalErr.message });
-        continue;
+      if (isTimeChange) {
+        // Time change: update existing approval record with a new token
+        const newToken = crypto.randomUUID();
+        const { error: updateErr } = await supabaseAdmin
+          .from("job_approvals")
+          .update({
+            status: "pending",
+            responded_at: null,
+            comment: null,
+            proposed_start: null,
+            proposed_end: null,
+            reminder_count: 0,
+            last_reminded_at: null,
+            response_required: rRequired,
+            reminder_profile: rProfile,
+            reminder_config: rConfig,
+            token: newToken,
+            token_expires_at: new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString(),
+          })
+          .eq("job_id", job_id)
+          .eq("technician_user_id", tech.user_id);
+
+        if (updateErr) {
+          console.error("[create-approval] Time change update error:", tech.id, updateErr);
+          results.push({ techId: tech.id, error: updateErr.message });
+          continue;
+        }
+        approvalToken = newToken;
+      } else {
+        // New approval: insert record
+        const { data: approval, error: approvalErr } = await supabaseAdmin
+          .from("job_approvals")
+          .insert({
+            job_id: job_id,
+            technician_user_id: tech.user_id,
+            response_required: rRequired,
+            reminder_profile: rProfile,
+            reminder_config: rConfig,
+          })
+          .select("token")
+          .single();
+
+        if (approvalErr) {
+          console.error("[create-approval] Insert error for tech:", tech.id, approvalErr);
+          results.push({ techId: tech.id, error: approvalErr.message });
+          continue;
+        }
+        approvalToken = approval.token;
       }
 
       // Send email via Microsoft Graph
       if (msToken && tech.email) {
-        const { subject, body } = buildApprovalEmail(job, tech.name, approval.token, displayNumber);
+        const { subject, body } = buildApprovalEmail(job, tech.name, approvalToken, displayNumber, isTimeChange);
 
         try {
           const emailRes = await fetch("https://graph.microsoft.com/v1.0/me/sendMail", {
@@ -338,25 +371,28 @@ Deno.serve(async (req) => {
           if (!emailRes.ok) {
             const errText = await emailRes.text();
             console.error("[create-approval] Email send failed for:", tech.email, errText);
-            results.push({ techId: tech.id, token: approval.token, emailSent: false, error: errText });
+            results.push({ techId: tech.id, token: approvalToken, emailSent: false, error: errText });
           } else {
             console.log("[create-approval] Email sent to:", tech.email);
-            results.push({ techId: tech.id, token: approval.token, emailSent: true });
+            results.push({ techId: tech.id, token: approvalToken, emailSent: true });
           }
         } catch (emailErr) {
           console.error("[create-approval] Email exception:", emailErr);
-          results.push({ techId: tech.id, token: approval.token, emailSent: false });
+          results.push({ techId: tech.id, token: approvalToken, emailSent: false });
         }
       } else {
-        results.push({ techId: tech.id, token: approval.token, emailSent: false, reason: "No MS token or no email" });
+        results.push({ techId: tech.id, token: approvalToken, emailSent: false, reason: "No MS token or no email" });
       }
 
       // Log to event_logs
+      const logMessage = isTimeChange
+        ? `Tidsendring – ny forespørsel sendt til ${tech.name}`
+        : `Godkjenningsforespørsel sendt til ${tech.name}`;
       await supabaseAdmin.from("event_logs").insert({
         event_id: job_id,
         performed_by: callerUserId,
-        action_type: "created",
-        change_summary: `Godkjenningsforespørsel sendt til ${tech.name}`,
+        action_type: isTimeChange ? "time_change" : "created",
+        change_summary: logMessage,
       });
     }
 
