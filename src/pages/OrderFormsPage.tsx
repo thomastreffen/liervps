@@ -371,16 +371,16 @@ export default function OrderFormsPage() {
                 }`}
                 onClick={() => navigate(`/orders/${sub.id}`)}
               >
-                <CardContent className="p-3.5">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                <CardContent className="p-3 sm:p-3.5">
+                  <div className="flex items-start sm:items-center justify-between gap-2 sm:gap-3">
+                    <div className="flex items-start sm:items-center gap-2 sm:gap-3 min-w-0 flex-1">
                       <QualityDot score={qs} />
                       <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2 flex-wrap">
+                        <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
                           <span className="text-sm font-semibold text-foreground">
                             {sub.submission_no}
                           </span>
-                          <span className="text-xs text-muted-foreground">
+                          <span className="text-xs text-muted-foreground hidden sm:inline">
                             {sub.order_form_templates?.name || "Ukjent"}
                           </span>
                           {sub.priority !== "normal" && (
@@ -391,16 +391,32 @@ export default function OrderFormsPage() {
                           {hasUnreadReply && (
                             <Badge variant="outline" className="text-[10px] font-semibold border-green-200 text-green-700 bg-green-50">
                               <MessageSquare className="h-2.5 w-2.5 mr-0.5" />
-                              Kundesvar
+                              Svar
                             </Badge>
                           )}
                         </div>
                         <p className="text-xs text-muted-foreground truncate mt-0.5">
                           {subtitle}
                         </p>
+                        {/* Mobile-only meta row */}
+                        <div className="flex items-center gap-2 mt-1 sm:hidden flex-wrap">
+                          <Badge className={`text-[10px] ${sc?.color || ""}`}>
+                            {sc?.label || sub.status}
+                          </Badge>
+                          {sub._assignee_name && (
+                            <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
+                              <User className="h-3 w-3" />
+                              {sub._assignee_name}
+                            </span>
+                          )}
+                          <span className="text-[10px] text-muted-foreground">
+                            {format(new Date(sub.submitted_at), "d. MMM", { locale: nb })}
+                          </span>
+                        </div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
+                    {/* Desktop-only right side */}
+                    <div className="hidden sm:flex items-center gap-2 shrink-0">
                       {isWaiting && (
                         <span className="text-[10px] text-amber-600 flex items-center gap-0.5">
                           <Clock className="h-3 w-3" />
