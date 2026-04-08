@@ -111,7 +111,9 @@ function buildApprovalEmail(
   </div>
   <div style="border: 1px solid #e2e8f0; border-top: none; padding: 24px; border-radius: 0 0 8px 8px;">
     <p>Hei ${techName},</p>
-    <p>Du har blitt tildelt en ny jobb. Vennligst bekreft om du kan ta oppdraget.</p>
+    <p>${isTimeChange
+      ? "Tidspunktet for et oppdrag du er tildelt har blitt endret. Vennligst bekreft om du kan ta oppdraget på nytt tid."
+      : "Du har blitt tildelt en ny jobb. Vennligst bekreft om du kan ta oppdraget."}</p>
     
     <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
       <tr><td style="padding: 8px 0; color: #64748b; width: 120px;">Jobbnummer</td><td style="padding: 8px 0; font-weight: 600;">${displayNumber}</td></tr>
