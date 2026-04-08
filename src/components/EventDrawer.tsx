@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { AddressAutocomplete } from "@/components/ui/address-autocomplete";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -1257,7 +1258,7 @@ function NewEventFields({
           </div>
           <div>
             <Label className="text-xs">Adresse</Label>
-            <Input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Adresse" className="mt-1" />
+            <AddressAutocomplete value={address} onChange={setAddress} placeholder="Søk adresse…" className="mt-1" />
           </div>
         </div>
       )}
