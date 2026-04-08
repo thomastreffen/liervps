@@ -95,6 +95,7 @@ interface MoreMenuItem {
 }
 
 const moreMenuItems: MoreMenuItem[] = [
+  { label: "Bestillinger", icon: ClipboardList, path: "/orders", moduleKey: "orders", modulePermission: "module.orders" },
   { label: "Fravær", icon: CalendarOff, path: "/absence", moduleKey: "absence", modulePermission: "module.absence" },
   { label: "Fakturagrunnlag", icon: Receipt, path: "/invoice-basis", moduleKey: "invoice_basis", modulePermission: "module.invoice_basis", requiredPermission: "jobs.view_pricing" },
   { label: "Fagstøtte", icon: BookOpen, path: "/fag", moduleKey: "fag", modulePermission: "module.fag", requiredPermission: "regulation.review" },
