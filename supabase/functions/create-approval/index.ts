@@ -396,26 +396,30 @@ Deno.serve(async (req) => {
       });
     }
 
-    // After processing all technicians, check if all are now approved → update job status
-    const hasSelfApproved = results.some((r: any) => r.autoApproved);
-    if (hasSelfApproved) {
-      const { data: allApprovals } = await supabaseAdmin
-        .from("job_approvals")
-        .select("status")
-        .eq("job_id", job_id);
+    // After processing: update job status
+    if (isTimeChange) {
+      // Time change: set status back to requested since approvals are reset
+      await supabaseAdmin.from("events").update({ status: "requested" }).eq("id", job_id);
+    } else {
+      const hasSelfApproved = results.some((r: any) => r.autoApproved);
+      if (hasSelfApproved) {
+        const { data: allApprovals } = await supabaseAdmin
+          .from("job_approvals")
+          .select("status")
+          .eq("job_id", job_id);
 
-      const allApproved = allApprovals && allApprovals.length > 0 && allApprovals.every((a: any) => a.status === "approved");
-      if (allApproved) {
-        await supabaseAdmin.from("events").update({ status: "scheduled" }).eq("id", job_id);
-        await supabaseAdmin.from("event_logs").insert({
-          event_id: job_id,
-          performed_by: callerUserId,
-          action_type: "status_change",
-          change_summary: "Alle montører godkjent – status satt til Planlagt",
-        });
-      } else {
-        // At least one self-approved, but others pending
-        await supabaseAdmin.from("events").update({ status: "approved" }).eq("id", job_id);
+        const allApproved = allApprovals && allApprovals.length > 0 && allApprovals.every((a: any) => a.status === "approved");
+        if (allApproved) {
+          await supabaseAdmin.from("events").update({ status: "scheduled" }).eq("id", job_id);
+          await supabaseAdmin.from("event_logs").insert({
+            event_id: job_id,
+            performed_by: callerUserId,
+            action_type: "status_change",
+            change_summary: "Alle montører godkjent – status satt til Planlagt",
+          });
+        } else {
+          await supabaseAdmin.from("events").update({ status: "approved" }).eq("id", job_id);
+        }
       }
     }
 
