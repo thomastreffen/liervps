@@ -65,7 +65,8 @@ function buildApprovalEmail(
   job: any,
   techName: string,
   token: string,
-  displayNumber: string
+  displayNumber: string,
+  isTimeChange: boolean = false
 ): { subject: string; body: string } {
   const startDate = new Date(job.start_time).toLocaleDateString("nb-NO", {
     weekday: "long", day: "numeric", month: "long", year: "numeric",
