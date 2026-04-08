@@ -7,6 +7,7 @@ import {
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { AddressAutocomplete } from "@/components/ui/address-autocomplete";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { TechnicianMultiSelect } from "./TechnicianMultiSelect";
@@ -267,7 +268,7 @@ export function JobDetailSheet({ job, open, onOpenChange, onDuplicate }: JobDeta
 
               <div>
                 <Label htmlFor="edit-address">Adresse</Label>
-                <Input id="edit-address" value={address} onChange={(e) => setAddress(e.target.value)} required className="mt-1" />
+                <AddressAutocomplete id="edit-address" value={address} onChange={setAddress} placeholder="Søk adresse…" required className="mt-1" />
               </div>
 
               <div className="grid grid-cols-2 gap-4">

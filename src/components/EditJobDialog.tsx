@@ -4,6 +4,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { AddressAutocomplete } from "@/components/ui/address-autocomplete";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
@@ -257,7 +258,7 @@ export function EditJobDialog({ open, onOpenChange, jobId, onSaved }: EditJobDia
 
             <div>
               <Label>Adresse</Label>
-              <Input value={address} onChange={(e) => setAddress(e.target.value)} required className="mt-1" />
+              <AddressAutocomplete value={address} onChange={setAddress} placeholder="Søk adresse…" required className="mt-1" />
             </div>
 
             {/* Start */}

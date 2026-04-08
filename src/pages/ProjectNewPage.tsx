@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { AddressAutocomplete } from "@/components/ui/address-autocomplete";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -287,7 +288,7 @@ export default function ProjectNewPage() {
 
               <div className="space-y-1.5">
                 <Label>Adresse</Label>
-                <Input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Prosjektadresse" />
+                <AddressAutocomplete value={address} onChange={setAddress} placeholder="Søk prosjektadresse…" />
               </div>
 
               <TechnicianMultiSelect selectedIds={techIds} onChange={setTechIds} />

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { AddressAutocomplete } from "@/components/ui/address-autocomplete";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
@@ -228,7 +229,7 @@ export function PlanJobDialog({
             <div className="space-y-3 border-t border-border/50 pt-3">
               <div className="space-y-1.5">
                 <Label>Adresse</Label>
-                <Input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="F.eks. Storgata 10, Oslo" />
+                <AddressAutocomplete value={address} onChange={setAddress} placeholder="Søk adresse…" />
               </div>
               <div className="space-y-1.5">
                 <Label>Notat til montør</Label>
