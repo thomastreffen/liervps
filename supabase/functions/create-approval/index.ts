@@ -79,7 +79,9 @@ function buildApprovalEmail(
   const rejectUrl = `${APP_URL}/approval/${token}?action=reject`;
   const jobUrl = `${APP_URL}/jobs/${job.id}`;
 
-  const subject = `Jobbforespørsel: ${displayNumber} – ${job.title}`;
+  const subject = isTimeChange
+    ? `Tidsendring: ${displayNumber} – ${job.title}`
+    : `Jobbforespørsel: ${displayNumber} – ${job.title}`;
 
   // Build description section
   const descriptionHtml = job.description
