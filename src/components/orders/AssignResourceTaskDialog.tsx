@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
+import { AddressAutocomplete } from "@/components/ui/address-autocomplete";
 import {
   Popover,
   PopoverContent,
@@ -23,7 +24,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { UserPlus, CalendarDays, Paperclip, CalendarIcon, Clock, ArrowRight } from "lucide-react";
+import { UserPlus, CalendarDays, Paperclip, CalendarIcon, Clock, ArrowRight, MapPin, Building2, Phone, User } from "lucide-react";
 import { TechnicianMultiSelect } from "@/components/TechnicianMultiSelect";
 import { format, setHours, setMinutes } from "date-fns";
 import { nb } from "date-fns/locale";
@@ -69,12 +70,40 @@ export function AssignResourceTaskDialog({
     return "";
   };
 
+  // Build a structured address from separate fields (street, postal code, city)
+  const buildFullAddress = (): string => {
+    const street = findVal("gateadresse", "gate_adresse", "besoksadresse", "besøksadresse", "anleggsadresse");
+    const postalCode = findVal("postnummer", "postnr");
+    const city = findVal("poststed", "by", "sted");
+    const buildingInfo = findVal("byggnummer", "bygg", "etasje");
+
+    const parts: string[] = [];
+    if (street) {
+      parts.push(buildingInfo ? `${street} ${buildingInfo}` : street);
+    }
+    if (postalCode || city) {
+      parts.push([postalCode, city].filter(Boolean).join(" "));
+    }
+    // If we found structured address parts, use them
+    if (parts.length > 0) return parts.join(", ");
+
+    // Fallback: look for a pre-formatted full address field
+    const fullAddr = findVal("full_adresse", "adresse_komplett");
+    if (fullAddr) return fullAddr;
+
+    // Last resort: use "adresse" field but only if it looks like a real address
+    // (contains a number, which place names typically don't)
+    const adresseVal = findVal("adresse");
+    if (adresseVal && /\d/.test(adresseVal)) return adresseVal;
+
+    return "";
+  };
+
   // Parse initial date from submission
   const parseInitialDate = (): Date | undefined => {
     const raw = findVal("oensket_dato", "onsket_utfort_dato", "onsket_dato", "dato", "oensket_utfoert_dato");
     if (!raw) return undefined;
     try {
-      // Handle various formats: "2026-03-25", "25.03.2026", etc.
       if (raw.includes("-")) return new Date(raw);
       if (raw.includes(".")) {
         const parts = raw.split(".");
@@ -89,7 +118,11 @@ export function AssignResourceTaskDialog({
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [address, setAddress] = useState("");
+  const [placeOfWork, setPlaceOfWork] = useState("");
   const [customer, setCustomer] = useState("");
+  const [contactPerson, setContactPerson] = useState("");
+  const [phone, setPhone] = useState("");
+  const [deliveryInfo, setDeliveryInfo] = useState("");
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
   const [startTime, setStartTime] = useState("08:00");
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
@@ -103,18 +136,22 @@ export function AssignResourceTaskDialog({
     const initialDate = parseInitialDate();
     setTitle(findVal("oppdragstittel") || summary?.oppdragstittel || `Oppgave fra ${submissionNo || "bestilling"}`);
     setDescription(findVal("arbeidsbeskrivelse", "detaljert_arbeidsbeskrivelse", "beskrivelse") || "");
-    setAddress(findVal("anleggsadresse", "oppdragssted", "adresse") || "");
+    
+    // Separate place-of-work name from actual physical address
+    setPlaceOfWork(findVal("oppdragssted", "oppdragssted_navn", "arbeidssted_navn", "anleggsnavn") || summary?.oppdragssted || "");
+    setAddress(buildFullAddress());
+    
     setCustomer(findVal("firmanavn", "kundenavn", "kunde") || summary?.kundenavn || "");
+    setContactPerson(findVal("kontaktperson", "kontaktperson_kunde", "kontakt") || summary?.kontaktperson || "");
+    setPhone(findVal("telefon", "mobilnummer", "tlf", "telefonnummer") || summary?.telefon || "");
+    setDeliveryInfo(findVal("leveranse", "materialinfo", "levering", "materiell") || "");
+    
     setStartDate(initialDate);
     setEndDate(initialDate);
     setStartTime("08:00");
     setEndTime("16:00");
     setSelectedTechIds([]);
     setIncludeAttachments(true);
-    // Log values for debugging
-    console.log("[AssignResourceTask] values keys:", Object.keys(values));
-    console.log("[AssignResourceTask] values:", values);
-    console.log("[AssignResourceTask] summary:", summary);
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const applyTime = (date: Date | undefined, time: string): Date => {
@@ -134,9 +171,15 @@ export function AssignResourceTaskDialog({
       const startTime = computedStart || new Date();
       const endTime = computedEnd || new Date(startTime.getTime() + 8 * 60 * 60 * 1000);
 
-      const descParts = [];
+      // Build a rich description with all context
+      const descParts: string[] = [];
+      if (submissionNo) descParts.push(`Bestilling: ${submissionNo}`);
       if (customer) descParts.push(`Kunde: ${customer}`);
+      if (contactPerson) descParts.push(`Kontaktperson: ${contactPerson}`);
+      if (phone) descParts.push(`Telefon: ${phone}`);
+      if (placeOfWork) descParts.push(`Oppdragssted: ${placeOfWork}`);
       if (address) descParts.push(`Adresse: ${address}`);
+      if (deliveryInfo) descParts.push(`Leveranse/materiell: ${deliveryInfo}`);
       if (description) descParts.push(`\n${description}`);
 
       const { data: newEvent, error: eventErr } = await supabase
@@ -273,11 +316,21 @@ export function AssignResourceTaskDialog({
             Tildel ressursoppgave
           </SheetTitle>
           <SheetDescription>
-            Opprett en oppgave i ressursplanen basert på bestillingen. Rediger data og velg montører.
+            Opprett en oppgave i ressursplanen basert på bestilling {submissionNo || ""}.
           </SheetDescription>
         </SheetHeader>
 
         <div className="mt-6 space-y-5">
+          {/* Order reference badge */}
+          {submissionNo && (
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className="text-xs font-mono">
+                {submissionNo}
+              </Badge>
+              <span className="text-xs text-muted-foreground">Kobling til bestilling bevares</span>
+            </div>
+          )}
+
           <div className="space-y-4">
             <div>
               <Label className="text-xs">Tittel</Label>
@@ -287,12 +340,54 @@ export function AssignResourceTaskDialog({
               <Label className="text-xs">Kunde</Label>
               <Input value={customer} onChange={(e) => setCustomer(e.target.value)} className="mt-1" />
             </div>
-            <div>
-              <Label className="text-xs">Adresse</Label>
-              <Input value={address} onChange={(e) => setAddress(e.target.value)} className="mt-1" />
+
+            {/* Contact person + phone in a row */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs flex items-center gap-1">
+                  <User className="h-3 w-3" /> Kontaktperson
+                </Label>
+                <Input value={contactPerson} onChange={(e) => setContactPerson(e.target.value)} className="mt-1" />
+              </div>
+              <div>
+                <Label className="text-xs flex items-center gap-1">
+                  <Phone className="h-3 w-3" /> Telefon
+                </Label>
+                <Input value={phone} onChange={(e) => setPhone(e.target.value)} className="mt-1" />
+              </div>
             </div>
+
+            {/* Place of work (name) vs actual address - clearly separated */}
+            <div className="rounded-lg border border-border/60 p-3 space-y-3 bg-muted/30">
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Lokasjon</p>
+              <div>
+                <Label className="text-xs flex items-center gap-1">
+                  <Building2 className="h-3 w-3" /> Oppdragssted (stedsnavn)
+                </Label>
+                <Input
+                  value={placeOfWork}
+                  onChange={(e) => setPlaceOfWork(e.target.value)}
+                  placeholder="F.eks. Veterinærhøyskolen"
+                  className="mt-1"
+                />
+                <p className="text-[10px] text-muted-foreground mt-0.5">Navn på bygning, anlegg eller lokasjon</p>
+              </div>
+              <div>
+                <Label className="text-xs flex items-center gap-1">
+                  <MapPin className="h-3 w-3" /> Besøksadresse
+                </Label>
+                <AddressAutocomplete
+                  value={address}
+                  onChange={setAddress}
+                  placeholder="Søk gateadresse…"
+                  className="mt-1"
+                />
+                <p className="text-[10px] text-muted-foreground mt-0.5">Faktisk gateadresse for navigasjon</p>
+              </div>
+            </div>
+
             <div>
-              <Label className="text-xs">Beskrivelse</Label>
+              <Label className="text-xs">Arbeidsbeskrivelse</Label>
               <Textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
@@ -300,7 +395,18 @@ export function AssignResourceTaskDialog({
               />
             </div>
 
-            {/* Date & time section - Fra / Til */}
+            {deliveryInfo && (
+              <div>
+                <Label className="text-xs">Leveranse / materiell</Label>
+                <Textarea
+                  value={deliveryInfo}
+                  onChange={(e) => setDeliveryInfo(e.target.value)}
+                  className="mt-1 min-h-[60px]"
+                />
+              </div>
+            )}
+
+            {/* Date & time section */}
             <div className="space-y-3">
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Tidspunkt</p>
 
@@ -386,7 +492,6 @@ export function AssignResourceTaskDialog({
                 </div>
               </div>
 
-              {/* Tidsrom preview */}
               {startDate && endDate && (
                 <p className="text-xs font-medium text-muted-foreground">
                   <span className="uppercase tracking-wider">Tidsrom</span>
