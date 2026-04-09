@@ -6209,6 +6209,56 @@ export type Database = {
           },
         ]
       }
+      order_form_messages: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          is_visible_to_customer: boolean
+          message_type: string
+          replied_at: string | null
+          requires_reply: boolean
+          sender_name: string | null
+          sender_type: string
+          sender_user_id: string | null
+          submission_id: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          id?: string
+          is_visible_to_customer?: boolean
+          message_type?: string
+          replied_at?: string | null
+          requires_reply?: boolean
+          sender_name?: string | null
+          sender_type: string
+          sender_user_id?: string | null
+          submission_id: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: string
+          is_visible_to_customer?: boolean
+          message_type?: string
+          replied_at?: string | null
+          requires_reply?: boolean
+          sender_name?: string | null
+          sender_type?: string
+          sender_user_id?: string | null
+          submission_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_form_messages_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "order_form_submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       order_form_submission_attachments: {
         Row: {
           category: string | null
@@ -6292,6 +6342,7 @@ export type Database = {
         Row: {
           assigned_to: string | null
           auto_notify_on_status_change: boolean | null
+          awaiting_customer_reply: boolean
           channel: string | null
           closed_at: string | null
           closed_by: string | null
@@ -6308,6 +6359,8 @@ export type Database = {
           external_status_updated_at: string | null
           id: string
           last_activity_at: string | null
+          last_admin_message_at: string | null
+          last_customer_message_at: string | null
           linked_case_id: string | null
           linked_customer_id: string | null
           linked_project_id: string | null
@@ -6317,6 +6370,7 @@ export type Database = {
           notification_recipient_phone: string | null
           notification_recipient_source: string | null
           notification_sent_at: string | null
+          open_request_message_id: string | null
           priority: string
           public_tracking_token: string | null
           quality_issues: Json | null
@@ -6337,6 +6391,7 @@ export type Database = {
         Insert: {
           assigned_to?: string | null
           auto_notify_on_status_change?: boolean | null
+          awaiting_customer_reply?: boolean
           channel?: string | null
           closed_at?: string | null
           closed_by?: string | null
@@ -6353,6 +6408,8 @@ export type Database = {
           external_status_updated_at?: string | null
           id?: string
           last_activity_at?: string | null
+          last_admin_message_at?: string | null
+          last_customer_message_at?: string | null
           linked_case_id?: string | null
           linked_customer_id?: string | null
           linked_project_id?: string | null
@@ -6362,6 +6419,7 @@ export type Database = {
           notification_recipient_phone?: string | null
           notification_recipient_source?: string | null
           notification_sent_at?: string | null
+          open_request_message_id?: string | null
           priority?: string
           public_tracking_token?: string | null
           quality_issues?: Json | null
@@ -6382,6 +6440,7 @@ export type Database = {
         Update: {
           assigned_to?: string | null
           auto_notify_on_status_change?: boolean | null
+          awaiting_customer_reply?: boolean
           channel?: string | null
           closed_at?: string | null
           closed_by?: string | null
@@ -6398,6 +6457,8 @@ export type Database = {
           external_status_updated_at?: string | null
           id?: string
           last_activity_at?: string | null
+          last_admin_message_at?: string | null
+          last_customer_message_at?: string | null
           linked_case_id?: string | null
           linked_customer_id?: string | null
           linked_project_id?: string | null
@@ -6407,6 +6468,7 @@ export type Database = {
           notification_recipient_phone?: string | null
           notification_recipient_source?: string | null
           notification_sent_at?: string | null
+          open_request_message_id?: string | null
           priority?: string
           public_tracking_token?: string | null
           quality_issues?: Json | null
@@ -6437,6 +6499,13 @@ export type Database = {
             columns: ["linked_case_id"]
             isOneToOne: false
             referencedRelation: "cases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_form_submissions_open_request_message_id_fkey"
+            columns: ["open_request_message_id"]
+            isOneToOne: false
+            referencedRelation: "order_form_messages"
             referencedColumns: ["id"]
           },
           {
