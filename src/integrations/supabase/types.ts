@@ -6218,6 +6218,9 @@ export type Database = {
           message_type: string
           replied_at: string | null
           requires_reply: boolean
+          review_status: string | null
+          reviewed_at: string | null
+          reviewed_by_user_id: string | null
           sender_name: string | null
           sender_type: string
           sender_user_id: string | null
@@ -6231,6 +6234,9 @@ export type Database = {
           message_type?: string
           replied_at?: string | null
           requires_reply?: boolean
+          review_status?: string | null
+          reviewed_at?: string | null
+          reviewed_by_user_id?: string | null
           sender_name?: string | null
           sender_type: string
           sender_user_id?: string | null
@@ -6244,6 +6250,9 @@ export type Database = {
           message_type?: string
           replied_at?: string | null
           requires_reply?: boolean
+          review_status?: string | null
+          reviewed_at?: string | null
+          reviewed_by_user_id?: string | null
           sender_name?: string | null
           sender_type?: string
           sender_user_id?: string | null
