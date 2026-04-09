@@ -1102,7 +1102,13 @@ export default function OrderFormDetailPage() {
                   Venter på svar fra bestiller
                 </div>
               )}
-              {isWaitingOnUs && !isClosed && (
+              {!isWaitingOnCustomer && hasUnreviewedReply && (
+                <div className="flex items-center gap-1.5 text-xs px-2 py-1.5 rounded-md bg-green-50 text-green-700 border border-green-200">
+                  <MessageSquare className="h-3 w-3" />
+                  Kundesvar mottatt — venter på vurdering
+                </div>
+              )}
+              {isWaitingOnUs && !hasUnreviewedReply && !isClosed && (
                 <div className="flex items-center gap-1.5 text-xs px-2 py-1.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200">
                   <Clock className="h-3 w-3" />
                   Bestiller venter på oss
