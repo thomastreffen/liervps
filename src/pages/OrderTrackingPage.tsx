@@ -318,11 +318,31 @@ export default function OrderTrackingPage() {
       }
 
       // Mark open request as replied
+      const wasOpenRequest = !!openRequest;
       if (openRequest) {
         await supabase.from("order_form_messages")
           .update({ replied_at: new Date().toISOString() } as any)
           .eq("id", openRequest.id);
       }
+
+      // Check if there are remaining open requests (besides the one we just closed)
+      let hasRemainingOpenRequests = false;
+      if (wasOpenRequest) {
+        const { data: remaining } = await supabase
+          .from("order_form_messages")
+          .select("id")
+          .eq("submission_id", submission.id)
+          .eq("message_type", "request_info")
+          .eq("requires_reply", true)
+          .is("replied_at", null)
+          .neq("id", openRequest!.id);
+        hasRemainingOpenRequests = (remaining?.length ?? 0) > 0;
+      }
+
+      // Determine if we should auto-change status
+      const shouldAutoUpdateStatus = wasOpenRequest 
+        && !hasRemainingOpenRequests
+        && ["missing_info", "waiting_customer"].includes(sub.status);
 
       // Update submission flags
       await supabase.from("order_form_submissions")
@@ -330,19 +350,34 @@ export default function OrderTrackingPage() {
           customer_last_reply_at: new Date().toISOString(),
           last_activity_at: new Date().toISOString(),
           last_customer_message_at: new Date().toISOString(),
-          awaiting_customer_reply: false,
-          open_request_message_id: null,
-          // Move back to under_review if it was waiting
-          ...(["missing_info", "waiting_customer"].includes(sub.status) ? { status: "under_review" } : {}),
+          ...(wasOpenRequest ? { awaiting_customer_reply: false, open_request_message_id: null } : {}),
+          ...(shouldAutoUpdateStatus ? { status: "under_review" } : {}),
         } as any)
         .eq("id", submission.id);
 
       // Log activity
+      const logPayload: any = { has_text: !!replyText.trim(), file_count: replyFiles.length };
+      if (shouldAutoUpdateStatus) {
+        logPayload.auto_status_change = { from: sub.status, to: "under_review" };
+      }
       await supabase.from("order_form_activity_log").insert({
         submission_id: submission.id,
         event_type: "customer_reply",
-        payload: { has_text: !!replyText.trim(), file_count: replyFiles.length },
+        payload: logPayload,
       } as any);
+
+      // Log system event for auto status change
+      if (shouldAutoUpdateStatus) {
+        await supabase.from("order_form_activity_log").insert({
+          submission_id: submission.id,
+          event_type: "auto_status_change",
+          payload: {
+            from: sub.status,
+            to: "under_review",
+            reason: "Kundesvar mottatt på åpen forespørsel. Status endret automatisk fra Mangler info til Til vurdering.",
+          },
+        } as any);
+      }
     },
     onSuccess: () => {
       setReplyText("");
