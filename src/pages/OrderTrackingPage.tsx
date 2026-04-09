@@ -164,13 +164,19 @@ export default function OrderTrackingPage() {
     queryKey: ["tracking", token],
     enabled: !!token,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("order_form_submissions")
-        .select("*, order_form_templates(name, external_title)")
-        .eq("public_tracking_token", token!)
+      // Use RPC for token-scoped access (no broad anon SELECT policy)
+      const { data: rpcData, error: rpcErr } = await supabase
+        .rpc("get_submission_by_tracking_token", { _token: token! });
+      if (rpcErr) throw rpcErr;
+      const sub = Array.isArray(rpcData) ? rpcData[0] : rpcData;
+      if (!sub) return null;
+      // Fetch template info separately
+      const { data: tmpl } = await supabase
+        .from("order_form_templates")
+        .select("name, external_title")
+        .eq("id", sub.template_id)
         .maybeSingle();
-      if (error) throw error;
-      return data;
+      return { ...sub, order_form_templates: tmpl };
     },
   });
 
