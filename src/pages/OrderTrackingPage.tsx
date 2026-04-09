@@ -180,54 +180,42 @@ export default function OrderTrackingPage() {
 
   const { data: values = [] } = useQuery({
     queryKey: ["tracking-values", submission?.id],
-    enabled: !!submission?.id,
+    enabled: !!token,
     queryFn: async () => {
       const { data } = await supabase
-        .from("order_form_submission_values")
-        .select("*")
-        .eq("submission_id", submission!.id);
+        .rpc("get_submission_values_by_token", { _token: token! });
       return data || [];
     },
   });
 
   // Fetch messages from new order_form_messages table
   const { data: messages = [] } = useQuery({
-    queryKey: ["tracking-messages", submission?.id],
-    enabled: !!submission?.id,
+    queryKey: ["tracking-messages", token],
+    enabled: !!token,
     queryFn: async () => {
       const { data } = await supabase
-        .from("order_form_messages")
-        .select("*")
-        .eq("submission_id", submission!.id)
-        .eq("is_visible_to_customer", true)
-        .order("created_at", { ascending: true });
+        .rpc("get_submission_messages_by_token", { _token: token! });
       return data || [];
     },
   });
 
   // Fallback: also fetch old comments for backward compat
   const { data: legacyComments = [] } = useQuery({
-    queryKey: ["tracking-comments-legacy", submission?.id],
-    enabled: !!submission?.id,
+    queryKey: ["tracking-comments-legacy", token],
+    enabled: !!token,
     queryFn: async () => {
       const { data } = await supabase
-        .from("order_form_comments")
-        .select("*")
-        .eq("submission_id", submission!.id)
-        .order("created_at", { ascending: true });
+        .rpc("get_submission_comments_by_token", { _token: token! });
       return data || [];
     },
   });
 
   const { data: attachments = [] } = useQuery({
-    queryKey: ["tracking-attachments", submission?.id],
-    enabled: !!submission?.id,
+    queryKey: ["tracking-attachments", token],
+    enabled: !!token,
     queryFn: async () => {
       const { data } = await supabase
-        .from("order_form_submission_attachments")
-        .select("*")
-        .eq("submission_id", submission!.id)
-        .order("uploaded_at", { ascending: true });
+        .rpc("get_submission_attachments_by_token", { _token: token! });
       return data || [];
     },
   });
