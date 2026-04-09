@@ -1104,53 +1104,136 @@ export default function OrderFormDetailPage() {
             </CardContent>
           </Card>
 
-          {/* Comments */}
+          {/* Messages - unified view */}
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm flex items-center gap-2">
                 <MessageSquare className="h-4 w-4" />
                 Meldinger
+                {(orderMessages as any[]).some((m: any) => m.sender_type === "customer") && (
+                  <Badge variant="outline" className="text-[9px] bg-green-50 text-green-700 border-green-200 ml-auto">
+                    Kundesvar mottatt
+                  </Badge>
+                )}
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-3 mb-3 max-h-64 overflow-y-auto">
-                {comments.length === 0 ? (
-                  <p className="text-xs text-muted-foreground">Ingen meldinger ennå</p>
-                ) : (
-                  comments.map((c: any) => (
-                    <div key={c.id} className={`text-sm border-l-2 pl-3 ${
-                      c.comment_type === "missing_info_request" ? "border-amber-400"
-                      : c.visibility === "shared" || c.is_customer_reply ? "border-primary/60"
-                      : "border-border"
-                    }`}>
-                      {c.comment_type === "missing_info_request" && (
-                        <Badge variant="outline" className="text-[9px] mb-1 bg-amber-50 text-amber-700 border-amber-200">
-                          Forespørsel sendt til bestiller
-                        </Badge>
-                      )}
-                      {c.visibility === "shared" && !c.is_customer_reply && c.comment_type !== "missing_info_request" && (
-                        <Badge variant="outline" className="text-[9px] mb-1 bg-primary/10 text-primary border-primary/20">
-                          Synlig for bestiller
-                        </Badge>
-                      )}
-                      {c.is_customer_reply && (
-                        <Badge variant="outline" className="text-[9px] mb-1 bg-green-50 text-green-700 border-green-200">
-                          Svar fra bestiller
-                        </Badge>
-                      )}
-                      {!c.visibility || (c.visibility === "internal" && !c.is_customer_reply && c.comment_type !== "missing_info_request") ? (
-                        <Badge variant="outline" className="text-[9px] mb-1 text-muted-foreground">
-                          Intern
-                        </Badge>
-                      ) : null}
+              {/* New messages from order_form_messages */}
+              {(orderMessages as any[]).length > 0 && (
+                <div className="space-y-3 mb-3 max-h-64 overflow-y-auto">
+                  {(orderMessages as any[]).map((m: any) => {
+                    const isCustomer = m.sender_type === "customer";
+                    const isRequestInfo = m.message_type === "request_info";
+                    const isSystem = m.sender_type === "system";
+
+                    return (
+                      <div key={m.id} className={`text-sm border-l-2 pl-3 ${
+                        isRequestInfo ? "border-amber-400"
+                        : isCustomer ? "border-green-400"
+                        : m.is_visible_to_customer ? "border-primary/60"
+                        : "border-border"
+                      }`}>
+                        {isRequestInfo && (
+                          <Badge variant="outline" className="text-[9px] mb-1 bg-amber-50 text-amber-700 border-amber-200">
+                            Forespørsel om mer info
+                          </Badge>
+                        )}
+                        {isCustomer && (
+                          <Badge variant="outline" className="text-[9px] mb-1 bg-green-50 text-green-700 border-green-200">
+                            Svar fra bestiller
+                          </Badge>
+                        )}
+                        {!isCustomer && !isRequestInfo && !isSystem && m.is_visible_to_customer && (
+                          <Badge variant="outline" className="text-[9px] mb-1 bg-primary/10 text-primary border-primary/20">
+                            Delt med bestiller
+                          </Badge>
+                        )}
+                        {!m.is_visible_to_customer && !isCustomer && (
+                          <Badge variant="outline" className="text-[9px] mb-1 text-muted-foreground">
+                            Intern
+                          </Badge>
+                        )}
+                        <p className="whitespace-pre-wrap">{m.body}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-[10px] text-muted-foreground">
+                            {m.sender_name || (isCustomer ? "Bestiller" : "Saksbehandler")} · {format(new Date(m.created_at), "d. MMM HH:mm", { locale: nb })}
+                          </span>
+                          {isRequestInfo && m.requires_reply && (
+                            m.replied_at ? (
+                              <Badge variant="outline" className="text-[8px] bg-green-50 text-green-600 border-green-200">
+                                Besvart
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="text-[8px] bg-amber-50 text-amber-600 border-amber-200">
+                                Venter svar
+                              </Badge>
+                            )
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Legacy comments (shown if no new messages, or internal ones) */}
+              {(orderMessages as any[]).length === 0 && (
+                <div className="space-y-3 mb-3 max-h-64 overflow-y-auto">
+                  {comments.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">Ingen meldinger ennå</p>
+                  ) : (
+                    comments.map((c: any) => (
+                      <div key={c.id} className={`text-sm border-l-2 pl-3 ${
+                        c.comment_type === "missing_info_request" ? "border-amber-400"
+                        : c.visibility === "shared" || c.is_customer_reply ? "border-primary/60"
+                        : "border-border"
+                      }`}>
+                        {c.comment_type === "missing_info_request" && (
+                          <Badge variant="outline" className="text-[9px] mb-1 bg-amber-50 text-amber-700 border-amber-200">
+                            Forespørsel sendt til bestiller
+                          </Badge>
+                        )}
+                        {c.visibility === "shared" && !c.is_customer_reply && c.comment_type !== "missing_info_request" && (
+                          <Badge variant="outline" className="text-[9px] mb-1 bg-primary/10 text-primary border-primary/20">
+                            Synlig for bestiller
+                          </Badge>
+                        )}
+                        {c.is_customer_reply && (
+                          <Badge variant="outline" className="text-[9px] mb-1 bg-green-50 text-green-700 border-green-200">
+                            Svar fra bestiller
+                          </Badge>
+                        )}
+                        {!c.visibility || (c.visibility === "internal" && !c.is_customer_reply && c.comment_type !== "missing_info_request") ? (
+                          <Badge variant="outline" className="text-[9px] mb-1 text-muted-foreground">
+                            Intern
+                          </Badge>
+                        ) : null}
+                        <p className="whitespace-pre-wrap">{c.body}</p>
+                        <span className="text-[10px] text-muted-foreground">
+                          {format(new Date(c.created_at), "d. MMM HH:mm", { locale: nb })}
+                        </span>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+
+              {/* Internal-only comments when new messages exist */}
+              {(orderMessages as any[]).length > 0 && comments.filter((c: any) => c.visibility === "internal" && !c.is_customer_reply && c.comment_type !== "missing_info_request").length > 0 && (
+                <div className="space-y-2 mb-3 pt-2 border-t">
+                  <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Interne notater</span>
+                  {comments.filter((c: any) => c.visibility === "internal" && !c.is_customer_reply && c.comment_type !== "missing_info_request").map((c: any) => (
+                    <div key={c.id} className="text-sm border-l-2 pl-3 border-border">
+                      <Badge variant="outline" className="text-[9px] mb-1 text-muted-foreground">Intern</Badge>
                       <p className="whitespace-pre-wrap">{c.body}</p>
                       <span className="text-[10px] text-muted-foreground">
                         {format(new Date(c.created_at), "d. MMM HH:mm", { locale: nb })}
                       </span>
                     </div>
-                  ))
-                )}
-              </div>
+                  ))}
+                </div>
+              )}
+
               <div className="space-y-2">
                 <Textarea
                   placeholder="Skriv melding..."
@@ -1188,7 +1271,7 @@ export default function OrderFormDetailPage() {
                 </div>
                 {commentVisibility === "shared" && (
                   <p className="text-[10px] text-muted-foreground">
-                    Meldingen blir synlig på bestillerens sporingsside. E-postvarsling sendes ikke automatisk.
+                    Meldingen blir synlig på bestillerens sporingsside.
                   </p>
                 )}
               </div>
