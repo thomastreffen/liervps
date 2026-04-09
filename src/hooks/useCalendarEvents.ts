@@ -126,6 +126,8 @@ export function useCalendarEvents(technicianId: string | null, referenceDate?: D
             color: et.technicians.color,
             eventTechnicianId: et.id ?? null,
             calendarEventId: et.calendar_event_id ?? null,
+            startAt: et.start_at ? parseUtc(et.start_at) : null,
+            endAt: et.end_at ? parseUtc(et.end_at) : null,
           }));
 
         return {
