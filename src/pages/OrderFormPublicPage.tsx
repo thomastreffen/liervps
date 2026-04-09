@@ -197,8 +197,10 @@ export default function OrderFormPublicPage() {
       const recipientName = findFormVal("bestiller_navn", "kontaktperson", "kontaktperson_kunde");
       const recipientPhone = findFormVal("bestiller_telefon", "telefon_kunde", "telefon", "kontakt_telefon");
       const recipientSource = hasBestillerFields ? "bestiller_fields" : "auto";
+      // Generate tracking token client-side to avoid needing anon SELECT after INSERT
+      const trackingToken = crypto.randomUUID();
 
-      const { data: subData, error: subErr } = await supabase.from("order_form_submissions").insert({
+      const { error: subErr } = await supabase.from("order_form_submissions").insert({
         id: submissionId,
         company_id: template.company_id,
         template_id: template.id,
@@ -213,7 +215,8 @@ export default function OrderFormPublicPage() {
         notification_recipient_name: recipientName,
         notification_recipient_phone: recipientPhone,
         notification_recipient_source: recipientSource,
-      } as any).select("submission_no, public_tracking_token").single();
+        public_tracking_token: trackingToken,
+      } as any);
       if (subErr) throw subErr;
 
       const valueRows = Object.entries(formData)
