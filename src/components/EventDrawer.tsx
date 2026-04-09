@@ -500,18 +500,24 @@ export function EventDrawer({
         toast.success("Hendelse oppdatert", { description: "Tid og ressurser er lagret." });
         onSaved?.(editEvent.id);
       } else if (mode === "existing" && selectedJobId) {
-        const updatePayload: Record<string, any> = {};
-        if (date) {
-          const { startISO, endISO } = normalizeOvernightDates(date, startTime, endDate, endTime);
-          updatePayload.start_time = startISO;
-          updatePayload.end_time = endISO;
-        }
+        // Link technicians to existing project + create per-tech time entries
+        // Do NOT overwrite the project's own start_time/end_time
+        const { startISO, endISO } = date
+          ? normalizeOvernightDates(date, startTime, endDate, endTime)
+          : { startISO: null, endISO: null };
+
         if (assignmentNotes.trim()) {
-          updatePayload.assignment_notes = assignmentNotes.trim();
+          await (supabase as any).from("events")
+            .update({ assignment_notes: assignmentNotes.trim() })
+            .eq("id", selectedJobId);
         }
-        if (Object.keys(updatePayload).length > 0) {
-          await (supabase as any).from("events").update(updatePayload).eq("id", selectedJobId);
-        }
+
+        // Get company_id from the existing event
+        const { data: evtData } = await supabase.from("events")
+          .select("company_id")
+          .eq("id", selectedJobId)
+          .single();
+        const evtCompanyId = (evtData as any)?.company_id;
 
         const { data: existing } = await supabase
           .from("event_technicians").select("technician_id").eq("event_id", selectedJobId);
@@ -519,9 +525,34 @@ export function EventDrawer({
         const newTechs = techIds.filter((id) => !existingIds.has(id));
 
         if (newTechs.length > 0) {
+          // Insert event_technicians with per-tech time overrides
           await supabase.from("event_technicians").insert(
-            newTechs.map((tid) => ({ event_id: selectedJobId, technician_id: tid }))
+            newTechs.map((tid) => ({
+              event_id: selectedJobId,
+              technician_id: tid,
+              ...(startISO ? { start_at: startISO } : {}),
+              ...(endISO ? { end_at: endISO } : {}),
+            } as any))
           );
+
+          // Create schedule_blocks for each new tech on this date
+          if (startISO && endISO && evtCompanyId) {
+            for (const tid of newTechs) {
+              await (supabase as any).from("schedule_blocks").insert({
+                company_id: evtCompanyId,
+                technician_id: tid,
+                project_id: selectedJobId,
+                source: "manual",
+                start_at: startISO,
+                end_at: endISO,
+                title: title || "Prosjektarbeid",
+                match_state: "manual",
+                match_confidence: 100,
+                match_reason: "Montør tildelt via planlegger",
+              });
+            }
+          }
+
           await supabase.functions.invoke("create-approval", {
             body: {
               job_id: selectedJobId,
@@ -530,6 +561,22 @@ export function EventDrawer({
               response_required: reminderConfig.responseRequired,
             },
           });
+        } else if (startISO && endISO && evtCompanyId) {
+          // Existing techs but new date: create additional schedule_blocks
+          for (const tid of techIds) {
+            await (supabase as any).from("schedule_blocks").insert({
+              company_id: evtCompanyId,
+              technician_id: tid,
+              project_id: selectedJobId,
+              source: "manual",
+              start_at: startISO,
+              end_at: endISO,
+              title: title || "Prosjektarbeid",
+              match_state: "manual",
+              match_confidence: 100,
+              match_reason: "Ekstra dag lagt til via planlegger",
+            });
+          }
         }
 
         // Upload attachments for existing job
