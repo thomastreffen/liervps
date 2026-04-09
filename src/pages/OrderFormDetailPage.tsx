@@ -323,18 +323,50 @@ export default function OrderFormDetailPage() {
   const addComment = useMutation({
     mutationFn: async () => {
       if (!comment.trim()) return;
+      const isShared = commentVisibility === "shared";
+
+      // Write to legacy comments
       const { error } = await supabase.from("order_form_comments").insert({
         submission_id: id!,
         body: comment.trim(),
-        comment_type: commentVisibility === "shared" ? "shared_message" : "internal",
+        comment_type: isShared ? "shared_message" : "internal",
         visibility: commentVisibility,
         created_by: user?.id,
       } as any);
       if (error) throw error;
+
+      // Also write to new messages table if shared
+      if (isShared) {
+        // Get sender name
+        const { data: ua } = await supabase
+          .from("user_accounts")
+          .select("person:people(full_name)")
+          .eq("auth_user_id", user?.id!)
+          .eq("is_active", true)
+          .maybeSingle();
+        const senderName = (ua as any)?.person?.full_name || "Saksbehandler";
+
+        await supabase.from("order_form_messages").insert({
+          submission_id: id!,
+          sender_type: "admin",
+          sender_user_id: user?.id,
+          sender_name: senderName,
+          message_type: "message",
+          body: comment.trim(),
+          is_visible_to_customer: true,
+          requires_reply: false,
+        } as any);
+
+        // Update last_admin_message_at
+        await supabase.from("order_form_submissions")
+          .update({ last_admin_message_at: new Date().toISOString(), last_activity_at: new Date().toISOString() } as any)
+          .eq("id", id!);
+      }
     },
     onSuccess: () => {
       setComment("");
       qc.invalidateQueries({ queryKey: ["order-form-comments", id] });
+      qc.invalidateQueries({ queryKey: ["order-form-messages", id] });
       toast.success(commentVisibility === "shared" ? "Melding delt med bestiller" : "Intern kommentar lagt til");
     },
   });
