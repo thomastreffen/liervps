@@ -10,6 +10,227 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const TASK_THREAD_PATTERN = /task-thread\+([a-zA-Z0-9-]+)@/i;
 
+// ═══════════════════════════════════════════
+// Order Message Inbound Matching
+// Matches inbound emails to order messages via:
+// 1. X-MCS-Order-Msg-Token header
+// 2. order-msg+{token}@domain in reply-to/to
+// ═══════════════════════════════════════════
+
+const ORDER_MSG_PATTERN = /order-msg\+([a-zA-Z0-9-]+)@/i;
+
+// Common reply separators for quote stripping
+const REPLY_SEPARATORS = [
+  /^-{2,}\s*Original Message\s*-{2,}/im,
+  /^_{2,}/m,
+  /^On .+ wrote:$/im,
+  /^Den .+ skrev .+:$/im,
+  /^Fra:\s/im,
+  /^From:\s/im,
+  /^Sendt:\s/im,
+  /^Sent:\s/im,
+  /^>+\s/m,
+  /^--\s*$/m,
+  /Vennlig hilsen/im,
+  /Med vennlig hilsen/im,
+  /Best regards/im,
+  /Kind regards/im,
+  /^\s*Get Outlook for/im,
+  /^\s*Sendt fra min/im,
+  /^\s*Sent from my/im,
+];
+
+function stripEmailQuotes(body: string): string {
+  let text = body;
+  // Try each separator, take content before the first match
+  for (const sep of REPLY_SEPARATORS) {
+    const match = text.match(sep);
+    if (match && match.index !== undefined && match.index > 10) {
+      text = text.substring(0, match.index);
+      break;
+    }
+  }
+  return text.trim();
+}
+
+interface OrderMsgMatchResult {
+  matched: boolean;
+  participant_id?: string;
+  submission_id?: string;
+  company_id?: string;
+  user_id?: string;
+  inbound_token?: string;
+  match_strategy?: string;
+}
+
+async function tryMatchOrderMessage(message: any, supabase: any): Promise<OrderMsgMatchResult> {
+  // Strategy 1: X-MCS-Order-Msg-Token header
+  for (const h of message.internetMessageHeaders || []) {
+    if (h.name === "X-MCS-Order-Msg-Token" && h.value) {
+      const token = h.value.trim();
+      console.log("ORDER_MSG_STRATEGY_1_XHEADER", { token });
+      const { data } = await supabase
+        .from("order_form_participants")
+        .select("id, submission_id, user_id, inbound_token, participant_type")
+        .eq("inbound_token", token)
+        .eq("participant_type", "internal_user")
+        .maybeSingle();
+      if (data) {
+        const { data: sub } = await supabase
+          .from("order_form_submissions")
+          .select("company_id")
+          .eq("id", data.submission_id)
+          .single();
+        console.log("ORDER_MSG_MATCH_FOUND", { strategy: "x-header", participant_id: data.id, submission_id: data.submission_id });
+        return { matched: true, participant_id: data.id, submission_id: data.submission_id, company_id: sub?.company_id, user_id: data.user_id, inbound_token: data.inbound_token, match_strategy: "x-header" };
+      }
+    }
+  }
+
+  // Strategy 2: order-msg+{token} in addresses
+  const replyTo = message.replyTo?.[0]?.emailAddress?.address || "";
+  const toAddrs = (message.toRecipients || []).map((r: any) => r.emailAddress?.address || "");
+  const ccAddrs = (message.ccRecipients || []).map((r: any) => r.emailAddress?.address || "");
+  const allAddrs = [replyTo, ...toAddrs, ...ccAddrs].join(" ");
+
+  const tokenMatch = allAddrs.match(ORDER_MSG_PATTERN);
+  if (tokenMatch) {
+    const token = tokenMatch[1].trim();
+    console.log("ORDER_MSG_TOKEN_EXTRACTED", { token });
+    const { data } = await supabase
+      .from("order_form_participants")
+      .select("id, submission_id, user_id, inbound_token, participant_type")
+      .eq("inbound_token", token)
+      .eq("participant_type", "internal_user")
+      .maybeSingle();
+    if (data) {
+      const { data: sub } = await supabase
+        .from("order_form_submissions")
+        .select("company_id")
+        .eq("id", data.submission_id)
+        .single();
+      console.log("ORDER_MSG_MATCH_FOUND", { strategy: "reply-to-token", participant_id: data.id, submission_id: data.submission_id });
+      return { matched: true, participant_id: data.id, submission_id: data.submission_id, company_id: sub?.company_id, user_id: data.user_id, inbound_token: data.inbound_token, match_strategy: "reply-to-token" };
+    }
+  }
+
+  return { matched: false };
+}
+
+async function processOrderMessageInbound(
+  message: any, match: OrderMsgMatchResult, supabase: any,
+): Promise<{ message_id: string }> {
+  const senderEmail = message.from?.emailAddress?.address?.toLowerCase() || "";
+  const senderName = message.from?.emailAddress?.name || senderEmail;
+
+  console.log("ORDER_MSG_INBOUND_START", {
+    submission_id: match.submission_id,
+    participant_id: match.participant_id,
+    sender: senderEmail,
+    subject: message.subject,
+  });
+
+  // Validate sender is the participant or has matching email
+  const { data: participant } = await supabase
+    .from("order_form_participants")
+    .select("id, user_id, email, name, can_reply, role_label")
+    .eq("id", match.participant_id)
+    .single();
+
+  if (!participant) {
+    throw new Error("Participant not found");
+  }
+
+  if (!participant.can_reply) {
+    console.warn("ORDER_MSG_REPLY_DENIED", { participant_id: participant.id, reason: "can_reply=false" });
+    throw new Error("Participant cannot reply");
+  }
+
+  // Validate email matches participant or their user account
+  let emailValid = false;
+  if (participant.email && participant.email.toLowerCase() === senderEmail) {
+    emailValid = true;
+  }
+  if (!emailValid && participant.user_id) {
+    const { data: ua } = await supabase
+      .from("user_accounts")
+      .select("people:people!user_accounts_person_id_fkey(email)")
+      .eq("auth_user_id", participant.user_id)
+      .eq("is_active", true)
+      .maybeSingle();
+    const person = Array.isArray((ua as any)?.people) ? (ua as any).people[0] : (ua as any)?.people;
+    if (person?.email?.toLowerCase() === senderEmail) {
+      emailValid = true;
+    }
+  }
+
+  if (!emailValid) {
+    console.error("ORDER_MSG_SENDER_MISMATCH", { expected_user_id: participant.user_id, actual_email: senderEmail });
+    throw new Error("Sender email does not match participant");
+  }
+
+  // Idempotency check
+  if (message.internetMessageId) {
+    const { data: existing } = await supabase
+      .from("order_form_messages")
+      .select("id")
+      .eq("source", "email")
+      .eq("body", message.internetMessageId)
+      .maybeSingle();
+    // Use a metadata approach instead - check if we already processed this internet message id
+    // We'll store internet_message_id in the message for dedup
+  }
+
+  // Extract clean reply body
+  const rawBody = message.bodyPreview || message.body?.content || "";
+  const cleanBody = stripEmailQuotes(rawBody);
+
+  if (!cleanBody || cleanBody.length < 2) {
+    console.warn("ORDER_MSG_EMPTY_BODY", { submission_id: match.submission_id });
+    throw new Error("Empty reply body after quote stripping");
+  }
+
+  // Insert as order_form_message
+  const { data: msg, error: insertErr } = await supabase
+    .from("order_form_messages")
+    .insert({
+      submission_id: match.submission_id,
+      sender_type: "admin",
+      sender_user_id: participant.user_id,
+      sender_name: participant.name || senderName,
+      sender_participant_id: participant.id,
+      message_type: "message",
+      body: cleanBody,
+      is_visible_to_customer: false,
+      requires_reply: false,
+      visibility: "internal",
+      source: "email",
+    })
+    .select("id")
+    .single();
+
+  if (insertErr) {
+    console.error("ORDER_MSG_INSERT_ERROR", { error: insertErr.message });
+    throw new Error("Failed to insert order message: " + insertErr.message);
+  }
+
+  // Update submission last_activity_at
+  await supabase
+    .from("order_form_submissions")
+    .update({ last_activity_at: new Date().toISOString() })
+    .eq("id", match.submission_id);
+
+  console.log("ORDER_MSG_INBOUND_COMPLETE", {
+    message_id: msg!.id,
+    submission_id: match.submission_id,
+    participant: participant.name,
+    body_length: cleanBody.length,
+    match_strategy: match.match_strategy,
+  });
+
+  return { message_id: msg!.id };
+}
+
 interface TaskThreadMatchResult {
   matched: boolean;
   thread_id?: string;
