@@ -164,7 +164,7 @@ export default function OverviewPage() {
       deviationsRes, ordersRes, invoiceRes, leadsRes, calcsRes,
     ] = await Promise.all([
       techPromise, projectQuery, allProjQuery, todayJobsQuery,
-      overbookedQuery, deviationsQuery, ordersQuery, invoiceRes || invoiceQuery, leadsPromise, calcsQuery,
+      overbookedQuery, deviationsQuery, ordersQuery, invoiceQuery, leadsPromise, calcsQuery,
     ]);
 
     const techId = techRes.data?.id;
