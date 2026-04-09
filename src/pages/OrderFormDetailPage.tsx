@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -55,6 +55,7 @@ import { AssignResourceTaskDialog } from "@/components/orders/AssignResourceTask
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { LinkedTaskSection } from "@/components/orders/LinkedTaskSection";
+import { deriveOrderConversationState } from "@/lib/order-request-state";
 
 export default function OrderFormDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -237,6 +238,56 @@ export default function OrderFormDetailPage() {
     return map;
   }, [values]);
 
+  const conversationState = useMemo(
+    () => deriveOrderConversationState(submission?.status, orderMessages as any[], comments as any[]),
+    [submission?.status, orderMessages, comments],
+  );
+
+  const autoStatusSyncRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    const targetStatus = conversationState.statusSyncTarget;
+
+    if (!id || !submission?.status || !targetStatus) {
+      autoStatusSyncRef.current = null;
+      return;
+    }
+
+    const syncKey = `${id}:${submission.status}->${targetStatus}`;
+    if (autoStatusSyncRef.current === syncKey) return;
+    autoStatusSyncRef.current = syncKey;
+
+    (async () => {
+      const { error } = await supabase
+        .from("order_form_submissions")
+        .update({
+          status: targetStatus,
+          external_status: mapToExternalStatus(targetStatus),
+          external_status_updated_at: new Date().toISOString(),
+        } as any)
+        .eq("id", id);
+
+      if (error) {
+        console.error("Failed to auto-sync order status from conversation state", error);
+        return;
+      }
+
+      await supabase.from("order_form_activity_log").insert({
+        submission_id: id,
+        event_type: "auto_status_change",
+        payload: {
+          from: submission.status,
+          to: targetStatus,
+          reason: "Kundesvar er mottatt og ingen åpen forespørsel finnes. Status synkronisert til Til vurdering.",
+        },
+        created_by: user?.id,
+      } as any);
+
+      qc.invalidateQueries({ queryKey: ["order-form-submission", id] });
+      qc.invalidateQueries({ queryKey: ["order-form-activity", id] });
+    })();
+  }, [conversationState.statusSyncTarget, id, submission?.status, qc, user?.id]);
+
   const findVal = useCallback((...prefixes: string[]): string => {
     for (const prefix of prefixes) {
       if (valuesMap[prefix]) return String(valuesMap[prefix]);
@@ -286,9 +337,14 @@ export default function OrderFormDetailPage() {
 
   const updateStatus = useMutation({
     mutationFn: async (newStatus: string) => {
+      const nextStatus = newStatus as OrderFormSubmissionStatus;
       const { error } = await supabase
         .from("order_form_submissions")
-        .update({ status: newStatus })
+        .update({
+          status: newStatus,
+          external_status: mapToExternalStatus(nextStatus),
+          external_status_updated_at: new Date().toISOString(),
+        } as any)
         .eq("id", id!);
       if (error) throw error;
       await supabase.from("order_form_activity_log").insert({
@@ -507,11 +563,12 @@ export default function OrderFormDetailPage() {
 
   if (!submission) return <div className="p-6 text-center text-muted-foreground">Ikke funnet</div>;
 
-  const statusConfig = ORDER_STATUS_CONFIG[submission.status as OrderFormSubmissionStatus];
+  const effectiveStatus = conversationState.effectiveInternalStatus;
+  const statusConfig = ORDER_STATUS_CONFIG[effectiveStatus];
   const priorityConfig = ORDER_PRIORITY_CONFIG[submission.priority];
   const sub = submission as any;
 
-  const externalStatus = mapToExternalStatus(submission.status as OrderFormSubmissionStatus);
+  const externalStatus = conversationState.effectiveExternalStatus;
   const externalConfig = EXTERNAL_STATUS_CONFIG[externalStatus];
 
   const eventTypeLabels: Record<string, string> = {
@@ -545,17 +602,14 @@ export default function OrderFormDetailPage() {
   const hasError = !!sub.notification_error;
   const sharedCount = (orderMessages as any[]).filter((m: any) => m.is_visible_to_customer).length
     || comments.filter((c: any) => c.visibility === "shared" || c.is_customer_reply).length;
-  const customerMessagesCount = (orderMessages as any[]).filter((m: any) => m.sender_type === "customer").length;
   const lastCustomerMsg = (orderMessages as any[]).filter((m: any) => m.sender_type === "customer").pop();
   const customerReplies = comments.filter((c: any) => c.is_customer_reply);
   const lastCustomerReply = lastCustomerMsg || (customerReplies.length > 0 ? customerReplies[customerReplies.length - 1] : null);
-  const hasOpenRequest = (orderMessages as any[]).some((m: any) => m.message_type === "request_info" && m.requires_reply && !m.replied_at);
-  const hasUnreviewedReply = (orderMessages as any[]).some((m: any) => m.message_type === "request_info" && m.requires_reply && m.replied_at && !m.reviewed_at);
-  // "Waiting on customer" = only when there's an actual unanswered request_info
+  const hasOpenRequest = conversationState.hasOpenRequest;
+  const hasUnreviewedReply = conversationState.hasUnreviewedReply;
   const isWaitingOnCustomer = hasOpenRequest;
-  // "Waiting on us" = admin needs to act (new, under_review, waiting_internal, or has unreviewd reply)
-  const isWaitingOnUs = ["new", "under_review", "waiting_internal"].includes(submission.status) && !hasOpenRequest;
-  const isClosed = submission.status === "closed" || submission.status === "rejected";
+  const isWaitingOnUs = ["new", "under_review", "waiting_internal"].includes(effectiveStatus) && !hasOpenRequest;
+  const isClosed = effectiveStatus === "closed" || effectiveStatus === "rejected";
 
   // Customer notification history from activity log
   const customerNotifications = activity.filter((a: any) =>
@@ -573,7 +627,7 @@ export default function OrderFormDetailPage() {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <h1 className="text-xl font-bold text-foreground">{submission.submission_no}</h1>
-            <Badge className={statusConfig?.color || ""}>{statusConfig?.label || submission.status}</Badge>
+            <Badge className={statusConfig?.color || ""}>{statusConfig?.label || effectiveStatus}</Badge>
             {submission.priority !== "normal" && priorityConfig && (
               <Badge variant="outline" className="text-[10px] font-semibold border-orange-200 text-orange-700 bg-orange-50">
                 {priorityConfig.label}
@@ -600,8 +654,8 @@ export default function OrderFormDetailPage() {
       {/* Primary + secondary actions */}
       <div className="flex flex-wrap items-center gap-2">
         {/* Primary: Status with notify toggle */}
-        <div className="flex items-center gap-2">
-          <Select value={submission.status} onValueChange={(v) => updateStatus.mutate(v)}>
+          <div className="flex items-center gap-2">
+            <Select value={effectiveStatus} onValueChange={(v) => updateStatus.mutate(v)}>
             <SelectTrigger className="w-48 h-9">
               <SelectValue />
             </SelectTrigger>
@@ -1123,7 +1177,7 @@ export default function OrderFormDetailPage() {
               <CardTitle className="text-sm flex items-center gap-2">
                 <MessageSquare className="h-4 w-4" />
                 Meldinger
-                {(orderMessages as any[]).some((m: any) => m.sender_type === "customer") && (
+                {!!lastCustomerReply && (
                   <Badge variant="outline" className="text-[9px] bg-green-50 text-green-700 border-green-200 ml-auto">
                     Kundesvar mottatt
                   </Badge>
