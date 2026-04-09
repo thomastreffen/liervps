@@ -6,7 +6,7 @@ import {
   ArrowLeft, MessageSquare, Clock, Paperclip, AlertTriangle,
   ArrowRight, FileText, Download, Mail, MailCheck, MailX, ExternalLink, UserPlus,
   Tag, User, LinkIcon, X, MoreHorizontal, Eye, Send, Globe, UserCheck, Bell, BellRing,
-  CalendarDays, LockKeyhole,
+  CalendarDays, LockKeyhole, Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -447,6 +447,10 @@ export default function OrderFormDetailPage() {
       qc.invalidateQueries({ queryKey: ["order-form-comments", id] });
       qc.invalidateQueries({ queryKey: ["order-form-messages", id] });
       toast.success(commentVisibility === "shared" ? "Melding delt med bestiller" : "Intern kommentar lagt til");
+    },
+    onError: (err: any) => {
+      console.error("[addComment] Error:", err);
+      toast.error("Kunne ikke sende melding", { description: err?.message || "Ukjent feil" });
     },
   });
 
@@ -1484,12 +1488,16 @@ export default function OrderFormDetailPage() {
                 <div className="flex items-center justify-end pt-1 border-t border-border/40">
                   <Button
                     size="sm"
-                    disabled={!comment.trim()}
+                    disabled={!comment.trim() || addComment.isPending}
                     onClick={() => addComment.mutate()}
                     className="gap-1.5"
                   >
-                    <Send className="h-3.5 w-3.5" />
-                    Send melding
+                    {addComment.isPending ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Send className="h-3.5 w-3.5" />
+                    )}
+                    {addComment.isPending ? "Sender…" : "Send melding"}
                   </Button>
                 </div>
               </div>
@@ -1514,10 +1522,13 @@ export default function OrderFormDetailPage() {
                       <span className="font-medium text-foreground">
                         {eventTypeLabels[a.event_type] || a.event_type}
                       </span>
+                      {a.payload?.summary && (
+                        <> · {a.payload.summary}</>
+                      )}
                       {a.payload?.from && a.payload?.to && (
                         <> · {ORDER_STATUS_CONFIG[a.payload.from as OrderFormSubmissionStatus]?.label || a.payload.from} → {ORDER_STATUS_CONFIG[a.payload.to as OrderFormSubmissionStatus]?.label || a.payload.to}</>
                       )}
-                      {a.payload?.assigned_to_name && (
+                      {a.payload?.assigned_to_name && !a.payload?.summary && (
                         <> · {a.payload.assigned_to_name}</>
                       )}
                       {a.payload?.recipients && (
