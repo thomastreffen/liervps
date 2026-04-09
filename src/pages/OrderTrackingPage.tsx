@@ -508,7 +508,7 @@ export default function OrderTrackingPage() {
         )}
 
         {/* Customer timeline */}
-        <CustomerTimeline submissionId={submission.id} />
+        <CustomerTimeline token={token!} />
 
         {/* Messages - the primary conversation section */}
         <div ref={messagesSectionRef}>
