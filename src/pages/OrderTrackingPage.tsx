@@ -19,6 +19,7 @@ import {
   EXTERNAL_STATUS_STEPS,
   type ExternalStatus,
 } from "@/types/order-forms";
+import { deriveOrderConversationState } from "@/lib/order-request-state";
 
 /* ── External status progress bar ── */
 function StatusProgress({ status }: { status: ExternalStatus }) {
@@ -206,7 +207,6 @@ export default function OrderTrackingPage() {
         .from("order_form_comments")
         .select("*")
         .eq("submission_id", submission!.id)
-        .eq("visibility", "shared")
         .order("created_at", { ascending: true });
       return data || [];
     },
@@ -234,41 +234,20 @@ export default function OrderTrackingPage() {
     }
   }, [submission?.id]);
 
-  // Build unified message list: merge new messages + legacy, dedup by id
-  const allMessages = useMemo(() => {
-    const fromNew = (messages as any[]).map((m: any) => ({
-      id: m.id,
-      body: m.body,
-      sender_type: m.sender_type as "admin" | "customer" | "system",
-      sender_name: m.sender_name,
-      message_type: m.message_type as "message" | "request_info" | "system",
-      requires_reply: m.requires_reply,
-      replied_at: m.replied_at,
-      created_at: m.created_at,
-      source: "messages" as const,
-    }));
-    // Add legacy shared comments not already represented
-    const newIds = new Set(fromNew.map(m => m.id));
-    const fromLegacy = (legacyComments as any[])
-      .filter((c: any) => !newIds.has(c.id))
-      .map((c: any) => ({
-        id: c.id,
-        body: c.body,
-        sender_type: (c.is_customer_reply ? "customer" : "admin") as "admin" | "customer" | "system",
-        sender_name: c.is_customer_reply ? (c.author_name || "Du") : "Saksbehandler",
-        message_type: (c.comment_type === "missing_info_request" ? "request_info" : "message") as "message" | "request_info" | "system",
-        requires_reply: c.comment_type === "missing_info_request",
-        replied_at: null,
-        created_at: c.created_at,
-        source: "legacy" as const,
-      }));
-    return [...fromNew, ...fromLegacy].sort((a, b) =>
-      new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-    );
-  }, [messages, legacyComments]);
+  const conversationState = useMemo(
+    () => deriveOrderConversationState(submission?.status, messages as any[], legacyComments as any[]),
+    [submission?.status, messages, legacyComments],
+  );
 
-  // Find open (unanswered) request
-  const openRequest = allMessages.find(m => m.message_type === "request_info" && m.requires_reply && !m.replied_at);
+  const allMessages = useMemo(
+    () => conversationState.conversation.filter((message) => message.is_visible_to_customer),
+    [conversationState.conversation],
+  );
+
+  const openRequest = useMemo(
+    () => [...allMessages].reverse().find((message) => message.message_type === "request_info" && message.requires_reply && !message.replied_at),
+    [allMessages],
+  );
 
   const scrollToReplyAndFocus = () => {
     messagesSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -404,9 +383,9 @@ export default function OrderTrackingPage() {
   }, [values]);
 
   const sub = submission as any;
-  const externalStatus: ExternalStatus = sub?.external_status || "received";
+  const externalStatus: ExternalStatus = conversationState.effectiveExternalStatus;
   const templateName = sub?.order_form_templates?.external_title || sub?.order_form_templates?.name || "Bestilling";
-  const needsInfo = !!openRequest;
+  const needsInfo = conversationState.hasOpenRequest;
   const lastUpdated = sub?.last_activity_at || sub?.updated_at || sub?.submitted_at;
 
   if (isLoading) {
