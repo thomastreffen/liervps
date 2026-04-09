@@ -19,6 +19,9 @@ interface OrderMessageLike {
   review_status?: string | null;
   created_at?: string | null;
   is_visible_to_customer?: boolean | null;
+  visibility?: string | null;
+  addressed_to_participant_id?: string | null;
+  sender_participant_id?: string | null;
 }
 
 interface LegacyCommentLike {
@@ -44,6 +47,8 @@ export interface UnifiedOrderConversationMessage {
   created_at: string;
   is_visible_to_customer: boolean;
   source: "messages" | "legacy";
+  visibility: "internal" | "shared";
+  addressed_to_participant_id: string | null;
 }
 
 export interface DerivedOrderConversationState {
@@ -136,6 +141,8 @@ export function buildUnifiedOrderConversation(
       created_at: String(message.created_at),
       is_visible_to_customer: !!message.is_visible_to_customer,
       source: "messages" as const,
+      visibility: (message.visibility as "internal" | "shared") || "internal",
+      addressed_to_participant_id: message.addressed_to_participant_id || null,
     }));
 
   const legacyCandidates: UnifiedOrderConversationMessage[] = legacyComments
@@ -164,6 +171,8 @@ export function buildUnifiedOrderConversation(
         is_visible_to_customer:
           isRequestInfo || comment.visibility === "shared" || !!comment.is_customer_reply,
         source: "legacy" as const,
+        visibility: (comment.visibility === "shared" || isRequestInfo || isCustomerReply) ? "shared" : "internal",
+        addressed_to_participant_id: null,
       };
     })
     .filter((candidate) => !normalizedMessages.some((existing) => looksLikeDuplicate(candidate, existing)));
