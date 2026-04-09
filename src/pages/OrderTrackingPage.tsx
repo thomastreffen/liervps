@@ -66,20 +66,18 @@ function StatusProgress({ status }: { status: ExternalStatus }) {
 }
 
 /* ── Customer timeline ── */
-function CustomerTimeline({ submissionId }: { submissionId: string }) {
+function CustomerTimeline({ token }: { token: string }) {
   const { data: events = [] } = useQuery({
-    queryKey: ["tracking-timeline", submissionId],
+    queryKey: ["tracking-timeline", token],
     queryFn: async () => {
-      const { data } = await supabase
-        .from("order_form_activity_log")
-        .select("*")
-        .eq("submission_id", submissionId)
-        .in("event_type", [
-          "submitted", "status_changed", "missing_info_requested",
-          "customer_reply", "converted_to_order", "notification_sent",
-        ])
-        .order("created_at", { ascending: true });
-      return data || [];
+      const { data } = await (supabase as any)
+        .rpc("get_submission_activity_by_token", { _token: token });
+      const all = (data || []) as any[];
+      return all.filter((e: any) => [
+        "submitted", "status_changed", "missing_info_requested",
+        "customer_reply", "converted_to_order", "notification_sent",
+        "task_created",
+      ].includes(e.event_type));
     },
   });
 
@@ -164,66 +162,60 @@ export default function OrderTrackingPage() {
     queryKey: ["tracking", token],
     enabled: !!token,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("order_form_submissions")
-        .select("*, order_form_templates(name, external_title)")
-        .eq("public_tracking_token", token!)
+      // Use RPC for token-scoped access (no broad anon SELECT policy)
+      const { data: rpcData, error: rpcErr } = await (supabase as any)
+        .rpc("get_submission_by_tracking_token", { _token: token! });
+      if (rpcErr) throw rpcErr;
+      const sub = Array.isArray(rpcData) ? rpcData[0] : rpcData;
+      if (!sub) return null;
+      // Fetch template info separately
+      const { data: tmpl } = await supabase
+        .from("order_form_templates")
+        .select("name, external_title")
+        .eq("id", sub.template_id)
         .maybeSingle();
-      if (error) throw error;
-      return data;
+      return { ...sub, order_form_templates: tmpl };
     },
   });
 
   const { data: values = [] } = useQuery({
     queryKey: ["tracking-values", submission?.id],
-    enabled: !!submission?.id,
+    enabled: !!token,
     queryFn: async () => {
-      const { data } = await supabase
-        .from("order_form_submission_values")
-        .select("*")
-        .eq("submission_id", submission!.id);
+      const { data } = await (supabase as any)
+        .rpc("get_submission_values_by_token", { _token: token! });
       return data || [];
     },
   });
 
   // Fetch messages from new order_form_messages table
   const { data: messages = [] } = useQuery({
-    queryKey: ["tracking-messages", submission?.id],
-    enabled: !!submission?.id,
+    queryKey: ["tracking-messages", token],
+    enabled: !!token,
     queryFn: async () => {
-      const { data } = await supabase
-        .from("order_form_messages")
-        .select("*")
-        .eq("submission_id", submission!.id)
-        .eq("is_visible_to_customer", true)
-        .order("created_at", { ascending: true });
+      const { data } = await (supabase as any)
+        .rpc("get_submission_messages_by_token", { _token: token! });
       return data || [];
     },
   });
 
   // Fallback: also fetch old comments for backward compat
   const { data: legacyComments = [] } = useQuery({
-    queryKey: ["tracking-comments-legacy", submission?.id],
-    enabled: !!submission?.id,
+    queryKey: ["tracking-comments-legacy", token],
+    enabled: !!token,
     queryFn: async () => {
-      const { data } = await supabase
-        .from("order_form_comments")
-        .select("*")
-        .eq("submission_id", submission!.id)
-        .order("created_at", { ascending: true });
+      const { data } = await (supabase as any)
+        .rpc("get_submission_comments_by_token", { _token: token! });
       return data || [];
     },
   });
 
   const { data: attachments = [] } = useQuery({
-    queryKey: ["tracking-attachments", submission?.id],
-    enabled: !!submission?.id,
+    queryKey: ["tracking-attachments", token],
+    enabled: !!token,
     queryFn: async () => {
-      const { data } = await supabase
-        .from("order_form_submission_attachments")
-        .select("*")
-        .eq("submission_id", submission!.id)
-        .order("uploaded_at", { ascending: true });
+      const { data } = await (supabase as any)
+        .rpc("get_submission_attachments_by_token", { _token: token! });
       return data || [];
     },
   });
@@ -367,10 +359,10 @@ export default function OrderTrackingPage() {
     onSuccess: () => {
       setReplyText("");
       setReplyFiles([]);
-      qc.invalidateQueries({ queryKey: ["tracking-messages", submission?.id] });
-      qc.invalidateQueries({ queryKey: ["tracking-comments-legacy", submission?.id] });
-      qc.invalidateQueries({ queryKey: ["tracking-attachments", submission?.id] });
-      qc.invalidateQueries({ queryKey: ["tracking-timeline", submission?.id] });
+      qc.invalidateQueries({ queryKey: ["tracking-messages", token] });
+      qc.invalidateQueries({ queryKey: ["tracking-comments-legacy", token] });
+      qc.invalidateQueries({ queryKey: ["tracking-attachments", token] });
+      qc.invalidateQueries({ queryKey: ["tracking-timeline", token] });
       qc.invalidateQueries({ queryKey: ["tracking", token] });
       toast.success("Svaret ditt er sendt!");
     },
@@ -504,7 +496,7 @@ export default function OrderTrackingPage() {
         )}
 
         {/* Customer timeline */}
-        <CustomerTimeline submissionId={submission.id} />
+        <CustomerTimeline token={token!} />
 
         {/* Messages - the primary conversation section */}
         <div ref={messagesSectionRef}>
