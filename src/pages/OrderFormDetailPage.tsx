@@ -549,7 +549,8 @@ export default function OrderFormDetailPage() {
   const lastCustomerMsg = (orderMessages as any[]).filter((m: any) => m.sender_type === "customer").pop();
   const customerReplies = comments.filter((c: any) => c.is_customer_reply);
   const lastCustomerReply = lastCustomerMsg || (customerReplies.length > 0 ? customerReplies[customerReplies.length - 1] : null);
-  const isWaitingOnCustomer = ["missing_info", "waiting_customer"].includes(submission.status);
+  const hasOpenRequest = (orderMessages as any[]).some((m: any) => m.message_type === "request_info" && m.requires_reply && !m.replied_at);
+  const isWaitingOnCustomer = hasOpenRequest || (["missing_info", "waiting_customer"].includes(submission.status) && (submission as any).awaiting_customer_reply);
   const isWaitingOnUs = ["new", "under_review", "waiting_internal"].includes(submission.status);
   const isClosed = submission.status === "closed" || submission.status === "rejected";
 

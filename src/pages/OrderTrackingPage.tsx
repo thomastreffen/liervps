@@ -368,7 +368,7 @@ export default function OrderTrackingPage() {
   const sub = submission as any;
   const externalStatus: ExternalStatus = sub?.external_status || "received";
   const templateName = sub?.order_form_templates?.external_title || sub?.order_form_templates?.name || "Bestilling";
-  const needsInfo = externalStatus === "needs_info";
+  const needsInfo = !!openRequest;
   const lastUpdated = sub?.last_activity_at || sub?.updated_at || sub?.submitted_at;
 
   if (isLoading) {
