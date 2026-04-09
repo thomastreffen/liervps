@@ -543,9 +543,12 @@ export default function OrderFormDetailPage() {
   const hasNotification = !!sub.notification_sent_at;
   const hasConfirmation = !!sub.confirmation_sent_at;
   const hasError = !!sub.notification_error;
-  const sharedCount = comments.filter((c: any) => c.visibility === "shared" || c.is_customer_reply).length;
+  const sharedCount = (orderMessages as any[]).filter((m: any) => m.is_visible_to_customer).length
+    || comments.filter((c: any) => c.visibility === "shared" || c.is_customer_reply).length;
+  const customerMessagesCount = (orderMessages as any[]).filter((m: any) => m.sender_type === "customer").length;
+  const lastCustomerMsg = (orderMessages as any[]).filter((m: any) => m.sender_type === "customer").pop();
   const customerReplies = comments.filter((c: any) => c.is_customer_reply);
-  const lastCustomerReply = customerReplies.length > 0 ? customerReplies[customerReplies.length - 1] : null;
+  const lastCustomerReply = lastCustomerMsg || (customerReplies.length > 0 ? customerReplies[customerReplies.length - 1] : null);
   const isWaitingOnCustomer = ["missing_info", "waiting_customer"].includes(submission.status);
   const isWaitingOnUs = ["new", "under_review", "waiting_internal"].includes(submission.status);
   const isClosed = submission.status === "closed" || submission.status === "rejected";
