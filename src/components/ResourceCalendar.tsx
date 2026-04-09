@@ -45,8 +45,8 @@ interface ResourceCalendarProps {
   onEventClick?: (event: CalendarEvent, clickedTechId?: string) => void;
   onScheduleBlockClick?: (block: ScheduleBlock) => void;
   onDateSelect?: (start: Date, end: Date) => void;
-  onEventDrop?: (eventId: string, newStart: Date, newEnd: Date) => void;
-  onEventResize?: (eventId: string, newStart: Date, newEnd: Date) => void;
+  onEventDrop?: (eventId: string, newStart: Date, newEnd: Date, technicianId?: string) => void;
+  onEventResize?: (eventId: string, newStart: Date, newEnd: Date, technicianId?: string) => void;
   onExternalDrop?: (info: { taskId: string; title: string; start: Date; end: Date; estimatedMinutes: number; priority: string; dropType: string }) => void;
   isAdmin?: boolean;
   isSuperAdmin?: boolean;
@@ -832,17 +832,18 @@ export const ResourceCalendar = memo(function ResourceCalendar({
 
   const handleEventDrop = useCallback((info: EventDropArg) => {
     if (info.event.extendedProps.isBusy) { info.revert(); return; }
-    // Extract real event ID from composite ID
     const rawId = info.event.id;
     const realId = rawId.includes("__tech__") ? rawId.split("__tech__")[0] : rawId;
-    onEventDrop?.(realId, info.event.start!, info.event.end!);
+    const droppedTechId = (info.event.extendedProps.assignedTechId as string | undefined) ?? undefined;
+    onEventDrop?.(realId, info.event.start!, info.event.end!, droppedTechId);
   }, [onEventDrop]);
 
   const handleEventResize = useCallback((info: any) => {
     if (info.event.extendedProps.isBusy) { info.revert(); return; }
     const rawId = info.event.id;
     const realId = rawId.includes("__tech__") ? rawId.split("__tech__")[0] : rawId;
-    onEventResize?.(realId, info.event.start!, info.event.end!);
+    const resizedTechId = (info.event.extendedProps.assignedTechId as string | undefined) ?? undefined;
+    onEventResize?.(realId, info.event.start!, info.event.end!, resizedTechId);
   }, [onEventResize]);
 
   const handleExternalDrop = useCallback((info: any) => {
