@@ -71,16 +71,9 @@ Deno.serve(async (req) => {
     let authUserId: string | null = null;
     let authUserExisted = false;
 
-    // Use targeted lookup instead of listing all users
-    let existingAuth: any = null;
-    try {
-      const { data: userData } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1 });
-      // Try to find by email using getUserById workaround - search in targeted way
-      const { data: usersData } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
-      existingAuth = usersData?.users?.find((u: any) => u.email?.toLowerCase() === normalizedEmail) || null;
-    } catch (_) {
-      existingAuth = null;
-    }
+    // Single paginated lookup
+    const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
+    const existingAuth = existingUsers?.users?.find((u: any) => u.email?.toLowerCase() === normalizedEmail);
 
     if (existingAuth) {
       authUserId = existingAuth.id;
