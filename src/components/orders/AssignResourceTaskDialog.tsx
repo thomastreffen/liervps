@@ -205,6 +205,18 @@ export function AssignResourceTaskDialog({
         })
         .eq("id", submissionId);
 
+      // Fetch technician names for activity log
+      let techNames: string[] = [];
+      if (selectedTechIds.length > 0) {
+        const { data: techs } = await supabase
+          .from("technicians")
+          .select("id, name")
+          .in("id", selectedTechIds);
+        techNames = (techs || []).map((t: any) => t.name).filter(Boolean);
+      }
+
+      const startFormatted = format(startTime, "d. MMM yyyy 'kl.' HH:mm", { locale: nb });
+
       await supabase.from("order_form_activity_log").insert({
         submission_id: submissionId,
         event_type: "converted_to_order",
@@ -213,6 +225,12 @@ export function AssignResourceTaskDialog({
           created_id: newEvent.id,
           internal_number: newEvent.internal_number,
           technician_count: selectedTechIds.length,
+          technician_names: techNames,
+          scheduled_start: startTime.toISOString(),
+          scheduled_end: endTime.toISOString(),
+          summary: techNames.length > 0
+            ? `Tildelt ${techNames.join(", ")} ${startFormatted}`
+            : `Planlagt ${startFormatted}`,
         },
         created_by: user?.id,
       });
