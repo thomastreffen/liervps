@@ -550,8 +550,11 @@ export default function OrderFormDetailPage() {
   const customerReplies = comments.filter((c: any) => c.is_customer_reply);
   const lastCustomerReply = lastCustomerMsg || (customerReplies.length > 0 ? customerReplies[customerReplies.length - 1] : null);
   const hasOpenRequest = (orderMessages as any[]).some((m: any) => m.message_type === "request_info" && m.requires_reply && !m.replied_at);
-  const isWaitingOnCustomer = hasOpenRequest || (["missing_info", "waiting_customer"].includes(submission.status) && (submission as any).awaiting_customer_reply);
-  const isWaitingOnUs = ["new", "under_review", "waiting_internal"].includes(submission.status);
+  const hasUnreviewedReply = (orderMessages as any[]).some((m: any) => m.message_type === "request_info" && m.requires_reply && m.replied_at && !m.reviewed_at);
+  // "Waiting on customer" = only when there's an actual unanswered request_info
+  const isWaitingOnCustomer = hasOpenRequest;
+  // "Waiting on us" = admin needs to act (new, under_review, waiting_internal, or has unreviewd reply)
+  const isWaitingOnUs = ["new", "under_review", "waiting_internal"].includes(submission.status) && !hasOpenRequest;
   const isClosed = submission.status === "closed" || submission.status === "rejected";
 
   // Customer notification history from activity log
@@ -1099,7 +1102,13 @@ export default function OrderFormDetailPage() {
                   Venter på svar fra bestiller
                 </div>
               )}
-              {isWaitingOnUs && !isClosed && (
+              {!isWaitingOnCustomer && hasUnreviewedReply && (
+                <div className="flex items-center gap-1.5 text-xs px-2 py-1.5 rounded-md bg-green-50 text-green-700 border border-green-200">
+                  <MessageSquare className="h-3 w-3" />
+                  Kundesvar mottatt — venter på vurdering
+                </div>
+              )}
+              {isWaitingOnUs && !hasUnreviewedReply && !isClosed && (
                 <div className="flex items-center gap-1.5 text-xs px-2 py-1.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200">
                   <Clock className="h-3 w-3" />
                   Bestiller venter på oss
