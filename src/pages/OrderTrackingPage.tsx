@@ -70,7 +70,7 @@ function CustomerTimeline({ token }: { token: string }) {
   const { data: events = [] } = useQuery({
     queryKey: ["tracking-timeline", token],
     queryFn: async () => {
-      const { data } = await supabase
+      const { data } = await (supabase as any)
         .rpc("get_submission_activity_by_token", { _token: token });
       const all = (data || []) as any[];
       return all.filter((e: any) => [
