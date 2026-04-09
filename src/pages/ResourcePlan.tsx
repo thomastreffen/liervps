@@ -401,63 +401,107 @@ export default function ResourcePlan() {
     return () => window.removeEventListener("resource-plan:new-activity", handler);
   }, [handleNewEvent]);
 
-  const handleEventDrop = useCallback(async (eventId: string, newStart: Date, newEnd: Date) => {
+  const handleEventDrop = useCallback(async (eventId: string, newStart: Date, newEnd: Date, technicianId?: string) => {
     const oldEvent = calEvents.find((e) => e.id === eventId);
-    const { error } = await supabase.from("events")
-      .update({ start_time: newStart.toISOString(), end_time: newEnd.toISOString() })
-      .eq("id", eventId);
-    if (error) toast.error("Kunne ikke flytte hendelsen");
-    else {
-      const { data: session } = await supabase.auth.getSession();
-      const userId = session?.session?.user?.id;
-      await supabase.from("event_logs").insert({
-        event_id: eventId,
-        action_type: "time_changed",
-        performed_by: userId || null,
-        change_summary: `Flyttet fra ${oldEvent ? format(oldEvent.start, "dd.MM HH:mm") + "–" + format(oldEvent.end, "HH:mm") : "ukjent"} til ${format(newStart, "dd.MM HH:mm")}–${format(newEnd, "HH:mm")}`,
-      });
-      await supabase.from("service_jobs")
-        .update({ starts_at: newStart.toISOString(), ends_at: newEnd.toISOString() } as any)
-        .eq("project_id", eventId);
-      await supabase.from("work_orders")
-        .update({ starts_at: newStart.toISOString(), ends_at: newEnd.toISOString() } as any)
-        .eq("project_id", eventId);
-      const result = await syncUpdate(eventId);
-      if (result === "synced") {
-        toast.success("Tidspunkt oppdatert. Outlook synkronisert ✓");
-      } else if (result !== "conflict") {
-        toast.success("Hendelse flyttet");
+    const isMultiTech = oldEvent && oldEvent.technicians.length > 1;
+
+    if (isMultiTech && technicianId) {
+      // Per-technician time update: only change this tech's override
+      const tech = oldEvent?.technicians.find((t) => t.id === technicianId);
+      const etId = tech?.eventTechnicianId;
+      if (etId) {
+        const { error } = await (supabase as any).from("event_technicians")
+          .update({ start_at: newStart.toISOString(), end_at: newEnd.toISOString() })
+          .eq("id", etId);
+        if (error) { toast.error("Kunne ikke flytte montøren"); }
+        else {
+          const techName = tech?.name || "Montør";
+          toast.success(`${techName} flyttet`, {
+            description: `${format(newStart, "dd.MM HH:mm")}–${format(newEnd, "HH:mm")}`,
+          });
+          const { data: session } = await supabase.auth.getSession();
+          await supabase.from("event_logs").insert({
+            event_id: eventId,
+            action_type: "technician_time_changed",
+            performed_by: session?.session?.user?.id || null,
+            change_summary: `${techName} flyttet til ${format(newStart, "dd.MM HH:mm")}–${format(newEnd, "HH:mm")}`,
+          });
+        }
+      }
+    } else {
+      // Single tech or no tech context: update event-level time (existing behavior)
+      const { error } = await supabase.from("events")
+        .update({ start_time: newStart.toISOString(), end_time: newEnd.toISOString() })
+        .eq("id", eventId);
+      if (error) toast.error("Kunne ikke flytte hendelsen");
+      else {
+        const { data: session } = await supabase.auth.getSession();
+        const userId = session?.session?.user?.id;
+        await supabase.from("event_logs").insert({
+          event_id: eventId,
+          action_type: "time_changed",
+          performed_by: userId || null,
+          change_summary: `Flyttet fra ${oldEvent ? format(oldEvent.start, "dd.MM HH:mm") + "–" + format(oldEvent.end, "HH:mm") : "ukjent"} til ${format(newStart, "dd.MM HH:mm")}–${format(newEnd, "HH:mm")}`,
+        });
+        await supabase.from("service_jobs")
+          .update({ starts_at: newStart.toISOString(), ends_at: newEnd.toISOString() } as any)
+          .eq("project_id", eventId);
+        await supabase.from("work_orders")
+          .update({ starts_at: newStart.toISOString(), ends_at: newEnd.toISOString() } as any)
+          .eq("project_id", eventId);
+        const result = await syncUpdate(eventId);
+        if (result === "synced") {
+          toast.success("Tidspunkt oppdatert. Outlook synkronisert ✓");
+        } else if (result !== "conflict") {
+          toast.success("Hendelse flyttet");
+        }
       }
     }
     setRefreshKey((k) => k + 1);
   }, [syncUpdate, calEvents]);
 
-  const handleEventResize = useCallback(async (eventId: string, newStart: Date, newEnd: Date) => {
+  const handleEventResize = useCallback(async (eventId: string, newStart: Date, newEnd: Date, technicianId?: string) => {
     const oldEvent = calEvents.find((e) => e.id === eventId);
-    const { error } = await supabase.from("events")
-      .update({ start_time: newStart.toISOString(), end_time: newEnd.toISOString() })
-      .eq("id", eventId);
-    if (error) toast.error("Kunne ikke endre varighet");
-    else {
-      const { data: session } = await supabase.auth.getSession();
-      const userId = session?.session?.user?.id;
-      await supabase.from("event_logs").insert({
-        event_id: eventId,
-        action_type: "duration_changed",
-        performed_by: userId || null,
-        change_summary: `Varighet endret fra ${oldEvent ? format(oldEvent.start, "HH:mm") + "–" + format(oldEvent.end, "HH:mm") : "ukjent"} til ${format(newStart, "HH:mm")}–${format(newEnd, "HH:mm")}`,
-      });
-      await supabase.from("service_jobs")
-        .update({ starts_at: newStart.toISOString(), ends_at: newEnd.toISOString() } as any)
-        .eq("project_id", eventId);
-      await supabase.from("work_orders")
-        .update({ starts_at: newStart.toISOString(), ends_at: newEnd.toISOString() } as any)
-        .eq("project_id", eventId);
-      const result = await syncUpdate(eventId);
-      if (result === "synced") {
-        toast.success("Varighet oppdatert. Outlook synkronisert ✓");
-      } else if (result !== "conflict") {
-        toast.success("Varighet oppdatert");
+    const isMultiTech = oldEvent && oldEvent.technicians.length > 1;
+
+    if (isMultiTech && technicianId) {
+      const tech = oldEvent?.technicians.find((t) => t.id === technicianId);
+      const etId = tech?.eventTechnicianId;
+      if (etId) {
+        const { error } = await (supabase as any).from("event_technicians")
+          .update({ start_at: newStart.toISOString(), end_at: newEnd.toISOString() })
+          .eq("id", etId);
+        if (error) { toast.error("Kunne ikke endre varighet"); }
+        else {
+          toast.success(`${tech?.name || "Montør"} varighet oppdatert`);
+        }
+      }
+    } else {
+      const { error } = await supabase.from("events")
+        .update({ start_time: newStart.toISOString(), end_time: newEnd.toISOString() })
+        .eq("id", eventId);
+      if (error) toast.error("Kunne ikke endre varighet");
+      else {
+        const { data: session } = await supabase.auth.getSession();
+        const userId = session?.session?.user?.id;
+        await supabase.from("event_logs").insert({
+          event_id: eventId,
+          action_type: "duration_changed",
+          performed_by: userId || null,
+          change_summary: `Varighet endret fra ${oldEvent ? format(oldEvent.start, "HH:mm") + "–" + format(oldEvent.end, "HH:mm") : "ukjent"} til ${format(newStart, "HH:mm")}–${format(newEnd, "HH:mm")}`,
+        });
+        await supabase.from("service_jobs")
+          .update({ starts_at: newStart.toISOString(), ends_at: newEnd.toISOString() } as any)
+          .eq("project_id", eventId);
+        await supabase.from("work_orders")
+          .update({ starts_at: newStart.toISOString(), ends_at: newEnd.toISOString() } as any)
+          .eq("project_id", eventId);
+        const result = await syncUpdate(eventId);
+        if (result === "synced") {
+          toast.success("Varighet oppdatert. Outlook synkronisert ✓");
+        } else if (result !== "conflict") {
+          toast.success("Varighet oppdatert");
+        }
       }
     }
     setRefreshKey((k) => k + 1);
