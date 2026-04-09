@@ -234,34 +234,37 @@ export default function OrderTrackingPage() {
     }
   }, [submission?.id]);
 
-  // Build unified message list: prefer new messages, supplement with legacy
+  // Build unified message list: merge new messages + legacy, dedup by id
   const allMessages = useMemo(() => {
-    // If we have new messages, use them as primary
-    if (messages.length > 0) {
-      return messages.map((m: any) => ({
-        id: m.id,
-        body: m.body,
-        sender_type: m.sender_type as "admin" | "customer" | "system",
-        sender_name: m.sender_name,
-        message_type: m.message_type as "message" | "request_info" | "system",
-        requires_reply: m.requires_reply,
-        replied_at: m.replied_at,
-        created_at: m.created_at,
-        source: "messages" as const,
-      }));
-    }
-    // Fallback to legacy comments
-    return legacyComments.map((c: any) => ({
-      id: c.id,
-      body: c.body,
-      sender_type: (c.is_customer_reply ? "customer" : "admin") as "admin" | "customer" | "system",
-      sender_name: c.is_customer_reply ? (c.author_name || "Du") : "Saksbehandler",
-      message_type: (c.comment_type === "missing_info_request" ? "request_info" : "message") as "message" | "request_info" | "system",
-      requires_reply: c.comment_type === "missing_info_request",
-      replied_at: null,
-      created_at: c.created_at,
-      source: "legacy" as const,
+    const fromNew = (messages as any[]).map((m: any) => ({
+      id: m.id,
+      body: m.body,
+      sender_type: m.sender_type as "admin" | "customer" | "system",
+      sender_name: m.sender_name,
+      message_type: m.message_type as "message" | "request_info" | "system",
+      requires_reply: m.requires_reply,
+      replied_at: m.replied_at,
+      created_at: m.created_at,
+      source: "messages" as const,
     }));
+    // Add legacy shared comments not already represented
+    const newIds = new Set(fromNew.map(m => m.id));
+    const fromLegacy = (legacyComments as any[])
+      .filter((c: any) => !newIds.has(c.id))
+      .map((c: any) => ({
+        id: c.id,
+        body: c.body,
+        sender_type: (c.is_customer_reply ? "customer" : "admin") as "admin" | "customer" | "system",
+        sender_name: c.is_customer_reply ? (c.author_name || "Du") : "Saksbehandler",
+        message_type: (c.comment_type === "missing_info_request" ? "request_info" : "message") as "message" | "request_info" | "system",
+        requires_reply: c.comment_type === "missing_info_request",
+        replied_at: null,
+        created_at: c.created_at,
+        source: "legacy" as const,
+      }));
+    return [...fromNew, ...fromLegacy].sort((a, b) =>
+      new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    );
   }, [messages, legacyComments]);
 
   // Find open (unanswered) request
