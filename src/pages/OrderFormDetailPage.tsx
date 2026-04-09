@@ -1258,10 +1258,15 @@ export default function OrderFormDetailPage() {
                           </Badge>
                         )}
                         <p className="whitespace-pre-wrap">{m.body}</p>
-                        <div className="flex items-center gap-2 mt-1">
+                        <div className="flex items-center gap-2 mt-1 flex-wrap">
                           <span className="text-[10px] text-muted-foreground">
                             {m.sender_name || (isCustomer ? "Bestiller" : "Saksbehandler")} · {format(new Date(m.created_at), "d. MMM HH:mm", { locale: nb })}
                           </span>
+                          {m.source === "email" && (
+                            <Badge variant="outline" className="text-[8px] bg-blue-50 text-blue-600 border-blue-200">
+                              <Mail className="h-2.5 w-2.5 mr-0.5" /> via e-post
+                            </Badge>
+                          )}
                           {addressedParticipant && (
                             <Badge variant="outline" className="text-[8px] bg-muted">
                               → {addressedParticipant.name} ({addressedParticipant.role_label || addressedParticipant.participant_type})
