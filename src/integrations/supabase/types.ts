@@ -9273,6 +9273,10 @@ export type Database = {
       }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
+      submission_has_tracking_token: {
+        Args: { _submission_id: string }
+        Returns: boolean
+      }
       submission_matches_token: {
         Args: { _submission_id: string; _token: string }
         Returns: boolean
