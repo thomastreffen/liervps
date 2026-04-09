@@ -128,6 +128,20 @@ export default function OrderFormDetailPage() {
     },
   });
 
+  // Fetch messages from the new order_form_messages table
+  const { data: orderMessages = [] } = useQuery({
+    queryKey: ["order-form-messages", id],
+    enabled: !!id,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("order_form_messages")
+        .select("*")
+        .eq("submission_id", id!)
+        .order("created_at", { ascending: true });
+      return data || [];
+    },
+  });
+
   const { data: activity = [] } = useQuery({
     queryKey: ["order-form-activity", id],
     enabled: !!id,
