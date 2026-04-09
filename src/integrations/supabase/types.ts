@@ -6301,6 +6301,7 @@ export type Database = {
           created_by: string | null
           email: string | null
           id: string
+          inbound_token: string | null
           is_visible_to_customer: boolean
           name: string
           participant_type: string
@@ -6315,6 +6316,7 @@ export type Database = {
           created_by?: string | null
           email?: string | null
           id?: string
+          inbound_token?: string | null
           is_visible_to_customer?: boolean
           name: string
           participant_type?: string
@@ -6329,6 +6331,7 @@ export type Database = {
           created_by?: string | null
           email?: string | null
           id?: string
+          inbound_token?: string | null
           is_visible_to_customer?: boolean
           name?: string
           participant_type?: string
