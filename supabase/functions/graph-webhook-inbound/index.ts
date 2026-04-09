@@ -823,7 +823,27 @@ Deno.serve(async (req) => {
           }
         }
 
-        // ── Try task thread matching first ──
+        // ── Try order message matching first ──
+        try {
+          const orderMsgMatch = await tryMatchOrderMessage(message, supabase);
+          if (orderMsgMatch.matched) {
+            console.log("ORDER_MSG_INBOUND_MATCH", {
+              submission_id: orderMsgMatch.submission_id,
+              participant_id: orderMsgMatch.participant_id,
+              strategy: orderMsgMatch.match_strategy,
+              sender: message.from?.emailAddress?.address,
+            });
+            const result = await processOrderMessageInbound(message, orderMsgMatch, supabase);
+            console.log("ORDER_MSG_INBOUND_DONE", { message_id: result.message_id });
+            processed++;
+            continue;
+          }
+        } catch (orderErr) {
+          console.error("ORDER_MSG_INBOUND_ERROR", { error: String(orderErr), stack: (orderErr as any)?.stack?.substring(0, 500) });
+          // Fall through to task thread / conversation matching
+        }
+
+        // ── Try task thread matching ──
         let isTaskThread = false;
         try {
           const taskThreadMatch = await tryMatchTaskThread(message, supabase);
