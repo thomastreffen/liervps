@@ -33,43 +33,75 @@ export function RequestInfoDialog({ open, onOpenChange, submissionId, submission
   const [setMissingStatus, setSetMissingStatus] = useState(true);
   const [sendEmail, setSendEmail] = useState(!!bestillerEpost);
 
+  // Fetch user name for sender_name
+  const getUserName = async () => {
+    if (!user?.id) return "Saksbehandler";
+    const { data } = await supabase
+      .from("user_accounts")
+      .select("person:people(full_name)")
+      .eq("auth_user_id", user.id)
+      .eq("is_active", true)
+      .maybeSingle();
+    return (data as any)?.person?.full_name || "Saksbehandler";
+  };
+
   const mutation = useMutation({
     mutationFn: async () => {
-      const body = [
-        "Forespørsel om mer informasjon:",
-        "",
-        ...selected.map(s => `• ${s}`),
-        freeText ? `\n${freeText}` : "",
-      ].filter(Boolean).join("\n");
+      const senderName = await getUserName();
 
-      // Create comment
+      const bodyParts = [
+        ...selected.map(s => `• ${s}`),
+        freeText ? freeText : "",
+      ].filter(Boolean);
+      const body = bodyParts.join("\n");
+
+      // Create message in order_form_messages (primary)
+      const { data: msg } = await supabase.from("order_form_messages").insert({
+        submission_id: submissionId,
+        sender_type: "admin",
+        sender_user_id: user?.id,
+        sender_name: senderName,
+        message_type: "request_info",
+        body,
+        is_visible_to_customer: true,
+        requires_reply: true,
+      } as any).select("id").single();
+
+      // Also create legacy comment for backward compat
       await supabase.from("order_form_comments").insert({
         submission_id: submissionId,
-        body,
+        body: "Forespørsel om mer informasjon:\n\n" + body,
         comment_type: "missing_info_request",
+        visibility: "shared",
         created_by: user?.id,
-      });
+      } as any);
 
       // Log activity
       await supabase.from("order_form_activity_log").insert({
         submission_id: submissionId,
         event_type: "missing_info_requested",
-        payload: { items: selected, free_text: freeText },
+        payload: { items: selected, free_text: freeText, message_id: msg?.id },
         created_by: user?.id,
       });
 
-      // Update status if toggled
+      // Update status + awaiting flag
+      const updatePayload: any = {
+        awaiting_customer_reply: true,
+        last_admin_message_at: new Date().toISOString(),
+        last_activity_at: new Date().toISOString(),
+      };
+      if (msg?.id) updatePayload.open_request_message_id = msg.id;
       if (setMissingStatus) {
-        await supabase
-          .from("order_form_submissions")
-          .update({
-            status: "missing_info",
-            quality_issues: selected.map(s => ({ severity: "error" as const, message: s })),
-          })
-          .eq("id", submissionId);
+        updatePayload.status = "missing_info";
+        updatePayload.quality_issues = selected.map(s => ({ severity: "error" as const, message: s }));
       }
 
-      // Send email notification to bestiller if toggled and email available
+      await supabase
+        .from("order_form_submissions")
+        .update(updatePayload)
+        .eq("id", submissionId);
+
+      // Send email notification to bestiller if toggled
       if (sendEmail && bestillerEpost) {
         try {
           await supabase.functions.invoke("order-form-notify", {
@@ -82,7 +114,6 @@ export function RequestInfoDialog({ open, onOpenChange, submissionId, submission
           });
         } catch (err) {
           console.error("Failed to send missing info email:", err);
-          // Don't fail the whole operation if email fails
         }
       }
     },
@@ -90,6 +121,7 @@ export function RequestInfoDialog({ open, onOpenChange, submissionId, submission
       qc.invalidateQueries({ queryKey: ["order-form-submission", submissionId] });
       qc.invalidateQueries({ queryKey: ["order-form-comments", submissionId] });
       qc.invalidateQueries({ queryKey: ["order-form-activity", submissionId] });
+      qc.invalidateQueries({ queryKey: ["order-form-messages", submissionId] });
       toast.success(sendEmail && bestillerEpost 
         ? "Forespørsel sendt til bestiller" 
         : "Forespørsel registrert internt"
