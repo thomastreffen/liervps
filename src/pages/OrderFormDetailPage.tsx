@@ -1435,7 +1435,7 @@ export default function OrderFormDetailPage() {
                       className="text-xs h-7 gap-1.5"
                       onClick={() => setCommentVisibility("internal")}
                     >
-                      <Lock className="h-3 w-3" />
+                      <LockKeyhole className="h-3 w-3" />
                       Intern
                     </Button>
                     <Button
