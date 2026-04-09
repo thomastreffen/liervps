@@ -9137,6 +9137,23 @@ export type Database = {
         Args: { _auth_user_id: string; _project_id: string }
         Returns: string
       }
+      get_submission_activity_by_token: {
+        Args: { _token: string }
+        Returns: {
+          created_at: string
+          created_by: string | null
+          event_type: string
+          id: string
+          payload: Json | null
+          submission_id: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "order_form_activity_log"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       get_submission_by_tracking_token: {
         Args: { _token: string }
         Returns: {
