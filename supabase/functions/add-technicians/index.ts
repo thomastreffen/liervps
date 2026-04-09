@@ -65,6 +65,12 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Pre-fetch all auth users once (not per employee)
+    const { data: allAuthUsers } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
+    const emailToAuthUser = new Map(
+      (allAuthUsers?.users || []).map((u: any) => [u.email?.toLowerCase(), u])
+    );
+
     const results = [];
     for (const emp of employees) {
       const email = emp.email.toLowerCase();
@@ -75,8 +81,7 @@ Deno.serve(async (req) => {
         let authUserId: string | null = null;
         let createdAuthUser = false;
 
-        const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers();
-        const existing = existingUsers?.users?.find((u: any) => u.email?.toLowerCase() === email);
+        const existing = emailToAuthUser.get(email);
 
         if (existing) {
           authUserId = existing.id;

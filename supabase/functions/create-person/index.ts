@@ -71,7 +71,8 @@ Deno.serve(async (req) => {
     let authUserId: string | null = null;
     let authUserExisted = false;
 
-    const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers();
+    // Single paginated lookup
+    const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
     const existingAuth = existingUsers?.users?.find((u: any) => u.email?.toLowerCase() === normalizedEmail);
 
     if (existingAuth) {
