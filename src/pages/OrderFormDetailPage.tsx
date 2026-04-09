@@ -56,6 +56,7 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { LinkedTaskSection } from "@/components/orders/LinkedTaskSection";
 import { deriveOrderConversationState } from "@/lib/order-request-state";
+import { OrderParticipantsPanel } from "@/components/orders/OrderParticipantsPanel";
 
 export default function OrderFormDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -77,6 +78,7 @@ export default function OrderFormDetailPage() {
   const [recipientOverrideOpen, setRecipientOverrideOpen] = useState(false);
   const [recipientOverrideEmail, setRecipientOverrideEmail] = useState("");
   const [recipientOverrideName, setRecipientOverrideName] = useState("");
+  const [addressedTo, setAddressedTo] = useState<string | null>(null);
 
   const { data: submission, isLoading } = useQuery({
     queryKey: ["order-form-submission", id],
@@ -140,6 +142,20 @@ export default function OrderFormDetailPage() {
         .eq("submission_id", id!)
         .order("created_at", { ascending: true });
       return data || [];
+    },
+  });
+
+  // Fetch participants for this order
+  const { data: participants = [] } = useQuery({
+    queryKey: ["order-participants", id],
+    enabled: !!id,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("order_form_participants")
+        .select("*")
+        .eq("submission_id", id!)
+        .order("created_at", { ascending: true });
+      return (data || []) as any[];
     },
   });
 
@@ -381,39 +397,45 @@ export default function OrderFormDetailPage() {
       if (!comment.trim()) return;
       const isShared = commentVisibility === "shared";
 
-      // Write to legacy comments
-      const { error } = await supabase.from("order_form_comments").insert({
+      // Get sender name
+      const { data: ua } = await supabase
+        .from("user_accounts")
+        .select("person:people(full_name)")
+        .eq("auth_user_id", user?.id!)
+        .eq("is_active", true)
+        .maybeSingle();
+      const senderName = (ua as any)?.person?.full_name || "Saksbehandler";
+
+      // Find sender's participant record if exists
+      const senderParticipant = participants.find((p: any) => p.user_id === user?.id);
+
+      // Write to new messages table (primary)
+      const { error } = await supabase.from("order_form_messages").insert({
+        submission_id: id!,
+        sender_type: "admin",
+        sender_user_id: user?.id,
+        sender_name: senderName,
+        message_type: "message",
+        body: comment.trim(),
+        is_visible_to_customer: isShared,
+        requires_reply: false,
+        visibility: commentVisibility,
+        source: "app",
+        addressed_to_participant_id: addressedTo || null,
+        sender_participant_id: senderParticipant?.id || null,
+      } as any);
+      if (error) throw error;
+
+      // Also write to legacy comments for backward compatibility
+      await supabase.from("order_form_comments").insert({
         submission_id: id!,
         body: comment.trim(),
         comment_type: isShared ? "shared_message" : "internal",
         visibility: commentVisibility,
         created_by: user?.id,
       } as any);
-      if (error) throw error;
 
-      // Also write to new messages table if shared
       if (isShared) {
-        // Get sender name
-        const { data: ua } = await supabase
-          .from("user_accounts")
-          .select("person:people(full_name)")
-          .eq("auth_user_id", user?.id!)
-          .eq("is_active", true)
-          .maybeSingle();
-        const senderName = (ua as any)?.person?.full_name || "Saksbehandler";
-
-        await supabase.from("order_form_messages").insert({
-          submission_id: id!,
-          sender_type: "admin",
-          sender_user_id: user?.id,
-          sender_name: senderName,
-          message_type: "message",
-          body: comment.trim(),
-          is_visible_to_customer: true,
-          requires_reply: false,
-        } as any);
-
-        // Update last_admin_message_at
         await supabase.from("order_form_submissions")
           .update({ last_admin_message_at: new Date().toISOString(), last_activity_at: new Date().toISOString() } as any)
           .eq("id", id!);
@@ -421,6 +443,7 @@ export default function OrderFormDetailPage() {
     },
     onSuccess: () => {
       setComment("");
+      setAddressedTo(null);
       qc.invalidateQueries({ queryKey: ["order-form-comments", id] });
       qc.invalidateQueries({ queryKey: ["order-form-messages", id] });
       toast.success(commentVisibility === "shared" ? "Melding delt med bestiller" : "Intern kommentar lagt til");
@@ -1171,6 +1194,12 @@ export default function OrderFormDetailPage() {
             </CardContent>
           </Card>
 
+          {/* Participants panel */}
+          <OrderParticipantsPanel
+            submissionId={id!}
+            companyId={submission.company_id}
+          />
+
           {/* Messages - unified view */}
           <Card>
             <CardHeader className="pb-2">
@@ -1192,6 +1221,9 @@ export default function OrderFormDetailPage() {
                     const isCustomer = m.sender_type === "customer";
                     const isRequestInfo = m.message_type === "request_info";
                     const isSystem = m.sender_type === "system";
+                    const addressedParticipant = m.addressed_to_participant_id
+                      ? participants.find((p: any) => p.id === m.addressed_to_participant_id)
+                      : null;
                     // Find if this customer message is a reply to an open request_info
                     const isReplyToRequest = isCustomer && (orderMessages as any[]).some(
                       (prev: any) => prev.message_type === "request_info" && prev.requires_reply && prev.replied_at &&
@@ -1230,6 +1262,11 @@ export default function OrderFormDetailPage() {
                           <span className="text-[10px] text-muted-foreground">
                             {m.sender_name || (isCustomer ? "Bestiller" : "Saksbehandler")} · {format(new Date(m.created_at), "d. MMM HH:mm", { locale: nb })}
                           </span>
+                          {addressedParticipant && (
+                            <Badge variant="outline" className="text-[8px] bg-muted">
+                              → {addressedParticipant.name} ({addressedParticipant.role_label || addressedParticipant.participant_type})
+                            </Badge>
+                          )}
                           {isRequestInfo && m.requires_reply && (
                             m.replied_at ? (
                               <Badge variant="outline" className="text-[8px] bg-green-50 text-green-600 border-green-200">
@@ -1383,6 +1420,7 @@ export default function OrderFormDetailPage() {
                   className="min-h-[60px] text-sm"
                 />
                 <div className="flex items-center gap-2">
+                  {/* Visibility toggle */}
                   <Button
                     size="sm"
                     variant={commentVisibility === "internal" ? "default" : "outline"}
@@ -1401,6 +1439,22 @@ export default function OrderFormDetailPage() {
                     <Send className="h-3 w-3 mr-1" />
                     Del med bestiller
                   </Button>
+                  {/* Addressed-to selector */}
+                  {participants.length > 0 && (
+                    <Select value={addressedTo || "__none__"} onValueChange={(v) => setAddressedTo(v === "__none__" ? null : v)}>
+                      <SelectTrigger className="h-7 text-xs w-36">
+                        <SelectValue placeholder="Til alle" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">Til alle</SelectItem>
+                        {participants.map((p: any) => (
+                          <SelectItem key={p.id} value={p.id}>
+                            {p.name} ({p.role_label || "Deltaker"})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
                   <div className="flex-1" />
                   <Button
                     size="sm"

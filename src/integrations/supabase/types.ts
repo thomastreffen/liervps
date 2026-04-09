@@ -6211,6 +6211,7 @@ export type Database = {
       }
       order_form_messages: {
         Row: {
+          addressed_to_participant_id: string | null
           body: string
           created_at: string
           id: string
@@ -6222,11 +6223,15 @@ export type Database = {
           reviewed_at: string | null
           reviewed_by_user_id: string | null
           sender_name: string | null
+          sender_participant_id: string | null
           sender_type: string
           sender_user_id: string | null
+          source: string
           submission_id: string
+          visibility: string
         }
         Insert: {
+          addressed_to_participant_id?: string | null
           body: string
           created_at?: string
           id?: string
@@ -6238,11 +6243,15 @@ export type Database = {
           reviewed_at?: string | null
           reviewed_by_user_id?: string | null
           sender_name?: string | null
+          sender_participant_id?: string | null
           sender_type: string
           sender_user_id?: string | null
+          source?: string
           submission_id: string
+          visibility?: string
         }
         Update: {
+          addressed_to_participant_id?: string | null
           body?: string
           created_at?: string
           id?: string
@@ -6254,13 +6263,83 @@ export type Database = {
           reviewed_at?: string | null
           reviewed_by_user_id?: string | null
           sender_name?: string | null
+          sender_participant_id?: string | null
           sender_type?: string
           sender_user_id?: string | null
+          source?: string
           submission_id?: string
+          visibility?: string
         }
         Relationships: [
           {
+            foreignKeyName: "order_form_messages_addressed_to_participant_id_fkey"
+            columns: ["addressed_to_participant_id"]
+            isOneToOne: false
+            referencedRelation: "order_form_participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_form_messages_sender_participant_id_fkey"
+            columns: ["sender_participant_id"]
+            isOneToOne: false
+            referencedRelation: "order_form_participants"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "order_form_messages_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "order_form_submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      order_form_participants: {
+        Row: {
+          can_reply: boolean
+          created_at: string
+          created_by: string | null
+          email: string | null
+          id: string
+          is_visible_to_customer: boolean
+          name: string
+          participant_type: string
+          receives_notifications: boolean
+          role_label: string | null
+          submission_id: string
+          user_id: string | null
+        }
+        Insert: {
+          can_reply?: boolean
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          id?: string
+          is_visible_to_customer?: boolean
+          name: string
+          participant_type?: string
+          receives_notifications?: boolean
+          role_label?: string | null
+          submission_id: string
+          user_id?: string | null
+        }
+        Update: {
+          can_reply?: boolean
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          id?: string
+          is_visible_to_customer?: boolean
+          name?: string
+          participant_type?: string
+          receives_notifications?: boolean
+          role_label?: string | null
+          submission_id?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_form_participants_submission_id_fkey"
             columns: ["submission_id"]
             isOneToOne: false
             referencedRelation: "order_form_submissions"
