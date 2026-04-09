@@ -87,7 +87,7 @@ function CustomerTimeline({ submissionId }: { submissionId: string }) {
     submitted: "Bestilling mottatt",
     missing_info_requested: "Vi ba om mer informasjon",
     customer_reply: "Du sendte svar",
-    converted_to_order: "Oppgave opprettet",
+    converted_to_order: "Oppgave opprettet i ressursplan",
     notification_sent: "Oppdatering sendt",
   };
 
@@ -135,6 +135,9 @@ function CustomerTimeline({ submissionId }: { submissionId: string }) {
                   )}>
                     {label}
                   </p>
+                  {e.payload?.summary && (
+                    <p className="text-xs text-foreground/70">{e.payload.summary}</p>
+                  )}
                   <p className="text-[11px] text-muted-foreground">
                     {format(new Date(e.created_at), "d. MMM yyyy 'kl.' HH:mm", { locale: nb })}
                   </p>
