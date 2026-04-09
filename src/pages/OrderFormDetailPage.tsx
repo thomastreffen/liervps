@@ -6,7 +6,7 @@ import {
   ArrowLeft, MessageSquare, Clock, Paperclip, AlertTriangle,
   ArrowRight, FileText, Download, Mail, MailCheck, MailX, ExternalLink, UserPlus,
   Tag, User, LinkIcon, X, MoreHorizontal, Eye, Send, Globe, UserCheck, Bell, BellRing,
-  CalendarDays,
+  CalendarDays, LockKeyhole,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -1249,7 +1249,7 @@ export default function OrderFormDetailPage() {
                         )}
                         {!isCustomer && !isRequestInfo && !isSystem && m.is_visible_to_customer && (
                           <Badge variant="outline" className="text-[9px] mb-1 bg-primary/10 text-primary border-primary/20">
-                            Delt med bestiller
+                            Delt med kunde
                           </Badge>
                         )}
                         {!m.is_visible_to_customer && !isCustomer && (
@@ -1417,37 +1417,50 @@ export default function OrderFormDetailPage() {
                 </div>
               )}
 
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <Textarea
                   placeholder="Skriv melding..."
                   value={comment}
                   onChange={(e) => setComment(e.target.value)}
                   className="min-h-[60px] text-sm"
                 />
-                <div className="flex items-center gap-2">
-                  {/* Visibility toggle */}
-                  <Button
-                    size="sm"
-                    variant={commentVisibility === "internal" ? "default" : "outline"}
-                    className="text-xs h-7"
-                    onClick={() => setCommentVisibility("internal")}
-                  >
-                    Intern
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant={commentVisibility === "shared" ? "default" : "outline"}
-                    className="text-xs h-7"
-                    onClick={() => setCommentVisibility("shared")}
-                    title="Meldingen blir synlig på bestillerens sporingsside"
-                  >
-                    <Send className="h-3 w-3 mr-1" />
-                    Del med bestiller
-                  </Button>
-                  {/* Addressed-to selector */}
-                  {participants.length > 0 && (
+
+                {/* Row 1: Synlighet */}
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Synlighet</label>
+                  <div className="flex items-center gap-1.5">
+                    <Button
+                      size="sm"
+                      variant={commentVisibility === "internal" ? "default" : "outline"}
+                      className="text-xs h-7 gap-1.5"
+                      onClick={() => setCommentVisibility("internal")}
+                    >
+                      <LockKeyhole className="h-3 w-3" />
+                      Intern
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant={commentVisibility === "shared" ? "default" : "outline"}
+                      className="text-xs h-7 gap-1.5"
+                      onClick={() => setCommentVisibility("shared")}
+                    >
+                      <Eye className="h-3 w-3" />
+                      Delt med kunde
+                    </Button>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">
+                    {commentVisibility === "internal"
+                      ? "Kun synlig for interne brukere med tilgang til bestillingen."
+                      : "Synlig for bestiller på sporingssiden og for alle interne."}
+                  </p>
+                </div>
+
+                {/* Row 2: Adressat */}
+                {participants.length > 0 && (
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Adressat</label>
                     <Select value={addressedTo || "__none__"} onValueChange={(v) => setAddressedTo(v === "__none__" ? null : v)}>
-                      <SelectTrigger className="h-7 text-xs w-36">
+                      <SelectTrigger className="h-8 text-xs w-48">
                         <SelectValue placeholder="Til alle" />
                       </SelectTrigger>
                       <SelectContent>
@@ -1459,21 +1472,26 @@ export default function OrderFormDetailPage() {
                         ))}
                       </SelectContent>
                     </Select>
-                  )}
-                  <div className="flex-1" />
+                    {addressedTo && (
+                      <p className="text-[10px] text-amber-600 dark:text-amber-400">
+                        Meldingen varsler og adresseres til valgt deltaker, men er fortsatt synlig for alle innen valgt synlighet.
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {/* Row 3: Send */}
+                <div className="flex items-center justify-end pt-1 border-t border-border/40">
                   <Button
                     size="sm"
                     disabled={!comment.trim()}
                     onClick={() => addComment.mutate()}
+                    className="gap-1.5"
                   >
-                    Legg til
+                    <Send className="h-3.5 w-3.5" />
+                    Send melding
                   </Button>
                 </div>
-                {commentVisibility === "shared" && (
-                  <p className="text-[10px] text-muted-foreground">
-                    Meldingen blir synlig på bestillerens sporingsside.
-                  </p>
-                )}
               </div>
             </CardContent>
           </Card>
