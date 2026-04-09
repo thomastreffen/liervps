@@ -297,14 +297,17 @@ export const ResourceCalendar = memo(function ResourceCalendar({
     for (const assignment of renderableAssignments) {
       const ev = assignment.event;
       const tech = assignment.technician;
-      const isOvernight = ev.start.toDateString() !== ev.end.toDateString();
+      // Use per-technician time override if available
+      const techStart = tech.startAt ?? ev.start;
+      const techEnd = tech.endAt ?? ev.end;
+      const isOvernight = techStart.toDateString() !== techEnd.toDateString();
       const techColor = techColorMap.get(tech.id) || GCAL_PALETTE[0];
       const techFirstName = tech.name.split(" ")[0];
       const techInfo = technicianMap.get(tech.id);
       const renderKey = assignment.assignmentKey;
 
       const ranges = calEventRangesByTech.get(tech.id) || [];
-      ranges.push({ start: ev.start.getTime(), end: ev.end.getTime() });
+      ranges.push({ start: techStart.getTime(), end: techEnd.getTime() });
       calEventRangesByTech.set(tech.id, ranges);
 
       assignmentMetaByEventTech.set(`${ev.id}::${tech.id}`, {
@@ -312,16 +315,16 @@ export const ResourceCalendar = memo(function ResourceCalendar({
         technicianId: tech.id,
         eventTechnicianId: tech.eventTechnicianId ?? null,
         calendarEventId: tech.calendarEventId ?? null,
-        start: ev.start.getTime(),
-        end: ev.end.getTime(),
+        start: techStart.getTime(),
+        end: techEnd.getTime(),
         displayName: tech.name,
       });
 
       result.push({
         id: renderKey,
         title: ev.title.replace("SERVICE – ", ""),
-        start: ev.start,
-        end: ev.end,
+        start: techStart,
+        end: techEnd,
         backgroundColor: techColor,
         borderColor: techColor,
         textColor: "#FFFFFF",
