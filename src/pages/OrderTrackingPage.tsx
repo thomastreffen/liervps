@@ -359,10 +359,10 @@ export default function OrderTrackingPage() {
     onSuccess: () => {
       setReplyText("");
       setReplyFiles([]);
-      qc.invalidateQueries({ queryKey: ["tracking-messages", submission?.id] });
-      qc.invalidateQueries({ queryKey: ["tracking-comments-legacy", submission?.id] });
-      qc.invalidateQueries({ queryKey: ["tracking-attachments", submission?.id] });
-      qc.invalidateQueries({ queryKey: ["tracking-timeline", submission?.id] });
+      qc.invalidateQueries({ queryKey: ["tracking-messages", token] });
+      qc.invalidateQueries({ queryKey: ["tracking-comments-legacy", token] });
+      qc.invalidateQueries({ queryKey: ["tracking-attachments", token] });
+      qc.invalidateQueries({ queryKey: ["tracking-timeline", token] });
       qc.invalidateQueries({ queryKey: ["tracking", token] });
       toast.success("Svaret ditt er sendt!");
     },
