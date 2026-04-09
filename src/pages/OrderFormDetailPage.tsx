@@ -1129,6 +1129,11 @@ export default function OrderFormDetailPage() {
                     const isCustomer = m.sender_type === "customer";
                     const isRequestInfo = m.message_type === "request_info";
                     const isSystem = m.sender_type === "system";
+                    // Find if this customer message is a reply to an open request_info
+                    const isReplyToRequest = isCustomer && (orderMessages as any[]).some(
+                      (prev: any) => prev.message_type === "request_info" && prev.requires_reply && prev.replied_at &&
+                        new Date(prev.replied_at).getTime() <= new Date(m.created_at).getTime() + 60000
+                    );
 
                     return (
                       <div key={m.id} className={`text-sm border-l-2 pl-3 ${
@@ -1173,7 +1178,76 @@ export default function OrderFormDetailPage() {
                               </Badge>
                             )
                           )}
+                          {/* Review status on request_info */}
+                          {isRequestInfo && m.review_status === "approved" && (
+                            <Badge variant="outline" className="text-[8px] bg-green-50 text-green-600 border-green-200">
+                              ✓ Vurdert OK
+                            </Badge>
+                          )}
+                          {isRequestInfo && m.review_status === "insufficient" && (
+                            <Badge variant="outline" className="text-[8px] bg-red-50 text-red-600 border-red-200">
+                              Utilstrekkelig
+                            </Badge>
+                          )}
                         </div>
+
+                        {/* Admin review actions: show on request_info that has been replied to but not yet reviewed */}
+                        {isRequestInfo && m.replied_at && !m.reviewed_at && (
+                          <div className="flex items-center gap-2 mt-2 pt-2 border-t border-border/50">
+                            <span className="text-[10px] text-muted-foreground mr-auto">Kundesvar mottatt — vurder svaret:</span>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-6 text-[10px] px-2 text-green-700 border-green-300 hover:bg-green-50"
+                              onClick={async () => {
+                                await supabase.from("order_form_messages")
+                                  .update({
+                                    reviewed_at: new Date().toISOString(),
+                                    review_status: "approved",
+                                    reviewed_by_user_id: user?.id,
+                                  } as any)
+                                  .eq("id", m.id);
+                                await supabase.from("order_form_activity_log").insert({
+                                  submission_id: id!,
+                                  event_type: "request_info_reviewed",
+                                  payload: { message_id: m.id, review_status: "approved" },
+                                  created_by: user?.id,
+                                } as any);
+                                qc.invalidateQueries({ queryKey: ["order-form-messages", id] });
+                                toast.success("Kundesvar godkjent");
+                              }}
+                            >
+                              <UserCheck className="h-3 w-3 mr-1" />
+                              Informasjon er tilstrekkelig
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-6 text-[10px] px-2 text-amber-700 border-amber-300 hover:bg-amber-50"
+                              onClick={async () => {
+                                await supabase.from("order_form_messages")
+                                  .update({
+                                    reviewed_at: new Date().toISOString(),
+                                    review_status: "insufficient",
+                                    reviewed_by_user_id: user?.id,
+                                  } as any)
+                                  .eq("id", m.id);
+                                await supabase.from("order_form_activity_log").insert({
+                                  submission_id: id!,
+                                  event_type: "request_info_reviewed",
+                                  payload: { message_id: m.id, review_status: "insufficient" },
+                                  created_by: user?.id,
+                                } as any);
+                                qc.invalidateQueries({ queryKey: ["order-form-messages", id] });
+                                setRequestInfoOpen(true);
+                                toast.info("Åpner ny forespørsel...");
+                              }}
+                            >
+                              <AlertTriangle className="h-3 w-3 mr-1" />
+                              Be om mer info igjen
+                            </Button>
+                          </div>
+                        )}
                       </div>
                     );
                   })}
