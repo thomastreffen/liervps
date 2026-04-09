@@ -1249,7 +1249,7 @@ export default function OrderFormDetailPage() {
                         )}
                         {!isCustomer && !isRequestInfo && !isSystem && m.is_visible_to_customer && (
                           <Badge variant="outline" className="text-[9px] mb-1 bg-primary/10 text-primary border-primary/20">
-                            Delt med bestiller
+                            Delt med kunde
                           </Badge>
                         )}
                         {!m.is_visible_to_customer && !isCustomer && (
