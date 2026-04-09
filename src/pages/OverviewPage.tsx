@@ -1,51 +1,89 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { format, startOfDay, endOfDay, addDays } from "date-fns";
+import { format, startOfDay, endOfDay, addDays, isPast, isToday } from "date-fns";
 import { nb } from "date-fns/locale";
-import { Loader2, ArrowRight, AlertCircle, CalendarX, ShieldAlert, AlertTriangle, Clock, Send, ListX, ChevronRight } from "lucide-react";
+import {
+  Loader2, ArrowRight, AlertTriangle, CalendarX, ShieldAlert,
+  ChevronRight, Clock, Send, ListX, CalendarPlus, Plus,
+  ClipboardList, TriangleAlert, CalendarDays, Inbox, ReceiptText,
+  FolderKanban, ListChecks, Circle, AlertCircle, MapPin, User,
+  CalendarCheck, Wrench,
+} from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useCompanyContext } from "@/hooks/useCompanyContext";
-import { ProjectCards, type ProjectCardData } from "@/components/overview/ProjectCards";
-import { YourDay, type DayBlock } from "@/components/overview/YourDay";
-import { MyTasks, type OverviewEvent } from "@/components/overview/MyTasks";
-import { SectionHeader } from "@/components/overview/SectionHeader";
 import type { JobStatus } from "@/lib/job-status";
 import { Button } from "@/components/ui/button";
 import { EventDrawer } from "@/components/EventDrawer";
 import { fetchActiveLeads } from "@/lib/lead-queries";
+import { cn } from "@/lib/utils";
 
-interface AttentionItem {
-  icon: React.ReactNode;
+// ── Types ──
+
+interface KpiMetric {
   label: string;
-  count: number;
-  accent: string;
-  iconBg: string;
+  value: number;
+  icon: React.ReactNode;
+  severity: "neutral" | "warning" | "critical";
   route: string;
 }
 
-interface ActionItem {
+interface PriorityItem {
   icon: React.ReactNode;
   label: string;
   count: number;
+  severity: "critical" | "warning" | "info";
   route: string;
+  description?: string;
+}
+
+interface DayBlock {
+  id: string;
+  start_at: string;
+  end_at: string;
+  title: string;
+  project_id: string | null;
+  project_title: string | null;
+  location: string | null;
+  technician_name: string | null;
+}
+
+interface TaskEvent {
+  id: string;
+  title: string;
+  start_time: string;
+  end_time: string;
+  project_type: string;
+  status: string;
+  customer: string | null;
+}
+
+interface ProjectCard {
+  id: string;
+  title: string;
+  internal_number: string | null;
+  customer: string;
+  hasPlanned: boolean;
+  taskCount: number;
 }
 
 export default function OverviewPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { activeCompanyId, allowedCompanyIds } = useCompanyContext();
-  const [dataLoading, setDataLoading] = useState(true);
-  const [projects, setProjects] = useState<ProjectCardData[]>([]);
-  const [dayBlocks, setDayBlocks] = useState<DayBlock[]>([]);
-  const [myEvents, setMyEvents] = useState<OverviewEvent[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showTaskDrawer, setShowTaskDrawer] = useState(false);
-  const [attentionItems, setAttentionItems] = useState<AttentionItem[]>([]);
-  const [actionItems, setActionItems] = useState<ActionItem[]>([]);
+
+  // Data
+  const [kpis, setKpis] = useState<KpiMetric[]>([]);
+  const [priorities, setPriorities] = useState<PriorityItem[]>([]);
+  const [dayBlocks, setDayBlocks] = useState<DayBlock[]>([]);
+  const [tasks, setTasks] = useState<TaskEvent[]>([]);
+  const [projects, setProjects] = useState<ProjectCard[]>([]);
 
   const fetchAll = useCallback(async () => {
     if (!user) return;
-    setDataLoading(true);
+    setLoading(true);
     const now = new Date();
     const dayStart = startOfDay(now).toISOString();
     const dayEnd = endOfDay(now).toISOString();
@@ -54,10 +92,7 @@ export default function OverviewPage() {
     const d7 = new Date(now.getTime() - 7 * 86400000).toISOString();
 
     const techPromise = supabase
-      .from("technicians")
-      .select("id")
-      .eq("user_id", user.id)
-      .maybeSingle();
+      .from("technicians").select("id").eq("user_id", user.id).maybeSingle();
 
     let projectQuery = supabase.from("events")
       .select("id, title, customer, status, internal_number")
@@ -69,79 +104,55 @@ export default function OverviewPage() {
     if (activeCompanyId) projectQuery = projectQuery.eq("company_id", activeCompanyId);
     else if (allowedCompanyIds.length > 0) projectQuery = projectQuery.in("company_id", allowedCompanyIds);
 
-    const [projectsRes, techRes] = await Promise.all([projectQuery, techPromise]);
-
-    const rawProjects = (projectsRes.data || []) as Array<{
-      id: string; title: string; customer: string; status: JobStatus; internal_number: string | null;
-    }>;
-
-    const techId = techRes.data?.id;
-    const projectIds = rawProjects.map((p) => p.id);
-
-    // My events query
-    let myEventsPromise: PromiseLike<any>;
-    if (techId) {
-      myEventsPromise = supabase
-        .from("event_technicians")
-        .select("event_id, events!inner(id, title, start_time, end_time, project_type, status, customer, description)")
-        .eq("technician_id", techId)
-        .then(({ data }) => {
-          const events = (data || []).map((et: any) => et.events).filter((e: any) => e && !e.deleted_at);
-          return supabase
-            .from("events")
-            .select("id, title, start_time, end_time, project_type, status, customer, description")
-            .eq("created_by", user.id)
-            .eq("project_type", "task")
-            .is("deleted_at", null)
-            .gte("start_time", startOfDay(now).toISOString())
-            .lte("start_time", weekEnd)
-            .order("start_time", { ascending: true })
-            .limit(20)
-            .then(({ data: taskData }) => {
-              const combined = [...events, ...(taskData || [])];
-              const seen = new Set<string>();
-              return combined.filter((e: any) => {
-                if (seen.has(e.id)) return false;
-                seen.add(e.id);
-                const start = new Date(e.start_time);
-                return start >= startOfDay(now) && start <= new Date(weekEnd);
-              }).sort((a: any, b: any) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
-            });
-        });
-    } else {
-      myEventsPromise = supabase
-        .from("events")
-        .select("id, title, start_time, end_time, project_type, status, customer, description")
-        .eq("created_by", user.id)
-        .is("deleted_at", null)
-        .gte("start_time", startOfDay(now).toISOString())
-        .lte("start_time", weekEnd)
-        .order("start_time", { ascending: true })
-        .limit(30)
-        .then(({ data }) => data || []);
-    }
-
-    // Fetch attention data: unplanned, overbooking, deviations
-    let allProjectsQuery = supabase.from("events")
+    // All active projects for unplanned count
+    let allProjQuery = supabase.from("events")
       .select("id")
       .in("status", ["approved", "in_progress", "scheduled"])
       .is("deleted_at", null);
-    if (activeCompanyId) allProjectsQuery = allProjectsQuery.eq("company_id", activeCompanyId);
-    else if (allowedCompanyIds.length > 0) allProjectsQuery = allProjectsQuery.in("company_id", allowedCompanyIds);
+    if (activeCompanyId) allProjQuery = allProjQuery.eq("company_id", activeCompanyId);
+    else if (allowedCompanyIds.length > 0) allProjQuery = allProjQuery.in("company_id", allowedCompanyIds);
 
+    // Today's jobs count
+    let todayJobsQuery = supabase.from("events")
+      .select("id", { count: "exact", head: true })
+      .in("status", activeStatuses)
+      .is("deleted_at", null)
+      .gte("start_time", dayStart)
+      .lt("start_time", dayEnd);
+    if (activeCompanyId) todayJobsQuery = todayJobsQuery.eq("company_id", activeCompanyId);
+    else if (allowedCompanyIds.length > 0) todayJobsQuery = todayJobsQuery.in("company_id", allowedCompanyIds);
+
+    // Overbooked
     let overbookedQuery = supabase.from("schedule_blocks")
       .select("technician_id, start_at, end_at")
       .is("deleted_at", null)
-      .gte("start_at", new Date(new Date().setHours(0, 0, 0, 0)).toISOString())
-      .lt("start_at", new Date(new Date().setHours(24, 0, 0, 0)).toISOString());
+      .gte("start_at", dayStart)
+      .lt("start_at", dayEnd);
     if (activeCompanyId) overbookedQuery = overbookedQuery.eq("company_id", activeCompanyId);
     else if (allowedCompanyIds.length > 0) overbookedQuery = overbookedQuery.in("company_id", allowedCompanyIds);
 
-    // Fetch sales action data
+    // Deviations
+    const deviationsQuery = supabase.from("job_risk_items" as any).select("id").eq("status", "open");
+
+    // Orders awaiting info
+    let ordersQuery = supabase.from("order_form_submissions")
+      .select("id", { count: "exact", head: true })
+      .in("status", ["missing_info", "waiting_customer"]);
+    if (activeCompanyId) ordersQuery = ordersQuery.eq("company_id", activeCompanyId);
+    else if (allowedCompanyIds.length > 0) ordersQuery = ordersQuery.in("company_id", allowedCompanyIds);
+
+    // Ready for invoicing
+    let invoiceQuery = supabase.from("events")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "ready_for_invoicing")
+      .is("deleted_at", null);
+    if (activeCompanyId) invoiceQuery = invoiceQuery.eq("company_id", activeCompanyId);
+    else if (allowedCompanyIds.length > 0) invoiceQuery = invoiceQuery.in("company_id", allowedCompanyIds);
+
+    // Sales data
     const leadsPromise = fetchActiveLeads("id, status, updated_at, next_action_type, next_action_date", activeCompanyId, allowedCompanyIds);
-    let calcsQuery = supabase
-      .from("calculations")
-      .select("id, status, lead_id, created_at")
+    let calcsQuery = supabase.from("calculations")
+      .select("id, status, created_at")
       .is("deleted_at", null)
       .in("status", ["sent", "generated"])
       .limit(100);
@@ -149,85 +160,74 @@ export default function OverviewPage() {
     else if (allowedCompanyIds.length > 0) calcsQuery = calcsQuery.in("company_id", allowedCompanyIds);
 
     const [
-      taskCountsRes, blocksRes, myEventsResult, plannedBlocksRes,
-      allProjectsRes, overbookedRes, deviationsRes,
-      leadsRes, calcsRes
+      techRes, projectsRes, allProjRes, todayJobsRes, overbookedRes,
+      deviationsRes, ordersRes, invoiceRes, leadsRes, calcsRes,
     ] = await Promise.all([
-      projectIds.length > 0
-        ? supabase.from("job_tasks").select("job_id, status").in("job_id", projectIds).neq("status", "completed")
-        : Promise.resolve({ data: [] }),
-      techId
-        ? supabase.from("schedule_blocks")
-            .select("id, start_at, end_at, title, project_id, location, technicians!inner(name), events!schedule_blocks_project_id_fkey(title)")
-            .eq("technician_id", techId)
-            .is("deleted_at", null)
-            .gte("start_at", dayStart)
-            .lt("start_at", dayEnd)
-            .order("start_at", { ascending: true })
-            .limit(10)
-        : Promise.resolve({ data: [] }),
-      myEventsPromise,
-      projectIds.length > 0
-        ? supabase.from("schedule_blocks")
-            .select("project_id")
-            .in("project_id", projectIds)
-            .is("deleted_at", null)
-            .gte("start_at", now.toISOString())
-        : Promise.resolve({ data: [] }),
-      allProjectsQuery,
-      overbookedQuery,
-      supabase.from("job_risk_items" as any).select("id").eq("status", "open"),
-      leadsPromise,
-      calcsQuery,
+      techPromise, projectQuery, allProjQuery, todayJobsQuery,
+      overbookedQuery, deviationsQuery, ordersQuery, invoiceRes || invoiceQuery, leadsPromise, calcsQuery,
     ]);
 
-    // Process projects
-    const tasksByProject: Record<string, number> = {};
-    (taskCountsRes.data || []).forEach((t: any) => {
-      tasksByProject[t.job_id] = (tasksByProject[t.job_id] || 0) + 1;
-    });
+    const techId = techRes.data?.id;
+    const rawProjects = (projectsRes.data || []) as Array<{
+      id: string; title: string; customer: string; status: JobStatus; internal_number: string | null;
+    }>;
+    const projectIds = rawProjects.map(p => p.id);
 
-    const plannedProjectIds = new Set(
-      (plannedBlocksRes.data || []).map((b: any) => b.project_id).filter(Boolean)
-    );
+    // My events for tasks
+    let myEventsData: any[] = [];
+    if (techId) {
+      const { data: etData } = await supabase
+        .from("event_technicians")
+        .select("event_id, events!inner(id, title, start_time, end_time, project_type, status, customer)")
+        .eq("technician_id", techId);
+      const techEvents = (etData || []).map((et: any) => et.events).filter(Boolean);
+      const { data: taskData } = await supabase
+        .from("events")
+        .select("id, title, start_time, end_time, project_type, status, customer")
+        .eq("created_by", user.id)
+        .eq("project_type", "task")
+        .is("deleted_at", null)
+        .gte("start_time", dayStart)
+        .lte("start_time", weekEnd)
+        .order("start_time", { ascending: true })
+        .limit(20);
+      const combined = [...techEvents, ...(taskData || [])];
+      const seen = new Set<string>();
+      myEventsData = combined.filter((e: any) => {
+        if (seen.has(e.id)) return false;
+        seen.add(e.id);
+        const s = new Date(e.start_time);
+        return s >= startOfDay(now) && s <= new Date(weekEnd);
+      }).sort((a: any, b: any) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
+    } else {
+      const { data } = await supabase
+        .from("events")
+        .select("id, title, start_time, end_time, project_type, status, customer")
+        .eq("created_by", user.id)
+        .is("deleted_at", null)
+        .gte("start_time", dayStart)
+        .lte("start_time", weekEnd)
+        .order("start_time", { ascending: true })
+        .limit(30);
+      myEventsData = data || [];
+    }
 
-    setProjects(rawProjects.map((p) => ({
-      id: p.id,
-      title: p.title,
-      internal_number: p.internal_number,
-      customer: p.customer,
-      nextActivity: null,
-      taskCount: tasksByProject[p.id] || 0,
-      messageCount: 0,
-      deviationCount: 0,
-      hasPlanned: plannedProjectIds.has(p.id),
-    })));
+    // Day blocks for schedule
+    let blocksData: any[] = [];
+    if (techId) {
+      const { data } = await supabase.from("schedule_blocks")
+        .select("id, start_at, end_at, title, project_id, location, technicians!inner(name), events!schedule_blocks_project_id_fkey(title)")
+        .eq("technician_id", techId)
+        .is("deleted_at", null)
+        .gte("start_at", dayStart)
+        .lt("start_at", dayEnd)
+        .order("start_at", { ascending: true })
+        .limit(10);
+      blocksData = data || [];
+    }
 
-    setDayBlocks((blocksRes.data || []).map((b: any) => ({
-      id: b.id,
-      start_at: b.start_at,
-      end_at: b.end_at,
-      title: b.title,
-      project_id: b.project_id,
-      project_title: b.events?.title ?? null,
-      location: b.location,
-      technician_name: b.technicians?.name ?? null,
-    })));
-
-    const rawMyEvents: OverviewEvent[] = ((myEventsResult as any) || []).map((e: any) => ({
-      id: e.id,
-      title: e.title,
-      start_time: e.start_time,
-      end_time: e.end_time,
-      project_type: e.project_type || "project",
-      status: e.status,
-      customer: e.customer,
-      description: e.description,
-    }));
-    setMyEvents(rawMyEvents);
-
-    // Build attention items (operational risks)
-    const allProjectIds = (allProjectsRes.data || []).map((p: any) => p.id);
+    // Unplanned projects
+    const allProjectIds = (allProjRes.data || []).map((p: any) => p.id);
     let unplannedCount = 0;
     if (allProjectIds.length > 0) {
       const { data: plannedBlocks } = await supabase
@@ -240,197 +240,437 @@ export default function OverviewPage() {
       unplannedCount = allProjectIds.filter((id: string) => !pIds.has(id)).length;
     }
 
+    // Overbooked technicians
     const techHours: Record<string, number> = {};
     (overbookedRes.data || []).forEach((b: any) => {
       if (!b.technician_id) return;
       const hours = (new Date(b.end_at).getTime() - new Date(b.start_at).getTime()) / 3600000;
       techHours[b.technician_id] = (techHours[b.technician_id] || 0) + hours;
     });
-    const overbookedCount = Object.values(techHours).filter((h) => h > 8).length;
+    const overbookedCount = Object.values(techHours).filter(h => h > 8).length;
     const deviationCount = (deviationsRes.data || []).length;
+    const ordersWaiting = ordersRes.count || 0;
+    const readyForInvoicing = invoiceRes.count || 0;
+    const todayJobs = todayJobsRes.count || 0;
 
-    const attention: AttentionItem[] = [];
-    if (overbookedCount > 0) attention.push({
-      icon: <AlertTriangle className="h-4 w-4" />, label: "Overbooking i dag",
-      count: overbookedCount, accent: "text-destructive", iconBg: "bg-destructive/10", route: "/resource-plan",
-    });
-    if (unplannedCount > 0) attention.push({
-      icon: <CalendarX className="h-4 w-4" />, label: "Uplanlagte prosjekter",
-      count: unplannedCount, accent: "text-warning", iconBg: "bg-warning/12", route: "/jobs",
-    });
-    if (deviationCount > 0) attention.push({
-      icon: <ShieldAlert className="h-4 w-4" />, label: "Åpne avvik",
-      count: deviationCount, accent: "text-destructive", iconBg: "bg-destructive/10", route: "/jobs",
-    });
-    setAttentionItems(attention);
-
-    // Build action items (cross-domain)
+    // Sales action items
     const leads = leadsRes.data || [];
     const calcs = calcsRes.data || [];
     const activeLeads = leads.filter((l: any) => !["won", "lost"].includes(l.status));
     const inactiveLeads = activeLeads.filter((l: any) => !l.updated_at || new Date(l.updated_at) < new Date(d7)).length;
     const leadsWithoutNextStep = activeLeads.filter((l: any) => !l.next_action_type && !l.next_action_date).length;
     const sentOffers = calcs.filter((c: any) => c.status === "sent");
-    const offersWithoutFollowup = sentOffers.filter((c: any) => (now.getTime() - new Date(c.created_at).getTime()) / 86400000 > 5).length;
+    const offersOverdue = sentOffers.filter((c: any) => (now.getTime() - new Date(c.created_at).getTime()) / 86400000 > 5).length;
 
-    const actions: ActionItem[] = [];
-    if (offersWithoutFollowup > 0) actions.push({
-      icon: <Send className="h-3.5 w-3.5" />, label: "Tilbud uten oppfølging",
-      count: offersWithoutFollowup, route: "/sales/offers?filter=no_followup",
-    });
-    if (inactiveLeads > 0) actions.push({
-      icon: <Clock className="h-3.5 w-3.5" />, label: "Leads uten aktivitet > 7 dager",
-      count: inactiveLeads, route: "/sales/leads?filter=inactive_7d",
-    });
-    if (leadsWithoutNextStep > 0) actions.push({
-      icon: <ListX className="h-3.5 w-3.5" />, label: "Leads uten neste steg",
-      count: leadsWithoutNextStep, route: "/sales/leads?filter=no_next_step",
-    });
-    if (unplannedCount > 0) actions.push({
-      icon: <CalendarX className="h-3.5 w-3.5" />, label: "Prosjekter uten plan",
-      count: unplannedCount, route: "/jobs",
-    });
-    setActionItems(actions.slice(0, 5));
+    // Task counts for project cards
+    let tasksByProject: Record<string, number> = {};
+    if (projectIds.length > 0) {
+      const { data: tc } = await supabase.from("job_tasks").select("job_id, status").in("job_id", projectIds).neq("status", "completed");
+      (tc || []).forEach((t: any) => { tasksByProject[t.job_id] = (tasksByProject[t.job_id] || 0) + 1; });
+    }
 
-    setDataLoading(false);
-  }, [user, activeCompanyId]);
+    // Planned status for project cards
+    let plannedProjectIds = new Set<string>();
+    if (projectIds.length > 0) {
+      const { data: pb } = await supabase.from("schedule_blocks")
+        .select("project_id")
+        .in("project_id", projectIds)
+        .is("deleted_at", null)
+        .gte("start_at", now.toISOString());
+      plannedProjectIds = new Set((pb || []).map((b: any) => b.project_id).filter(Boolean));
+    }
+
+    // ── Set KPIs ──
+    setKpis([
+      { label: "Uplanlagte", value: unplannedCount, icon: <CalendarX className="h-4 w-4" />, severity: unplannedCount > 0 ? "warning" : "neutral", route: "/jobs" },
+      { label: "Åpne avvik", value: deviationCount, icon: <ShieldAlert className="h-4 w-4" />, severity: deviationCount > 0 ? "critical" : "neutral", route: "/jobs" },
+      { label: "Jobber i dag", value: todayJobs, icon: <CalendarDays className="h-4 w-4" />, severity: "neutral", route: "/projects/plan" },
+      { label: "Venter på kunde", value: ordersWaiting, icon: <Inbox className="h-4 w-4" />, severity: ordersWaiting > 0 ? "warning" : "neutral", route: "/orders" },
+      { label: "Forfalt oppfølging", value: offersOverdue, icon: <Clock className="h-4 w-4" />, severity: offersOverdue > 0 ? "warning" : "neutral", route: "/sales/offers" },
+      { label: "Klar for faktura", value: readyForInvoicing, icon: <ReceiptText className="h-4 w-4" />, severity: "neutral", route: "/jobs" },
+    ]);
+
+    // ── Set Priorities ──
+    const pItems: PriorityItem[] = [];
+    if (unplannedCount > 0) pItems.push({ icon: <CalendarX className="h-4 w-4" />, label: "Prosjekter uten plan", count: unplannedCount, severity: "warning", route: "/jobs", description: "Aktive prosjekter uten planlagte kalenderblokker" });
+    if (overbookedCount > 0) pItems.push({ icon: <AlertTriangle className="h-4 w-4" />, label: "Overbooking i dag", count: overbookedCount, severity: "critical", route: "/resource-plan", description: "Montører med over 8 timer planlagt" });
+    if (deviationCount > 0) pItems.push({ icon: <ShieldAlert className="h-4 w-4" />, label: "Åpne avvik", count: deviationCount, severity: "critical", route: "/jobs", description: "Ubehandlede avvik krever oppfølging" });
+    if (ordersWaiting > 0) pItems.push({ icon: <Inbox className="h-4 w-4" />, label: "Bestillinger venter på kundesvar", count: ordersWaiting, severity: "warning", route: "/orders" });
+    if (offersOverdue > 0) pItems.push({ icon: <Send className="h-4 w-4" />, label: "Tilbud uten oppfølging", count: offersOverdue, severity: "warning", route: "/sales/offers" });
+    if (inactiveLeads > 0) pItems.push({ icon: <Clock className="h-4 w-4" />, label: "Leads uten aktivitet > 7 dager", count: inactiveLeads, severity: "info", route: "/sales/leads" });
+    if (leadsWithoutNextStep > 0) pItems.push({ icon: <ListX className="h-4 w-4" />, label: "Leads uten neste steg", count: leadsWithoutNextStep, severity: "info", route: "/sales/leads" });
+    if (readyForInvoicing > 0) pItems.push({ icon: <ReceiptText className="h-4 w-4" />, label: "Klar for fakturering", count: readyForInvoicing, severity: "info", route: "/jobs" });
+    setPriorities(pItems);
+
+    // ── Set Day Blocks ──
+    setDayBlocks(blocksData.map((b: any) => ({
+      id: b.id, start_at: b.start_at, end_at: b.end_at, title: b.title,
+      project_id: b.project_id, project_title: b.events?.title ?? null,
+      location: b.location, technician_name: b.technicians?.name ?? null,
+    })));
+
+    // ── Set Tasks ──
+    setTasks(myEventsData.map((e: any) => ({
+      id: e.id, title: e.title, start_time: e.start_time, end_time: e.end_time,
+      project_type: e.project_type || "project", status: e.status, customer: e.customer,
+    })));
+
+    // ── Set Projects ──
+    setProjects(rawProjects.map(p => ({
+      id: p.id, title: p.title, internal_number: p.internal_number,
+      customer: p.customer, hasPlanned: plannedProjectIds.has(p.id),
+      taskCount: tasksByProject[p.id] || 0,
+    })));
+
+    setLoading(false);
+  }, [user, activeCompanyId, allowedCompanyIds]);
 
   useEffect(() => {
     if (!user) return;
     fetchAll();
   }, [user, fetchAll]);
 
-  const greeting = () => {
+  const greeting = useMemo(() => {
     const h = new Date().getHours();
     if (h < 10) return "God morgen";
     if (h < 17) return "Hei";
     return "God kveld";
-  };
+  }, []);
 
   const firstName = user?.name?.split(" ")[0] || "";
+  const weekNumber = format(new Date(), "w");
+  const dateStr = format(new Date(), "EEEE d. MMMM", { locale: nb });
 
-  if (dataLoading) {
+  if (loading) {
     return (
-      <div className="flex items-center justify-center p-20">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="h-6 w-6 animate-spin text-primary/40" />
+          <p className="text-xs text-muted-foreground/50">Laster kontrollsenteret…</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-[1100px] mx-auto px-4 sm:px-8 py-8 sm:py-12">
-      {/* Compact greeting */}
-      <div className="mb-8">
-        <h1 className="text-2xl sm:text-3xl font-extrabold text-foreground tracking-tight">
-          {greeting()}, {firstName}
-        </h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          {format(new Date(), "EEEE d. MMMM yyyy", { locale: nb })} · Uke {format(new Date(), "w")}
-        </p>
+    <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10 pb-28 lg:pb-10">
+      {/* ─── Header ─── */}
+      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-8">
+        <div>
+          <h1 className="text-2xl sm:text-[28px] font-extrabold text-foreground tracking-tight leading-none">
+            {greeting}, {firstName}
+          </h1>
+          <p className="text-[13px] text-muted-foreground mt-1.5">
+            {dateStr} · <span className="font-medium">Uke {weekNumber}</span>
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <QuickAction icon={<CalendarPlus className="h-3.5 w-3.5" />} label="Planlegg" onClick={() => navigate("/projects/plan")} />
+          <QuickAction icon={<Plus className="h-3.5 w-3.5" />} label="Ny oppgave" onClick={() => setShowTaskDrawer(true)} />
+          <QuickAction icon={<ClipboardList className="h-3.5 w-3.5" />} label="Ny bestilling" onClick={() => navigate("/orders")} />
+          <QuickAction icon={<TriangleAlert className="h-3.5 w-3.5" />} label="Avvik" onClick={() => navigate("/jobs")} />
+        </div>
       </div>
 
-      <div className="space-y-10">
-        {/* 1. Krever oppmerksomhet — operational risks */}
-        {attentionItems.length > 0 && (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {attentionItems.map((r, i) => (
+      {/* ─── KPI Row ─── */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 sm:gap-3 mb-8">
+        {kpis.map((kpi) => (
+          <button
+            key={kpi.label}
+            onClick={() => navigate(kpi.route)}
+            className={cn(
+              "group relative rounded-2xl border p-4 sm:p-5 text-left transition-all duration-200",
+              "hover:shadow-card-hover hover:-translate-y-0.5 cursor-pointer",
+              kpi.severity === "critical"
+                ? "bg-destructive/[0.03] border-destructive/15"
+                : kpi.severity === "warning"
+                  ? "bg-accent/[0.03] border-accent/15"
+                  : "bg-card border-border/40",
+            )}
+          >
+            <div className={cn(
+              "flex items-center gap-1.5 mb-3",
+              kpi.severity === "critical" ? "text-destructive" :
+              kpi.severity === "warning" ? "text-accent" :
+              "text-muted-foreground/60",
+            )}>
+              {kpi.icon}
+            </div>
+            <p className={cn(
+              "text-[28px] sm:text-[32px] font-extrabold tracking-tight leading-none",
+              kpi.value === 0 ? "text-muted-foreground/25" : "text-foreground",
+            )}>
+              {kpi.value}
+            </p>
+            <p className="text-[11px] text-muted-foreground mt-1.5 leading-tight">{kpi.label}</p>
+          </button>
+        ))}
+      </div>
+
+      {/* ─── Priority Section ─── */}
+      {priorities.length > 0 && (
+        <div className="mb-8">
+          <SectionLabel title="Krever handling" />
+          <div className="rounded-2xl border border-border/40 bg-card overflow-hidden">
+            {priorities.map((item, i) => (
               <button
                 key={i}
-                onClick={() => navigate(r.route)}
-                className="flex items-center gap-3 rounded-xl border border-border/30 bg-card px-4 py-3
-                  hover:shadow-card-hover transition-all duration-200 group cursor-pointer text-left"
+                onClick={() => navigate(item.route)}
+                className={cn(
+                  "flex items-center gap-4 w-full px-5 py-4 text-left transition-all group cursor-pointer",
+                  "hover:bg-primary/[0.03]",
+                  i > 0 && "border-t border-border/30",
+                )}
               >
-                <div className={`h-10 w-10 rounded-xl flex items-center justify-center shrink-0 ${r.iconBg} ${r.accent}`}>
-                  {r.icon}
+                <div className={cn(
+                  "h-9 w-9 rounded-xl flex items-center justify-center shrink-0",
+                  item.severity === "critical" ? "bg-destructive/8 text-destructive" :
+                  item.severity === "warning" ? "bg-accent/8 text-accent" :
+                  "bg-muted/60 text-muted-foreground",
+                )}>
+                  {item.icon}
                 </div>
-                <div className="min-w-0 flex-1">
-                  <span className={`text-xl font-extrabold ${r.accent}`}>{r.count}</span>
-                  <p className="text-[11px] text-muted-foreground leading-tight">{r.label}</p>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-foreground group-hover:text-primary transition-colors">
+                    {item.label}
+                  </p>
+                  {item.description && (
+                    <p className="text-[11px] text-muted-foreground/60 mt-0.5 truncate">{item.description}</p>
+                  )}
                 </div>
-                <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/20 group-hover:text-primary/40 shrink-0" />
+                <span className={cn(
+                  "text-xs font-bold font-mono px-2.5 py-1 rounded-lg shrink-0",
+                  item.severity === "critical" ? "bg-destructive/8 text-destructive border border-destructive/15" :
+                  item.severity === "warning" ? "bg-accent/8 text-accent border border-accent/15" :
+                  "bg-muted text-muted-foreground border border-border/40",
+                )}>
+                  {item.count}
+                </span>
+                <ChevronRight className="h-4 w-4 text-muted-foreground/15 group-hover:text-primary/40 shrink-0" />
               </button>
             ))}
           </div>
-        )}
-
-        {/* 2. Din dag + Mine gjøremål side by side */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div>
-            <SectionHeader title="Din dag" />
-            <div className="rounded-2xl border border-border/30 bg-card shadow-card overflow-hidden">
-              <YourDay blocks={dayBlocks} />
-            </div>
-          </div>
-          <div>
-            <SectionHeader title="Mine gjøremål" />
-            <div className="rounded-2xl border border-border/30 bg-card shadow-card overflow-hidden">
-              <MyTasks
-                events={myEvents}
-                onNewTask={() => setShowTaskDrawer(true)}
-              />
-            </div>
-          </div>
         </div>
+      )}
 
-        {/* 3. Krever handling — cross-domain action list */}
-        {actionItems.length > 0 && (
-          <div>
-            <SectionHeader title="Krever handling" />
-            <div className="rounded-2xl border border-border/30 bg-card shadow-card overflow-hidden">
-              <div className="p-2">
-                {actionItems.map((a, i) => (
+      {/* ─── My Day + My Tasks ─── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5 mb-8">
+        {/* My Day */}
+        <div>
+          <SectionLabel title="Din dag" />
+          <div className="rounded-2xl border border-border/40 bg-card overflow-hidden">
+            {dayBlocks.length > 0 ? (
+              <div className="divide-y divide-border/20">
+                {dayBlocks.map((b) => (
                   <button
-                    key={i}
-                    onClick={() => navigate(a.route)}
-                    className="flex items-center gap-3 w-full rounded-xl px-4 py-3.5 text-left
-                      hover:bg-primary/5 transition-all group cursor-pointer"
+                    key={b.id}
+                    onClick={() => b.project_id && navigate(`/projects/${b.project_id}`)}
+                    disabled={!b.project_id}
+                    className="flex items-center gap-4 w-full px-5 py-4 text-left hover:bg-primary/[0.03] transition-colors group disabled:opacity-50 disabled:cursor-default cursor-pointer"
                   >
-                    <span className="text-muted-foreground/40 group-hover:text-foreground/60 transition-colors shrink-0">
-                      {a.icon}
-                    </span>
-                    <span className="text-sm text-foreground/70 flex-1 truncate group-hover:text-foreground transition-colors">
-                      {a.label}
-                    </span>
-                    <span className="text-xs font-mono font-semibold px-2.5 py-0.5 rounded-lg shrink-0
-                      text-destructive bg-destructive/8 border border-destructive/15">
-                      {a.count}
-                    </span>
-                    <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/10 group-hover:text-primary/40 shrink-0" />
+                    <div className="flex flex-col items-center w-14 shrink-0">
+                      <span className="text-sm font-bold text-foreground tabular-nums">{format(new Date(b.start_at), "HH:mm")}</span>
+                      <span className="text-[10px] text-muted-foreground/40 tabular-nums">{format(new Date(b.end_at), "HH:mm")}</span>
+                    </div>
+                    <div className="w-0.5 self-stretch rounded-full bg-primary/30 shrink-0 min-h-[28px]" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold text-foreground truncate group-hover:text-primary transition-colors">
+                        {b.project_title || b.title}
+                      </p>
+                      <div className="flex items-center gap-3 mt-0.5">
+                        {b.location && (
+                          <span className="flex items-center gap-1 text-[11px] text-muted-foreground/50 truncate">
+                            <MapPin className="h-2.5 w-2.5 shrink-0" /> {b.location}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    {b.project_id && <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/15 group-hover:text-primary/40 shrink-0" />}
                   </button>
                 ))}
               </div>
-            </div>
+            ) : (
+              <div className="flex items-center gap-4 px-5 py-8">
+                <div className="h-10 w-10 rounded-xl bg-muted/40 flex items-center justify-center shrink-0">
+                  <CalendarDays className="h-5 w-5 text-muted-foreground/25" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm text-muted-foreground/50 font-medium">Ingen planlagte jobber i dag</p>
+                </div>
+                <Button variant="outline" size="sm" className="gap-1.5 text-xs shrink-0" onClick={() => navigate("/projects/plan")}>
+                  <CalendarPlus className="h-3.5 w-3.5" /> Planlegg
+                </Button>
+              </div>
+            )}
           </div>
-        )}
+        </div>
 
-        {/* 4. Mine prosjekter (max 6) */}
-        {projects.length > 0 && (
-          <div>
-            <div className="flex items-center justify-between mb-6">
-              <SectionHeader title="Mine prosjekter" count={projects.length} />
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-xs text-muted-foreground hover:text-primary gap-1"
-                onClick={() => navigate("/jobs")}
-              >
-                Se alle <ArrowRight className="h-3 w-3" />
-              </Button>
-            </div>
-            <ProjectCards projects={projects} />
+        {/* My Tasks */}
+        <div>
+          <SectionLabel title="Mine gjøremål" count={tasks.length} />
+          <div className="rounded-2xl border border-border/40 bg-card overflow-hidden">
+            {tasks.length > 0 ? (
+              <div className="divide-y divide-border/20">
+                {tasks.slice(0, 8).map((ev) => {
+                  const overdue = isPast(new Date(ev.end_time)) && ev.status !== "completed";
+                  const isTask = ev.project_type === "task";
+                  const isTaskToday = isToday(new Date(ev.start_time));
+                  return (
+                    <button
+                      key={ev.id}
+                      onClick={() => navigate(`/projects/${ev.id}`)}
+                      className="flex items-center gap-3.5 w-full px-5 py-3.5 text-left hover:bg-primary/[0.03] transition-all group cursor-pointer"
+                    >
+                      {isTask ? (
+                        <Circle className={cn("h-[16px] w-[16px] shrink-0 stroke-[2.5]", overdue ? "text-destructive" : "text-border")} />
+                      ) : (
+                        <CalendarDays className="h-[16px] w-[16px] shrink-0 text-primary/40" />
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-foreground truncate group-hover:text-primary transition-colors">{ev.title}</p>
+                        <div className="flex items-center gap-2.5 mt-0.5">
+                          <span className="text-[10px] text-muted-foreground/40 font-mono tabular-nums">
+                            {format(new Date(ev.start_time), "HH:mm")}–{format(new Date(ev.end_time), "HH:mm")}
+                          </span>
+                          {!isTaskToday && (
+                            <span className="text-[10px] text-muted-foreground/40">
+                              {format(new Date(ev.start_time), "EEE d. MMM", { locale: nb })}
+                            </span>
+                          )}
+                          {ev.customer && (
+                            <span className="text-[10px] text-muted-foreground/30 flex items-center gap-0.5">
+                              <User className="h-2.5 w-2.5" /> {ev.customer}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      {overdue && <AlertCircle className="h-3.5 w-3.5 text-destructive shrink-0" />}
+                      <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/10 group-hover:text-primary/40 shrink-0" />
+                    </button>
+                  );
+                })}
+                {/* Add task */}
+                <button
+                  onClick={() => setShowTaskDrawer(true)}
+                  className="flex items-center gap-3.5 w-full px-5 py-3 text-left hover:bg-primary/[0.03] transition-colors text-muted-foreground/25 hover:text-primary cursor-pointer"
+                >
+                  <Plus className="h-4 w-4 shrink-0" />
+                  <span className="text-sm font-medium">Legg til oppgave</span>
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-4 px-5 py-8">
+                <div className="h-10 w-10 rounded-xl bg-success/8 flex items-center justify-center shrink-0">
+                  <ListChecks className="h-5 w-5 text-success/40" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm text-muted-foreground/50 font-medium">Ingen planlagte gjøremål</p>
+                  <p className="text-[11px] text-muted-foreground/30 mt-0.5">Alt er i rute</p>
+                </div>
+                <Button variant="outline" size="sm" className="gap-1.5 text-xs shrink-0" onClick={() => setShowTaskDrawer(true)}>
+                  <Plus className="h-3.5 w-3.5" /> Ny oppgave
+                </Button>
+              </div>
+            )}
           </div>
-        )}
+        </div>
       </div>
 
-      {/* Task creation drawer */}
+      {/* ─── My Projects ─── */}
+      {projects.length > 0 && (
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <SectionLabel title="Mine prosjekter" count={projects.length} />
+            <Button
+              variant="ghost" size="sm"
+              className="text-xs text-muted-foreground hover:text-primary gap-1 -mt-1"
+              onClick={() => navigate("/jobs")}
+            >
+              Se alle <ArrowRight className="h-3 w-3" />
+            </Button>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {projects.map((p) => (
+              <button
+                key={p.id}
+                onClick={() => navigate(`/projects/${p.id}`)}
+                className="bg-card rounded-2xl border border-border/40 p-5 text-left
+                  shadow-[var(--shadow-card)] hover:shadow-card-hover hover:-translate-y-0.5
+                  transition-all duration-200 group cursor-pointer"
+              >
+                <div className="flex items-start gap-3 mb-3">
+                  <div className="h-9 w-9 rounded-xl bg-primary/6 flex items-center justify-center shrink-0 group-hover:bg-primary/10 transition-colors">
+                    <FolderKanban className="h-4.5 w-4.5 text-primary/70" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[14px] font-bold text-foreground truncate group-hover:text-primary transition-colors leading-tight">
+                      {p.title}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
+                      {p.internal_number && <span className="font-mono text-muted-foreground/60">#{p.internal_number}</span>}
+                      {p.internal_number && p.customer && " · "}
+                      {p.customer || "Ingen kunde"}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {!p.hasPlanned && (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold rounded-full px-2.5 py-0.5 bg-warning/8 text-warning">
+                      <Clock className="h-2.5 w-2.5" /> Ikke planlagt
+                    </span>
+                  )}
+                  {p.hasPlanned && (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold rounded-full px-2.5 py-0.5 bg-primary/6 text-primary">
+                      <CalendarCheck className="h-2.5 w-2.5" /> Planlagt
+                    </span>
+                  )}
+                  {p.taskCount > 0 && (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold rounded-full px-2.5 py-0.5 bg-accent/6 text-accent">
+                      <ListChecks className="h-2.5 w-2.5" /> {p.taskCount}
+                    </span>
+                  )}
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Task Drawer */}
       <EventDrawer
         open={showTaskDrawer}
         onOpenChange={setShowTaskDrawer}
-        onSaved={() => {
-          setShowTaskDrawer(false);
-          fetchAll();
-        }}
+        onSaved={() => { setShowTaskDrawer(false); fetchAll(); }}
       />
     </div>
+  );
+}
+
+// ── Shared sub-components ──
+
+function SectionLabel({ title, count }: { title: string; count?: number }) {
+  return (
+    <div className="flex items-center gap-3 mb-4">
+      <h2 className="text-[11px] font-bold uppercase tracking-[0.12em] text-muted-foreground/60">{title}</h2>
+      {count !== undefined && count > 0 && (
+        <span className="text-[10px] font-mono font-semibold text-muted-foreground/40 bg-muted/50 px-1.5 py-0.5 rounded-md">{count}</span>
+      )}
+      <div className="flex-1 h-px bg-border/30" />
+    </div>
+  );
+}
+
+function QuickAction({ icon, label, onClick }: { icon: React.ReactNode; label: string; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[11px] font-medium
+        text-muted-foreground bg-card border border-border/40
+        hover:bg-primary/5 hover:text-primary hover:border-primary/20
+        transition-all duration-200 cursor-pointer"
+    >
+      {icon}
+      <span className="hidden sm:inline">{label}</span>
+    </button>
   );
 }
