@@ -1488,12 +1488,16 @@ export default function OrderFormDetailPage() {
                 <div className="flex items-center justify-end pt-1 border-t border-border/40">
                   <Button
                     size="sm"
-                    disabled={!comment.trim()}
+                    disabled={!comment.trim() || addComment.isPending}
                     onClick={() => addComment.mutate()}
                     className="gap-1.5"
                   >
-                    <Send className="h-3.5 w-3.5" />
-                    Send melding
+                    {addComment.isPending ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Send className="h-3.5 w-3.5" />
+                    )}
+                    {addComment.isPending ? "Sender…" : "Send melding"}
                   </Button>
                 </div>
               </div>
