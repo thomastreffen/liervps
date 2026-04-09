@@ -448,6 +448,10 @@ export default function OrderFormDetailPage() {
       qc.invalidateQueries({ queryKey: ["order-form-messages", id] });
       toast.success(commentVisibility === "shared" ? "Melding delt med bestiller" : "Intern kommentar lagt til");
     },
+    onError: (err: any) => {
+      console.error("[addComment] Error:", err);
+      toast.error("Kunne ikke sende melding", { description: err?.message || "Ukjent feil" });
+    },
   });
 
   const assignResponsible = useMutation({
