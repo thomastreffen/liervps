@@ -57,6 +57,8 @@ export function useCalendarEvents(technicianId: string | null, referenceDate?: D
             id,
             technician_id,
             calendar_event_id,
+            start_at,
+            end_at,
             technicians (
               id,
               name,
