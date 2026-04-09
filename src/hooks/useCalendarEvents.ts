@@ -11,6 +11,9 @@ export interface TechnicianInfo {
   color: string | null;
   eventTechnicianId?: string | null;
   calendarEventId?: string | null;
+  /** Per-technician time override (if set, takes precedence over event time) */
+  startAt?: Date | null;
+  endAt?: Date | null;
 }
 
 export interface CalendarEvent extends Job {
@@ -54,6 +57,8 @@ export function useCalendarEvents(technicianId: string | null, referenceDate?: D
             id,
             technician_id,
             calendar_event_id,
+            start_at,
+            end_at,
             technicians (
               id,
               name,
@@ -121,6 +126,8 @@ export function useCalendarEvents(technicianId: string | null, referenceDate?: D
             color: et.technicians.color,
             eventTechnicianId: et.id ?? null,
             calendarEventId: et.calendar_event_id ?? null,
+            startAt: et.start_at ? parseUtc(et.start_at) : null,
+            endAt: et.end_at ? parseUtc(et.end_at) : null,
           }));
 
         return {

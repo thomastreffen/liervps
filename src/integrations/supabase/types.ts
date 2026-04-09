@@ -3129,22 +3129,28 @@ export type Database = {
         Row: {
           calendar_event_id: string | null
           created_at: string
+          end_at: string | null
           event_id: string
           id: string
+          start_at: string | null
           technician_id: string
         }
         Insert: {
           calendar_event_id?: string | null
           created_at?: string
+          end_at?: string | null
           event_id: string
           id?: string
+          start_at?: string | null
           technician_id: string
         }
         Update: {
           calendar_event_id?: string | null
           created_at?: string
+          end_at?: string | null
           event_id?: string
           id?: string
+          start_at?: string | null
           technician_id?: string
         }
         Relationships: [

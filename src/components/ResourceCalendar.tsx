@@ -45,8 +45,8 @@ interface ResourceCalendarProps {
   onEventClick?: (event: CalendarEvent, clickedTechId?: string) => void;
   onScheduleBlockClick?: (block: ScheduleBlock) => void;
   onDateSelect?: (start: Date, end: Date) => void;
-  onEventDrop?: (eventId: string, newStart: Date, newEnd: Date) => void;
-  onEventResize?: (eventId: string, newStart: Date, newEnd: Date) => void;
+  onEventDrop?: (eventId: string, newStart: Date, newEnd: Date, technicianId?: string) => void;
+  onEventResize?: (eventId: string, newStart: Date, newEnd: Date, technicianId?: string) => void;
   onExternalDrop?: (info: { taskId: string; title: string; start: Date; end: Date; estimatedMinutes: number; priority: string; dropType: string }) => void;
   isAdmin?: boolean;
   isSuperAdmin?: boolean;
@@ -297,14 +297,17 @@ export const ResourceCalendar = memo(function ResourceCalendar({
     for (const assignment of renderableAssignments) {
       const ev = assignment.event;
       const tech = assignment.technician;
-      const isOvernight = ev.start.toDateString() !== ev.end.toDateString();
+      // Use per-technician time override if available
+      const techStart = tech.startAt ?? ev.start;
+      const techEnd = tech.endAt ?? ev.end;
+      const isOvernight = techStart.toDateString() !== techEnd.toDateString();
       const techColor = techColorMap.get(tech.id) || GCAL_PALETTE[0];
       const techFirstName = tech.name.split(" ")[0];
       const techInfo = technicianMap.get(tech.id);
       const renderKey = assignment.assignmentKey;
 
       const ranges = calEventRangesByTech.get(tech.id) || [];
-      ranges.push({ start: ev.start.getTime(), end: ev.end.getTime() });
+      ranges.push({ start: techStart.getTime(), end: techEnd.getTime() });
       calEventRangesByTech.set(tech.id, ranges);
 
       assignmentMetaByEventTech.set(`${ev.id}::${tech.id}`, {
@@ -312,16 +315,16 @@ export const ResourceCalendar = memo(function ResourceCalendar({
         technicianId: tech.id,
         eventTechnicianId: tech.eventTechnicianId ?? null,
         calendarEventId: tech.calendarEventId ?? null,
-        start: ev.start.getTime(),
-        end: ev.end.getTime(),
+        start: techStart.getTime(),
+        end: techEnd.getTime(),
         displayName: tech.name,
       });
 
       result.push({
         id: renderKey,
         title: ev.title.replace("SERVICE – ", ""),
-        start: ev.start,
-        end: ev.end,
+        start: techStart,
+        end: techEnd,
         backgroundColor: techColor,
         borderColor: techColor,
         textColor: "#FFFFFF",
@@ -829,17 +832,18 @@ export const ResourceCalendar = memo(function ResourceCalendar({
 
   const handleEventDrop = useCallback((info: EventDropArg) => {
     if (info.event.extendedProps.isBusy) { info.revert(); return; }
-    // Extract real event ID from composite ID
     const rawId = info.event.id;
     const realId = rawId.includes("__tech__") ? rawId.split("__tech__")[0] : rawId;
-    onEventDrop?.(realId, info.event.start!, info.event.end!);
+    const droppedTechId = (info.event.extendedProps.assignedTechId as string | undefined) ?? undefined;
+    onEventDrop?.(realId, info.event.start!, info.event.end!, droppedTechId);
   }, [onEventDrop]);
 
   const handleEventResize = useCallback((info: any) => {
     if (info.event.extendedProps.isBusy) { info.revert(); return; }
     const rawId = info.event.id;
     const realId = rawId.includes("__tech__") ? rawId.split("__tech__")[0] : rawId;
-    onEventResize?.(realId, info.event.start!, info.event.end!);
+    const resizedTechId = (info.event.extendedProps.assignedTechId as string | undefined) ?? undefined;
+    onEventResize?.(realId, info.event.start!, info.event.end!, resizedTechId);
   }, [onEventResize]);
 
   const handleExternalDrop = useCallback((info: any) => {
