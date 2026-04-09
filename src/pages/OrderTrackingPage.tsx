@@ -66,20 +66,18 @@ function StatusProgress({ status }: { status: ExternalStatus }) {
 }
 
 /* ── Customer timeline ── */
-function CustomerTimeline({ submissionId }: { submissionId: string }) {
+function CustomerTimeline({ token }: { token: string }) {
   const { data: events = [] } = useQuery({
-    queryKey: ["tracking-timeline", submissionId],
+    queryKey: ["tracking-timeline", token],
     queryFn: async () => {
       const { data } = await supabase
-        .from("order_form_activity_log")
-        .select("*")
-        .eq("submission_id", submissionId)
-        .in("event_type", [
-          "submitted", "status_changed", "missing_info_requested",
-          "customer_reply", "converted_to_order", "notification_sent",
-        ])
-        .order("created_at", { ascending: true });
-      return data || [];
+        .rpc("get_submission_activity_by_token", { _token: token });
+      const all = (data || []) as any[];
+      return all.filter((e: any) => [
+        "submitted", "status_changed", "missing_info_requested",
+        "customer_reply", "converted_to_order", "notification_sent",
+        "task_created",
+      ].includes(e.event_type));
     },
   });
 
