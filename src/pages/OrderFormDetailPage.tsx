@@ -1522,10 +1522,13 @@ export default function OrderFormDetailPage() {
                       <span className="font-medium text-foreground">
                         {eventTypeLabels[a.event_type] || a.event_type}
                       </span>
+                      {a.payload?.summary && (
+                        <> · {a.payload.summary}</>
+                      )}
                       {a.payload?.from && a.payload?.to && (
                         <> · {ORDER_STATUS_CONFIG[a.payload.from as OrderFormSubmissionStatus]?.label || a.payload.from} → {ORDER_STATUS_CONFIG[a.payload.to as OrderFormSubmissionStatus]?.label || a.payload.to}</>
                       )}
-                      {a.payload?.assigned_to_name && (
+                      {a.payload?.assigned_to_name && !a.payload?.summary && (
                         <> · {a.payload.assigned_to_name}</>
                       )}
                       {a.payload?.recipients && (
