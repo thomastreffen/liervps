@@ -11,6 +11,9 @@ export interface TechnicianInfo {
   color: string | null;
   eventTechnicianId?: string | null;
   calendarEventId?: string | null;
+  /** Per-technician time override (if set, takes precedence over event time) */
+  startAt?: Date | null;
+  endAt?: Date | null;
 }
 
 export interface CalendarEvent extends Job {
