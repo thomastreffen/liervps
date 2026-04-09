@@ -254,8 +254,8 @@ export default function OrderFormPublicPage() {
         }).catch((err) => console.error("Auto-confirm failed:", err));
       }
 
-      setSubmissionNo(subData?.submission_no || null);
-      setTrackingToken((subData as any)?.public_tracking_token || null);
+      setSubmissionNo(null); // submission_no is generated server-side; not available without SELECT
+      setTrackingToken(trackingToken);
       setSubmitted(true);
     } catch (err: any) {
       console.error(err);
