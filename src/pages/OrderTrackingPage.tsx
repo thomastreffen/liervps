@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -6,7 +6,7 @@ import { format, formatDistanceToNow } from "date-fns";
 import { nb } from "date-fns/locale";
 import {
   CheckCircle2, Clock, FileText, Loader2, AlertCircle,
-  Send, Upload, Paperclip, MessageSquare, X,
+  Send, Upload, Paperclip, MessageSquare, X, AlertTriangle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -29,7 +29,6 @@ function StatusProgress({ status }: { status: ExternalStatus }) {
 
   return (
     <div className="space-y-4">
-      {/* Step bar */}
       <div className="flex items-center gap-1">
         {steps.map((s) => {
           const stepConfig = EXTERNAL_STATUS_CONFIG[s];
@@ -54,8 +53,6 @@ function StatusProgress({ status }: { status: ExternalStatus }) {
           );
         })}
       </div>
-
-      {/* Current status */}
       <div className="space-y-1">
         <div className="flex items-center gap-2">
           <div className={cn("h-3 w-3 rounded-full", config.color)} />
@@ -156,7 +153,8 @@ export default function OrderTrackingPage() {
   const qc = useQueryClient();
   const [replyText, setReplyText] = useState("");
   const [replyFiles, setReplyFiles] = useState<File[]>([]);
-  const [showReplyForm, setShowReplyForm] = useState(false);
+  const replyInputRef = useRef<HTMLTextAreaElement>(null);
+  const messagesSectionRef = useRef<HTMLDivElement>(null);
 
   const { data: submission, isLoading, error } = useQuery({
     queryKey: ["tracking", token],
@@ -184,8 +182,24 @@ export default function OrderTrackingPage() {
     },
   });
 
-  const { data: comments = [] } = useQuery({
-    queryKey: ["tracking-comments", submission?.id],
+  // Fetch messages from new order_form_messages table
+  const { data: messages = [] } = useQuery({
+    queryKey: ["tracking-messages", submission?.id],
+    enabled: !!submission?.id,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("order_form_messages")
+        .select("*")
+        .eq("submission_id", submission!.id)
+        .eq("is_visible_to_customer", true)
+        .order("created_at", { ascending: true });
+      return data || [];
+    },
+  });
+
+  // Fallback: also fetch old comments for backward compat
+  const { data: legacyComments = [] } = useQuery({
+    queryKey: ["tracking-comments-legacy", submission?.id],
     enabled: !!submission?.id,
     queryFn: async () => {
       const { data } = await supabase
@@ -220,11 +234,64 @@ export default function OrderTrackingPage() {
     }
   }, [submission?.id]);
 
+  // Build unified message list: prefer new messages, supplement with legacy
+  const allMessages = useMemo(() => {
+    // If we have new messages, use them as primary
+    if (messages.length > 0) {
+      return messages.map((m: any) => ({
+        id: m.id,
+        body: m.body,
+        sender_type: m.sender_type as "admin" | "customer" | "system",
+        sender_name: m.sender_name,
+        message_type: m.message_type as "message" | "request_info" | "system",
+        requires_reply: m.requires_reply,
+        replied_at: m.replied_at,
+        created_at: m.created_at,
+        source: "messages" as const,
+      }));
+    }
+    // Fallback to legacy comments
+    return legacyComments.map((c: any) => ({
+      id: c.id,
+      body: c.body,
+      sender_type: (c.is_customer_reply ? "customer" : "admin") as "admin" | "customer" | "system",
+      sender_name: c.is_customer_reply ? (c.author_name || "Du") : "Saksbehandler",
+      message_type: (c.comment_type === "missing_info_request" ? "request_info" : "message") as "message" | "request_info" | "system",
+      requires_reply: c.comment_type === "missing_info_request",
+      replied_at: null,
+      created_at: c.created_at,
+      source: "legacy" as const,
+    }));
+  }, [messages, legacyComments]);
+
+  // Find open (unanswered) request
+  const openRequest = allMessages.find(m => m.message_type === "request_info" && m.requires_reply && !m.replied_at);
+
+  const scrollToReplyAndFocus = () => {
+    messagesSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    setTimeout(() => {
+      replyInputRef.current?.focus();
+    }, 400);
+  };
+
   const submitReply = useMutation({
     mutationFn: async () => {
       if (!replyText.trim() && replyFiles.length === 0) return;
       if (!submission) return;
+      const sub = submission as any;
 
+      // Insert message into new table
+      await supabase.from("order_form_messages").insert({
+        submission_id: submission.id,
+        sender_type: "customer",
+        sender_name: sub.submitter_name || sub.notification_recipient_name || "Bestiller",
+        message_type: "message",
+        body: replyText.trim() || "(Vedlegg sendt)",
+        is_visible_to_customer: true,
+        requires_reply: false,
+      } as any);
+
+      // Also insert legacy comment for backward compat
       if (replyText.trim()) {
         await supabase.from("order_form_comments").insert({
           submission_id: submission.id,
@@ -232,12 +299,13 @@ export default function OrderTrackingPage() {
           comment_type: "customer_reply",
           visibility: "shared",
           is_customer_reply: true,
-          author_name: (submission as any).submitter_name || "Bestiller",
+          author_name: sub.submitter_name || "Bestiller",
         } as any);
       }
 
+      // Upload files
       for (const file of replyFiles) {
-        const path = `${(submission as any).company_id}/${submission.id}/reply_${Date.now()}_${file.name}`;
+        const path = `${sub.company_id}/${submission.id}/reply_${Date.now()}_${file.name}`;
         await supabase.storage.from("order-form-attachments").upload(path, file);
         await supabase.from("order_form_submission_attachments").insert({
           submission_id: submission.id,
@@ -249,10 +317,27 @@ export default function OrderTrackingPage() {
         } as any);
       }
 
+      // Mark open request as replied
+      if (openRequest) {
+        await supabase.from("order_form_messages")
+          .update({ replied_at: new Date().toISOString() } as any)
+          .eq("id", openRequest.id);
+      }
+
+      // Update submission flags
       await supabase.from("order_form_submissions")
-        .update({ customer_last_reply_at: new Date().toISOString(), last_activity_at: new Date().toISOString() } as any)
+        .update({
+          customer_last_reply_at: new Date().toISOString(),
+          last_activity_at: new Date().toISOString(),
+          last_customer_message_at: new Date().toISOString(),
+          awaiting_customer_reply: false,
+          open_request_message_id: null,
+          // Move back to under_review if it was waiting
+          ...(["missing_info", "waiting_customer"].includes(sub.status) ? { status: "under_review" } : {}),
+        } as any)
         .eq("id", submission.id);
 
+      // Log activity
       await supabase.from("order_form_activity_log").insert({
         submission_id: submission.id,
         event_type: "customer_reply",
@@ -262,10 +347,11 @@ export default function OrderTrackingPage() {
     onSuccess: () => {
       setReplyText("");
       setReplyFiles([]);
-      setShowReplyForm(false);
-      qc.invalidateQueries({ queryKey: ["tracking-comments", submission?.id] });
+      qc.invalidateQueries({ queryKey: ["tracking-messages", submission?.id] });
+      qc.invalidateQueries({ queryKey: ["tracking-comments-legacy", submission?.id] });
       qc.invalidateQueries({ queryKey: ["tracking-attachments", submission?.id] });
       qc.invalidateQueries({ queryKey: ["tracking-timeline", submission?.id] });
+      qc.invalidateQueries({ queryKey: ["tracking", token] });
       toast.success("Svaret ditt er sendt!");
     },
     onError: () => {
@@ -283,8 +369,6 @@ export default function OrderTrackingPage() {
   const externalStatus: ExternalStatus = sub?.external_status || "received";
   const templateName = sub?.order_form_templates?.external_title || sub?.order_form_templates?.name || "Bestilling";
   const needsInfo = externalStatus === "needs_info";
-
-  // Compute last activity
   const lastUpdated = sub?.last_activity_at || sub?.updated_at || sub?.submitted_at;
 
   if (isLoading) {
@@ -322,6 +406,8 @@ export default function OrderTrackingPage() {
   ];
 
   const visibleSummary = summaryFields.filter((f) => valuesMap[f.key]);
+  const hasMessages = allMessages.length > 0;
+  const isClosed = externalStatus === "completed" || externalStatus === "closed";
 
   return (
     <div className="min-h-screen bg-background">
@@ -358,23 +444,23 @@ export default function OrderTrackingPage() {
           <Card className="border-amber-300 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800">
             <CardContent className="pt-5 pb-4 space-y-3">
               <div className="flex items-start gap-3">
-                <AlertCircle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+                <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
                 <div>
                   <p className="text-sm font-medium text-amber-900 dark:text-amber-200">
                     Vi trenger litt mer informasjon
                   </p>
                   <p className="text-xs text-amber-700 dark:text-amber-400 mt-1">
-                    Se meldingene nedenfor og svar med det vi etterspør, så behandler vi bestillingen videre.
+                    Se meldingen nedenfor og svar med det vi etterspør, så behandler vi bestillingen videre.
                   </p>
                 </div>
               </div>
               <Button
                 size="sm"
                 className="w-full sm:w-auto"
-                onClick={() => setShowReplyForm(true)}
+                onClick={scrollToReplyAndFocus}
               >
-                <Send className="h-3.5 w-3.5 mr-1.5" />
-                Svar nå
+                <MessageSquare className="h-3.5 w-3.5 mr-1.5" />
+                Se melding og svar
               </Button>
             </CardContent>
           </Card>
@@ -400,40 +486,154 @@ export default function OrderTrackingPage() {
         {/* Customer timeline */}
         <CustomerTimeline submissionId={submission.id} />
 
-        {/* Messages */}
-        {comments.length > 0 && (
+        {/* Messages - the primary conversation section */}
+        <div ref={messagesSectionRef}>
           <Card>
             <CardContent className="pt-5 pb-4">
-              <h3 className="text-sm font-semibold text-foreground mb-3">
+              <h3 className="text-sm font-semibold text-foreground mb-4">
                 <MessageSquare className="h-3.5 w-3.5 inline mr-1.5" />
                 Meldinger
               </h3>
-              <div className="space-y-4">
-                {comments.map((c: any) => (
-                  <div
-                    key={c.id}
-                    className={cn(
-                      "rounded-xl p-3 text-sm",
-                      c.is_customer_reply
-                        ? "bg-primary/5 border border-primary/20 ml-4 sm:ml-8"
-                        : "bg-muted/50 mr-4 sm:mr-8",
+
+              {/* Message thread */}
+              {hasMessages ? (
+                <div className="space-y-3 mb-4">
+                  {allMessages.map((msg) => {
+                    const isCustomer = msg.sender_type === "customer";
+                    const isRequestInfo = msg.message_type === "request_info";
+                    const isSystem = msg.sender_type === "system";
+
+                    if (isSystem) {
+                      return (
+                        <div key={msg.id} className="text-center">
+                          <span className="text-[11px] text-muted-foreground bg-muted/50 px-3 py-1 rounded-full">
+                            {msg.body}
+                          </span>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div
+                        key={msg.id}
+                        className={cn(
+                          "rounded-xl p-3.5 text-sm max-w-[85%]",
+                          isCustomer
+                            ? "bg-primary/5 border border-primary/20 ml-auto"
+                            : isRequestInfo
+                            ? "bg-amber-50 border border-amber-200 dark:bg-amber-950/30 dark:border-amber-800 mr-auto"
+                            : "bg-muted/50 mr-auto",
+                        )}
+                      >
+                        {/* Header */}
+                        <div className="flex items-center gap-2 mb-1.5">
+                          {isRequestInfo && (
+                            <AlertTriangle className="h-3 w-3 text-amber-600 shrink-0" />
+                          )}
+                          <span className={cn(
+                            "text-xs font-medium",
+                            isRequestInfo ? "text-amber-800 dark:text-amber-300" : "text-foreground",
+                          )}>
+                            {isCustomer ? "Du" : (msg.sender_name || "Saksbehandler")}
+                          </span>
+                          {isRequestInfo && (
+                            <Badge variant="outline" className="text-[9px] bg-amber-100 text-amber-700 border-amber-300">
+                              Forespørsel
+                            </Badge>
+                          )}
+                          <span className="text-[10px] text-muted-foreground ml-auto">
+                            {format(new Date(msg.created_at), "d. MMM HH:mm", { locale: nb })}
+                          </span>
+                        </div>
+
+                        {/* Body */}
+                        <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">{msg.body}</p>
+
+                        {/* Reply status for requests */}
+                        {isRequestInfo && msg.requires_reply && (
+                          <div className="mt-2 pt-2 border-t border-amber-200 dark:border-amber-800">
+                            {msg.replied_at ? (
+                              <span className="text-[10px] text-green-600 flex items-center gap-1">
+                                <CheckCircle2 className="h-3 w-3" />
+                                Besvart {format(new Date(msg.replied_at), "d. MMM HH:mm", { locale: nb })}
+                              </span>
+                            ) : (
+                              <span className="text-[10px] text-amber-600 flex items-center gap-1">
+                                <Clock className="h-3 w-3" />
+                                Venter på svar fra deg
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground mb-4">
+                  Ingen meldinger ennå. Du kan sende melding eller mer informasjon nedenfor.
+                </p>
+              )}
+
+              {/* Reply input */}
+              {!isClosed && (
+                <div className="space-y-3 pt-3 border-t">
+                  <Textarea
+                    ref={replyInputRef}
+                    value={replyText}
+                    onChange={(e) => setReplyText(e.target.value)}
+                    placeholder={openRequest ? "Skriv svaret ditt her..." : "Skriv en melding..."}
+                    rows={3}
+                    className="text-sm"
+                  />
+
+                  <div>
+                    <label className="flex items-center gap-2 cursor-pointer text-sm text-muted-foreground hover:text-foreground transition-colors">
+                      <Upload className="h-4 w-4" />
+                      <span>Legg ved filer</span>
+                      <input
+                        type="file"
+                        multiple
+                        className="hidden"
+                        onChange={(e) => {
+                          const files = Array.from(e.target.files || []);
+                          setReplyFiles((prev) => [...prev, ...files]);
+                          e.target.value = "";
+                        }}
+                      />
+                    </label>
+                    {replyFiles.length > 0 && (
+                      <div className="mt-2 space-y-1">
+                        {replyFiles.map((f, i) => (
+                          <div key={i} className="flex items-center gap-2 text-xs">
+                            <Paperclip className="h-3 w-3 text-muted-foreground" />
+                            <span className="truncate flex-1">{f.name}</span>
+                            <button onClick={() => setReplyFiles((prev) => prev.filter((_, j) => j !== i))}>
+                              <X className="h-3 w-3 text-muted-foreground hover:text-destructive" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
                     )}
-                  >
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-xs font-medium text-foreground">
-                        {c.is_customer_reply ? (c.author_name || "Du") : "Saksbehandler"}
-                      </span>
-                      <span className="text-[10px] text-muted-foreground">
-                        {format(new Date(c.created_at), "d. MMM HH:mm", { locale: nb })}
-                      </span>
-                    </div>
-                    <p className="text-sm text-foreground whitespace-pre-wrap">{c.body}</p>
                   </div>
-                ))}
-              </div>
+
+                  <Button
+                    onClick={() => submitReply.mutate()}
+                    disabled={submitReply.isPending || (!replyText.trim() && replyFiles.length === 0)}
+                    className="w-full sm:w-auto h-11 text-sm"
+                  >
+                    {submitReply.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
+                    ) : (
+                      <Send className="h-4 w-4 mr-1.5" />
+                    )}
+                    Send svar
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
-        )}
+        </div>
 
         {/* Attachments */}
         {attachments.length > 0 && (
@@ -461,79 +661,6 @@ export default function OrderTrackingPage() {
               </div>
             </CardContent>
           </Card>
-        )}
-
-        {/* Reply form */}
-        {(showReplyForm || needsInfo) && (
-          <Card>
-            <CardContent className="pt-5 pb-4 space-y-3">
-              <h3 className="text-sm font-semibold text-foreground">
-                Send svar eller mer informasjon
-              </h3>
-              <Textarea
-                value={replyText}
-                onChange={(e) => setReplyText(e.target.value)}
-                placeholder="Skriv ditt svar her..."
-                rows={3}
-                className="text-sm"
-              />
-
-              <div>
-                <label className="flex items-center gap-2 cursor-pointer text-sm text-muted-foreground hover:text-foreground transition-colors">
-                  <Upload className="h-4 w-4" />
-                  <span>Legg ved filer</span>
-                  <input
-                    type="file"
-                    multiple
-                    className="hidden"
-                    onChange={(e) => {
-                      const files = Array.from(e.target.files || []);
-                      setReplyFiles((prev) => [...prev, ...files]);
-                      e.target.value = "";
-                    }}
-                  />
-                </label>
-                {replyFiles.length > 0 && (
-                  <div className="mt-2 space-y-1">
-                    {replyFiles.map((f, i) => (
-                      <div key={i} className="flex items-center gap-2 text-xs">
-                        <Paperclip className="h-3 w-3 text-muted-foreground" />
-                        <span className="truncate flex-1">{f.name}</span>
-                        <button onClick={() => setReplyFiles((prev) => prev.filter((_, j) => j !== i))}>
-                          <X className="h-3 w-3 text-muted-foreground hover:text-destructive" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <Button
-                onClick={() => submitReply.mutate()}
-                disabled={submitReply.isPending || (!replyText.trim() && replyFiles.length === 0)}
-                className="w-full sm:w-auto h-11 text-sm"
-              >
-                {submitReply.isPending ? (
-                  <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
-                ) : (
-                  <Send className="h-4 w-4 mr-1.5" />
-                )}
-                Send svar
-              </Button>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Show reply button if not already showing */}
-        {!showReplyForm && !needsInfo && externalStatus !== "completed" && externalStatus !== "closed" && (
-          <Button
-            variant="outline"
-            className="w-full h-11"
-            onClick={() => setShowReplyForm(true)}
-          >
-            <MessageSquare className="h-4 w-4 mr-1.5" />
-            Send melding eller mer informasjon
-          </Button>
         )}
 
         {/* Footer */}
