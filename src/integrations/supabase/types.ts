@@ -9119,6 +9119,10 @@ export type Database = {
         }
         Returns: Json
       }
+      get_order_company_id: {
+        Args: { _submission_id: string }
+        Returns: string
+      }
       get_project_member_type: {
         Args: { _auth_user_id: string; _project_id: string }
         Returns: string
@@ -9172,6 +9176,10 @@ export type Database = {
       }
       is_internal_nonfollow_member: {
         Args: { _auth_user_id: string; _project_id: string }
+        Returns: boolean
+      }
+      is_order_participant: {
+        Args: { _submission_id: string; _user_id: string }
         Returns: boolean
       }
       is_project_admin: {
