@@ -162,10 +162,10 @@ export function OrderParticipantsPanel({ submissionId, companyId }: Props) {
                   <span className="text-[10px] text-muted-foreground">{p.role_label}</span>
                 )}
                 {p.is_visible_to_customer && (
-                  <Eye className="h-2.5 w-2.5 text-primary/60" title="Synlig for kunde" />
+                  <span title="Synlig for kunde"><Eye className="h-2.5 w-2.5 text-primary/60" /></span>
                 )}
                 {p.receives_notifications && (
-                  <Bell className="h-2.5 w-2.5 text-muted-foreground" title="Mottar varsler" />
+                  <span title="Mottar varsler"><Bell className="h-2.5 w-2.5 text-muted-foreground" /></span>
                 )}
               </div>
             </div>
