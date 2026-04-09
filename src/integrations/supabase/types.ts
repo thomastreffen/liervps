@@ -9137,6 +9137,64 @@ export type Database = {
         Args: { _auth_user_id: string; _project_id: string }
         Returns: string
       }
+      get_submission_by_tracking_token: {
+        Args: { _token: string }
+        Returns: {
+          assigned_to: string | null
+          auto_notify_on_status_change: boolean | null
+          awaiting_customer_reply: boolean
+          channel: string | null
+          closed_at: string | null
+          closed_by: string | null
+          company_id: string
+          confirmation_sent_at: string | null
+          converted_to_id: string | null
+          converted_to_type: string | null
+          created_at: string
+          customer_last_reply_at: string | null
+          customer_last_viewed_at: string | null
+          deleted_at: string | null
+          deleted_by: string | null
+          external_status: string | null
+          external_status_updated_at: string | null
+          id: string
+          last_activity_at: string | null
+          last_admin_message_at: string | null
+          last_customer_message_at: string | null
+          linked_case_id: string | null
+          linked_customer_id: string | null
+          linked_project_id: string | null
+          notification_error: string | null
+          notification_recipient_email: string | null
+          notification_recipient_name: string | null
+          notification_recipient_phone: string | null
+          notification_recipient_source: string | null
+          notification_sent_at: string | null
+          open_request_message_id: string | null
+          priority: string
+          public_tracking_token: string | null
+          quality_issues: Json | null
+          quality_score: string | null
+          requester_type: string
+          source: string
+          status: string
+          submission_no: string
+          submitted_at: string
+          submitted_by: string | null
+          submitter_email: string | null
+          submitter_name: string | null
+          submitter_user_id: string | null
+          summary: Json | null
+          template_id: string
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "order_form_submissions"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       get_user_account_id: { Args: { _auth_user_id: string }; Returns: string }
       get_user_scope: { Args: { _user_id: string }; Returns: string }
       get_user_scope_v2: { Args: { _auth_user_id: string }; Returns: string }
@@ -9198,6 +9256,10 @@ export type Database = {
       }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
+      submission_matches_token: {
+        Args: { _submission_id: string; _token: string }
+        Returns: boolean
+      }
       sweep_orphan_schedule_blocks: { Args: never; Returns: Json }
       user_has_company_access: {
         Args: { _auth_user_id: string; _company_id: string }
