@@ -1194,6 +1194,12 @@ export default function OrderFormDetailPage() {
             </CardContent>
           </Card>
 
+          {/* Participants panel */}
+          <OrderParticipantsPanel
+            submissionId={id!}
+            companyId={submission.company_id}
+          />
+
           {/* Messages - unified view */}
           <Card>
             <CardHeader className="pb-2">
@@ -1215,6 +1221,9 @@ export default function OrderFormDetailPage() {
                     const isCustomer = m.sender_type === "customer";
                     const isRequestInfo = m.message_type === "request_info";
                     const isSystem = m.sender_type === "system";
+                    const addressedParticipant = m.addressed_to_participant_id
+                      ? participants.find((p: any) => p.id === m.addressed_to_participant_id)
+                      : null;
                     // Find if this customer message is a reply to an open request_info
                     const isReplyToRequest = isCustomer && (orderMessages as any[]).some(
                       (prev: any) => prev.message_type === "request_info" && prev.requires_reply && prev.replied_at &&
@@ -1253,6 +1262,11 @@ export default function OrderFormDetailPage() {
                           <span className="text-[10px] text-muted-foreground">
                             {m.sender_name || (isCustomer ? "Bestiller" : "Saksbehandler")} · {format(new Date(m.created_at), "d. MMM HH:mm", { locale: nb })}
                           </span>
+                          {addressedParticipant && (
+                            <Badge variant="outline" className="text-[8px] bg-muted">
+                              → {addressedParticipant.name} ({addressedParticipant.role_label || addressedParticipant.participant_type})
+                            </Badge>
+                          )}
                           {isRequestInfo && m.requires_reply && (
                             m.replied_at ? (
                               <Badge variant="outline" className="text-[8px] bg-green-50 text-green-600 border-green-200">
@@ -1406,6 +1420,7 @@ export default function OrderFormDetailPage() {
                   className="min-h-[60px] text-sm"
                 />
                 <div className="flex items-center gap-2">
+                  {/* Visibility toggle */}
                   <Button
                     size="sm"
                     variant={commentVisibility === "internal" ? "default" : "outline"}
@@ -1424,6 +1439,22 @@ export default function OrderFormDetailPage() {
                     <Send className="h-3 w-3 mr-1" />
                     Del med bestiller
                   </Button>
+                  {/* Addressed-to selector */}
+                  {participants.length > 0 && (
+                    <Select value={addressedTo || "__none__"} onValueChange={(v) => setAddressedTo(v === "__none__" ? null : v)}>
+                      <SelectTrigger className="h-7 text-xs w-36">
+                        <SelectValue placeholder="Til alle" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">Til alle</SelectItem>
+                        {participants.map((p: any) => (
+                          <SelectItem key={p.id} value={p.id}>
+                            {p.name} ({p.role_label || "Deltaker"})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
                   <div className="flex-1" />
                   <Button
                     size="sm"
