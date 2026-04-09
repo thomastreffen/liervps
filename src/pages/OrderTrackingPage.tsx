@@ -163,7 +163,7 @@ export default function OrderTrackingPage() {
     enabled: !!token,
     queryFn: async () => {
       // Use RPC for token-scoped access (no broad anon SELECT policy)
-      const { data: rpcData, error: rpcErr } = await supabase
+      const { data: rpcData, error: rpcErr } = await (supabase as any)
         .rpc("get_submission_by_tracking_token", { _token: token! });
       if (rpcErr) throw rpcErr;
       const sub = Array.isArray(rpcData) ? rpcData[0] : rpcData;
@@ -182,7 +182,7 @@ export default function OrderTrackingPage() {
     queryKey: ["tracking-values", submission?.id],
     enabled: !!token,
     queryFn: async () => {
-      const { data } = await supabase
+      const { data } = await (supabase as any)
         .rpc("get_submission_values_by_token", { _token: token! });
       return data || [];
     },
@@ -193,7 +193,7 @@ export default function OrderTrackingPage() {
     queryKey: ["tracking-messages", token],
     enabled: !!token,
     queryFn: async () => {
-      const { data } = await supabase
+      const { data } = await (supabase as any)
         .rpc("get_submission_messages_by_token", { _token: token! });
       return data || [];
     },
@@ -204,7 +204,7 @@ export default function OrderTrackingPage() {
     queryKey: ["tracking-comments-legacy", token],
     enabled: !!token,
     queryFn: async () => {
-      const { data } = await supabase
+      const { data } = await (supabase as any)
         .rpc("get_submission_comments_by_token", { _token: token! });
       return data || [];
     },
@@ -214,7 +214,7 @@ export default function OrderTrackingPage() {
     queryKey: ["tracking-attachments", token],
     enabled: !!token,
     queryFn: async () => {
-      const { data } = await supabase
+      const { data } = await (supabase as any)
         .rpc("get_submission_attachments_by_token", { _token: token! });
       return data || [];
     },
