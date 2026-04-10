@@ -361,7 +361,8 @@ Deno.serve(async (req) => {
 
       // Send email via Microsoft Graph
       if (msToken && tech.email) {
-        const { subject, body } = buildApprovalEmail(job, tech.name, approvalToken, displayNumber, isTimeChange);
+        const techTimes = techTimeMap.get(tech.id);
+        const { subject, body } = buildApprovalEmail(job, tech.name, approvalToken, displayNumber, isTimeChange, techTimes?.start_at, techTimes?.end_at);
 
         try {
           const emailRes = await fetch("https://graph.microsoft.com/v1.0/me/sendMail", {
