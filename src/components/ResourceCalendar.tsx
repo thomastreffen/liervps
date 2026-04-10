@@ -690,13 +690,15 @@ export const ResourceCalendar = memo(function ResourceCalendar({
     if (props.isScheduleBlock && props.scheduleBlock) {
       const scheduleBlock = props.scheduleBlock as ScheduleBlock;
       const matchingAssignmentEvent = scheduleBlock.project_id
-        ? calendarEvents.find(
-            (ev) =>
-              ev.id === scheduleBlock.project_id
-              && ev.technicians.some((t) => t.id === scheduleBlock.technician_id)
-              && ev.start.getTime() < scheduleBlock.end_at.getTime()
-              && ev.end.getTime() > scheduleBlock.start_at.getTime()
-          )
+        ? calendarEvents.find((ev) => {
+            if (ev.id !== scheduleBlock.project_id) return false;
+            const matchingTech = ev.technicians.find((t) => t.id === scheduleBlock.technician_id);
+            if (!matchingTech) return false;
+            const effectiveStart = matchingTech.startAt ?? ev.start;
+            const effectiveEnd = matchingTech.endAt ?? ev.end;
+            return effectiveStart.getTime() < scheduleBlock.end_at.getTime()
+              && effectiveEnd.getTime() > scheduleBlock.start_at.getTime();
+          })
         : undefined;
 
       if (matchingAssignmentEvent) {
