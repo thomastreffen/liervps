@@ -291,27 +291,26 @@ export function EventDrawer({
     try {
       const { startISO, endISO } = normalizeOvernightDates(d, s, ed, e);
 
-      let query = supabase
-        .from("events")
-        .select("id, title, start_time, end_time, event_technicians(technician_id, technicians(name))")
-        .is("deleted_at", null)
-        .lt("start_time", endISO)
-        .gt("end_time", startISO);
+      const { data: overlaps } = await supabase
+        .from("event_technicians")
+        .select("technician_id, start_at, end_at, technicians(name), events:event_id(id, title, start_time, end_time, deleted_at)")
+        .in("technician_id", techs);
 
-      if (excludeId) query = query.neq("id", excludeId);
-
-      const { data: overlaps } = await query;
       const found: ConflictInfo[] = [];
-      for (const ev of overlaps || []) {
-        for (const et of (ev as any).event_technicians || []) {
-          if (techs.includes(et.technician_id)) {
-            found.push({
-              techName: et.technicians?.name || "Ukjent",
-              jobTitle: (ev as any).title,
-              start: format(new Date((ev as any).start_time), "HH:mm"),
-              end: format(new Date((ev as any).end_time), "HH:mm"),
-            });
-          }
+      for (const row of (overlaps || []) as any[]) {
+        const ev = row.events;
+        if (!ev || ev.deleted_at || (excludeId && ev.id === excludeId)) continue;
+
+        const effectiveStart = row.start_at || ev.start_time;
+        const effectiveEnd = row.end_at || ev.end_time;
+
+        if (effectiveStart < endISO && effectiveEnd > startISO) {
+          found.push({
+            techName: row.technicians?.name || "Ukjent",
+            jobTitle: ev.title,
+            start: format(new Date(effectiveStart), "HH:mm"),
+            end: format(new Date(effectiveEnd), "HH:mm"),
+          });
         }
       }
       setConflicts(found);
@@ -322,10 +321,17 @@ export function EventDrawer({
   useEffect(() => {
     if (!open) return;
     const timer = setTimeout(() => {
-      checkConflicts(date, startTime, endDate || (date ? autoAdjustEndDate(date, startTime, endTime) : ""), endTime, techIds, editEvent?.id);
+      checkConflicts(
+        date,
+        startTime,
+        endDate || (date ? autoAdjustEndDate(date, startTime, endTime) : ""),
+        endTime,
+        techIds,
+        editEvent?.id || (mode === "existing" ? selectedJobId || undefined : undefined),
+      );
     }, 500);
     return () => clearTimeout(timer);
-  }, [date, startTime, endDate, endTime, techIds, open, editEvent, checkConflicts]);
+  }, [date, startTime, endDate, endTime, techIds, open, editEvent, mode, selectedJobId, checkConflicts]);
 
   const handleDateChange = (nextDate: string) => {
     setDate(nextDate);

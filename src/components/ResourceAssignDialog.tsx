@@ -157,7 +157,7 @@ export function ResourceAssignDialog({
   };
 
   // Check for conflicts before submitting
-  const checkConflicts = useCallback(async (date: string, start: string, endDateValue: string, end: string, techs: string[]) => {
+  const checkConflicts = useCallback(async (date: string, start: string, endDateValue: string, end: string, techs: string[], excludeEventId?: string) => {
     if (!date || !endDateValue || techs.length === 0) {
       setConflicts([]);
       return;
@@ -175,7 +175,7 @@ export function ResourceAssignDialog({
       const found: typeof conflicts = [];
       for (const row of (overlaps || []) as any[]) {
         const ev = row.events;
-        if (!ev || ev.deleted_at) continue;
+        if (!ev || ev.deleted_at || (excludeEventId && ev.id === excludeEventId)) continue;
         // Use technician override times, falling back to base event times
         const effectiveStart = row.start_at || ev.start_time;
         const effectiveEnd = row.end_at || ev.end_time;
@@ -201,11 +201,11 @@ export function ResourceAssignDialog({
       if (mode === "new" && startDate && techIds.length > 0) {
         checkConflicts(startDate, startTime, endDate, endTime, techIds);
       } else if (mode === "existing" && assignDate && techIds.length > 0) {
-        checkConflicts(assignDate, assignStartTime, assignEndDate, assignEndTime, techIds);
+        checkConflicts(assignDate, assignStartTime, assignEndDate, assignEndTime, techIds, selectedJobId || undefined);
       }
     }, 500);
     return () => clearTimeout(timer);
-  }, [mode, startDate, startTime, endDate, endTime, assignDate, assignStartTime, assignEndDate, assignEndTime, techIds, checkConflicts]);
+  }, [mode, startDate, startTime, endDate, endTime, assignDate, assignStartTime, assignEndDate, assignEndTime, techIds, selectedJobId, checkConflicts]);
 
   // Create new event
   const handleCreateNew = async (e: React.FormEvent) => {
