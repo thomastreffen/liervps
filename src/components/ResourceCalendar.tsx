@@ -1,7 +1,7 @@
 import { useRef, useCallback, useMemo, useEffect, useState, memo } from "react";
 import { getNorwegianHolidays } from "@/lib/norwegian-holidays";
 import type { AbsenceBlock } from "@/hooks/useAbsenceBlocks";
-import { CalendarOff, Check, Clock, Clock4, X } from "lucide-react";
+import { CalendarOff } from "lucide-react";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
