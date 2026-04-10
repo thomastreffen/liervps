@@ -9125,6 +9125,10 @@ export type Database = {
         }
         Returns: Json
       }
+      event_technician_company_access: {
+        Args: { _auth_user_id: string; _event_id: string }
+        Returns: boolean
+      }
       get_order_company_id: {
         Args: { _submission_id: string }
         Returns: string
