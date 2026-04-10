@@ -66,7 +66,64 @@ interface ResourceCalendarProps {
   highlightEventIds?: Set<string> | null;
   onMonthDayClick?: (date: Date) => void;
 }
-...
+
+function mergeExternalSlots(slots: ExternalBusySlot[]): ExternalBusySlot[] {
+  if (slots.length <= 1) return slots;
+  const sorted = [...slots].sort((a, b) => a.start.getTime() - b.start.getTime());
+  const merged: ExternalBusySlot[] = [{ ...sorted[0] }];
+  for (let i = 1; i < sorted.length; i++) {
+    const last = merged[merged.length - 1];
+    if (sorted[i].start <= last.end) {
+      if (sorted[i].end > last.end) last.end = sorted[i].end;
+    } else {
+      merged.push({ ...sorted[i] });
+    }
+  }
+  return merged;
+}
+
+const GCAL_PALETTE = [
+  "#D50000", "#F4511E", "#E67C73", "#F09300",
+  "#009688", "#0B8043", "#33B679", "#7CB342",
+  "#039BE5", "#3F51B5", "#7986CB", "#8E24AA",
+  "#616161", "#795548",
+];
+
+function hexToRgba(hex: string, alpha: number): string {
+  const h = hex.replace("#", "");
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+const statusDotColors: Record<string, string> = {
+  scheduled: "#2563EB",
+  in_progress: "#059669",
+  completed: "#6B7280",
+  ready_for_invoicing: "#D97706",
+  invoiced: "#9CA3AF",
+  planned: "#2563EB",
+  requested: "#2563EB",
+  approved: "#2563EB",
+  done: "#6B7280",
+};
+
+const ACCEPTANCE_ICON_MAP: Record<string, { Icon: typeof Check; className: string; title: string }> = {
+  requested: { Icon: Clock, className: "text-amber-300", title: "Forespurt" },
+  approved: { Icon: Check, className: "text-emerald-300", title: "Godkjent" },
+  time_change_proposed: { Icon: Clock4, className: "text-blue-300", title: "Tidsendring" },
+  rejected: { Icon: X, className: "text-red-300", title: "Avslått" },
+};
+
+const matchStateColors: Record<string, { bg: string; border: string; text: string }> = {
+  auto: { bg: "#059669", border: "#059669", text: "#FFFFFF" },
+  confirmed: { bg: "#059669", border: "#059669", text: "#FFFFFF" },
+  needs_confirmation: { bg: "#D97706", border: "#D97706", text: "#FFFFFF" },
+  external: { bg: "#6B7280", border: "#6B7280", text: "#FFFFFF" },
+  manual: { bg: "#2563EB", border: "#2563EB", text: "#FFFFFF" },
+};
+
 export const ResourceCalendar = memo(function ResourceCalendar({
   technicianId,
   companyId,
