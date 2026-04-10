@@ -174,7 +174,15 @@ export function useCalendarEvents(technicianId: string | null, referenceDate?: D
         "postgres_changes",
         { event: "*", schema: "public", table: "events" },
         () => {
-          console.log("[Calendar] Realtime update triggered");
+          console.log("[Calendar] Realtime update triggered (events)");
+          fetchEvents();
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "event_technicians" },
+        () => {
+          console.log("[Calendar] Realtime update triggered (event_technicians)");
           fetchEvents();
         }
       )
