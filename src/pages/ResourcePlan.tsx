@@ -401,6 +401,24 @@ export default function ResourcePlan() {
     return () => window.removeEventListener("resource-plan:new-activity", handler);
   }, [handleNewEvent]);
 
+  const handleScheduleBlockDrop = useCallback(async (blockId: string, newStart: Date, newEnd: Date, technicianId?: string) => {
+    const { error } = await supabase
+      .from("schedule_blocks")
+      .update({ start_at: newStart.toISOString(), end_at: newEnd.toISOString() } as any)
+      .eq("id", blockId);
+
+    if (error) {
+      toast.error("Kunne ikke flytte planblokken");
+      return;
+    }
+
+    const techName = technicianId ? technicianMap.get(technicianId)?.name : null;
+    toast.success(techName ? `${techName} flyttet` : "Planblokk flyttet", {
+      description: `${format(newStart, "dd.MM HH:mm")}–${format(newEnd, "HH:mm")}`,
+    });
+    await refreshPlanData();
+  }, [refreshPlanData, technicianMap]);
+
   const handleEventDrop = useCallback(async (eventId: string, newStart: Date, newEnd: Date, technicianId?: string) => {
     const oldEvent = calEvents.find((e) => e.id === eventId);
     const isMultiTech = oldEvent && oldEvent.technicians.length > 1;
@@ -460,6 +478,24 @@ export default function ResourcePlan() {
     await refetchCalendarEvents();
     setRefreshKey((k) => k + 1);
   }, [syncUpdate, calEvents, refetchCalendarEvents]);
+
+  const handleScheduleBlockResize = useCallback(async (blockId: string, newStart: Date, newEnd: Date, technicianId?: string) => {
+    const { error } = await supabase
+      .from("schedule_blocks")
+      .update({ start_at: newStart.toISOString(), end_at: newEnd.toISOString() } as any)
+      .eq("id", blockId);
+
+    if (error) {
+      toast.error("Kunne ikke endre planblokken");
+      return;
+    }
+
+    const techName = technicianId ? technicianMap.get(technicianId)?.name : null;
+    toast.success(techName ? `${techName} oppdatert` : "Planblokk oppdatert", {
+      description: `${format(newStart, "dd.MM HH:mm")}–${format(newEnd, "HH:mm")}`,
+    });
+    await refreshPlanData();
+  }, [refreshPlanData, technicianMap]);
 
   const handleEventResize = useCallback(async (eventId: string, newStart: Date, newEnd: Date, technicianId?: string) => {
     const oldEvent = calEvents.find((e) => e.id === eventId);
