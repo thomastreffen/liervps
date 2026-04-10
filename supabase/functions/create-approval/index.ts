@@ -222,10 +222,10 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Fetch technicians assigned to this job
+    // Fetch technicians assigned to this job (include time overrides)
     const { data: assignments } = await supabaseAdmin
       .from("event_technicians")
-      .select("technician_id")
+      .select("technician_id, start_at, end_at")
       .eq("event_id", job_id);
 
     if (!assignments || assignments.length === 0) {
