@@ -64,13 +64,17 @@ function buildReminderEmail(
   techName: string,
   token: string,
   displayNumber: string,
-  reminderNumber: number
+  reminderNumber: number,
+  techStartAt?: string | null,
+  techEndAt?: string | null,
 ): { subject: string; body: string } {
-  const startDate = new Date(job.start_time).toLocaleDateString("nb-NO", {
+  const effectiveStart = techStartAt || job.start_time;
+  const effectiveEnd = techEndAt || job.end_time;
+  const startDate = new Date(effectiveStart).toLocaleDateString("nb-NO", {
     weekday: "long", day: "numeric", month: "long", year: "numeric",
   });
-  const startTime = new Date(job.start_time).toLocaleTimeString("nb-NO", { hour: "2-digit", minute: "2-digit" });
-  const endTime = new Date(job.end_time).toLocaleTimeString("nb-NO", { hour: "2-digit", minute: "2-digit" });
+  const startTime = new Date(effectiveStart).toLocaleTimeString("nb-NO", { hour: "2-digit", minute: "2-digit" });
+  const endTime = new Date(effectiveEnd).toLocaleTimeString("nb-NO", { hour: "2-digit", minute: "2-digit" });
 
   const approveUrl = `${APP_URL}/approval/${token}?action=approve`;
   const rescheduleUrl = `${APP_URL}/approval/${token}?action=reschedule`;
@@ -231,6 +235,18 @@ Deno.serve(async (req) => {
       if (t.user_id) techMap.set(t.user_id, t);
     }
 
+    // Fetch event_technicians time overrides for all relevant jobs
+    const { data: allAssignments } = await supabase
+      .from("event_technicians")
+      .select("event_id, technician_id, start_at, end_at")
+      .in("event_id", jobIds);
+
+    const assignmentTimeMap = new Map<string, Map<string, { start_at: string | null; end_at: string | null }>>();
+    for (const a of allAssignments || []) {
+      if (!assignmentTimeMap.has(a.event_id)) assignmentTimeMap.set(a.event_id, new Map());
+      assignmentTimeMap.get(a.event_id)!.set(a.technician_id, { start_at: a.start_at, end_at: a.end_at });
+    }
+
     let sent = 0;
     let skipped = 0;
 
@@ -269,10 +285,14 @@ Deno.serve(async (req) => {
       }
 
       // ── GUARD: Event start_time must be in the future (with buffer) ──
-      const eventStart = new Date(job.start_time);
+      // Use technician-specific time override if available
+      const techForGuard = techMap.get(approval.technician_user_id);
+      const techTimesForGuard = techForGuard ? assignmentTimeMap.get(approval.job_id)?.get(techForGuard.id) : null;
+      const effectiveStartTime = techTimesForGuard?.start_at || job.start_time;
+      const eventStart = new Date(effectiveStartTime);
       const bufferMs = START_BUFFER_MINUTES * 60 * 1000;
       if (now.getTime() >= eventStart.getTime() - bufferMs) {
-        log(`[ApprovalReminder][Skip] approval=${aid} reason=past_event start_time=${job.start_time}`);
+        log(`[ApprovalReminder][Skip] approval=${aid} reason=past_event start_time=${effectiveStartTime}`);
         skipped++;
         continue;
       }
@@ -350,7 +370,8 @@ Deno.serve(async (req) => {
 
       // ── ALL GUARDS PASSED — Send reminder ──
       const displayNumber = job.job_number || job.internal_number || "—";
-      const { subject, body } = buildReminderEmail(job, tech.name, approval.token, displayNumber, currentCount + 1);
+      const techTimes = tech ? assignmentTimeMap.get(approval.job_id)?.get(tech.id) : null;
+      const { subject, body } = buildReminderEmail(job, tech.name, approval.token, displayNumber, currentCount + 1, techTimes?.start_at, techTimes?.end_at);
 
       // Find an admin user with MS token to send from
       let msToken: string | null = null;

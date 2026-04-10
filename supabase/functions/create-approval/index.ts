@@ -66,13 +66,18 @@ function buildApprovalEmail(
   techName: string,
   token: string,
   displayNumber: string,
-  isTimeChange: boolean = false
+  isTimeChange: boolean = false,
+  techStartAt?: string | null,
+  techEndAt?: string | null,
 ): { subject: string; body: string } {
-  const startDate = new Date(job.start_time).toLocaleDateString("nb-NO", {
+  // Use technician-specific time override if available, otherwise fall back to event times
+  const effectiveStart = techStartAt || job.start_time;
+  const effectiveEnd = techEndAt || job.end_time;
+  const startDate = new Date(effectiveStart).toLocaleDateString("nb-NO", {
     weekday: "long", day: "numeric", month: "long", year: "numeric",
   });
-  const startTime = new Date(job.start_time).toLocaleTimeString("nb-NO", { hour: "2-digit", minute: "2-digit" });
-  const endTime = new Date(job.end_time).toLocaleTimeString("nb-NO", { hour: "2-digit", minute: "2-digit" });
+  const startTime = new Date(effectiveStart).toLocaleTimeString("nb-NO", { hour: "2-digit", minute: "2-digit" });
+  const endTime = new Date(effectiveEnd).toLocaleTimeString("nb-NO", { hour: "2-digit", minute: "2-digit" });
 
   const approveUrl = `${APP_URL}/approval/${token}?action=approve`;
   const rescheduleUrl = `${APP_URL}/approval/${token}?action=reschedule`;
@@ -222,10 +227,10 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Fetch technicians assigned to this job
+    // Fetch technicians assigned to this job (include time overrides)
     const { data: assignments } = await supabaseAdmin
       .from("event_technicians")
-      .select("technician_id")
+      .select("technician_id, start_at, end_at")
       .eq("event_id", job_id);
 
     if (!assignments || assignments.length === 0) {
@@ -236,6 +241,12 @@ Deno.serve(async (req) => {
     }
 
     // Get technician details
+    // Build a map of technician_id -> time overrides
+    const techTimeMap = new Map<string, { start_at: string | null; end_at: string | null }>();
+    for (const a of assignments) {
+      techTimeMap.set(a.technician_id, { start_at: a.start_at, end_at: a.end_at });
+    }
+
     const techIds = assignments.map((a: any) => a.technician_id);
     const { data: technicians } = await supabaseAdmin
       .from("technicians")
@@ -350,7 +361,8 @@ Deno.serve(async (req) => {
 
       // Send email via Microsoft Graph
       if (msToken && tech.email) {
-        const { subject, body } = buildApprovalEmail(job, tech.name, approvalToken, displayNumber, isTimeChange);
+        const techTimes = techTimeMap.get(tech.id);
+        const { subject, body } = buildApprovalEmail(job, tech.name, approvalToken, displayNumber, isTimeChange, techTimes?.start_at, techTimes?.end_at);
 
         try {
           const emailRes = await fetch("https://graph.microsoft.com/v1.0/me/sendMail", {
