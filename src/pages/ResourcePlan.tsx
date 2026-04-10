@@ -410,7 +410,7 @@ export default function ResourcePlan() {
       const tech = oldEvent?.technicians.find((t) => t.id === technicianId);
       const etId = tech?.eventTechnicianId;
       if (etId) {
-        const { error } = await (supabase as any).from("event_technicians")
+        const { error } = await supabase.from("event_technicians")
           .update({ start_at: newStart.toISOString(), end_at: newEnd.toISOString() })
           .eq("id", etId);
         if (error) { toast.error("Kunne ikke flytte montøren"); }
@@ -457,8 +457,9 @@ export default function ResourcePlan() {
         }
       }
     }
+    await refetchCalendarEvents();
     setRefreshKey((k) => k + 1);
-  }, [syncUpdate, calEvents]);
+  }, [syncUpdate, calEvents, refetchCalendarEvents]);
 
   const handleEventResize = useCallback(async (eventId: string, newStart: Date, newEnd: Date, technicianId?: string) => {
     const oldEvent = calEvents.find((e) => e.id === eventId);
@@ -468,7 +469,7 @@ export default function ResourcePlan() {
       const tech = oldEvent?.technicians.find((t) => t.id === technicianId);
       const etId = tech?.eventTechnicianId;
       if (etId) {
-        const { error } = await (supabase as any).from("event_technicians")
+        const { error } = await supabase.from("event_technicians")
           .update({ start_at: newStart.toISOString(), end_at: newEnd.toISOString() })
           .eq("id", etId);
         if (error) { toast.error("Kunne ikke endre varighet"); }
@@ -504,8 +505,9 @@ export default function ResourcePlan() {
         }
       }
     }
+    await refetchCalendarEvents();
     setRefreshKey((k) => k + 1);
-  }, [syncUpdate, calEvents]);
+  }, [syncUpdate, calEvents, refetchCalendarEvents]);
   const operatingHours = useOperatingHours(effectiveCompanyId);
 
   useEffect(() => {
