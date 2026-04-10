@@ -1125,7 +1125,7 @@ export default function ResourcePlan() {
                     jobNumber: eventData.job_number,
                     internalNumber: eventData.internal_number,
                     projectNumber: (eventData as any).project_number ?? null,
-                    attachments: eventData.attachments ?? [],
+                    attachments: (eventData.attachments ?? []) as any[],
                     technicians,
                   };
 
