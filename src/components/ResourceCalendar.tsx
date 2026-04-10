@@ -66,7 +66,7 @@ interface ResourceCalendarProps {
   highlightEventIds?: Set<string> | null;
   onMonthDayClick?: (date: Date) => void;
 }
-...
+
 export const ResourceCalendar = memo(function ResourceCalendar({
   technicianId,
   companyId,
