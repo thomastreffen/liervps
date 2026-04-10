@@ -235,6 +235,18 @@ Deno.serve(async (req) => {
       if (t.user_id) techMap.set(t.user_id, t);
     }
 
+    // Fetch event_technicians time overrides for all relevant jobs
+    const { data: allAssignments } = await supabase
+      .from("event_technicians")
+      .select("event_id, technician_id, start_at, end_at")
+      .in("event_id", jobIds);
+
+    const assignmentTimeMap = new Map<string, Map<string, { start_at: string | null; end_at: string | null }>>();
+    for (const a of allAssignments || []) {
+      if (!assignmentTimeMap.has(a.event_id)) assignmentTimeMap.set(a.event_id, new Map());
+      assignmentTimeMap.get(a.event_id)!.set(a.technician_id, { start_at: a.start_at, end_at: a.end_at });
+    }
+
     let sent = 0;
     let skipped = 0;
 
