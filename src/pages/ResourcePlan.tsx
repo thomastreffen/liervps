@@ -49,6 +49,8 @@ import { useCompanyContext } from "@/hooks/useCompanyContext";
 import { QuickProjectSearch } from "@/components/resource-plan/QuickProjectSearch";
 import { findLinkedScheduleBlockIds, findScheduleBlockForAssignment } from "@/lib/resource-plan-assignment-identity";
 import { cn } from "@/lib/utils";
+import { parseUtc } from "@/lib/parse-utc";
+import type { TechnicianInfo } from "@/hooks/useCalendarEvents";
 
 /* Compact tech list for collapsed sidebar – shows initials only */
 function CompactTechList({
@@ -1061,19 +1063,85 @@ export default function ResourcePlan() {
           absenceBlocks={absenceBlocks}
           onEventClick={handleEventClick}
           onScheduleBlockClick={(block) => {
-            console.info("[ResourcePlan][OpenScheduleBlock]", {
-              block_id: block.id,
-              source: block.source,
-              event_id: block.project_id,
-              event_technician_id: null,
-              technician_id: block.technician_id,
-              calendar_event_id: block.outlook_event_id || block.calendar_id || null,
-              title: block.outlook_subject || block.title,
-              start: block.start_at?.toISOString?.() ?? null,
-              end: block.end_at?.toISOString?.() ?? null,
-              display_name: block.technician_name ?? null,
-            });
-            setSelectedBlock(block);
+            (async () => {
+              console.info("[ResourcePlan][OpenScheduleBlock]", {
+                block_id: block.id,
+                source: block.source,
+                event_id: block.project_id,
+                event_technician_id: null,
+                technician_id: block.technician_id,
+                calendar_event_id: block.outlook_event_id || block.calendar_id || null,
+                title: block.outlook_subject || block.title,
+                start: block.start_at?.toISOString?.() ?? null,
+                end: block.end_at?.toISOString?.() ?? null,
+                display_name: block.technician_name ?? null,
+              });
+
+              // If the block is linked to a project, try to open the EventDrawer
+              // instead of the ScheduleBlockDetailPanel (which is read-only)
+              if (block.project_id) {
+                const { data: eventData } = await supabase
+                  .from("events")
+                  .select(`
+                    id, title, customer, address, description,
+                    start_time, end_time, status,
+                    job_number, internal_number, project_number,
+                    microsoft_event_id, attachments, created_at, updated_at,
+                    event_technicians (
+                      id, technician_id, calendar_event_id, start_at, end_at,
+                      technicians ( id, name, color )
+                    )
+                  `)
+                  .eq("id", block.project_id)
+                  .is("deleted_at", null)
+                  .single();
+
+                if (eventData) {
+                  const technicians: TechnicianInfo[] = (eventData.event_technicians ?? [])
+                    .filter((et: any) => et.technicians)
+                    .map((et: any) => ({
+                      id: et.technicians.id,
+                      name: et.technicians.name,
+                      color: et.technicians.color,
+                      eventTechnicianId: et.id ?? null,
+                      calendarEventId: et.calendar_event_id ?? null,
+                      startAt: et.start_at ? parseUtc(et.start_at) : null,
+                      endAt: et.end_at ? parseUtc(et.end_at) : null,
+                    }));
+
+                  const calEvent: CalendarEvent = {
+                    id: eventData.id,
+                    microsoftEventId: eventData.microsoft_event_id ?? "",
+                    technicianIds: technicians.map((t) => t.id),
+                    attendeeStatuses: [],
+                    title: eventData.title,
+                    customer: eventData.customer ?? "",
+                    address: eventData.address ?? "",
+                    description: eventData.description ?? "",
+                    // Use the schedule_block time as the displayed time
+                    start: block.start_at,
+                    end: block.end_at,
+                    status: eventData.status as any,
+                    jobNumber: eventData.job_number,
+                    internalNumber: eventData.internal_number,
+                    projectNumber: (eventData as any).project_number ?? null,
+                    attachments: (eventData.attachments ?? []) as any[],
+                    technicians,
+                  };
+
+                  console.info("[ResourcePlan][OpenEventDrawer(from-block)]", {
+                    event_id: calEvent.id,
+                    block_id: block.id,
+                    technician_id: block.technician_id,
+                  });
+                  handleEventClick(calEvent, block.technician_id);
+                  return;
+                }
+              }
+
+              // Fallback: show schedule block detail panel
+              setSelectedBlock(block);
+            })();
           }}
           onDateSelect={canWriteEvents ? handleDateSelect : undefined}
           onEventDrop={canWriteEvents ? handleEventDrop : undefined}
