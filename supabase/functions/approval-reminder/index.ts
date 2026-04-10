@@ -285,10 +285,14 @@ Deno.serve(async (req) => {
       }
 
       // ── GUARD: Event start_time must be in the future (with buffer) ──
-      const eventStart = new Date(job.start_time);
+      // Use technician-specific time override if available
+      const techForGuard = techMap.get(approval.technician_user_id);
+      const techTimesForGuard = techForGuard ? assignmentTimeMap.get(approval.job_id)?.get(techForGuard.id) : null;
+      const effectiveStartTime = techTimesForGuard?.start_at || job.start_time;
+      const eventStart = new Date(effectiveStartTime);
       const bufferMs = START_BUFFER_MINUTES * 60 * 1000;
       if (now.getTime() >= eventStart.getTime() - bufferMs) {
-        log(`[ApprovalReminder][Skip] approval=${aid} reason=past_event start_time=${job.start_time}`);
+        log(`[ApprovalReminder][Skip] approval=${aid} reason=past_event start_time=${effectiveStartTime}`);
         skipped++;
         continue;
       }
