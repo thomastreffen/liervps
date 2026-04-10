@@ -66,13 +66,18 @@ function buildApprovalEmail(
   techName: string,
   token: string,
   displayNumber: string,
-  isTimeChange: boolean = false
+  isTimeChange: boolean = false,
+  techStartAt?: string | null,
+  techEndAt?: string | null,
 ): { subject: string; body: string } {
-  const startDate = new Date(job.start_time).toLocaleDateString("nb-NO", {
+  // Use technician-specific time override if available, otherwise fall back to event times
+  const effectiveStart = techStartAt || job.start_time;
+  const effectiveEnd = techEndAt || job.end_time;
+  const startDate = new Date(effectiveStart).toLocaleDateString("nb-NO", {
     weekday: "long", day: "numeric", month: "long", year: "numeric",
   });
-  const startTime = new Date(job.start_time).toLocaleTimeString("nb-NO", { hour: "2-digit", minute: "2-digit" });
-  const endTime = new Date(job.end_time).toLocaleTimeString("nb-NO", { hour: "2-digit", minute: "2-digit" });
+  const startTime = new Date(effectiveStart).toLocaleTimeString("nb-NO", { hour: "2-digit", minute: "2-digit" });
+  const endTime = new Date(effectiveEnd).toLocaleTimeString("nb-NO", { hour: "2-digit", minute: "2-digit" });
 
   const approveUrl = `${APP_URL}/approval/${token}?action=approve`;
   const rescheduleUrl = `${APP_URL}/approval/${token}?action=reschedule`;
