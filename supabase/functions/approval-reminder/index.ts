@@ -370,7 +370,8 @@ Deno.serve(async (req) => {
 
       // ── ALL GUARDS PASSED — Send reminder ──
       const displayNumber = job.job_number || job.internal_number || "—";
-      const { subject, body } = buildReminderEmail(job, tech.name, approval.token, displayNumber, currentCount + 1);
+      const techTimes = tech ? assignmentTimeMap.get(approval.job_id)?.get(tech.id) : null;
+      const { subject, body } = buildReminderEmail(job, tech.name, approval.token, displayNumber, currentCount + 1, techTimes?.start_at, techTimes?.end_at);
 
       // Find an admin user with MS token to send from
       let msToken: string | null = null;
