@@ -97,8 +97,10 @@ function CreateJobDialogInner({
       .from("event_technicians")
       .select(`
         technician_id,
+        start_at,
+        end_at,
         technicians ( name ),
-        events:event_id ( id, title, start_time, end_time )
+        events:event_id ( id, title, start_time, end_time, deleted_at )
       `)
       .in("technician_id", ids);
 
@@ -107,13 +109,16 @@ function CreateJobDialogInner({
     const found: ConflictInfo[] = [];
     for (const row of overlapping as any[]) {
       const ev = row.events;
-      if (!ev) continue;
-      if (ev.start_time < endISO && ev.end_time > startISO) {
+      if (!ev || (ev as any).deleted_at) continue;
+      // Use technician-specific override times, falling back to base event times
+      const effectiveStart = row.start_at || ev.start_time;
+      const effectiveEnd = row.end_at || ev.end_time;
+      if (effectiveStart < endISO && effectiveEnd > startISO) {
         found.push({
           technicianName: row.technicians?.name ?? "Ukjent",
           jobTitle: ev.title?.replace("SERVICE – ", "") ?? "",
-          start: format(new Date(ev.start_time), "HH:mm"),
-          end: format(new Date(ev.end_time), "HH:mm"),
+          start: format(new Date(effectiveStart), "HH:mm"),
+          end: format(new Date(effectiveEnd), "HH:mm"),
         });
       }
     }
