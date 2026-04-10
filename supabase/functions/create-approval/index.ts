@@ -236,6 +236,12 @@ Deno.serve(async (req) => {
     }
 
     // Get technician details
+    // Build a map of technician_id -> time overrides
+    const techTimeMap = new Map<string, { start_at: string | null; end_at: string | null }>();
+    for (const a of assignments) {
+      techTimeMap.set(a.technician_id, { start_at: a.start_at, end_at: a.end_at });
+    }
+
     const techIds = assignments.map((a: any) => a.technician_id);
     const { data: technicians } = await supabaseAdmin
       .from("technicians")
