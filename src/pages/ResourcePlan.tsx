@@ -457,8 +457,9 @@ export default function ResourcePlan() {
         }
       }
     }
+    await refetchCalendarEvents();
     setRefreshKey((k) => k + 1);
-  }, [syncUpdate, calEvents]);
+  }, [syncUpdate, calEvents, refetchCalendarEvents]);
 
   const handleEventResize = useCallback(async (eventId: string, newStart: Date, newEnd: Date, technicianId?: string) => {
     const oldEvent = calEvents.find((e) => e.id === eventId);
@@ -504,8 +505,9 @@ export default function ResourcePlan() {
         }
       }
     }
+    await refetchCalendarEvents();
     setRefreshKey((k) => k + 1);
-  }, [syncUpdate, calEvents]);
+  }, [syncUpdate, calEvents, refetchCalendarEvents]);
   const operatingHours = useOperatingHours(effectiveCompanyId);
 
   useEffect(() => {
