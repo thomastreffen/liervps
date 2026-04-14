@@ -1506,6 +1506,27 @@ export default function OrderFormDetailPage() {
                       ? "Kun synlig for interne brukere med tilgang til bestillingen."
                       : "Synlig for bestiller på sporingssiden og for alle interne."}
                   </p>
+                  {commentVisibility === "shared" && bestillerEpost && (
+                    <div className="mt-2 flex items-center gap-2 p-2 rounded-md bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800">
+                      <Checkbox
+                        id="send-email-now"
+                        checked={sendEmailNotification}
+                        onCheckedChange={(c) => setSendEmailNotification(!!c)}
+                        className="h-4 w-4"
+                      />
+                      <label htmlFor="send-email-now" className="flex-1 cursor-pointer select-none">
+                        <span className="text-xs font-medium flex items-center gap-1">
+                          <Mail className="h-3 w-3 text-blue-600" />
+                          Send e-postvarsel nå
+                        </span>
+                        <p className="text-[10px] text-muted-foreground">
+                          {sendEmailNotification
+                            ? `E-post sendes til ${bestillerEpost}`
+                            : "Meldingen vises på kundesiden uten e-postvarsel"}
+                        </p>
+                      </label>
+                    </div>
+                  )}
                 </div>
 
                 {/* Row 2: Adressat */}
