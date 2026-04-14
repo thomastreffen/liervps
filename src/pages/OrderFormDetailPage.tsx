@@ -305,6 +305,15 @@ export default function OrderFormDetailPage() {
     })();
   }, [conversationState.statusSyncTarget, id, submission?.status, qc, user?.id]);
 
+  // Auto-default email notification checkbox based on visibility + auto-notify setting
+  useEffect(() => {
+    if (commentVisibility === "shared" && bestillerEpost) {
+      setSendEmailNotification(!!(submission as any)?.auto_notify_on_status_change);
+    } else {
+      setSendEmailNotification(false);
+    }
+  }, [commentVisibility, (submission as any)?.auto_notify_on_status_change, bestillerEpost]);
+
   const findVal = useCallback((...prefixes: string[]): string => {
     for (const prefix of prefixes) {
       if (valuesMap[prefix]) return String(valuesMap[prefix]);
