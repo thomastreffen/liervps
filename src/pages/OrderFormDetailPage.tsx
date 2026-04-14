@@ -1329,6 +1329,16 @@ export default function OrderFormDetailPage() {
                               <Mail className="h-2.5 w-2.5 mr-0.5" /> via e-post
                             </Badge>
                           )}
+                          {m.email_notification_sent && (
+                            <Badge variant="outline" className="text-[8px] bg-blue-50 text-blue-600 border-blue-200">
+                              <MailCheck className="h-2.5 w-2.5 mr-0.5" /> E-post sendt
+                            </Badge>
+                          )}
+                          {m.is_visible_to_customer && !m.email_notification_sent && m.sender_type === "admin" && !isRequestInfo && (
+                            <Badge variant="outline" className="text-[8px] bg-muted text-muted-foreground">
+                              Kun kundeside
+                            </Badge>
+                          )}
                           {addressedParticipant && (
                             <Badge variant="outline" className="text-[8px] bg-muted">
                               → {addressedParticipant.name} ({addressedParticipant.role_label || addressedParticipant.participant_type})
