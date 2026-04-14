@@ -1099,6 +1099,38 @@ export default function OrderFormDetailPage() {
                 </Popover>
               </div>
 
+              {/* Auto-notify toggle */}
+              <div className="pt-2 border-t">
+                <label className="flex items-center gap-2 cursor-pointer select-none group">
+                  <Checkbox
+                    checked={!!(submission as any).auto_notify_on_status_change}
+                    onCheckedChange={async (checked) => {
+                      await supabase.from("order_form_submissions")
+                        .update({ auto_notify_on_status_change: !!checked } as any)
+                        .eq("id", id!);
+                      qc.invalidateQueries({ queryKey: ["order-form-submission", id] });
+                      toast.success(checked ? "Auto-varsling aktivert" : "Auto-varsling deaktivert");
+                    }}
+                    className="h-4 w-4"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <span className="text-xs font-medium flex items-center gap-1">
+                      {(submission as any).auto_notify_on_status_change ? (
+                        <BellRing className="h-3 w-3 text-primary" />
+                      ) : (
+                        <Bell className="h-3 w-3 text-muted-foreground" />
+                      )}
+                      Varsle bestiller automatisk
+                    </span>
+                    <p className="text-[10px] text-muted-foreground">
+                      {(submission as any).auto_notify_on_status_change
+                        ? "E-post sendes automatisk ved delte oppdateringer"
+                        : "E-postvarsler sendes kun manuelt"}
+                    </p>
+                  </div>
+                </label>
+              </div>
+
               {/* Divider */}
               <div className="border-t" />
 
