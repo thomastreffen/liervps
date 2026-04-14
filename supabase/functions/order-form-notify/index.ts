@@ -247,6 +247,44 @@ Deno.serve(async (req) => {
         headingFg: tmpl.colorFg,
         trackingUrl,
       });
+    } else if (notification_type === "shared_message") {
+      // Shared message notification to bestiller
+      if (!bestillerEpost) {
+        return json({ success: false, reason: "no_bestiller_email" });
+      }
+
+      const { message_id } = body;
+      let messageBody = "";
+      let senderName = "Saksbehandler";
+
+      if (message_id) {
+        const { data: msg } = await supabase
+          .from("order_form_messages")
+          .select("body, sender_name")
+          .eq("id", message_id)
+          .single();
+        if (msg) {
+          messageBody = msg.body || "";
+          senderName = msg.sender_name || senderName;
+        }
+      }
+
+      const trackingToken = submission.public_tracking_token;
+      const trackingUrl = trackingToken ? `${appUrl}/bestilling/status/${trackingToken}` : null;
+
+      subject = `Melding: ${submission.submission_no} - ${oppdragstittel}`;
+      recipients = [bestillerEpost];
+
+      bodyHtml = buildCustomerUpdateEmail({
+        submissionNo: submission.submission_no,
+        kundenavn,
+        oppdragstittel,
+        heading: "Ny melding fra " + senderName,
+        bodyText: messageBody || "Du har fått en ny melding angående din bestilling. Se sporingslenken for detaljer.",
+        headingBg: "#DBEAFE",
+        headingFg: "#1E40AF",
+        trackingUrl,
+      });
     }
 
     if (recipients.length === 0) {

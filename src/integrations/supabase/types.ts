@@ -6220,6 +6220,8 @@ export type Database = {
           addressed_to_participant_id: string | null
           body: string
           created_at: string
+          email_notification_sent: boolean
+          email_notification_sent_at: string | null
           id: string
           is_visible_to_customer: boolean
           message_type: string
@@ -6240,6 +6242,8 @@ export type Database = {
           addressed_to_participant_id?: string | null
           body: string
           created_at?: string
+          email_notification_sent?: boolean
+          email_notification_sent_at?: string | null
           id?: string
           is_visible_to_customer?: boolean
           message_type?: string
@@ -6260,6 +6264,8 @@ export type Database = {
           addressed_to_participant_id?: string | null
           body?: string
           created_at?: string
+          email_notification_sent?: boolean
+          email_notification_sent_at?: string | null
           id?: string
           is_visible_to_customer?: boolean
           message_type?: string

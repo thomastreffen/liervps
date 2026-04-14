@@ -66,6 +66,7 @@ export default function OrderFormDetailPage() {
   const { activeCompanyId } = useCompanyContext();
   const [comment, setComment] = useState("");
   const [commentVisibility, setCommentVisibility] = useState<"internal" | "shared">("internal");
+  const [sendEmailNotification, setSendEmailNotification] = useState(false);
   const [requestInfoOpen, setRequestInfoOpen] = useState(false);
   const [convertOpen] = useState(false); // kept for compat, now navigates
   const [tripletexOpen, setTripletexOpen] = useState(false);
@@ -338,6 +339,15 @@ export default function OrderFormDetailPage() {
 
   const bestillerEpost = resolvedRecipient.email;
 
+  // Auto-default email notification checkbox based on visibility + auto-notify setting
+  useEffect(() => {
+    if (commentVisibility === "shared" && bestillerEpost) {
+      setSendEmailNotification(!!(submission as any)?.auto_notify_on_status_change);
+    } else {
+      setSendEmailNotification(false);
+    }
+  }, [commentVisibility, submission, bestillerEpost]);
+
   const allTemplateFields = useMemo(() => {
     return sections.flatMap((s: any) => (s.fields || []).map((f: any) => ({
       field_key: f.field_key,
@@ -396,6 +406,7 @@ export default function OrderFormDetailPage() {
     mutationFn: async () => {
       if (!comment.trim()) return;
       const isShared = commentVisibility === "shared";
+      const shouldEmail = isShared && sendEmailNotification && !!bestillerEpost;
 
       // Get sender name
       const { data: ua } = await supabase
@@ -410,7 +421,7 @@ export default function OrderFormDetailPage() {
       const senderParticipant = participants.find((p: any) => p.user_id === user?.id);
 
       // Write to new messages table (primary)
-      const { error } = await supabase.from("order_form_messages").insert({
+      const { data: insertedMsg, error } = await supabase.from("order_form_messages").insert({
         submission_id: id!,
         sender_type: "admin",
         sender_user_id: user?.id,
@@ -423,7 +434,9 @@ export default function OrderFormDetailPage() {
         source: "app",
         addressed_to_participant_id: addressedTo || null,
         sender_participant_id: senderParticipant?.id || null,
-      } as any);
+        email_notification_sent: shouldEmail,
+        email_notification_sent_at: shouldEmail ? new Date().toISOString() : null,
+      } as any).select("id").single();
       if (error) throw error;
 
       // Also write to legacy comments for backward compatibility
@@ -440,10 +453,23 @@ export default function OrderFormDetailPage() {
           .update({ last_admin_message_at: new Date().toISOString(), last_activity_at: new Date().toISOString() } as any)
           .eq("id", id!);
       }
+
+      // Trigger email notification to bestiller if checked
+      if (shouldEmail && insertedMsg?.id) {
+        try {
+          await supabase.functions.invoke("order-form-notify", {
+            body: { submission_id: id, notification_type: "shared_message", message_id: insertedMsg.id },
+          });
+        } catch (emailErr) {
+          console.error("Email notification failed:", emailErr);
+          // Don't fail the whole operation if email fails
+        }
+      }
     },
     onSuccess: () => {
       setComment("");
       setAddressedTo(null);
+      setSendEmailNotification(false);
       qc.invalidateQueries({ queryKey: ["order-form-comments", id] });
       qc.invalidateQueries({ queryKey: ["order-form-messages", id] });
       toast.success(commentVisibility === "shared" ? "Melding delt med bestiller" : "Intern kommentar lagt til");
@@ -1082,6 +1108,38 @@ export default function OrderFormDetailPage() {
                 </Popover>
               </div>
 
+              {/* Auto-notify toggle */}
+              <div className="pt-2 border-t">
+                <label className="flex items-center gap-2 cursor-pointer select-none group">
+                  <Checkbox
+                    checked={!!(submission as any).auto_notify_on_status_change}
+                    onCheckedChange={async (checked) => {
+                      await supabase.from("order_form_submissions")
+                        .update({ auto_notify_on_status_change: !!checked } as any)
+                        .eq("id", id!);
+                      qc.invalidateQueries({ queryKey: ["order-form-submission", id] });
+                      toast.success(checked ? "Auto-varsling aktivert" : "Auto-varsling deaktivert");
+                    }}
+                    className="h-4 w-4"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <span className="text-xs font-medium flex items-center gap-1">
+                      {(submission as any).auto_notify_on_status_change ? (
+                        <BellRing className="h-3 w-3 text-primary" />
+                      ) : (
+                        <Bell className="h-3 w-3 text-muted-foreground" />
+                      )}
+                      Varsle bestiller automatisk
+                    </span>
+                    <p className="text-[10px] text-muted-foreground">
+                      {(submission as any).auto_notify_on_status_change
+                        ? "E-post sendes automatisk ved delte oppdateringer"
+                        : "E-postvarsler sendes kun manuelt"}
+                    </p>
+                  </div>
+                </label>
+              </div>
+
               {/* Divider */}
               <div className="border-t" />
 
@@ -1271,6 +1329,16 @@ export default function OrderFormDetailPage() {
                               <Mail className="h-2.5 w-2.5 mr-0.5" /> via e-post
                             </Badge>
                           )}
+                          {m.email_notification_sent && (
+                            <Badge variant="outline" className="text-[8px] bg-blue-50 text-blue-600 border-blue-200">
+                              <MailCheck className="h-2.5 w-2.5 mr-0.5" /> E-post sendt
+                            </Badge>
+                          )}
+                          {m.is_visible_to_customer && !m.email_notification_sent && m.sender_type === "admin" && !isRequestInfo && (
+                            <Badge variant="outline" className="text-[8px] bg-muted text-muted-foreground">
+                              Kun kundeside
+                            </Badge>
+                          )}
                           {addressedParticipant && (
                             <Badge variant="outline" className="text-[8px] bg-muted">
                               → {addressedParticipant.name} ({addressedParticipant.role_label || addressedParticipant.participant_type})
@@ -1457,6 +1525,27 @@ export default function OrderFormDetailPage() {
                       ? "Kun synlig for interne brukere med tilgang til bestillingen."
                       : "Synlig for bestiller på sporingssiden og for alle interne."}
                   </p>
+                  {commentVisibility === "shared" && bestillerEpost && (
+                    <div className="mt-2 flex items-center gap-2 p-2 rounded-md bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800">
+                      <Checkbox
+                        id="send-email-now"
+                        checked={sendEmailNotification}
+                        onCheckedChange={(c) => setSendEmailNotification(!!c)}
+                        className="h-4 w-4"
+                      />
+                      <label htmlFor="send-email-now" className="flex-1 cursor-pointer select-none">
+                        <span className="text-xs font-medium flex items-center gap-1">
+                          <Mail className="h-3 w-3 text-blue-600" />
+                          Send e-postvarsel nå
+                        </span>
+                        <p className="text-[10px] text-muted-foreground">
+                          {sendEmailNotification
+                            ? `E-post sendes til ${bestillerEpost}`
+                            : "Meldingen vises på kundesiden uten e-postvarsel"}
+                        </p>
+                      </label>
+                    </div>
+                  )}
                 </div>
 
                 {/* Row 2: Adressat */}
