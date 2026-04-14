@@ -339,6 +339,15 @@ export default function OrderFormDetailPage() {
 
   const bestillerEpost = resolvedRecipient.email;
 
+  // Auto-default email notification checkbox based on visibility + auto-notify setting
+  useEffect(() => {
+    if (commentVisibility === "shared" && bestillerEpost) {
+      setSendEmailNotification(!!(submission as any)?.auto_notify_on_status_change);
+    } else {
+      setSendEmailNotification(false);
+    }
+  }, [commentVisibility, submission, bestillerEpost]);
+
   const allTemplateFields = useMemo(() => {
     return sections.flatMap((s: any) => (s.fields || []).map((f: any) => ({
       field_key: f.field_key,
