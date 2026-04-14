@@ -66,6 +66,7 @@ export default function OrderFormDetailPage() {
   const { activeCompanyId } = useCompanyContext();
   const [comment, setComment] = useState("");
   const [commentVisibility, setCommentVisibility] = useState<"internal" | "shared">("internal");
+  const [sendEmailNotification, setSendEmailNotification] = useState(false);
   const [requestInfoOpen, setRequestInfoOpen] = useState(false);
   const [convertOpen] = useState(false); // kept for compat, now navigates
   const [tripletexOpen, setTripletexOpen] = useState(false);
