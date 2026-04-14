@@ -397,6 +397,7 @@ export default function OrderFormDetailPage() {
     mutationFn: async () => {
       if (!comment.trim()) return;
       const isShared = commentVisibility === "shared";
+      const shouldEmail = isShared && sendEmailNotification && !!bestillerEpost;
 
       // Get sender name
       const { data: ua } = await supabase
@@ -411,7 +412,7 @@ export default function OrderFormDetailPage() {
       const senderParticipant = participants.find((p: any) => p.user_id === user?.id);
 
       // Write to new messages table (primary)
-      const { error } = await supabase.from("order_form_messages").insert({
+      const { data: insertedMsg, error } = await supabase.from("order_form_messages").insert({
         submission_id: id!,
         sender_type: "admin",
         sender_user_id: user?.id,
@@ -424,7 +425,9 @@ export default function OrderFormDetailPage() {
         source: "app",
         addressed_to_participant_id: addressedTo || null,
         sender_participant_id: senderParticipant?.id || null,
-      } as any);
+        email_notification_sent: shouldEmail,
+        email_notification_sent_at: shouldEmail ? new Date().toISOString() : null,
+      } as any).select("id").single();
       if (error) throw error;
 
       // Also write to legacy comments for backward compatibility
@@ -441,10 +444,23 @@ export default function OrderFormDetailPage() {
           .update({ last_admin_message_at: new Date().toISOString(), last_activity_at: new Date().toISOString() } as any)
           .eq("id", id!);
       }
+
+      // Trigger email notification to bestiller if checked
+      if (shouldEmail && insertedMsg?.id) {
+        try {
+          await supabase.functions.invoke("order-form-notify", {
+            body: { submission_id: id, notification_type: "shared_message", message_id: insertedMsg.id },
+          });
+        } catch (emailErr) {
+          console.error("Email notification failed:", emailErr);
+          // Don't fail the whole operation if email fails
+        }
+      }
     },
     onSuccess: () => {
       setComment("");
       setAddressedTo(null);
+      setSendEmailNotification(false);
       qc.invalidateQueries({ queryKey: ["order-form-comments", id] });
       qc.invalidateQueries({ queryKey: ["order-form-messages", id] });
       toast.success(commentVisibility === "shared" ? "Melding delt med bestiller" : "Intern kommentar lagt til");
