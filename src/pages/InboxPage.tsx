@@ -995,6 +995,7 @@ function CaseDetail({
   const [offerDrawerOpen, setOfferDrawerOpen] = useState(false);
   const [closeDrawerOpen, setCloseDrawerOpen] = useState(false);
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
+  const [orderDialogOpen, setOrderDialogOpen] = useState(false);
 
   return (
     <ScrollArea className="flex-1">
@@ -1083,6 +1084,7 @@ function CaseDetail({
             linkedProjectId={caseData.linked_project_id}
             linkedWorkOrderId={caseData.linked_work_order_id}
             linkedLeadId={caseData.linked_lead_id}
+            linkedOrderSubmissionId={caseData.linked_order_submission_id}
             offerId={caseData.offer_id}
             projectId={caseData.project_id}
             serviceJobId={caseData.service_job_id}
