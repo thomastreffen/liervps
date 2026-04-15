@@ -1299,6 +1299,23 @@ function CaseDetail({
           }}
         />
 
+        <CaseToOrderDialog
+          open={orderDialogOpen}
+          onOpenChange={setOrderDialogOpen}
+          caseId={caseData.id}
+          caseTitle={caseData.title}
+          companyId={caseData.company_id}
+          items={items}
+          onCreated={(orderId) => {
+            onUpdateField({
+              status: "converted" as CaseStatus,
+              resolution_type: "converted_to_order",
+              linked_order_submission_id: orderId,
+            } as any);
+            onCaseUpdated();
+          }}
+        />
+
         {/* Timeline / Email Viewer */}
         <div>
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3">Tidslinje</p>
