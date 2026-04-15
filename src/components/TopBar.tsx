@@ -84,7 +84,7 @@ export function TopBar({ onNewJob, onToggleSidebar, showMenuButton }: TopBarProp
           )}
 
           {/* Admin dropdown */}
-          {isAdmin && (
+          {isSuperAdmin && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="sm" className="gap-1.5 hidden sm:flex">
