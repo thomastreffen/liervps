@@ -51,6 +51,7 @@ import { CaseCloseDrawer } from "@/components/cases/CaseCloseDrawer";
 import { CaseLinkedEntities } from "@/components/cases/CaseLinkedEntities";
 import { LinkToExistingDialog } from "@/components/cases/LinkToExistingDialog";
 import { CaseEmailViewer } from "@/components/cases/CaseEmailViewer";
+import { CaseToOrderDialog } from "@/components/cases/CaseToOrderDialog";
 import { format, formatDistanceToNow, isPast, differenceInHours } from "date-fns";
 import { nb } from "date-fns/locale";
 import {
@@ -98,6 +99,7 @@ type Case = {
   linked_project_id: string | null;
   linked_work_order_id: string | null;
   linked_lead_id: string | null;
+  linked_order_submission_id: string | null;
   archived_at: string | null;
   archived_by: string | null;
   last_activity_at: string | null;
@@ -136,9 +138,9 @@ type Mailbox = {
 
 type FilterType = "mine" | "team" | "needs_action" | "waiting_customer" | "waiting_internal" | "linked" | "converted" | "closed";
 
-/** A case is considered "linked" (forwarded) when it has been connected to a project, job, lead or offer */
-const isLinkedCase = (c: { linked_project_id?: string | null; linked_work_order_id?: string | null; linked_lead_id?: string | null; linked_offer_id?: string | null }) =>
-  !!(c.linked_project_id || c.linked_work_order_id || c.linked_lead_id || c.linked_offer_id);
+/** A case is considered "linked" (forwarded) when it has been connected to a project, job, lead, offer or order */
+const isLinkedCase = (c: { linked_project_id?: string | null; linked_work_order_id?: string | null; linked_lead_id?: string | null; linked_offer_id?: string | null; linked_order_submission_id?: string | null }) =>
+  !!(c.linked_project_id || c.linked_work_order_id || c.linked_lead_id || c.linked_offer_id || c.linked_order_submission_id);
 
 /** A linked case still needs attention if it has an actionable status or critical priority */
 const needsAttention = (c: Case, userId?: string) => {
