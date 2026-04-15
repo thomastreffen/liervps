@@ -3106,7 +3106,9 @@ export type Database = {
           change_summary: string | null
           event_id: string
           id: string
+          metadata: Json | null
           performed_by: string | null
+          performer_name: string | null
           timestamp: string
         }
         Insert: {
@@ -3114,7 +3116,9 @@ export type Database = {
           change_summary?: string | null
           event_id: string
           id?: string
+          metadata?: Json | null
           performed_by?: string | null
+          performer_name?: string | null
           timestamp?: string
         }
         Update: {
@@ -3122,7 +3126,9 @@ export type Database = {
           change_summary?: string | null
           event_id?: string
           id?: string
+          metadata?: Json | null
           performed_by?: string | null
+          performer_name?: string | null
           timestamp?: string
         }
         Relationships: [
