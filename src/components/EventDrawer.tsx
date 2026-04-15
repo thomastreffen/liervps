@@ -513,17 +513,14 @@ export function EventDrawer({
         const logEntries: any[] = [];
         const userName = session?.session?.user?.user_metadata?.full_name || session?.session?.user?.email || "Ukjent";
 
-        // Time change
-        const timeChanged =
-          editEvent.start.getTime() !== new Date(startISO).getTime() ||
-          editEvent.end.getTime() !== new Date(endISO).getTime();
+        // Time change (reuse timeChanged from above)
         if (timeChanged) {
           logEntries.push({
             event_id: editEvent.id, action_type: "time_changed", performed_by: userId, performer_name: userName,
             change_summary: `endret tid`,
             metadata: {
               old_time: `${format(editEvent.start, "d. MMM HH:mm", { locale: nb })}–${format(editEvent.end, "HH:mm", { locale: nb })}`,
-              new_time: `${startDate} ${startTime}–${endDate || startDate} ${endTime}`,
+              new_time: `${format(new Date(startISO), "d. MMM HH:mm", { locale: nb })}–${format(new Date(endISO), "HH:mm", { locale: nb })}`,
             },
           });
         }
