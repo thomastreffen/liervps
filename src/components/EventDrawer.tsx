@@ -508,6 +508,57 @@ export function EventDrawer({
           toast.info("Tidsendring", { description: "Montør(er) er varslet om ny tid og må bekrefte på nytt." });
         }
 
+        // ── Audit logging ──
+        const techNameMap = new Map(allTechnicians.map((t: any) => [t.id, t.name]));
+        const logEntries: any[] = [];
+        const userName = session?.session?.user?.user_metadata?.full_name || session?.session?.user?.email || "Ukjent";
+
+        // Time change
+        const timeChanged =
+          editEvent.start.getTime() !== new Date(startISO).getTime() ||
+          editEvent.end.getTime() !== new Date(endISO).getTime();
+        if (timeChanged) {
+          logEntries.push({
+            event_id: editEvent.id, action_type: "time_changed", performed_by: userId, performer_name: userName,
+            change_summary: `endret tid`,
+            metadata: {
+              old_time: `${format(editEvent.start, "d. MMM HH:mm", { locale: nb })}–${format(editEvent.end, "HH:mm", { locale: nb })}`,
+              new_time: `${startDate} ${startTime}–${endDate || startDate} ${endTime}`,
+            },
+          });
+        }
+
+        // Title change
+        if (title !== editEvent.title) {
+          logEntries.push({
+            event_id: editEvent.id, action_type: "title_changed", performed_by: userId, performer_name: userName,
+            change_summary: `endret tittel`,
+            metadata: { old_title: editEvent.title, new_title: title },
+          });
+        }
+
+        // Technician changes
+        if (toRemove.length > 0) {
+          const removedNames = toRemove.map(r => techNameMap.get(r.technician_id) || "Ukjent");
+          logEntries.push({
+            event_id: editEvent.id, action_type: "technician_removed", performed_by: userId, performer_name: userName,
+            change_summary: `fjernet ${removedNames.join(", ")} fra oppdraget`,
+            metadata: { removed_names: removedNames },
+          });
+        }
+        if (toAdd.length > 0) {
+          const addedNames = toAdd.map(id => techNameMap.get(id) || "Ukjent");
+          logEntries.push({
+            event_id: editEvent.id, action_type: "technician_added", performed_by: userId, performer_name: userName,
+            change_summary: `la til ${addedNames.join(", ")} på oppdraget`,
+            metadata: { added_names: addedNames },
+          });
+        }
+
+        if (logEntries.length > 0) {
+          await supabase.from("event_logs").insert(logEntries);
+        }
+
         syncUpdate(editEvent.id);
 
         // Upload new attachments
@@ -515,6 +566,10 @@ export function EventDrawer({
           const newUploads = await uploadFiles(editEvent.id, files);
           const allAttachments = [...existingAttachments, ...newUploads];
           await supabase.from("events").update({ attachments: allAttachments as any }).eq("id", editEvent.id);
+          await supabase.from("event_logs").insert({
+            event_id: editEvent.id, action_type: "attachment_added", performed_by: userId, performer_name: userName,
+            change_summary: `la til ${files.length} vedlegg`,
+          });
         }
 
         toast.success("Hendelse oppdatert", { description: "Tid og ressurser er lagret." });
