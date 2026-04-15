@@ -200,8 +200,8 @@ export function AppSidebar() {
     return undefined;
   };
 
-  // Show admin section if user has module.admin permission or legacy isAdmin
-  const showAdmin = isAdmin || hasPermission("module.admin");
+  // Show admin section only for super_admin users
+  const showAdmin = isSuperAdmin;
 
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border">

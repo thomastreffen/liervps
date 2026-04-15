@@ -186,7 +186,7 @@ const App = () => (
               <Route path="/calendar/confirmations" element={<ConfirmationsPage />} />
               <Route path="/absence" element={<AbsencePage />} />
               <Route path="/admin/ai-matcher" element={
-                <ProtectedRoute requiredRoles={["admin", "super_admin"]}>
+                <ProtectedRoute requiredRoles={["super_admin"]}>
                   <AiMatcherReportPage />
                 </ProtectedRoute>
               } />
@@ -194,7 +194,7 @@ const App = () => (
               <Route path="/projects/contracts/:id" element={<ContractDetail />} />
               <Route path="/invoice-basis" element={<InvoiceBasisPage />} />
               <Route path="/management" element={
-                <ProtectedRoute requiredRoles={["admin", "super_admin"]}>
+                <ProtectedRoute requiredRoles={["super_admin"]}>
                   <ManagementPage />
                 </ProtectedRoute>
               } />
@@ -216,7 +216,7 @@ const App = () => (
               <Route
                 path="/admin/forms"
                 element={
-                  <ProtectedRoute requiredRoles={["admin", "super_admin"]}>
+                  <ProtectedRoute requiredRoles={["super_admin"]}>
                     <FormBuilderPage />
                   </ProtectedRoute>
                 }
@@ -314,7 +314,7 @@ const App = () => (
               <Route
                 path="/admin/personer"
                 element={
-                  <ProtectedRoute requiredRoles={["admin", "super_admin"]}>
+                  <ProtectedRoute requiredRoles={["super_admin"]}>
                     <PeoplePage />
                   </ProtectedRoute>
                 }
@@ -322,7 +322,7 @@ const App = () => (
               <Route
                 path="/admin/personer/import"
                 element={
-                  <ProtectedRoute requiredRoles={["admin", "super_admin"]}>
+                  <ProtectedRoute requiredRoles={["super_admin"]}>
                     <EmployeeImportPage />
                   </ProtectedRoute>
                 }
@@ -330,7 +330,7 @@ const App = () => (
               <Route
                 path="/admin/personer/:id"
                 element={
-                  <ProtectedRoute requiredRoles={["admin", "super_admin"]}>
+                  <ProtectedRoute requiredRoles={["super_admin"]}>
                     <PersonDetailPage />
                   </ProtectedRoute>
                 }
@@ -346,7 +346,7 @@ const App = () => (
               <Route
                 path="/admin/settings"
                 element={
-                  <ProtectedRoute requiredRoles={["admin", "super_admin"]}>
+                  <ProtectedRoute requiredRoles={["super_admin"]}>
                     <AdminSettings />
                   </ProtectedRoute>
                 }
@@ -354,7 +354,7 @@ const App = () => (
               <Route
                 path="/admin/trash"
                 element={
-                  <ProtectedRoute requiredRoles={["admin", "super_admin"]}>
+                  <ProtectedRoute requiredRoles={["super_admin"]}>
                     <TrashPage />
                   </ProtectedRoute>
                 }
@@ -363,7 +363,7 @@ const App = () => (
               <Route
                 path="/admin/integration-health"
                 element={
-                  <ProtectedRoute requiredRoles={["admin", "super_admin"]}>
+                  <ProtectedRoute requiredRoles={["super_admin"]}>
                     <IntegrationHealthPage />
                   </ProtectedRoute>
                 }
@@ -371,7 +371,7 @@ const App = () => (
               <Route
                 path="/admin/fag-insights"
                 element={
-                  <ProtectedRoute requiredRoles={["admin", "super_admin"]}>
+                  <ProtectedRoute requiredRoles={["super_admin"]}>
                     <FagInsightsPage />
                   </ProtectedRoute>
                 }
@@ -379,7 +379,7 @@ const App = () => (
               <Route
                 path="/admin/system-health"
                 element={
-                  <ProtectedRoute requiredRoles={["admin", "super_admin"]}>
+                  <ProtectedRoute requiredRoles={["super_admin"]}>
                     <SystemHealthPage />
                   </ProtectedRoute>
                 }
@@ -387,7 +387,7 @@ const App = () => (
               <Route
                 path="/admin/data-integrity"
                 element={
-                  <ProtectedRoute requiredRoles={["admin", "super_admin"]}>
+                  <ProtectedRoute requiredRoles={["super_admin"]}>
                     <DataIntegrityPage />
                   </ProtectedRoute>
                 }
@@ -395,7 +395,7 @@ const App = () => (
               <Route
                 path="/admin/contract-cron"
                 element={
-                  <ProtectedRoute requiredRoles={["admin", "super_admin"]}>
+                  <ProtectedRoute requiredRoles={["super_admin"]}>
                     <ContractCronPage />
                   </ProtectedRoute>
                 }
@@ -411,7 +411,7 @@ const App = () => (
               <Route
                 path="/admin/microsoft"
                 element={
-                  <ProtectedRoute requiredRoles={["admin", "super_admin"]}>
+                  <ProtectedRoute requiredRoles={["super_admin"]}>
                     <MicrosoftAdminPage />
                   </ProtectedRoute>
                 }
@@ -427,7 +427,7 @@ const App = () => (
               <Route
                 path="/admin/tripletex"
                 element={
-                  <ProtectedRoute requiredRoles={["admin", "super_admin"]}>
+                  <ProtectedRoute requiredRoles={["super_admin"]}>
                     <TripletexImportPage />
                   </ProtectedRoute>
                 }
@@ -435,7 +435,7 @@ const App = () => (
               <Route
                 path="/admin/project-duplicates"
                 element={
-                  <ProtectedRoute requiredRoles={["admin", "super_admin"]}>
+                  <ProtectedRoute requiredRoles={["super_admin"]}>
                     <ProjectDuplicatesPage />
                   </ProtectedRoute>
                 }
@@ -457,7 +457,7 @@ const App = () => (
               <Route
                 path="/admin/order-forms"
                 element={
-                  <ProtectedRoute requiredRoles={["admin", "super_admin"]}>
+                  <ProtectedRoute requiredRoles={["super_admin"]}>
                     <OrderFormTemplatesPage />
                   </ProtectedRoute>
                 }
@@ -465,7 +465,7 @@ const App = () => (
               <Route
                 path="/admin/order-forms/:id"
                 element={
-                  <ProtectedRoute requiredRoles={["admin", "super_admin"]}>
+                  <ProtectedRoute requiredRoles={["super_admin"]}>
                     <OrderFormBuilderPage />
                   </ProtectedRoute>
                 }
