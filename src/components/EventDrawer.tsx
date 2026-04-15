@@ -175,7 +175,7 @@ export function EventDrawer({
   const [editCompanyId, setEditCompanyId] = useState<string | null>(null);
 
   // Drawer tab state (detaljer vs tråd)
-  const [drawerTab, setDrawerTab] = useState<"details" | "thread">(initialTab || "details");
+  const [drawerTab, setDrawerTab] = useState<"details" | "thread" | "history">(initialTab || "details");
 
   // Sync initialTab when it changes (e.g. deep link opens drawer)
   useEffect(() => {
