@@ -420,10 +420,23 @@ export function EventDrawer({
         const toRemove = (existing || []).filter((e) => !newIds.has(e.technician_id));
 
         if (toRemove.length > 0) {
+          const removedTechIds = toRemove.map((r) => r.technician_id);
+          console.log("[EventDrawer] Removing technicians:", removedTechIds, "from event:", editEvent.id);
+
+          // 1. Delete event_technicians
           await supabase.from("event_technicians").delete().in("id", toRemove.map((r) => r.id));
 
-          // Clean up orphaned job_approvals for removed technicians
-          const removedTechIds = toRemove.map((r) => r.technician_id);
+          // 2. Soft-delete schedule_blocks for removed technicians on this event
+          const { data: removedBlocks } = await (supabase as any)
+            .from("schedule_blocks")
+            .update({ deleted_at: new Date().toISOString() })
+            .eq("project_id", editEvent.id)
+            .in("technician_id", removedTechIds)
+            .is("deleted_at", null)
+            .select("id, technician_id");
+          console.log("[EventDrawer] Soft-deleted schedule_blocks:", removedBlocks);
+
+          // 3. Clean up orphaned job_approvals for removed technicians
           const { data: removedTechs } = await supabase
             .from("technicians")
             .select("user_id")
