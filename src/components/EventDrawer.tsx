@@ -5,6 +5,7 @@ import { FileUpload } from "./FileUpload";
 import { AttachmentList } from "./AttachmentList";
 import type { Attachment } from "@/lib/mock-data";
 import { TaskThreadPanel } from "@/components/task-thread";
+import { EventHistoryTab } from "@/components/EventHistoryTab";
 import { ReminderProfileSelect, type ReminderConfig } from "@/components/ReminderProfileSelect";
 import { ApprovalCockpit } from "@/components/ApprovalCockpit";
 import { TechReplacementSuggestion } from "@/components/TechReplacementSuggestion";
@@ -174,7 +175,7 @@ export function EventDrawer({
   const [editCompanyId, setEditCompanyId] = useState<string | null>(null);
 
   // Drawer tab state (detaljer vs tråd)
-  const [drawerTab, setDrawerTab] = useState<"details" | "thread">(initialTab || "details");
+  const [drawerTab, setDrawerTab] = useState<"details" | "thread" | "history">(initialTab || "details");
 
   // Sync initialTab when it changes (e.g. deep link opens drawer)
   useEffect(() => {
@@ -507,6 +508,54 @@ export function EventDrawer({
           toast.info("Tidsendring", { description: "Montør(er) er varslet om ny tid og må bekrefte på nytt." });
         }
 
+        // ── Audit logging ──
+        const techNameMap = new Map(allTechnicians.map((t: any) => [t.id, t.name]));
+        const logEntries: any[] = [];
+        const userName = session?.session?.user?.user_metadata?.full_name || session?.session?.user?.email || "Ukjent";
+
+        // Time change (reuse timeChanged from above)
+        if (timeChanged) {
+          logEntries.push({
+            event_id: editEvent.id, action_type: "time_changed", performed_by: userId, performer_name: userName,
+            change_summary: `endret tid`,
+            metadata: {
+              old_time: `${format(editEvent.start, "d. MMM HH:mm", { locale: nb })}–${format(editEvent.end, "HH:mm", { locale: nb })}`,
+              new_time: `${format(new Date(startISO), "d. MMM HH:mm", { locale: nb })}–${format(new Date(endISO), "HH:mm", { locale: nb })}`,
+            },
+          });
+        }
+
+        // Title change
+        if (title !== editEvent.title) {
+          logEntries.push({
+            event_id: editEvent.id, action_type: "title_changed", performed_by: userId, performer_name: userName,
+            change_summary: `endret tittel`,
+            metadata: { old_title: editEvent.title, new_title: title },
+          });
+        }
+
+        // Technician changes
+        if (toRemove.length > 0) {
+          const removedNames = toRemove.map(r => techNameMap.get(r.technician_id) || "Ukjent");
+          logEntries.push({
+            event_id: editEvent.id, action_type: "technician_removed", performed_by: userId, performer_name: userName,
+            change_summary: `fjernet ${removedNames.join(", ")} fra oppdraget`,
+            metadata: { removed_names: removedNames },
+          });
+        }
+        if (toAdd.length > 0) {
+          const addedNames = toAdd.map(id => techNameMap.get(id) || "Ukjent");
+          logEntries.push({
+            event_id: editEvent.id, action_type: "technician_added", performed_by: userId, performer_name: userName,
+            change_summary: `la til ${addedNames.join(", ")} på oppdraget`,
+            metadata: { added_names: addedNames },
+          });
+        }
+
+        if (logEntries.length > 0) {
+          await supabase.from("event_logs").insert(logEntries);
+        }
+
         syncUpdate(editEvent.id);
 
         // Upload new attachments
@@ -514,6 +563,10 @@ export function EventDrawer({
           const newUploads = await uploadFiles(editEvent.id, files);
           const allAttachments = [...existingAttachments, ...newUploads];
           await supabase.from("events").update({ attachments: allAttachments as any }).eq("id", editEvent.id);
+          await supabase.from("event_logs").insert({
+            event_id: editEvent.id, action_type: "attachment_added", performed_by: userId, performer_name: userName,
+            change_summary: `la til ${files.length} vedlegg`,
+          });
         }
 
         toast.success("Hendelse oppdatert", { description: "Tid og ressurser er lagret." });
@@ -810,6 +863,16 @@ export function EventDrawer({
                 </span>
               )}
             </Button>
+            <Button
+              type="button"
+              variant={drawerTab === "history" ? "default" : "ghost"}
+              size="sm"
+              className="h-8 text-xs rounded-md flex-1 gap-1.5"
+              onClick={() => setDrawerTab("history")}
+            >
+              <Clock className="h-3.5 w-3.5" />
+              Historikk
+            </Button>
           </div>
         )}
 
@@ -820,6 +883,10 @@ export function EventDrawer({
               taskId={editEvent.id}
               companyId={editCompanyId || activeCompanyId || ""}
             />
+          </div>
+        ) : isEditing && editEvent && drawerTab === "history" ? (
+          <div className="flex-1 mt-3 overflow-y-auto px-1">
+            <EventHistoryTab eventId={editEvent.id} />
           </div>
         ) : (
         <>
