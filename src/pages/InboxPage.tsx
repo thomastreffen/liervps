@@ -160,6 +160,7 @@ const forwardedReason = (c: Case): string => {
 
 /** Route for a linked entity */
 const linkedEntityRoute = (c: Case): string | null => {
+  if (c.linked_order_submission_id) return `/orders/${c.linked_order_submission_id}`;
   if (c.linked_project_id) return `/projects/${c.linked_project_id}?tab=epost`;
   if (c.linked_work_order_id) return `/projects/${c.linked_work_order_id}?tab=epost`;
   if (c.linked_lead_id) return `/sales/leads/${c.linked_lead_id}`;
@@ -168,7 +169,7 @@ const linkedEntityRoute = (c: Case): string | null => {
 };
 
 const linkedEntityLabel = (c: Case): string =>
-  c.linked_project_id ? "Prosjekt" : c.linked_work_order_id ? "Prosjekt" : c.linked_lead_id ? "Lead" : "Tilbud";
+  c.linked_order_submission_id ? "Bestilling" : c.linked_project_id ? "Prosjekt" : c.linked_work_order_id ? "Prosjekt" : c.linked_lead_id ? "Lead" : "Tilbud";
 
 const FILTER_OPTIONS: { key: FilterType; label: string; icon: React.ElementType }[] = [
   { key: "mine", label: "Mine saker", icon: UserCheck },
