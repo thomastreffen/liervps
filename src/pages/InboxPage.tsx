@@ -1205,6 +1205,10 @@ function CaseDetail({
                 <ReceiptText className="h-4 w-4" />
                 Opprett tilbud
               </Button>
+              <Button size="sm" variant="outline" onClick={() => setOrderDialogOpen(true)} className="gap-1.5">
+                <Package className="h-4 w-4" />
+                Opprett bestilling
+              </Button>
               <Button size="sm" variant="outline" onClick={() => setCloseDrawerOpen(true)} className="gap-1.5 text-muted-foreground">
                 <Lock className="h-4 w-4" />
                 Lukk sak
