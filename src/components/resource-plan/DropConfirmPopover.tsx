@@ -128,8 +128,8 @@ export function DropConfirmPopover({ payload, onClose, onCreated }: DropConfirmP
             });
           }
 
-          // Create schedule block per technician
-          await (supabase as any).from("schedule_blocks").insert({
+          // Create schedule block per technician — each drop creates a unique block
+          const { data: sbData } = await (supabase as any).from("schedule_blocks").insert({
             company_id: companyId,
             technician_id: techId,
             project_id: payload.taskId,
@@ -140,7 +140,8 @@ export function DropConfirmPopover({ payload, onClose, onCreated }: DropConfirmP
             match_state: "manual",
             match_confidence: 100,
             match_reason: "Prosjekt dratt til kalender",
-          });
+          }).select("id").single();
+          console.info("[DropConfirm] Created schedule_block", { blockId: sbData?.id, techId, projectId: payload.taskId, start: startIso, end: endIso });
         }
 
         // Log activity
