@@ -459,14 +459,16 @@ export const ResourceCalendar = memo(function ResourceCalendar({
       const isExternal = block.source === "outlook" && !block.project_id;
       if (hideExternalEvents && isExternal) continue;
 
+      // Only suppress schedule_blocks that are exact mirrors of the authoritative assignment
+      // (same project + tech + start within tolerance). Different days must NOT be suppressed.
       const assignmentMeta = block.project_id
         ? assignmentMetaByEventTech.get(`${block.project_id}::${block.technician_id}`)
         : null;
-      const overlapsAuthoritativeAssignment = !!assignmentMeta
-        && block.start_at.getTime() < assignmentMeta.end + TZ_TOLERANCE_DEDUP
-        && block.end_at.getTime() > assignmentMeta.start - TZ_TOLERANCE_DEDUP;
+      const isExactMirror = !!assignmentMeta
+        && Math.abs(block.start_at.getTime() - assignmentMeta.start) <= TZ_TOLERANCE_DEDUP
+        && Math.abs(block.end_at.getTime() - assignmentMeta.end) <= TZ_TOLERANCE_DEDUP;
 
-      if (overlapsAuthoritativeAssignment) {
+      if (isExactMirror) {
         console.info("[ResourceCalendar][SuppressMirrorBlock]", {
           source: block.source,
           event_id: block.project_id,

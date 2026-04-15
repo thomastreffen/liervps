@@ -95,15 +95,21 @@ export function DropConfirmPopover({ payload, onClose, onCreated }: DropConfirmP
       const nameMap = new Map((techNames || []).map((t) => [t.id, t.name]));
 
       if (payload.type === "project" && payload.taskId) {
-        // ── Project drop: update event times ──
-        await supabase
+        // ── Project drop: do NOT overwrite event times ──
+        // Each drop creates its own schedule_block with independent times.
+        // Only update status if still in initial state.
+        const { data: currentEvent } = await supabase
           .from("events")
-          .update({
-            start_time: startIso,
-            end_time: endIso,
-            status: "scheduled" as any,
-          })
-          .eq("id", payload.taskId);
+          .select("status")
+          .eq("id", payload.taskId)
+          .single();
+        
+        if (currentEvent && ["requested", "planned"].includes((currentEvent as any).status)) {
+          await supabase
+            .from("events")
+            .update({ status: "scheduled" as any })
+            .eq("id", payload.taskId);
+        }
 
         // For each selected technician: assignment + schedule block
         for (const techId of selectedTechIds) {
