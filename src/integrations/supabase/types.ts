@@ -632,6 +632,7 @@ export type Database = {
           lead_id: string | null
           linked_lead_id: string | null
           linked_offer_id: string | null
+          linked_order_submission_id: string | null
           linked_project_id: string | null
           linked_work_order_id: string | null
           mailbox_address: string | null
@@ -669,6 +670,7 @@ export type Database = {
           lead_id?: string | null
           linked_lead_id?: string | null
           linked_offer_id?: string | null
+          linked_order_submission_id?: string | null
           linked_project_id?: string | null
           linked_work_order_id?: string | null
           mailbox_address?: string | null
@@ -706,6 +708,7 @@ export type Database = {
           lead_id?: string | null
           linked_lead_id?: string | null
           linked_offer_id?: string | null
+          linked_order_submission_id?: string | null
           linked_project_id?: string | null
           linked_work_order_id?: string | null
           mailbox_address?: string | null
@@ -759,6 +762,13 @@ export type Database = {
             columns: ["linked_offer_id"]
             isOneToOne: false
             referencedRelation: "offers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cases_linked_order_submission_id_fkey"
+            columns: ["linked_order_submission_id"]
+            isOneToOne: false
+            referencedRelation: "order_form_submissions"
             referencedColumns: ["id"]
           },
           {

@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   ArrowLeft, MessageSquare, Clock, Paperclip, AlertTriangle,
   ArrowRight, FileText, Download, Mail, MailCheck, MailX, ExternalLink, UserPlus,
-  Tag, User, LinkIcon, X, MoreHorizontal, Eye, Send, Globe, UserCheck, Bell, BellRing,
+  Tag, User, LinkIcon, X, MoreHorizontal, Eye, Send, Globe, UserCheck, Bell, BellRing, Inbox,
   CalendarDays, LockKeyhole, Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -913,6 +913,15 @@ export default function OrderFormDetailPage() {
 
       {/* Linked entities + notification status */}
       <div className="flex flex-wrap gap-2">
+        {sub.linked_case_id && (
+          <Badge variant="outline" className="text-[10px] gap-1 cursor-pointer hover:bg-muted border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300" onClick={() => {
+            navigate(`/inbox`);
+          }}>
+            <Inbox className="h-2.5 w-2.5" />
+            Kilde: Postkontoret
+            <ExternalLink className="h-2.5 w-2.5" />
+          </Badge>
+        )}
         {sub.converted_to_id && sub.converted_to_type === "case" && (
           <Badge variant="outline" className="text-[10px] gap-1 cursor-pointer hover:bg-muted" onClick={() => {
             navigate(`/cases/${sub.converted_to_id}`);

@@ -51,6 +51,7 @@ import { CaseCloseDrawer } from "@/components/cases/CaseCloseDrawer";
 import { CaseLinkedEntities } from "@/components/cases/CaseLinkedEntities";
 import { LinkToExistingDialog } from "@/components/cases/LinkToExistingDialog";
 import { CaseEmailViewer } from "@/components/cases/CaseEmailViewer";
+import { CaseToOrderDialog } from "@/components/cases/CaseToOrderDialog";
 import { format, formatDistanceToNow, isPast, differenceInHours } from "date-fns";
 import { nb } from "date-fns/locale";
 import {
@@ -98,6 +99,7 @@ type Case = {
   linked_project_id: string | null;
   linked_work_order_id: string | null;
   linked_lead_id: string | null;
+  linked_order_submission_id: string | null;
   archived_at: string | null;
   archived_by: string | null;
   last_activity_at: string | null;
@@ -136,9 +138,9 @@ type Mailbox = {
 
 type FilterType = "mine" | "team" | "needs_action" | "waiting_customer" | "waiting_internal" | "linked" | "converted" | "closed";
 
-/** A case is considered "linked" (forwarded) when it has been connected to a project, job, lead or offer */
-const isLinkedCase = (c: { linked_project_id?: string | null; linked_work_order_id?: string | null; linked_lead_id?: string | null; linked_offer_id?: string | null }) =>
-  !!(c.linked_project_id || c.linked_work_order_id || c.linked_lead_id || c.linked_offer_id);
+/** A case is considered "linked" (forwarded) when it has been connected to a project, job, lead, offer or order */
+const isLinkedCase = (c: { linked_project_id?: string | null; linked_work_order_id?: string | null; linked_lead_id?: string | null; linked_offer_id?: string | null; linked_order_submission_id?: string | null }) =>
+  !!(c.linked_project_id || c.linked_work_order_id || c.linked_lead_id || c.linked_offer_id || c.linked_order_submission_id);
 
 /** A linked case still needs attention if it has an actionable status or critical priority */
 const needsAttention = (c: Case, userId?: string) => {
@@ -158,6 +160,7 @@ const forwardedReason = (c: Case): string => {
 
 /** Route for a linked entity */
 const linkedEntityRoute = (c: Case): string | null => {
+  if (c.linked_order_submission_id) return `/orders/${c.linked_order_submission_id}`;
   if (c.linked_project_id) return `/projects/${c.linked_project_id}?tab=epost`;
   if (c.linked_work_order_id) return `/projects/${c.linked_work_order_id}?tab=epost`;
   if (c.linked_lead_id) return `/sales/leads/${c.linked_lead_id}`;
@@ -166,7 +169,7 @@ const linkedEntityRoute = (c: Case): string | null => {
 };
 
 const linkedEntityLabel = (c: Case): string =>
-  c.linked_project_id ? "Prosjekt" : c.linked_work_order_id ? "Prosjekt" : c.linked_lead_id ? "Lead" : "Tilbud";
+  c.linked_order_submission_id ? "Bestilling" : c.linked_project_id ? "Prosjekt" : c.linked_work_order_id ? "Prosjekt" : c.linked_lead_id ? "Lead" : "Tilbud";
 
 const FILTER_OPTIONS: { key: FilterType; label: string; icon: React.ElementType }[] = [
   { key: "mine", label: "Mine saker", icon: UserCheck },
@@ -993,6 +996,7 @@ function CaseDetail({
   const [offerDrawerOpen, setOfferDrawerOpen] = useState(false);
   const [closeDrawerOpen, setCloseDrawerOpen] = useState(false);
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
+  const [orderDialogOpen, setOrderDialogOpen] = useState(false);
 
   return (
     <ScrollArea className="flex-1">
@@ -1081,6 +1085,7 @@ function CaseDetail({
             linkedProjectId={caseData.linked_project_id}
             linkedWorkOrderId={caseData.linked_work_order_id}
             linkedLeadId={caseData.linked_lead_id}
+            linkedOrderSubmissionId={caseData.linked_order_submission_id}
             offerId={caseData.offer_id}
             projectId={caseData.project_id}
             serviceJobId={caseData.service_job_id}
@@ -1201,6 +1206,10 @@ function CaseDetail({
                 <ReceiptText className="h-4 w-4" />
                 Opprett tilbud
               </Button>
+              <Button size="sm" variant="outline" onClick={() => setOrderDialogOpen(true)} className="gap-1.5">
+                <Package className="h-4 w-4" />
+                Opprett bestilling
+              </Button>
               <Button size="sm" variant="outline" onClick={() => setCloseDrawerOpen(true)} className="gap-1.5 text-muted-foreground">
                 <Lock className="h-4 w-4" />
                 Lukk sak
@@ -1286,6 +1295,23 @@ function CaseDetail({
               (statusUpdate as any).status = "in_progress";
             }
             onUpdateField(statusUpdate);
+            onCaseUpdated();
+          }}
+        />
+
+        <CaseToOrderDialog
+          open={orderDialogOpen}
+          onOpenChange={setOrderDialogOpen}
+          caseId={caseData.id}
+          caseTitle={caseData.title}
+          companyId={caseData.company_id}
+          items={items}
+          onCreated={(orderId) => {
+            onUpdateField({
+              status: "converted" as CaseStatus,
+              resolution_type: "converted_to_order",
+              linked_order_submission_id: orderId,
+            } as any);
             onCaseUpdated();
           }}
         />

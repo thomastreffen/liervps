@@ -7,6 +7,7 @@ export type CaseResolutionType =
   | "converted_to_project"
   | "converted_to_service"
   | "converted_to_lead"
+  | "converted_to_order"
   | "resolved_email_only"
   | "rejected"
   | "spam"
@@ -70,6 +71,7 @@ export const CASE_RESOLUTION_LABELS: Record<CaseResolutionType, string> = {
   converted_to_project: "Konvertert til prosjekt",
   converted_to_service: "Konvertert til servicejobb",
   converted_to_lead: "Konvertert til lead",
+  converted_to_order: "Konvertert til bestilling",
   resolved_email_only: "Løst via e-post",
   rejected: "Avvist",
   spam: "Spam",
