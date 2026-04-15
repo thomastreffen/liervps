@@ -818,7 +818,7 @@ export function EventDrawer({
               className="h-8 text-xs rounded-md flex-1 gap-1.5"
               onClick={() => setDrawerTab("history")}
             >
-              <History className="h-3.5 w-3.5" />
+              <Clock className="h-3.5 w-3.5" />
               Historikk
             </Button>
           </div>
