@@ -832,6 +832,10 @@ export function EventDrawer({
               companyId={editCompanyId || activeCompanyId || ""}
             />
           </div>
+        ) : isEditing && editEvent && drawerTab === "history" ? (
+          <div className="flex-1 mt-3 overflow-y-auto px-1">
+            <EventHistoryTab eventId={editEvent.id} />
+          </div>
         ) : (
         <>
         <div className="flex-1 mt-3 space-y-6">
