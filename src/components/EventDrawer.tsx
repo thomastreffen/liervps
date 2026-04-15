@@ -811,6 +811,16 @@ export function EventDrawer({
                 </span>
               )}
             </Button>
+            <Button
+              type="button"
+              variant={drawerTab === "history" ? "default" : "ghost"}
+              size="sm"
+              className="h-8 text-xs rounded-md flex-1 gap-1.5"
+              onClick={() => setDrawerTab("history")}
+            >
+              <History className="h-3.5 w-3.5" />
+              Historikk
+            </Button>
           </div>
         )}
 
