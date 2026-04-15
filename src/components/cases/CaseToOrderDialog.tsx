@@ -127,6 +127,7 @@ export function CaseToOrderDialog({
           submission_id: order.id,
           sender_user_id: user?.id,
           sender_name: "System",
+          sender_type: "system",
           body: `Opprettet fra Postkontoret-sak.\n\nOriginal henvendelse:\n${description}`,
           visibility: "internal",
         });
