@@ -28,6 +28,9 @@ import { AddressAutocomplete } from "@/components/ui/address-autocomplete";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Switch } from "@/components/ui/switch";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { TechnicianMultiSelect } from "./TechnicianMultiSelect";
 import { JobStatusBadge, JobStatusGroup } from "./JobStatusBadge";
 import { useJobApprovals } from "@/hooks/useJobApprovals";
@@ -146,6 +149,10 @@ export function EventDrawer({
   const [endDate, setEndDate] = useState("");
   const [endTime, setEndTime] = useState("16:00");
   const [techIds, setTechIds] = useState<string[]>([]);
+  // Multi-day repeat (only for new projects/tasks)
+  const [repeatEnabled, setRepeatEnabled] = useState(false);
+  const [repeatDates, setRepeatDates] = useState<Date[]>([]);
+  const [repeatPickerOpen, setRepeatPickerOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [clientRequestId, setClientRequestId] = useState(() => crypto.randomUUID());
@@ -251,6 +258,8 @@ export function EventDrawer({
     setDrawerTab("details");
     setReminderConfig({ responseRequired: true, profile: "company_default" });
     setSelectedCompanyId(isAllCompanies ? (companies.length === 1 ? companies[0].id : null) : activeCompanyId);
+    setRepeatEnabled(false);
+    setRepeatDates([]);
 
     // Load existing attachments for edit mode
     if (editEvent) {
@@ -713,9 +722,37 @@ export function EventDrawer({
           createdId = created.id;
 
           if (techIds.length > 0) {
-            await supabase.from("event_technicians").insert(
-              techIds.map((tid) => ({ event_id: createdId, technician_id: tid }))
-            );
+            // Compute all planned dates: primary date + repeat dates (if enabled)
+            const allDates: string[] = [date];
+            if (repeatEnabled && repeatDates.length > 0) {
+              for (const d of repeatDates) {
+                const ds = format(d, "yyyy-MM-dd");
+                if (!allDates.includes(ds)) allDates.push(ds);
+              }
+            }
+
+            // Build event_technicians rows. For multi-day, each row gets per-tech
+            // start_at/end_at overrides → trigger creates one schedule_block per row.
+            const etRows: any[] = [];
+            for (const tid of techIds) {
+              if (allDates.length === 1) {
+                etRows.push({ event_id: createdId, technician_id: tid });
+              } else {
+                for (const ds of allDates) {
+                  const { startISO: dStart, endISO: dEnd } = normalizeOvernightDates(
+                    ds, startTime, ds, endTime,
+                  );
+                  etRows.push({
+                    event_id: createdId,
+                    technician_id: tid,
+                    start_at: dStart,
+                    end_at: dEnd,
+                  });
+                }
+              }
+            }
+
+            await supabase.from("event_technicians").insert(etRows);
 
             if (isTask) {
               await supabase.from("events").update({ status: "scheduled" } as any).eq("id", createdId);
@@ -740,10 +777,13 @@ export function EventDrawer({
           await supabase.from("events").update({ attachments: newUploads as any }).eq("id", createdId);
         }
 
+        const totalDays = 1 + (repeatEnabled ? repeatDates.length : 0);
         toast.success(isTask ? "Oppgave opprettet" : "Hendelse opprettet og planlagt", {
           description: isTask
             ? `${title} er lagt til som oppgave.`
-            : `${title} er tildelt ${techIds.length} montør(er).`,
+            : totalDays > 1
+              ? `Opprettet ${totalDays} planlagte dager for ${title} (${techIds.length} montør(er) per dag).`
+              : `${title} er tildelt ${techIds.length} montør(er).`,
         });
         setSubmitted(true);
         onSaved?.(createdId);
@@ -1168,6 +1208,109 @@ export function EventDrawer({
                   {summaryLine}
                   {overnight && <Moon className="h-3 w-3 text-primary" />}
                 </p>
+              </div>
+            )}
+
+            {/* Multi-day repeat (only for new events, not editing or linking) */}
+            {!isEditing && mode === "new" && !readOnly && (
+              <div className="rounded-lg border border-border/40 bg-card p-3 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
+                      Gjenta flere dager
+                    </Label>
+                    <p className="text-[11px] text-muted-foreground">
+                      Opprett samme oppdrag på flere datoer (samme tid og montører)
+                    </p>
+                  </div>
+                  <Switch
+                    checked={repeatEnabled}
+                    onCheckedChange={(v) => {
+                      setRepeatEnabled(v);
+                      if (!v) setRepeatDates([]);
+                    }}
+                  />
+                </div>
+
+                {repeatEnabled && (
+                  <div className="space-y-2 pt-1">
+                    <Popover open={repeatPickerOpen} onOpenChange={setRepeatPickerOpen}>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" size="sm" className="w-full justify-start h-9">
+                          <CalendarPlus className="h-3.5 w-3.5 mr-2" />
+                          {repeatDates.length === 0
+                            ? "Velg ekstra datoer..."
+                            : `${repeatDates.length} ekstra ${repeatDates.length === 1 ? "dag" : "dager"} valgt`}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="multiple"
+                          selected={repeatDates}
+                          onSelect={(dates) => setRepeatDates(dates || [])}
+                          disabled={(d) => {
+                            // Disable the primary date (already covered by main date field)
+                            if (date && format(d, "yyyy-MM-dd") === date) return true;
+                            // Disable past dates
+                            const today = new Date();
+                            today.setHours(0, 0, 0, 0);
+                            return d < today;
+                          }}
+                          initialFocus
+                          locale={nb}
+                          weekStartsOn={1}
+                          className={cn("p-3 pointer-events-auto")}
+                        />
+                        <div className="border-t p-2 flex justify-between items-center gap-2">
+                          <span className="text-xs text-muted-foreground">
+                            {repeatDates.length} valgt
+                          </span>
+                          <div className="flex gap-1.5">
+                            <Button variant="ghost" size="sm" onClick={() => setRepeatDates([])}>
+                              Tøm
+                            </Button>
+                            <Button size="sm" onClick={() => setRepeatPickerOpen(false)}>
+                              Ferdig
+                            </Button>
+                          </div>
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+
+                    {repeatDates.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5">
+                        {[...repeatDates]
+                          .sort((a, b) => a.getTime() - b.getTime())
+                          .map((d) => (
+                            <span
+                              key={d.toISOString()}
+                              className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary"
+                            >
+                              {format(d, "d. MMM", { locale: nb })}
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setRepeatDates((prev) =>
+                                    prev.filter((x) => x.getTime() !== d.getTime()),
+                                  )
+                                }
+                                className="hover:text-destructive"
+                                aria-label="Fjern dato"
+                              >
+                                ×
+                              </button>
+                            </span>
+                          ))}
+                      </div>
+                    )}
+
+                    <p className="text-[11px] text-muted-foreground leading-snug">
+                      Hovedoppdrag opprettes på <strong>{date ? format(new Date(date), "d. MMM", { locale: nb }) : "valgt dato"}</strong>
+                      {repeatDates.length > 0 && ` + ${repeatDates.length} ekstra ${repeatDates.length === 1 ? "dag" : "dager"}`}.
+                      Hver dag får egen planlagt blokk per montør.
+                    </p>
+                  </div>
+                )}
               </div>
             )}
           </section>
