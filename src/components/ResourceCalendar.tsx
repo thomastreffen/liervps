@@ -281,6 +281,12 @@ export const ResourceCalendar = memo(function ResourceCalendar({
   );
 
   const fcEvents: EventInput[] = useMemo(() => {
+    // ── Single source of truth: schedule_blocks ──
+    // We only build assignment metadata from calendarEvents so that:
+    //   1. Click handlers can open the correct EventDrawer for project-linked blocks.
+    //   2. External busy slots can be deduped against real assignments.
+    // No event-fallback rendering happens here. If a project has no schedule_block,
+    // it does NOT appear in the calendar (handled as "ikke planlagt" elsewhere).
     const calEventRangesByTech = new Map<string, Array<{ start: number; end: number }>>();
     const assignmentMetaByEventTech = new Map<string, {
       eventId: string;
@@ -290,6 +296,9 @@ export const ResourceCalendar = memo(function ResourceCalendar({
       start: number;
       end: number;
       displayName: string;
+      calendarEvent: CalendarEvent;
+      isMultiTech: boolean;
+      technicianNames: string;
     }>();
 
     const result: EventInput[] = [];
@@ -298,14 +307,8 @@ export const ResourceCalendar = memo(function ResourceCalendar({
     for (const assignment of renderableAssignments) {
       const ev = assignment.event;
       const tech = assignment.technician;
-      // Use per-technician time override if available
       const techStart = tech.startAt ?? ev.start;
       const techEnd = tech.endAt ?? ev.end;
-      const isOvernight = techStart.toDateString() !== techEnd.toDateString();
-      const techColor = techColorMap.get(tech.id) || GCAL_PALETTE[0];
-      const techFirstName = tech.name.split(" ")[0];
-      const techInfo = technicianMap.get(tech.id);
-      const renderKey = assignment.assignmentKey;
 
       const ranges = calEventRangesByTech.get(tech.id) || [];
       ranges.push({ start: techStart.getTime(), end: techEnd.getTime() });
@@ -319,43 +322,9 @@ export const ResourceCalendar = memo(function ResourceCalendar({
         start: techStart.getTime(),
         end: techEnd.getTime(),
         displayName: tech.name,
-      });
-
-      result.push({
-        id: renderKey,
-        title: ev.title.replace("SERVICE – ", ""),
-        start: techStart,
-        end: techEnd,
-        backgroundColor: techColor,
-        borderColor: techColor,
-        textColor: "#FFFFFF",
-        extendedProps: {
-          calendarEvent: ev,
-          source: "calendar_event",
-          renderKey,
-          eventId: ev.id,
-          eventTechnicianId: tech.eventTechnicianId ?? null,
-          technicianId: tech.id,
-          scheduleBlockId: null,
-          calendarEventId: tech.calendarEventId ?? null,
-          outlookEventId: null,
-          displayName: tech.name,
-          customer: ev.customer,
-          status: ev.status,
-          jobNumber: (ev as any).projectNumber || ev.internalNumber || ev.jobNumber || null,
-          techNames: assignment.technicianNames,
-          techName: techFirstName,
-          techFullName: tech.name,
-          techAvatarId: techInfo?.avatarId || null,
-          baseColor: techColor,
-          statusDot: statusDotColors[ev.status] || "#FFFFFF",
-          isOvernight,
-          isMultiTech: assignment.isMultiTech,
-          assignedTechId: tech.id,
-          approvalSummary: approvalSummaries.get(ev.id) ?? null,
-          dimmed: highlightEventIds ? !highlightEventIds.has(ev.id) : false,
-        },
-        editable: effectiveCanWrite,
+        calendarEvent: ev,
+        isMultiTech: assignment.isMultiTech,
+        technicianNames: assignment.technicianNames,
       });
     }
 
