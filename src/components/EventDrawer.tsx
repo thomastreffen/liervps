@@ -722,9 +722,37 @@ export function EventDrawer({
           createdId = created.id;
 
           if (techIds.length > 0) {
-            await supabase.from("event_technicians").insert(
-              techIds.map((tid) => ({ event_id: createdId, technician_id: tid }))
-            );
+            // Compute all planned dates: primary date + repeat dates (if enabled)
+            const allDates: string[] = [date];
+            if (repeatEnabled && repeatDates.length > 0) {
+              for (const d of repeatDates) {
+                const ds = format(d, "yyyy-MM-dd");
+                if (!allDates.includes(ds)) allDates.push(ds);
+              }
+            }
+
+            // Build event_technicians rows. For multi-day, each row gets per-tech
+            // start_at/end_at overrides → trigger creates one schedule_block per row.
+            const etRows: any[] = [];
+            for (const tid of techIds) {
+              if (allDates.length === 1) {
+                etRows.push({ event_id: createdId, technician_id: tid });
+              } else {
+                for (const ds of allDates) {
+                  const { startISO: dStart, endISO: dEnd } = normalizeOvernightDates(
+                    ds, startTime, ds, endTime,
+                  );
+                  etRows.push({
+                    event_id: createdId,
+                    technician_id: tid,
+                    start_at: dStart,
+                    end_at: dEnd,
+                  });
+                }
+              }
+            }
+
+            await supabase.from("event_technicians").insert(etRows);
 
             if (isTask) {
               await supabase.from("events").update({ status: "scheduled" } as any).eq("id", createdId);
@@ -749,10 +777,13 @@ export function EventDrawer({
           await supabase.from("events").update({ attachments: newUploads as any }).eq("id", createdId);
         }
 
+        const totalDays = 1 + (repeatEnabled ? repeatDates.length : 0);
         toast.success(isTask ? "Oppgave opprettet" : "Hendelse opprettet og planlagt", {
           description: isTask
             ? `${title} er lagt til som oppgave.`
-            : `${title} er tildelt ${techIds.length} montør(er).`,
+            : totalDays > 1
+              ? `Opprettet ${totalDays} planlagte dager for ${title} (${techIds.length} montør(er) per dag).`
+              : `${title} er tildelt ${techIds.length} montør(er).`,
         });
         setSubmitted(true);
         onSaved?.(createdId);
