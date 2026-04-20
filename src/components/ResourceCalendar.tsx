@@ -281,6 +281,12 @@ export const ResourceCalendar = memo(function ResourceCalendar({
   );
 
   const fcEvents: EventInput[] = useMemo(() => {
+    // ── Single source of truth: schedule_blocks ──
+    // We only build assignment metadata from calendarEvents so that:
+    //   1. Click handlers can open the correct EventDrawer for project-linked blocks.
+    //   2. External busy slots can be deduped against real assignments.
+    // No event-fallback rendering happens here. If a project has no schedule_block,
+    // it does NOT appear in the calendar (handled as "ikke planlagt" elsewhere).
     const calEventRangesByTech = new Map<string, Array<{ start: number; end: number }>>();
     const assignmentMetaByEventTech = new Map<string, {
       eventId: string;
@@ -290,6 +296,9 @@ export const ResourceCalendar = memo(function ResourceCalendar({
       start: number;
       end: number;
       displayName: string;
+      calendarEvent: CalendarEvent;
+      isMultiTech: boolean;
+      technicianNames: string;
     }>();
 
     const result: EventInput[] = [];
@@ -298,14 +307,8 @@ export const ResourceCalendar = memo(function ResourceCalendar({
     for (const assignment of renderableAssignments) {
       const ev = assignment.event;
       const tech = assignment.technician;
-      // Use per-technician time override if available
       const techStart = tech.startAt ?? ev.start;
       const techEnd = tech.endAt ?? ev.end;
-      const isOvernight = techStart.toDateString() !== techEnd.toDateString();
-      const techColor = techColorMap.get(tech.id) || GCAL_PALETTE[0];
-      const techFirstName = tech.name.split(" ")[0];
-      const techInfo = technicianMap.get(tech.id);
-      const renderKey = assignment.assignmentKey;
 
       const ranges = calEventRangesByTech.get(tech.id) || [];
       ranges.push({ start: techStart.getTime(), end: techEnd.getTime() });
@@ -319,43 +322,9 @@ export const ResourceCalendar = memo(function ResourceCalendar({
         start: techStart.getTime(),
         end: techEnd.getTime(),
         displayName: tech.name,
-      });
-
-      result.push({
-        id: renderKey,
-        title: ev.title.replace("SERVICE – ", ""),
-        start: techStart,
-        end: techEnd,
-        backgroundColor: techColor,
-        borderColor: techColor,
-        textColor: "#FFFFFF",
-        extendedProps: {
-          calendarEvent: ev,
-          source: "calendar_event",
-          renderKey,
-          eventId: ev.id,
-          eventTechnicianId: tech.eventTechnicianId ?? null,
-          technicianId: tech.id,
-          scheduleBlockId: null,
-          calendarEventId: tech.calendarEventId ?? null,
-          outlookEventId: null,
-          displayName: tech.name,
-          customer: ev.customer,
-          status: ev.status,
-          jobNumber: (ev as any).projectNumber || ev.internalNumber || ev.jobNumber || null,
-          techNames: assignment.technicianNames,
-          techName: techFirstName,
-          techFullName: tech.name,
-          techAvatarId: techInfo?.avatarId || null,
-          baseColor: techColor,
-          statusDot: statusDotColors[ev.status] || "#FFFFFF",
-          isOvernight,
-          isMultiTech: assignment.isMultiTech,
-          assignedTechId: tech.id,
-          approvalSummary: approvalSummaries.get(ev.id) ?? null,
-          dimmed: highlightEventIds ? !highlightEventIds.has(ev.id) : false,
-        },
-        editable: effectiveCanWrite,
+        calendarEvent: ev,
+        isMultiTech: assignment.isMultiTech,
+        technicianNames: assignment.technicianNames,
       });
     }
 
@@ -459,29 +428,12 @@ export const ResourceCalendar = memo(function ResourceCalendar({
       const isExternal = block.source === "outlook" && !block.project_id;
       if (hideExternalEvents && isExternal) continue;
 
-      // Only suppress schedule_blocks that are exact mirrors of the authoritative assignment
-      // (same project + tech + start within tolerance). Different days must NOT be suppressed.
+      // Pull authoritative assignment metadata if this block is linked to a project.
+      // We render the block (single source of truth) but use this metadata so clicks
+      // open the right EventDrawer and so multi-tech context is preserved.
       const assignmentMeta = block.project_id
         ? assignmentMetaByEventTech.get(`${block.project_id}::${block.technician_id}`)
         : null;
-      const isExactMirror = !!assignmentMeta
-        && Math.abs(block.start_at.getTime() - assignmentMeta.start) <= TZ_TOLERANCE_DEDUP
-        && Math.abs(block.end_at.getTime() - assignmentMeta.end) <= TZ_TOLERANCE_DEDUP;
-
-      if (isExactMirror) {
-        console.info("[ResourceCalendar][SuppressMirrorBlock]", {
-          source: block.source,
-          event_id: block.project_id,
-          event_technician_id: assignmentMeta?.eventTechnicianId ?? null,
-          technician_id: block.technician_id,
-          render_key: `sb-${block.id}`,
-          schedule_block_id: block.id,
-          calendar_event_id: assignmentMeta?.calendarEventId ?? null,
-          outlook_event_id: block.outlook_event_id ?? null,
-          display_name: assignmentMeta?.displayName ?? block.technician_name ?? null,
-        });
-        continue;
-      }
 
       // Suppress Outlook blocks that mirror an internal block for same tech + same project/job + start within ±65min
       if (block.source === "outlook" && block.project_id) {
@@ -506,8 +458,10 @@ export const ResourceCalendar = memo(function ResourceCalendar({
       }
 
       const techName = block.technician_name?.split(" ")[0] || "";
-      const sourceLabel = block.source === "outlook" ? "Outlook" : "System";
-      const displayTitle = block.outlook_subject || block.title || "Outlook-blokk";
+      // sourceLabel only set for genuine Outlook blocks. We no longer label
+      // project blocks as "System" – they are first-class planning blocks.
+      const sourceLabel = block.source === "outlook" ? "Outlook" : null;
+      const displayTitle = block.outlook_subject || block.title || "Planlagt arbeid";
 
       const normalizedTitle = displayTitle.trim().toLowerCase();
       const dedupKey = block.project_id
@@ -520,23 +474,34 @@ export const ResourceCalendar = memo(function ResourceCalendar({
       const masked = isExternal && !effectiveCanViewExternal;
       const BUSY_GRAY = "#9CA3AF";
 
-      // Project-linked blocks inherit technician color for visual consistency
+      // Project-linked blocks inherit technician color for visual consistency.
+      // Outlook (non-project) blocks get a subdued look so they don't dominate.
       const isLinkedToProject = !!block.project_id;
       const techColor = techColorMap.get(block.technician_id);
       const fallbackColors = matchStateColors[block.match_state] || matchStateColors.external;
       const useTechColor = isLinkedToProject && techColor;
+      const isOvernight = block.start_at.toDateString() !== block.end_at.toDateString();
 
       const renderKey = `sb-${block.id}`;
+      const calEvent = assignmentMeta?.calendarEvent;
 
       result.push({
         id: renderKey,
-        title: masked ? "Opptatt" : (isLinkedToProject ? (block.project_title || block.title || displayTitle) : displayTitle),
+        title: masked
+          ? "Opptatt"
+          : (isLinkedToProject
+              ? ((calEvent?.title?.replace("SERVICE – ", "")) || block.project_title || block.title || displayTitle)
+              : displayTitle),
         start: block.start_at,
         end: block.end_at,
-        backgroundColor: masked ? hexToRgba(BUSY_GRAY, 0.15) : (useTechColor ? hexToRgba(techColor, 0.85) : hexToRgba(fallbackColors.bg, 0.85)),
-        borderColor: masked ? hexToRgba(BUSY_GRAY, 0.35) : (useTechColor ? techColor : fallbackColors.border),
+        backgroundColor: masked
+          ? hexToRgba(BUSY_GRAY, 0.15)
+          : (useTechColor ? techColor : hexToRgba(fallbackColors.bg, 0.85)),
+        borderColor: masked
+          ? hexToRgba(BUSY_GRAY, 0.35)
+          : (useTechColor ? techColor : fallbackColors.border),
         textColor: masked ? "#9CA3AF" : (useTechColor ? "#FFFFFF" : fallbackColors.text),
-        editable: false,
+        editable: effectiveCanWrite && isLinkedToProject && !masked,
         extendedProps: {
           source: "schedule_block",
           renderKey,
@@ -549,6 +514,18 @@ export const ResourceCalendar = memo(function ResourceCalendar({
           displayName: masked ? undefined : (block.technician_name || techName),
           isScheduleBlock: true,
           scheduleBlock: masked ? null : block,
+          // Carry the calendar event so the click handler opens EventDrawer directly
+          calendarEvent: masked ? undefined : (calEvent ?? undefined),
+          customer: calEvent?.customer ?? undefined,
+          status: calEvent?.status ?? undefined,
+          jobNumber: calEvent ? ((calEvent as any).projectNumber || calEvent.internalNumber || calEvent.jobNumber || null) : null,
+          techNames: assignmentMeta?.technicianNames ?? undefined,
+          isMultiTech: assignmentMeta?.isMultiTech ?? false,
+          baseColor: useTechColor ? techColor : (isLinkedToProject ? fallbackColors.bg : BUSY_GRAY),
+          statusDot: calEvent ? (statusDotColors[calEvent.status] || "#FFFFFF") : "#FFFFFF",
+          isOvernight,
+          approvalSummary: calEvent ? (approvalSummaries.get(calEvent.id) ?? null) : null,
+          dimmed: highlightEventIds && calEvent ? !highlightEventIds.has(calEvent.id) : false,
           isExternalMasked: masked,
           matchState: block.match_state,
           techName: masked ? undefined : techName,
