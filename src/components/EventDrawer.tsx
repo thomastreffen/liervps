@@ -149,6 +149,10 @@ export function EventDrawer({
   const [endDate, setEndDate] = useState("");
   const [endTime, setEndTime] = useState("16:00");
   const [techIds, setTechIds] = useState<string[]>([]);
+  // Multi-day repeat (only for new projects/tasks)
+  const [repeatEnabled, setRepeatEnabled] = useState(false);
+  const [repeatDates, setRepeatDates] = useState<Date[]>([]);
+  const [repeatPickerOpen, setRepeatPickerOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [clientRequestId, setClientRequestId] = useState(() => crypto.randomUUID());
@@ -254,6 +258,8 @@ export function EventDrawer({
     setDrawerTab("details");
     setReminderConfig({ responseRequired: true, profile: "company_default" });
     setSelectedCompanyId(isAllCompanies ? (companies.length === 1 ? companies[0].id : null) : activeCompanyId);
+    setRepeatEnabled(false);
+    setRepeatDates([]);
 
     // Load existing attachments for edit mode
     if (editEvent) {
