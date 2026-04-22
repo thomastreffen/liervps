@@ -397,6 +397,8 @@ export function EventDrawer({
     try {
       const { data: session } = await supabase.auth.getSession();
       const userId = session?.session?.user?.id;
+      const userName = session?.session?.user?.user_metadata?.full_name || session?.session?.user?.email || "Ukjent";
+      const techNameMap = new Map(allTechnicians.map((t: any) => [t.id, t.name]));
 
       // Backend permission validation
       if (userId) {
@@ -518,9 +520,7 @@ export function EventDrawer({
         }
 
         // ── Audit logging ──
-        const techNameMap = new Map(allTechnicians.map((t: any) => [t.id, t.name]));
         const logEntries: any[] = [];
-        const userName = session?.session?.user?.user_metadata?.full_name || session?.session?.user?.email || "Ukjent";
 
         // Time change (reuse timeChanged from above)
         if (timeChanged) {
@@ -604,6 +604,10 @@ export function EventDrawer({
           .from("event_technicians").select("technician_id").eq("event_id", selectedJobId);
         const existingIds = new Set((existing || []).map((e) => e.technician_id));
         const newTechs = techIds.filter((id) => !existingIds.has(id));
+        const assignmentLogEntries: any[] = [];
+        const assignmentSummary = startISO && endISO
+          ? `${format(new Date(startISO), "d. MMM yyyy 'kl.' HH:mm", { locale: nb })}–${format(new Date(endISO), "HH:mm", { locale: nb })}`
+          : null;
 
         if (newTechs.length > 0) {
           // Insert event_technicians with per-tech time overrides
@@ -634,6 +638,18 @@ export function EventDrawer({
             }
           }
 
+          const addedNames = newTechs.map((id) => techNameMap.get(id) || "Montør");
+          assignmentLogEntries.push({
+            event_id: selectedJobId,
+            action_type: "technician_assigned",
+            performed_by: userId,
+            performer_name: userName,
+            change_summary: assignmentSummary
+              ? `planla ${addedNames.join(", ")} på ${assignmentSummary}`
+              : `tildelte ${addedNames.join(", ")} til oppdraget`,
+            metadata: { added_names: addedNames },
+          });
+
           await supabase.functions.invoke("create-approval", {
             body: {
               job_id: selectedJobId,
@@ -658,6 +674,22 @@ export function EventDrawer({
               match_reason: "Ekstra dag lagt til via planlegger",
             });
           }
+
+          const assignedNames = techIds.map((id) => techNameMap.get(id) || "Montør");
+          assignmentLogEntries.push({
+            event_id: selectedJobId,
+            action_type: "technician_assigned",
+            performed_by: userId,
+            performer_name: userName,
+            change_summary: assignmentSummary
+              ? `la til planlagt dag for ${assignedNames.join(", ")} på ${assignmentSummary}`
+              : `la til ny planlagt dag for ${assignedNames.join(", ")}`,
+            metadata: { added_names: assignedNames },
+          });
+        }
+
+        if (assignmentLogEntries.length > 0) {
+          await supabase.from("event_logs").insert(assignmentLogEntries);
         }
 
         // Upload attachments for existing job
@@ -721,6 +753,14 @@ export function EventDrawer({
           }
           createdId = created.id;
 
+          await supabase.from("event_logs").insert({
+            event_id: createdId,
+            action_type: "created",
+            performed_by: userId,
+            performer_name: userName,
+            change_summary: `opprettet ${isTask ? "oppgave" : "oppdrag"}`,
+          });
+
           if (techIds.length > 0) {
             // Compute all planned dates: primary date + repeat dates (if enabled)
             const allDates: string[] = [date];
@@ -753,6 +793,18 @@ export function EventDrawer({
             }
 
             await supabase.from("event_technicians").insert(etRows);
+
+            const assignedNames = techIds.map((id) => techNameMap.get(id) || "Montør");
+            await supabase.from("event_logs").insert({
+              event_id: createdId,
+              action_type: "technician_assigned",
+              performed_by: userId,
+              performer_name: userName,
+              change_summary: allDates.length > 1
+                ? `planla ${assignedNames.join(", ")} over ${allDates.length} dager`
+                : `tildelte ${assignedNames.join(", ")} til oppdraget`,
+              metadata: { added_names: assignedNames, day_count: allDates.length },
+            });
 
             if (isTask) {
               await supabase.from("events").update({ status: "scheduled" } as any).eq("id", createdId);
