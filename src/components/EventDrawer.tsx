@@ -309,14 +309,49 @@ export function EventDrawer({
 
     // Load existing attachments for edit mode
     if (editEvent) {
-      supabase.from("events").select("attachments, company_id, internal_companies(name)").eq("id", editEvent.id).single().then(({ data }) => {
-        if (data?.attachments && Array.isArray(data.attachments)) {
-          setExistingAttachments(data.attachments as unknown as Attachment[]);
-        }
-        const compName = (data as any)?.internal_companies?.name;
-        if (compName) setEditCompanyName(compName);
-        if (data?.company_id) setEditCompanyId(data.company_id as string);
-      });
+      supabase
+        .from("events")
+        .select("attachments, company_id, internal_companies(name), postal_code, city, location_details, site_contact_name, site_contact_phone, access_notes, map_link, assignment_notes, customer_practical_info, address, customer, description, title, start_time, end_time")
+        .eq("id", editEvent.id)
+        .single()
+        .then(({ data }) => {
+          const attachments = Array.isArray(data?.attachments) ? (data.attachments as unknown as Attachment[]) : [];
+          setExistingAttachments(attachments);
+          setOriginalAttachments(attachments);
+          setPostalCode((data as any)?.postal_code || "");
+          setCity((data as any)?.city || "");
+          setLocationDetails((data as any)?.location_details || "");
+          setSiteContactName((data as any)?.site_contact_name || "");
+          setSiteContactPhone((data as any)?.site_contact_phone || "");
+          setAccessNotes((data as any)?.access_notes || "");
+          setMapLink((data as any)?.map_link || "");
+          setAssignmentNotes((data as any)?.assignment_notes || "");
+          setCustomerPracticalInfo((data as any)?.customer_practical_info || "");
+
+          const compName = (data as any)?.internal_companies?.name;
+          if (compName) setEditCompanyName(compName);
+          if (data?.company_id) setEditCompanyId(data.company_id as string);
+
+          setOriginalSnapshot({
+            title: (data as any)?.title ?? editEvent.title,
+            customer: (data as any)?.customer ?? editEvent.customer ?? "",
+            address: (data as any)?.address ?? editEvent.address ?? "",
+            postalCode: (data as any)?.postal_code ?? "",
+            city: (data as any)?.city ?? "",
+            locationDetails: (data as any)?.location_details ?? "",
+            siteContactName: (data as any)?.site_contact_name ?? "",
+            siteContactPhone: (data as any)?.site_contact_phone ?? "",
+            accessNotes: (data as any)?.access_notes ?? "",
+            mapLink: (data as any)?.map_link ?? "",
+            description: (data as any)?.description ?? editEvent.description ?? "",
+            assignmentNotes: (data as any)?.assignment_notes ?? "",
+            customerPracticalInfo: (data as any)?.customer_practical_info ?? "",
+            techIds: editEvent.technicians.map((t) => t.id),
+            attachmentNames: attachments.map((attachment) => attachment.name),
+            startLabel: `${format(new Date((data as any)?.start_time ?? editEvent.start), "yyyy-MM-dd")} ${format(new Date((data as any)?.start_time ?? editEvent.start), "HH:mm")}`,
+            endLabel: `${format(new Date((data as any)?.end_time ?? editEvent.end), "yyyy-MM-dd")} ${format(new Date((data as any)?.end_time ?? editEvent.end), "HH:mm")}`,
+          });
+        });
     }
   }, [open, editEvent, preselectedStart, preselectedEnd, preselectedTechId, projectId, projectTitle, isAllCompanies, activeCompanyId, companies]);
 
@@ -420,6 +455,130 @@ export function EventDrawer({
     }
   })() : null;
 
+  const detectedChanges = useMemo<ChangeDescriptor[]>(() => {
+    if (!isEditing || !originalSnapshot) return [];
+
+    const changes: ChangeDescriptor[] = [];
+    const normalize = (value: unknown) => (typeof value === "string" ? value.trim() : value ?? null);
+    const asText = (value: unknown) => {
+      const normalized = normalize(value);
+      return normalized === null || normalized === "" ? null : String(normalized);
+    };
+    const sameText = (a: unknown, b: unknown) => asText(a) === asText(b);
+    const sameStringArray = (a: string[] = [], b: string[] = []) => JSON.stringify([...a].sort()) === JSON.stringify([...b].sort());
+    const formatTechNames = (ids: string[]) => ids.map((id) => allTechnicians.find((tech) => tech.id === id)?.name || "Ukjent montør");
+    const nextStartLabel = date && startTime ? `${date} ${startTime}` : null;
+    const nextEndLabel = resolvedEndDate && endTime ? `${resolvedEndDate} ${endTime}` : null;
+
+    const addChange = (
+      key: string,
+      label: string,
+      severity: "critical" | "minor",
+      oldValue: unknown,
+      newValue: unknown,
+      actionType: string,
+      summary: string,
+      metadata?: Record<string, any>,
+    ) => {
+      const oldText = asText(oldValue);
+      const newText = asText(newValue);
+      if (oldText === newText) return;
+      changes.push({ key, label, severity, oldValue: oldText, newValue: newText, actionType, summary, metadata });
+    };
+
+    addChange("title", "Tittel", "minor", originalSnapshot.title, title, "title_changed", "Tittel endret");
+    addChange("customer", "Kunde", "minor", originalSnapshot.customer, customer, "customer_changed", "Kunde oppdatert");
+    addChange("start_time", "Starttid", "critical", originalSnapshot.startLabel, nextStartLabel, "time_changed", "Starttid endret");
+    addChange("end_time", "Sluttid", "critical", originalSnapshot.endLabel, nextEndLabel, "time_changed", "Sluttid endret");
+    addChange("address", "Adresse", "critical", originalSnapshot.address, address, "location_changed", "Adresse endret");
+    addChange("postal_code", "Postnummer", "critical", originalSnapshot.postalCode, postalCode, "location_changed", "Postnummer oppdatert");
+    addChange("city", "Poststed", "critical", originalSnapshot.city, city, "location_changed", "Poststed oppdatert");
+    addChange("location_details", "Bygg / etasje / område", "critical", originalSnapshot.locationDetails, locationDetails, "location_changed", "Oppmøtested oppdatert");
+    addChange("site_contact_name", "Kontaktperson", "critical", originalSnapshot.siteContactName, siteContactName, "contact_changed", "Kontaktperson oppdatert");
+    addChange("site_contact_phone", "Telefon", "critical", originalSnapshot.siteContactPhone, siteContactPhone, "contact_changed", "Telefonnummer oppdatert");
+    addChange("access_notes", "Oppmøtenotat", "critical", originalSnapshot.accessNotes, accessNotes, "location_changed", "Oppmøtenotat oppdatert");
+    addChange("map_link", "Kartlenke", "critical", originalSnapshot.mapLink, mapLink, "location_changed", "Kartlenke oppdatert");
+    addChange("description", "Beskrivelse / instruks", "critical", originalSnapshot.description, description, "description_changed", "Beskrivelse oppdatert");
+    addChange("assignment_notes", "Montørinstruks", "critical", originalSnapshot.assignmentNotes, assignmentNotes, "assignment_notes_changed", "Montørinstruks oppdatert");
+    addChange("customer_practical_info", "Praktisk kundeinfo", "minor", originalSnapshot.customerPracticalInfo, customerPracticalInfo, "customer_practical_info_changed", "Praktisk kundeinformasjon oppdatert");
+
+    const previousTechIds = originalSnapshot.techIds || [];
+    if (!sameStringArray(previousTechIds, techIds)) {
+      const removedTechIds = previousTechIds.filter((id: string) => !techIds.includes(id));
+      const addedTechIds = techIds.filter((id) => !previousTechIds.includes(id));
+      const parts: string[] = [];
+      if (addedTechIds.length > 0) parts.push(`la til ${formatTechNames(addedTechIds).join(", ")}`);
+      if (removedTechIds.length > 0) parts.push(`fjernet ${formatTechNames(removedTechIds).join(", ")}`);
+      changes.push({
+        key: "technicians",
+        label: "Montører",
+        severity: "critical",
+        oldValue: formatTechNames(previousTechIds).join(", ") || null,
+        newValue: formatTechNames(techIds).join(", ") || null,
+        actionType: "technician_assignment_changed",
+        summary: `Montørplan endret: ${parts.join(" · ")}`,
+        metadata: { addedTechIds, removedTechIds },
+      });
+    }
+
+    const previousAttachmentNames = (originalSnapshot.attachmentNames || []) as string[];
+    const currentAttachmentNames = existingAttachments.map((attachment) => attachment.name);
+    const uploadedAttachmentNames = files.map((file) => file.name);
+    const removedAttachmentNames = previousAttachmentNames.filter((name) => !currentAttachmentNames.includes(name));
+    if (removedAttachmentNames.length > 0) {
+      changes.push({
+        key: "attachments_removed",
+        label: "Vedlegg fjernet",
+        severity: "critical",
+        oldValue: removedAttachmentNames.join(", "),
+        newValue: null,
+        actionType: "attachment_removed",
+        summary: `Fjernet vedlegg: ${removedAttachmentNames.join(", ")}`,
+        metadata: { removedAttachmentNames },
+      });
+    }
+    if (uploadedAttachmentNames.length > 0 || !sameStringArray(previousAttachmentNames.filter((name) => !removedAttachmentNames.includes(name)), currentAttachmentNames)) {
+      if (uploadedAttachmentNames.length > 0) {
+        changes.push({
+          key: "attachments_added",
+          label: "Vedlegg lagt til",
+          severity: "critical",
+          oldValue: null,
+          newValue: uploadedAttachmentNames.join(", "),
+          actionType: "attachment_added",
+          summary: `La til vedlegg: ${uploadedAttachmentNames.join(", ")}`,
+          metadata: { uploadedAttachmentNames },
+        });
+      }
+    }
+
+    return changes;
+  }, [
+    isEditing,
+    originalSnapshot,
+    allTechnicians,
+    title,
+    customer,
+    date,
+    startTime,
+    resolvedEndDate,
+    endTime,
+    address,
+    postalCode,
+    city,
+    locationDetails,
+    siteContactName,
+    siteContactPhone,
+    accessNotes,
+    mapLink,
+    description,
+    assignmentNotes,
+    customerPracticalInfo,
+    techIds,
+    existingAttachments,
+    files,
+  ]);
+
   // Upload files to storage and return attachment metadata
   const uploadFiles = async (eventId: string, filesToUpload: File[]): Promise<Attachment[]> => {
     const uploaded: Attachment[] = [];
@@ -434,6 +593,241 @@ export function EventDrawer({
       uploaded.push({ name: file.name, url: urlData.publicUrl, size: file.size });
     }
     return uploaded;
+  };
+
+  const persistEventChanges = async (options?: { sendNotifications?: boolean; updateOutlook?: boolean; changeSet?: ChangeDescriptor[] }) => {
+    const sendNotifications = options?.sendNotifications ?? true;
+    const updateOutlook = options?.updateOutlook ?? true;
+    const changeSet = options?.changeSet ?? detectedChanges;
+
+    if (!isEditing || !editEvent) return;
+
+    const { startISO, endISO } = normalizeOvernightDates(date, startTime, endDate, endTime);
+    const { data: session } = await supabase.auth.getSession();
+    const userId = session?.session?.user?.id;
+    const userName = session?.session?.user?.user_metadata?.full_name || session?.session?.user?.email || "Ukjent";
+    const techNameMap = new Map(allTechnicians.map((t: any) => [t.id, t.name]));
+
+    await supabase.from("events")
+      .update({
+        start_time: startISO,
+        end_time: endISO,
+        title,
+        customer,
+        address,
+        postal_code: postalCode || null,
+        city: city || null,
+        location_details: locationDetails || null,
+        site_contact_name: siteContactName || null,
+        site_contact_phone: siteContactPhone || null,
+        access_notes: accessNotes || null,
+        map_link: mapLink || null,
+        description,
+        assignment_notes: assignmentNotes || null,
+        customer_practical_info: customerPracticalInfo || null,
+      } as any)
+      .eq("id", editEvent.id);
+
+    const { data: existing } = await supabase
+      .from("event_technicians").select("id, technician_id").eq("event_id", editEvent.id);
+    const existingIds = new Set((existing || []).map((e) => e.technician_id));
+    const newIds = new Set(techIds);
+    const toAdd = techIds.filter((id) => !existingIds.has(id));
+    const toRemove = (existing || []).filter((e) => !newIds.has(e.technician_id));
+
+    if (toRemove.length > 0) {
+      const removedTechIds = toRemove.map((r) => r.technician_id);
+      await supabase.from("event_technicians").delete().in("id", toRemove.map((r) => r.id));
+      await (supabase as any)
+        .from("schedule_blocks")
+        .update({ deleted_at: new Date().toISOString() })
+        .eq("project_id", editEvent.id)
+        .in("technician_id", removedTechIds)
+        .is("deleted_at", null);
+
+      const { data: removedTechs } = await supabase.from("technicians").select("user_id").in("id", removedTechIds);
+      const removedUserIds = (removedTechs || []).map((t: any) => t.user_id).filter(Boolean);
+      if (removedUserIds.length > 0) {
+        await supabase.from("job_approvals").delete().eq("job_id", editEvent.id).in("technician_user_id", removedUserIds);
+      }
+    }
+
+    if (toAdd.length > 0) {
+      await supabase.from("event_technicians").insert(
+        toAdd.map((tid) => ({ event_id: editEvent.id, technician_id: tid })),
+      );
+    }
+
+    const timeChanged =
+      editEvent.start.getTime() !== new Date(startISO).getTime() ||
+      editEvent.end.getTime() !== new Date(endISO).getTime();
+    const remainingTechIds = techIds.filter((id) => existingIds.has(id));
+    const shouldReissueApprovals = sendNotifications && (timeChanged || toAdd.length > 0 || toRemove.length > 0 || changeSet.some((change) => change.severity === "critical"));
+
+    if (timeChanged && remainingTechIds.length > 0) {
+      const { data: remainTechs } = await supabase.from("technicians").select("user_id").in("id", remainingTechIds);
+      const remainUserIds = (remainTechs || []).map((t: any) => t.user_id).filter(Boolean);
+      if (remainUserIds.length > 0) {
+        await supabase
+          .from("job_approvals")
+          .update({
+            status: "pending",
+            responded_at: null,
+            comment: null,
+            proposed_start: null,
+            proposed_end: null,
+            reminder_count: 0,
+            last_reminded_at: null,
+            response_required: true,
+          } as any)
+          .eq("job_id", editEvent.id)
+          .in("technician_user_id", remainUserIds);
+      }
+    }
+
+    if (shouldReissueApprovals && techIds.length > 0) {
+      await supabase.functions.invoke("create-approval", {
+        body: {
+          job_id: editEvent.id,
+          reminder_profile: reminderConfig.profile,
+          reminder_config: reminderConfig.profile === "custom" ? reminderConfig.custom : null,
+          response_required: reminderConfig.responseRequired,
+          time_change: timeChanged,
+        },
+      });
+    }
+
+    const logEntries: any[] = changeSet.map((change) => ({
+      event_id: editEvent.id,
+      action_type: change.actionType,
+      performed_by: userId,
+      performer_name: userName,
+      change_summary: change.summary,
+      metadata: {
+        old_value: change.oldValue,
+        new_value: change.newValue,
+        severity: change.severity,
+        ...(change.metadata || {}),
+      },
+    }));
+
+    if (toRemove.length > 0) {
+      const removedNames = toRemove.map((r) => techNameMap.get(r.technician_id) || "Ukjent");
+      logEntries.push({
+        event_id: editEvent.id,
+        action_type: "technician_removed",
+        performed_by: userId,
+        performer_name: userName,
+        change_summary: `fjernet ${removedNames.join(", ")} fra oppdraget`,
+        metadata: { removed_names: removedNames },
+      });
+    }
+    if (toAdd.length > 0) {
+      const addedNames = toAdd.map((id) => techNameMap.get(id) || "Ukjent");
+      logEntries.push({
+        event_id: editEvent.id,
+        action_type: "technician_added",
+        performed_by: userId,
+        performer_name: userName,
+        change_summary: `la til ${addedNames.join(", ")} på oppdraget`,
+        metadata: { added_names: addedNames },
+      });
+    }
+
+    const removedAttachmentNames = originalAttachments.map((attachment) => attachment.name).filter((name) => !existingAttachments.some((attachment) => attachment.name === name));
+    if (removedAttachmentNames.length > 0) {
+      logEntries.push({
+        event_id: editEvent.id,
+        action_type: "attachment_removed",
+        performed_by: userId,
+        performer_name: userName,
+        change_summary: `fjernet vedlegg: ${removedAttachmentNames.join(", ")}`,
+        metadata: { removed_names: removedAttachmentNames },
+      });
+    }
+
+    let uploadedNames: string[] = [];
+    if (files.length > 0) {
+      const newUploads = await uploadFiles(editEvent.id, files);
+      uploadedNames = newUploads.map((attachment) => attachment.name);
+      const allAttachments = [...existingAttachments, ...newUploads];
+      await supabase.from("events").update({ attachments: allAttachments as any }).eq("id", editEvent.id);
+      setExistingAttachments(allAttachments);
+      if (uploadedNames.length > 0) {
+        logEntries.push({
+          event_id: editEvent.id,
+          action_type: "attachment_added",
+          performed_by: userId,
+          performer_name: userName,
+          change_summary: `la til vedlegg: ${uploadedNames.join(", ")}`,
+          metadata: { added_names: uploadedNames },
+        });
+      }
+    } else {
+      await supabase.from("events").update({ attachments: existingAttachments as any }).eq("id", editEvent.id);
+    }
+
+    if (sendNotifications) {
+      logEntries.push({
+        event_id: editEvent.id,
+        action_type: "notifications_sent",
+        performed_by: userId,
+        performer_name: userName,
+        change_summary: `varslet ${techIds.length} montør${techIds.length === 1 ? "" : "er"} om endringene`,
+        metadata: { technician_ids: techIds },
+      });
+    }
+
+    logEntries.push({
+      event_id: editEvent.id,
+      action_type: updateOutlook ? "calendar_sync_requested" : "calendar_sync_skipped",
+      performed_by: userId,
+      performer_name: userName,
+      change_summary: updateOutlook ? "Outlook-oppdatering startet" : "Outlook-oppdatering hoppet over",
+      metadata: { updateOutlook },
+    });
+
+    if (logEntries.length > 0) {
+      await supabase.from("event_logs").insert(logEntries);
+    }
+
+    if (updateOutlook) {
+      syncUpdate(editEvent.id);
+    }
+
+    setDeliveryStatus({
+      notifiedAt: sendNotifications ? new Date().toISOString() : null,
+      notifiedNames: sendNotifications ? techIds.map((id) => techNameMap.get(id) || "Ukjent") : [],
+      syncedAt: updateOutlook ? new Date().toISOString() : null,
+      syncedCount: updateOutlook ? techIds.length : 0,
+      failedCount: 0,
+    });
+
+    const nextAttachments = files.length > 0 ? [...existingAttachments, ...uploadedNames.map((name) => ({ name, url: "", size: 0 }))] : existingAttachments;
+    setOriginalAttachments(nextAttachments);
+    setOriginalSnapshot({
+      title,
+      customer,
+      address,
+      postalCode,
+      city,
+      locationDetails,
+      siteContactName,
+      siteContactPhone,
+      accessNotes,
+      mapLink,
+      description,
+      assignmentNotes,
+      customerPracticalInfo,
+      techIds,
+      attachmentNames: nextAttachments.map((attachment) => attachment.name),
+      startLabel: `${date} ${startTime}`,
+      endLabel: `${resolvedEndDate} ${endTime}`,
+    });
+    setFiles([]);
+    setPendingSave(null);
+    toast.success("Hendelse oppdatert", { description: sendNotifications ? "Viktige endringer er lagret og varsling er klargjort." : "Endringer lagret uten varsling." });
+    onSaved?.(editEvent.id);
   };
 
   // Save: create or update
@@ -463,169 +857,25 @@ export function EventDrawer({
         }
       }
 
-      if (isEditing && editEvent) {
-        const { startISO, endISO } = normalizeOvernightDates(date, startTime, endDate, endTime);
+       if (isEditing && editEvent) {
+         const criticalChanges = detectedChanges.filter((change) => change.severity === "critical");
+         if (criticalChanges.length > 0) {
+           setPendingSave({
+             criticalChanges,
+             allChanges: detectedChanges,
+             impactedTechIds: techIds,
+             sendNotifications: true,
+             updateOutlook: true,
+           });
+           setSaving(false);
+           return;
+         }
 
-        await supabase.from("events")
-          .update({ start_time: startISO, end_time: endISO, title, customer, address, description })
-          .eq("id", editEvent.id);
-
-        const { data: existing } = await supabase
-          .from("event_technicians").select("id, technician_id").eq("event_id", editEvent.id);
-        const existingIds = new Set((existing || []).map((e) => e.technician_id));
-        const newIds = new Set(techIds);
-        const toAdd = techIds.filter((id) => !existingIds.has(id));
-        const toRemove = (existing || []).filter((e) => !newIds.has(e.technician_id));
-
-        if (toRemove.length > 0) {
-          const removedTechIds = toRemove.map((r) => r.technician_id);
-          console.log("[EventDrawer] Removing technicians:", removedTechIds, "from event:", editEvent.id);
-
-          // 1. Delete event_technicians
-          await supabase.from("event_technicians").delete().in("id", toRemove.map((r) => r.id));
-
-          // 2. Soft-delete schedule_blocks for removed technicians on this event
-          const { data: removedBlocks } = await (supabase as any)
-            .from("schedule_blocks")
-            .update({ deleted_at: new Date().toISOString() })
-            .eq("project_id", editEvent.id)
-            .in("technician_id", removedTechIds)
-            .is("deleted_at", null)
-            .select("id, technician_id");
-          console.log("[EventDrawer] Soft-deleted schedule_blocks:", removedBlocks);
-
-          // 3. Clean up orphaned job_approvals for removed technicians
-          const { data: removedTechs } = await supabase
-            .from("technicians")
-            .select("user_id")
-            .in("id", removedTechIds);
-          const removedUserIds = (removedTechs || []).map((t: any) => t.user_id).filter(Boolean);
-          if (removedUserIds.length > 0) {
-            await supabase
-              .from("job_approvals")
-              .delete()
-              .eq("job_id", editEvent.id)
-              .in("technician_user_id", removedUserIds);
-          }
-        }
-        if (toAdd.length > 0) {
-          await supabase.from("event_technicians").insert(
-            toAdd.map((tid) => ({ event_id: editEvent.id, technician_id: tid }))
-          );
-          await supabase.functions.invoke("create-approval", {
-            body: {
-              job_id: editEvent.id,
-              reminder_profile: reminderConfig.profile,
-              reminder_config: reminderConfig.profile === "custom" ? reminderConfig.custom : null,
-              response_required: reminderConfig.responseRequired,
-            },
-          });
-        }
-
-        // Detect time change → reset existing approvals so technicians must re-confirm
-        const timeChanged =
-          editEvent.start.getTime() !== new Date(startISO).getTime() ||
-          editEvent.end.getTime() !== new Date(endISO).getTime();
-        const remainingTechIds = techIds.filter((id) => existingIds.has(id));
-        if (timeChanged && remainingTechIds.length > 0) {
-          // Get user_ids for remaining technicians
-          const { data: remainTechs } = await supabase
-            .from("technicians")
-            .select("user_id")
-            .in("id", remainingTechIds);
-          const remainUserIds = (remainTechs || []).map((t: any) => t.user_id).filter(Boolean);
-          if (remainUserIds.length > 0) {
-            // Reset approvals to pending
-            await supabase
-              .from("job_approvals")
-              .update({
-                status: "pending",
-                responded_at: null,
-                comment: null,
-                proposed_start: null,
-                proposed_end: null,
-                reminder_count: 0,
-                last_reminded_at: null,
-                response_required: true,
-              } as any)
-              .eq("job_id", editEvent.id)
-              .in("technician_user_id", remainUserIds);
-
-            // Re-trigger approval notifications (sends new emails)
-            await supabase.functions.invoke("create-approval", {
-              body: {
-                job_id: editEvent.id,
-                reminder_profile: reminderConfig.profile,
-                reminder_config: reminderConfig.profile === "custom" ? reminderConfig.custom : null,
-                response_required: reminderConfig.responseRequired,
-                time_change: true,
-              },
-            });
-          }
-          toast.info("Tidsendring", { description: "Montør(er) er varslet om ny tid og må bekrefte på nytt." });
-        }
-
-        // ── Audit logging ──
-        const logEntries: any[] = [];
-
-        // Time change (reuse timeChanged from above)
-        if (timeChanged) {
-          logEntries.push({
-            event_id: editEvent.id, action_type: "time_changed", performed_by: userId, performer_name: userName,
-            change_summary: `endret tid`,
-            metadata: {
-              old_time: `${format(editEvent.start, "d. MMM HH:mm", { locale: nb })}–${format(editEvent.end, "HH:mm", { locale: nb })}`,
-              new_time: `${format(new Date(startISO), "d. MMM HH:mm", { locale: nb })}–${format(new Date(endISO), "HH:mm", { locale: nb })}`,
-            },
-          });
-        }
-
-        // Title change
-        if (title !== editEvent.title) {
-          logEntries.push({
-            event_id: editEvent.id, action_type: "title_changed", performed_by: userId, performer_name: userName,
-            change_summary: `endret tittel`,
-            metadata: { old_title: editEvent.title, new_title: title },
-          });
-        }
-
-        // Technician changes
-        if (toRemove.length > 0) {
-          const removedNames = toRemove.map(r => techNameMap.get(r.technician_id) || "Ukjent");
-          logEntries.push({
-            event_id: editEvent.id, action_type: "technician_removed", performed_by: userId, performer_name: userName,
-            change_summary: `fjernet ${removedNames.join(", ")} fra oppdraget`,
-            metadata: { removed_names: removedNames },
-          });
-        }
-        if (toAdd.length > 0) {
-          const addedNames = toAdd.map(id => techNameMap.get(id) || "Ukjent");
-          logEntries.push({
-            event_id: editEvent.id, action_type: "technician_added", performed_by: userId, performer_name: userName,
-            change_summary: `la til ${addedNames.join(", ")} på oppdraget`,
-            metadata: { added_names: addedNames },
-          });
-        }
-
-        if (logEntries.length > 0) {
-          await supabase.from("event_logs").insert(logEntries);
-        }
-
-        syncUpdate(editEvent.id);
-
-        // Upload new attachments
-        if (files.length > 0) {
-          const newUploads = await uploadFiles(editEvent.id, files);
-          const allAttachments = [...existingAttachments, ...newUploads];
-          await supabase.from("events").update({ attachments: allAttachments as any }).eq("id", editEvent.id);
-          await supabase.from("event_logs").insert({
-            event_id: editEvent.id, action_type: "attachment_added", performed_by: userId, performer_name: userName,
-            change_summary: `la til ${files.length} vedlegg`,
-          });
-        }
-
-        toast.success("Hendelse oppdatert", { description: "Tid og ressurser er lagret." });
-        onSaved?.(editEvent.id);
+         await persistEventChanges({
+           sendNotifications: false,
+           updateOutlook: false,
+           changeSet: detectedChanges,
+         });
       } else if (mode === "existing" && selectedJobId) {
         // Link technicians to existing project + create per-tech time entries
         // Do NOT overwrite the project's own start_time/end_time
@@ -1478,6 +1728,28 @@ export function EventDrawer({
             {!readOnly && <FileUpload files={files} onChange={setFiles} />}
           </section>
 
+          {isEditing && deliveryStatus.notifiedAt && (
+            <section className="space-y-3">
+              <h3 className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Status</h3>
+              <div className="rounded-lg border border-border/40 bg-card p-3 space-y-2 text-sm">
+                <div className="flex items-start justify-between gap-3">
+                  <span className="text-muted-foreground">Varslet montører</span>
+                  <span className="text-right font-medium">{deliveryStatus.notifiedNames.join(", ") || "Ingen"}</span>
+                </div>
+                <div className="flex items-start justify-between gap-3">
+                  <span className="text-muted-foreground">Sist varslet</span>
+                  <span className="text-right font-medium">{format(new Date(deliveryStatus.notifiedAt), "dd.MM.yyyy HH:mm", { locale: nb })}</span>
+                </div>
+                <div className="flex items-start justify-between gap-3">
+                  <span className="text-muted-foreground">Outlook-synk</span>
+                  <span className="text-right font-medium">
+                    {deliveryStatus.syncedAt ? `OK · ${deliveryStatus.syncedCount} oppdatert` : "Ikke kjørt"}
+                  </span>
+                </div>
+              </div>
+            </section>
+          )}
+
           {/* ═══ CONFLICTS ═══ */}
           {conflicts.length > 0 && (
             <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 space-y-1.5">
@@ -1622,6 +1894,94 @@ export function EventDrawer({
               >
                 {deleting && <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />}
                 Slett
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        <AlertDialog open={!!pendingSave} onOpenChange={(open) => !open && setPendingSave(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Viktige endringer oppdaget</AlertDialogTitle>
+              <AlertDialogDescription>
+                Disse endringene påvirker montørene ute i felt. Bekreft hvordan oppdraget skal oppdateres.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+
+            <div className="space-y-3">
+              <div className="rounded-lg border border-border/40 bg-card p-3 space-y-2">
+                {pendingSave?.criticalChanges.map((change) => (
+                  <div key={change.key} className="space-y-1 text-sm">
+                    <p className="font-medium">{change.label}</p>
+                    <p className="text-muted-foreground">{change.oldValue || "Tomt"} → {change.newValue || "Tomt"}</p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="space-y-3 rounded-lg border border-border/40 bg-card p-3">
+                <label className="flex items-start gap-3 text-sm">
+                  <Checkbox
+                    checked={pendingSave?.sendNotifications ?? true}
+                    onCheckedChange={(checked) => setPendingSave((prev) => prev ? { ...prev, sendNotifications: checked === true } : prev)}
+                  />
+                  <div>
+                    <p className="font-medium">Send oppdatering til berørte montører</p>
+                    <p className="text-muted-foreground">Standardvalg for kritiske endringer.</p>
+                  </div>
+                </label>
+
+                <label className="flex items-start gap-3 text-sm">
+                  <Checkbox
+                    checked={pendingSave?.updateOutlook ?? true}
+                    onCheckedChange={(checked) => setPendingSave((prev) => prev ? { ...prev, updateOutlook: checked === true } : prev)}
+                  />
+                  <div>
+                    <p className="font-medium">Oppdater Outlook-kalenderhendelser</p>
+                    <p className="text-muted-foreground">Forsøker å oppdatere eksisterende kalenderkobling.</p>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={saving}>Avbryt</AlertDialogCancel>
+              <Button
+                variant="outline"
+                disabled={saving}
+                onClick={async () => {
+                  if (!pendingSave) return;
+                  setSaving(true);
+                  try {
+                    await persistEventChanges({
+                      sendNotifications: false,
+                      updateOutlook: false,
+                      changeSet: pendingSave.allChanges,
+                    });
+                  } finally {
+                    setSaving(false);
+                  }
+                }}
+              >
+                Lagre uten varsling
+              </Button>
+              <AlertDialogAction
+                disabled={saving}
+                onClick={async (event) => {
+                  event.preventDefault();
+                  if (!pendingSave) return;
+                  setSaving(true);
+                  try {
+                    await persistEventChanges({
+                      sendNotifications: pendingSave.sendNotifications,
+                      updateOutlook: pendingSave.updateOutlook,
+                      changeSet: pendingSave.allChanges,
+                    });
+                  } finally {
+                    setSaving(false);
+                  }
+                }}
+              >
+                Fortsett og oppdater
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
