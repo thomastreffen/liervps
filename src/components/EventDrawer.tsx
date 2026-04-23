@@ -595,6 +595,240 @@ export function EventDrawer({
     return uploaded;
   };
 
+  const persistEventChanges = async (options?: { sendNotifications?: boolean; updateOutlook?: boolean; changeSet?: ChangeDescriptor[] }) => {
+    const sendNotifications = options?.sendNotifications ?? true;
+    const updateOutlook = options?.updateOutlook ?? true;
+    const changeSet = options?.changeSet ?? detectedChanges;
+
+    if (!isEditing || !editEvent) return;
+
+    const { startISO, endISO } = normalizeOvernightDates(date, startTime, endDate, endTime);
+    const { data: session } = await supabase.auth.getSession();
+    const userId = session?.session?.user?.id;
+    const userName = session?.session?.user?.user_metadata?.full_name || session?.session?.user?.email || "Ukjent";
+    const techNameMap = new Map(allTechnicians.map((t: any) => [t.id, t.name]));
+
+    await supabase.from("events")
+      .update({
+        start_time: startISO,
+        end_time: endISO,
+        title,
+        customer,
+        address,
+        postal_code: postalCode || null,
+        city: city || null,
+        location_details: locationDetails || null,
+        site_contact_name: siteContactName || null,
+        site_contact_phone: siteContactPhone || null,
+        access_notes: accessNotes || null,
+        map_link: mapLink || null,
+        description,
+        assignment_notes: assignmentNotes || null,
+        customer_practical_info: customerPracticalInfo || null,
+      } as any)
+      .eq("id", editEvent.id);
+
+    const { data: existing } = await supabase
+      .from("event_technicians").select("id, technician_id").eq("event_id", editEvent.id);
+    const existingIds = new Set((existing || []).map((e) => e.technician_id));
+    const newIds = new Set(techIds);
+    const toAdd = techIds.filter((id) => !existingIds.has(id));
+    const toRemove = (existing || []).filter((e) => !newIds.has(e.technician_id));
+
+    if (toRemove.length > 0) {
+      const removedTechIds = toRemove.map((r) => r.technician_id);
+      await supabase.from("event_technicians").delete().in("id", toRemove.map((r) => r.id));
+      await (supabase as any)
+        .from("schedule_blocks")
+        .update({ deleted_at: new Date().toISOString() })
+        .eq("project_id", editEvent.id)
+        .in("technician_id", removedTechIds)
+        .is("deleted_at", null);
+
+      const { data: removedTechs } = await supabase.from("technicians").select("user_id").in("id", removedTechIds);
+      const removedUserIds = (removedTechs || []).map((t: any) => t.user_id).filter(Boolean);
+      if (removedUserIds.length > 0) {
+        await supabase.from("job_approvals").delete().eq("job_id", editEvent.id).in("technician_user_id", removedUserIds);
+      }
+    }
+
+    if (toAdd.length > 0) {
+      await supabase.from("event_technicians").insert(
+        toAdd.map((tid) => ({ event_id: editEvent.id, technician_id: tid })),
+      );
+    }
+
+    const timeChanged =
+      editEvent.start.getTime() !== new Date(startISO).getTime() ||
+      editEvent.end.getTime() !== new Date(endISO).getTime();
+    const remainingTechIds = techIds.filter((id) => existingIds.has(id));
+    const shouldReissueApprovals = sendNotifications && (timeChanged || toAdd.length > 0 || toRemove.length > 0 || changeSet.some((change) => change.severity === "critical"));
+
+    if (timeChanged && remainingTechIds.length > 0) {
+      const { data: remainTechs } = await supabase.from("technicians").select("user_id").in("id", remainingTechIds);
+      const remainUserIds = (remainTechs || []).map((t: any) => t.user_id).filter(Boolean);
+      if (remainUserIds.length > 0) {
+        await supabase
+          .from("job_approvals")
+          .update({
+            status: "pending",
+            responded_at: null,
+            comment: null,
+            proposed_start: null,
+            proposed_end: null,
+            reminder_count: 0,
+            last_reminded_at: null,
+            response_required: true,
+          } as any)
+          .eq("job_id", editEvent.id)
+          .in("technician_user_id", remainUserIds);
+      }
+    }
+
+    if (shouldReissueApprovals && techIds.length > 0) {
+      await supabase.functions.invoke("create-approval", {
+        body: {
+          job_id: editEvent.id,
+          reminder_profile: reminderConfig.profile,
+          reminder_config: reminderConfig.profile === "custom" ? reminderConfig.custom : null,
+          response_required: reminderConfig.responseRequired,
+          time_change: timeChanged,
+        },
+      });
+    }
+
+    const logEntries = changeSet.map((change) => ({
+      event_id: editEvent.id,
+      action_type: change.actionType,
+      performed_by: userId,
+      performer_name: userName,
+      change_summary: change.summary,
+      metadata: {
+        old_value: change.oldValue,
+        new_value: change.newValue,
+        severity: change.severity,
+        ...(change.metadata || {}),
+      },
+    }));
+
+    if (toRemove.length > 0) {
+      const removedNames = toRemove.map((r) => techNameMap.get(r.technician_id) || "Ukjent");
+      logEntries.push({
+        event_id: editEvent.id,
+        action_type: "technician_removed",
+        performed_by: userId,
+        performer_name: userName,
+        change_summary: `fjernet ${removedNames.join(", ")} fra oppdraget`,
+        metadata: { removed_names: removedNames },
+      });
+    }
+    if (toAdd.length > 0) {
+      const addedNames = toAdd.map((id) => techNameMap.get(id) || "Ukjent");
+      logEntries.push({
+        event_id: editEvent.id,
+        action_type: "technician_added",
+        performed_by: userId,
+        performer_name: userName,
+        change_summary: `la til ${addedNames.join(", ")} på oppdraget`,
+        metadata: { added_names: addedNames },
+      });
+    }
+
+    const removedAttachmentNames = originalAttachments.map((attachment) => attachment.name).filter((name) => !existingAttachments.some((attachment) => attachment.name === name));
+    if (removedAttachmentNames.length > 0) {
+      logEntries.push({
+        event_id: editEvent.id,
+        action_type: "attachment_removed",
+        performed_by: userId,
+        performer_name: userName,
+        change_summary: `fjernet vedlegg: ${removedAttachmentNames.join(", ")}`,
+        metadata: { removed_names: removedAttachmentNames },
+      });
+    }
+
+    let uploadedNames: string[] = [];
+    if (files.length > 0) {
+      const newUploads = await uploadFiles(editEvent.id, files);
+      uploadedNames = newUploads.map((attachment) => attachment.name);
+      const allAttachments = [...existingAttachments, ...newUploads];
+      await supabase.from("events").update({ attachments: allAttachments as any }).eq("id", editEvent.id);
+      setExistingAttachments(allAttachments);
+      if (uploadedNames.length > 0) {
+        logEntries.push({
+          event_id: editEvent.id,
+          action_type: "attachment_added",
+          performed_by: userId,
+          performer_name: userName,
+          change_summary: `la til vedlegg: ${uploadedNames.join(", ")}`,
+          metadata: { added_names: uploadedNames },
+        });
+      }
+    } else {
+      await supabase.from("events").update({ attachments: existingAttachments as any }).eq("id", editEvent.id);
+    }
+
+    if (sendNotifications) {
+      logEntries.push({
+        event_id: editEvent.id,
+        action_type: "notifications_sent",
+        performed_by: userId,
+        performer_name: userName,
+        change_summary: `varslet ${techIds.length} montør${techIds.length === 1 ? "" : "er"} om endringene`,
+        metadata: { technician_ids: techIds },
+      });
+    }
+
+    logEntries.push({
+      event_id: editEvent.id,
+      action_type: updateOutlook ? "calendar_sync_requested" : "calendar_sync_skipped",
+      performed_by: userId,
+      performer_name: userName,
+      change_summary: updateOutlook ? "Outlook-oppdatering startet" : "Outlook-oppdatering hoppet over",
+      metadata: { updateOutlook },
+    });
+
+    if (logEntries.length > 0) {
+      await supabase.from("event_logs").insert(logEntries);
+    }
+
+    if (updateOutlook) {
+      syncUpdate(editEvent.id);
+    }
+
+    setDeliveryStatus({
+      notifiedAt: sendNotifications ? new Date().toISOString() : null,
+      notifiedNames: sendNotifications ? techIds.map((id) => techNameMap.get(id) || "Ukjent") : [],
+      syncedAt: updateOutlook ? new Date().toISOString() : null,
+      syncedCount: updateOutlook ? techIds.length : 0,
+      failedCount: 0,
+    });
+
+    setOriginalAttachments(files.length > 0 ? [...existingAttachments, ...uploadedNames.map((name) => ({ name, url: "", size: 0 }))] : existingAttachments);
+    setOriginalSnapshot({
+      title,
+      customer,
+      address,
+      postalCode,
+      city,
+      locationDetails,
+      siteContactName,
+      siteContactPhone,
+      accessNotes,
+      mapLink,
+      description,
+      assignmentNotes,
+      customerPracticalInfo,
+      techIds,
+      attachmentNames: (files.length > 0 ? [...existingAttachments, ...uploadedNames.map((name) => ({ name, url: "", size: 0 }))] : existingAttachments).map((attachment) => attachment.name),
+      startLabel: `${date} ${startTime}`,
+      endLabel: `${resolvedEndDate} ${endTime}`,
+    });
+    setFiles([]);
+    setPendingSave(null);
+    toast.success("Hendelse oppdatert", { description: sendNotifications ? "Viktige endringer er lagret og varsling er klargjort." : "Endringer lagret uten varsling." });
+    onSaved?.(editEvent.id);
+  };
+
   // Save: create or update
   const handleSave = async () => {
     if (saving || submitted || readOnly) return;
@@ -622,169 +856,25 @@ export function EventDrawer({
         }
       }
 
-      if (isEditing && editEvent) {
-        const { startISO, endISO } = normalizeOvernightDates(date, startTime, endDate, endTime);
+       if (isEditing && editEvent) {
+         const criticalChanges = detectedChanges.filter((change) => change.severity === "critical");
+         if (criticalChanges.length > 0) {
+           setPendingSave({
+             criticalChanges,
+             allChanges: detectedChanges,
+             impactedTechIds: techIds,
+             sendNotifications: true,
+             updateOutlook: true,
+           });
+           setSaving(false);
+           return;
+         }
 
-        await supabase.from("events")
-          .update({ start_time: startISO, end_time: endISO, title, customer, address, description })
-          .eq("id", editEvent.id);
-
-        const { data: existing } = await supabase
-          .from("event_technicians").select("id, technician_id").eq("event_id", editEvent.id);
-        const existingIds = new Set((existing || []).map((e) => e.technician_id));
-        const newIds = new Set(techIds);
-        const toAdd = techIds.filter((id) => !existingIds.has(id));
-        const toRemove = (existing || []).filter((e) => !newIds.has(e.technician_id));
-
-        if (toRemove.length > 0) {
-          const removedTechIds = toRemove.map((r) => r.technician_id);
-          console.log("[EventDrawer] Removing technicians:", removedTechIds, "from event:", editEvent.id);
-
-          // 1. Delete event_technicians
-          await supabase.from("event_technicians").delete().in("id", toRemove.map((r) => r.id));
-
-          // 2. Soft-delete schedule_blocks for removed technicians on this event
-          const { data: removedBlocks } = await (supabase as any)
-            .from("schedule_blocks")
-            .update({ deleted_at: new Date().toISOString() })
-            .eq("project_id", editEvent.id)
-            .in("technician_id", removedTechIds)
-            .is("deleted_at", null)
-            .select("id, technician_id");
-          console.log("[EventDrawer] Soft-deleted schedule_blocks:", removedBlocks);
-
-          // 3. Clean up orphaned job_approvals for removed technicians
-          const { data: removedTechs } = await supabase
-            .from("technicians")
-            .select("user_id")
-            .in("id", removedTechIds);
-          const removedUserIds = (removedTechs || []).map((t: any) => t.user_id).filter(Boolean);
-          if (removedUserIds.length > 0) {
-            await supabase
-              .from("job_approvals")
-              .delete()
-              .eq("job_id", editEvent.id)
-              .in("technician_user_id", removedUserIds);
-          }
-        }
-        if (toAdd.length > 0) {
-          await supabase.from("event_technicians").insert(
-            toAdd.map((tid) => ({ event_id: editEvent.id, technician_id: tid }))
-          );
-          await supabase.functions.invoke("create-approval", {
-            body: {
-              job_id: editEvent.id,
-              reminder_profile: reminderConfig.profile,
-              reminder_config: reminderConfig.profile === "custom" ? reminderConfig.custom : null,
-              response_required: reminderConfig.responseRequired,
-            },
-          });
-        }
-
-        // Detect time change → reset existing approvals so technicians must re-confirm
-        const timeChanged =
-          editEvent.start.getTime() !== new Date(startISO).getTime() ||
-          editEvent.end.getTime() !== new Date(endISO).getTime();
-        const remainingTechIds = techIds.filter((id) => existingIds.has(id));
-        if (timeChanged && remainingTechIds.length > 0) {
-          // Get user_ids for remaining technicians
-          const { data: remainTechs } = await supabase
-            .from("technicians")
-            .select("user_id")
-            .in("id", remainingTechIds);
-          const remainUserIds = (remainTechs || []).map((t: any) => t.user_id).filter(Boolean);
-          if (remainUserIds.length > 0) {
-            // Reset approvals to pending
-            await supabase
-              .from("job_approvals")
-              .update({
-                status: "pending",
-                responded_at: null,
-                comment: null,
-                proposed_start: null,
-                proposed_end: null,
-                reminder_count: 0,
-                last_reminded_at: null,
-                response_required: true,
-              } as any)
-              .eq("job_id", editEvent.id)
-              .in("technician_user_id", remainUserIds);
-
-            // Re-trigger approval notifications (sends new emails)
-            await supabase.functions.invoke("create-approval", {
-              body: {
-                job_id: editEvent.id,
-                reminder_profile: reminderConfig.profile,
-                reminder_config: reminderConfig.profile === "custom" ? reminderConfig.custom : null,
-                response_required: reminderConfig.responseRequired,
-                time_change: true,
-              },
-            });
-          }
-          toast.info("Tidsendring", { description: "Montør(er) er varslet om ny tid og må bekrefte på nytt." });
-        }
-
-        // ── Audit logging ──
-        const logEntries: any[] = [];
-
-        // Time change (reuse timeChanged from above)
-        if (timeChanged) {
-          logEntries.push({
-            event_id: editEvent.id, action_type: "time_changed", performed_by: userId, performer_name: userName,
-            change_summary: `endret tid`,
-            metadata: {
-              old_time: `${format(editEvent.start, "d. MMM HH:mm", { locale: nb })}–${format(editEvent.end, "HH:mm", { locale: nb })}`,
-              new_time: `${format(new Date(startISO), "d. MMM HH:mm", { locale: nb })}–${format(new Date(endISO), "HH:mm", { locale: nb })}`,
-            },
-          });
-        }
-
-        // Title change
-        if (title !== editEvent.title) {
-          logEntries.push({
-            event_id: editEvent.id, action_type: "title_changed", performed_by: userId, performer_name: userName,
-            change_summary: `endret tittel`,
-            metadata: { old_title: editEvent.title, new_title: title },
-          });
-        }
-
-        // Technician changes
-        if (toRemove.length > 0) {
-          const removedNames = toRemove.map(r => techNameMap.get(r.technician_id) || "Ukjent");
-          logEntries.push({
-            event_id: editEvent.id, action_type: "technician_removed", performed_by: userId, performer_name: userName,
-            change_summary: `fjernet ${removedNames.join(", ")} fra oppdraget`,
-            metadata: { removed_names: removedNames },
-          });
-        }
-        if (toAdd.length > 0) {
-          const addedNames = toAdd.map(id => techNameMap.get(id) || "Ukjent");
-          logEntries.push({
-            event_id: editEvent.id, action_type: "technician_added", performed_by: userId, performer_name: userName,
-            change_summary: `la til ${addedNames.join(", ")} på oppdraget`,
-            metadata: { added_names: addedNames },
-          });
-        }
-
-        if (logEntries.length > 0) {
-          await supabase.from("event_logs").insert(logEntries);
-        }
-
-        syncUpdate(editEvent.id);
-
-        // Upload new attachments
-        if (files.length > 0) {
-          const newUploads = await uploadFiles(editEvent.id, files);
-          const allAttachments = [...existingAttachments, ...newUploads];
-          await supabase.from("events").update({ attachments: allAttachments as any }).eq("id", editEvent.id);
-          await supabase.from("event_logs").insert({
-            event_id: editEvent.id, action_type: "attachment_added", performed_by: userId, performer_name: userName,
-            change_summary: `la til ${files.length} vedlegg`,
-          });
-        }
-
-        toast.success("Hendelse oppdatert", { description: "Tid og ressurser er lagret." });
-        onSaved?.(editEvent.id);
+         await persistEventChanges({
+           sendNotifications: false,
+           updateOutlook: false,
+           changeSet: detectedChanges,
+         });
       } else if (mode === "existing" && selectedJobId) {
         // Link technicians to existing project + create per-tech time entries
         // Do NOT overwrite the project's own start_time/end_time
