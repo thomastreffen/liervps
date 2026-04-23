@@ -27,6 +27,7 @@ import { Input } from "@/components/ui/input";
 import { AddressAutocomplete } from "@/components/ui/address-autocomplete";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Calendar } from "@/components/ui/calendar";
@@ -97,6 +98,33 @@ interface ConflictInfo {
   end: string;
 }
 
+interface ChangeDescriptor {
+  key: string;
+  label: string;
+  severity: "critical" | "minor";
+  oldValue: string | null;
+  newValue: string | null;
+  actionType: string;
+  summary: string;
+  metadata?: Record<string, any>;
+}
+
+interface PendingSaveState {
+  criticalChanges: ChangeDescriptor[];
+  allChanges: ChangeDescriptor[];
+  impactedTechIds: string[];
+  sendNotifications: boolean;
+  updateOutlook: boolean;
+}
+
+interface DeliveryStatusSummary {
+  notifiedAt: string | null;
+  notifiedNames: string[];
+  syncedAt: string | null;
+  syncedCount: number;
+  failedCount: number;
+}
+
 interface EventDrawerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -142,8 +170,16 @@ export function EventDrawer({
   const [title, setTitle] = useState("");
   const [customer, setCustomer] = useState("");
   const [address, setAddress] = useState("");
+  const [postalCode, setPostalCode] = useState("");
+  const [city, setCity] = useState("");
+  const [locationDetails, setLocationDetails] = useState("");
+  const [siteContactName, setSiteContactName] = useState("");
+  const [siteContactPhone, setSiteContactPhone] = useState("");
+  const [accessNotes, setAccessNotes] = useState("");
+  const [mapLink, setMapLink] = useState("");
   const [description, setDescription] = useState("");
   const [assignmentNotes, setAssignmentNotes] = useState("");
+  const [customerPracticalInfo, setCustomerPracticalInfo] = useState("");
   const [date, setDate] = useState("");
   const [startTime, setStartTime] = useState("08:00");
   const [endDate, setEndDate] = useState("");
@@ -178,8 +214,18 @@ export function EventDrawer({
   // Attachments
   const [files, setFiles] = useState<File[]>([]);
   const [existingAttachments, setExistingAttachments] = useState<Attachment[]>([]);
+  const [originalAttachments, setOriginalAttachments] = useState<Attachment[]>([]);
   const [editCompanyName, setEditCompanyName] = useState<string | null>(null);
   const [editCompanyId, setEditCompanyId] = useState<string | null>(null);
+  const [originalSnapshot, setOriginalSnapshot] = useState<Record<string, any> | null>(null);
+  const [pendingSave, setPendingSave] = useState<PendingSaveState | null>(null);
+  const [deliveryStatus, setDeliveryStatus] = useState<DeliveryStatusSummary>({
+    notifiedAt: null,
+    notifiedNames: [],
+    syncedAt: null,
+    syncedCount: 0,
+    failedCount: 0,
+  });
 
   // Drawer tab state (detaljer vs tråd)
   const [drawerTab, setDrawerTab] = useState<"details" | "thread" | "history">(initialTab || "details");

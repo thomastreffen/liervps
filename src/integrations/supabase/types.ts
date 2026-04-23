@@ -3188,6 +3188,7 @@ export type Database = {
       }
       events: {
         Row: {
+          access_notes: string | null
           address: string | null
           allow_clients: boolean
           archived_at: string | null
@@ -3198,6 +3199,7 @@ export type Database = {
           calendar_last_synced_at: string | null
           cancelled_at: string | null
           cancelled_by: string | null
+          city: string | null
           client_request_id: string | null
           company_id: string | null
           contract_alert_count: number | null
@@ -3209,6 +3211,7 @@ export type Database = {
           customer_approved_at: string | null
           customer_approved_by: string | null
           customer_id: string | null
+          customer_practical_info: string | null
           customer_visible: boolean
           delete_reason: string | null
           deleted_at: string | null
@@ -3225,6 +3228,8 @@ export type Database = {
           id: string
           internal_number: string | null
           job_number: string | null
+          location_details: string | null
+          map_link: string | null
           meeting_created_at: string | null
           meeting_created_by: string | null
           meeting_id: string | null
@@ -3239,6 +3244,7 @@ export type Database = {
           outlook_last_synced_at: string | null
           outlook_sync_status: string
           parent_project_id: string | null
+          postal_code: string | null
           project_aliases: string[] | null
           project_number: string | null
           project_type: string
@@ -3250,6 +3256,8 @@ export type Database = {
           sharepoint_folder_web_url: string | null
           sharepoint_project_code: string | null
           sharepoint_site_id: string | null
+          site_contact_name: string | null
+          site_contact_phone: string | null
           source_order_form_id: string | null
           start_time: string
           status: Database["public"]["Enums"]["job_status"]
@@ -3264,6 +3272,7 @@ export type Database = {
             | null
         }
         Insert: {
+          access_notes?: string | null
           address?: string | null
           allow_clients?: boolean
           archived_at?: string | null
@@ -3274,6 +3283,7 @@ export type Database = {
           calendar_last_synced_at?: string | null
           cancelled_at?: string | null
           cancelled_by?: string | null
+          city?: string | null
           client_request_id?: string | null
           company_id?: string | null
           contract_alert_count?: number | null
@@ -3285,6 +3295,7 @@ export type Database = {
           customer_approved_at?: string | null
           customer_approved_by?: string | null
           customer_id?: string | null
+          customer_practical_info?: string | null
           customer_visible?: boolean
           delete_reason?: string | null
           deleted_at?: string | null
@@ -3301,6 +3312,8 @@ export type Database = {
           id?: string
           internal_number?: string | null
           job_number?: string | null
+          location_details?: string | null
+          map_link?: string | null
           meeting_created_at?: string | null
           meeting_created_by?: string | null
           meeting_id?: string | null
@@ -3315,6 +3328,7 @@ export type Database = {
           outlook_last_synced_at?: string | null
           outlook_sync_status?: string
           parent_project_id?: string | null
+          postal_code?: string | null
           project_aliases?: string[] | null
           project_number?: string | null
           project_type?: string
@@ -3326,6 +3340,8 @@ export type Database = {
           sharepoint_folder_web_url?: string | null
           sharepoint_project_code?: string | null
           sharepoint_site_id?: string | null
+          site_contact_name?: string | null
+          site_contact_phone?: string | null
           source_order_form_id?: string | null
           start_time: string
           status?: Database["public"]["Enums"]["job_status"]
@@ -3340,6 +3356,7 @@ export type Database = {
             | null
         }
         Update: {
+          access_notes?: string | null
           address?: string | null
           allow_clients?: boolean
           archived_at?: string | null
@@ -3350,6 +3367,7 @@ export type Database = {
           calendar_last_synced_at?: string | null
           cancelled_at?: string | null
           cancelled_by?: string | null
+          city?: string | null
           client_request_id?: string | null
           company_id?: string | null
           contract_alert_count?: number | null
@@ -3361,6 +3379,7 @@ export type Database = {
           customer_approved_at?: string | null
           customer_approved_by?: string | null
           customer_id?: string | null
+          customer_practical_info?: string | null
           customer_visible?: boolean
           delete_reason?: string | null
           deleted_at?: string | null
@@ -3377,6 +3396,8 @@ export type Database = {
           id?: string
           internal_number?: string | null
           job_number?: string | null
+          location_details?: string | null
+          map_link?: string | null
           meeting_created_at?: string | null
           meeting_created_by?: string | null
           meeting_id?: string | null
@@ -3391,6 +3412,7 @@ export type Database = {
           outlook_last_synced_at?: string | null
           outlook_sync_status?: string
           parent_project_id?: string | null
+          postal_code?: string | null
           project_aliases?: string[] | null
           project_number?: string | null
           project_type?: string
@@ -3402,6 +3424,8 @@ export type Database = {
           sharepoint_folder_web_url?: string | null
           sharepoint_project_code?: string | null
           sharepoint_site_id?: string | null
+          site_contact_name?: string | null
+          site_contact_phone?: string | null
           source_order_form_id?: string | null
           start_time?: string
           status?: Database["public"]["Enums"]["job_status"]
