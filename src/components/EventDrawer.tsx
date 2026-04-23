@@ -1728,6 +1728,28 @@ export function EventDrawer({
             {!readOnly && <FileUpload files={files} onChange={setFiles} />}
           </section>
 
+          {isEditing && deliveryStatus.notifiedAt && (
+            <section className="space-y-3">
+              <h3 className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Status</h3>
+              <div className="rounded-lg border border-border/40 bg-card p-3 space-y-2 text-sm">
+                <div className="flex items-start justify-between gap-3">
+                  <span className="text-muted-foreground">Varslet montører</span>
+                  <span className="text-right font-medium">{deliveryStatus.notifiedNames.join(", ") || "Ingen"}</span>
+                </div>
+                <div className="flex items-start justify-between gap-3">
+                  <span className="text-muted-foreground">Sist varslet</span>
+                  <span className="text-right font-medium">{format(new Date(deliveryStatus.notifiedAt), "dd.MM.yyyy HH:mm", { locale: nb })}</span>
+                </div>
+                <div className="flex items-start justify-between gap-3">
+                  <span className="text-muted-foreground">Outlook-synk</span>
+                  <span className="text-right font-medium">
+                    {deliveryStatus.syncedAt ? `OK · ${deliveryStatus.syncedCount} oppdatert` : "Ikke kjørt"}
+                  </span>
+                </div>
+              </div>
+            </section>
+          )}
+
           {/* ═══ CONFLICTS ═══ */}
           {conflicts.length > 0 && (
             <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 space-y-1.5">
@@ -1872,6 +1894,94 @@ export function EventDrawer({
               >
                 {deleting && <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />}
                 Slett
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        <AlertDialog open={!!pendingSave} onOpenChange={(open) => !open && setPendingSave(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Viktige endringer oppdaget</AlertDialogTitle>
+              <AlertDialogDescription>
+                Disse endringene påvirker montørene ute i felt. Bekreft hvordan oppdraget skal oppdateres.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+
+            <div className="space-y-3">
+              <div className="rounded-lg border border-border/40 bg-card p-3 space-y-2">
+                {pendingSave?.criticalChanges.map((change) => (
+                  <div key={change.key} className="space-y-1 text-sm">
+                    <p className="font-medium">{change.label}</p>
+                    <p className="text-muted-foreground">{change.oldValue || "Tomt"} → {change.newValue || "Tomt"}</p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="space-y-3 rounded-lg border border-border/40 bg-card p-3">
+                <label className="flex items-start gap-3 text-sm">
+                  <Checkbox
+                    checked={pendingSave?.sendNotifications ?? true}
+                    onCheckedChange={(checked) => setPendingSave((prev) => prev ? { ...prev, sendNotifications: checked === true } : prev)}
+                  />
+                  <div>
+                    <p className="font-medium">Send oppdatering til berørte montører</p>
+                    <p className="text-muted-foreground">Standardvalg for kritiske endringer.</p>
+                  </div>
+                </label>
+
+                <label className="flex items-start gap-3 text-sm">
+                  <Checkbox
+                    checked={pendingSave?.updateOutlook ?? true}
+                    onCheckedChange={(checked) => setPendingSave((prev) => prev ? { ...prev, updateOutlook: checked === true } : prev)}
+                  />
+                  <div>
+                    <p className="font-medium">Oppdater Outlook-kalenderhendelser</p>
+                    <p className="text-muted-foreground">Forsøker å oppdatere eksisterende kalenderkobling.</p>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={saving}>Avbryt</AlertDialogCancel>
+              <Button
+                variant="outline"
+                disabled={saving}
+                onClick={async () => {
+                  if (!pendingSave) return;
+                  setSaving(true);
+                  try {
+                    await persistEventChanges({
+                      sendNotifications: false,
+                      updateOutlook: false,
+                      changeSet: pendingSave.allChanges,
+                    });
+                  } finally {
+                    setSaving(false);
+                  }
+                }}
+              >
+                Lagre uten varsling
+              </Button>
+              <AlertDialogAction
+                disabled={saving}
+                onClick={async (event) => {
+                  event.preventDefault();
+                  if (!pendingSave) return;
+                  setSaving(true);
+                  try {
+                    await persistEventChanges({
+                      sendNotifications: pendingSave.sendNotifications,
+                      updateOutlook: pendingSave.updateOutlook,
+                      changeSet: pendingSave.allChanges,
+                    });
+                  } finally {
+                    setSaving(false);
+                  }
+                }}
+              >
+                Fortsett og oppdater
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
