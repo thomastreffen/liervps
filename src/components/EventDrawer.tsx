@@ -309,14 +309,49 @@ export function EventDrawer({
 
     // Load existing attachments for edit mode
     if (editEvent) {
-      supabase.from("events").select("attachments, company_id, internal_companies(name)").eq("id", editEvent.id).single().then(({ data }) => {
-        if (data?.attachments && Array.isArray(data.attachments)) {
-          setExistingAttachments(data.attachments as unknown as Attachment[]);
-        }
-        const compName = (data as any)?.internal_companies?.name;
-        if (compName) setEditCompanyName(compName);
-        if (data?.company_id) setEditCompanyId(data.company_id as string);
-      });
+      supabase
+        .from("events")
+        .select("attachments, company_id, internal_companies(name), postal_code, city, location_details, site_contact_name, site_contact_phone, access_notes, map_link, assignment_notes, customer_practical_info, address, customer, description, title, start_time, end_time")
+        .eq("id", editEvent.id)
+        .single()
+        .then(({ data }) => {
+          const attachments = Array.isArray(data?.attachments) ? (data.attachments as unknown as Attachment[]) : [];
+          setExistingAttachments(attachments);
+          setOriginalAttachments(attachments);
+          setPostalCode((data as any)?.postal_code || "");
+          setCity((data as any)?.city || "");
+          setLocationDetails((data as any)?.location_details || "");
+          setSiteContactName((data as any)?.site_contact_name || "");
+          setSiteContactPhone((data as any)?.site_contact_phone || "");
+          setAccessNotes((data as any)?.access_notes || "");
+          setMapLink((data as any)?.map_link || "");
+          setAssignmentNotes((data as any)?.assignment_notes || "");
+          setCustomerPracticalInfo((data as any)?.customer_practical_info || "");
+
+          const compName = (data as any)?.internal_companies?.name;
+          if (compName) setEditCompanyName(compName);
+          if (data?.company_id) setEditCompanyId(data.company_id as string);
+
+          setOriginalSnapshot({
+            title: (data as any)?.title ?? editEvent.title,
+            customer: (data as any)?.customer ?? editEvent.customer ?? "",
+            address: (data as any)?.address ?? editEvent.address ?? "",
+            postalCode: (data as any)?.postal_code ?? "",
+            city: (data as any)?.city ?? "",
+            locationDetails: (data as any)?.location_details ?? "",
+            siteContactName: (data as any)?.site_contact_name ?? "",
+            siteContactPhone: (data as any)?.site_contact_phone ?? "",
+            accessNotes: (data as any)?.access_notes ?? "",
+            mapLink: (data as any)?.map_link ?? "",
+            description: (data as any)?.description ?? editEvent.description ?? "",
+            assignmentNotes: (data as any)?.assignment_notes ?? "",
+            customerPracticalInfo: (data as any)?.customer_practical_info ?? "",
+            techIds: editEvent.technicians.map((t) => t.id),
+            attachmentNames: attachments.map((attachment) => attachment.name),
+            startLabel: `${format(new Date((data as any)?.start_time ?? editEvent.start), "yyyy-MM-dd")} ${format(new Date((data as any)?.start_time ?? editEvent.start), "HH:mm")}`,
+            endLabel: `${format(new Date((data as any)?.end_time ?? editEvent.end), "yyyy-MM-dd")} ${format(new Date((data as any)?.end_time ?? editEvent.end), "HH:mm")}`,
+          });
+        });
     }
   }, [open, editEvent, preselectedStart, preselectedEnd, preselectedTechId, projectId, projectTitle, isAllCompanies, activeCompanyId, companies]);
 
