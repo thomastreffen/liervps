@@ -697,7 +697,7 @@ export function EventDrawer({
       });
     }
 
-    const logEntries = changeSet.map((change) => ({
+    const logEntries: any[] = changeSet.map((change) => ({
       event_id: editEvent.id,
       action_type: change.actionType,
       performed_by: userId,
@@ -803,7 +803,8 @@ export function EventDrawer({
       failedCount: 0,
     });
 
-    setOriginalAttachments(files.length > 0 ? [...existingAttachments, ...uploadedNames.map((name) => ({ name, url: "", size: 0 }))] : existingAttachments);
+    const nextAttachments = files.length > 0 ? [...existingAttachments, ...uploadedNames.map((name) => ({ name, url: "", size: 0 }))] : existingAttachments;
+    setOriginalAttachments(nextAttachments);
     setOriginalSnapshot({
       title,
       customer,
@@ -819,7 +820,7 @@ export function EventDrawer({
       assignmentNotes,
       customerPracticalInfo,
       techIds,
-      attachmentNames: (files.length > 0 ? [...existingAttachments, ...uploadedNames.map((name) => ({ name, url: "", size: 0 }))] : existingAttachments).map((attachment) => attachment.name),
+      attachmentNames: nextAttachments.map((attachment) => attachment.name),
       startLabel: `${date} ${startTime}`,
       endLabel: `${resolvedEndDate} ${endTime}`,
     });
