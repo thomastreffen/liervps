@@ -420,6 +420,130 @@ export function EventDrawer({
     }
   })() : null;
 
+  const detectedChanges = useMemo<ChangeDescriptor[]>(() => {
+    if (!isEditing || !originalSnapshot) return [];
+
+    const changes: ChangeDescriptor[] = [];
+    const normalize = (value: unknown) => (typeof value === "string" ? value.trim() : value ?? null);
+    const asText = (value: unknown) => {
+      const normalized = normalize(value);
+      return normalized === null || normalized === "" ? null : String(normalized);
+    };
+    const sameText = (a: unknown, b: unknown) => asText(a) === asText(b);
+    const sameStringArray = (a: string[] = [], b: string[] = []) => JSON.stringify([...a].sort()) === JSON.stringify([...b].sort());
+    const formatTechNames = (ids: string[]) => ids.map((id) => allTechnicians.find((tech) => tech.id === id)?.name || "Ukjent montør");
+    const nextStartLabel = date && startTime ? `${date} ${startTime}` : null;
+    const nextEndLabel = resolvedEndDate && endTime ? `${resolvedEndDate} ${endTime}` : null;
+
+    const addChange = (
+      key: string,
+      label: string,
+      severity: "critical" | "minor",
+      oldValue: unknown,
+      newValue: unknown,
+      actionType: string,
+      summary: string,
+      metadata?: Record<string, any>,
+    ) => {
+      const oldText = asText(oldValue);
+      const newText = asText(newValue);
+      if (oldText === newText) return;
+      changes.push({ key, label, severity, oldValue: oldText, newValue: newText, actionType, summary, metadata });
+    };
+
+    addChange("title", "Tittel", "minor", originalSnapshot.title, title, "title_changed", "Tittel endret");
+    addChange("customer", "Kunde", "minor", originalSnapshot.customer, customer, "customer_changed", "Kunde oppdatert");
+    addChange("start_time", "Starttid", "critical", originalSnapshot.startLabel, nextStartLabel, "time_changed", "Starttid endret");
+    addChange("end_time", "Sluttid", "critical", originalSnapshot.endLabel, nextEndLabel, "time_changed", "Sluttid endret");
+    addChange("address", "Adresse", "critical", originalSnapshot.address, address, "location_changed", "Adresse endret");
+    addChange("postal_code", "Postnummer", "critical", originalSnapshot.postalCode, postalCode, "location_changed", "Postnummer oppdatert");
+    addChange("city", "Poststed", "critical", originalSnapshot.city, city, "location_changed", "Poststed oppdatert");
+    addChange("location_details", "Bygg / etasje / område", "critical", originalSnapshot.locationDetails, locationDetails, "location_changed", "Oppmøtested oppdatert");
+    addChange("site_contact_name", "Kontaktperson", "critical", originalSnapshot.siteContactName, siteContactName, "contact_changed", "Kontaktperson oppdatert");
+    addChange("site_contact_phone", "Telefon", "critical", originalSnapshot.siteContactPhone, siteContactPhone, "contact_changed", "Telefonnummer oppdatert");
+    addChange("access_notes", "Oppmøtenotat", "critical", originalSnapshot.accessNotes, accessNotes, "location_changed", "Oppmøtenotat oppdatert");
+    addChange("map_link", "Kartlenke", "critical", originalSnapshot.mapLink, mapLink, "location_changed", "Kartlenke oppdatert");
+    addChange("description", "Beskrivelse / instruks", "critical", originalSnapshot.description, description, "description_changed", "Beskrivelse oppdatert");
+    addChange("assignment_notes", "Montørinstruks", "critical", originalSnapshot.assignmentNotes, assignmentNotes, "assignment_notes_changed", "Montørinstruks oppdatert");
+    addChange("customer_practical_info", "Praktisk kundeinfo", "minor", originalSnapshot.customerPracticalInfo, customerPracticalInfo, "customer_practical_info_changed", "Praktisk kundeinformasjon oppdatert");
+
+    const previousTechIds = originalSnapshot.techIds || [];
+    if (!sameStringArray(previousTechIds, techIds)) {
+      const removedTechIds = previousTechIds.filter((id: string) => !techIds.includes(id));
+      const addedTechIds = techIds.filter((id) => !previousTechIds.includes(id));
+      const parts: string[] = [];
+      if (addedTechIds.length > 0) parts.push(`la til ${formatTechNames(addedTechIds).join(", ")}`);
+      if (removedTechIds.length > 0) parts.push(`fjernet ${formatTechNames(removedTechIds).join(", ")}`);
+      changes.push({
+        key: "technicians",
+        label: "Montører",
+        severity: "critical",
+        oldValue: formatTechNames(previousTechIds).join(", ") || null,
+        newValue: formatTechNames(techIds).join(", ") || null,
+        actionType: "technician_assignment_changed",
+        summary: `Montørplan endret: ${parts.join(" · ")}`,
+        metadata: { addedTechIds, removedTechIds },
+      });
+    }
+
+    const previousAttachmentNames = (originalSnapshot.attachmentNames || []) as string[];
+    const currentAttachmentNames = existingAttachments.map((attachment) => attachment.name);
+    const uploadedAttachmentNames = files.map((file) => file.name);
+    const removedAttachmentNames = previousAttachmentNames.filter((name) => !currentAttachmentNames.includes(name));
+    if (removedAttachmentNames.length > 0) {
+      changes.push({
+        key: "attachments_removed",
+        label: "Vedlegg fjernet",
+        severity: "critical",
+        oldValue: removedAttachmentNames.join(", "),
+        newValue: null,
+        actionType: "attachment_removed",
+        summary: `Fjernet vedlegg: ${removedAttachmentNames.join(", ")}`,
+        metadata: { removedAttachmentNames },
+      });
+    }
+    if (uploadedAttachmentNames.length > 0 || !sameStringArray(previousAttachmentNames.filter((name) => !removedAttachmentNames.includes(name)), currentAttachmentNames)) {
+      if (uploadedAttachmentNames.length > 0) {
+        changes.push({
+          key: "attachments_added",
+          label: "Vedlegg lagt til",
+          severity: "critical",
+          oldValue: null,
+          newValue: uploadedAttachmentNames.join(", "),
+          actionType: "attachment_added",
+          summary: `La til vedlegg: ${uploadedAttachmentNames.join(", ")}`,
+          metadata: { uploadedAttachmentNames },
+        });
+      }
+    }
+
+    return changes;
+  }, [
+    isEditing,
+    originalSnapshot,
+    allTechnicians,
+    title,
+    customer,
+    date,
+    startTime,
+    resolvedEndDate,
+    endTime,
+    address,
+    postalCode,
+    city,
+    locationDetails,
+    siteContactName,
+    siteContactPhone,
+    accessNotes,
+    mapLink,
+    description,
+    assignmentNotes,
+    customerPracticalInfo,
+    techIds,
+    existingAttachments,
+    files,
+  ]);
+
   // Upload files to storage and return attachment metadata
   const uploadFiles = async (eventId: string, filesToUpload: File[]): Promise<Attachment[]> => {
     const uploaded: Attachment[] = [];
