@@ -2105,7 +2105,7 @@ export function EventDrawer({
 
 /* ── Extracted: New event fields with project suggestions ── */
 function NewEventFields({
-  title, setTitle, customer, setCustomer, address, setAddress, eventType, onLinkProject,
+  title, setTitle, customer, setCustomer, address, setAddress, eventType, onLinkProject, onAddressSelect,
 }: {
   title: string;
   setTitle: (v: string) => void;
@@ -2115,6 +2115,7 @@ function NewEventFields({
   setAddress: (v: string) => void;
   eventType: "project" | "task";
   onLinkProject: (proj: ProjectSuggestion) => void;
+  onAddressSelect?: (sel: { postalCode: string; city: string }) => void;
 }) {
   const { suggestions, loading } = useProjectSuggestions(title, eventType === "project");
 
