@@ -80,6 +80,13 @@ export function AddressAutocomplete({
   const selectSuggestion = (s: AddressSuggestion) => {
     const full = `${s.adressetekst}, ${s.postnummer} ${s.poststed}`;
     onChange(full);
+    onSelect?.({
+      address: full,
+      street: s.adressetekst,
+      postalCode: s.postnummer,
+      city: s.poststed,
+      municipality: s.kommunenavn,
+    });
     setOpen(false);
     setSuggestions([]);
     inputRef.current?.focus();
