@@ -2054,46 +2054,83 @@ export function EventDrawer({
         <AlertDialog open={!!pendingSave} onOpenChange={(open) => !open && setPendingSave(null)}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Viktige endringer oppdaget</AlertDialogTitle>
+              <AlertDialogTitle>Bekreft endringer på oppdraget</AlertDialogTitle>
               <AlertDialogDescription>
-                Disse endringene påvirker montørene ute i felt. Bekreft hvordan oppdraget skal oppdateres.
+                Disse endringene påvirker montørene ute i felt. Velg hvordan oppdraget skal oppdateres.
               </AlertDialogDescription>
             </AlertDialogHeader>
 
-            <div className="space-y-3">
-              <div className="rounded-lg border border-border/40 bg-card p-3 space-y-2">
-                {pendingSave?.criticalChanges.map((change) => (
-                  <div key={change.key} className="space-y-1 text-sm">
-                    <p className="font-medium">{change.label}</p>
-                    <p className="text-muted-foreground">{change.oldValue || "Tomt"} → {change.newValue || "Tomt"}</p>
-                  </div>
-                ))}
-              </div>
+            {(() => {
+              const criticals = pendingSave?.criticalChanges ?? [];
+              const requiresApproval = criticals.filter(
+                (c) => c.key === "start_time" || c.key === "end_time" || c.key === "technicians",
+              );
+              const infoOnly = criticals.filter(
+                (c) => c.key !== "start_time" && c.key !== "end_time" && c.key !== "technicians",
+              );
 
-              <div className="space-y-3 rounded-lg border border-border/40 bg-card p-3">
-                <label className="flex items-start gap-3 text-sm">
-                  <Checkbox
-                    checked={pendingSave?.sendNotifications ?? true}
-                    onCheckedChange={(checked) => setPendingSave((prev) => prev ? { ...prev, sendNotifications: checked === true } : prev)}
-                  />
-                  <div>
-                    <p className="font-medium">Send oppdatering til berørte montører</p>
-                    <p className="text-muted-foreground">Standardvalg for kritiske endringer.</p>
-                  </div>
-                </label>
+              return (
+                <div className="space-y-3">
+                  {requiresApproval.length > 0 && (
+                    <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-3 space-y-2">
+                      <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400">
+                        <AlertTriangle className="h-4 w-4" />
+                        <p className="text-xs font-semibold uppercase tracking-wide">Krever ny godkjenning fra montør</p>
+                      </div>
+                      {requiresApproval.map((change) => (
+                        <div key={change.key} className="space-y-0.5 text-sm">
+                          <p className="font-medium">{change.label}</p>
+                          <p className="text-muted-foreground">{change.oldValue || "Tomt"} → {change.newValue || "Tomt"}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
 
-                <label className="flex items-start gap-3 text-sm">
-                  <Checkbox
-                    checked={pendingSave?.updateOutlook ?? true}
-                    onCheckedChange={(checked) => setPendingSave((prev) => prev ? { ...prev, updateOutlook: checked === true } : prev)}
-                  />
-                  <div>
-                    <p className="font-medium">Oppdater Outlook-kalenderhendelser</p>
-                    <p className="text-muted-foreground">Forsøker å oppdatere eksisterende kalenderkobling.</p>
+                  {infoOnly.length > 0 && (
+                    <div className="rounded-lg border border-border/40 bg-card p-3 space-y-2">
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Bell className="h-4 w-4" />
+                        <p className="text-xs font-semibold uppercase tracking-wide">Sendes som informasjon (ingen ny godkjenning)</p>
+                      </div>
+                      {infoOnly.map((change) => (
+                        <div key={change.key} className="space-y-0.5 text-sm">
+                          <p className="font-medium">{change.label}</p>
+                          <p className="text-muted-foreground">{change.oldValue || "Tomt"} → {change.newValue || "Tomt"}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="space-y-3 rounded-lg border border-border/40 bg-card p-3">
+                    <label className="flex items-start gap-3 text-sm">
+                      <Checkbox
+                        checked={pendingSave?.sendNotifications ?? true}
+                        onCheckedChange={(checked) => setPendingSave((prev) => prev ? { ...prev, sendNotifications: checked === true } : prev)}
+                      />
+                      <div>
+                        <p className="font-medium">Varsle berørte montører</p>
+                        <p className="text-muted-foreground">
+                          {requiresApproval.length > 0
+                            ? "Sender ny godkjenningsforespørsel for tid/montør, og info-e-post for andre endringer."
+                            : "Sender info-e-post om endringene. Montørene trenger ikke å godkjenne på nytt."}
+                        </p>
+                      </div>
+                    </label>
+
+                    <label className="flex items-start gap-3 text-sm">
+                      <Checkbox
+                        checked={pendingSave?.updateOutlook ?? true}
+                        onCheckedChange={(checked) => setPendingSave((prev) => prev ? { ...prev, updateOutlook: checked === true } : prev)}
+                      />
+                      <div>
+                        <p className="font-medium">Oppdater Outlook-kalenderhendelser</p>
+                        <p className="text-muted-foreground">Forsøker å oppdatere eksisterende kalenderkobling.</p>
+                      </div>
+                    </label>
                   </div>
-                </label>
-              </div>
-            </div>
+                </div>
+              );
+            })()}
 
             <AlertDialogFooter>
               <AlertDialogCancel disabled={saving}>Avbryt</AlertDialogCancel>
