@@ -2154,8 +2154,7 @@ function NewEventFields({
               onChange={setAddress}
               onSelect={(sel) => {
                 setAddress(sel.address);
-                if (sel.postalCode) setPostalCode(sel.postalCode);
-                if (sel.city) setCity(sel.city);
+                onAddressSelect?.({ postalCode: sel.postalCode, city: sel.city });
               }}
               placeholder="Søk adresse…"
               className="mt-1"
