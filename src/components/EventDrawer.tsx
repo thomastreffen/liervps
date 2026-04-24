@@ -662,7 +662,22 @@ export function EventDrawer({
       editEvent.start.getTime() !== new Date(startISO).getTime() ||
       editEvent.end.getTime() !== new Date(endISO).getTime();
     const remainingTechIds = techIds.filter((id) => existingIds.has(id));
-    const shouldReissueApprovals = sendNotifications && (timeChanged || toAdd.length > 0 || toRemove.length > 0 || changeSet.some((change) => change.severity === "critical"));
+
+    // GODKJENNING kreves KUN ved tid/dato-endring eller nye tildelinger.
+    // Andre kritiske endringer (adresse, beskrivelse, oppmøteinfo, vedlegg, etc.)
+    // sender kun info-varsel uten å nullstille godkjenning.
+    const requiresApproval = sendNotifications && (timeChanged || toAdd.length > 0);
+
+    // Info-only endringer = kritiske endringer som IKKE er tid eller tekniker-tildeling
+    const infoOnlyChanges = changeSet.filter(
+      (change) =>
+        change.severity === "critical" &&
+        change.key !== "start_time" &&
+        change.key !== "end_time" &&
+        change.key !== "technicians",
+    );
+    const shouldSendInfoOnly =
+      sendNotifications && !timeChanged && infoOnlyChanges.length > 0 && remainingTechIds.length > 0;
 
     if (timeChanged && remainingTechIds.length > 0) {
       const { data: remainTechs } = await supabase.from("technicians").select("user_id").in("id", remainingTechIds);
@@ -685,7 +700,7 @@ export function EventDrawer({
       }
     }
 
-    if (shouldReissueApprovals && techIds.length > 0) {
+    if (requiresApproval && techIds.length > 0) {
       await supabase.functions.invoke("create-approval", {
         body: {
           job_id: editEvent.id,
@@ -695,6 +710,27 @@ export function EventDrawer({
           time_change: timeChanged,
         },
       });
+    }
+
+    // Send info-varsel til gjenværende montører for ikke-godkjenningskritiske endringer.
+    // Nye montører får uansett full godkjenningsforespørsel via create-approval over.
+    if (shouldSendInfoOnly) {
+      try {
+        await supabase.functions.invoke("notify-event-changes", {
+          body: {
+            job_id: editEvent.id,
+            technician_ids: remainingTechIds,
+            changes: infoOnlyChanges.map((change) => ({
+              label: change.label,
+              oldValue: change.oldValue,
+              newValue: change.newValue,
+              severity: change.severity,
+            })),
+          },
+        });
+      } catch (err) {
+        console.error("[EventDrawer] notify-event-changes failed", err);
+      }
     }
 
     const logEntries: any[] = changeSet.map((change) => ({
