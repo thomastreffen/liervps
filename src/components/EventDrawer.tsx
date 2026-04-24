@@ -2148,7 +2148,17 @@ function NewEventFields({
           </div>
           <div>
             <Label className="text-xs">Adresse</Label>
-            <AddressAutocomplete value={address} onChange={setAddress} placeholder="Søk adresse…" className="mt-1" />
+            <AddressAutocomplete
+              value={address}
+              onChange={setAddress}
+              onSelect={(sel) => {
+                setAddress(sel.address);
+                if (sel.postalCode) setPostalCode(sel.postalCode);
+                if (sel.city) setCity(sel.city);
+              }}
+              placeholder="Søk adresse…"
+              className="mt-1"
+            />
           </div>
         </div>
       )}
