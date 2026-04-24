@@ -1534,7 +1534,6 @@ export function EventDrawer({
                     onChange={setAddress}
                     placeholder="Søk adresse…"
                     className="mt-1"
-                    disabled={readOnly}
                   />
                 </div>
                 <div className="grid grid-cols-[120px_1fr] gap-2">
