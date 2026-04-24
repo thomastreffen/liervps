@@ -1495,6 +1495,10 @@ export function EventDrawer({
                 setTitle(proj.title);
                 setCustomer(proj.customer || "");
               }}
+              onAddressSelect={(sel) => {
+                if (sel.postalCode) setPostalCode(sel.postalCode);
+                if (sel.city) setCity(sel.city);
+              }}
             />
           )}
 
@@ -1532,6 +1536,11 @@ export function EventDrawer({
                   <AddressAutocomplete
                     value={address}
                     onChange={setAddress}
+                    onSelect={(sel) => {
+                      setAddress(sel.address);
+                      if (sel.postalCode) setPostalCode(sel.postalCode);
+                      if (sel.city) setCity(sel.city);
+                    }}
                     placeholder="Søk adresse…"
                     className="mt-1"
                   />
@@ -2100,7 +2109,7 @@ export function EventDrawer({
 
 /* ── Extracted: New event fields with project suggestions ── */
 function NewEventFields({
-  title, setTitle, customer, setCustomer, address, setAddress, eventType, onLinkProject,
+  title, setTitle, customer, setCustomer, address, setAddress, eventType, onLinkProject, onAddressSelect,
 }: {
   title: string;
   setTitle: (v: string) => void;
@@ -2110,6 +2119,7 @@ function NewEventFields({
   setAddress: (v: string) => void;
   eventType: "project" | "task";
   onLinkProject: (proj: ProjectSuggestion) => void;
+  onAddressSelect?: (sel: { postalCode: string; city: string }) => void;
 }) {
   const { suggestions, loading } = useProjectSuggestions(title, eventType === "project");
 
@@ -2143,7 +2153,16 @@ function NewEventFields({
           </div>
           <div>
             <Label className="text-xs">Adresse</Label>
-            <AddressAutocomplete value={address} onChange={setAddress} placeholder="Søk adresse…" className="mt-1" />
+            <AddressAutocomplete
+              value={address}
+              onChange={setAddress}
+              onSelect={(sel) => {
+                setAddress(sel.address);
+                onAddressSelect?.({ postalCode: sel.postalCode, city: sel.city });
+              }}
+              placeholder="Søk adresse…"
+              className="mt-1"
+            />
           </div>
         </div>
       )}
