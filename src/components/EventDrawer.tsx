@@ -1498,13 +1498,121 @@ export function EventDrawer({
             />
           )}
 
-          {/* Edit mode: title editable */}
+          {/* Edit mode: oppdrag + kunde */}
           {isEditing && (
             <section className="space-y-3">
               <h3 className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Oppdrag</h3>
               <div>
                 <Label className="text-xs">Tittel</Label>
                 <Input value={title} onChange={(e) => setTitle(e.target.value)} className="mt-1" disabled={readOnly} />
+              </div>
+              <div>
+                <Label className="text-xs">Kunde</Label>
+                <Input
+                  value={customer}
+                  onChange={(e) => setCustomer(e.target.value)}
+                  placeholder="Kundenavn"
+                  className="mt-1"
+                  disabled={readOnly}
+                />
+              </div>
+            </section>
+          )}
+
+          {/* ═══ SECTION: OPPMØTE / LOKASJON (edit mode) ═══ */}
+          {isEditing && (
+            <section className="space-y-3">
+              <h3 className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
+                <MapPin className="h-3 w-3" />
+                Oppmøte / lokasjon
+              </h3>
+              <div className="rounded-lg border border-border/40 bg-card p-3 space-y-3">
+                <div>
+                  <Label className="text-xs">Adresse</Label>
+                  <AddressAutocomplete
+                    value={address}
+                    onChange={setAddress}
+                    placeholder="Søk adresse…"
+                    className="mt-1"
+                    disabled={readOnly}
+                  />
+                </div>
+                <div className="grid grid-cols-[120px_1fr] gap-2">
+                  <div>
+                    <Label className="text-xs">Postnr.</Label>
+                    <Input
+                      value={postalCode}
+                      onChange={(e) => setPostalCode(e.target.value)}
+                      placeholder="0000"
+                      className="mt-1"
+                      disabled={readOnly}
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Poststed</Label>
+                    <Input
+                      value={city}
+                      onChange={(e) => setCity(e.target.value)}
+                      placeholder="By"
+                      className="mt-1"
+                      disabled={readOnly}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-xs">Bygg / etasje / sone</Label>
+                  <Input
+                    value={locationDetails}
+                    onChange={(e) => setLocationDetails(e.target.value)}
+                    placeholder="F.eks. Bygg B, 3. etasje"
+                    className="mt-1"
+                    disabled={readOnly}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <Label className="text-xs">Kontaktperson på sted</Label>
+                    <Input
+                      value={siteContactName}
+                      onChange={(e) => setSiteContactName(e.target.value)}
+                      placeholder="Navn"
+                      className="mt-1"
+                      disabled={readOnly}
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Telefon</Label>
+                    <Input
+                      type="tel"
+                      value={siteContactPhone}
+                      onChange={(e) => setSiteContactPhone(e.target.value)}
+                      placeholder="+47 ..."
+                      className="mt-1"
+                      disabled={readOnly}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-xs">Adkomst / oppmøtenotat</Label>
+                  <Textarea
+                    value={accessNotes}
+                    onChange={(e) => setAccessNotes(e.target.value)}
+                    placeholder="Parkering, nøkler, kode, alarm, hvor møte…"
+                    rows={2}
+                    className="mt-1 resize-none"
+                    disabled={readOnly}
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">Kartlenke (valgfritt)</Label>
+                  <Input
+                    value={mapLink}
+                    onChange={(e) => setMapLink(e.target.value)}
+                    placeholder="https://maps.google.com/…"
+                    className="mt-1"
+                    disabled={readOnly}
+                  />
+                </div>
               </div>
             </section>
           )}
