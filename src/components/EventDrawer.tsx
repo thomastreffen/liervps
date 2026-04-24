@@ -1495,6 +1495,10 @@ export function EventDrawer({
                 setTitle(proj.title);
                 setCustomer(proj.customer || "");
               }}
+              onAddressSelect={(sel) => {
+                if (sel.postalCode) setPostalCode(sel.postalCode);
+                if (sel.city) setCity(sel.city);
+              }}
             />
           )}
 
