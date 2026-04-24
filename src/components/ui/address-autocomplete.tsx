@@ -10,9 +10,18 @@ interface AddressSuggestion {
   kommunenavn: string;
 }
 
+export interface AddressSelection {
+  address: string;
+  street: string;
+  postalCode: string;
+  city: string;
+  municipality: string;
+}
+
 interface AddressAutocompleteProps {
   value: string;
   onChange: (value: string) => void;
+  onSelect?: (selection: AddressSelection) => void;
   placeholder?: string;
   className?: string;
   id?: string;
@@ -22,6 +31,7 @@ interface AddressAutocompleteProps {
 export function AddressAutocomplete({
   value,
   onChange,
+  onSelect,
   placeholder = "Søk adresse…",
   className,
   id,
