@@ -22,6 +22,17 @@ export default {
         primary: {
           DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",
+          hover: "hsl(var(--primary-hover))",
+          soft: "hsl(var(--primary-soft))",
+          "soft-foreground": "hsl(var(--primary-soft-foreground))",
+        },
+        "brand-service": {
+          DEFAULT: "hsl(var(--brand-service))",
+          foreground: "hsl(var(--brand-service-foreground))",
+        },
+        "brand-tavler": {
+          DEFAULT: "hsl(var(--brand-tavler))",
+          foreground: "hsl(var(--brand-tavler-foreground))",
         },
         secondary: {
           DEFAULT: "hsl(var(--secondary))",
