@@ -249,7 +249,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { job_id, reminder_profile, reminder_config, response_required, time_change } = await req.json();
+    const { job_id, reminder_profile, reminder_config, response_required, time_change, info_changes } = await req.json();
     if (!job_id) {
       return new Response(JSON.stringify({ error: "Missing job_id" }), {
         status: 400,
@@ -261,6 +261,13 @@ Deno.serve(async (req) => {
     const rConfig = reminder_config || null;
     const rRequired = response_required !== false;
     const isTimeChange = time_change === true;
+    const infoChanges: InfoChange[] = Array.isArray(info_changes)
+      ? info_changes.filter((c: any) => c && typeof c.label === "string").map((c: any) => ({
+          label: String(c.label),
+          oldValue: c.oldValue ?? null,
+          newValue: c.newValue ?? null,
+        }))
+      : [];
 
     // Fetch job
     const { data: job, error: jobErr } = await supabaseAdmin
