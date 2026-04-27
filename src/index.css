@@ -87,12 +87,12 @@
     /* Sidebar – warm cream */
     --sidebar-background: 40 16% 96%;
     --sidebar-foreground: 220 16% 22%;
-    --sidebar-primary: 156 40% 42%;
+    --sidebar-primary: 173 80% 26%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 40 12% 91%;
     --sidebar-accent-foreground: 220 16% 14%;
     --sidebar-border: 40 12% 89%;
-    --sidebar-ring: 156 40% 42%;
+    --sidebar-ring: 173 80% 26%;
   }
 
   .dark {
