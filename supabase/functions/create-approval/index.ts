@@ -161,8 +161,12 @@ function buildApprovalEmail(
   <div style="border: 1px solid #e2e8f0; border-top: none; padding: 24px; border-radius: 0 0 8px 8px;">
     <p>Hei ${techName},</p>
     <p>${isTimeChange
-      ? "Tidspunktet for et oppdrag du er tildelt har blitt endret. Vennligst bekreft om du kan ta oppdraget på nytt tid."
-      : "Du har blitt tildelt en ny jobb. Vennligst bekreft om du kan ta oppdraget."}</p>
+      ? (infoChanges.length > 0
+          ? "Tidspunktet for et oppdrag du er tildelt har blitt endret, og det er gjort flere praktiske oppdateringer på oppdraget. Vennligst bekreft det nye tidspunktet. Øvrige endringer er kun til informasjon."
+          : "Tidspunktet for et oppdrag du er tildelt har blitt endret. Vennligst bekreft om du kan ta oppdraget på nytt tid.")
+      : (infoChanges.length > 0
+          ? "Du har blitt tildelt en jobb, og det er gjort flere praktiske oppdateringer. Vennligst bekreft om du kan ta oppdraget. Øvrige endringer er kun til informasjon."
+          : "Du har blitt tildelt en ny jobb. Vennligst bekreft om du kan ta oppdraget.")}</p>
     
     <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
       <tr><td style="padding: 8px 0; color: #64748b; width: 120px;">Jobbnummer</td><td style="padding: 8px 0; font-weight: 600;">${displayNumber}</td></tr>
@@ -175,6 +179,7 @@ function buildApprovalEmail(
     </table>
     
     ${attachmentsHtml}
+    ${buildInfoChangesHtml(infoChanges)}
     
     <div style="margin: 24px 0; text-align: center;">
       <a href="${approveUrl}" style="display: inline-block; background: #22c55e; color: white; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: 600; margin: 4px;">✓ Godkjenn</a>
