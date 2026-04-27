@@ -14,8 +14,12 @@
     --popover: 0 0% 100%;
     --popover-foreground: 220 18% 13%;
 
-    --primary: 156 40% 42%;
+    /* MCS Signal – masterbrand teal #0F766E */
+    --primary: 173 80% 26%;
     --primary-foreground: 0 0% 100%;
+    --primary-hover: 174 68% 22%;       /* #115E59 */
+    --primary-soft: 168 84% 89%;        /* #CCFBF1 */
+    --primary-soft-foreground: 173 80% 18%;
 
     --secondary: 40 12% 94%;
     --secondary-foreground: 220 16% 22%;
@@ -23,12 +27,20 @@
     --muted: 40 10% 93%;
     --muted-foreground: 220 10% 46%;
 
-    --accent: 24 80% 52%;
+    /* MCS Service – orange accent #F97316 (kun for Service-modulen) */
+    --accent: 21 90% 48%;
     --accent-foreground: 0 0% 100%;
+    --brand-service: 21 90% 48%;
+    --brand-service-foreground: 0 0% 100%;
+
+    /* MCS Elektrotavler – blue accent #2563EB (kun for Tavler-modulen) */
+    --brand-tavler: 221 83% 53%;
+    --brand-tavler-foreground: 0 0% 100%;
 
     --destructive: 0 65% 52%;
     --destructive-foreground: 0 0% 100%;
 
+    /* Grønn reservert til suksess/fullført — ikke primær */
     --success: 152 50% 38%;
     --success-foreground: 0 0% 100%;
 
@@ -40,7 +52,7 @@
 
     --border: 40 12% 89%;
     --input: 40 12% 86%;
-    --ring: 156 40% 42%;
+    --ring: 173 80% 26%;
 
     --radius: 0.75rem;
 
