@@ -464,6 +464,17 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Audit: include info-changes in the same approval flow (so admin sees combined update in history)
+    if (infoChanges.length > 0) {
+      await supabaseAdmin.from("event_logs").insert({
+        event_id: job_id,
+        performed_by: callerUserId,
+        action_type: "info_update_included",
+        change_summary: `Info-oppdatering (${infoChanges.length} endring(er)) inkludert i samme godkjenningsflyt – ingen separat info-varsel sendt`,
+        metadata: { info_changes: infoChanges, combined_with: isTimeChange ? "time_change" : "approval" },
+      } as any);
+    }
+
     // After processing: update job status
     if (isTimeChange) {
       // Time change: set status back to requested since approvals are reset
