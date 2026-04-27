@@ -61,6 +61,49 @@ async function getValidMsToken(supabaseAdmin: any, userId: string): Promise<stri
   return newTokens.access_token;
 }
 
+interface InfoChange {
+  label: string;
+  oldValue?: string | null;
+  newValue?: string | null;
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function buildInfoChangesHtml(changes: InfoChange[]): string {
+  if (!changes || changes.length === 0) return "";
+  const rows = changes.map((c) => {
+    const oldVal = c.oldValue && String(c.oldValue).trim()
+      ? escapeHtml(String(c.oldValue))
+      : '<em style="color:#94a3b8">tomt</em>';
+    const newVal = c.newValue && String(c.newValue).trim()
+      ? escapeHtml(String(c.newValue))
+      : '<em style="color:#94a3b8">tomt</em>';
+    return `
+      <tr>
+        <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-weight:600;color:#1e293b;width:140px;vertical-align:top;">${escapeHtml(c.label)}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;color:#475569;">
+          <div style="font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.04em;">Før</div>
+          <div style="margin-bottom:6px;">${oldVal}</div>
+          <div style="font-size:11px;color:#0f766e;text-transform:uppercase;letter-spacing:0.04em;">Nå</div>
+          <div>${newVal}</div>
+        </td>
+      </tr>`;
+  }).join("");
+  return `
+    <div style="margin:18px 0 8px;padding:14px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;">
+      <p style="margin:0 0 8px;font-weight:700;color:#0c4a6e;font-size:13px;">📋 Øvrige praktiske endringer (kun til informasjon – krever ikke ny godkjenning)</p>
+      <table style="width:100%;border-collapse:collapse;background:#fff;border:1px solid #e2e8f0;border-radius:6px;overflow:hidden;">
+        ${rows}
+      </table>
+    </div>`;
+}
+
 function buildApprovalEmail(
   job: any,
   techName: string,
@@ -69,6 +112,7 @@ function buildApprovalEmail(
   isTimeChange: boolean = false,
   techStartAt?: string | null,
   techEndAt?: string | null,
+  infoChanges: InfoChange[] = [],
 ): { subject: string; body: string } {
   // Use technician-specific time override if available, otherwise fall back to event times
   const effectiveStart = techStartAt || job.start_time;
@@ -117,8 +161,12 @@ function buildApprovalEmail(
   <div style="border: 1px solid #e2e8f0; border-top: none; padding: 24px; border-radius: 0 0 8px 8px;">
     <p>Hei ${techName},</p>
     <p>${isTimeChange
-      ? "Tidspunktet for et oppdrag du er tildelt har blitt endret. Vennligst bekreft om du kan ta oppdraget på nytt tid."
-      : "Du har blitt tildelt en ny jobb. Vennligst bekreft om du kan ta oppdraget."}</p>
+      ? (infoChanges.length > 0
+          ? "Tidspunktet for et oppdrag du er tildelt har blitt endret, og det er gjort flere praktiske oppdateringer på oppdraget. Vennligst bekreft det nye tidspunktet. Øvrige endringer er kun til informasjon."
+          : "Tidspunktet for et oppdrag du er tildelt har blitt endret. Vennligst bekreft om du kan ta oppdraget på nytt tid.")
+      : (infoChanges.length > 0
+          ? "Du har blitt tildelt en jobb, og det er gjort flere praktiske oppdateringer. Vennligst bekreft om du kan ta oppdraget. Øvrige endringer er kun til informasjon."
+          : "Du har blitt tildelt en ny jobb. Vennligst bekreft om du kan ta oppdraget.")}</p>
     
     <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
       <tr><td style="padding: 8px 0; color: #64748b; width: 120px;">Jobbnummer</td><td style="padding: 8px 0; font-weight: 600;">${displayNumber}</td></tr>
@@ -131,6 +179,7 @@ function buildApprovalEmail(
     </table>
     
     ${attachmentsHtml}
+    ${buildInfoChangesHtml(infoChanges)}
     
     <div style="margin: 24px 0; text-align: center;">
       <a href="${approveUrl}" style="display: inline-block; background: #22c55e; color: white; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: 600; margin: 4px;">✓ Godkjenn</a>
@@ -200,7 +249,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { job_id, reminder_profile, reminder_config, response_required, time_change } = await req.json();
+    const { job_id, reminder_profile, reminder_config, response_required, time_change, info_changes } = await req.json();
     if (!job_id) {
       return new Response(JSON.stringify({ error: "Missing job_id" }), {
         status: 400,
@@ -212,6 +261,13 @@ Deno.serve(async (req) => {
     const rConfig = reminder_config || null;
     const rRequired = response_required !== false;
     const isTimeChange = time_change === true;
+    const infoChanges: InfoChange[] = Array.isArray(info_changes)
+      ? info_changes.filter((c: any) => c && typeof c.label === "string").map((c: any) => ({
+          label: String(c.label),
+          oldValue: c.oldValue ?? null,
+          newValue: c.newValue ?? null,
+        }))
+      : [];
 
     // Fetch job
     const { data: job, error: jobErr } = await supabaseAdmin
@@ -362,7 +418,7 @@ Deno.serve(async (req) => {
       // Send email via Microsoft Graph
       if (msToken && tech.email) {
         const techTimes = techTimeMap.get(tech.id);
-        const { subject, body } = buildApprovalEmail(job, tech.name, approvalToken, displayNumber, isTimeChange, techTimes?.start_at, techTimes?.end_at);
+        const { subject, body } = buildApprovalEmail(job, tech.name, approvalToken, displayNumber, isTimeChange, techTimes?.start_at, techTimes?.end_at, infoChanges);
 
         try {
           const emailRes = await fetch("https://graph.microsoft.com/v1.0/me/sendMail", {
@@ -406,6 +462,17 @@ Deno.serve(async (req) => {
         action_type: isTimeChange ? "time_change" : "created",
         change_summary: logMessage,
       });
+    }
+
+    // Audit: include info-changes in the same approval flow (so admin sees combined update in history)
+    if (infoChanges.length > 0) {
+      await supabaseAdmin.from("event_logs").insert({
+        event_id: job_id,
+        performed_by: callerUserId,
+        action_type: "info_update_included",
+        change_summary: `Info-oppdatering (${infoChanges.length} endring(er)) inkludert i samme godkjenningsflyt – ingen separat info-varsel sendt`,
+        metadata: { info_changes: infoChanges, combined_with: isTimeChange ? "time_change" : "approval" },
+      } as any);
     }
 
     // After processing: update job status

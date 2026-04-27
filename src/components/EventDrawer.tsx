@@ -676,8 +676,14 @@ export function EventDrawer({
         change.key !== "end_time" &&
         change.key !== "technicians",
     );
+
+    // KOMBINERT FLYT: Hvis både approval-endringer og info-endringer skjer samtidig,
+    // sendes alt i én samlet e-post via create-approval (info_changes-seksjon).
+    // Da hopper vi over notify-event-changes for de eksisterende montørene for å
+    // unngå dobbeltvarsling. Nye montører får uansett full forespørsel.
+    const combinedFlow = requiresApproval && infoOnlyChanges.length > 0;
     const shouldSendInfoOnly =
-      sendNotifications && !timeChanged && infoOnlyChanges.length > 0 && remainingTechIds.length > 0;
+      sendNotifications && !requiresApproval && infoOnlyChanges.length > 0 && remainingTechIds.length > 0;
 
     if (timeChanged && remainingTechIds.length > 0) {
       const { data: remainTechs } = await supabase.from("technicians").select("user_id").in("id", remainingTechIds);
@@ -708,12 +714,16 @@ export function EventDrawer({
           reminder_config: reminderConfig.profile === "custom" ? reminderConfig.custom : null,
           response_required: reminderConfig.responseRequired,
           time_change: timeChanged,
+          // Inkluder info-endringer i samme e-post når kombinert flyt
+          info_changes: combinedFlow
+            ? infoOnlyChanges.map((c) => ({ label: c.label, oldValue: c.oldValue, newValue: c.newValue }))
+            : [],
         },
       });
     }
 
-    // Send info-varsel til gjenværende montører for ikke-godkjenningskritiske endringer.
-    // Nye montører får uansett full godkjenningsforespørsel via create-approval over.
+    // Send info-varsel KUN når det ikke er noen approval-flyt (ellers håndteres alt
+    // av create-approval over for å unngå dobbeltvarsling).
     if (shouldSendInfoOnly) {
       try {
         await supabase.functions.invoke("notify-event-changes", {
@@ -2110,9 +2120,11 @@ export function EventDrawer({
                       <div>
                         <p className="font-medium">Varsle berørte montører</p>
                         <p className="text-muted-foreground">
-                          {requiresApproval.length > 0
-                            ? "Sender ny godkjenningsforespørsel for tid/montør, og info-e-post for andre endringer."
-                            : "Sender info-e-post om endringene. Montørene trenger ikke å godkjenne på nytt."}
+                          {requiresApproval.length > 0 && infoOnly.length > 0
+                            ? "Sender én samlet e-post: ny godkjenningsforespørsel for tid/montør, og en tydelig seksjon med øvrige praktiske endringer."
+                            : requiresApproval.length > 0
+                              ? "Sender ny godkjenningsforespørsel for tid/montør."
+                              : "Sender info-e-post om endringene. Montørene trenger ikke å godkjenne på nytt."}
                         </p>
                       </div>
                     </label>
