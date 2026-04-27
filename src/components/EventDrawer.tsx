@@ -2120,9 +2120,11 @@ export function EventDrawer({
                       <div>
                         <p className="font-medium">Varsle berørte montører</p>
                         <p className="text-muted-foreground">
-                          {requiresApproval.length > 0
-                            ? "Sender ny godkjenningsforespørsel for tid/montør, og info-e-post for andre endringer."
-                            : "Sender info-e-post om endringene. Montørene trenger ikke å godkjenne på nytt."}
+                          {requiresApproval.length > 0 && infoOnly.length > 0
+                            ? "Sender én samlet e-post: ny godkjenningsforespørsel for tid/montør, og en tydelig seksjon med øvrige praktiske endringer."
+                            : requiresApproval.length > 0
+                              ? "Sender ny godkjenningsforespørsel for tid/montør."
+                              : "Sender info-e-post om endringene. Montørene trenger ikke å godkjenne på nytt."}
                         </p>
                       </div>
                     </label>
