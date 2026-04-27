@@ -742,7 +742,7 @@ export default function CalculationDetail() {
                     Generer oppdatert tilbud
                   </Button>
                 )}
-                <Button onClick={handleMarkAccepted} size="sm" className="gap-1.5 rounded-lg bg-green-600 hover:bg-green-700 text-white">
+                <Button onClick={handleMarkAccepted} size="sm" className="gap-1.5 rounded-lg">
                   <CheckCircle2 className="h-3.5 w-3.5" /> Marker som akseptert
                 </Button>
                 <Button onClick={handleMarkRejected} size="sm" variant="outline" className="gap-1.5 rounded-lg border-destructive/30 text-destructive hover:bg-destructive/10">
