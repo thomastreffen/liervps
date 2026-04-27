@@ -106,7 +106,7 @@ export function RecentLeadsList({ leads, loading }: LeadsProps) {
 
   return (
     <div className="relative rounded-2xl bg-card border border-border/40 shadow-sm overflow-hidden">
-      <div className="h-1 bg-gradient-to-r from-emerald-500/60 to-accent/60" />
+      <div className="h-1 bg-gradient-to-r from-primary/60 to-accent/60" />
       <div className="p-5">
         <div className="flex items-center justify-between mb-4">
           <h4 className="text-xs font-semibold text-foreground uppercase tracking-wider">Siste leads</h4>

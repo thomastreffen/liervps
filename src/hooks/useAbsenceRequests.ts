@@ -42,7 +42,7 @@ export const ABSENCE_TYPE_COLORS: Record<AbsenceType, string> = {
   sykemelding: "bg-red-500/20 text-red-700 border-red-500/30",
   avspasering: "bg-blue-500/20 text-blue-700 border-blue-500/30",
   permisjon: "bg-purple-500/20 text-purple-700 border-purple-500/30",
-  kurs: "bg-green-500/20 text-green-700 border-green-500/30",
+  kurs: "bg-teal-500/20 text-teal-700 border-teal-500/30",
   annet: "bg-muted text-muted-foreground border-border",
 };
 

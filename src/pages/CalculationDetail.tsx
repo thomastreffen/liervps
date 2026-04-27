@@ -742,7 +742,7 @@ export default function CalculationDetail() {
                     Generer oppdatert tilbud
                   </Button>
                 )}
-                <Button onClick={handleMarkAccepted} size="sm" className="gap-1.5 rounded-lg bg-green-600 hover:bg-green-700 text-white">
+                <Button onClick={handleMarkAccepted} size="sm" className="gap-1.5 rounded-lg">
                   <CheckCircle2 className="h-3.5 w-3.5" /> Marker som akseptert
                 </Button>
                 <Button onClick={handleMarkRejected} size="sm" variant="outline" className="gap-1.5 rounded-lg border-destructive/30 text-destructive hover:bg-destructive/10">
@@ -798,7 +798,7 @@ export default function CalculationDetail() {
               </div>
             </div>
             <div className="flex items-center gap-2 pt-1">
-              <Button onClick={() => setConvertOpen(true)} size="default" className="gap-2 rounded-lg bg-green-600 hover:bg-green-700 text-white font-semibold px-6">
+              <Button onClick={() => setConvertOpen(true)} size="default" className="gap-2 rounded-lg font-semibold px-6">
                 <ArrowRightLeft className="h-4 w-4" /> Konverter til prosjekt
               </Button>
             </div>
