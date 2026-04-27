@@ -231,7 +231,7 @@ export default function OrderFormsPage() {
           <Button
             variant={sortBy === "activity" ? "default" : "outline"}
             size="sm"
-            className="text-xs h-8 border-green-200 text-green-700 hover:bg-green-50"
+            className="text-xs h-8 border-primary/30 text-primary hover:bg-primary-soft"
             onClick={() => setSortBy(sortBy === "activity" ? "newest" : "activity")}
           >
             <MessageSquare className="h-3 w-3 mr-1" />
