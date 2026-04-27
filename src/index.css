@@ -14,8 +14,12 @@
     --popover: 0 0% 100%;
     --popover-foreground: 220 18% 13%;
 
-    --primary: 156 40% 42%;
+    /* MCS Signal – masterbrand teal #0F766E */
+    --primary: 173 80% 26%;
     --primary-foreground: 0 0% 100%;
+    --primary-hover: 174 68% 22%;       /* #115E59 */
+    --primary-soft: 168 84% 89%;        /* #CCFBF1 */
+    --primary-soft-foreground: 173 80% 18%;
 
     --secondary: 40 12% 94%;
     --secondary-foreground: 220 16% 22%;
@@ -23,12 +27,20 @@
     --muted: 40 10% 93%;
     --muted-foreground: 220 10% 46%;
 
-    --accent: 24 80% 52%;
+    /* MCS Service – orange accent #F97316 (kun for Service-modulen) */
+    --accent: 21 90% 48%;
     --accent-foreground: 0 0% 100%;
+    --brand-service: 21 90% 48%;
+    --brand-service-foreground: 0 0% 100%;
+
+    /* MCS Elektrotavler – blue accent #2563EB (kun for Tavler-modulen) */
+    --brand-tavler: 221 83% 53%;
+    --brand-tavler-foreground: 0 0% 100%;
 
     --destructive: 0 65% 52%;
     --destructive-foreground: 0 0% 100%;
 
+    /* Grønn reservert til suksess/fullført — ikke primær */
     --success: 152 50% 38%;
     --success-foreground: 0 0% 100%;
 
@@ -40,7 +52,7 @@
 
     --border: 40 12% 89%;
     --input: 40 12% 86%;
-    --ring: 156 40% 42%;
+    --ring: 173 80% 26%;
 
     --radius: 0.75rem;
 
@@ -58,7 +70,7 @@
     --status-rejected-foreground: 0 0% 100%;
     --status-scheduled: 213 50% 52%;
     --status-scheduled-foreground: 0 0% 100%;
-    --status-in-progress: 156 40% 42%;
+    --status-in-progress: 173 80% 26%;
     --status-in-progress-foreground: 0 0% 100%;
     --status-completed: 152 60% 30%;
     --status-completed-foreground: 0 0% 100%;
@@ -75,12 +87,12 @@
     /* Sidebar – warm cream */
     --sidebar-background: 40 16% 96%;
     --sidebar-foreground: 220 16% 22%;
-    --sidebar-primary: 156 40% 42%;
+    --sidebar-primary: 173 80% 26%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 40 12% 91%;
     --sidebar-accent-foreground: 220 16% 14%;
     --sidebar-border: 40 12% 89%;
-    --sidebar-ring: 156 40% 42%;
+    --sidebar-ring: 173 80% 26%;
   }
 
   .dark {
@@ -90,14 +102,21 @@
     --card-foreground: 40 12% 92%;
     --popover: 220 16% 12%;
     --popover-foreground: 40 12% 92%;
-    --primary: 156 40% 48%;
+    --primary: 173 70% 38%;
     --primary-foreground: 0 0% 100%;
+    --primary-hover: 174 60% 32%;
+    --primary-soft: 173 40% 22%;
+    --primary-soft-foreground: 168 84% 89%;
     --secondary: 220 14% 16%;
     --secondary-foreground: 40 12% 88%;
     --muted: 220 14% 16%;
     --muted-foreground: 220 8% 56%;
-    --accent: 28 66% 48%;
+    --accent: 21 85% 52%;
     --accent-foreground: 0 0% 100%;
+    --brand-service: 21 85% 52%;
+    --brand-service-foreground: 0 0% 100%;
+    --brand-tavler: 221 83% 60%;
+    --brand-tavler-foreground: 0 0% 100%;
     --destructive: 0 55% 30%;
     --destructive-foreground: 0 0% 100%;
     --success: 152 46% 32%;
@@ -108,7 +127,7 @@
     --info-foreground: 0 0% 100%;
     --border: 220 14% 20%;
     --input: 220 14% 20%;
-    --ring: 156 40% 48%;
+    --ring: 173 70% 38%;
     --section-border: 220 14% 18%;
 
     --shadow-card: 0 1px 3px 0 hsl(0 0% 0% / 0.2);
