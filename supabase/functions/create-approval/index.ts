@@ -61,6 +61,49 @@ async function getValidMsToken(supabaseAdmin: any, userId: string): Promise<stri
   return newTokens.access_token;
 }
 
+interface InfoChange {
+  label: string;
+  oldValue?: string | null;
+  newValue?: string | null;
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function buildInfoChangesHtml(changes: InfoChange[]): string {
+  if (!changes || changes.length === 0) return "";
+  const rows = changes.map((c) => {
+    const oldVal = c.oldValue && String(c.oldValue).trim()
+      ? escapeHtml(String(c.oldValue))
+      : '<em style="color:#94a3b8">tomt</em>';
+    const newVal = c.newValue && String(c.newValue).trim()
+      ? escapeHtml(String(c.newValue))
+      : '<em style="color:#94a3b8">tomt</em>';
+    return `
+      <tr>
+        <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-weight:600;color:#1e293b;width:140px;vertical-align:top;">${escapeHtml(c.label)}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;color:#475569;">
+          <div style="font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.04em;">Før</div>
+          <div style="margin-bottom:6px;">${oldVal}</div>
+          <div style="font-size:11px;color:#0f766e;text-transform:uppercase;letter-spacing:0.04em;">Nå</div>
+          <div>${newVal}</div>
+        </td>
+      </tr>`;
+  }).join("");
+  return `
+    <div style="margin:18px 0 8px;padding:14px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;">
+      <p style="margin:0 0 8px;font-weight:700;color:#0c4a6e;font-size:13px;">📋 Øvrige praktiske endringer (kun til informasjon – krever ikke ny godkjenning)</p>
+      <table style="width:100%;border-collapse:collapse;background:#fff;border:1px solid #e2e8f0;border-radius:6px;overflow:hidden;">
+        ${rows}
+      </table>
+    </div>`;
+}
+
 function buildApprovalEmail(
   job: any,
   techName: string,
@@ -69,6 +112,7 @@ function buildApprovalEmail(
   isTimeChange: boolean = false,
   techStartAt?: string | null,
   techEndAt?: string | null,
+  infoChanges: InfoChange[] = [],
 ): { subject: string; body: string } {
   // Use technician-specific time override if available, otherwise fall back to event times
   const effectiveStart = techStartAt || job.start_time;
