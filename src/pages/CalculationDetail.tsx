@@ -798,7 +798,7 @@ export default function CalculationDetail() {
               </div>
             </div>
             <div className="flex items-center gap-2 pt-1">
-              <Button onClick={() => setConvertOpen(true)} size="default" className="gap-2 rounded-lg bg-green-600 hover:bg-green-700 text-white font-semibold px-6">
+              <Button onClick={() => setConvertOpen(true)} size="default" className="gap-2 rounded-lg font-semibold px-6">
                 <ArrowRightLeft className="h-4 w-4" /> Konverter til prosjekt
               </Button>
             </div>
