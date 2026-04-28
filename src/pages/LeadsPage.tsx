@@ -437,51 +437,6 @@ export default function LeadsPage() {
         />
       )}
 
-      {/* Create Dialog — stays as modal (simple creation) */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-lg rounded-2xl">
-          <DialogHeader>
-            <DialogTitle>Ny kundehenvendelse</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3">
-            <div className="space-y-1.5">
-              <Label>Installatør / kunde *</Label>
-              <Input value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="Elektro AS" className="rounded-xl" />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label>Kontaktperson</Label>
-                <Input value={contactName} onChange={(e) => setContactName(e.target.value)} placeholder="Ola Nordmann" className="rounded-xl" />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Telefon</Label>
-                <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+47 999 99 999" className="rounded-xl" />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label>E-post</Label>
-                <Input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="epost@firma.no" type="email" className="rounded-xl" />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Kilde</Label>
-                <Input value={source} onChange={(e) => setSource(e.target.value)} placeholder="Messe, anbud, eksisterende kunde..." className="rounded-xl" />
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Estimert ordreverdi (kr)</Label>
-              <Input value={estimatedValue} onChange={(e) => setEstimatedValue(e.target.value)} placeholder="0" type="number" className="rounded-xl" />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)} className="rounded-xl">Avbryt</Button>
-            <Button onClick={handleCreate} disabled={saving} className="gap-1.5 rounded-xl">
-              {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-              Opprett
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
