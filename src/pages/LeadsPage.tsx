@@ -90,13 +90,6 @@ export default function LeadsPage() {
   // Offer counts per lead
   const [offerCounts, setOfferCounts] = useState<Record<string, { count: number; latestStatus: string }>>({});
 
-  const [companyName, setCompanyName] = useState("");
-  const [contactName, setContactName] = useState("");
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
-  const [source, setSource] = useState("");
-  const [estimatedValue, setEstimatedValue] = useState("");
-
   const fetchLeads = async () => {
     setLoading(true);
     let result;
