@@ -53,17 +53,48 @@ Returner ALLTID via tool-call 'submit_calc_proposal'. Vær ærlig om usikkerhet:
 - Skriv klare assumptions og open_questions.
 - Det er BEDRE å foreslå et estimat med lav confidence enn å la et felt stå tomt.`;
 
+// Konkret skjema med eksplisitte felter — Gemini fyller dette mye mer pålitelig
+// enn et abstract additionalProperties-skjema.
+const FIELD_VALUE = (valueSchema: any, desc: string) => ({
+  type: "object",
+  description: desc,
+  properties: {
+    value: valueSchema,
+    confidence: { type: "number", minimum: 0, maximum: 100 },
+    reason: { type: "string" },
+  },
+  required: ["value", "confidence"],
+});
+
 const SYSTEM_FIELDS_SCHEMA = {
   type: "object",
-  description: "Foreslåtte verdier per inputfelt med confidence.",
-  additionalProperties: {
-    type: "object",
-    properties: {
-      value: {},
-      confidence: { type: "number", minimum: 0, maximum: 100 },
-      reason: { type: "string" },
-    },
-    required: ["value", "confidence"],
+  description: "Foreslåtte verdier per kalkyle-felt. Fyll så mange som mulig — minimum stromklasse og total_lengde_m.",
+  properties: {
+    leverandor: FIELD_VALUE({ type: "string", enum: ["schneider", "eaton", "legrand"] }, "Leverandør"),
+    serie: FIELD_VALUE({ type: "string" }, "Produktserie, f.eks. 'Canalis KT'"),
+    ledertype: FIELD_VALUE({ type: "string", enum: ["kobber", "aluminium"] }, "Ledermateriale"),
+    utforelse: FIELD_VALUE({ type: "string", enum: ["epoxy", "lakkert", "ren"] }, "Overflate / utførelse"),
+    stromklasse: FIELD_VALUE(
+      { type: "string", enum: ["800", "1000", "1250", "1600", "2000", "2500", "3200", "4000", "5000", "6300"] },
+      "Strømklasse i ampere som streng. PÅKREVD per system."
+    ),
+    total_lengde_m: FIELD_VALUE({ type: "number" }, "Total horisontal lengde i meter. PÅKREVD per system."),
+    qty_oppheng: FIELD_VALUE({ type: "number" }, "Antall oppheng (cc 2 m default)"),
+    qty_straight_3: FIELD_VALUE({ type: "number" }, "Antall rette 3 m elementer"),
+    qty_straight_2: FIELD_VALUE({ type: "number" }, "Antall rette 2 m elementer"),
+    qty_straight_1: FIELD_VALUE({ type: "number" }, "Antall rette 1 m elementer"),
+    qty_vinkel: FIELD_VALUE({ type: "number" }, "Antall vinkelelementer"),
+    qty_t_element: FIELD_VALUE({ type: "number" }, "Antall T-elementer"),
+    qty_term_std: FIELD_VALUE({ type: "number" }, "Antall standard endeavslutninger"),
+    qty_term_nonstd: FIELD_VALUE({ type: "number" }, "Antall ikke-standard endeavslutninger"),
+    qty_skjot: FIELD_VALUE({ type: "number" }, "Antall skjøter"),
+    vertikal: FIELD_VALUE({ type: "boolean" }, "Vertikal montasje"),
+    qty_vertikal: FIELD_VALUE({ type: "number" }, "Antall vertikale strekk"),
+    arbeidstidstype: FIELD_VALUE({ type: "string" }, "Arbeidstidstype"),
+    tilkomstniva: FIELD_VALUE({ type: "string" }, "Tilkomst / høyde"),
+    reisetid: FIELD_VALUE({ type: "number" }, "Reisetid t/r i timer"),
+    riggtid: FIELD_VALUE({ type: "number" }, "Riggtid i timer"),
+    risiko: FIELD_VALUE({ type: "number" }, "Risikopåslag i %"),
   },
 };
 
