@@ -350,7 +350,7 @@ export default function CalcEngineEditorPage() {
   // ==== Navigasjon ====
   const handleBack = () => {
     if (fromDraftId) {
-      navigate(`/sales/calc-engine/new/ai-review/${fromDraftId}`);
+      navigate(`/sales/calc-engine/ai-review/${fromDraftId}`);
     } else {
       navigate("/sales/calc-engine");
     }
