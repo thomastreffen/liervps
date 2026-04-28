@@ -12,6 +12,8 @@ import { ArrowLeft, Loader2, Calculator, Trash2, FileText, FileCheck2 } from "lu
 import { getStatusBadge, formatDateTime } from "@/lib/calc-engine/status-labels";
 import { DeleteCalcDialog, type DeleteTarget } from "@/components/calc-engine/DeleteCalcDialog";
 import { useActiveOfferForSource } from "@/hooks/useActiveOfferForSource";
+import { CommercialCaseHeaderBadge } from "@/components/commercial/CommercialCaseHeaderBadge";
+import { CommercialCasePanel } from "@/components/commercial/CommercialCasePanel";
 
 function formatNok(n: number): string {
   return new Intl.NumberFormat("nb-NO", { maximumFractionDigits: 0 }).format(n ?? 0);
