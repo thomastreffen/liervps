@@ -3,7 +3,7 @@ import { useCalcPackages } from "@/hooks/useCalcPackages";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Calculator, Loader2, Package } from "lucide-react";
+import { ArrowLeft, Calculator, Loader2, Package, Sparkles, PencilLine } from "lucide-react";
 import { isPackageSupported } from "@/lib/calc-engine/registry";
 
 export default function CalcPackagePickerPage() {
@@ -21,7 +21,7 @@ export default function CalcPackagePickerPage() {
             <Calculator className="h-6 w-6 text-primary" /> Velg kalkylepakke
           </h1>
           <p className="text-sm text-muted-foreground">
-            Hver pakke definerer egne inputfelt, normtider og satser.
+            Velg pakke, så bestemmer du om du vil starte manuelt eller la AI lage et førsteutkast.
           </p>
         </div>
       </div>
@@ -42,9 +42,8 @@ export default function CalcPackagePickerPage() {
             return (
               <Card
                 key={p.id}
-                className={`p-5 rounded-2xl border transition-all hover:shadow-md cursor-pointer
-                  ${supported ? "hover:border-primary/40" : "opacity-60 cursor-not-allowed"}`}
-                onClick={() => supported && navigate(`/sales/calc-engine/new?package=${p.id}`)}
+                className={`p-5 rounded-2xl border transition-all
+                  ${supported ? "hover:border-primary/40 hover:shadow-md" : "opacity-60"}`}
               >
                 <div className="flex items-start justify-between gap-3 mb-2">
                   <h3 className="font-semibold text-base">{p.name}</h3>
@@ -55,7 +54,7 @@ export default function CalcPackagePickerPage() {
                 <p className="text-xs text-muted-foreground mb-3 line-clamp-3 min-h-[3rem]">
                   {p.description}
                 </p>
-                <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex items-center gap-2 flex-wrap mb-4">
                   <Badge className="bg-primary-soft text-primary rounded-lg text-[10px]">
                     {p.category}
                   </Badge>
@@ -68,6 +67,23 @@ export default function CalcPackagePickerPage() {
                     </Badge>
                   )}
                 </div>
+                {supported && (
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button
+                      variant="outline"
+                      className="rounded-xl gap-1.5"
+                      onClick={() => navigate(`/sales/calc-engine/new?package=${p.id}`)}
+                    >
+                      <PencilLine className="h-4 w-4" /> Manuell
+                    </Button>
+                    <Button
+                      className="rounded-xl gap-1.5"
+                      onClick={() => navigate(`/sales/calc-engine/ai-start?package=${p.id}`)}
+                    >
+                      <Sparkles className="h-4 w-4" /> AI-assistert
+                    </Button>
+                  </div>
+                )}
               </Card>
             );
           })}
