@@ -234,6 +234,13 @@ export default function CalcCaseDetailPage() {
         </div>
       </div>
 
+      {caseRow.commercial_case_id && (
+        <div className="space-y-2">
+          <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Kommersiell sak</h2>
+          <CommercialCasePanel caseId={caseRow.commercial_case_id} />
+        </div>
+      )}
+
       <DeleteCalcDialog
         target={deleteTarget}
         onClose={() => setDeleteTarget(null)}
