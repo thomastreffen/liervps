@@ -39,6 +39,7 @@ export interface CalcAiDraft {
   model_used: string | null;
   applied_calculation_id: string | null;
   applied_at: string | null;
+  system_calculation_map: Record<string, string>;
   created_at: string;
   updated_at: string;
 }
