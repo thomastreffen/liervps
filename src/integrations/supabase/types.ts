@@ -10346,6 +10346,53 @@ export type Database = {
         Returns: boolean
       }
       sweep_orphan_schedule_blocks: { Args: never; Returns: Json }
+      update_commercial_case_crm: {
+        Args: {
+          _case_id: string
+          _description?: string
+          _expected_close_date?: string
+          _next_step?: string
+          _next_step_due_at?: string
+          _owner_user_id?: string
+          _phase?: string
+          _probability_pct?: number
+          _value_estimate?: number
+        }
+        Returns: {
+          case_number: string | null
+          company_id: string
+          contact_person_id: string | null
+          created_at: string
+          created_by: string | null
+          customer_id: string | null
+          deleted_at: string | null
+          deleted_by: string | null
+          department_id: string | null
+          description: string | null
+          expected_close_date: string | null
+          id: string
+          lost_at: string | null
+          lost_reason: string | null
+          next_step: string | null
+          next_step_due_at: string | null
+          owner_user_id: string | null
+          phase: string
+          probability_pct: number | null
+          source: string | null
+          source_ref: string | null
+          tags: string[] | null
+          title: string
+          updated_at: string
+          value_estimate: number | null
+          won_at: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "commercial_cases"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       user_has_company_access: {
         Args: { _auth_user_id: string; _company_id: string }
         Returns: boolean
