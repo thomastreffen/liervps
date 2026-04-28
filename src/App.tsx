@@ -36,6 +36,8 @@ import CalcPackagePickerPage from "./pages/CalcPackagePickerPage";
 import CalcEngineNewRouter from "./pages/CalcEngineNewRouter";
 import CalcEngineEditorPage from "./pages/CalcEngineEditorPage";
 import CalcEngineDetailPage from "./pages/CalcEngineDetailPage";
+import CalcAiStartPage from "./pages/CalcAiStartPage";
+import CalcAiReviewPage from "./pages/CalcAiReviewPage";
 import Login from "./pages/Login";
 import AuthCallback from "./pages/AuthCallback";
 import NotFound from "./pages/NotFound";
