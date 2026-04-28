@@ -47,13 +47,23 @@ export default function CalcEngineDetailPage() {
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-[1400px] mx-auto space-y-5">
       <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={() => navigate("/sales/calc-engine")} className="rounded-xl">
+        <Button variant="ghost" size="icon" onClick={() => navigate(calc.case_id ? `/sales/calc-engine/case/${calc.case_id}` : "/sales/calc-engine")} className="rounded-xl">
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div className="flex-1 min-w-0">
+          {calc.calc_cases?.title && (
+            <button
+              type="button"
+              onClick={() => navigate(`/sales/calc-engine/case/${calc.case_id}`)}
+              className="inline-flex items-center gap-1 text-[11px] uppercase tracking-wide text-primary hover:underline mb-0.5"
+            >
+              ← Del av kalkylesak: {calc.calc_cases.title}
+            </button>
+          )}
           <h1 className="text-xl sm:text-2xl font-semibold tracking-tight truncate">{calc.project_title}</h1>
           <p className="text-xs text-muted-foreground">
             {calc.customer_name} • {format(new Date(calc.created_at), "d. MMM yyyy", { locale: nb })}
+            {calc.case_system_key && <> • System <span className="font-mono">{calc.case_system_key}</span></>}
           </p>
         </div>
         <Badge variant="outline" className="rounded-lg">{calc.status}</Badge>
