@@ -290,6 +290,13 @@ const App = () => (
               <Route path="/sales/calculations/new" element={<Navigate to="/sales/offers/new" replace />} />
               <Route path="/sales/calculations/:id" element={<CalculationDetail />} />
 
+              {/* Kalkylemotor (pakke-basert) */}
+              <Route path="/sales/calc-engine" element={<ProtectedRoute><CalcEngineListPage /></ProtectedRoute>} />
+              <Route path="/sales/calc-engine/new" element={<ProtectedRoute><CalcPackagePickerPage /></ProtectedRoute>} />
+              <Route path="/sales/calc-engine/new/editor" element={<ProtectedRoute><CalcEngineEditorPage /></ProtectedRoute>} />
+              <Route path="/sales/calc-engine/:id" element={<ProtectedRoute><CalcEngineDetailPage /></ProtectedRoute>} />
+
+
               {/* Legacy calculation routes redirect */}
               <Route path="/calculations" element={<Navigate to="/sales/offers" replace />} />
               <Route path="/calculations/new" element={<Navigate to="/sales/offers/new" replace />} />
