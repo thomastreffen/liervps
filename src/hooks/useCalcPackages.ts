@@ -69,7 +69,7 @@ export function useCalcPackageBundle(packageId: string | null) {
       ]);
       if (!mounted) return;
       setPkg((pkgRes.data ?? null) as CalcPackage | null);
-      setFields((fieldsRes.data ?? []) as PackageField[]);
+      setFields((fieldsRes.data ?? []) as unknown as PackageField[]);
       setRateTables(((ratesRes.data ?? []) as any[]).map(t => ({
         id: t.id, name: t.name, version: t.version,
         rows: (t.calc_rate_table_rows ?? []).sort((a: any, b: any) => a.sort_order - b.sort_order),
