@@ -123,6 +123,15 @@ export default function CalcAiReviewPage() {
   const proposed = draft.ai_proposed_input ?? {};
   const proposedKeys = Object.keys(proposed);
 
+  const isAnalyzing = analyzing || draft.status === "analyzing";
+  const statusMeta = (() => {
+    if (isAnalyzing) return { label: "Analyserer", color: "bg-amber-500" };
+    if (draft.status === "ready") return { label: "Analysert", color: "bg-emerald-500" };
+    if (draft.status === "applied") return { label: "Brukt i editor", color: "bg-primary" };
+    if (draft.status === "discarded") return { label: "Forkastet", color: "bg-muted-foreground" };
+    return { label: "Utkast", color: "bg-slate-400" };
+  })();
+
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-[1500px] mx-auto">
       <div className="flex items-center gap-3 mb-5">
@@ -133,14 +142,26 @@ export default function CalcAiReviewPage() {
           <h1 className="text-xl sm:text-2xl font-semibold tracking-tight flex items-center gap-2">
             <Sparkles className="h-6 w-6 text-primary" /> AI-utkast — {pkg.name}
           </h1>
-          <p className="text-xs text-muted-foreground">
-            Status: <span className="font-medium text-foreground capitalize">{draft.status}</span>
+          <p className="text-xs text-muted-foreground flex items-center gap-2 flex-wrap">
+            <span className="inline-flex items-center gap-1.5">
+              <span className={`h-2 w-2 rounded-full ${statusMeta.color} ${isAnalyzing ? "animate-pulse" : ""}`} />
+              <span className="font-medium text-foreground">{statusMeta.label}</span>
+            </span>
             {draft.overall_confidence != null && (
-              <> · Samlet confidence: <span className="font-medium text-foreground">{Math.round(draft.overall_confidence)}%</span></>
+              <>· Samlet confidence: <span className="font-medium text-foreground">{Math.round(draft.overall_confidence)}%</span></>
             )}
-            {draft.model_used && <> · Modell: <span className="font-mono text-[10px]">{draft.model_used}</span></>}
+            {draft.model_used && <>· Modell: <span className="font-mono text-[10px]">{draft.model_used}</span></>}
           </p>
         </div>
+        {!isAnalyzing && draft.status !== "ready" && (
+          <Button
+            variant="outline"
+            onClick={() => analyze().catch((e) => toast({ title: "AI-analyse feilet", description: e?.message ?? String(e), variant: "destructive" }))}
+            className="rounded-xl gap-1.5"
+          >
+            <Sparkles className="h-4 w-4" /> Kjør analyse
+          </Button>
+        )}
         <Button
           onClick={handleApplyToEditor}
           disabled={draft.status !== "ready" || proposedKeys.length === 0}
@@ -163,14 +184,14 @@ export default function CalcAiReviewPage() {
                 <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground mb-1">
                   AI-oppsummering
                 </h3>
-                {analyzing && !draft.ai_summary ? (
+                {isAnalyzing && !draft.ai_summary ? (
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Loader2 className="h-4 w-4 animate-spin" /> Analyserer underlag…
+                    <Loader2 className="h-4 w-4 animate-spin" /> Analyserer underlag… dette tar typisk 10–40 sek for tegninger.
                   </div>
                 ) : draft.ai_summary ? (
                   <p className="text-sm leading-relaxed">{draft.ai_summary}</p>
                 ) : (
-                  <p className="text-sm text-muted-foreground italic">Ingen oppsummering enda.</p>
+                  <p className="text-sm text-muted-foreground italic">Ingen oppsummering enda. Trykk «Kjør analyse» for å starte.</p>
                 )}
               </div>
             </div>
