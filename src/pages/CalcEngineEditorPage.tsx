@@ -127,11 +127,11 @@ export default function CalcEngineEditorPage() {
         if (draft?.applied_calculation_id) {
           const { data: calc } = await supabase
             .from("calculations")
-            .select("id, project_title, customer_name, input_snapshot, rate_table_id, norm_table_id")
+            .select("id, project_title, customer_name, input_snapshot, rate_table_id, norm_table_id, deleted_at")
             .eq("id", draft.applied_calculation_id)
             .maybeSingle();
 
-          if (calc && !calc["deleted_at" as any]) {
+          if (calc && !calc.deleted_at) {
             setCalculationId(calc.id);
             setTitle(calc.project_title === PLACEHOLDER_TITLE ? "" : calc.project_title);
             setCustomer(calc.customer_name === PLACEHOLDER_CUSTOMER ? "" : calc.customer_name);
