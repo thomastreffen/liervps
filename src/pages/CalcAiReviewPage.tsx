@@ -284,11 +284,13 @@ export default function CalcAiReviewPage() {
                 const inp = sys.proposed_input ?? {};
                 const keys = Object.keys(inp);
                 const sConf = Math.round(sys.system_confidence ?? draft.overall_confidence ?? 0);
+                const calcIdForSystem = sysMap[String(sysIdx)] ?? null;
+                const isApplied = !!calcIdForSystem;
                 return (
-                  <Card key={sysIdx} className="p-5 rounded-2xl">
+                  <Card key={sysIdx} className={`p-5 rounded-2xl ${isApplied ? "border-primary/30 bg-primary/5" : ""}`}>
                     <div className="flex items-start justify-between gap-3 mb-3 flex-wrap">
                       <div className="min-w-0">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <h3 className="text-base font-semibold">
                             {systems.length > 1 ? `Kalkyle ${sysIdx + 1}: ` : ""}{sys.name}
                           </h3>
@@ -298,18 +300,44 @@ export default function CalcAiReviewPage() {
                               {sConf}%
                             </Badge>
                           )}
+                          {isApplied && (
+                            <Badge variant="secondary" className="rounded-md text-[10px] gap-1">
+                              <CheckCircle2 className="h-3 w-3" /> Opprettet
+                            </Badge>
+                          )}
                         </div>
                         {sys.note && <p className="text-xs text-muted-foreground mt-0.5">{sys.note}</p>}
                         <div className="text-[11px] text-muted-foreground mt-1">{keys.length} foreslåtte felter</div>
                       </div>
-                      <Button
-                        size="sm"
-                        onClick={() => handleApplyToEditor(sysIdx)}
-                        disabled={draft.status !== "ready" || keys.length === 0}
-                        className="rounded-xl gap-1.5"
-                      >
-                        Bruk i editor <ArrowRight className="h-3.5 w-3.5" />
-                      </Button>
+                      {isApplied ? (
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleApplyToEditor(sysIdx)}
+                            className="rounded-xl gap-1.5"
+                            title="Fortsett å redigere kalkylen i editor"
+                          >
+                            Rediger
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={() => handleOpenCalculation(calcIdForSystem!)}
+                            className="rounded-xl gap-1.5"
+                          >
+                            Åpne kalkyle <ArrowRight className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <Button
+                          size="sm"
+                          onClick={() => handleApplyToEditor(sysIdx)}
+                          disabled={draft.status !== "ready" || keys.length === 0}
+                          className="rounded-xl gap-1.5"
+                        >
+                          Bruk i editor <ArrowRight className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
                     </div>
                     {keys.length === 0 ? (
                       <p className="text-xs text-muted-foreground italic">Ingen felter foreslått for dette systemet.</p>
