@@ -77,6 +77,7 @@ export default function CalcEngineEditorPage() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const packageId = params.get("package");
+  const fromDraftId = params.get("from_draft");
   const { user } = useAuth();
   const { activeCompanyId } = useCompanyContext();
   const { pkg, fields, rateTables, normTables, loading } = useCalcPackageBundle(packageId);
@@ -87,16 +88,42 @@ export default function CalcEngineEditorPage() {
   const [saving, setSaving] = useState(false);
   const [selectedRateId, setSelectedRateId] = useState<string | null>(null);
   const [selectedNormId, setSelectedNormId] = useState<string | null>(null);
+  const [aiPrefilledKeys, setAiPrefilledKeys] = useState<Set<string>>(new Set());
 
-  // Init defaults når felter lastes
+  // Init defaults når felter lastes — og overskriv med AI-forslag hvis from_draft
   useEffect(() => {
     if (!fields.length) return;
     const init: Record<string, any> = {};
     for (const f of fields) {
       init[f.field_key] = f.default_value;
     }
-    setInputState(init);
-  }, [fields.length]);
+    if (!fromDraftId) {
+      setInputState(init);
+      return;
+    }
+    // Hent AI-forslag og merge inn
+    (async () => {
+      const { data } = await supabase
+        .from("calc_ai_drafts")
+        .select("ai_proposed_input, initial_description")
+        .eq("id", fromDraftId)
+        .maybeSingle();
+      const proposed = (data?.ai_proposed_input ?? {}) as Record<string, { value: any }>;
+      const prefilled = new Set<string>();
+      for (const [k, v] of Object.entries(proposed)) {
+        if (k in init && v?.value !== undefined && v.value !== null) {
+          init[k] = v.value;
+          prefilled.add(k);
+        }
+      }
+      setInputState(init);
+      setAiPrefilledKeys(prefilled);
+      if (data?.initial_description && !title) {
+        setTitle(data.initial_description.slice(0, 80));
+      }
+    })();
+  }, [fields.length, fromDraftId]);
+
 
   // Default rate/norm = nyeste (allerede sortert desc i hooken)
   useEffect(() => {
