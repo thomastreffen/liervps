@@ -211,7 +211,7 @@ export default function CalcEngineEditorPage() {
       setInputState(init);
       setHydrated(true);
     })();
-  }, [fields, fromDraftId, systemIndex]);
+  }, [fields, fromDraftId, systemIndex, editCalculationId]);
 
   // Default rate/norm = nyeste
   useEffect(() => {
