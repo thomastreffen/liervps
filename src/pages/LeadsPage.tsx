@@ -274,7 +274,7 @@ export default function LeadsPage() {
               </div>
               {viewMode === "active" && (
                 <div className="flex items-center justify-center gap-3">
-                  <Button size="sm" onClick={() => { resetForm(); setDialogOpen(true); }} className="gap-1.5 rounded-xl">
+                  <Button size="sm" onClick={() => navigate("/sales/leads/new")} className="gap-1.5 rounded-xl">
                     <Plus className="h-3.5 w-3.5" /> Ny henvendelse
                   </Button>
                   <Button size="sm" variant="outline" onClick={() => navigate("/sales/pipeline")} className="gap-1.5 rounded-xl">
