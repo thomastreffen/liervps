@@ -37,6 +37,7 @@ export default function CalcCaseDetailPage() {
   const [subs, setSubs] = useState<SubCalc[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
+  const [offerDialogOpen, setOfferDialogOpen] = useState(false);
 
   useEffect(() => {
     if (!id) return;
