@@ -86,7 +86,7 @@ export default function CalcOfferFromCalcPage() {
   const [descriptionDraft, setDescriptionDraft] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  // Load source
+  // Load source — og redirect umiddelbart hvis aktivt tilbud allerede finnes
   useEffect(() => {
     (async () => {
       if (!kind) {
@@ -95,6 +95,22 @@ export default function CalcOfferFromCalcPage() {
       }
       setLoading(true);
       try {
+        // 1) Sjekk om aktivt tilbud allerede finnes for denne kilden
+        const sourceId = kind === "case" ? caseId : calcId;
+        const sourceKind = kind === "case" ? "calc_case" : "calculation";
+        if (sourceId) {
+          const { data: existingOfferId } = await supabase.rpc("get_active_offer_for_source", {
+            _source_kind: sourceKind,
+            _source_id: sourceId,
+          });
+          if (existingOfferId) {
+            toast.info("Tilbud finnes allerede for dette grunnlaget — åpner eksisterende.");
+            navigate(`/sales/offers/${existingOfferId}`, { replace: true });
+            return;
+          }
+        }
+
+        // 2) Last kildedata
         if (kind === "case" && caseId) {
           const [c, s] = await Promise.all([
             supabase.from("calc_cases").select("id, title, customer_name").eq("id", caseId).maybeSingle(),
@@ -131,7 +147,7 @@ export default function CalcOfferFromCalcPage() {
         setLoading(false);
       }
     })();
-  }, [kind, caseId, calcId]);
+  }, [kind, caseId, calcId, navigate]);
 
   // Generate lines on changes
   useEffect(() => {
@@ -256,6 +272,21 @@ export default function CalcOfferFromCalcPage() {
         : `[Kilde: kalkyle ${calcs[0]?.id}]`;
       const offerTitle = caseTitle ?? calcs[0]?.project_title ?? "Tilbud fra kalkyle";
 
+      // Siste sjekk rett før insert — unngår race mellom load og klikk
+      const sourceKind: "calc_case" | "calculation" = kind === "case" ? "calc_case" : "calculation";
+      const sourceId = kind === "case" ? caseId : calcs[0]?.id;
+      if (sourceId) {
+        const { data: existingOfferId } = await supabase.rpc("get_active_offer_for_source", {
+          _source_kind: sourceKind,
+          _source_id: sourceId,
+        });
+        if (existingOfferId) {
+          toast.info("Tilbud finnes allerede — åpner eksisterende.");
+          navigate(`/sales/offers/${existingOfferId}`, { replace: true });
+          return;
+        }
+      }
+
       const { data: created, error: insertErr } = await supabase
         .from("calculations")
         .insert({
@@ -268,10 +299,34 @@ export default function CalcOfferFromCalcPage() {
           company_id: activeCompanyId || null,
           created_by: user.id,
           status: "draft",
+          // Kildekobling — låser tilbud til unik kilde (én aktiv tilbudsrot per kilde)
+          source_kind: sourceKind,
+          source_case_id: sourceKind === "calc_case" ? sourceId : null,
+          source_case_item_id: sourceKind === "calculation" ? sourceId : null,
+          version_number: 1,
         })
         .select("id")
         .single();
-      if (insertErr || !created) throw insertErr ?? new Error("Kunne ikke opprette tilbud");
+
+      // Fang opp database-unique-violation hvis to forsøk skjer samtidig
+      if (insertErr) {
+        const msg = String(insertErr.message || "");
+        const code = (insertErr as any).code;
+        if (code === "23505" || /uniq_active_offer_per_/.test(msg)) {
+          // Hent eksisterende og redirect
+          const { data: existingOfferId } = await supabase.rpc("get_active_offer_for_source", {
+            _source_kind: sourceKind,
+            _source_id: sourceId!,
+          });
+          if (existingOfferId) {
+            toast.info("Tilbud finnes allerede — åpner eksisterende.");
+            navigate(`/sales/offers/${existingOfferId}`, { replace: true });
+            return;
+          }
+        }
+        throw insertErr;
+      }
+      if (!created) throw new Error("Kunne ikke opprette tilbud");
 
       const linePayloads = lines.map((l, idx) => ({
         calculation_id: created.id,
