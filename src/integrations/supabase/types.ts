@@ -292,6 +292,7 @@ export type Database = {
           applied_at: string | null
           applied_calculation_id: string | null
           attachments: Json
+          case_id: string | null
           company_id: string | null
           created_at: string
           id: string
@@ -313,6 +314,7 @@ export type Database = {
           applied_at?: string | null
           applied_calculation_id?: string | null
           attachments?: Json
+          case_id?: string | null
           company_id?: string | null
           created_at?: string
           id?: string
@@ -334,6 +336,7 @@ export type Database = {
           applied_at?: string | null
           applied_calculation_id?: string | null
           attachments?: Json
+          case_id?: string | null
           company_id?: string | null
           created_at?: string
           id?: string
@@ -355,10 +358,70 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "calc_ai_drafts_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "calc_cases"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "calc_ai_drafts_package_id_fkey"
             columns: ["package_id"]
             isOneToOne: false
             referencedRelation: "calc_packages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      calc_cases: {
+        Row: {
+          company_id: string | null
+          created_at: string
+          created_by: string | null
+          customer_name: string | null
+          deleted_at: string | null
+          deleted_by: string | null
+          description: string | null
+          id: string
+          source_draft_id: string | null
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          company_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer_name?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          description?: string | null
+          id?: string
+          source_draft_id?: string | null
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer_name?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          description?: string | null
+          id?: string
+          source_draft_id?: string | null
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calc_cases_source_draft_id_fkey"
+            columns: ["source_draft_id"]
+            isOneToOne: false
+            referencedRelation: "calc_ai_drafts"
             referencedColumns: ["id"]
           },
         ]
@@ -1007,6 +1070,9 @@ export type Database = {
         Row: {
           ai_analysis: Json | null
           attachments: Json | null
+          case_id: string | null
+          case_sort_order: number | null
+          case_system_key: string | null
           company_id: string | null
           contact_person_id: string | null
           created_at: string
@@ -1044,6 +1110,9 @@ export type Database = {
         Insert: {
           ai_analysis?: Json | null
           attachments?: Json | null
+          case_id?: string | null
+          case_sort_order?: number | null
+          case_system_key?: string | null
           company_id?: string | null
           contact_person_id?: string | null
           created_at?: string
@@ -1081,6 +1150,9 @@ export type Database = {
         Update: {
           ai_analysis?: Json | null
           attachments?: Json | null
+          case_id?: string | null
+          case_sort_order?: number | null
+          case_system_key?: string | null
           company_id?: string | null
           contact_person_id?: string | null
           created_at?: string
@@ -1116,6 +1188,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "calculations_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "calc_cases"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "calculations_company_id_fkey"
             columns: ["company_id"]

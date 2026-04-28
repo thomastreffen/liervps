@@ -36,6 +36,7 @@ import CalcPackagePickerPage from "./pages/CalcPackagePickerPage";
 import CalcEngineNewRouter from "./pages/CalcEngineNewRouter";
 import CalcEngineEditorPage from "./pages/CalcEngineEditorPage";
 import CalcEngineDetailPage from "./pages/CalcEngineDetailPage";
+import CalcCaseDetailPage from "./pages/CalcCaseDetailPage";
 import CalcAiStartPage from "./pages/CalcAiStartPage";
 import CalcAiReviewPage from "./pages/CalcAiReviewPage";
 import Login from "./pages/Login";
@@ -299,7 +300,8 @@ const App = () => (
               <Route path="/sales/calc-engine/new/editor" element={<ProtectedRoute><CalcEngineNewRouter /></ProtectedRoute>} />
               <Route path="/sales/calc-engine/ai-start" element={<ProtectedRoute><CalcAiStartPage /></ProtectedRoute>} />
               <Route path="/sales/calc-engine/ai-review/:id" element={<ProtectedRoute><CalcAiReviewPage /></ProtectedRoute>} />
-              <Route path="/sales/calc-engine/:id" element={<ProtectedRoute><CalcEngineDetailPage /></ProtectedRoute>} />
+             <Route path="/sales/calc-engine/case/:id" element={<ProtectedRoute><CalcCaseDetailPage /></ProtectedRoute>} />
+             <Route path="/sales/calc-engine/:id" element={<ProtectedRoute><CalcEngineDetailPage /></ProtectedRoute>} />
 
 
               {/* Legacy calculation routes redirect */}
