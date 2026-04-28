@@ -8,9 +8,10 @@ import { Separator } from "@/components/ui/separator";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { ArrowLeft, Loader2, Layers, ExternalLink, Pencil } from "lucide-react";
-import { format } from "date-fns";
-import { nb } from "date-fns/locale";
+import { ArrowLeft, Loader2, Layers, ExternalLink, Pencil, Trash2 } from "lucide-react";
+import { useState } from "react";
+import { getStatusBadge, formatDateTime } from "@/lib/calc-engine/status-labels";
+import { DeleteCalcDialog, type DeleteTarget } from "@/components/calc-engine/DeleteCalcDialog";
 
 function formatNok(n: number): string {
   return new Intl.NumberFormat("nb-NO", { maximumFractionDigits: 0 }).format(n ?? 0);
