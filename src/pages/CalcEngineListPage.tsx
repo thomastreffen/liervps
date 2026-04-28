@@ -13,10 +13,11 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import {
-  Plus, Calculator, Loader2, Layers, Sparkles, Trash2, Settings2, FileText, ChevronRight,
+  Plus, Calculator, Loader2, Layers, Sparkles, Trash2, Settings2, FileText, ChevronRight, Sparkle,
 } from "lucide-react";
 import { getStatusBadge, formatDateTime } from "@/lib/calc-engine/status-labels";
 import { DeleteCalcDialog, type DeleteTarget } from "@/components/calc-engine/DeleteCalcDialog";
+import { toast } from "@/hooks/use-toast";
 
 interface CalcRow {
   id: string;
