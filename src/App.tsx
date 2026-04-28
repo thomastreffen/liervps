@@ -33,6 +33,7 @@ import CalculationDetail from "./pages/CalculationDetail";
 import NewCalculation from "./pages/NewCalculation";
 import CalcEngineListPage from "./pages/CalcEngineListPage";
 import CalcPackagePickerPage from "./pages/CalcPackagePickerPage";
+import CalcEngineNewRouter from "./pages/CalcEngineNewRouter";
 import CalcEngineEditorPage from "./pages/CalcEngineEditorPage";
 import CalcEngineDetailPage from "./pages/CalcEngineDetailPage";
 import Login from "./pages/Login";
