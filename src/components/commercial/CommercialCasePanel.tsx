@@ -61,13 +61,13 @@ export function CommercialCasePanel({ caseId, showOpenLink = true }: Props) {
   useEffect(() => {
     if (!activeCompanyId) return;
     (async () => {
-      const { data: techs } = await supabase
+      const { data: techs } = await (supabase as any)
         .from("technicians")
         .select("user_id, name")
         .eq("company_id", activeCompanyId)
         .not("user_id", "is", null)
         .order("name");
-      setOwners(((techs || []) as any[]).filter(t => t.user_id));
+      setOwners(((techs || []) as any[]).filter((t: any) => t.user_id));
     })();
   }, [activeCompanyId]);
 
