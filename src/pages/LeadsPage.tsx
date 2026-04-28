@@ -240,7 +240,7 @@ export default function LeadsPage() {
         <div className="flex items-center gap-2 ml-auto">
           <span className="text-xs text-muted-foreground">{filtered.length} henvendelser</span>
           {viewMode === "active" && (
-            <Button size="sm" onClick={() => { resetForm(); setDialogOpen(true); }} className="gap-1.5 h-9 rounded-xl">
+            <Button size="sm" onClick={() => navigate("/sales/leads/new")} className="gap-1.5 h-9 rounded-xl">
               <Plus className="h-3.5 w-3.5" /> Ny henvendelse
             </Button>
           )}
