@@ -102,6 +102,7 @@ export type Database = {
       activity_log: {
         Row: {
           action: string
+          commercial_case_id: string | null
           created_at: string
           description: string | null
           entity_id: string
@@ -117,6 +118,7 @@ export type Database = {
         }
         Insert: {
           action: string
+          commercial_case_id?: string | null
           created_at?: string
           description?: string | null
           entity_id: string
@@ -132,6 +134,7 @@ export type Database = {
         }
         Update: {
           action?: string
+          commercial_case_id?: string | null
           created_at?: string
           description?: string | null
           entity_id?: string
@@ -145,7 +148,15 @@ export type Database = {
           type?: string
           visibility?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "activity_log_commercial_case_id_fkey"
+            columns: ["commercial_case_id"]
+            isOneToOne: false
+            referencedRelation: "commercial_cases"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       ai_match_runs: {
         Row: {
@@ -375,6 +386,7 @@ export type Database = {
       }
       calc_cases: {
         Row: {
+          commercial_case_id: string | null
           company_id: string | null
           created_at: string
           created_by: string | null
@@ -389,6 +401,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          commercial_case_id?: string | null
           company_id?: string | null
           created_at?: string
           created_by?: string | null
@@ -403,6 +416,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          commercial_case_id?: string | null
           company_id?: string | null
           created_at?: string
           created_by?: string | null
@@ -417,6 +431,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "calc_cases_commercial_case_id_fkey"
+            columns: ["commercial_case_id"]
+            isOneToOne: false
+            referencedRelation: "commercial_cases"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "calc_cases_source_draft_id_fkey"
             columns: ["source_draft_id"]
@@ -1073,6 +1094,7 @@ export type Database = {
           case_id: string | null
           case_sort_order: number | null
           case_system_key: string | null
+          commercial_case_id: string | null
           company_id: string | null
           contact_person_id: string | null
           created_at: string
@@ -1113,6 +1135,7 @@ export type Database = {
           case_id?: string | null
           case_sort_order?: number | null
           case_system_key?: string | null
+          commercial_case_id?: string | null
           company_id?: string | null
           contact_person_id?: string | null
           created_at?: string
@@ -1153,6 +1176,7 @@ export type Database = {
           case_id?: string | null
           case_sort_order?: number | null
           case_system_key?: string | null
+          commercial_case_id?: string | null
           company_id?: string | null
           contact_person_id?: string | null
           created_at?: string
@@ -1193,6 +1217,13 @@ export type Database = {
             columns: ["case_id"]
             isOneToOne: false
             referencedRelation: "calc_cases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "calculations_commercial_case_id_fkey"
+            columns: ["commercial_case_id"]
+            isOneToOne: false
+            referencedRelation: "commercial_cases"
             referencedColumns: ["id"]
           },
           {
@@ -1645,6 +1676,108 @@ export type Database = {
             columns: ["work_order_id"]
             isOneToOne: false
             referencedRelation: "work_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      commercial_cases: {
+        Row: {
+          case_number: string | null
+          company_id: string
+          contact_person_id: string | null
+          created_at: string
+          created_by: string | null
+          customer_id: string | null
+          deleted_at: string | null
+          deleted_by: string | null
+          department_id: string | null
+          description: string | null
+          expected_close_date: string | null
+          id: string
+          lost_at: string | null
+          lost_reason: string | null
+          next_step: string | null
+          next_step_due_at: string | null
+          owner_user_id: string | null
+          phase: string
+          probability_pct: number | null
+          source: string | null
+          source_ref: string | null
+          tags: string[] | null
+          title: string
+          updated_at: string
+          value_estimate: number | null
+          won_at: string | null
+        }
+        Insert: {
+          case_number?: string | null
+          company_id: string
+          contact_person_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          department_id?: string | null
+          description?: string | null
+          expected_close_date?: string | null
+          id?: string
+          lost_at?: string | null
+          lost_reason?: string | null
+          next_step?: string | null
+          next_step_due_at?: string | null
+          owner_user_id?: string | null
+          phase?: string
+          probability_pct?: number | null
+          source?: string | null
+          source_ref?: string | null
+          tags?: string[] | null
+          title: string
+          updated_at?: string
+          value_estimate?: number | null
+          won_at?: string | null
+        }
+        Update: {
+          case_number?: string | null
+          company_id?: string
+          contact_person_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          department_id?: string | null
+          description?: string | null
+          expected_close_date?: string | null
+          id?: string
+          lost_at?: string | null
+          lost_reason?: string | null
+          next_step?: string | null
+          next_step_due_at?: string | null
+          owner_user_id?: string | null
+          phase?: string
+          probability_pct?: number | null
+          source?: string | null
+          source_ref?: string | null
+          tags?: string[] | null
+          title?: string
+          updated_at?: string
+          value_estimate?: number | null
+          won_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "commercial_cases_contact_person_id_fkey"
+            columns: ["contact_person_id"]
+            isOneToOne: false
+            referencedRelation: "customer_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "commercial_cases_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
             referencedColumns: ["id"]
           },
         ]
@@ -4028,6 +4161,7 @@ export type Database = {
           cancelled_by: string | null
           city: string | null
           client_request_id: string | null
+          commercial_case_id: string | null
           company_id: string | null
           contract_alert_count: number | null
           contract_risk_level: string | null
@@ -4112,6 +4246,7 @@ export type Database = {
           cancelled_by?: string | null
           city?: string | null
           client_request_id?: string | null
+          commercial_case_id?: string | null
           company_id?: string | null
           contract_alert_count?: number | null
           contract_risk_level?: string | null
@@ -4196,6 +4331,7 @@ export type Database = {
           cancelled_by?: string | null
           city?: string | null
           client_request_id?: string | null
+          commercial_case_id?: string | null
           company_id?: string | null
           contract_alert_count?: number | null
           contract_risk_level?: string | null
@@ -4267,6 +4403,13 @@ export type Database = {
             | null
         }
         Relationships: [
+          {
+            foreignKeyName: "events_commercial_case_id_fkey"
+            columns: ["commercial_case_id"]
+            isOneToOne: false
+            referencedRelation: "commercial_cases"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "events_company_id_fkey"
             columns: ["company_id"]
@@ -6013,6 +6156,7 @@ export type Database = {
           archived_at: string | null
           archived_by: string | null
           assigned_owner_user_id: string | null
+          commercial_case_id: string | null
           company_id: string | null
           company_name: string
           contact_name: string | null
@@ -6043,6 +6187,7 @@ export type Database = {
           archived_at?: string | null
           archived_by?: string | null
           assigned_owner_user_id?: string | null
+          commercial_case_id?: string | null
           company_id?: string | null
           company_name: string
           contact_name?: string | null
@@ -6073,6 +6218,7 @@ export type Database = {
           archived_at?: string | null
           archived_by?: string | null
           assigned_owner_user_id?: string | null
+          commercial_case_id?: string | null
           company_id?: string | null
           company_name?: string
           contact_name?: string | null
@@ -6100,6 +6246,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "leads_commercial_case_id_fkey"
+            columns: ["commercial_case_id"]
+            isOneToOne: false
+            referencedRelation: "commercial_cases"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "leads_company_id_fkey"
             columns: ["company_id"]
@@ -7316,6 +7469,7 @@ export type Database = {
           channel: string | null
           closed_at: string | null
           closed_by: string | null
+          commercial_case_id: string | null
           company_id: string
           confirmation_sent_at: string | null
           converted_to_id: string | null
@@ -7365,6 +7519,7 @@ export type Database = {
           channel?: string | null
           closed_at?: string | null
           closed_by?: string | null
+          commercial_case_id?: string | null
           company_id: string
           confirmation_sent_at?: string | null
           converted_to_id?: string | null
@@ -7414,6 +7569,7 @@ export type Database = {
           channel?: string | null
           closed_at?: string | null
           closed_by?: string | null
+          commercial_case_id?: string | null
           company_id?: string
           confirmation_sent_at?: string | null
           converted_to_id?: string | null
@@ -7457,6 +7613,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "order_form_submissions_commercial_case_id_fkey"
+            columns: ["commercial_case_id"]
+            isOneToOne: false
+            referencedRelation: "commercial_cases"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "order_form_submissions_company_id_fkey"
             columns: ["company_id"]
@@ -9959,6 +10122,7 @@ export type Database = {
       }
     }
     Functions: {
+      backfill_commercial_cases_for_active: { Args: never; Returns: Json }
       can_access_record: {
         Args: {
           _record_company_id: string
@@ -10041,6 +10205,7 @@ export type Database = {
           channel: string | null
           closed_at: string | null
           closed_by: string | null
+          commercial_case_id: string | null
           company_id: string
           confirmation_sent_at: string | null
           converted_to_id: string | null
