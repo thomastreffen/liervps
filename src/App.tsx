@@ -40,6 +40,8 @@ import CalcCaseDetailPage from "./pages/CalcCaseDetailPage";
 import CalcAiStartPage from "./pages/CalcAiStartPage";
 import CalcAiReviewPage from "./pages/CalcAiReviewPage";
 import CalcOfferFromCalcPage from "./pages/CalcOfferFromCalcPage";
+import SalesCasesListPage from "./pages/SalesCasesListPage";
+import SalesCaseDetailPage from "./pages/SalesCaseDetailPage";
 import Login from "./pages/Login";
 import AuthCallback from "./pages/AuthCallback";
 import NotFound from "./pages/NotFound";
@@ -304,6 +306,10 @@ const App = () => (
               <Route path="/sales/calc-engine/offer-from-calc" element={<ProtectedRoute><CalcOfferFromCalcPage /></ProtectedRoute>} />
              <Route path="/sales/calc-engine/case/:id" element={<ProtectedRoute><CalcCaseDetailPage /></ProtectedRoute>} />
              <Route path="/sales/calc-engine/:id" element={<ProtectedRoute><CalcEngineDetailPage /></ProtectedRoute>} />
+
+              {/* Commercial Cases (CRM-hjerte) */}
+              <Route path="/sales/cases" element={<ProtectedRoute requiredRoles={["admin", "super_admin"]}><SalesCasesListPage /></ProtectedRoute>} />
+              <Route path="/sales/cases/:id" element={<ProtectedRoute requiredRoles={["admin", "super_admin"]}><SalesCaseDetailPage /></ProtectedRoute>} />
 
 
               {/* Legacy calculation routes redirect */}
