@@ -1,12 +1,13 @@
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Plus, FileText, Target, BarChart3 } from "lucide-react";
+import { Plus, FileText, Target, BarChart3, Calculator } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const tabs = [
   { label: "Oversikt", url: "/sales", icon: BarChart3, exact: true },
   { label: "Leads", url: "/sales/leads", icon: Target },
   { label: "Tilbud", url: "/sales/offers", icon: FileText },
+  { label: "Kalkyler", url: "/sales/calc-engine", icon: Calculator },
 ];
 
 export function SalesHeader() {

@@ -18,6 +18,7 @@ import {
   BookOpen,
   CalendarOff,
   ClipboardList,
+  Calculator,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/hooks/useAuth";
@@ -256,8 +257,9 @@ export function AppSidebar() {
                          <SidebarMenu className="ml-5 mt-1 space-y-0.5 border-l border-sidebar-border/40 pl-2">
                            <NavItem item={{ title: "Oversikt", url: "/sales", icon: BarChart3 }} isActive={(url) => location.pathname === "/sales"} collapsed={collapsed} />
                            <NavItem item={{ title: "Leads", url: "/sales/leads", icon: Target }} isActive={isActive} collapsed={collapsed} />
-                           <NavItem item={{ title: "Tilbud", url: "/sales/offers", icon: FileText }} isActive={isActive} collapsed={collapsed} badge={offerCount > 0 ? offerCount : undefined} />
-                         </SidebarMenu>
+                            <NavItem item={{ title: "Tilbud", url: "/sales/offers", icon: FileText }} isActive={isActive} collapsed={collapsed} badge={offerCount > 0 ? offerCount : undefined} />
+                            <NavItem item={{ title: "Kalkyler", url: "/sales/calc-engine", icon: Calculator }} isActive={isActive} collapsed={collapsed} />
+                          </SidebarMenu>
                        </CollapsibleContent>
                      </Collapsible>
                    </SidebarMenuItem>
