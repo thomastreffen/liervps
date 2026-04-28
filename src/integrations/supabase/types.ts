@@ -241,6 +241,210 @@ export type Database = {
           },
         ]
       }
+      calc_ai_draft_messages: {
+        Row: {
+          attachments: Json
+          content: string
+          created_at: string
+          draft_id: string
+          id: string
+          metadata: Json
+          proposal_diff: Json | null
+          role: string
+        }
+        Insert: {
+          attachments?: Json
+          content: string
+          created_at?: string
+          draft_id: string
+          id?: string
+          metadata?: Json
+          proposal_diff?: Json | null
+          role: string
+        }
+        Update: {
+          attachments?: Json
+          content?: string
+          created_at?: string
+          draft_id?: string
+          id?: string
+          metadata?: Json
+          proposal_diff?: Json | null
+          role?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calc_ai_draft_messages_draft_id_fkey"
+            columns: ["draft_id"]
+            isOneToOne: false
+            referencedRelation: "calc_ai_drafts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      calc_ai_drafts: {
+        Row: {
+          ai_assumptions: string[]
+          ai_open_questions: string[]
+          ai_proposed_input: Json
+          ai_proposed_lines: Json
+          ai_summary: string | null
+          applied_at: string | null
+          applied_calculation_id: string | null
+          attachments: Json
+          company_id: string | null
+          created_at: string
+          id: string
+          initial_description: string | null
+          model_used: string | null
+          overall_confidence: number | null
+          package_id: string
+          status: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          ai_assumptions?: string[]
+          ai_open_questions?: string[]
+          ai_proposed_input?: Json
+          ai_proposed_lines?: Json
+          ai_summary?: string | null
+          applied_at?: string | null
+          applied_calculation_id?: string | null
+          attachments?: Json
+          company_id?: string | null
+          created_at?: string
+          id?: string
+          initial_description?: string | null
+          model_used?: string | null
+          overall_confidence?: number | null
+          package_id: string
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          ai_assumptions?: string[]
+          ai_open_questions?: string[]
+          ai_proposed_input?: Json
+          ai_proposed_lines?: Json
+          ai_summary?: string | null
+          applied_at?: string | null
+          applied_calculation_id?: string | null
+          attachments?: Json
+          company_id?: string | null
+          created_at?: string
+          id?: string
+          initial_description?: string | null
+          model_used?: string | null
+          overall_confidence?: number | null
+          package_id?: string
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calc_ai_drafts_applied_calculation_id_fkey"
+            columns: ["applied_calculation_id"]
+            isOneToOne: false
+            referencedRelation: "calculations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "calc_ai_drafts_package_id_fkey"
+            columns: ["package_id"]
+            isOneToOne: false
+            referencedRelation: "calc_packages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      calc_cost_prices: {
+        Row: {
+          company_id: string | null
+          component_id: string | null
+          cost_amount: number
+          created_at: string
+          created_by: string | null
+          currency: string
+          current_class: number | null
+          element_key: string | null
+          id: string
+          notes: string | null
+          recommended_sales_amount: number | null
+          series_id: string | null
+          source: string
+          unit: string
+          updated_at: string
+          valid_from: string
+          valid_to: string | null
+          vendor_id: string | null
+        }
+        Insert: {
+          company_id?: string | null
+          component_id?: string | null
+          cost_amount: number
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          current_class?: number | null
+          element_key?: string | null
+          id?: string
+          notes?: string | null
+          recommended_sales_amount?: number | null
+          series_id?: string | null
+          source?: string
+          unit?: string
+          updated_at?: string
+          valid_from?: string
+          valid_to?: string | null
+          vendor_id?: string | null
+        }
+        Update: {
+          company_id?: string | null
+          component_id?: string | null
+          cost_amount?: number
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          current_class?: number | null
+          element_key?: string | null
+          id?: string
+          notes?: string | null
+          recommended_sales_amount?: number | null
+          series_id?: string | null
+          source?: string
+          unit?: string
+          updated_at?: string
+          valid_from?: string
+          valid_to?: string | null
+          vendor_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calc_cost_prices_component_id_fkey"
+            columns: ["component_id"]
+            isOneToOne: false
+            referencedRelation: "calc_vendor_components"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "calc_cost_prices_series_id_fkey"
+            columns: ["series_id"]
+            isOneToOne: false
+            referencedRelation: "calc_vendor_series"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "calc_cost_prices_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "calc_vendors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       calc_norm_table_rows: {
         Row: {
           context: Json
@@ -529,6 +733,148 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      calc_vendor_components: {
+        Row: {
+          created_at: string
+          current_class: number | null
+          element_key: string
+          id: string
+          is_active: boolean
+          label: string
+          metadata: Json
+          series_id: string
+          unit: string
+          updated_at: string
+          vendor_part_number: string | null
+        }
+        Insert: {
+          created_at?: string
+          current_class?: number | null
+          element_key: string
+          id?: string
+          is_active?: boolean
+          label: string
+          metadata?: Json
+          series_id: string
+          unit?: string
+          updated_at?: string
+          vendor_part_number?: string | null
+        }
+        Update: {
+          created_at?: string
+          current_class?: number | null
+          element_key?: string
+          id?: string
+          is_active?: boolean
+          label?: string
+          metadata?: Json
+          series_id?: string
+          unit?: string
+          updated_at?: string
+          vendor_part_number?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calc_vendor_components_series_id_fkey"
+            columns: ["series_id"]
+            isOneToOne: false
+            referencedRelation: "calc_vendor_series"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      calc_vendor_series: {
+        Row: {
+          conductor_type: string | null
+          created_at: string
+          current_classes: number[]
+          finish: string | null
+          id: string
+          is_active: boolean
+          metadata: Json
+          name: string
+          slug: string
+          sort_order: number
+          updated_at: string
+          vendor_id: string
+        }
+        Insert: {
+          conductor_type?: string | null
+          created_at?: string
+          current_classes?: number[]
+          finish?: string | null
+          id?: string
+          is_active?: boolean
+          metadata?: Json
+          name: string
+          slug: string
+          sort_order?: number
+          updated_at?: string
+          vendor_id: string
+        }
+        Update: {
+          conductor_type?: string | null
+          created_at?: string
+          current_classes?: number[]
+          finish?: string | null
+          id?: string
+          is_active?: boolean
+          metadata?: Json
+          name?: string
+          slug?: string
+          sort_order?: number
+          updated_at?: string
+          vendor_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calc_vendor_series_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "calc_vendors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      calc_vendors: {
+        Row: {
+          category: string
+          company_id: string | null
+          created_at: string
+          id: string
+          is_active: boolean
+          metadata: Json
+          name: string
+          slug: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          category?: string
+          company_id?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          metadata?: Json
+          name: string
+          slug: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          company_id?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          metadata?: Json
+          name?: string
+          slug?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
       }
       calculation_items: {
         Row: {
