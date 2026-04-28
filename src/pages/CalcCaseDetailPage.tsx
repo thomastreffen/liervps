@@ -11,7 +11,6 @@ import {
 import { ArrowLeft, Loader2, Layers, ExternalLink, Pencil, Trash2, FileText } from "lucide-react";
 import { getStatusBadge, formatDateTime } from "@/lib/calc-engine/status-labels";
 import { DeleteCalcDialog, type DeleteTarget } from "@/components/calc-engine/DeleteCalcDialog";
-import { CreateOfferFromCalcDialog } from "@/components/calc-engine/CreateOfferFromCalcDialog";
 
 function formatNok(n: number): string {
   return new Intl.NumberFormat("nb-NO", { maximumFractionDigits: 0 }).format(n ?? 0);
@@ -37,7 +36,6 @@ export default function CalcCaseDetailPage() {
   const [subs, setSubs] = useState<SubCalc[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
-  const [offerDialogOpen, setOfferDialogOpen] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -99,7 +97,7 @@ export default function CalcCaseDetailPage() {
         <Button
           size="sm"
           className="rounded-xl gap-1.5"
-          onClick={() => setOfferDialogOpen(true)}
+          onClick={() => navigate(`/sales/calc-engine/offer-from-calc?case=${caseRow.id}`)}
           disabled={subs.length === 0}
         >
           <FileText className="h-3.5 w-3.5" /> Opprett tilbud
@@ -225,24 +223,6 @@ export default function CalcCaseDetailPage() {
         onDeleted={() => navigate("/sales/calc-engine")}
       />
 
-      <CreateOfferFromCalcDialog
-        open={offerDialogOpen}
-        onClose={() => setOfferDialogOpen(false)}
-        source={{
-          kind: "case",
-          caseId: caseRow.id,
-          caseTitle: caseRow.title,
-          caseDescription: caseRow.description,
-          customerName: caseRow.customer_name,
-          calcs: subs.map((s) => ({
-            id: s.id,
-            project_title: s.project_title,
-            case_system_key: s.case_system_key,
-            totals_snapshot: s.totals_snapshot,
-            total_price: s.total_price,
-          })),
-        }}
-      />
     </div>
   );
 }

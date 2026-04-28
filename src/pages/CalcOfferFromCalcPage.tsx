@@ -1,12 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useCompanyContext } from "@/hooks/useCompanyContext";
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
-} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -14,35 +12,21 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, FileText, Trash2, Plus, ArrowRight } from "lucide-react";
+import { ArrowLeft, Loader2, FileText, Trash2, Plus, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 
 /**
- * Bro mellom kalkylesak/enkeltkalkyle og tilbud.
- * - Velg struktur (én post per delkalkyle / én samlet)
- * - Velg hva som skal med i beskrivelsen
- * - Juster pris (avrunding / kommersielt påslag / manuell)
- * - Opprett tilbudsutkast (skriver til calculations + order_lines)
- *
- * Eksponerer ALDRI kost, DG, normtid eller AI-confidence til tilbudet.
+ * Egen side (ikke modal) for å bygge tilbud fra kalkylesak eller enkeltkalkyle.
+ * Modaler skal ikke brukes til hovedflyter — denne flyten har valg, redigering,
+ * preview og kvalitetssikring og fortjener en egen arbeidsflate.
  */
 
-export interface OfferSourceCalc {
+interface SourceCalc {
   id: string;
   project_title: string;
   case_system_key: string | null;
   totals_snapshot: any;
   total_price: number;
-  description?: string | null;
-}
-
-export interface OfferSourceContext {
-  kind: "case" | "calculation";
-  caseId?: string;
-  caseTitle?: string;
-  caseDescription?: string | null;
-  customerName?: string | null;
-  calcs: OfferSourceCalc[]; // For "calculation": single entry. For "case": all subs.
 }
 
 interface DraftLine {
@@ -53,12 +37,6 @@ interface DraftLine {
   unit_price: number;
   source_calc_id: string | null;
   system_key: string | null;
-}
-
-interface Props {
-  open: boolean;
-  onClose: () => void;
-  source: OfferSourceContext | null;
 }
 
 type Structure = "per_subcalc" | "single";
@@ -79,14 +57,24 @@ function formatNok(n: number): string {
   return new Intl.NumberFormat("nb-NO", { maximumFractionDigits: 0 }).format(n ?? 0);
 }
 
-export function CreateOfferFromCalcDialog({ open, onClose, source }: Props) {
+export default function CalcOfferFromCalcPage() {
   const navigate = useNavigate();
+  const [params] = useSearchParams();
   const { user } = useAuth();
   const { activeCompanyId } = useCompanyContext();
 
-  const isMulti = (source?.calcs.length ?? 0) > 1;
+  const caseId = params.get("case");
+  const calcId = params.get("calc");
+  const kind: "case" | "calculation" | null = caseId ? "case" : calcId ? "calculation" : null;
 
-  const [structure, setStructure] = useState<Structure>("per_subcalc");
+  const [loading, setLoading] = useState(true);
+  const [caseTitle, setCaseTitle] = useState<string | null>(null);
+  const [customerName, setCustomerName] = useState<string | null>(null);
+  const [calcs, setCalcs] = useState<SourceCalc[]>([]);
+
+  const isMulti = calcs.length > 1;
+
+  const [structure, setStructure] = useState<Structure>("single");
   const [includeSummary, setIncludeSummary] = useState(true);
   const [includeScope, setIncludeScope] = useState(true);
   const [includeSubtotals, setIncludeSubtotals] = useState(true);
@@ -98,21 +86,57 @@ export function CreateOfferFromCalcDialog({ open, onClose, source }: Props) {
   const [descriptionDraft, setDescriptionDraft] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  // Reset / regenerate when source or structure changes
+  // Load source
   useEffect(() => {
-    if (!open || !source) return;
+    (async () => {
+      if (!kind) {
+        setLoading(false);
+        return;
+      }
+      setLoading(true);
+      try {
+        if (kind === "case" && caseId) {
+          const [c, s] = await Promise.all([
+            supabase.from("calc_cases").select("id, title, customer_name").eq("id", caseId).maybeSingle(),
+            supabase
+              .from("calculations")
+              .select("id, project_title, case_system_key, totals_snapshot, total_price, case_sort_order")
+              .eq("case_id", caseId)
+              .is("deleted_at", null)
+              .order("case_sort_order"),
+          ]);
+          setCaseTitle(c.data?.title ?? null);
+          setCustomerName(c.data?.customer_name ?? null);
+          setCalcs((s.data ?? []) as any);
+          setStructure((s.data ?? []).length > 1 ? "per_subcalc" : "single");
+        } else if (kind === "calculation" && calcId) {
+          const { data } = await supabase
+            .from("calculations")
+            .select("id, project_title, customer_name, case_system_key, totals_snapshot, total_price")
+            .eq("id", calcId)
+            .maybeSingle();
+          if (data) {
+            setCustomerName(data.customer_name ?? null);
+            setCalcs([{
+              id: data.id,
+              project_title: data.project_title,
+              case_system_key: data.case_system_key,
+              totals_snapshot: data.totals_snapshot,
+              total_price: data.total_price,
+            }]);
+          }
+          setStructure("single");
+        }
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [kind, caseId, calcId]);
 
-    // Default structure: single calc -> single, multi -> per_subcalc
-    setStructure(isMulti ? "per_subcalc" : "single");
-  }, [open, source, isMulti]);
-
-  // Generate lines whenever structure / pricing changes
+  // Generate lines on changes
   useEffect(() => {
-    if (!source) return;
-
-    const calcs = source.calcs;
+    if (calcs.length === 0) return;
     let generated: DraftLine[] = [];
-
     if (structure === "per_subcalc") {
       generated = calcs.map((c) => {
         const base = Number(c.totals_snapshot?.total_sales ?? c.total_price ?? 0);
@@ -130,14 +154,13 @@ export function CreateOfferFromCalcDialog({ open, onClose, source }: Props) {
         };
       });
     } else {
-      // single line
       const total = calcs.reduce(
         (sum, c) => sum + Number(c.totals_snapshot?.total_sales ?? c.total_price ?? 0),
         0,
       );
       const withMarkup = total * (1 + (markupPct || 0) / 100);
       const final = roundPrice(withMarkup, Number(roundingStep));
-      const title = source.caseTitle ?? calcs[0]?.project_title ?? "Tilbud";
+      const title = caseTitle ?? calcs[0]?.project_title ?? "Tilbud";
       generated = [{
         id: crypto.randomUUID(),
         description: title,
@@ -148,18 +171,16 @@ export function CreateOfferFromCalcDialog({ open, onClose, source }: Props) {
         system_key: null,
       }];
     }
-
     setLines(generated);
-  }, [source, structure, markupPct, roundingStep]);
+  }, [calcs, structure, markupPct, roundingStep, caseTitle]);
 
   // Build description draft
   useEffect(() => {
-    if (!source) return;
+    if (calcs.length === 0) return;
     const parts: string[] = [];
-    const calcs = source.calcs;
 
     if (includeSummary) {
-      if (isMulti && source.caseTitle) {
+      if (isMulti && caseTitle) {
         const systems = calcs
           .map((c) => `${c.case_system_key ?? ""} ${c.project_title}`.trim())
           .filter(Boolean)
@@ -169,7 +190,6 @@ export function CreateOfferFromCalcDialog({ open, onClose, source }: Props) {
         parts.push(`Tilbud gjelder ${calcs[0].project_title}.`);
       }
     }
-
     if (includeScope) {
       parts.push("\nOmfang / leveranse:");
       calcs.forEach((c) => {
@@ -177,7 +197,6 @@ export function CreateOfferFromCalcDialog({ open, onClose, source }: Props) {
         parts.push(`• Montasje av ${sys}${c.project_title} iht. kalkylegrunnlag og tilhørende underlag.`);
       });
     }
-
     if (includeSubtotals && isMulti) {
       parts.push("\nDelsummer per system:");
       calcs.forEach((c) => {
@@ -185,7 +204,6 @@ export function CreateOfferFromCalcDialog({ open, onClose, source }: Props) {
         parts.push(`• ${c.case_system_key ?? "—"} ${c.project_title}: kr ${formatNok(base)}`);
       });
     }
-
     if (includeAssumptions) {
       parts.push(
         "\nForutsetninger:",
@@ -194,7 +212,6 @@ export function CreateOfferFromCalcDialog({ open, onClose, source }: Props) {
         "• Strøm, lys og oppvarming på arbeidsstedet stilles av kunde.",
       );
     }
-
     if (includeExclusions) {
       parts.push(
         "\nIkke inkludert:",
@@ -203,74 +220,57 @@ export function CreateOfferFromCalcDialog({ open, onClose, source }: Props) {
         "• Ventetid eller endringer som ikke er beskrevet i underlaget.",
       );
     }
-
     setDescriptionDraft(parts.join("\n"));
-  }, [source, isMulti, includeSummary, includeScope, includeSubtotals, includeAssumptions, includeExclusions]);
+  }, [calcs, isMulti, caseTitle, includeSummary, includeScope, includeSubtotals, includeAssumptions, includeExclusions]);
 
   const totalsPreview = useMemo(() => {
     const ex = lines.reduce((s, l) => s + l.quantity * l.unit_price, 0);
     return { ex, inc: ex * 1.25 };
   }, [lines]);
 
-  const updateLine = (id: string, patch: Partial<DraftLine>) => {
+  const updateLine = (id: string, patch: Partial<DraftLine>) =>
     setLines((prev) => prev.map((l) => (l.id === id ? { ...l, ...patch } : l)));
-  };
-
-  const removeLine = (id: string) => {
-    setLines((prev) => prev.filter((l) => l.id !== id));
-  };
-
-  const addLine = () => {
+  const removeLine = (id: string) => setLines((prev) => prev.filter((l) => l.id !== id));
+  const addLine = () =>
     setLines((prev) => [
       ...prev,
-      {
-        id: crypto.randomUUID(),
-        description: "Ny linje",
-        quantity: 1,
-        unit: "stk",
-        unit_price: 0,
-        source_calc_id: null,
-        system_key: null,
-      },
+      { id: crypto.randomUUID(), description: "Ny linje", quantity: 1, unit: "stk", unit_price: 0, source_calc_id: null, system_key: null },
     ]);
+
+  const goBack = () => {
+    if (caseId) navigate(`/sales/calc-engine/case/${caseId}`);
+    else if (calcId) navigate(`/sales/calc-engine/${calcId}`);
+    else navigate("/sales/calc-engine");
   };
 
   const handleCreate = async () => {
-    if (!user || !source) return;
+    if (!user) return;
     if (lines.length === 0) {
       toast.error("Tilbudet må ha minst én linje");
       return;
     }
-
     setSubmitting(true);
     try {
-      const sourceRefIds = source.calcs.map((c) => c.id);
-      const sourceTag = source.kind === "case"
-        ? `[Kilde: kalkylesak ${source.caseId}]`
-        : `[Kilde: kalkyle ${sourceRefIds[0]}]`;
-
-      const offerTitle = source.caseTitle
-        ?? source.calcs[0]?.project_title
-        ?? "Tilbud fra kalkyle";
-
-      const calcPayload: any = {
-        project_title: offerTitle,
-        customer_name: source.customerName ?? "Ukjent kunde",
-        description: `${descriptionDraft}\n\n${sourceTag}`,
-        total_price: totalsPreview.ex,
-        total_material: 0,
-        total_labor: 0,
-        company_id: activeCompanyId || null,
-        created_by: user.id,
-        status: "draft",
-      };
+      const sourceTag = kind === "case"
+        ? `[Kilde: kalkylesak ${caseId}]`
+        : `[Kilde: kalkyle ${calcs[0]?.id}]`;
+      const offerTitle = caseTitle ?? calcs[0]?.project_title ?? "Tilbud fra kalkyle";
 
       const { data: created, error: insertErr } = await supabase
         .from("calculations")
-        .insert(calcPayload)
+        .insert({
+          project_title: offerTitle,
+          customer_name: customerName ?? "Ukjent kunde",
+          description: `${descriptionDraft}\n\n${sourceTag}`,
+          total_price: totalsPreview.ex,
+          total_material: 0,
+          total_labor: 0,
+          company_id: activeCompanyId || null,
+          created_by: user.id,
+          status: "draft",
+        })
         .select("id")
         .single();
-
       if (insertErr || !created) throw insertErr ?? new Error("Kunne ikke opprette tilbud");
 
       const linePayloads = lines.map((l, idx) => ({
@@ -285,12 +285,10 @@ export function CreateOfferFromCalcDialog({ open, onClose, source }: Props) {
         vat_rate: 25,
         suggested_by_ai: false,
       }));
-
       const { error: linesErr } = await supabase.from("order_lines").insert(linePayloads);
       if (linesErr) throw linesErr;
 
       toast.success("Tilbudsutkast opprettet");
-      onClose();
       navigate(`/sales/offers/${created.id}`);
     } catch (err: any) {
       toast.error("Feil ved opprettelse: " + (err.message || "Ukjent"));
@@ -299,25 +297,53 @@ export function CreateOfferFromCalcDialog({ open, onClose, source }: Props) {
     }
   };
 
-  if (!source) return null;
+  if (!kind) {
+    return (
+      <div className="p-8 text-center text-sm text-muted-foreground">
+        Mangler kilde. Åpne fra en kalkylesak eller kalkyle.
+      </div>
+    );
+  }
+  if (loading) {
+    return <div className="flex justify-center py-24"><Loader2 className="h-6 w-6 animate-spin" /></div>;
+  }
+  if (calcs.length === 0) {
+    return <div className="p-8 text-center text-sm text-muted-foreground">Fant ingen kalkyledata.</div>;
+  }
 
   return (
-    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto rounded-2xl">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <FileText className="h-5 w-5 text-primary" />
-            Opprett tilbud fra kalkyle
-          </DialogTitle>
-          <DialogDescription>
-            Lag et kundevendt tilbud basert på kalkylegrunnlaget. Interne tall som kost, normtid og DG tas ikke med.
-          </DialogDescription>
-        </DialogHeader>
+    <div className="p-4 sm:p-6 lg:p-8 max-w-[1400px] mx-auto space-y-5">
+      <div className="flex items-center gap-3">
+        <Button variant="ghost" size="icon" onClick={goBack} className="rounded-xl">
+          <ArrowLeft className="h-5 w-5" />
+        </Button>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <FileText className="h-4 w-4 text-primary" />
+            <Badge variant="outline" className="rounded-lg text-[10px] uppercase tracking-wide">
+              {kind === "case" ? "Tilbud fra kalkylesak" : "Tilbud fra kalkyle"}
+            </Badge>
+          </div>
+          <h1 className="text-xl sm:text-2xl font-semibold tracking-tight truncate mt-1">
+            {caseTitle ?? calcs[0]?.project_title}
+          </h1>
+          <p className="text-xs text-muted-foreground">
+            {customerName ?? "Ukjent kunde"} • {calcs.length} kalkyle{calcs.length === 1 ? "" : "r"} som grunnlag
+          </p>
+        </div>
+        <Button variant="ghost" onClick={goBack} disabled={submitting} className="rounded-xl">
+          Avbryt
+        </Button>
+        <Button onClick={handleCreate} disabled={submitting} className="rounded-xl gap-1.5">
+          {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
+          Opprett tilbudsutkast
+        </Button>
+      </div>
 
-        <div className="space-y-6 py-2">
-          {/* Structure */}
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-5">
+        <div className="space-y-5">
           {isMulti && (
-            <section className="space-y-3">
+            <Card className="p-5 rounded-2xl space-y-3">
               <Label className="text-sm font-semibold">Struktur</Label>
               <RadioGroup value={structure} onValueChange={(v) => setStructure(v as Structure)}>
                 <div className="flex items-start gap-2 p-3 rounded-lg border hover:bg-muted/40 cursor-pointer">
@@ -335,11 +361,10 @@ export function CreateOfferFromCalcDialog({ open, onClose, source }: Props) {
                   </label>
                 </div>
               </RadioGroup>
-            </section>
+            </Card>
           )}
 
-          {/* Description toggles */}
-          <section className="space-y-3">
+          <Card className="p-5 rounded-2xl space-y-3">
             <Label className="text-sm font-semibold">Innhold i tilbudsbeskrivelsen</Label>
             <div className="grid grid-cols-2 gap-2 text-sm">
               <label className="flex items-center gap-2 cursor-pointer">
@@ -365,10 +390,9 @@ export function CreateOfferFromCalcDialog({ open, onClose, source }: Props) {
                 <span>Ikke inkludert</span>
               </label>
             </div>
-          </section>
+          </Card>
 
-          {/* Pricing */}
-          <section className="space-y-3">
+          <Card className="p-5 rounded-2xl space-y-3">
             <Label className="text-sm font-semibold">Prisgrunnlag</Label>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
@@ -396,19 +420,15 @@ export function CreateOfferFromCalcDialog({ open, onClose, source }: Props) {
             <p className="text-xs text-muted-foreground">
               Du kan også overstyre pris pr. linje i forhåndsvisningen under.
             </p>
-          </section>
+          </Card>
 
-          <Separator />
-
-          {/* Preview & edit lines */}
-          <section className="space-y-3">
+          <Card className="p-5 rounded-2xl space-y-3">
             <div className="flex items-center justify-between">
               <Label className="text-sm font-semibold">Forhåndsvisning av tilbudslinjer</Label>
               <Button size="sm" variant="outline" onClick={addLine} className="rounded-lg gap-1.5 h-8">
                 <Plus className="h-3.5 w-3.5" /> Legg til linje
               </Button>
             </div>
-
             <div className="space-y-2">
               {lines.map((l) => (
                 <div key={l.id} className="grid grid-cols-[1fr_80px_60px_120px_36px] gap-2 items-start p-2 rounded-lg border bg-card">
@@ -450,35 +470,49 @@ export function CreateOfferFromCalcDialog({ open, onClose, source }: Props) {
                 </div>
               ))}
             </div>
+          </Card>
 
-            <div className="flex justify-end gap-6 text-sm pr-12 pt-2">
-              <div className="text-muted-foreground">Sum eks. mva:</div>
-              <div className="font-mono font-semibold">kr {formatNok(totalsPreview.ex)}</div>
-            </div>
-          </section>
-
-          <Separator />
-
-          {/* Description preview */}
-          <section className="space-y-2">
+          <Card className="p-5 rounded-2xl space-y-2">
             <Label className="text-sm font-semibold">Tilbudsbeskrivelse (redigerbar)</Label>
             <Textarea
               value={descriptionDraft}
               onChange={(e) => setDescriptionDraft(e.target.value)}
-              rows={10}
+              rows={12}
               className="text-sm font-mono"
             />
-          </section>
+          </Card>
         </div>
 
-        <DialogFooter>
-          <Button variant="ghost" onClick={onClose} disabled={submitting}>Avbryt</Button>
-          <Button onClick={handleCreate} disabled={submitting} className="rounded-xl gap-1.5">
-            {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
-            Opprett tilbudsutkast
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        <div className="space-y-4">
+          <Card className="p-5 rounded-2xl bg-gradient-to-br from-primary-soft/40 to-transparent sticky top-4">
+            <div className="text-xs uppercase tracking-wide text-muted-foreground mb-1">Sum eks. mva</div>
+            <div className="text-3xl font-semibold tracking-tight">kr {formatNok(totalsPreview.ex)}</div>
+            <Separator className="my-4" />
+            <dl className="space-y-2 text-sm">
+              <div className="flex justify-between">
+                <dt className="text-muted-foreground">Antall linjer</dt>
+                <dd className="font-mono">{lines.length}</dd>
+              </div>
+              <div className="flex justify-between">
+                <dt className="text-muted-foreground">Sum inkl. mva (25%)</dt>
+                <dd className="font-mono">kr {formatNok(totalsPreview.inc)}</dd>
+              </div>
+            </dl>
+            <Separator className="my-4" />
+            <Button
+              onClick={handleCreate}
+              disabled={submitting}
+              className="w-full rounded-xl gap-1.5"
+            >
+              {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
+              Opprett tilbudsutkast
+            </Button>
+            <p className="text-[11px] text-muted-foreground mt-3 text-center">
+              Kost, normtid og DG eksponeres aldri i tilbudet.
+            </p>
+          </Card>
+        </div>
+      </div>
+    </div>
   );
 }
