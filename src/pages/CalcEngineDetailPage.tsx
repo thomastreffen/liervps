@@ -29,7 +29,7 @@ export default function CalcEngineDetailPage() {
       setLoading(true);
       const [c, l] = await Promise.all([
         supabase.from("calculations")
-          .select("*, calc_packages(name, slug, version), calc_rate_tables(name, version), calc_norm_tables(name, version)")
+          .select("*, calc_packages(name, slug, version), calc_rate_tables(name, version), calc_norm_tables(name, version), calc_cases(id, title)")
           .eq("id", id).maybeSingle(),
         supabase.from("calculation_lines").select("*").eq("calculation_id", id).order("sort_order"),
       ]);
