@@ -9998,6 +9998,7 @@ export type Database = {
         }
         Returns: Json
       }
+      cleanup_empty_calculations: { Args: never; Returns: Json }
       event_technician_company_access: {
         Args: { _auth_user_id: string; _event_id: string }
         Returns: boolean
