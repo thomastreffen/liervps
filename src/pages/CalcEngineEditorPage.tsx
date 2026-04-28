@@ -6,6 +6,7 @@ import { useCompanyContext } from "@/hooks/useCompanyContext";
 import { useAuth } from "@/hooks/useAuth";
 import { getEvaluator } from "@/lib/calc-engine/registry";
 import type { CalcResult, PackageField } from "@/lib/calc-engine/types";
+import { suggestProjectTitle } from "@/lib/calc-engine/display";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
