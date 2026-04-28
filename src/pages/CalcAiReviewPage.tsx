@@ -15,6 +15,7 @@ import {
   FileType2, AlertTriangle, HelpCircle, CheckCircle2, Upload, ArrowRight,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { displayFieldValue, isMissingValue } from "@/lib/calc-engine/display";
 
 function confidenceColor(c: number): string {
   if (c >= 80) return "bg-emerald-500";
@@ -312,9 +313,9 @@ export default function CalcAiReviewPage() {
                                   {conf}%
                                 </Badge>
                               </div>
-                              <div className="text-sm font-semibold mb-1 break-words">
-                                {p.value === true ? "Ja" : p.value === false ? "Nei" : String(p.value ?? "—")}
-                                {f?.unit && <span className="text-xs text-muted-foreground font-normal ml-1">{f.unit}</span>}
+                              <div className={`text-sm font-semibold mb-1 break-words ${isMissingValue(p.value) ? "text-amber-600 dark:text-amber-400 italic" : ""}`}>
+                                {displayFieldValue(f, p.value)}
+                                {!isMissingValue(p.value) && f?.unit && <span className="text-xs text-muted-foreground font-normal ml-1">{f.unit}</span>}
                               </div>
                               {p.reason && (
                                 <p className="text-[11px] text-muted-foreground/80 leading-snug">{p.reason}</p>

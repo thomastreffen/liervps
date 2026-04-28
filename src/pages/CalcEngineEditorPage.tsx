@@ -6,6 +6,7 @@ import { useCompanyContext } from "@/hooks/useCompanyContext";
 import { useAuth } from "@/hooks/useAuth";
 import { getEvaluator } from "@/lib/calc-engine/registry";
 import type { CalcResult, PackageField } from "@/lib/calc-engine/types";
+import { suggestProjectTitle } from "@/lib/calc-engine/display";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -162,12 +163,14 @@ export default function CalcEngineEditorPage() {
         }
         setInputState(init);
         setAiPrefilledKeys(prefilled);
-        const sysName = sys?.name ? ` — ${sys.name}` : "";
-        if (draft?.initial_description) {
-          setTitle((draft.initial_description.slice(0, 60) + sysName).slice(0, 80));
-        } else if (sys?.name) {
-          setTitle(sys.name);
-        }
+        // Smart tittelforslag: Pakke — System (Leverandør, klasse, lengde)
+        setTitle(suggestProjectTitle({
+          packageName: pkg?.name,
+          systemName: sys?.name,
+          initialDescription: draft?.initial_description,
+          inputs: init,
+          fields,
+        }));
         setHydrated(true);
         return;
       }
@@ -505,19 +508,40 @@ export default function CalcEngineEditorPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {result.lines.map((l, i) => (
-                      <TableRow key={i}>
-                        <TableCell>
-                          <div className="font-medium text-sm">{l.description}</div>
-                          {l.source_ref && <div className="text-[10px] text-muted-foreground/60">{l.source_ref}</div>}
-                        </TableCell>
-                        <TableCell className="text-right font-mono text-xs">{l.qty} {l.unit}</TableCell>
-                        <TableCell className="text-right font-mono text-xs">{l.norm_hours} t</TableCell>
-                        <TableCell className="text-right font-mono text-xs">{l.adjusted_hours} t</TableCell>
-                        <TableCell className="text-right font-mono text-xs">{formatNok(l.cost_amount)}</TableCell>
-                        <TableCell className="text-right font-mono text-sm font-semibold">{formatNok(l.sales_amount)}</TableCell>
-                      </TableRow>
-                    ))}
+                    {result.lines.map((l, i) => {
+                      const meta = (l.metadata ?? {}) as Record<string, any>;
+                      const driverKey = meta.input_key ?? l.line_key;
+                      let badge: { label: string; cls: string } | null = null;
+                      if (l.source_type === "manual") {
+                        badge = { label: "Manuelt", cls: "border-primary/40 text-primary" };
+                      } else if (l.source_type === "adjustment") {
+                        badge = { label: "Justering", cls: "border-amber-500/40 text-amber-600 dark:text-amber-400" };
+                      } else if (driverKey && aiPrefilledKeys.has(driverKey)) {
+                        badge = { label: "AI", cls: "border-violet-500/40 text-violet-600 dark:text-violet-400" };
+                      } else {
+                        badge = { label: "Beregnet", cls: "border-border text-muted-foreground" };
+                      }
+                      return (
+                        <TableRow key={i}>
+                          <TableCell>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-medium text-sm">{l.description}</span>
+                              {badge && (
+                                <Badge variant="outline" className={`rounded-md text-[9px] px-1.5 py-0 ${badge.cls}`}>
+                                  {badge.label}
+                                </Badge>
+                              )}
+                            </div>
+                            {l.source_ref && <div className="text-[10px] text-muted-foreground/60">{l.source_ref}</div>}
+                          </TableCell>
+                          <TableCell className="text-right font-mono text-xs">{l.qty} {l.unit}</TableCell>
+                          <TableCell className="text-right font-mono text-xs">{l.norm_hours} t</TableCell>
+                          <TableCell className="text-right font-mono text-xs">{l.adjusted_hours} t</TableCell>
+                          <TableCell className="text-right font-mono text-xs">{formatNok(l.cost_amount)}</TableCell>
+                          <TableCell className="text-right font-mono text-sm font-semibold">{formatNok(l.sales_amount)}</TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </div>
