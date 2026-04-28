@@ -134,9 +134,16 @@ export default function CalcAiReviewPage() {
     (s, sys) => s + Object.keys(sys.proposed_input ?? {}).length, 0,
   );
 
+  const sysMap = (draft.system_calculation_map ?? {}) as Record<string, string>;
+  const appliedCount = systems.filter((_, i) => sysMap[String(i)]).length;
+
   const isAnalyzing = analyzing || draft.status === "analyzing";
   const statusMeta = (() => {
     if (isAnalyzing) return { label: "Analyserer", color: "bg-amber-500" };
+    if (systems.length > 0 && appliedCount > 0 && appliedCount < systems.length) {
+      return { label: `Delvis brukt (${appliedCount}/${systems.length})`, color: "bg-primary" };
+    }
+    if (systems.length > 0 && appliedCount === systems.length) return { label: "Brukt i editor", color: "bg-primary" };
     if (draft.status === "ready") return { label: "Analysert", color: "bg-emerald-500" };
     if (draft.status === "applied") return { label: "Brukt i editor", color: "bg-primary" };
     if (draft.status === "discarded") return { label: "Forkastet", color: "bg-muted-foreground" };
