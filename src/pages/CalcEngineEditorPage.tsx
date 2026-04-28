@@ -274,8 +274,25 @@ export default function CalcEngineEditorPage() {
         setCalculationId(calcId);
 
         if (fromDraftId) {
+          // Hent gjeldende map + systems for å oppdatere uten å overskrive andre systemer
+          const { data: d2 } = await supabase
+            .from("calc_ai_drafts")
+            .select("system_calculation_map, ai_proposed_lines")
+            .eq("id", fromDraftId)
+            .maybeSingle();
+          const currentMap = ((d2?.system_calculation_map ?? {}) as Record<string, string>);
+          const newMap = { ...currentMap, [String(systemIndex)]: calcId! };
+          const totalSystems = Array.isArray(d2?.ai_proposed_lines) ? (d2!.ai_proposed_lines as any[]).length : 1;
+          const allApplied = Object.keys(newMap).length >= Math.max(totalSystems, 1);
+
           await supabase.from("calc_ai_drafts")
-            .update({ applied_calculation_id: calcId, status: "applied", applied_at: new Date().toISOString() })
+            .update({
+              system_calculation_map: newMap as any,
+              // Behold første system som applied_calculation_id for bakoverkompatibilitet
+              applied_calculation_id: newMap["0"] ?? calcId!,
+              status: allApplied ? "applied" : "ready",
+              applied_at: allApplied ? new Date().toISOString() : null,
+            })
             .eq("id", fromDraftId);
         }
       } else {
