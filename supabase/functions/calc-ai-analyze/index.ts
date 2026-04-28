@@ -4,6 +4,7 @@
 // med strukturert forslag (input + linjer + confidence).
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { encodeBase64 } from "https://deno.land/std@0.224.0/encoding/base64.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -74,6 +75,8 @@ const TOOL = {
   },
 };
 
+const MAX_INLINE_BYTES = 18 * 1024 * 1024; // ~18 MB safety limit per file
+
 async function buildAttachmentParts(
   supabase: ReturnType<typeof createClient>,
   attachments: any[],
@@ -81,22 +84,32 @@ async function buildAttachmentParts(
   const parts: any[] = [];
   for (const att of attachments ?? []) {
     if (!att.path) continue;
+    const mime = att.mime_type ?? "application/octet-stream";
+    if (!mime.startsWith("image/") && mime !== "application/pdf") {
+      console.log("[calc-ai-analyze] skipping unsupported mime", mime);
+      continue;
+    }
     try {
       const { data, error } = await supabase.storage
         .from(att.bucket ?? "calc-ai-drafts")
-        .createSignedUrl(att.path, 600);
-      if (error || !data) continue;
-      const mime = att.mime_type ?? "application/octet-stream";
-      // For images and PDFs we send as image_url so Gemini multimodal kan se det
-      if (mime.startsWith("image/") || mime === "application/pdf") {
-        // Gemini via Lovable AI Gateway støtter image_url med signed URL
-        parts.push({
-          type: "image_url",
-          image_url: { url: data.signedUrl },
-        });
+        .download(att.path);
+      if (error || !data) {
+        console.warn("[calc-ai-analyze] download failed", att.path, error?.message);
+        continue;
       }
+      const buf = new Uint8Array(await data.arrayBuffer());
+      if (buf.byteLength > MAX_INLINE_BYTES) {
+        console.warn("[calc-ai-analyze] file too large, skipping", att.path, buf.byteLength);
+        continue;
+      }
+      const base64 = encodeBase64(buf);
+      parts.push({
+        type: "image_url",
+        image_url: { url: `data:${mime};base64,${base64}` },
+      });
+      console.log("[calc-ai-analyze] attached", att.path, mime, buf.byteLength, "bytes");
     } catch (e) {
-      console.warn("Skipping attachment", att.path, e);
+      console.warn("[calc-ai-analyze] error preparing attachment", att.path, e);
     }
   }
   return parts;
