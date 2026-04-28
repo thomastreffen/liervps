@@ -117,19 +117,23 @@ export default function CalcEngineEditorPage() {
     initRef.current = true;
 
     (async () => {
-      // 1) Hvis draft har en allerede koblet kalkyle, gjenopprett den
+      // 1) Hvis draft har en allerede koblet kalkyle for DETTE systemet, gjenopprett den
       if (fromDraftId) {
         const { data: draft } = await supabase
           .from("calc_ai_drafts")
-          .select("ai_proposed_input, ai_proposed_lines, initial_description, applied_calculation_id")
+          .select("ai_proposed_input, ai_proposed_lines, initial_description, applied_calculation_id, system_calculation_map")
           .eq("id", fromDraftId)
           .maybeSingle();
 
-        if (draft?.applied_calculation_id) {
+        const sysMap = (draft?.system_calculation_map ?? {}) as Record<string, string>;
+        const existingForSystem = sysMap[String(systemIndex)]
+          ?? (systemIndex === 0 ? draft?.applied_calculation_id ?? null : null);
+
+        if (existingForSystem) {
           const { data: calc } = await supabase
             .from("calculations")
             .select("id, project_title, customer_name, input_snapshot, rate_table_id, norm_table_id, deleted_at")
-            .eq("id", draft.applied_calculation_id)
+            .eq("id", existingForSystem)
             .maybeSingle();
 
           if (calc && !calc.deleted_at) {
