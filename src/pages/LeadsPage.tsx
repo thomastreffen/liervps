@@ -13,7 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+// Dialog removed — "Ny henvendelse" is now its own page (/sales/leads/new)
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { BulkDeleteBar } from "@/components/BulkDeleteBar";
 import { LeadActionPanel, type ActionPanelTab } from "@/components/activity/LeadActionPanel";
