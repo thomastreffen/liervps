@@ -393,9 +393,26 @@ export default function CalcEngineEditorPage() {
     }
   }, [user, pkg, selectedRateId, selectedNormId, result, customer, title, inputState, calculationId, activeCompanyId, fromDraftId]);
 
+  // Avgjør om vi har "meningsfullt innhold" — ellers utsetter vi første INSERT
+  const hasMeaningfulContent = useMemo(() => {
+    if (calculationId) return true; // allerede lagret — fortsett autosave
+    if (fromDraftId) return true; // AI-flow skal alltid spore til draft
+    const sales = Number(result?.totals?.total_sales ?? 0);
+    const cost = Number(result?.totals?.total_cost ?? 0);
+    const hasLines = (result?.lines?.length ?? 0) > 0 && (sales > 0 || cost > 0);
+    const hasTitle = title.trim().length > 0;
+    const hasCustomer = customer.trim().length > 0;
+    // Krever enten faktiske linjer med verdi, eller at bruker har skrevet tittel/kunde
+    return hasLines || hasTitle || hasCustomer;
+  }, [calculationId, fromDraftId, result, title, customer]);
+
   // Trigger debounced autosave når data endres (etter hydrering)
   useEffect(() => {
     if (!hydrated || !pkg || !selectedRateId || !selectedNormId) return;
+    if (!hasMeaningfulContent) {
+      setSaveState("idle");
+      return;
+    }
     setSaveState((s) => (s === "saving" ? s : "dirty"));
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     saveTimerRef.current = setTimeout(() => {
