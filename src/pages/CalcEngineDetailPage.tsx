@@ -8,9 +8,10 @@ import { Separator } from "@/components/ui/separator";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { ArrowLeft, Loader2, Calculator, Trash2 } from "lucide-react";
+import { ArrowLeft, Loader2, Calculator, Trash2, FileText } from "lucide-react";
 import { getStatusBadge, formatDateTime } from "@/lib/calc-engine/status-labels";
 import { DeleteCalcDialog, type DeleteTarget } from "@/components/calc-engine/DeleteCalcDialog";
+import { CreateOfferFromCalcDialog } from "@/components/calc-engine/CreateOfferFromCalcDialog";
 
 function formatNok(n: number): string {
   return new Intl.NumberFormat("nb-NO", { maximumFractionDigits: 0 }).format(n ?? 0);
@@ -23,6 +24,7 @@ export default function CalcEngineDetailPage() {
   const [lines, setLines] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
+  const [offerDialogOpen, setOfferDialogOpen] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -71,6 +73,13 @@ export default function CalcEngineDetailPage() {
           const badge = getStatusBadge("calculation", calc.status);
           return <Badge variant="outline" className={`rounded-lg ${badge.className}`}>{badge.label}</Badge>;
         })()}
+        <Button
+          size="sm"
+          className="rounded-xl gap-1.5"
+          onClick={() => setOfferDialogOpen(true)}
+        >
+          <FileText className="h-3.5 w-3.5" /> Opprett tilbud
+        </Button>
         <Button
           variant="outline"
           size="sm"
@@ -141,6 +150,22 @@ export default function CalcEngineDetailPage() {
         target={deleteTarget}
         onClose={() => setDeleteTarget(null)}
         onDeleted={() => navigate(calc.case_id ? `/sales/calc-engine/case/${calc.case_id}` : "/sales/calc-engine")}
+      />
+
+      <CreateOfferFromCalcDialog
+        open={offerDialogOpen}
+        onClose={() => setOfferDialogOpen(false)}
+        source={{
+          kind: "calculation",
+          customerName: calc.customer_name,
+          calcs: [{
+            id: calc.id,
+            project_title: calc.project_title,
+            case_system_key: calc.case_system_key,
+            totals_snapshot: calc.totals_snapshot,
+            total_price: calc.total_price,
+          }],
+        }}
       />
     </div>
   );
