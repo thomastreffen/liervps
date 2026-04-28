@@ -292,6 +292,7 @@ export type Database = {
           applied_at: string | null
           applied_calculation_id: string | null
           attachments: Json
+          case_id: string | null
           company_id: string | null
           created_at: string
           id: string
@@ -313,6 +314,7 @@ export type Database = {
           applied_at?: string | null
           applied_calculation_id?: string | null
           attachments?: Json
+          case_id?: string | null
           company_id?: string | null
           created_at?: string
           id?: string
@@ -334,6 +336,7 @@ export type Database = {
           applied_at?: string | null
           applied_calculation_id?: string | null
           attachments?: Json
+          case_id?: string | null
           company_id?: string | null
           created_at?: string
           id?: string
@@ -352,6 +355,13 @@ export type Database = {
             columns: ["applied_calculation_id"]
             isOneToOne: false
             referencedRelation: "calculations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "calc_ai_drafts_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "calc_cases"
             referencedColumns: ["id"]
           },
           {
