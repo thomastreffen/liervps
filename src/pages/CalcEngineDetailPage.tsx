@@ -136,6 +136,12 @@ export default function CalcEngineDetailPage() {
           </Card>
         </div>
       </div>
+
+      <DeleteCalcDialog
+        target={deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onDeleted={() => navigate(calc.case_id ? `/sales/calc-engine/case/${calc.case_id}` : "/sales/calc-engine")}
+      />
     </div>
   );
 }
