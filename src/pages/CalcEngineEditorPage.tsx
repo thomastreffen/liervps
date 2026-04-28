@@ -89,6 +89,7 @@ export default function CalcEngineEditorPage() {
   const [params] = useSearchParams();
   const packageId = params.get("package");
   const fromDraftId = params.get("from_draft");
+  const editCalculationId = params.get("calculation");
   const systemIndex = Number(params.get("system") ?? "0");
   const { user } = useAuth();
   const { activeCompanyId } = useCompanyContext();
