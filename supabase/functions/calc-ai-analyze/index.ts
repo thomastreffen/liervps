@@ -1,7 +1,7 @@
 // Edge function: calc-ai-analyze
 // Analyserer AI-utkast for kalkyler. Henter draft + meldinger + vedlegg,
 // bygger en multimodal prompt mot Lovable AI Gateway, og oppdaterer drafts
-// med strukturert forslag (input + linjer + confidence).
+// med strukturert forslag (systemer + linjer + confidence).
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { encodeBase64 } from "https://deno.land/std@0.224.0/encoding/base64.ts";
@@ -18,35 +18,64 @@ const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY")!;
 
 const MODEL = "google/gemini-2.5-pro";
 
-const SYSTEM_PROMPT = `Du er en erfaren norsk elektroingeniør som analyserer underlag for strømskinneprosjekter.
-Din oppgave er å hjelpe en kalkulatør med å fylle ut et førsteutkast — IKKE å låse svaret.
+const SYSTEM_PROMPT = `Du er en erfaren norsk elektroingeniør som analyserer underlag for STRØMSKINNE-prosjekter (busbar).
+Din oppgave er å hjelpe en kalkulatør med å lage et førsteutkast — IKKE å låse svaret.
 
-Returner et strukturert forslag via tool-call. Vær ærlig om usikkerhet:
-- Bruk confidence 0-100 per felt (0 = bare gjetning, 100 = direkte avlest fra underlag).
-- Skriv klare antakelser og åpne spørsmål når informasjon mangler.
-- Foreslå rimelige estimater også når underlaget er tynt — men marker lav confidence.
+KRITISK: Resultatet ditt MÅ kunne brukes direkte til å fylle ut kalkyle-felter. Det holder IKKE å bare beskrive — du MÅ
+konkretisere mengder, lengder og strømklasser per system.
 
-Pakke: Strømskinne (busbar). Felter du kan foreslå:
-- leverandor: 'schneider' | 'eaton' | 'legrand'
+ETT UNDERLAG KAN INNEHOLDE FLERE SYSTEMER (f.eks. EL1 og EL2). Returner ett objekt per system i 'systems'.
+Hvert system blir én separat kalkyle. Hvis det egentlig er ett system, returner én entry.
+
+For HVERT system MÅ du estimere:
+- name: kort identifikator (f.eks. "EL1", "EL2", "Hovedstigeskinne", "Tavlerom 2.etg")
+- leverandor: 'schneider' | 'eaton' | 'legrand' (gjett ut fra serienavn hvis ikke spesifisert; Canalis=schneider, xEnergy/SCP/SB=eaton, LB/SCP=legrand)
 - serie: kort tekst (f.eks. 'Canalis KT', 'xEnergy XPR', 'SCP')
-- ledertype: 'kobber' | 'aluminium'
-- utforelse: 'epoxy' | 'lakkert' | 'ren'
-- stromklasse: '800' | '1000' | '1250' | '1600' | '2000' | '2500' | '3200' | '4000' | '5000' | '6300'
-- qty_straight_1, qty_straight_2, qty_straight_3 (antall stk)
-- qty_vinkel, qty_t_element, qty_term_std, qty_term_nonstd, qty_skjot, qty_oppheng (antall stk)
+- ledertype: 'kobber' | 'aluminium' (default kobber hvis ukjent, lav confidence)
+- utforelse: 'epoxy' | 'lakkert' | 'ren' (default 'lakkert', lav confidence)
+- stromklasse: én av '800','1000','1250','1600','2000','2500','3200','4000','5000','6300'
+- total_lengde_m: total horisontal lengde i meter
+- qty_oppheng: BEREGN basert på cc-avstand (default cc 2 m → ceil(lengde/2)+1) hvis underlaget sier oppheng skal med
+- qty_straight_3: foretrukket; ceil(lengde / 3) hvis ingen annen info, ELLER bruk straight_2 / straight_1 hvis underlaget tilsier kortere modulstørrelser
+- qty_vinkel, qty_t_element, qty_term_std, qty_term_nonstd, qty_skjot: kun hvis underlaget eller vanlig praksis tilsier det (skjøter ~ antall straight - 1)
 - vertikal: boolean, qty_vertikal: antall vertikale strekk
-- total_lengde_m: estimert total lengde i meter
-- arbeidstidstype, tilkomstniva, reisetid, riggtid, risiko (la stå hvis ingen indikasjon)`;
+- arbeidstidstype, tilkomstniva, reisetid (timer t/r), riggtid (timer), risiko (% påslag)
+
+REGLER FOR MENGDER:
+- Hvis du har 'total_lengde_m' MÅ du også foreslå konkret antall straight-elementer (qty_straight_1/2/3).
+- Default modul = 3 m. qty_straight_3 = Math.ceil(lengde / 3). Sett qty_straight_2 og qty_straight_1 til 0 om ikke nødvendig som "rest".
+- Hvis straight_3 ikke gir helt jevn lengde, kompensér med 1 stk straight_2 eller straight_1 (markér med assumption).
+- qty_oppheng = Math.ceil(lengde / cc) + 1 (default cc=2 m). Hvis underlaget eksplisitt sier "oppheng skal med", confidence ≥ 70.
+- qty_skjot ≈ totalt antall straight-elementer - 1 (lav confidence hvis ikke tegning viser tydelig).
+
+Returner ALLTID via tool-call 'submit_calc_proposal'. Vær ærlig om usikkerhet:
+- Bruk confidence 0-100 per felt (0 = bare gjetning, 100 = direkte avlest).
+- Skriv klare assumptions og open_questions.
+- Det er BEDRE å foreslå et estimat med lav confidence enn å la et felt stå tomt.`;
+
+const SYSTEM_FIELDS_SCHEMA = {
+  type: "object",
+  description: "Foreslåtte verdier per inputfelt med confidence.",
+  additionalProperties: {
+    type: "object",
+    properties: {
+      value: {},
+      confidence: { type: "number", minimum: 0, maximum: 100 },
+      reason: { type: "string" },
+    },
+    required: ["value", "confidence"],
+  },
+};
 
 const TOOL = {
   type: "function",
   function: {
     name: "submit_calc_proposal",
-    description: "Send strukturert kalkyleforslag tilbake.",
+    description: "Send strukturert kalkyleforslag tilbake. Hvert element i 'systems' = en separat kalkyle.",
     parameters: {
       type: "object",
       properties: {
-        summary: { type: "string", description: "Kort oppsummering (2-4 setninger) av hva du har tolket fra underlaget." },
+        summary: { type: "string", description: "Kort oppsummering (2-4 setninger) av hva du har tolket fra underlaget. Nevn antall systemer." },
         assumptions: {
           type: "array", items: { type: "string" },
           description: "Antakelser du har gjort der underlaget er uklart.",
@@ -55,27 +84,28 @@ const TOOL = {
           type: "array", items: { type: "string" },
           description: "Spørsmål brukeren bør svare på for å øke kvaliteten.",
         },
-        proposed_input: {
-          type: "object",
-          description: "Foreslåtte verdier per inputfelt med confidence.",
-          additionalProperties: {
+        systems: {
+          type: "array",
+          description: "Ett objekt per system / kalkyle som skal opprettes. Returner alltid minst ett system.",
+          items: {
             type: "object",
             properties: {
-              value: {},
-              confidence: { type: "number", minimum: 0, maximum: 100 },
-              reason: { type: "string" },
+              name: { type: "string", description: "Kort identifikator (f.eks. 'EL1', 'EL2'). Brukes som tittel på kalkylen." },
+              note: { type: "string", description: "Kort beskrivelse av hva systemet dekker." },
+              proposed_input: SYSTEM_FIELDS_SCHEMA,
+              system_confidence: { type: "number", minimum: 0, maximum: 100 },
             },
-            required: ["value", "confidence"],
+            required: ["name", "proposed_input"],
           },
         },
         overall_confidence: { type: "number", minimum: 0, maximum: 100 },
       },
-      required: ["summary", "proposed_input", "overall_confidence"],
+      required: ["summary", "systems", "overall_confidence"],
     },
   },
 };
 
-const MAX_INLINE_BYTES = 18 * 1024 * 1024; // ~18 MB safety limit per file
+const MAX_INLINE_BYTES = 18 * 1024 * 1024;
 
 async function buildAttachmentParts(
   supabase: ReturnType<typeof createClient>,
@@ -115,6 +145,58 @@ async function buildAttachmentParts(
   return parts;
 }
 
+// Sørg for at hvert system har auto-beregnede stk-felter når lengde finnes
+// men AI har glemt å fylle ut. Aldri overskriv noe AI har satt.
+function enrichSystem(sys: any): any {
+  const input = { ...(sys?.proposed_input ?? {}) };
+  const getNum = (k: string): number | null => {
+    const v = input[k]?.value;
+    if (v == null || v === "") return null;
+    const n = Number(v);
+    return Number.isFinite(n) ? n : null;
+  };
+  const lengde = getNum("total_lengde_m");
+  if (lengde && lengde > 0) {
+    const has = (k: string) => input[k]?.value != null && Number(input[k].value) > 0;
+    // Straight-3 hvis ingen straight-felter er satt
+    if (!has("qty_straight_1") && !has("qty_straight_2") && !has("qty_straight_3")) {
+      const qty3 = Math.floor(lengde / 3);
+      const rest = lengde - qty3 * 3;
+      input.qty_straight_3 = {
+        value: qty3,
+        confidence: 50,
+        reason: `Auto-beregnet: ${lengde} m / 3 m modul = ${qty3} stk`,
+      };
+      if (rest >= 1.5) {
+        input.qty_straight_2 = { value: 1, confidence: 45, reason: `Restlengde ${rest.toFixed(1)} m → 1 stk straight 2 m` };
+      } else if (rest > 0) {
+        input.qty_straight_1 = { value: 1, confidence: 40, reason: `Restlengde ${rest.toFixed(1)} m → 1 stk straight 1 m` };
+      }
+    }
+    // Oppheng cc 2 m hvis ikke satt
+    if (!has("qty_oppheng")) {
+      const qO = Math.ceil(lengde / 2) + 1;
+      input.qty_oppheng = {
+        value: qO,
+        confidence: 55,
+        reason: `Auto-beregnet ut fra cc 2 m over ${lengde} m → ${qO} stk`,
+      };
+    }
+    // Skjøt ≈ totalt straight - 1
+    const totalStraight = (Number(input.qty_straight_1?.value) || 0)
+      + (Number(input.qty_straight_2?.value) || 0)
+      + (Number(input.qty_straight_3?.value) || 0);
+    if (!has("qty_skjot") && totalStraight > 1) {
+      input.qty_skjot = {
+        value: totalStraight - 1,
+        confidence: 45,
+        reason: `Auto: ${totalStraight} straight-elementer → ${totalStraight - 1} skjøter`,
+      };
+    }
+  }
+  return { ...sys, proposed_input: input };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -150,7 +232,6 @@ Deno.serve(async (req) => {
 
     const admin = createClient(SUPABASE_URL, SERVICE_KEY);
 
-    // Hent draft
     const { data: draft, error: draftErr } = await admin
       .from("calc_ai_drafts")
       .select("*")
@@ -169,18 +250,15 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Markér som analyzing
     await admin.from("calc_ai_drafts")
       .update({ status: "analyzing" }).eq("id", draft_id);
 
-    // Hent tidligere chat-meldinger
     const { data: history } = await admin
       .from("calc_ai_draft_messages")
       .select("role, content")
       .eq("draft_id", draft_id)
       .order("created_at", { ascending: true });
 
-    // Lagre brukerens nye melding (om det finnes)
     if (user_message && typeof user_message === "string" && user_message.trim()) {
       await admin.from("calc_ai_draft_messages").insert({
         draft_id,
@@ -189,13 +267,15 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Bygg multimodal user-content
     const attachmentParts = await buildAttachmentParts(admin, draft.attachments ?? []);
+    const previousSystems = Array.isArray((draft as any).ai_proposed_lines)
+      ? (draft as any).ai_proposed_lines
+      : [];
     const baseText = [
       draft.initial_description ? `Bruker-beskrivelse: ${draft.initial_description}` : "",
       user_message ? `Ny instruks fra bruker: ${user_message}` : "",
-      draft.ai_proposed_input && Object.keys(draft.ai_proposed_input).length
-        ? `Tidligere forslag (skal forbedres ut fra ny info):\n${JSON.stringify(draft.ai_proposed_input, null, 2)}`
+      previousSystems.length
+        ? `Tidligere forslag (skal forbedres ut fra ny info):\n${JSON.stringify(previousSystems, null, 2)}`
         : "",
     ].filter(Boolean).join("\n\n");
 
@@ -211,7 +291,6 @@ Deno.serve(async (req) => {
       { role: "user", content: userContent },
     ];
 
-    // Kall Lovable AI
     const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -269,37 +348,52 @@ Deno.serve(async (req) => {
     const summary = String(proposal.summary ?? "");
     const assumptions = Array.isArray(proposal.assumptions) ? proposal.assumptions : [];
     const openQuestions = Array.isArray(proposal.open_questions) ? proposal.open_questions : [];
-    const proposedInput = proposal.proposed_input ?? {};
     const overall = Number(proposal.overall_confidence ?? 0);
+    let systems = Array.isArray(proposal.systems) ? proposal.systems : [];
 
-    // Oppdater draft
+    // Enrich each system with derived qty fields when AI glemte dem
+    systems = systems.map((s: any, i: number) => enrichSystem({
+      name: s.name || `System ${i + 1}`,
+      note: s.note ?? null,
+      proposed_input: s.proposed_input ?? {},
+      system_confidence: typeof s.system_confidence === "number" ? s.system_confidence : null,
+    }));
+
+    // Bakoverkompatibel: ai_proposed_input = første systems felter
+    const firstInput = systems[0]?.proposed_input ?? {};
+
     await admin.from("calc_ai_drafts").update({
       status: "ready",
       ai_summary: summary,
       ai_assumptions: assumptions,
       ai_open_questions: openQuestions,
-      ai_proposed_input: proposedInput,
+      ai_proposed_input: firstInput,
+      ai_proposed_lines: systems,
       overall_confidence: overall,
       model_used: MODEL,
     }).eq("id", draft_id);
 
-    // Lagre AI-meldingen som chat-historikk
+    const sysSummary = systems.length === 1
+      ? summary || "Forslag oppdatert."
+      : `${summary}\n\nForeslår ${systems.length} separate kalkyler: ${systems.map((s: any) => s.name).join(", ")}.`;
+
     await admin.from("calc_ai_draft_messages").insert({
       draft_id,
       role: "assistant",
-      content: summary || "Forslag oppdatert.",
-      proposal_diff: proposedInput,
+      content: sysSummary,
+      proposal_diff: { systems },
       metadata: {
         overall_confidence: overall,
         assumptions,
         open_questions: openQuestions,
+        system_count: systems.length,
       },
     });
 
     return new Response(JSON.stringify({
       ok: true,
       summary, assumptions, open_questions: openQuestions,
-      proposed_input: proposedInput, overall_confidence: overall,
+      systems, overall_confidence: overall,
     }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
