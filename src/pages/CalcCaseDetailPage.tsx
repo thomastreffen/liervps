@@ -35,6 +35,7 @@ export default function CalcCaseDetailPage() {
   const [caseRow, setCaseRow] = useState<any>(null);
   const [subs, setSubs] = useState<SubCalc[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
 
   useEffect(() => {
     if (!id) return;
