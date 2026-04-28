@@ -297,6 +297,8 @@ const App = () => (
               <Route path="/sales/calc-engine" element={<ProtectedRoute><CalcEngineListPage /></ProtectedRoute>} />
               <Route path="/sales/calc-engine/new" element={<ProtectedRoute><CalcEngineNewRouter /></ProtectedRoute>} />
               <Route path="/sales/calc-engine/new/editor" element={<ProtectedRoute><CalcEngineNewRouter /></ProtectedRoute>} />
+              <Route path="/sales/calc-engine/ai-start" element={<ProtectedRoute><CalcAiStartPage /></ProtectedRoute>} />
+              <Route path="/sales/calc-engine/ai-review/:id" element={<ProtectedRoute><CalcAiReviewPage /></ProtectedRoute>} />
               <Route path="/sales/calc-engine/:id" element={<ProtectedRoute><CalcEngineDetailPage /></ProtectedRoute>} />
 
 
