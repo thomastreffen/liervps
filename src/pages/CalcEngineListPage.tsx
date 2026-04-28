@@ -432,17 +432,17 @@ export default function CalcEngineListPage() {
                 const r = u.row;
                 const badge = getStatusBadge("calculation", r.status);
                 return (
-                  <TableRow key={`single-${r.id}`} className="cursor-pointer group" onClick={() => navigate(`/sales/calc-engine/${r.id}`)}>
-                    <TableCell className="font-medium">
+                  <TableRow key={`single-${r.id}`} className="cursor-pointer group bg-muted/20" onClick={() => navigate(`/sales/calc-engine/${r.id}`)}>
+                    <TableCell className="font-medium pl-6">
                       <div className="flex items-center gap-2">
-                        <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
-                        <span className="truncate">{r.project_title}</span>
+                        <FileText className="h-3.5 w-3.5 text-muted-foreground/70 shrink-0" />
+                        <span className="truncate text-sm text-foreground/80">{r.project_title}</span>
                         <ChevronRight className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline" className="rounded-md text-[10px] uppercase tracking-wide">
-                        Enkeltkalkyle
+                      <Badge variant="outline" className="rounded-md text-[10px] uppercase tracking-wide text-muted-foreground border-muted-foreground/20">
+                        Enkel
                       </Badge>
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">{r.customer_name || "—"}</TableCell>
@@ -451,7 +451,7 @@ export default function CalcEngineListPage() {
                       {r.package ? <Badge variant="outline" className="rounded-md text-[10px]">{r.package.name}</Badge> : <span className="text-xs text-muted-foreground">—</span>}
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground tabular-nums">{formatDateTime(r.updated_at)}</TableCell>
-                    <TableCell className="text-right font-mono text-sm">
+                    <TableCell className="text-right font-mono text-sm text-muted-foreground">
                       kr {Number(r.total_price).toLocaleString("nb-NO", { maximumFractionDigits: 0 })}
                     </TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()}>
