@@ -428,7 +428,7 @@ export default function CalcEngineEditorPage() {
     }, AUTOSAVE_DEBOUNCE_MS);
     return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hydrated, title, customer, inputState, selectedRateId, selectedNormId]);
+  }, [hydrated, title, customer, inputState, selectedRateId, selectedNormId, hasMeaningfulContent]);
 
   // Advarsel ved navigasjon vekk hvis dirty/saving
   useEffect(() => {
