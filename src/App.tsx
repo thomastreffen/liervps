@@ -31,6 +31,11 @@ import NotificationsPage from "./pages/NotificationsPage";
 import CalculationsPage from "./pages/CalculationsPage";
 import CalculationDetail from "./pages/CalculationDetail";
 import NewCalculation from "./pages/NewCalculation";
+import CalcEngineListPage from "./pages/CalcEngineListPage";
+import CalcPackagePickerPage from "./pages/CalcPackagePickerPage";
+import CalcEngineNewRouter from "./pages/CalcEngineNewRouter";
+import CalcEngineEditorPage from "./pages/CalcEngineEditorPage";
+import CalcEngineDetailPage from "./pages/CalcEngineDetailPage";
 import Login from "./pages/Login";
 import AuthCallback from "./pages/AuthCallback";
 import NotFound from "./pages/NotFound";
@@ -285,6 +290,13 @@ const App = () => (
               <Route path="/sales/calculations" element={<Navigate to="/sales/offers" replace />} />
               <Route path="/sales/calculations/new" element={<Navigate to="/sales/offers/new" replace />} />
               <Route path="/sales/calculations/:id" element={<CalculationDetail />} />
+
+              {/* Kalkylemotor (pakke-basert) */}
+              <Route path="/sales/calc-engine" element={<ProtectedRoute><CalcEngineListPage /></ProtectedRoute>} />
+              <Route path="/sales/calc-engine/new" element={<ProtectedRoute><CalcEngineNewRouter /></ProtectedRoute>} />
+              <Route path="/sales/calc-engine/new/editor" element={<ProtectedRoute><CalcEngineNewRouter /></ProtectedRoute>} />
+              <Route path="/sales/calc-engine/:id" element={<ProtectedRoute><CalcEngineDetailPage /></ProtectedRoute>} />
+
 
               {/* Legacy calculation routes redirect */}
               <Route path="/calculations" element={<Navigate to="/sales/offers" replace />} />

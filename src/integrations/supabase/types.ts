@@ -241,6 +241,295 @@ export type Database = {
           },
         ]
       }
+      calc_norm_table_rows: {
+        Row: {
+          context: Json
+          element_key: string
+          hours: number
+          id: string
+          label: string | null
+          norm_table_id: string
+          sort_order: number
+          unit: string
+        }
+        Insert: {
+          context?: Json
+          element_key: string
+          hours?: number
+          id?: string
+          label?: string | null
+          norm_table_id: string
+          sort_order?: number
+          unit?: string
+        }
+        Update: {
+          context?: Json
+          element_key?: string
+          hours?: number
+          id?: string
+          label?: string | null
+          norm_table_id?: string
+          sort_order?: number
+          unit?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calc_norm_table_rows_norm_table_id_fkey"
+            columns: ["norm_table_id"]
+            isOneToOne: false
+            referencedRelation: "calc_norm_tables"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      calc_norm_tables: {
+        Row: {
+          company_id: string | null
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          package_id: string | null
+          source: string | null
+          updated_at: string
+          valid_from: string | null
+          valid_to: string | null
+          version: number
+        }
+        Insert: {
+          company_id?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          package_id?: string | null
+          source?: string | null
+          updated_at?: string
+          valid_from?: string | null
+          valid_to?: string | null
+          version?: number
+        }
+        Update: {
+          company_id?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          package_id?: string | null
+          source?: string | null
+          updated_at?: string
+          valid_from?: string | null
+          valid_to?: string | null
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calc_norm_tables_package_id_fkey"
+            columns: ["package_id"]
+            isOneToOne: false
+            referencedRelation: "calc_packages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      calc_package_fields: {
+        Row: {
+          created_at: string
+          default_value: Json | null
+          field_key: string
+          field_type: string
+          help_text: string | null
+          id: string
+          is_required: boolean
+          label: string
+          options: Json
+          package_id: string
+          section_key: string
+          sort_order: number
+          unit: string | null
+          validation_rule: Json | null
+          visibility_rule: Json | null
+        }
+        Insert: {
+          created_at?: string
+          default_value?: Json | null
+          field_key: string
+          field_type: string
+          help_text?: string | null
+          id?: string
+          is_required?: boolean
+          label: string
+          options?: Json
+          package_id: string
+          section_key?: string
+          sort_order?: number
+          unit?: string | null
+          validation_rule?: Json | null
+          visibility_rule?: Json | null
+        }
+        Update: {
+          created_at?: string
+          default_value?: Json | null
+          field_key?: string
+          field_type?: string
+          help_text?: string | null
+          id?: string
+          is_required?: boolean
+          label?: string
+          options?: Json
+          package_id?: string
+          section_key?: string
+          sort_order?: number
+          unit?: string | null
+          validation_rule?: Json | null
+          visibility_rule?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calc_package_fields_package_id_fkey"
+            columns: ["package_id"]
+            isOneToOne: false
+            referencedRelation: "calc_packages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      calc_packages: {
+        Row: {
+          category: string
+          company_id: string | null
+          created_at: string
+          created_by: string | null
+          default_sections: Json
+          description: string | null
+          id: string
+          is_active: boolean
+          metadata: Json
+          name: string
+          slug: string
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          category?: string
+          company_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          default_sections?: Json
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          metadata?: Json
+          name: string
+          slug: string
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          category?: string
+          company_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          default_sections?: Json
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          metadata?: Json
+          name?: string
+          slug?: string
+          updated_at?: string
+          version?: number
+        }
+        Relationships: []
+      }
+      calc_rate_table_rows: {
+        Row: {
+          context: Json
+          id: string
+          label: string | null
+          rate_key: string
+          rate_table_id: string
+          sort_order: number
+          unit: string | null
+          value: number
+        }
+        Insert: {
+          context?: Json
+          id?: string
+          label?: string | null
+          rate_key: string
+          rate_table_id: string
+          sort_order?: number
+          unit?: string | null
+          value?: number
+        }
+        Update: {
+          context?: Json
+          id?: string
+          label?: string | null
+          rate_key?: string
+          rate_table_id?: string
+          sort_order?: number
+          unit?: string | null
+          value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calc_rate_table_rows_rate_table_id_fkey"
+            columns: ["rate_table_id"]
+            isOneToOne: false
+            referencedRelation: "calc_rate_tables"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      calc_rate_tables: {
+        Row: {
+          company_id: string | null
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          package_id: string | null
+          updated_at: string
+          valid_from: string | null
+          valid_to: string | null
+          version: number
+        }
+        Insert: {
+          company_id?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          package_id?: string | null
+          updated_at?: string
+          valid_from?: string | null
+          valid_to?: string | null
+          version?: number
+        }
+        Update: {
+          company_id?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          package_id?: string | null
+          updated_at?: string
+          valid_from?: string | null
+          valid_to?: string | null
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calc_rate_tables_package_id_fkey"
+            columns: ["package_id"]
+            isOneToOne: false
+            referencedRelation: "calc_packages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       calculation_items: {
         Row: {
           calculation_id: string
@@ -291,6 +580,80 @@ export type Database = {
           },
         ]
       }
+      calculation_lines: {
+        Row: {
+          adjusted_hours: number
+          calculation_id: string
+          cost_amount: number
+          created_at: string
+          description: string
+          id: string
+          is_internal_only: boolean
+          is_locked: boolean
+          is_overridden: boolean
+          line_key: string | null
+          metadata: Json
+          norm_hours: number
+          qty: number
+          sales_amount: number
+          sort_order: number
+          source_ref: string | null
+          source_type: string
+          unit: string | null
+          updated_at: string
+        }
+        Insert: {
+          adjusted_hours?: number
+          calculation_id: string
+          cost_amount?: number
+          created_at?: string
+          description: string
+          id?: string
+          is_internal_only?: boolean
+          is_locked?: boolean
+          is_overridden?: boolean
+          line_key?: string | null
+          metadata?: Json
+          norm_hours?: number
+          qty?: number
+          sales_amount?: number
+          sort_order?: number
+          source_ref?: string | null
+          source_type?: string
+          unit?: string | null
+          updated_at?: string
+        }
+        Update: {
+          adjusted_hours?: number
+          calculation_id?: string
+          cost_amount?: number
+          created_at?: string
+          description?: string
+          id?: string
+          is_internal_only?: boolean
+          is_locked?: boolean
+          is_overridden?: boolean
+          line_key?: string | null
+          metadata?: Json
+          norm_hours?: number
+          qty?: number
+          sales_amount?: number
+          sort_order?: number
+          source_ref?: string | null
+          source_type?: string
+          unit?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calculation_lines_calculation_id_fkey"
+            columns: ["calculation_id"]
+            isOneToOne: false
+            referencedRelation: "calculations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       calculations: {
         Row: {
           ai_analysis: Json | null
@@ -309,11 +672,15 @@ export type Database = {
           description: string | null
           external_tripletex_number: string | null
           id: string
+          input_snapshot: Json
           last_activity_at: string | null
           lead_id: string | null
           next_step: string | null
           next_step_at: string | null
+          norm_table_id: string | null
+          package_id: string | null
           project_title: string
+          rate_table_id: string | null
           responsible_user_id: string | null
           show_discount_in_offer: boolean
           source_case_id: string | null
@@ -322,6 +689,7 @@ export type Database = {
           total_labor: number | null
           total_material: number | null
           total_price: number | null
+          totals_snapshot: Json
           updated_at: string
         }
         Insert: {
@@ -341,11 +709,15 @@ export type Database = {
           description?: string | null
           external_tripletex_number?: string | null
           id?: string
+          input_snapshot?: Json
           last_activity_at?: string | null
           lead_id?: string | null
           next_step?: string | null
           next_step_at?: string | null
+          norm_table_id?: string | null
+          package_id?: string | null
           project_title: string
+          rate_table_id?: string | null
           responsible_user_id?: string | null
           show_discount_in_offer?: boolean
           source_case_id?: string | null
@@ -354,6 +726,7 @@ export type Database = {
           total_labor?: number | null
           total_material?: number | null
           total_price?: number | null
+          totals_snapshot?: Json
           updated_at?: string
         }
         Update: {
@@ -373,11 +746,15 @@ export type Database = {
           description?: string | null
           external_tripletex_number?: string | null
           id?: string
+          input_snapshot?: Json
           last_activity_at?: string | null
           lead_id?: string | null
           next_step?: string | null
           next_step_at?: string | null
+          norm_table_id?: string | null
+          package_id?: string | null
           project_title?: string
+          rate_table_id?: string | null
           responsible_user_id?: string | null
           show_discount_in_offer?: boolean
           source_case_id?: string | null
@@ -386,6 +763,7 @@ export type Database = {
           total_labor?: number | null
           total_material?: number | null
           total_price?: number | null
+          totals_snapshot?: Json
           updated_at?: string
         }
         Relationships: [
@@ -422,6 +800,27 @@ export type Database = {
             columns: ["lead_id"]
             isOneToOne: false
             referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "calculations_norm_table_id_fkey"
+            columns: ["norm_table_id"]
+            isOneToOne: false
+            referencedRelation: "calc_norm_tables"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "calculations_package_id_fkey"
+            columns: ["package_id"]
+            isOneToOne: false
+            referencedRelation: "calc_packages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "calculations_rate_table_id_fkey"
+            columns: ["rate_table_id"]
+            isOneToOne: false
+            referencedRelation: "calc_rate_tables"
             referencedColumns: ["id"]
           },
           {
@@ -9321,6 +9720,7 @@ export type Database = {
         Args: { _auth_user_id: string; _project_id: string }
         Returns: boolean
       }
+      is_super_admin: { Args: { _auth_user_id: string }; Returns: boolean }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
       submission_has_tracking_token: {
