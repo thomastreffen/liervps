@@ -86,10 +86,21 @@ export default function CalcCaseDetailPage() {
           </div>
           <h1 className="text-xl sm:text-2xl font-semibold tracking-tight truncate mt-1">{caseRow.title}</h1>
           <p className="text-xs text-muted-foreground">
-            {caseRow.customer_name ?? "Ukjent kunde"} • {format(new Date(caseRow.created_at), "d. MMM yyyy", { locale: nb })} • {subs.length} delkalkyler
+            {caseRow.customer_name ?? "Ukjent kunde"} • Sist endret {formatDateTime(caseRow.updated_at)} • {subs.length} delkalkyler
           </p>
         </div>
-        <Badge variant="outline" className="rounded-lg">{caseRow.status}</Badge>
+        {(() => {
+          const badge = getStatusBadge("case", caseRow.status);
+          return <Badge variant="outline" className={`rounded-lg ${badge.className}`}>{badge.label}</Badge>;
+        })()}
+        <Button
+          variant="outline"
+          size="sm"
+          className="rounded-xl gap-1.5 text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30"
+          onClick={() => setDeleteTarget({ kind: "case", id: caseRow.id, label: caseRow.title, subCount: subs.length })}
+        >
+          <Trash2 className="h-3.5 w-3.5" /> Slett sak
+        </Button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-5">
