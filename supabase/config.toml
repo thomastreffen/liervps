@@ -159,3 +159,6 @@ verify_jwt = false
 [functions.task-thread-escalation]
 verify_jwt = false
 
+[functions.calc-ai-analyze]
+verify_jwt = false
+
