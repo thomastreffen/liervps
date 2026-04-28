@@ -363,6 +363,59 @@ export type Database = {
           },
         ]
       }
+      calc_cases: {
+        Row: {
+          company_id: string | null
+          created_at: string
+          created_by: string | null
+          customer_name: string | null
+          deleted_at: string | null
+          deleted_by: string | null
+          description: string | null
+          id: string
+          source_draft_id: string | null
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          company_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer_name?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          description?: string | null
+          id?: string
+          source_draft_id?: string | null
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer_name?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          description?: string | null
+          id?: string
+          source_draft_id?: string | null
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calc_cases_source_draft_id_fkey"
+            columns: ["source_draft_id"]
+            isOneToOne: false
+            referencedRelation: "calc_ai_drafts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       calc_cost_prices: {
         Row: {
           company_id: string | null
@@ -1007,6 +1060,9 @@ export type Database = {
         Row: {
           ai_analysis: Json | null
           attachments: Json | null
+          case_id: string | null
+          case_sort_order: number | null
+          case_system_key: string | null
           company_id: string | null
           contact_person_id: string | null
           created_at: string
@@ -1044,6 +1100,9 @@ export type Database = {
         Insert: {
           ai_analysis?: Json | null
           attachments?: Json | null
+          case_id?: string | null
+          case_sort_order?: number | null
+          case_system_key?: string | null
           company_id?: string | null
           contact_person_id?: string | null
           created_at?: string
@@ -1081,6 +1140,9 @@ export type Database = {
         Update: {
           ai_analysis?: Json | null
           attachments?: Json | null
+          case_id?: string | null
+          case_sort_order?: number | null
+          case_system_key?: string | null
           company_id?: string | null
           contact_person_id?: string | null
           created_at?: string
@@ -1116,6 +1178,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "calculations_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "calc_cases"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "calculations_company_id_fkey"
             columns: ["company_id"]
