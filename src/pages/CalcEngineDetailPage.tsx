@@ -151,6 +151,22 @@ export default function CalcEngineDetailPage() {
         onClose={() => setDeleteTarget(null)}
         onDeleted={() => navigate(calc.case_id ? `/sales/calc-engine/case/${calc.case_id}` : "/sales/calc-engine")}
       />
+
+      <CreateOfferFromCalcDialog
+        open={offerDialogOpen}
+        onClose={() => setOfferDialogOpen(false)}
+        source={{
+          kind: "calculation",
+          customerName: calc.customer_name,
+          calcs: [{
+            id: calc.id,
+            project_title: calc.project_title,
+            case_system_key: calc.case_system_key,
+            totals_snapshot: calc.totals_snapshot,
+            total_price: calc.total_price,
+          }],
+        }}
+      />
     </div>
   );
 }
