@@ -22,6 +22,7 @@ export default function CalcEngineDetailPage() {
   const [calc, setCalc] = useState<any>(null);
   const [lines, setLines] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -62,11 +63,22 @@ export default function CalcEngineDetailPage() {
           )}
           <h1 className="text-xl sm:text-2xl font-semibold tracking-tight truncate">{calc.project_title}</h1>
           <p className="text-xs text-muted-foreground">
-            {calc.customer_name} • {format(new Date(calc.created_at), "d. MMM yyyy", { locale: nb })}
+            {calc.customer_name} • Opprettet {formatDateTime(calc.created_at)} • Sist endret {formatDateTime(calc.updated_at)}
             {calc.case_system_key && <> • System <span className="font-mono">{calc.case_system_key}</span></>}
           </p>
         </div>
-        <Badge variant="outline" className="rounded-lg">{calc.status}</Badge>
+        {(() => {
+          const badge = getStatusBadge("calculation", calc.status);
+          return <Badge variant="outline" className={`rounded-lg ${badge.className}`}>{badge.label}</Badge>;
+        })()}
+        <Button
+          variant="outline"
+          size="sm"
+          className="rounded-xl gap-1.5 text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30"
+          onClick={() => setDeleteTarget({ kind: "calculation", id: calc.id, label: calc.project_title })}
+        >
+          <Trash2 className="h-3.5 w-3.5" /> Slett
+        </Button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-5">
