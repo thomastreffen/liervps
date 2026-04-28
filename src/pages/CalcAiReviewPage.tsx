@@ -117,6 +117,10 @@ export default function CalcAiReviewPage() {
     navigate(`/sales/calc-engine/new?package=${draft.package_id}&from_draft=${draft.id}&system=${systemIndex}`);
   };
 
+  const handleOpenCalculation = (calcId: string) => {
+    navigate(`/sales/calc-engine/${calcId}`);
+  };
+
   if (loading || !draft || !pkg) {
     return <div className="flex items-center justify-center py-24"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
   }
@@ -130,9 +134,16 @@ export default function CalcAiReviewPage() {
     (s, sys) => s + Object.keys(sys.proposed_input ?? {}).length, 0,
   );
 
+  const sysMap = (draft.system_calculation_map ?? {}) as Record<string, string>;
+  const appliedCount = systems.filter((_, i) => sysMap[String(i)]).length;
+
   const isAnalyzing = analyzing || draft.status === "analyzing";
   const statusMeta = (() => {
     if (isAnalyzing) return { label: "Analyserer", color: "bg-amber-500" };
+    if (systems.length > 0 && appliedCount > 0 && appliedCount < systems.length) {
+      return { label: `Delvis brukt (${appliedCount}/${systems.length})`, color: "bg-primary" };
+    }
+    if (systems.length > 0 && appliedCount === systems.length) return { label: "Brukt i editor", color: "bg-primary" };
     if (draft.status === "ready") return { label: "Analysert", color: "bg-emerald-500" };
     if (draft.status === "applied") return { label: "Brukt i editor", color: "bg-primary" };
     if (draft.status === "discarded") return { label: "Forkastet", color: "bg-muted-foreground" };
@@ -163,23 +174,29 @@ export default function CalcAiReviewPage() {
             {draft.model_used && <>· Modell: <span className="font-mono text-[10px]">{draft.model_used}</span></>}
           </p>
         </div>
-        {!isAnalyzing && draft.status !== "ready" && (
+        {!isAnalyzing && (
           <Button
             variant="outline"
             onClick={() => analyze().catch((e) => toast({ title: "AI-analyse feilet", description: e?.message ?? String(e), variant: "destructive" }))}
             className="rounded-xl gap-1.5"
           >
-            <Sparkles className="h-4 w-4" /> Kjør analyse
+            <Sparkles className="h-4 w-4" /> Kjør analyse{draft.status === "ready" ? " på nytt" : ""}
           </Button>
         )}
         {systems.length <= 1 && (
-          <Button
-            onClick={() => handleApplyToEditor(0)}
-            disabled={draft.status !== "ready" || totalSuggestedFields === 0}
-            className="rounded-xl gap-1.5"
-          >
-            Bruk forslag i editor <ArrowRight className="h-4 w-4" />
-          </Button>
+          sysMap["0"] ? (
+            <Button onClick={() => handleOpenCalculation(sysMap["0"])} className="rounded-xl gap-1.5">
+              Åpne kalkyle <ArrowRight className="h-4 w-4" />
+            </Button>
+          ) : (
+            <Button
+              onClick={() => handleApplyToEditor(0)}
+              disabled={draft.status !== "ready" || totalSuggestedFields === 0}
+              className="rounded-xl gap-1.5"
+            >
+              Bruk forslag i editor <ArrowRight className="h-4 w-4" />
+            </Button>
+          )
         )}
       </div>
 
@@ -267,11 +284,13 @@ export default function CalcAiReviewPage() {
                 const inp = sys.proposed_input ?? {};
                 const keys = Object.keys(inp);
                 const sConf = Math.round(sys.system_confidence ?? draft.overall_confidence ?? 0);
+                const calcIdForSystem = sysMap[String(sysIdx)] ?? null;
+                const isApplied = !!calcIdForSystem;
                 return (
-                  <Card key={sysIdx} className="p-5 rounded-2xl">
+                  <Card key={sysIdx} className={`p-5 rounded-2xl ${isApplied ? "border-primary/30 bg-primary/5" : ""}`}>
                     <div className="flex items-start justify-between gap-3 mb-3 flex-wrap">
                       <div className="min-w-0">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <h3 className="text-base font-semibold">
                             {systems.length > 1 ? `Kalkyle ${sysIdx + 1}: ` : ""}{sys.name}
                           </h3>
@@ -281,18 +300,44 @@ export default function CalcAiReviewPage() {
                               {sConf}%
                             </Badge>
                           )}
+                          {isApplied && (
+                            <Badge variant="secondary" className="rounded-md text-[10px] gap-1">
+                              <CheckCircle2 className="h-3 w-3" /> Opprettet
+                            </Badge>
+                          )}
                         </div>
                         {sys.note && <p className="text-xs text-muted-foreground mt-0.5">{sys.note}</p>}
                         <div className="text-[11px] text-muted-foreground mt-1">{keys.length} foreslåtte felter</div>
                       </div>
-                      <Button
-                        size="sm"
-                        onClick={() => handleApplyToEditor(sysIdx)}
-                        disabled={draft.status !== "ready" || keys.length === 0}
-                        className="rounded-xl gap-1.5"
-                      >
-                        Bruk i editor <ArrowRight className="h-3.5 w-3.5" />
-                      </Button>
+                      {isApplied ? (
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleApplyToEditor(sysIdx)}
+                            className="rounded-xl gap-1.5"
+                            title="Fortsett å redigere kalkylen i editor"
+                          >
+                            Rediger
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={() => handleOpenCalculation(calcIdForSystem!)}
+                            className="rounded-xl gap-1.5"
+                          >
+                            Åpne kalkyle <ArrowRight className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <Button
+                          size="sm"
+                          onClick={() => handleApplyToEditor(sysIdx)}
+                          disabled={draft.status !== "ready" || keys.length === 0}
+                          className="rounded-xl gap-1.5"
+                        >
+                          Bruk i editor <ArrowRight className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
                     </div>
                     {keys.length === 0 ? (
                       <p className="text-xs text-muted-foreground italic">Ingen felter foreslått for dette systemet.</p>
