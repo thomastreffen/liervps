@@ -117,6 +117,10 @@ export default function CalcAiReviewPage() {
     navigate(`/sales/calc-engine/new?package=${draft.package_id}&from_draft=${draft.id}&system=${systemIndex}`);
   };
 
+  const handleOpenCalculation = (calcId: string) => {
+    navigate(`/sales/calc-engine/${calcId}`);
+  };
+
   if (loading || !draft || !pkg) {
     return <div className="flex items-center justify-center py-24"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
   }
