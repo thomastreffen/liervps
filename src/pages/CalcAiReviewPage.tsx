@@ -53,7 +53,14 @@ export default function CalcAiReviewPage() {
     if (!draft || triggeredAutorun.current) return;
     if (params.get("autorun") === "1" && draft.status === "draft") {
       triggeredAutorun.current = true;
-      analyze();
+      analyze().catch((e: any) => {
+        console.error("[calc-ai-review] autorun analyze failed", e);
+        toast({
+          title: "AI-analyse feilet",
+          description: e?.message ?? "Prøv igjen, eller send en korrigering.",
+          variant: "destructive",
+        });
+      });
     }
   }, [draft, params, analyze]);
 
