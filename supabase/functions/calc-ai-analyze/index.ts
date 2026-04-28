@@ -51,7 +51,21 @@ REGLER FOR MENGDER:
 Returner ALLTID via tool-call 'submit_calc_proposal'. Vær ærlig om usikkerhet:
 - Bruk confidence 0-100 per felt (0 = bare gjetning, 100 = direkte avlest).
 - Skriv klare assumptions og open_questions.
-- Det er BEDRE å foreslå et estimat med lav confidence enn å la et felt stå tomt.`;
+- Det er BEDRE å foreslå et estimat med lav confidence enn å la et felt stå tomt.
+
+KRITISK: For HVERT system MÅ 'proposed_input' inneholde MINST 'stromklasse' og 'total_lengde_m'.
+Tomt 'proposed_input' er IKKE akseptabelt. Hvis du er usikker, sett confidence lavt — men FYLL FELTENE.
+Eksempel på riktig system:
+{
+  "name": "EL1",
+  "note": "Hovedstigeskinne",
+  "system_confidence": 70,
+  "proposed_input": {
+    "stromklasse": { "value": "3200", "confidence": 90, "reason": "Lest direkte fra tegning" },
+    "total_lengde_m": { "value": 49, "confidence": 70, "reason": "Målt fra plan" },
+    "leverandor": { "value": "schneider", "confidence": 60, "reason": "Canalis-produkt nevnt" }
+  }
+}`;
 
 // Konkret skjema med eksplisitte felter — Gemini fyller dette mye mer pålitelig
 // enn et abstract additionalProperties-skjema.
