@@ -118,6 +118,31 @@ export default function CalcEngineEditorPage() {
     initRef.current = true;
 
     (async () => {
+      // 0) Direkte redigering av eksisterende kalkyle (?calculation=<id>)
+      if (editCalculationId) {
+        const { data: calc } = await supabase
+          .from("calculations")
+          .select("id, project_title, customer_name, input_snapshot, rate_table_id, norm_table_id, deleted_at")
+          .eq("id", editCalculationId)
+          .maybeSingle();
+
+        if (calc && !calc.deleted_at) {
+          setCalculationId(calc.id);
+          setTitle(calc.project_title === PLACEHOLDER_TITLE ? "" : (calc.project_title ?? ""));
+          setCustomer(calc.customer_name === PLACEHOLDER_CUSTOMER ? "" : (calc.customer_name ?? ""));
+          const init: Record<string, any> = {};
+          for (const f of fields) init[f.field_key] = f.default_value;
+          setInputState({ ...init, ...((calc.input_snapshot as any) ?? {}) });
+          if (calc.rate_table_id) setSelectedRateId(calc.rate_table_id);
+          if (calc.norm_table_id) setSelectedNormId(calc.norm_table_id);
+          setLastSavedAt(new Date());
+          setSaveState("saved");
+          setHydrated(true);
+          return;
+        }
+        // Hvis kalkylen ikke finnes / er slettet, fall through til defaults
+      }
+
       // 1) Hvis draft har en allerede koblet kalkyle for DETTE systemet, gjenopprett den
       if (fromDraftId) {
         const { data: draft } = await supabase
