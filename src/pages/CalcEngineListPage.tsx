@@ -218,6 +218,28 @@ export default function CalcEngineListPage() {
 
                 {/* TOMME */}
                 <TabsContent value="empty" className="space-y-3">
+                  <div className="flex justify-end">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="rounded-xl gap-1.5 text-xs"
+                      onClick={async () => {
+                        const { data, error } = await supabase.rpc("cleanup_empty_calculations" as any);
+                        if (error) {
+                          toast({ title: "Opprydding feilet", description: error.message, variant: "destructive" });
+                          return;
+                        }
+                        const d = data as any;
+                        toast({
+                          title: "Opprydding ferdig",
+                          description: `${d?.soft_deleted_calculations ?? 0} tomme kalkyler arkivert, ${d?.hard_deleted_drafts ?? 0} forlatte AI-utkast slettet.`,
+                        });
+                        setRefreshTick((n) => n + 1);
+                      }}
+                    >
+                      <Sparkle className="h-3.5 w-3.5" /> Rydd opp nå
+                    </Button>
+                  </div>
                   {emptyCalcs.length === 0 && emptyDrafts.length === 0 ? (
                     <Card className="p-8 text-center text-sm text-muted-foreground rounded-2xl">
                       Ingen tomme elementer. Alt er ryddig her ✨
