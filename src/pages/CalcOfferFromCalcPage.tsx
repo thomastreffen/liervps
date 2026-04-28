@@ -86,7 +86,7 @@ export default function CalcOfferFromCalcPage() {
   const [descriptionDraft, setDescriptionDraft] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  // Load source
+  // Load source — og redirect umiddelbart hvis aktivt tilbud allerede finnes
   useEffect(() => {
     (async () => {
       if (!kind) {
@@ -95,6 +95,22 @@ export default function CalcOfferFromCalcPage() {
       }
       setLoading(true);
       try {
+        // 1) Sjekk om aktivt tilbud allerede finnes for denne kilden
+        const sourceId = kind === "case" ? caseId : calcId;
+        const sourceKind = kind === "case" ? "calc_case" : "calculation";
+        if (sourceId) {
+          const { data: existingOfferId } = await supabase.rpc("get_active_offer_for_source", {
+            _source_kind: sourceKind,
+            _source_id: sourceId,
+          });
+          if (existingOfferId) {
+            toast.info("Tilbud finnes allerede for dette grunnlaget — åpner eksisterende.");
+            navigate(`/sales/offers/${existingOfferId}`, { replace: true });
+            return;
+          }
+        }
+
+        // 2) Last kildedata
         if (kind === "case" && caseId) {
           const [c, s] = await Promise.all([
             supabase.from("calc_cases").select("id, title, customer_name").eq("id", caseId).maybeSingle(),
@@ -131,7 +147,7 @@ export default function CalcOfferFromCalcPage() {
         setLoading(false);
       }
     })();
-  }, [kind, caseId, calcId]);
+  }, [kind, caseId, calcId, navigate]);
 
   // Generate lines on changes
   useEffect(() => {
