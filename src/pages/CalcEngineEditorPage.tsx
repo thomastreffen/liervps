@@ -227,6 +227,12 @@ export default function CalcEngineEditorPage() {
         if (lineErr) throw lineErr;
       }
 
+      if (fromDraftId) {
+        await supabase.from("calc_ai_drafts")
+          .update({ status: "applied", applied_calculation_id: calc.id, applied_at: new Date().toISOString() })
+          .eq("id", fromDraftId);
+      }
+
       toast({ title: "Kalkyle lagret", description: `${title} er lagret som utkast.` });
       navigate(`/sales/calc-engine/${calc.id}`);
     } catch (e: any) {
