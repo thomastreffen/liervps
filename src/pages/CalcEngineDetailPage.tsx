@@ -72,6 +72,7 @@ export default function CalcEngineDetailPage() {
             {calc.case_system_key && <> • System <span className="font-mono">{calc.case_system_key}</span></>}
           </p>
         </div>
+        <CommercialCaseHeaderBadge caseId={calc.commercial_case_id} />
         {(() => {
           const badge = getStatusBadge("calculation", calc.status);
           return <Badge variant="outline" className={`rounded-lg ${badge.className}`}>{badge.label}</Badge>;
