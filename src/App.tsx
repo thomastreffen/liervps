@@ -50,6 +50,7 @@ import OffersPage from "./pages/OffersPage";
 import NewOfferWizard from "./pages/NewOfferWizard";
 import OfferEditorPage from "./pages/OfferEditorPage";
 import LeadsPage from "./pages/LeadsPage";
+import NewLeadPage from "./pages/NewLeadPage";
 import LeadDetail from "./pages/LeadDetail";
 import PipelinePage from "./pages/PipelinePage";
 import SalesDashboard from "./pages/SalesDashboard";
@@ -255,6 +256,14 @@ const App = () => (
                 element={
                   <ProtectedRoute requiredRoles={["admin", "super_admin"]}>
                     <LeadsPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/sales/leads/new"
+                element={
+                  <ProtectedRoute requiredRoles={["admin", "super_admin"]}>
+                    <NewLeadPage />
                   </ProtectedRoute>
                 }
               />

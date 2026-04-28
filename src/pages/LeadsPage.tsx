@@ -9,11 +9,11 @@ import { useCompanyContext } from "@/hooks/useCompanyContext";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+// Dialog removed — "Ny henvendelse" is now its own page (/sales/leads/new)
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { BulkDeleteBar } from "@/components/BulkDeleteBar";
 import { LeadActionPanel, type ActionPanelTab } from "@/components/activity/LeadActionPanel";
@@ -80,8 +80,6 @@ export default function LeadsPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState(searchParams.get("status") || "all");
   const [viewMode, setViewMode] = useState<ViewMode>("active");
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [saving, setSaving] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   // Quick action panel
@@ -91,13 +89,6 @@ export default function LeadsPage() {
 
   // Offer counts per lead
   const [offerCounts, setOfferCounts] = useState<Record<string, { count: number; latestStatus: string }>>({});
-
-  const [companyName, setCompanyName] = useState("");
-  const [contactName, setContactName] = useState("");
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
-  const [source, setSource] = useState("");
-  const [estimatedValue, setEstimatedValue] = useState("");
 
   const fetchLeads = async () => {
     setLoading(true);
@@ -135,40 +126,6 @@ export default function LeadsPage() {
         setOfferCounts(counts);
       });
   }, [leads]);
-
-  const resetForm = () => {
-    setCompanyName(""); setContactName(""); setEmail(""); setPhone("");
-    setSource(""); setEstimatedValue("");
-  };
-
-  const handleCreate = async () => {
-    if (!companyName.trim()) { toast.error("Firmanavn er påkrevd"); return; }
-    setSaving(true);
-    const { data, error } = await supabase.from("leads").insert({
-      company_name: companyName.trim(),
-      contact_name: contactName.trim() || null,
-      email: email.trim() || null,
-      phone: phone.trim() || null,
-      source: source.trim() || null,
-      estimated_value: Number(estimatedValue) || 0,
-      owner_id: user?.id,
-      assigned_owner_user_id: user?.id,
-    } as any).select("id").single();
-
-    if (data) {
-      await supabase.from("lead_participants").insert({ lead_id: data.id, user_id: user!.id, role: "owner" });
-      await supabase.from("lead_history").insert({
-        lead_id: data.id, action: "created", description: `Lead opprettet: ${companyName.trim()}`, performed_by: user?.id,
-      });
-      toast.success("Lead opprettet");
-      setDialogOpen(false);
-      resetForm();
-      navigate(`/sales/leads/${data.id}`);
-    } else {
-      toast.error("Kunne ikke opprette lead");
-    }
-    setSaving(false);
-  };
 
   const handleRestore = async (leadId: string) => {
     if (viewMode === "trash") {
@@ -240,7 +197,7 @@ export default function LeadsPage() {
         <div className="flex items-center gap-2 ml-auto">
           <span className="text-xs text-muted-foreground">{filtered.length} henvendelser</span>
           {viewMode === "active" && (
-            <Button size="sm" onClick={() => { resetForm(); setDialogOpen(true); }} className="gap-1.5 h-9 rounded-xl">
+            <Button size="sm" onClick={() => navigate("/sales/leads/new")} className="gap-1.5 h-9 rounded-xl">
               <Plus className="h-3.5 w-3.5" /> Ny henvendelse
             </Button>
           )}
@@ -274,7 +231,7 @@ export default function LeadsPage() {
               </div>
               {viewMode === "active" && (
                 <div className="flex items-center justify-center gap-3">
-                  <Button size="sm" onClick={() => { resetForm(); setDialogOpen(true); }} className="gap-1.5 rounded-xl">
+                  <Button size="sm" onClick={() => navigate("/sales/leads/new")} className="gap-1.5 rounded-xl">
                     <Plus className="h-3.5 w-3.5" /> Ny henvendelse
                   </Button>
                   <Button size="sm" variant="outline" onClick={() => navigate("/sales/pipeline")} className="gap-1.5 rounded-xl">
@@ -437,51 +394,6 @@ export default function LeadsPage() {
         />
       )}
 
-      {/* Create Dialog — stays as modal (simple creation) */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-lg rounded-2xl">
-          <DialogHeader>
-            <DialogTitle>Ny kundehenvendelse</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3">
-            <div className="space-y-1.5">
-              <Label>Installatør / kunde *</Label>
-              <Input value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="Elektro AS" className="rounded-xl" />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label>Kontaktperson</Label>
-                <Input value={contactName} onChange={(e) => setContactName(e.target.value)} placeholder="Ola Nordmann" className="rounded-xl" />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Telefon</Label>
-                <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+47 999 99 999" className="rounded-xl" />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label>E-post</Label>
-                <Input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="epost@firma.no" type="email" className="rounded-xl" />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Kilde</Label>
-                <Input value={source} onChange={(e) => setSource(e.target.value)} placeholder="Messe, anbud, eksisterende kunde..." className="rounded-xl" />
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Estimert ordreverdi (kr)</Label>
-              <Input value={estimatedValue} onChange={(e) => setEstimatedValue(e.target.value)} placeholder="0" type="number" className="rounded-xl" />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)} className="rounded-xl">Avbryt</Button>
-            <Button onClick={handleCreate} disabled={saving} className="gap-1.5 rounded-xl">
-              {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-              Opprett
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
