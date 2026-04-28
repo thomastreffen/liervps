@@ -208,6 +208,12 @@ export default function CalcCaseDetailPage() {
           )}
         </div>
       </div>
+
+      <DeleteCalcDialog
+        target={deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onDeleted={() => navigate("/sales/calc-engine")}
+      />
     </div>
   );
 }
