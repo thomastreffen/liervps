@@ -24,6 +24,7 @@ export default function CalcEngineDetailPage() {
   const [lines, setLines] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
+  const [offerDialogOpen, setOfferDialogOpen] = useState(false);
 
   useEffect(() => {
     if (!id) return;
