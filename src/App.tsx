@@ -260,6 +260,14 @@ const App = () => (
                 }
               />
               <Route
+                path="/sales/leads/new"
+                element={
+                  <ProtectedRoute requiredRoles={["admin", "super_admin"]}>
+                    <NewLeadPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
                 path="/sales/leads/:id"
                 element={
                   <ProtectedRoute requiredRoles={["admin", "super_admin"]}>
