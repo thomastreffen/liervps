@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useCalcPackageBundle } from "@/hooks/useCalcPackages";
@@ -18,11 +18,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { ArrowLeft, Loader2, Save, Calculator } from "lucide-react";
+import { ArrowLeft, Loader2, Calculator, Cloud, CloudOff, Check, ExternalLink } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 function formatNok(n: number): string {
   return new Intl.NumberFormat("nb-NO", { maximumFractionDigits: 0 }).format(n);
+}
+
+function formatTime(d: Date): string {
+  return d.toLocaleTimeString("nb-NO", { hour: "2-digit", minute: "2-digit" });
 }
 
 function FieldRenderer({
@@ -73,6 +77,12 @@ function FieldRenderer({
   }
 }
 
+type SaveState = "idle" | "dirty" | "saving" | "saved" | "error";
+
+const AUTOSAVE_DEBOUNCE_MS = 1200;
+const PLACEHOLDER_TITLE = "Uten navn (utkast)";
+const PLACEHOLDER_CUSTOMER = "Ikke angitt";
+
 export default function CalcEngineEditorPage() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
@@ -86,58 +96,96 @@ export default function CalcEngineEditorPage() {
   const [inputState, setInputState] = useState<Record<string, any>>({});
   const [title, setTitle] = useState("");
   const [customer, setCustomer] = useState("");
-  const [saving, setSaving] = useState(false);
   const [selectedRateId, setSelectedRateId] = useState<string | null>(null);
   const [selectedNormId, setSelectedNormId] = useState<string | null>(null);
   const [aiPrefilledKeys, setAiPrefilledKeys] = useState<Set<string>>(new Set());
 
-  // Init defaults når felter lastes — og overskriv med AI-forslag hvis from_draft
+  // Persistens-state
+  const [calculationId, setCalculationId] = useState<string | null>(null);
+  const [saveState, setSaveState] = useState<SaveState>("idle");
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
+  const [hydrated, setHydrated] = useState(false);
+  const initRef = useRef(false);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const inFlightRef = useRef<Promise<void> | null>(null);
+
+  // ==== INIT: hent eksisterende kalkyle hvis draft.applied_calculation_id finnes,
+  // ellers init defaults og evt. AI-prefill ====
   useEffect(() => {
-    if (!fields.length) return;
-    const init: Record<string, any> = {};
-    for (const f of fields) {
-      init[f.field_key] = f.default_value;
-    }
-    if (!fromDraftId) {
-      setInputState(init);
-      return;
-    }
-    // Hent AI-forslag og merge inn — bruk valgt system fra ai_proposed_lines om mulig
+    if (!fields.length || initRef.current) return;
+    initRef.current = true;
+
     (async () => {
-      const { data } = await supabase
-        .from("calc_ai_drafts")
-        .select("ai_proposed_input, ai_proposed_lines, initial_description")
-        .eq("id", fromDraftId)
-        .maybeSingle();
-      const systems = Array.isArray(data?.ai_proposed_lines) ? (data!.ai_proposed_lines as any[]) : [];
-      const sys = systems[systemIndex];
-      const proposed = (sys?.proposed_input ?? data?.ai_proposed_input ?? {}) as Record<string, { value: any }>;
-      const prefilled = new Set<string>();
-      for (const [k, v] of Object.entries(proposed)) {
-        if (k in init && v?.value !== undefined && v.value !== null) {
-          init[k] = v.value;
-          prefilled.add(k);
+      // 1) Hvis draft har en allerede koblet kalkyle, gjenopprett den
+      if (fromDraftId) {
+        const { data: draft } = await supabase
+          .from("calc_ai_drafts")
+          .select("ai_proposed_input, ai_proposed_lines, initial_description, applied_calculation_id")
+          .eq("id", fromDraftId)
+          .maybeSingle();
+
+        if (draft?.applied_calculation_id) {
+          const { data: calc } = await supabase
+            .from("calculations")
+            .select("id, project_title, customer_name, input_snapshot, rate_table_id, norm_table_id, deleted_at")
+            .eq("id", draft.applied_calculation_id)
+            .maybeSingle();
+
+          if (calc && !calc.deleted_at) {
+            setCalculationId(calc.id);
+            setTitle(calc.project_title === PLACEHOLDER_TITLE ? "" : calc.project_title);
+            setCustomer(calc.customer_name === PLACEHOLDER_CUSTOMER ? "" : calc.customer_name);
+            const init: Record<string, any> = {};
+            for (const f of fields) init[f.field_key] = f.default_value;
+            setInputState({ ...init, ...(calc.input_snapshot as any) });
+            if (calc.rate_table_id) setSelectedRateId(calc.rate_table_id);
+            if (calc.norm_table_id) setSelectedNormId(calc.norm_table_id);
+            setLastSavedAt(new Date());
+            setSaveState("saved");
+            setHydrated(true);
+            return;
+          }
         }
+
+        // 2) Ny editor-økt fra AI-review: bruk AI-forslag
+        const init: Record<string, any> = {};
+        for (const f of fields) init[f.field_key] = f.default_value;
+        const systems = Array.isArray(draft?.ai_proposed_lines) ? (draft!.ai_proposed_lines as any[]) : [];
+        const sys = systems[systemIndex];
+        const proposed = (sys?.proposed_input ?? draft?.ai_proposed_input ?? {}) as Record<string, { value: any }>;
+        const prefilled = new Set<string>();
+        for (const [k, v] of Object.entries(proposed)) {
+          if (k in init && v?.value !== undefined && v.value !== null) {
+            init[k] = v.value;
+            prefilled.add(k);
+          }
+        }
+        setInputState(init);
+        setAiPrefilledKeys(prefilled);
+        const sysName = sys?.name ? ` — ${sys.name}` : "";
+        if (draft?.initial_description) {
+          setTitle((draft.initial_description.slice(0, 60) + sysName).slice(0, 80));
+        } else if (sys?.name) {
+          setTitle(sys.name);
+        }
+        setHydrated(true);
+        return;
       }
+
+      // 3) Helt ny kalkyle uten draft
+      const init: Record<string, any> = {};
+      for (const f of fields) init[f.field_key] = f.default_value;
       setInputState(init);
-      setAiPrefilledKeys(prefilled);
-      const sysName = sys?.name ? ` — ${sys.name}` : "";
-      if (data?.initial_description && !title) {
-        setTitle((data.initial_description.slice(0, 60) + sysName).slice(0, 80));
-      } else if (sys?.name && !title) {
-        setTitle(sys.name);
-      }
+      setHydrated(true);
     })();
-  }, [fields.length, fromDraftId, systemIndex]);
+  }, [fields, fromDraftId, systemIndex]);
 
-
-  // Default rate/norm = nyeste (allerede sortert desc i hooken)
+  // Default rate/norm = nyeste
   useEffect(() => {
     if (rateTables.length && !selectedRateId) setSelectedRateId(rateTables[0].id);
   }, [rateTables, selectedRateId]);
   useEffect(() => {
     if (normTables.length && !selectedNormId) {
-      // Velg normtabell som matcher valgt strømklasse, om mulig
       const klasse = inputState.stromklasse;
       const match = klasse
         ? normTables.find(t => (t.rows[0]?.context as any)?.stromklasse === klasse)
@@ -146,7 +194,6 @@ export default function CalcEngineEditorPage() {
     }
   }, [normTables, inputState.stromklasse, selectedNormId]);
 
-  // Auto-bytt normtabell når strømklasse endres
   useEffect(() => {
     const klasse = inputState.stromklasse;
     if (!klasse || !normTables.length) return;
@@ -181,71 +228,146 @@ export default function CalcEngineEditorPage() {
     }
   }, [pkg, selectedRateId, selectedNormId, rateTables, normTables, inputState]);
 
-  const handleSave = async () => {
-    if (!user || !pkg || !result) return;
-    if (!title.trim() || !customer.trim()) {
-      toast({ title: "Mangler felt", description: "Fyll inn prosjekttittel og kunde.", variant: "destructive" });
-      return;
-    }
-    setSaving(true);
+  // ==== AUTOSAVE ====
+  const performSave = useCallback(async () => {
+    if (!user || !pkg || !selectedRateId || !selectedNormId) return;
+    setSaveState("saving");
     try {
-      const totals = result.totals;
-      const { data: calc, error } = await supabase
-        .from("calculations")
-        .insert({
-          customer_name: customer.trim(),
-          project_title: title.trim(),
-          status: "draft",
-          created_by: user.id,
-          company_id: activeCompanyId,
-          package_id: pkg.id,
-          rate_table_id: selectedRateId,
-          norm_table_id: selectedNormId,
-          input_snapshot: inputState,
-          totals_snapshot: totals as any,
-          total_labor: totals.total_cost,
-          total_material: 0,
-          total_price: totals.total_sales,
-        })
-        .select("id")
-        .single();
-      if (error) throw error;
+      const totals = result?.totals;
+      const lines = result?.lines ?? [];
 
-      // Lag linjer
-      const lineRows = result.lines.map((l, i) => ({
-        calculation_id: calc.id,
-        line_key: l.line_key ?? null,
-        source_type: l.source_type,
-        source_ref: l.source_ref ?? null,
-        description: l.description,
-        qty: l.qty,
-        unit: l.unit ?? null,
-        norm_hours: l.norm_hours,
-        adjusted_hours: l.adjusted_hours,
-        cost_amount: l.cost_amount,
-        sales_amount: l.sales_amount,
-        is_internal_only: l.is_internal_only,
-        metadata: (l.metadata ?? {}) as any,
-        sort_order: i,
-      }));
-      if (lineRows.length) {
+      const payload = {
+        customer_name: customer.trim() || PLACEHOLDER_CUSTOMER,
+        project_title: title.trim() || PLACEHOLDER_TITLE,
+        status: "draft" as const,
+        package_id: pkg.id,
+        rate_table_id: selectedRateId,
+        norm_table_id: selectedNormId,
+        input_snapshot: inputState,
+        totals_snapshot: (totals ?? {}) as any,
+        total_labor: totals?.total_cost ?? 0,
+        total_material: 0,
+        total_price: totals?.total_sales ?? 0,
+      };
+
+      let calcId = calculationId;
+
+      if (!calcId) {
+        const { data, error } = await supabase
+          .from("calculations")
+          .insert({
+            ...payload,
+            created_by: user.id,
+            company_id: activeCompanyId,
+          })
+          .select("id")
+          .single();
+        if (error) throw error;
+        calcId = data.id;
+        setCalculationId(calcId);
+
+        if (fromDraftId) {
+          await supabase.from("calc_ai_drafts")
+            .update({ applied_calculation_id: calcId, status: "applied", applied_at: new Date().toISOString() })
+            .eq("id", fromDraftId);
+        }
+      } else {
+        const { error } = await supabase
+          .from("calculations")
+          .update(payload)
+          .eq("id", calcId);
+        if (error) throw error;
+      }
+
+      // Erstatt linjer (delete + insert) — enkelt og deterministisk
+      await supabase.from("calculation_lines").delete().eq("calculation_id", calcId);
+      if (lines.length) {
+        const lineRows = lines.map((l, i) => ({
+          calculation_id: calcId!,
+          line_key: l.line_key ?? null,
+          source_type: l.source_type,
+          source_ref: l.source_ref ?? null,
+          description: l.description,
+          qty: l.qty,
+          unit: l.unit ?? null,
+          norm_hours: l.norm_hours,
+          adjusted_hours: l.adjusted_hours,
+          cost_amount: l.cost_amount,
+          sales_amount: l.sales_amount,
+          is_internal_only: l.is_internal_only,
+          metadata: (l.metadata ?? {}) as any,
+          sort_order: i,
+        }));
         const { error: lineErr } = await supabase.from("calculation_lines").insert(lineRows);
         if (lineErr) throw lineErr;
       }
 
-      if (fromDraftId) {
-        await supabase.from("calc_ai_drafts")
-          .update({ status: "applied", applied_calculation_id: calc.id, applied_at: new Date().toISOString() })
-          .eq("id", fromDraftId);
-      }
-
-      toast({ title: "Kalkyle lagret", description: `${title} er lagret som utkast.` });
-      navigate(`/sales/calc-engine/${calc.id}`);
+      setLastSavedAt(new Date());
+      setSaveState("saved");
     } catch (e: any) {
-      console.error(e);
-      toast({ title: "Feil ved lagring", description: e.message ?? String(e), variant: "destructive" });
-    } finally {
-      setSaving(false);
+      console.error("[autosave] failed", e);
+      setSaveState("error");
+      toast({
+        title: "Autosave feilet",
+        description: e?.message ?? "Kunne ikke lagre utkast. Prøver igjen ved neste endring.",
+        variant: "destructive",
+      });
+    }
+  }, [user, pkg, selectedRateId, selectedNormId, result, customer, title, inputState, calculationId, activeCompanyId, fromDraftId]);
+
+  // Trigger debounced autosave når data endres (etter hydrering)
+  useEffect(() => {
+    if (!hydrated || !pkg || !selectedRateId || !selectedNormId) return;
+    setSaveState((s) => (s === "saving" ? s : "dirty"));
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      // Sekvensielt — vent på evt. pågående
+      const run = async () => {
+        if (inFlightRef.current) await inFlightRef.current;
+        const p = performSave();
+        inFlightRef.current = p.then(() => {});
+        await inFlightRef.current;
+        inFlightRef.current = null;
+      };
+      run();
+    }, AUTOSAVE_DEBOUNCE_MS);
+    return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hydrated, title, customer, inputState, selectedRateId, selectedNormId]);
+
+  // Advarsel ved navigasjon vekk hvis dirty/saving
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (saveState === "dirty" || saveState === "saving") {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [saveState]);
+
+  // ==== Navigasjon ====
+  const handleBack = () => {
+    if (fromDraftId) {
+      navigate(`/sales/calc-engine/ai-review/${fromDraftId}`);
+    } else {
+      navigate("/sales/calc-engine");
+    }
+  };
+
+  const handleOpenSaved = async () => {
+    // Tving en synkron save før åpning
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    if (inFlightRef.current) await inFlightRef.current;
+    if (saveState !== "saved") {
+      const p = performSave();
+      inFlightRef.current = p.then(() => {});
+      await inFlightRef.current;
+      inFlightRef.current = null;
+    }
+    if (calculationId) {
+      navigate(`/sales/calc-engine/${calculationId}`);
     }
   };
 
@@ -265,21 +387,55 @@ export default function CalcEngineEditorPage() {
     );
   }
 
+  const SaveStatus = () => {
+    if (saveState === "saving") {
+      return (
+        <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+          <Loader2 className="h-3.5 w-3.5 animate-spin" /> Lagrer…
+        </span>
+      );
+    }
+    if (saveState === "dirty") {
+      return (
+        <span className="inline-flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400">
+          <Cloud className="h-3.5 w-3.5" /> Ulagrede endringer
+        </span>
+      );
+    }
+    if (saveState === "error") {
+      return (
+        <span className="inline-flex items-center gap-1.5 text-xs text-destructive">
+          <CloudOff className="h-3.5 w-3.5" /> Lagring feilet
+        </span>
+      );
+    }
+    if (saveState === "saved" && lastSavedAt) {
+      return (
+        <span className="inline-flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400">
+          <Check className="h-3.5 w-3.5" /> Utkast lagret kl {formatTime(lastSavedAt)}
+        </span>
+      );
+    }
+    return <span className="text-xs text-muted-foreground">Klar</span>;
+  };
+
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-[1600px] mx-auto">
       <div className="flex items-center gap-3 mb-5">
-        <Button variant="ghost" size="icon" onClick={() => navigate("/sales/calc-engine/new")} className="rounded-xl">
+        <Button variant="ghost" size="icon" onClick={handleBack} className="rounded-xl" title={fromDraftId ? "Tilbake til AI-review" : "Tilbake"}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div className="flex-1 min-w-0">
           <h1 className="text-xl sm:text-2xl font-semibold tracking-tight truncate">{pkg.name}</h1>
-          <p className="text-xs text-muted-foreground">
-            v{pkg.version} • Sats: {rateTables.find(r => r.id === selectedRateId)?.name ?? "—"} • Norm: {normTables.find(n => n.id === selectedNormId)?.name ?? "—"}
-          </p>
+          <div className="text-xs text-muted-foreground flex items-center gap-3 flex-wrap">
+            <span>v{pkg.version} • Sats: {rateTables.find(r => r.id === selectedRateId)?.name ?? "—"} • Norm: {normTables.find(n => n.id === selectedNormId)?.name ?? "—"}</span>
+            <span aria-hidden>·</span>
+            <SaveStatus />
+          </div>
         </div>
-        <Button onClick={handleSave} disabled={saving || !result} className="gap-1.5 rounded-xl">
-          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-          Lagre kalkyle
+        <Button onClick={handleOpenSaved} disabled={!calculationId && saveState !== "saved"} variant="outline" className="gap-1.5 rounded-xl">
+          <ExternalLink className="h-4 w-4" />
+          Åpne kalkyle
         </Button>
       </div>
 
@@ -289,14 +445,17 @@ export default function CalcEngineEditorPage() {
           <Card className="p-5 rounded-2xl space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <Label>Prosjekttittel *</Label>
+                <Label>Prosjekttittel</Label>
                 <Input value={title} onChange={(e) => setTitle(e.target.value)} className="rounded-xl" placeholder="F.eks. Moss Industri – ny strømskinne" />
               </div>
               <div className="space-y-1.5">
-                <Label>Kunde *</Label>
+                <Label>Kunde</Label>
                 <Input value={customer} onChange={(e) => setCustomer(e.target.value)} className="rounded-xl" placeholder="Kundenavn" />
               </div>
             </div>
+            <p className="text-[11px] text-muted-foreground">
+              Utkastet lagres automatisk. Du kan fortsette senere uten å miste data.
+            </p>
           </Card>
 
           {sections.map((sec) => (
@@ -311,6 +470,9 @@ export default function CalcEngineEditorPage() {
                       {f.label}
                       {f.unit && <span className="text-xs text-muted-foreground">({f.unit})</span>}
                       {f.is_required && <span className="text-destructive">*</span>}
+                      {aiPrefilledKeys.has(f.field_key) && (
+                        <Badge variant="outline" className="rounded-md text-[9px] ml-1 px-1 py-0">AI</Badge>
+                      )}
                     </Label>
                     <FieldRenderer
                       field={f}
