@@ -39,6 +39,7 @@ import CalcEngineDetailPage from "./pages/CalcEngineDetailPage";
 import CalcCaseDetailPage from "./pages/CalcCaseDetailPage";
 import CalcAiStartPage from "./pages/CalcAiStartPage";
 import CalcAiReviewPage from "./pages/CalcAiReviewPage";
+import CalcOfferFromCalcPage from "./pages/CalcOfferFromCalcPage";
 import Login from "./pages/Login";
 import AuthCallback from "./pages/AuthCallback";
 import NotFound from "./pages/NotFound";
@@ -300,6 +301,7 @@ const App = () => (
               <Route path="/sales/calc-engine/new/editor" element={<ProtectedRoute><CalcEngineNewRouter /></ProtectedRoute>} />
               <Route path="/sales/calc-engine/ai-start" element={<ProtectedRoute><CalcAiStartPage /></ProtectedRoute>} />
               <Route path="/sales/calc-engine/ai-review/:id" element={<ProtectedRoute><CalcAiReviewPage /></ProtectedRoute>} />
+              <Route path="/sales/calc-engine/offer-from-calc" element={<ProtectedRoute><CalcOfferFromCalcPage /></ProtectedRoute>} />
              <Route path="/sales/calc-engine/case/:id" element={<ProtectedRoute><CalcCaseDetailPage /></ProtectedRoute>} />
              <Route path="/sales/calc-engine/:id" element={<ProtectedRoute><CalcEngineDetailPage /></ProtectedRoute>} />
 
