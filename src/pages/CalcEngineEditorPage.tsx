@@ -243,6 +243,57 @@ export default function CalcEngineEditorPage() {
       const totals = result?.totals;
       const lines = result?.lines ?? [];
 
+      // Bestem case_id + system_key (kun ved AI-draft med 2+ systemer)
+      let caseId: string | null = null;
+      let systemKey: string | null = null;
+
+      if (fromDraftId && !calculationId) {
+        const { data: d0 } = await supabase
+          .from("calc_ai_drafts")
+          .select("ai_proposed_lines, initial_description, case_id")
+          .eq("id", fromDraftId)
+          .maybeSingle();
+        const systems = Array.isArray(d0?.ai_proposed_lines) ? (d0!.ai_proposed_lines as any[]) : [];
+        const totalSystems = systems.length;
+        const sys = systems[systemIndex];
+        systemKey = sys?.name ?? sys?.system_key ?? null;
+
+        if (totalSystems >= 2) {
+          // Gjenbruk eksisterende case eller opprett ny
+          caseId = (d0 as any)?.case_id ?? null;
+          if (!caseId) {
+            const caseTitle = (d0?.initial_description ?? "").split(/[.\n]/)[0].slice(0, 80).trim()
+              || pkg.name
+              || "Kalkylesak";
+            const { data: caseRow, error: caseErr } = await supabase
+              .from("calc_cases")
+              .insert({
+                title: caseTitle,
+                customer_name: customer.trim() || null,
+                description: d0?.initial_description ?? null,
+                source_draft_id: fromDraftId,
+                company_id: activeCompanyId,
+                created_by: user.id,
+                status: "draft",
+              })
+              .select("id")
+              .single();
+            if (caseErr) throw caseErr;
+            caseId = caseRow.id;
+            await supabase.from("calc_ai_drafts").update({ case_id: caseId } as any).eq("id", fromDraftId);
+          }
+        }
+      } else if (calculationId) {
+        // Ved oppdatering: behold eksisterende case-kobling
+        const { data: existing } = await supabase
+          .from("calculations")
+          .select("case_id, case_system_key")
+          .eq("id", calculationId)
+          .maybeSingle();
+        caseId = (existing as any)?.case_id ?? null;
+        systemKey = (existing as any)?.case_system_key ?? null;
+      }
+
       const payload = {
         customer_name: customer.trim() || PLACEHOLDER_CUSTOMER,
         project_title: title.trim() || PLACEHOLDER_TITLE,
@@ -255,6 +306,9 @@ export default function CalcEngineEditorPage() {
         total_labor: totals?.total_cost ?? 0,
         total_material: 0,
         total_price: totals?.total_sales ?? 0,
+        case_id: caseId,
+        case_system_key: systemKey,
+        case_sort_order: systemIndex,
       };
 
       let calcId = calculationId;
