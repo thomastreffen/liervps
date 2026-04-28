@@ -12,6 +12,8 @@ import { ArrowLeft, Loader2, Layers, ExternalLink, Pencil, Trash2, FileText, Fil
 import { getStatusBadge, formatDateTime } from "@/lib/calc-engine/status-labels";
 import { DeleteCalcDialog, type DeleteTarget } from "@/components/calc-engine/DeleteCalcDialog";
 import { useActiveOfferForSource } from "@/hooks/useActiveOfferForSource";
+import { CommercialCaseHeaderBadge } from "@/components/commercial/CommercialCaseHeaderBadge";
+import { CommercialCasePanel } from "@/components/commercial/CommercialCasePanel";
 
 function formatNok(n: number): string {
   return new Intl.NumberFormat("nb-NO", { maximumFractionDigits: 0 }).format(n ?? 0);
@@ -93,6 +95,7 @@ export default function CalcCaseDetailPage() {
             {caseRow.customer_name ?? "Ukjent kunde"} • Sist endret {formatDateTime(caseRow.updated_at)} • {subs.length} delkalkyler
           </p>
         </div>
+        <CommercialCaseHeaderBadge caseId={caseRow.commercial_case_id} />
         {(() => {
           const badge = getStatusBadge("case", caseRow.status);
           return <Badge variant="outline" className={`rounded-lg ${badge.className}`}>{badge.label}</Badge>;
@@ -230,6 +233,13 @@ export default function CalcCaseDetailPage() {
           )}
         </div>
       </div>
+
+      {caseRow.commercial_case_id && (
+        <div className="space-y-2">
+          <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Kommersiell sak</h2>
+          <CommercialCasePanel caseId={caseRow.commercial_case_id} />
+        </div>
+      )}
 
       <DeleteCalcDialog
         target={deleteTarget}
