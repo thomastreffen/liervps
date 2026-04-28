@@ -163,12 +163,14 @@ export default function CalcEngineEditorPage() {
         }
         setInputState(init);
         setAiPrefilledKeys(prefilled);
-        const sysName = sys?.name ? ` — ${sys.name}` : "";
-        if (draft?.initial_description) {
-          setTitle((draft.initial_description.slice(0, 60) + sysName).slice(0, 80));
-        } else if (sys?.name) {
-          setTitle(sys.name);
-        }
+        // Smart tittelforslag: Pakke — System (Leverandør, klasse, lengde)
+        setTitle(suggestProjectTitle({
+          packageName: pkg?.name,
+          systemName: sys?.name,
+          initialDescription: draft?.initial_description,
+          inputs: init,
+          fields,
+        }));
         setHydrated(true);
         return;
       }
