@@ -40,6 +40,8 @@ import CalcCaseDetailPage from "./pages/CalcCaseDetailPage";
 import CalcAiStartPage from "./pages/CalcAiStartPage";
 import CalcAiReviewPage from "./pages/CalcAiReviewPage";
 import CalcOfferFromCalcPage from "./pages/CalcOfferFromCalcPage";
+import SalesCasesListPage from "./pages/SalesCasesListPage";
+import SalesCaseDetailPage from "./pages/SalesCaseDetailPage";
 import Login from "./pages/Login";
 import AuthCallback from "./pages/AuthCallback";
 import NotFound from "./pages/NotFound";
