@@ -307,6 +307,10 @@ const App = () => (
              <Route path="/sales/calc-engine/case/:id" element={<ProtectedRoute><CalcCaseDetailPage /></ProtectedRoute>} />
              <Route path="/sales/calc-engine/:id" element={<ProtectedRoute><CalcEngineDetailPage /></ProtectedRoute>} />
 
+              {/* Commercial Cases (CRM-hjerte) */}
+              <Route path="/sales/cases" element={<ProtectedRoute requiredRoles={["admin", "super_admin"]}><SalesCasesListPage /></ProtectedRoute>} />
+              <Route path="/sales/cases/:id" element={<ProtectedRoute requiredRoles={["admin", "super_admin"]}><SalesCaseDetailPage /></ProtectedRoute>} />
+
 
               {/* Legacy calculation routes redirect */}
               <Route path="/calculations" element={<Navigate to="/sales/offers" replace />} />
