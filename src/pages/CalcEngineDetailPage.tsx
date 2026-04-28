@@ -74,6 +74,13 @@ export default function CalcEngineDetailPage() {
           return <Badge variant="outline" className={`rounded-lg ${badge.className}`}>{badge.label}</Badge>;
         })()}
         <Button
+          size="sm"
+          className="rounded-xl gap-1.5"
+          onClick={() => setOfferDialogOpen(true)}
+        >
+          <FileText className="h-3.5 w-3.5" /> Opprett tilbud
+        </Button>
+        <Button
           variant="outline"
           size="sm"
           className="rounded-xl gap-1.5 text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30"
