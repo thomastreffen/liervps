@@ -300,6 +300,7 @@ export type Database = {
           overall_confidence: number | null
           package_id: string
           status: string
+          system_calculation_map: Json
           updated_at: string
           user_id: string | null
         }
@@ -320,6 +321,7 @@ export type Database = {
           overall_confidence?: number | null
           package_id: string
           status?: string
+          system_calculation_map?: Json
           updated_at?: string
           user_id?: string | null
         }
@@ -340,6 +342,7 @@ export type Database = {
           overall_confidence?: number | null
           package_id?: string
           status?: string
+          system_calculation_map?: Json
           updated_at?: string
           user_id?: string | null
         }
