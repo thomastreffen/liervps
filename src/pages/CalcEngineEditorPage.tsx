@@ -78,6 +78,7 @@ export default function CalcEngineEditorPage() {
   const [params] = useSearchParams();
   const packageId = params.get("package");
   const fromDraftId = params.get("from_draft");
+  const systemIndex = Number(params.get("system") ?? "0");
   const { user } = useAuth();
   const { activeCompanyId } = useCompanyContext();
   const { pkg, fields, rateTables, normTables, loading } = useCalcPackageBundle(packageId);
@@ -101,14 +102,16 @@ export default function CalcEngineEditorPage() {
       setInputState(init);
       return;
     }
-    // Hent AI-forslag og merge inn
+    // Hent AI-forslag og merge inn — bruk valgt system fra ai_proposed_lines om mulig
     (async () => {
       const { data } = await supabase
         .from("calc_ai_drafts")
-        .select("ai_proposed_input, initial_description")
+        .select("ai_proposed_input, ai_proposed_lines, initial_description")
         .eq("id", fromDraftId)
         .maybeSingle();
-      const proposed = (data?.ai_proposed_input ?? {}) as Record<string, { value: any }>;
+      const systems = Array.isArray(data?.ai_proposed_lines) ? (data!.ai_proposed_lines as any[]) : [];
+      const sys = systems[systemIndex];
+      const proposed = (sys?.proposed_input ?? data?.ai_proposed_input ?? {}) as Record<string, { value: any }>;
       const prefilled = new Set<string>();
       for (const [k, v] of Object.entries(proposed)) {
         if (k in init && v?.value !== undefined && v.value !== null) {
@@ -118,11 +121,14 @@ export default function CalcEngineEditorPage() {
       }
       setInputState(init);
       setAiPrefilledKeys(prefilled);
+      const sysName = sys?.name ? ` — ${sys.name}` : "";
       if (data?.initial_description && !title) {
-        setTitle(data.initial_description.slice(0, 80));
+        setTitle((data.initial_description.slice(0, 60) + sysName).slice(0, 80));
+      } else if (sys?.name && !title) {
+        setTitle(sys.name);
       }
     })();
-  }, [fields.length, fromDraftId]);
+  }, [fields.length, fromDraftId, systemIndex]);
 
 
   // Default rate/norm = nyeste (allerede sortert desc i hooken)

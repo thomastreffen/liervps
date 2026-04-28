@@ -15,6 +15,13 @@ export interface CalcAiProposedField {
   reason?: string;
 }
 
+export interface CalcAiSystem {
+  name: string;
+  note?: string | null;
+  proposed_input: Record<string, CalcAiProposedField>;
+  system_confidence?: number | null;
+}
+
 export interface CalcAiDraft {
   id: string;
   company_id: string | null;
@@ -27,7 +34,7 @@ export interface CalcAiDraft {
   ai_assumptions: string[];
   ai_open_questions: string[];
   ai_proposed_input: Record<string, CalcAiProposedField>;
-  ai_proposed_lines: any[];
+  ai_proposed_lines: CalcAiSystem[];
   overall_confidence: number | null;
   model_used: string | null;
   applied_calculation_id: string | null;

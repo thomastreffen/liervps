@@ -111,17 +111,23 @@ export default function CalcAiReviewPage() {
     toast({ title: "Underlag oppdatert", description: "Send 'Analyser på nytt' for å bruke nye filer." });
   };
 
-  const handleApplyToEditor = () => {
+  const handleApplyToEditor = (systemIndex: number = 0) => {
     if (!draft) return;
-    navigate(`/sales/calc-engine/new?package=${draft.package_id}&from_draft=${draft.id}`);
+    navigate(`/sales/calc-engine/new?package=${draft.package_id}&from_draft=${draft.id}&system=${systemIndex}`);
   };
 
   if (loading || !draft || !pkg) {
     return <div className="flex items-center justify-center py-24"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
   }
 
-  const proposed = draft.ai_proposed_input ?? {};
-  const proposedKeys = Object.keys(proposed);
+  const systems = (Array.isArray(draft.ai_proposed_lines) && draft.ai_proposed_lines.length > 0)
+    ? draft.ai_proposed_lines
+    : (Object.keys(draft.ai_proposed_input ?? {}).length > 0
+        ? [{ name: "System 1", proposed_input: draft.ai_proposed_input, system_confidence: draft.overall_confidence }]
+        : []);
+  const totalSuggestedFields = systems.reduce(
+    (s, sys) => s + Object.keys(sys.proposed_input ?? {}).length, 0,
+  );
 
   const isAnalyzing = analyzing || draft.status === "analyzing";
   const statusMeta = (() => {
@@ -147,6 +153,9 @@ export default function CalcAiReviewPage() {
               <span className={`h-2 w-2 rounded-full ${statusMeta.color} ${isAnalyzing ? "animate-pulse" : ""}`} />
               <span className="font-medium text-foreground">{statusMeta.label}</span>
             </span>
+            {systems.length > 1 && (
+              <>· <span className="font-medium text-foreground">{systems.length} systemer</span></>
+            )}
             {draft.overall_confidence != null && (
               <>· Samlet confidence: <span className="font-medium text-foreground">{Math.round(draft.overall_confidence)}%</span></>
             )}
@@ -162,13 +171,15 @@ export default function CalcAiReviewPage() {
             <Sparkles className="h-4 w-4" /> Kjør analyse
           </Button>
         )}
-        <Button
-          onClick={handleApplyToEditor}
-          disabled={draft.status !== "ready" || proposedKeys.length === 0}
-          className="rounded-xl gap-1.5"
-        >
-          Bruk forslag i editor <ArrowRight className="h-4 w-4" />
-        </Button>
+        {systems.length <= 1 && (
+          <Button
+            onClick={() => handleApplyToEditor(0)}
+            disabled={draft.status !== "ready" || totalSuggestedFields === 0}
+            className="rounded-xl gap-1.5"
+          >
+            Bruk forslag i editor <ArrowRight className="h-4 w-4" />
+          </Button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_420px] gap-5">
@@ -227,46 +238,98 @@ export default function CalcAiReviewPage() {
             </div>
           )}
 
-          {/* Foreslåtte inputfelt */}
-          <Card className="p-5 rounded-2xl">
-            <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground mb-3">
-              Foreslåtte inputfelt ({proposedKeys.length})
-            </h3>
-            {proposedKeys.length === 0 ? (
+          {/* Foreslåtte systemer */}
+          {systems.length === 0 ? (
+            <Card className="p-5 rounded-2xl">
+              <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground mb-3">
+                Foreslåtte systemer
+              </h3>
               <p className="text-sm text-muted-foreground text-center py-6">
                 Ingen forslag enda. AI fyller dette ut etter analyse.
               </p>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {proposedKeys.map((key) => {
-                  const f = fieldMap.get(key);
-                  const p = proposed[key];
-                  const conf = Math.round(p.confidence ?? 0);
-                  return (
-                    <div key={key} className="p-3 rounded-xl border border-border bg-card/50">
-                      <div className="flex items-start justify-between gap-2 mb-1.5">
-                        <div className="text-xs font-medium text-muted-foreground">
-                          {f?.label ?? key}
-                        </div>
-                        <Badge variant="outline" className="rounded-md text-[10px] gap-1 shrink-0">
-                          <span className={`h-1.5 w-1.5 rounded-full ${confidenceColor(conf)}`} />
-                          {conf}%
-                        </Badge>
-                      </div>
-                      <div className="text-sm font-semibold mb-1 break-words">
-                        {p.value === true ? "Ja" : p.value === false ? "Nei" : String(p.value ?? "—")}
-                        {f?.unit && <span className="text-xs text-muted-foreground font-normal ml-1">{f.unit}</span>}
-                      </div>
-                      {p.reason && (
-                        <p className="text-[11px] text-muted-foreground/80 leading-snug">{p.reason}</p>
-                      )}
-                      <div className="text-[10px] text-muted-foreground/60 mt-1">{confidenceLabel(conf)}</div>
+            </Card>
+          ) : (
+            <>
+              {systems.length > 1 && (
+                <Card className="p-4 rounded-2xl border-primary/30 bg-primary/5">
+                  <div className="flex items-center justify-between gap-3 flex-wrap">
+                    <div>
+                      <div className="text-sm font-semibold">AI foreslår {systems.length} separate kalkyler</div>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Underlaget inneholder flere systemer ({systems.map((s) => s.name).join(", ")}). Hvert system blir én egen kalkyle.
+                      </p>
                     </div>
-                  );
-                })}
-              </div>
-            )}
-          </Card>
+                  </div>
+                </Card>
+              )}
+              {systems.map((sys, sysIdx) => {
+                const inp = sys.proposed_input ?? {};
+                const keys = Object.keys(inp);
+                const sConf = Math.round(sys.system_confidence ?? draft.overall_confidence ?? 0);
+                return (
+                  <Card key={sysIdx} className="p-5 rounded-2xl">
+                    <div className="flex items-start justify-between gap-3 mb-3 flex-wrap">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-base font-semibold">
+                            {systems.length > 1 ? `Kalkyle ${sysIdx + 1}: ` : ""}{sys.name}
+                          </h3>
+                          {sys.system_confidence != null && (
+                            <Badge variant="outline" className="rounded-md text-[10px] gap-1">
+                              <span className={`h-1.5 w-1.5 rounded-full ${confidenceColor(sConf)}`} />
+                              {sConf}%
+                            </Badge>
+                          )}
+                        </div>
+                        {sys.note && <p className="text-xs text-muted-foreground mt-0.5">{sys.note}</p>}
+                        <div className="text-[11px] text-muted-foreground mt-1">{keys.length} foreslåtte felter</div>
+                      </div>
+                      <Button
+                        size="sm"
+                        onClick={() => handleApplyToEditor(sysIdx)}
+                        disabled={draft.status !== "ready" || keys.length === 0}
+                        className="rounded-xl gap-1.5"
+                      >
+                        Bruk i editor <ArrowRight className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                    {keys.length === 0 ? (
+                      <p className="text-xs text-muted-foreground italic">Ingen felter foreslått for dette systemet.</p>
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {keys.map((key) => {
+                          const f = fieldMap.get(key);
+                          const p = inp[key];
+                          const conf = Math.round(p.confidence ?? 0);
+                          return (
+                            <div key={key} className="p-3 rounded-xl border border-border bg-card/50">
+                              <div className="flex items-start justify-between gap-2 mb-1.5">
+                                <div className="text-xs font-medium text-muted-foreground">
+                                  {f?.label ?? key}
+                                </div>
+                                <Badge variant="outline" className="rounded-md text-[10px] gap-1 shrink-0">
+                                  <span className={`h-1.5 w-1.5 rounded-full ${confidenceColor(conf)}`} />
+                                  {conf}%
+                                </Badge>
+                              </div>
+                              <div className="text-sm font-semibold mb-1 break-words">
+                                {p.value === true ? "Ja" : p.value === false ? "Nei" : String(p.value ?? "—")}
+                                {f?.unit && <span className="text-xs text-muted-foreground font-normal ml-1">{f.unit}</span>}
+                              </div>
+                              {p.reason && (
+                                <p className="text-[11px] text-muted-foreground/80 leading-snug">{p.reason}</p>
+                              )}
+                              <div className="text-[10px] text-muted-foreground/60 mt-1">{confidenceLabel(conf)}</div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </Card>
+                );
+              })}
+            </>
+          )}
 
           {/* Underlag */}
           <Card className="p-5 rounded-2xl">
