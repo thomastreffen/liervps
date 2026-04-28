@@ -1116,18 +1116,21 @@ export type Database = {
           next_step_at: string | null
           norm_table_id: string | null
           package_id: string | null
+          parent_offer_id: string | null
           project_title: string
           rate_table_id: string | null
           responsible_user_id: string | null
           show_discount_in_offer: boolean
           source_case_id: string | null
           source_case_item_id: string | null
+          source_kind: string | null
           status: Database["public"]["Enums"]["calculation_status"]
           total_labor: number | null
           total_material: number | null
           total_price: number | null
           totals_snapshot: Json
           updated_at: string
+          version_number: number
         }
         Insert: {
           ai_analysis?: Json | null
@@ -1157,18 +1160,21 @@ export type Database = {
           next_step_at?: string | null
           norm_table_id?: string | null
           package_id?: string | null
+          parent_offer_id?: string | null
           project_title: string
           rate_table_id?: string | null
           responsible_user_id?: string | null
           show_discount_in_offer?: boolean
           source_case_id?: string | null
           source_case_item_id?: string | null
+          source_kind?: string | null
           status?: Database["public"]["Enums"]["calculation_status"]
           total_labor?: number | null
           total_material?: number | null
           total_price?: number | null
           totals_snapshot?: Json
           updated_at?: string
+          version_number?: number
         }
         Update: {
           ai_analysis?: Json | null
@@ -1198,18 +1204,21 @@ export type Database = {
           next_step_at?: string | null
           norm_table_id?: string | null
           package_id?: string | null
+          parent_offer_id?: string | null
           project_title?: string
           rate_table_id?: string | null
           responsible_user_id?: string | null
           show_discount_in_offer?: boolean
           source_case_id?: string | null
           source_case_item_id?: string | null
+          source_kind?: string | null
           status?: Database["public"]["Enums"]["calculation_status"]
           total_labor?: number | null
           total_material?: number | null
           total_price?: number | null
           totals_snapshot?: Json
           updated_at?: string
+          version_number?: number
         }
         Relationships: [
           {
@@ -1273,6 +1282,13 @@ export type Database = {
             columns: ["package_id"]
             isOneToOne: false
             referencedRelation: "calc_packages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "calculations_parent_offer_id_fkey"
+            columns: ["parent_offer_id"]
+            isOneToOne: false
+            referencedRelation: "calculations"
             referencedColumns: ["id"]
           },
           {
@@ -10166,6 +10182,10 @@ export type Database = {
       event_technician_company_access: {
         Args: { _auth_user_id: string; _event_id: string }
         Returns: boolean
+      }
+      get_active_offer_for_source: {
+        Args: { _source_id: string; _source_kind: string }
+        Returns: string
       }
       get_order_company_id: {
         Args: { _submission_id: string }
