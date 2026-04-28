@@ -293,8 +293,8 @@ const App = () => (
 
               {/* Kalkylemotor (pakke-basert) */}
               <Route path="/sales/calc-engine" element={<ProtectedRoute><CalcEngineListPage /></ProtectedRoute>} />
-              <Route path="/sales/calc-engine/new" element={<ProtectedRoute><CalcPackagePickerPage /></ProtectedRoute>} />
-              <Route path="/sales/calc-engine/new/editor" element={<ProtectedRoute><CalcEngineEditorPage /></ProtectedRoute>} />
+              <Route path="/sales/calc-engine/new" element={<ProtectedRoute><CalcEngineNewRouter /></ProtectedRoute>} />
+              <Route path="/sales/calc-engine/new/editor" element={<ProtectedRoute><CalcEngineNewRouter /></ProtectedRoute>} />
               <Route path="/sales/calc-engine/:id" element={<ProtectedRoute><CalcEngineDetailPage /></ProtectedRoute>} />
 
 
