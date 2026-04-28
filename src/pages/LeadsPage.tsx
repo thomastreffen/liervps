@@ -127,40 +127,6 @@ export default function LeadsPage() {
       });
   }, [leads]);
 
-  const resetForm = () => {
-    setCompanyName(""); setContactName(""); setEmail(""); setPhone("");
-    setSource(""); setEstimatedValue("");
-  };
-
-  const handleCreate = async () => {
-    if (!companyName.trim()) { toast.error("Firmanavn er påkrevd"); return; }
-    setSaving(true);
-    const { data, error } = await supabase.from("leads").insert({
-      company_name: companyName.trim(),
-      contact_name: contactName.trim() || null,
-      email: email.trim() || null,
-      phone: phone.trim() || null,
-      source: source.trim() || null,
-      estimated_value: Number(estimatedValue) || 0,
-      owner_id: user?.id,
-      assigned_owner_user_id: user?.id,
-    } as any).select("id").single();
-
-    if (data) {
-      await supabase.from("lead_participants").insert({ lead_id: data.id, user_id: user!.id, role: "owner" });
-      await supabase.from("lead_history").insert({
-        lead_id: data.id, action: "created", description: `Lead opprettet: ${companyName.trim()}`, performed_by: user?.id,
-      });
-      toast.success("Lead opprettet");
-      setDialogOpen(false);
-      resetForm();
-      navigate(`/sales/leads/${data.id}`);
-    } else {
-      toast.error("Kunne ikke opprette lead");
-    }
-    setSaving(false);
-  };
-
   const handleRestore = async (leadId: string) => {
     if (viewMode === "trash") {
       await supabase.from("leads").update({ deleted_at: null, deleted_by: null, delete_reason: null } as any).eq("id", leadId);
