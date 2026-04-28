@@ -95,6 +95,7 @@ export default function CalcCaseDetailPage() {
             {caseRow.customer_name ?? "Ukjent kunde"} • Sist endret {formatDateTime(caseRow.updated_at)} • {subs.length} delkalkyler
           </p>
         </div>
+        <CommercialCaseHeaderBadge caseId={caseRow.commercial_case_id} />
         {(() => {
           const badge = getStatusBadge("case", caseRow.status);
           return <Badge variant="outline" className={`rounded-lg ${badge.className}`}>{badge.label}</Badge>;
