@@ -174,23 +174,29 @@ export default function CalcAiReviewPage() {
             {draft.model_used && <>· Modell: <span className="font-mono text-[10px]">{draft.model_used}</span></>}
           </p>
         </div>
-        {!isAnalyzing && draft.status !== "ready" && (
+        {!isAnalyzing && (
           <Button
             variant="outline"
             onClick={() => analyze().catch((e) => toast({ title: "AI-analyse feilet", description: e?.message ?? String(e), variant: "destructive" }))}
             className="rounded-xl gap-1.5"
           >
-            <Sparkles className="h-4 w-4" /> Kjør analyse
+            <Sparkles className="h-4 w-4" /> Kjør analyse{draft.status === "ready" ? " på nytt" : ""}
           </Button>
         )}
         {systems.length <= 1 && (
-          <Button
-            onClick={() => handleApplyToEditor(0)}
-            disabled={draft.status !== "ready" || totalSuggestedFields === 0}
-            className="rounded-xl gap-1.5"
-          >
-            Bruk forslag i editor <ArrowRight className="h-4 w-4" />
-          </Button>
+          sysMap["0"] ? (
+            <Button onClick={() => handleOpenCalculation(sysMap["0"])} className="rounded-xl gap-1.5">
+              Åpne kalkyle <ArrowRight className="h-4 w-4" />
+            </Button>
+          ) : (
+            <Button
+              onClick={() => handleApplyToEditor(0)}
+              disabled={draft.status !== "ready" || totalSuggestedFields === 0}
+              className="rounded-xl gap-1.5"
+            >
+              Bruk forslag i editor <ArrowRight className="h-4 w-4" />
+            </Button>
+          )
         )}
       </div>
 
