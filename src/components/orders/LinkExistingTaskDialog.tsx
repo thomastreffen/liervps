@@ -26,6 +26,7 @@ interface Props {
   onOpenChange: (open: boolean) => void;
   submissionId: string;
   submissionNo?: string;
+  submissionCompanyId?: string | null;
   customerId?: string | null;
   currentLinkedEventId?: string | null;
 }
@@ -35,6 +36,7 @@ export function LinkExistingTaskDialog({
   onOpenChange,
   submissionId,
   submissionNo,
+  submissionCompanyId,
   customerId,
   currentLinkedEventId,
 }: Props) {
@@ -45,6 +47,24 @@ export function LinkExistingTaskDialog({
   const debounced = useDebounce(search, 250);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
+  // Fetch submission company_id as a safety net (works even if "Alle selskaper" is active
+  // or if user has switched to a different company than the order belongs to).
+  const { data: fetchedCompanyId } = useQuery({
+    queryKey: ["order-company-for-link", submissionId],
+    enabled: open && !submissionCompanyId,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("order_form_submissions")
+        .select("company_id")
+        .eq("id", submissionId)
+        .maybeSingle();
+      return (data as any)?.company_id as string | null;
+    },
+  });
+
+  // Authoritative company for the search: order's company > prop > active company.
+  const searchCompanyId = submissionCompanyId || fetchedCompanyId || activeCompanyId;
+
   useEffect(() => {
     if (open) {
       setSearch("");
@@ -52,9 +72,9 @@ export function LinkExistingTaskDialog({
     }
   }, [open]);
 
-  const { data: events = [], isLoading } = useQuery({
-    queryKey: ["link-task-search", activeCompanyId, debounced, customerId],
-    enabled: open && !!activeCompanyId,
+  const { data: events = [], isLoading, error: searchError } = useQuery({
+    queryKey: ["link-task-search", searchCompanyId, debounced, customerId],
+    enabled: open && !!searchCompanyId,
     queryFn: async () => {
       const baseSelect = `
         id, title, internal_number, project_number, job_number, project_type,
