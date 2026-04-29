@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { CalendarDays, User, ExternalLink, CheckCircle2, Clock, PlayCircle } from "lucide-react";
+import { CalendarDays, User, ExternalLink, CheckCircle2, Clock, PlayCircle, Link2, MapPin } from "lucide-react";
 import { format } from "date-fns";
 import { nb } from "date-fns/locale";
 import { useNavigate } from "react-router-dom";
@@ -12,6 +12,8 @@ interface LinkedTaskSectionProps {
   submissionId: string;
   convertedToId?: string | null;
   convertedToType?: string | null;
+  linkedEventId?: string | null;
+  onManageLink?: () => void;
 }
 
 const EXECUTION_STATUS: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
@@ -22,22 +24,48 @@ const EXECUTION_STATUS: Record<string, { label: string; color: string; icon: Rea
   completed: { label: "Ferdig", color: "bg-green-100 text-green-800", icon: <CheckCircle2 className="h-3 w-3" /> },
 };
 
-export function LinkedTaskSection({ submissionId, convertedToId, convertedToType }: LinkedTaskSectionProps) {
+export function LinkedTaskSection({
+  submissionId,
+  convertedToId,
+  convertedToType,
+  linkedEventId,
+  onManageLink,
+}: LinkedTaskSectionProps) {
   const navigate = useNavigate();
 
-  // Find linked event via source_order_form_id or converted_to_id
+  // Resolution priority:
+  // 1. Explicit linked_event_id (admin chose existing task)
+  // 2. source_order_form_id (auto-link from "Opprett oppgave")
+  // 3. converted_to_id (legacy)
   const { data: linkedTask } = useQuery({
-    queryKey: ["linked-task-for-order", submissionId, convertedToId],
+    queryKey: ["linked-task-for-order", submissionId, linkedEventId, convertedToId],
     queryFn: async () => {
-      // First try source_order_form_id
-      let { data } = await supabase
-        .from("events")
-        .select("id, title, internal_number, project_number, start_time, end_time, status, address, customer, deleted_at")
-        .eq("source_order_form_id", submissionId)
-        .is("deleted_at", null)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+      let data: any = null;
+      let linkSource: "manual" | "source" | "converted" = "source";
+
+      if (linkedEventId) {
+        const res = await supabase
+          .from("events")
+          .select("id, title, internal_number, project_number, start_time, end_time, status, address, customer, deleted_at")
+          .eq("id", linkedEventId)
+          .is("deleted_at", null)
+          .maybeSingle();
+        data = res.data;
+        linkSource = "manual";
+      }
+
+      if (!data) {
+        const res = await supabase
+          .from("events")
+          .select("id, title, internal_number, project_number, start_time, end_time, status, address, customer, deleted_at")
+          .eq("source_order_form_id", submissionId)
+          .is("deleted_at", null)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        data = res.data;
+        linkSource = "source";
+      }
 
       if (!data && convertedToId && convertedToType !== "case") {
         const res = await supabase
@@ -47,11 +75,11 @@ export function LinkedTaskSection({ submissionId, convertedToId, convertedToType
           .is("deleted_at", null)
           .maybeSingle();
         data = res.data;
+        linkSource = "converted";
       }
 
       if (!data) return null;
 
-      // Get technicians
       const { data: techs } = await supabase
         .from("event_technicians")
         .select("technician:technicians(id, user_id, person:people(full_name))")
@@ -59,6 +87,7 @@ export function LinkedTaskSection({ submissionId, convertedToId, convertedToType
 
       return {
         ...data,
+        linkSource,
         technicians: (techs || []).map((t: any) => ({
           name: t.technician?.person?.full_name || "Ukjent",
         })),
@@ -66,26 +95,50 @@ export function LinkedTaskSection({ submissionId, convertedToId, convertedToType
     },
   });
 
-  if (!linkedTask) return null;
+  if (!linkedTask) {
+    // Empty state — still let admin link
+    if (!onManageLink) return null;
+    return (
+      <Card className="border-dashed">
+        <CardContent className="py-4 flex items-center justify-between gap-3">
+          <div className="text-sm text-muted-foreground flex items-center gap-2">
+            <Link2 className="h-4 w-4" />
+            Ingen oppgave koblet til denne bestillingen
+          </div>
+          <Button size="sm" variant="outline" onClick={onManageLink}>
+            <Link2 className="h-3.5 w-3.5 mr-1.5" />
+            Koble til oppgave
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
 
   const statusCfg = EXECUTION_STATUS[linkedTask.status] || EXECUTION_STATUS.scheduled;
 
   return (
     <Card>
-      <CardHeader className="pb-2">
+      <CardHeader className="pb-2 flex-row items-center justify-between space-y-0">
         <CardTitle className="text-sm flex items-center gap-2">
           <CalendarDays className="h-4 w-4" />
           Koblet oppgave
+          {linkedTask.linkSource === "manual" && (
+            <Badge variant="outline" className="text-[9px] h-4">Manuelt koblet</Badge>
+          )}
         </CardTitle>
+        {onManageLink && (
+          <Button variant="ghost" size="sm" onClick={onManageLink} className="h-7 text-xs">
+            <Link2 className="h-3 w-3 mr-1" />
+            Endre
+          </Button>
+        )}
       </CardHeader>
       <CardContent className="space-y-3">
-        {/* Task title + number */}
         <div>
           <p className="text-sm font-medium text-foreground">{linkedTask.title}</p>
           <p className="text-xs text-muted-foreground">{linkedTask.project_number || linkedTask.internal_number}</p>
         </div>
 
-        {/* Status */}
         <div className="flex items-center gap-2">
           <Badge className={`text-[10px] ${statusCfg.color}`}>
             {statusCfg.icon}
@@ -93,7 +146,6 @@ export function LinkedTaskSection({ submissionId, convertedToId, convertedToType
           </Badge>
         </div>
 
-        {/* Planned time */}
         {linkedTask.start_time && (
           <div className="text-xs">
             <span className="text-muted-foreground">Planlagt: </span>
@@ -104,7 +156,13 @@ export function LinkedTaskSection({ submissionId, convertedToId, convertedToType
           </div>
         )}
 
-        {/* Technicians */}
+        {linkedTask.address && (
+          <div className="text-xs flex items-start gap-1">
+            <MapPin className="h-3 w-3 text-muted-foreground shrink-0 mt-0.5" />
+            <span>{linkedTask.address}</span>
+          </div>
+        )}
+
         {linkedTask.technicians.length > 0 && (
           <div className="text-xs">
             <span className="text-muted-foreground">Utfører: </span>
@@ -114,7 +172,6 @@ export function LinkedTaskSection({ submissionId, convertedToId, convertedToType
           </div>
         )}
 
-        {/* Open in resource plan */}
         <Button
           variant="outline"
           size="sm"

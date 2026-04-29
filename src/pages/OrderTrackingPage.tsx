@@ -20,6 +20,7 @@ import {
   type ExternalStatus,
 } from "@/types/order-forms";
 import { deriveOrderConversationState } from "@/lib/order-request-state";
+import { CustomerFieldRequests } from "@/components/orders/CustomerFieldRequests";
 
 /* ── External status progress bar ── */
 function StatusProgress({ status }: { status: ExternalStatus }) {
@@ -482,6 +483,12 @@ export default function OrderTrackingPage() {
             </CardContent>
           </Card>
         )}
+
+        {/* Customer-fillable field requests from admin */}
+        <CustomerFieldRequests
+          token={token!}
+          submitterName={sub.submitter_name || sub.notification_recipient_name}
+        />
 
         {/* Summary */}
         {visibleSummary.length > 0 && (

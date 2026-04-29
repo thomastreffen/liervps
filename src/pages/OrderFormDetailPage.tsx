@@ -6,7 +6,7 @@ import {
   ArrowLeft, MessageSquare, Clock, Paperclip, AlertTriangle,
   ArrowRight, FileText, Download, Mail, MailCheck, MailX, ExternalLink, UserPlus,
   Tag, User, LinkIcon, X, MoreHorizontal, Eye, Send, Globe, UserCheck, Bell, BellRing, Inbox,
-  CalendarDays, LockKeyhole, Loader2, Pencil,
+  CalendarDays, LockKeyhole, Loader2, Pencil, FormInput,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -58,6 +58,8 @@ import { LinkedTaskSection } from "@/components/orders/LinkedTaskSection";
 import { deriveOrderConversationState } from "@/lib/order-request-state";
 import { OrderParticipantsPanel } from "@/components/orders/OrderParticipantsPanel";
 import { EditFieldsDialog } from "@/components/orders/EditFieldsDialog";
+import { RequestFieldsDialog } from "@/components/orders/RequestFieldsDialog";
+import { LinkExistingTaskDialog } from "@/components/orders/LinkExistingTaskDialog";
 
 export default function OrderFormDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -82,6 +84,8 @@ export default function OrderFormDetailPage() {
   const [recipientOverrideName, setRecipientOverrideName] = useState("");
   const [addressedTo, setAddressedTo] = useState<string | null>(null);
   const [editFieldsOpen, setEditFieldsOpen] = useState(false);
+  const [requestFieldsOpen, setRequestFieldsOpen] = useState(false);
+  const [linkTaskOpen, setLinkTaskOpen] = useState(false);
 
   const { data: submission, isLoading } = useQuery({
     queryKey: ["order-form-submission", id],
@@ -657,6 +661,10 @@ export default function OrderFormDetailPage() {
     assigned: "Ansvarlig tildelt",
     recipient_changed: "Oppdateringsmottaker endret",
     fields_updated: "Bestillingsdata etterfylt",
+    field_request_created: "Forespurt felter fra bestiller",
+    customer_filled_field: "Bestiller fylte inn felt",
+    linked_to_existing_task: "Koblet til eksisterende oppgave",
+    unlinked_task: "Kobling til oppgave fjernet",
   };
 
   const trackingUrl = sub.public_tracking_token
@@ -840,13 +848,19 @@ export default function OrderFormDetailPage() {
           </PopoverContent>
         </Popover>
 
-        {/* Primary: Be om mer info */}
+        {/* Primary: Be om mer info (freeform message) */}
         <Button variant="outline" size="sm" onClick={() => setRequestInfoOpen(true)}>
           <AlertTriangle className="h-3.5 w-3.5 mr-1.5" />
           Be om mer info
         </Button>
 
-        {/* Primary: Etterfyll informasjon */}
+        {/* Primary: Be om spesifikke felter fra bestiller */}
+        <Button variant="outline" size="sm" onClick={() => setRequestFieldsOpen(true)}>
+          <FormInput className="h-3.5 w-3.5 mr-1.5" />
+          Be om felter
+        </Button>
+
+        {/* Primary: Etterfyll informasjon (admin selv) */}
         <Button variant="outline" size="sm" onClick={() => setEditFieldsOpen(true)}>
           <Pencil className="h-3.5 w-3.5 mr-1.5" />
           Etterfyll informasjon
@@ -856,6 +870,12 @@ export default function OrderFormDetailPage() {
         <Button variant="outline" size="sm" onClick={() => setAssignTaskOpen(true)}>
           <UserPlus className="h-3.5 w-3.5 mr-1.5" />
           Opprett oppgave
+        </Button>
+
+        {/* Primary: Koble til eksisterende oppgave */}
+        <Button variant="outline" size="sm" onClick={() => setLinkTaskOpen(true)}>
+          <LinkIcon className="h-3.5 w-3.5 mr-1.5" />
+          Koble til oppgave
         </Button>
 
         {/* Secondary: overflow menu */}
@@ -937,6 +957,8 @@ export default function OrderFormDetailPage() {
         submissionId={id!}
         convertedToId={sub.converted_to_id}
         convertedToType={sub.converted_to_type}
+        linkedEventId={(sub as any).linked_event_id}
+        onManageLink={() => setLinkTaskOpen(true)}
       />
 
       {/* Linked entities + notification status */}
@@ -1737,6 +1759,24 @@ export default function OrderFormDetailPage() {
         submissionNo={submission.submission_no}
         sections={sections as any}
         valuesMap={valuesMap}
+      />
+      <RequestFieldsDialog
+        open={requestFieldsOpen}
+        onOpenChange={setRequestFieldsOpen}
+        submissionId={id!}
+        submissionNo={submission.submission_no}
+        sections={sections as any}
+        valuesMap={valuesMap}
+        recipientEmail={resolvedRecipient.email}
+        recipientName={resolvedRecipient.name}
+      />
+      <LinkExistingTaskDialog
+        open={linkTaskOpen}
+        onOpenChange={setLinkTaskOpen}
+        submissionId={id!}
+        submissionNo={submission.submission_no}
+        customerId={(sub as any).linked_customer_id}
+        currentLinkedEventId={(sub as any).linked_event_id}
       />
       {/* ConvertDialog removed — now uses /orders/:id/convert route */}
       <TripletexExportPanel

@@ -7363,6 +7363,71 @@ export type Database = {
           },
         ]
       }
+      order_form_field_requests: {
+        Row: {
+          answer_value: Json | null
+          answered_at: string | null
+          created_at: string
+          field_key: string | null
+          field_label: string
+          field_type: string
+          id: string
+          is_free_text: boolean
+          options: Json | null
+          request_batch_id: string
+          requested_at: string
+          requested_by: string | null
+          requested_by_name: string | null
+          status: string
+          submission_id: string
+          updated_at: string
+        }
+        Insert: {
+          answer_value?: Json | null
+          answered_at?: string | null
+          created_at?: string
+          field_key?: string | null
+          field_label: string
+          field_type?: string
+          id?: string
+          is_free_text?: boolean
+          options?: Json | null
+          request_batch_id: string
+          requested_at?: string
+          requested_by?: string | null
+          requested_by_name?: string | null
+          status?: string
+          submission_id: string
+          updated_at?: string
+        }
+        Update: {
+          answer_value?: Json | null
+          answered_at?: string | null
+          created_at?: string
+          field_key?: string | null
+          field_label?: string
+          field_type?: string
+          id?: string
+          is_free_text?: boolean
+          options?: Json | null
+          request_batch_id?: string
+          requested_at?: string
+          requested_by?: string | null
+          requested_by_name?: string | null
+          status?: string
+          submission_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_form_field_requests_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "order_form_submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       order_form_messages: {
         Row: {
           addressed_to_participant_id: string | null
@@ -7616,6 +7681,7 @@ export type Database = {
           last_customer_message_at: string | null
           linked_case_id: string | null
           linked_customer_id: string | null
+          linked_event_id: string | null
           linked_project_id: string | null
           notification_error: string | null
           notification_recipient_email: string | null
@@ -7667,6 +7733,7 @@ export type Database = {
           last_customer_message_at?: string | null
           linked_case_id?: string | null
           linked_customer_id?: string | null
+          linked_event_id?: string | null
           linked_project_id?: string | null
           notification_error?: string | null
           notification_recipient_email?: string | null
@@ -7718,6 +7785,7 @@ export type Database = {
           last_customer_message_at?: string | null
           linked_case_id?: string | null
           linked_customer_id?: string | null
+          linked_event_id?: string | null
           linked_project_id?: string | null
           notification_error?: string | null
           notification_recipient_email?: string | null
@@ -7763,6 +7831,13 @@ export type Database = {
             columns: ["linked_case_id"]
             isOneToOne: false
             referencedRelation: "cases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_form_submissions_linked_event_id_fkey"
+            columns: ["linked_event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
             referencedColumns: ["id"]
           },
           {
@@ -10253,6 +10328,15 @@ export type Database = {
       }
     }
     Functions: {
+      answer_field_request_by_token: {
+        Args: {
+          _request_id: string
+          _submitter_name?: string
+          _token: string
+          _value: Json
+        }
+        Returns: Json
+      }
       backfill_commercial_cases_for_active: { Args: never; Returns: Json }
       can_access_record: {
         Args: {
@@ -10301,6 +10385,33 @@ export type Database = {
       get_active_offer_for_source: {
         Args: { _source_id: string; _source_kind: string }
         Returns: string
+      }
+      get_field_requests_by_token: {
+        Args: { _token: string }
+        Returns: {
+          answer_value: Json | null
+          answered_at: string | null
+          created_at: string
+          field_key: string | null
+          field_label: string
+          field_type: string
+          id: string
+          is_free_text: boolean
+          options: Json | null
+          request_batch_id: string
+          requested_at: string
+          requested_by: string | null
+          requested_by_name: string | null
+          status: string
+          submission_id: string
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "order_form_field_requests"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
       get_order_company_id: {
         Args: { _submission_id: string }
@@ -10403,6 +10514,7 @@ export type Database = {
           last_customer_message_at: string | null
           linked_case_id: string | null
           linked_customer_id: string | null
+          linked_event_id: string | null
           linked_project_id: string | null
           notification_error: string | null
           notification_recipient_email: string | null
