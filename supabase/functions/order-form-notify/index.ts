@@ -608,7 +608,7 @@ function buildFieldRequestEmail(p: {
 </div>`;
 }
 
-
+function buildCustomerUpdateEmail(p: {
   submissionNo: string; kundenavn: string; oppdragstittel: string;
   heading: string; bodyText: string; headingBg: string; headingFg: string;
   trackingUrl: string | null;
