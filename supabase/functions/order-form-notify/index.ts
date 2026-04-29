@@ -301,12 +301,32 @@ Deno.serve(async (req) => {
       return json({ success: false, error: tokenResult.error });
     }
 
+    // For customer-facing notifications, set replyTo so customer replies are
+    // routed back to this submission via the inbox-sync matcher.
+    const customerFacingTypes = new Set(["shared_message", "missing_info", "customer_update", "confirmation"]);
+    const isCustomerFacing = customerFacingTypes.has(notification_type);
+    const inboundToken = (submission as any).inbound_token as string | undefined;
+    const replyToAddress = isCustomerFacing && inboundToken
+      ? `order-msg+${inboundToken}@mcsservice.no`
+      : undefined;
+    const extraHeaders = isCustomerFacing
+      ? [
+          { name: "X-MCS-Order-Submission-ID", value: submission.id },
+          { name: "X-MCS-Order-Submission-No", value: submission.submission_no || "" },
+          { name: "X-MCS-Entity", value: "order_form_submission" },
+          ...(inboundToken ? [{ name: "X-MCS-Order-Inbound-Token", value: inboundToken }] : []),
+        ]
+      : undefined;
+
     const sendResult = await sendMailViaGraph(tokenResult.token!, {
       subject,
       bodyHtml,
       recipients,
       mailbox: MAILBOX,
       saveToSentItems: true,
+      replyToAddress,
+      replyToName: replyToAddress ? `Bestilling ${submission.submission_no}` : undefined,
+      extraHeaders,
     });
 
     if (sendResult.error) {
@@ -328,10 +348,10 @@ Deno.serve(async (req) => {
     await supabase.from("order_form_activity_log").insert({
       submission_id,
       event_type: "notification_sent",
-      payload: { type: notification_type, recipients, subject },
+      payload: { type: notification_type, recipients, subject, reply_to: replyToAddress || null },
     });
 
-    console.log("EMAIL_SENT", { submission_id, notification_type, recipients });
+    console.log("EMAIL_SENT", { submission_id, notification_type, recipients, reply_to: replyToAddress || null });
     return json({ success: true, recipients });
 
   } catch (err) {
@@ -508,18 +528,40 @@ async function getGraphToken(): Promise<{ token?: string; error?: string }> {
 
 async function sendMailViaGraph(
   token: string,
-  opts: { subject: string; bodyHtml: string; recipients: string[]; mailbox: string; saveToSentItems: boolean }
+  opts: {
+    subject: string;
+    bodyHtml: string;
+    recipients: string[];
+    mailbox: string;
+    saveToSentItems: boolean;
+    replyToAddress?: string;
+    replyToName?: string;
+    extraHeaders?: { name: string; value: string }[];
+  }
 ): Promise<{ error?: string; statusCode?: number }> {
-  const payload = {
-    message: {
-      subject: opts.subject,
-      body: { contentType: "HTML", content: opts.bodyHtml },
-      toRecipients: opts.recipients.map((e) => ({
-        emailAddress: { address: e },
-      })),
-    },
-    saveToSentItems: opts.saveToSentItems,
+  const message: any = {
+    subject: opts.subject,
+    body: { contentType: "HTML", content: opts.bodyHtml },
+    toRecipients: opts.recipients.map((e) => ({
+      emailAddress: { address: e },
+    })),
   };
+
+  if (opts.replyToAddress) {
+    message.replyTo = [{
+      emailAddress: {
+        address: opts.replyToAddress,
+        ...(opts.replyToName ? { name: opts.replyToName } : {}),
+      },
+    }];
+  }
+
+  if (opts.extraHeaders && opts.extraHeaders.length > 0) {
+    // Microsoft Graph requires custom header names to start with "X-"
+    message.internetMessageHeaders = opts.extraHeaders.filter(h => h.name.toUpperCase().startsWith("X-"));
+  }
+
+  const payload = { message, saveToSentItems: opts.saveToSentItems };
 
   try {
     const resp = await fetch(

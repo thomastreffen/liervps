@@ -27,6 +27,7 @@ export default function OrderFormPublicPage() {
   const [submissionNo, setSubmissionNo] = useState<string | null>(null);
   const [trackingToken, setTrackingToken] = useState<string | null>(null);
   const [attachments, setAttachments] = useState<{ fieldKey: string; file: File }[]>([]);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   // Auto-resize for iframe embedding – send height on every layout change
   useEffect(() => {
@@ -175,6 +176,7 @@ export default function OrderFormPublicPage() {
   };
 
   const handleSubmit = async () => {
+    setSubmitError(null);
     if (!validate() || !template) return;
     setSubmitting(true);
     try {
@@ -219,26 +221,66 @@ export default function OrderFormPublicPage() {
       } as any);
       if (subErr) throw subErr;
 
+      // Normalize values to JSON-safe form and insert with explicit error handling.
+      // If this fails, we MUST NOT show the user a "submission received" success.
       const valueRows = Object.entries(formData)
-        .filter(([, v]) => v != null && v !== "")
-        .map(([key, val]) => ({ submission_id: submissionId, field_key: key, value: val }));
+        .filter(([, v]) => v != null && v !== "" && !(Array.isArray(v) && v.length === 0))
+        .map(([key, val]) => {
+          // Ensure value is JSON-safe (handles nested objects/arrays from address/checkbox_list/etc)
+          let safeVal: any;
+          try {
+            safeVal = JSON.parse(JSON.stringify(val));
+          } catch {
+            safeVal = String(val);
+          }
+          return { submission_id: submissionId, field_key: key, value: safeVal };
+        });
+
       if (valueRows.length > 0) {
-        await supabase.from("order_form_submission_values").insert(valueRows);
+        const { error: valuesErr } = await supabase
+          .from("order_form_submission_values")
+          .insert(valueRows);
+        if (valuesErr) {
+          // Log the failure to activity log so admins can see what happened
+          await supabase.from("order_form_activity_log").insert({
+            submission_id: submissionId,
+            event_type: "submit_values_failed",
+            payload: {
+              error: valuesErr.message,
+              attempted_field_count: valueRows.length,
+              field_keys: valueRows.map(r => r.field_key),
+            },
+          });
+          throw new Error(`Kunne ikke lagre skjemafelt: ${valuesErr.message}`);
+        }
       }
 
+      const failedAttachments: string[] = [];
       for (const att of attachments) {
         const path = `${template.company_id}/${submissionId}/${Date.now()}_${att.file.name}`;
-        await supabase.storage.from("order-form-attachments").upload(path, att.file);
-        await supabase.from("order_form_submission_attachments").insert({
+        const { error: upErr } = await supabase.storage.from("order-form-attachments").upload(path, att.file);
+        if (upErr) {
+          failedAttachments.push(`${att.file.name}: ${upErr.message}`);
+          continue;
+        }
+        const { error: attInsErr } = await supabase.from("order_form_submission_attachments").insert({
           submission_id: submissionId, field_key: att.fieldKey,
           file_name: att.file.name, file_path: path,
           mime_type: att.file.type, file_size: att.file.size,
+        });
+        if (attInsErr) failedAttachments.push(`${att.file.name}: ${attInsErr.message}`);
+      }
+      if (failedAttachments.length > 0) {
+        await supabase.from("order_form_activity_log").insert({
+          submission_id: submissionId,
+          event_type: "submit_attachments_partial_failure",
+          payload: { failures: failedAttachments },
         });
       }
 
       await supabase.from("order_form_activity_log").insert({
         submission_id: submissionId, event_type: "submitted",
-        payload: { source: "external" },
+        payload: { source: "external", value_count: valueRows.length, attachment_count: attachments.length - failedAttachments.length },
       });
 
       // Auto-send notification to postkontor (fire-and-forget)
@@ -258,7 +300,8 @@ export default function OrderFormPublicPage() {
       setTrackingToken(trackingToken);
       setSubmitted(true);
     } catch (err: any) {
-      console.error(err);
+      console.error("Submit failed:", err);
+      setSubmitError(err?.message || "Noe gikk galt under innsending. Prøv igjen, eller kontakt oss om problemet vedvarer.");
     } finally {
       setSubmitting(false);
     }
@@ -412,7 +455,18 @@ export default function OrderFormPublicPage() {
         })}
 
         {/* Submit */}
-        <div className="flex justify-center pb-12">
+        <div className="flex flex-col items-center gap-3 pb-12">
+          {submitError && (
+            <div className="w-full max-w-md rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="font-medium">Innsendingen ble ikke fullført</p>
+                  <p className="text-xs mt-1 opacity-90">{submitError}</p>
+                </div>
+              </div>
+            </div>
+          )}
           <Button size="lg" className="min-w-[200px] text-base" onClick={handleSubmit} disabled={submitting}>
             {submitting ? (
               <>

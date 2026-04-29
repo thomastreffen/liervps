@@ -779,6 +779,172 @@ async function matchToConversationThread(
   return null;
 }
 
+// ═══════════════════════════════════════════════════════════════
+// ORDER SUBMISSION MATCHING
+// Routes inbound mail to order_form_submissions via:
+//   1. order-msg+<token>@... in To/Cc recipients
+//   2. X-MCS-Order-Inbound-Token header
+//   3. X-MCS-Order-Submission-ID header
+//   4. Subject token [BST-XXXXXX]
+// On match: creates an order_form_messages row (sender_type=customer, source=email),
+// updates customer_last_reply_at and clears awaiting_customer_reply.
+// ═══════════════════════════════════════════════════════════════
+interface OrderMatchResult {
+  submissionId: string;
+  submission: any;
+  matchMethod: string;
+}
+
+async function matchToOrderSubmission(
+  msg: any,
+  headers: any[],
+  normalizedSubject: string,
+  admin: any,
+): Promise<OrderMatchResult | null> {
+  const toRecipients = (msg.toRecipients || []).map((r: any) => r.emailAddress?.address || "");
+  const ccRecipients = (msg.ccRecipients || []).map((r: any) => r.emailAddress?.address || "");
+  const allAddresses = [...toRecipients, ...ccRecipients].join(" ");
+  const xOrigRecipients = headers.find((h: any) =>
+    h.name?.toLowerCase() === "x-ms-exchange-organization-originalenveloperecipients" ||
+    h.name?.toLowerCase() === "x-original-to"
+  )?.value || "";
+  const allWithRelay = `${allAddresses} ${xOrigRecipients}`;
+
+  // Strategy 1: order-msg+<token>@ recipient
+  const tokenMatch = allWithRelay.match(/order-msg\+([a-f0-9-]+)@/i);
+  if (tokenMatch) {
+    const token = tokenMatch[1];
+    const { data } = await admin.rpc("get_order_submission_by_inbound_token", { _token: token });
+    const row = Array.isArray(data) ? data[0] : data;
+    if (row?.id) {
+      return { submissionId: row.id, submission: row, matchMethod: "order_token_recipient" };
+    }
+  }
+
+  // Strategy 2: X-MCS-Order-Inbound-Token header
+  const xToken = headers.find((h: any) => h.name?.toLowerCase() === "x-mcs-order-inbound-token")?.value;
+  if (xToken) {
+    const { data } = await admin.rpc("get_order_submission_by_inbound_token", { _token: xToken });
+    const row = Array.isArray(data) ? data[0] : data;
+    if (row?.id) {
+      return { submissionId: row.id, submission: row, matchMethod: "x_header_token" };
+    }
+  }
+
+  // Strategy 3: X-MCS-Order-Submission-ID header (direct UUID)
+  const xSubId = headers.find((h: any) => h.name?.toLowerCase() === "x-mcs-order-submission-id")?.value;
+  if (xSubId && /^[0-9a-f-]{36}$/i.test(xSubId)) {
+    const { data } = await admin
+      .from("order_form_submissions")
+      .select("id, company_id, submission_no, awaiting_customer_reply, open_request_message_id")
+      .eq("id", xSubId)
+      .is("deleted_at", null)
+      .maybeSingle();
+    if (data) {
+      return { submissionId: data.id, submission: data, matchMethod: "x_header_submission_id" };
+    }
+  }
+
+  // Strategy 4: Subject regex BST-XXXXXX
+  const subjectSource = `${normalizedSubject} ${msg.subject || ""}`;
+  const bstMatch = subjectSource.match(/BST-(\d{4,6})/i);
+  if (bstMatch) {
+    const submissionNo = `BST-${bstMatch[1].padStart(6, "0")}`;
+    const { data } = await admin.rpc("get_order_submission_by_no", { _submission_no: submissionNo });
+    const row = Array.isArray(data) ? data[0] : data;
+    if (row?.id) {
+      return { submissionId: row.id, submission: row, matchMethod: "subject_bst_ref" };
+    }
+  }
+
+  return null;
+}
+
+async function createOrderMessageFromInbound(
+  msg: any,
+  match: OrderMatchResult,
+  bodyText: string,
+  fromName: string,
+  fromEmail: string,
+  admin: any,
+): Promise<string | null> {
+  // Idempotency: check if we've already processed this internet_message_id
+  const inetId = msg.internetMessageId;
+  if (inetId) {
+    const { data: existing } = await admin
+      .from("order_form_activity_log")
+      .select("id")
+      .eq("submission_id", match.submissionId)
+      .eq("event_type", "inbound_email_received")
+      .filter("payload->>internet_message_id", "eq", inetId)
+      .maybeSingle();
+    if (existing) return null;
+  }
+
+  const cleanBody = stripQuotedText(bodyText || "").substring(0, 8000);
+  const senderName = fromName || fromEmail || "Kunde";
+  const receivedAt = msg.receivedDateTime || new Date().toISOString();
+
+  const { data: created, error: msgErr } = await admin
+    .from("order_form_messages")
+    .insert({
+      submission_id: match.submissionId,
+      sender_type: "customer",
+      sender_name: senderName,
+      message_type: "message",
+      body: cleanBody || "(Tomt e-postsvar)",
+      is_visible_to_customer: true,
+      requires_reply: false,
+      visibility: "shared",
+      source: "email",
+    })
+    .select("id")
+    .single();
+
+  if (msgErr) {
+    console.error("ORDER_MSG_INSERT_FAILED", { submissionId: match.submissionId, error: msgErr.message });
+    return null;
+  }
+
+  // Update submission timestamps + clear awaiting flag
+  const updates: any = {
+    customer_last_reply_at: receivedAt,
+    last_customer_message_at: receivedAt,
+    awaiting_customer_reply: false,
+    last_activity_at: receivedAt,
+  };
+  // If submission was missing_info, move to under_review (customer responded)
+  if (match.submission?.status === "missing_info") {
+    updates.status = "under_review";
+  }
+  await admin.from("order_form_submissions").update(updates).eq("id", match.submissionId);
+
+  // If the open_request_message had requires_reply=true, mark it as replied
+  if (match.submission?.open_request_message_id) {
+    await admin
+      .from("order_form_messages")
+      .update({ replied_at: receivedAt })
+      .eq("id", match.submission.open_request_message_id);
+  }
+
+  // Activity log
+  await admin.from("order_form_activity_log").insert({
+    submission_id: match.submissionId,
+    event_type: "inbound_email_received",
+    payload: {
+      message_id: created.id,
+      from_email: fromEmail,
+      from_name: fromName,
+      match_method: match.matchMethod,
+      internet_message_id: inetId,
+      subject: msg.subject,
+    },
+  });
+
+  return created.id;
+}
+
+
 // ── Strip quoted replies from email body ──
 function stripQuotedText(text: string): string {
   const lines = text.split("\n");
@@ -1126,7 +1292,21 @@ Deno.serve(async (req) => {
           const xMcsThread = headers.find((h: any) => h.name?.toLowerCase() === "x-mcs-thread")?.value || null;
 
           // ═══════════════════════════════════════════════
-          // TRY CONVERSATION THREAD MATCHING FIRST
+          // TRY ORDER SUBMISSION MATCHING FIRST (BST-XXXXXX)
+          // ═══════════════════════════════════════════════
+          const orderMatch = await matchToOrderSubmission(msg, headers, normalizedSubject, supabaseAdmin);
+          if (orderMatch) {
+            console.log(`[inbox-sync][${runId}] Order match: method=${orderMatch.matchMethod}, submissionId=${orderMatch.submissionId}, subject="${msgSubject.substring(0, 60)}"`);
+            const orderMsgId = await createOrderMessageFromInbound(msg, orderMatch, bodyText, fromName, fromEmail, supabaseAdmin);
+            if (orderMsgId) {
+              totalNewItems++;
+              dbg(`Created order_form_messages ${orderMsgId} for submission ${orderMatch.submissionId}`);
+            }
+            continue; // Don't also create case item or conversation post
+          }
+
+          // ═══════════════════════════════════════════════
+          // TRY CONVERSATION THREAD MATCHING
           // ═══════════════════════════════════════════════
           const convMatch = await matchToConversationThread(msg, headers, normalizedSubject, supabaseAdmin);
           if (convMatch) {

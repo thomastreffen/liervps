@@ -7498,6 +7498,7 @@ export type Database = {
           external_status: string | null
           external_status_updated_at: string | null
           id: string
+          inbound_token: string
           last_activity_at: string | null
           last_admin_message_at: string | null
           last_customer_message_at: string | null
@@ -7548,6 +7549,7 @@ export type Database = {
           external_status?: string | null
           external_status_updated_at?: string | null
           id?: string
+          inbound_token: string
           last_activity_at?: string | null
           last_admin_message_at?: string | null
           last_customer_message_at?: string | null
@@ -7598,6 +7600,7 @@ export type Database = {
           external_status?: string | null
           external_status_updated_at?: string | null
           id?: string
+          inbound_token?: string
           last_activity_at?: string | null
           last_admin_message_at?: string | null
           last_customer_message_at?: string | null
@@ -10191,6 +10194,29 @@ export type Database = {
         Args: { _submission_id: string }
         Returns: string
       }
+      get_order_submission_by_inbound_token: {
+        Args: { _token: string }
+        Returns: {
+          awaiting_customer_reply: boolean
+          company_id: string
+          id: string
+          open_request_message_id: string
+          status: string
+          submission_no: string
+        }[]
+      }
+      get_order_submission_by_no: {
+        Args: { _submission_no: string }
+        Returns: {
+          awaiting_customer_reply: boolean
+          company_id: string
+          id: string
+          inbound_token: string
+          open_request_message_id: string
+          status: string
+          submission_no: string
+        }[]
+      }
       get_project_member_type: {
         Args: { _auth_user_id: string; _project_id: string }
         Returns: string
@@ -10238,6 +10264,7 @@ export type Database = {
           external_status: string | null
           external_status_updated_at: string | null
           id: string
+          inbound_token: string
           last_activity_at: string | null
           last_admin_message_at: string | null
           last_customer_message_at: string | null

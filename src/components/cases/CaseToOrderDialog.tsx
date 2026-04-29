@@ -103,7 +103,7 @@ export function CaseToOrderDialog({
             bestiller_epost: customerEmail,
           },
           priority: "normal",
-        })
+        } as any)
         .select("id, submission_no")
         .single();
 
