@@ -683,7 +683,7 @@ export default function OrderTrackingPage() {
         {/* Footer */}
         <div className="text-center pt-4 pb-8">
           <p className="text-xs text-muted-foreground">
-            Denne siden er kun tilgjengelig via din personlige sporingslenke.
+            Denne lenken er personlig og skal ikke deles med andre.
           </p>
         </div>
       </div>
