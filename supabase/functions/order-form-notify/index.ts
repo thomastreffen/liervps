@@ -247,6 +247,50 @@ Deno.serve(async (req) => {
         headingFg: tmpl.colorFg,
         trackingUrl,
       });
+    } else if (notification_type === "field_request") {
+      // Dedicated, action-oriented email when admin asks bestiller to fill in missing fields.
+      if (!bestillerEpost) {
+        return json({ success: false, reason: "no_bestiller_email" });
+      }
+
+      const { field_request_batch_id } = body;
+
+      // Fetch the open requests for this batch (or all open if no batch given)
+      let frQuery = supabase
+        .from("order_form_field_requests")
+        .select("field_label, is_free_text, requested_by_name")
+        .eq("submission_id", submission_id)
+        .eq("status", "open");
+      if (field_request_batch_id) {
+        frQuery = frQuery.eq("request_batch_id", field_request_batch_id);
+      }
+      const { data: requests } = await frQuery;
+
+      const fieldItems = (requests || [])
+        .filter((r: any) => !r.is_free_text)
+        .map((r: any) => r.field_label as string);
+      const freeTextItems = (requests || [])
+        .filter((r: any) => r.is_free_text)
+        .map((r: any) => r.field_label as string);
+      const requestedBy = (requests || []).find((r: any) => r.requested_by_name)?.requested_by_name || "";
+
+      const trackingToken = submission.public_tracking_token;
+      const trackingUrl = trackingToken ? `${appUrl}/bestilling/status/${trackingToken}` : null;
+
+      subject = `Vi trenger litt mer info: ${submission.submission_no} – ${oppdragstittel}`;
+      recipients = [bestillerEpost];
+
+      bodyHtml = buildFieldRequestEmail({
+        submissionNo: submission.submission_no,
+        kundenavn,
+        oppdragstittel,
+        recipientName: resolvedRecipientName,
+        fieldItems,
+        freeTextItems,
+        requestedBy,
+        trackingUrl,
+      });
+
     } else if (notification_type === "shared_message") {
       // Shared message notification to bestiller
       if (!bestillerEpost) {
