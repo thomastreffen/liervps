@@ -56,34 +56,117 @@ export function LinkExistingTaskDialog({
     queryKey: ["link-task-search", activeCompanyId, debounced, customerId],
     enabled: open && !!activeCompanyId,
     queryFn: async () => {
-      let q = supabase
-        .from("events")
-        .select(`
-          id, title, internal_number, project_number, project_type,
-          status, start_time, end_time, address, customer, customer_id,
-          event_technicians(technician:technicians(person:people(full_name)))
-        `)
-        .eq("company_id", activeCompanyId!)
-        .is("deleted_at", null)
-        .order("start_time", { ascending: false, nullsFirst: false })
-        .limit(40);
+      const baseSelect = `
+        id, title, internal_number, project_number, job_number, project_type,
+        status, start_time, end_time, address, city, postal_code,
+        customer, customer_id, description, site_contact_name,
+        event_technicians(technician:technicians(person:people(full_name)))
+      `;
 
       const term = debounced.trim();
-      if (term) {
-        // Try a broad ilike on key fields
-        q = q.or(
-          [
-            `title.ilike.%${term}%`,
-            `internal_number.ilike.%${term}%`,
-            `project_number.ilike.%${term}%`,
-            `address.ilike.%${term}%`,
-            `customer.ilike.%${term}%`,
-          ].join(",")
-        );
+
+      // No search: latest 40
+      if (!term) {
+        const { data } = await supabase
+          .from("events")
+          .select(baseSelect)
+          .eq("company_id", activeCompanyId!)
+          .is("deleted_at", null)
+          .order("start_time", { ascending: false, nullsFirst: false })
+          .limit(40);
+        return (data || []) as any[];
       }
 
-      const { data } = await q;
-      return (data || []) as any[];
+      // Escape PostgREST .or() reserved chars in ilike pattern
+      const escape = (s: string) => s.replace(/[(),]/g, " ").trim();
+      const tokens = escape(term).split(/\s+/).filter(Boolean);
+
+      const fieldsForOr = (t: string) => {
+        const p = `%${t}%`;
+        return [
+          `title.ilike.${p}`,
+          `internal_number.ilike.${p}`,
+          `project_number.ilike.${p}`,
+          `job_number.ilike.${p}`,
+          `address.ilike.${p}`,
+          `city.ilike.${p}`,
+          `postal_code.ilike.${p}`,
+          `customer.ilike.${p}`,
+          `description.ilike.${p}`,
+          `site_contact_name.ilike.${p}`,
+        ].join(",");
+      };
+
+      // Run one query per token, then intersect by id (AND across tokens)
+      // Fall back to full term if tokenization yields nothing useful.
+      const queries = (tokens.length > 0 ? tokens : [escape(term)]).map((tok) =>
+        supabase
+          .from("events")
+          .select(baseSelect)
+          .eq("company_id", activeCompanyId!)
+          .is("deleted_at", null)
+          .or(fieldsForOr(tok))
+          .order("start_time", { ascending: false, nullsFirst: false })
+          .limit(60)
+      );
+
+      // Also query technicians by name -> their event_ids in this company
+      const techQuery = supabase
+        .from("event_technicians")
+        .select(`event_id, technician:technicians!inner(person:people!inner(full_name))`)
+        .limit(120);
+
+      const [tokenResults, techRes] = await Promise.all([
+        Promise.all(queries),
+        techQuery,
+      ]);
+
+      // Intersect token results by id (AND)
+      const idSets: Set<string>[] = [];
+      const byId = new Map<string, any>();
+      tokenResults.forEach((r) => {
+        const ids = new Set<string>();
+        (r.data || []).forEach((e: any) => {
+          ids.add(e.id);
+          byId.set(e.id, e);
+        });
+        idSets.push(ids);
+      });
+
+      let matchIds: Set<string>;
+      if (idSets.length === 0) {
+        matchIds = new Set();
+      } else {
+        matchIds = idSets.reduce((acc, s) =>
+          acc === null ? s : new Set([...acc].filter((id) => s.has(id)))
+        , null as any) || new Set();
+      }
+
+      // Add technician-name matches (any token in tech name)
+      const lowerTokens = tokens.map((t) => t.toLowerCase());
+      const techEventIds = new Set<string>();
+      (techRes.data || []).forEach((row: any) => {
+        const name = (row.technician?.person?.full_name || "").toLowerCase();
+        if (name && lowerTokens.some((t) => name.includes(t))) {
+          techEventIds.add(row.event_id);
+        }
+      });
+
+      // Fetch missing tech-matched events
+      const missingTechIds = [...techEventIds].filter((id) => !byId.has(id));
+      if (missingTechIds.length > 0) {
+        const { data: techEvents } = await supabase
+          .from("events")
+          .select(baseSelect)
+          .eq("company_id", activeCompanyId!)
+          .is("deleted_at", null)
+          .in("id", missingTechIds);
+        (techEvents || []).forEach((e: any) => byId.set(e.id, e));
+      }
+      techEventIds.forEach((id) => matchIds.add(id));
+
+      const merged = [...matchIds].map((id) => byId.get(id)).filter(Boolean);
+      return merged.slice(0, 60) as any[];
     },
   });
 
