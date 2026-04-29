@@ -455,7 +455,18 @@ export default function OrderFormPublicPage() {
         })}
 
         {/* Submit */}
-        <div className="flex justify-center pb-12">
+        <div className="flex flex-col items-center gap-3 pb-12">
+          {submitError && (
+            <div className="w-full max-w-md rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="font-medium">Innsendingen ble ikke fullført</p>
+                  <p className="text-xs mt-1 opacity-90">{submitError}</p>
+                </div>
+              </div>
+            </div>
+          )}
           <Button size="lg" className="min-w-[200px] text-base" onClick={handleSubmit} disabled={submitting}>
             {submitting ? (
               <>
