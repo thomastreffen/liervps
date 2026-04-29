@@ -484,6 +484,12 @@ export default function OrderTrackingPage() {
           </Card>
         )}
 
+        {/* Customer-fillable field requests from admin */}
+        <CustomerFieldRequests
+          token={token!}
+          submitterName={sub.submitter_name || sub.notification_recipient_name}
+        />
+
         {/* Summary */}
         {visibleSummary.length > 0 && (
           <Card>
