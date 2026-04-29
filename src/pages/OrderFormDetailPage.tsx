@@ -1715,6 +1715,14 @@ export default function OrderFormDetailPage() {
         submissionNo={submission.submission_no}
         bestillerEpost={bestillerEpost}
       />
+      <EditFieldsDialog
+        open={editFieldsOpen}
+        onOpenChange={setEditFieldsOpen}
+        submissionId={id!}
+        submissionNo={submission.submission_no}
+        sections={sections as any}
+        valuesMap={valuesMap}
+      />
       {/* ConvertDialog removed — now uses /orders/:id/convert route */}
       <TripletexExportPanel
         open={tripletexOpen}
