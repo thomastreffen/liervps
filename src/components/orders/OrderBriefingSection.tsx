@@ -88,7 +88,7 @@ export function OrderBriefingSection({ eventId, compact = false }: OrderBriefing
         .select("id, file_name, file_path, mime_type, file_size")
         .eq("submission_id", submissionId)
         .order("uploaded_at", { ascending: true });
-      const msgRes: any = await supabase
+      const msgRes: any = await (supabase as any)
         .from("order_form_messages")
         .select("body, created_at, direction")
         .eq("submission_id", submissionId)
