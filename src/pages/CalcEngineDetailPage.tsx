@@ -8,12 +8,22 @@ import { Separator } from "@/components/ui/separator";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { ArrowLeft, Loader2, Calculator, Trash2, FileText, FileCheck2 } from "lucide-react";
+import { ArrowLeft, Loader2, Calculator, Trash2, FileText, FileCheck2, AlertTriangle } from "lucide-react";
 import { getStatusBadge, formatDateTime } from "@/lib/calc-engine/status-labels";
 import { DeleteCalcDialog, type DeleteTarget } from "@/components/calc-engine/DeleteCalcDialog";
 import { useActiveOfferForSource } from "@/hooks/useActiveOfferForSource";
 import { CommercialCaseHeaderBadge } from "@/components/commercial/CommercialCaseHeaderBadge";
 import { CommercialCasePanel } from "@/components/commercial/CommercialCasePanel";
+import { toast } from "@/hooks/use-toast";
+
+// Felter som MÅ bekreftes (verdi > 0) før tilbud kan opprettes for v2-pakker
+const V2_REQUIRED_KEYS: { key: string; label: string }[] = [
+  { key: "tavletilkobling_el1", label: "Tavletilkobling EL1" },
+  { key: "kontroll_moment_timer", label: "Kontroll og momenttrekking" },
+  { key: "dokumentasjon_hms_timer", label: "Dokumentasjon / HMS" },
+  { key: "rigg_oppstart_timer", label: "Rigg / oppstart" },
+  { key: "smamateriell_belop", label: "Småmateriell" },
+];
 
 function formatNok(n: number): string {
   return new Intl.NumberFormat("nb-NO", { maximumFractionDigits: 0 }).format(n ?? 0);
