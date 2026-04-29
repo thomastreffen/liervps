@@ -138,6 +138,25 @@ export default function CalcEngineDetailPage() {
         </Button>
       </div>
 
+      {isV2 && missingRequired.length > 0 && !hasOffer && (
+        <Card className="p-4 rounded-2xl border-amber-300 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-900/50">
+          <div className="flex gap-3">
+            <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+            <div className="space-y-1.5 text-sm">
+              <div className="font-semibold text-amber-900 dark:text-amber-200">
+                Bekreft entreprenørposter før tilbud opprettes
+              </div>
+              <p className="text-amber-800 dark:text-amber-300/90">
+                Strømskinne-kalkyler treffer ikke virkelig tilbudsnivå uten disse postene. Åpne kalkylen i editoren og sett verdier som passer prosjektet.
+              </p>
+              <ul className="list-disc list-inside text-amber-800 dark:text-amber-300/90">
+                {missingRequired.map(m => <li key={m.key}>{m.label}</li>)}
+              </ul>
+            </div>
+          </div>
+        </Card>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-5">
         <div className="space-y-5">
           <Card className="p-5 rounded-2xl">
