@@ -10242,6 +10242,27 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      get_submission_attachments_by_token: {
+        Args: { _token: string }
+        Returns: {
+          category: string | null
+          field_key: string | null
+          file_name: string
+          file_path: string
+          file_size: number | null
+          id: string
+          mime_type: string | null
+          submission_id: string
+          uploaded_at: string
+          uploaded_by: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "order_form_submission_attachments"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       get_submission_by_tracking_token: {
         Args: { _token: string }
         Returns: {
@@ -10298,6 +10319,73 @@ export type Database = {
         SetofOptions: {
           from: "*"
           to: "order_form_submissions"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      get_submission_comments_by_token: {
+        Args: { _token: string }
+        Returns: {
+          author_name: string | null
+          body: string
+          comment_type: string
+          created_at: string
+          created_by: string | null
+          id: string
+          is_customer_reply: boolean | null
+          submission_id: string
+          visibility: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "order_form_comments"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      get_submission_messages_by_token: {
+        Args: { _token: string }
+        Returns: {
+          addressed_to_participant_id: string | null
+          body: string
+          created_at: string
+          email_notification_sent: boolean
+          email_notification_sent_at: string | null
+          id: string
+          is_visible_to_customer: boolean
+          message_type: string
+          replied_at: string | null
+          requires_reply: boolean
+          review_status: string | null
+          reviewed_at: string | null
+          reviewed_by_user_id: string | null
+          sender_name: string | null
+          sender_participant_id: string | null
+          sender_type: string
+          sender_user_id: string | null
+          source: string
+          submission_id: string
+          visibility: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "order_form_messages"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      get_submission_values_by_token: {
+        Args: { _token: string }
+        Returns: {
+          created_at: string
+          field_key: string
+          id: string
+          submission_id: string
+          value: Json | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "order_form_submission_values"
           isOneToOne: false
           isSetofReturn: true
         }
