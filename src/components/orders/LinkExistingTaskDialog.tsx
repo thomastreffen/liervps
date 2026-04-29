@@ -90,7 +90,7 @@ export function LinkExistingTaskDialog({
         const { data } = await supabase
           .from("events")
           .select(baseSelect)
-          .eq("company_id", activeCompanyId!)
+          .eq("company_id", searchCompanyId!)
           .is("deleted_at", null)
           .order("start_time", { ascending: false, nullsFirst: false })
           .limit(40);
@@ -123,7 +123,7 @@ export function LinkExistingTaskDialog({
         supabase
           .from("events")
           .select(baseSelect)
-          .eq("company_id", activeCompanyId!)
+          .eq("company_id", searchCompanyId!)
           .is("deleted_at", null)
           .or(fieldsForOr(tok))
           .order("start_time", { ascending: false, nullsFirst: false })
@@ -178,7 +178,7 @@ export function LinkExistingTaskDialog({
         const { data: techEvents } = await supabase
           .from("events")
           .select(baseSelect)
-          .eq("company_id", activeCompanyId!)
+          .eq("company_id", searchCompanyId!)
           .is("deleted_at", null)
           .in("id", missingTechIds);
         (techEvents || []).forEach((e: any) => byId.set(e.id, e));
