@@ -5,10 +5,12 @@
 import type { CalcEvaluator } from "./types";
 import { calculateStromskinne } from "./stromskinne";
 import { calculateStromskinneV2 } from "./stromskinne-v2";
+import { calculateTavlemontasjeV1 } from "./tavlemontasje-v1";
 
 const REGISTRY: Record<string, CalcEvaluator> = {
   "stromskinne-v1": calculateStromskinne,
   "stromskinne-v2": calculateStromskinneV2,
+  "tavlemontasje-v1": calculateTavlemontasjeV1,
 };
 
 export function getEvaluator(slug: string): CalcEvaluator | null {
