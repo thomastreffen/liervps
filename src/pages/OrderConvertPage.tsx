@@ -376,12 +376,28 @@ export default function OrderConvertPage() {
         const startTime = requestedStart || now;
         const endTime = new Date(startTime.getTime() + 8 * 60 * 60 * 1000);
 
+        // Build attachment payload (copy from order — files stay in order-form-attachments bucket)
+        const eventAttachments = await Promise.all(
+          (attachments || []).map(async (att: any) => {
+            const { data: signed } = await supabase.storage
+              .from("order-form-attachments")
+              .createSignedUrl(att.file_path, 60 * 60 * 24 * 365); // 1 year
+            return {
+              name: att.file_name,
+              url: signed?.signedUrl || "",
+              size: att.file_size || 0,
+              path: att.file_path,
+              source: "order_form",
+            };
+          })
+        );
+
         const { data: newEvent, error: eventErr } = await supabase
           .from("events")
           .insert({
             company_id: activeCompanyId,
             title: title || "Bestilling uten tittel",
-            description: `Kunde: ${customer}\nAdresse: ${address}\n\n${description}`,
+            description: description || `Kunde: ${customer}\nAdresse: ${address}`,
             address: address || null,
             customer: customer || null,
             start_time: startTime.toISOString(),
@@ -390,7 +406,10 @@ export default function OrderConvertPage() {
             project_type: "service",
             created_by: user?.id,
             source_order_form_id: id,
-          })
+            site_contact_name: kontaktperson !== "–" ? kontaktperson : null,
+            site_contact_phone: kontaktTelefon !== "–" ? kontaktTelefon : null,
+            attachments: eventAttachments.length > 0 ? (eventAttachments as any) : undefined,
+          } as any)
           .select("id, internal_number")
           .single();
         if (eventErr) throw eventErr;

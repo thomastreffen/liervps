@@ -173,9 +173,11 @@ function buildApprovalEmail(
       <tr><td style="padding: 8px 0; color: #64748b;">Tittel</td><td style="padding: 8px 0;">${job.title}</td></tr>
       <tr><td style="padding: 8px 0; color: #64748b;">Kunde</td><td style="padding: 8px 0;">${job.customer || "—"}</td></tr>
       <tr><td style="padding: 8px 0; color: #64748b;">Adresse</td><td style="padding: 8px 0;">${job.address || "—"}</td></tr>
+      ${job.site_contact_name || job.site_contact_phone ? `<tr><td style="padding: 8px 0; color: #64748b;">Kontaktperson</td><td style="padding: 8px 0;">${[job.site_contact_name, job.site_contact_phone].filter(Boolean).join(" · ")}</td></tr>` : ""}
       <tr><td style="padding: 8px 0; color: #64748b;">Dato</td><td style="padding: 8px 0;">${startDate}</td></tr>
       <tr><td style="padding: 8px 0; color: #64748b;">Tid</td><td style="padding: 8px 0;">${startTime} – ${endTime}</td></tr>
       ${descriptionHtml}
+      ${job.access_notes ? `<tr><td style="padding: 8px 0; color: #64748b;">Tilgang</td><td style="padding: 8px 0;">${job.access_notes}</td></tr>` : ""}
     </table>
     
     ${attachmentsHtml}
