@@ -40,6 +40,15 @@ For HVERT system MÅ du estimere:
 - qty_vinkel, qty_t_element, qty_term_std, qty_term_nonstd, qty_skjot: kun hvis underlaget eller vanlig praksis tilsier det (skjøter ~ antall straight - 1)
 - vertikal: boolean, qty_vertikal: antall vertikale strekk
 - arbeidstidstype, tilkomstniva, reisetid (timer t/r), riggtid (timer), risiko (% påslag)
+- ENTREPRENØRLEVERANSE (MÅ foreslås — disse driver mesteparten av prisen):
+  - tavletilkobling_el1: timer for tilkobling i hovedtavle. Skaler med strømklasse: ≤1600A → 16 t, 2000–2500A → 24 t, 3200–4000A → 40 t, ≥5000A → 60 t. Juster opp ved trang tilkomst.
+  - tavletilkobling_el2: kun hvis underlaget viser to tavler / to ender; ellers 0.
+  - kontroll_moment_timer: ~0,25 t per skjøt + 4 t for terminaler (min 8 t).
+  - dokumentasjon_hms_timer: 12 t lite prosjekt, 16–20 t normalt, 24+ t komplekst.
+  - rigg_oppstart_timer: 8 t for korte oppdrag, 16 t normalt, 24 t ved drift / vanskelig tilkomst.
+  - smamateriell_belop (kr): 10 000–15 000 normalt, 20 000–40 000 ved store skinner / mange terminaler.
+  - prosjektbuffer_pct: 5 % default, 8–10 % når underlaget er ufullstendig.
+  - usikkerhet_pct: 5 % default, 10–15 % ved mange åpne spørsmål.
 
 REGLER FOR MENGDER:
 - Hvis du har 'total_lengde_m' MÅ du også foreslå konkret antall straight-elementer (qty_straight_1/2/3).
@@ -51,21 +60,11 @@ REGLER FOR MENGDER:
 Returner ALLTID via tool-call 'submit_calc_proposal'. Vær ærlig om usikkerhet:
 - Bruk confidence 0-100 per felt (0 = bare gjetning, 100 = direkte avlest).
 - Skriv klare assumptions og open_questions.
+- For entreprenørfelter: bruk confidence 40–60 (estimat) og legg dem ALLTID inn — kalkulatøren bekrefter eller justerer.
 - Det er BEDRE å foreslå et estimat med lav confidence enn å la et felt stå tomt.
 
-KRITISK: For HVERT system MÅ 'proposed_input' inneholde MINST 'stromklasse' og 'total_lengde_m'.
-Tomt 'proposed_input' er IKKE akseptabelt. Hvis du er usikker, sett confidence lavt — men FYLL FELTENE.
-Eksempel på riktig system:
-{
-  "name": "EL1",
-  "note": "Hovedstigeskinne",
-  "system_confidence": 70,
-  "proposed_input": {
-    "stromklasse": { "value": "3200", "confidence": 90, "reason": "Lest direkte fra tegning" },
-    "total_lengde_m": { "value": 49, "confidence": 70, "reason": "Målt fra plan" },
-    "leverandor": { "value": "schneider", "confidence": 60, "reason": "Canalis-produkt nevnt" }
-  }
-}`;
+KRITISK: For HVERT system MÅ 'proposed_input' inneholde MINST 'stromklasse', 'total_lengde_m', 'tavletilkobling_el1', 'kontroll_moment_timer', 'dokumentasjon_hms_timer', 'rigg_oppstart_timer' og 'smamateriell_belop'.
+Tomt 'proposed_input' er IKKE akseptabelt. Hvis du er usikker, sett confidence lavt — men FYLL FELTENE.`;
 
 // Konkret skjema med eksplisitte felter — Gemini fyller dette mye mer pålitelig
 // enn et abstract additionalProperties-skjema.
