@@ -844,13 +844,19 @@ export default function OrderFormDetailPage() {
           </PopoverContent>
         </Popover>
 
-        {/* Primary: Be om mer info */}
+        {/* Primary: Be om mer info (freeform message) */}
         <Button variant="outline" size="sm" onClick={() => setRequestInfoOpen(true)}>
           <AlertTriangle className="h-3.5 w-3.5 mr-1.5" />
           Be om mer info
         </Button>
 
-        {/* Primary: Etterfyll informasjon */}
+        {/* Primary: Be om spesifikke felter fra bestiller */}
+        <Button variant="outline" size="sm" onClick={() => setRequestFieldsOpen(true)}>
+          <FormInput className="h-3.5 w-3.5 mr-1.5" />
+          Be om felter
+        </Button>
+
+        {/* Primary: Etterfyll informasjon (admin selv) */}
         <Button variant="outline" size="sm" onClick={() => setEditFieldsOpen(true)}>
           <Pencil className="h-3.5 w-3.5 mr-1.5" />
           Etterfyll informasjon
@@ -860,6 +866,12 @@ export default function OrderFormDetailPage() {
         <Button variant="outline" size="sm" onClick={() => setAssignTaskOpen(true)}>
           <UserPlus className="h-3.5 w-3.5 mr-1.5" />
           Opprett oppgave
+        </Button>
+
+        {/* Primary: Koble til eksisterende oppgave */}
+        <Button variant="outline" size="sm" onClick={() => setLinkTaskOpen(true)}>
+          <LinkIcon className="h-3.5 w-3.5 mr-1.5" />
+          Koble til oppgave
         </Button>
 
         {/* Secondary: overflow menu */}
