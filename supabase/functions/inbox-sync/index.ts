@@ -1292,7 +1292,21 @@ Deno.serve(async (req) => {
           const xMcsThread = headers.find((h: any) => h.name?.toLowerCase() === "x-mcs-thread")?.value || null;
 
           // ═══════════════════════════════════════════════
-          // TRY CONVERSATION THREAD MATCHING FIRST
+          // TRY ORDER SUBMISSION MATCHING FIRST (BST-XXXXXX)
+          // ═══════════════════════════════════════════════
+          const orderMatch = await matchToOrderSubmission(msg, headers, normalizedSubject, supabaseAdmin);
+          if (orderMatch) {
+            console.log(`[inbox-sync][${runId}] Order match: method=${orderMatch.matchMethod}, submissionId=${orderMatch.submissionId}, subject="${msgSubject.substring(0, 60)}"`);
+            const orderMsgId = await createOrderMessageFromInbound(msg, orderMatch, bodyText, fromName, fromEmail, supabaseAdmin);
+            if (orderMsgId) {
+              totalNewItems++;
+              dbg(`Created order_form_messages ${orderMsgId} for submission ${orderMatch.submissionId}`);
+            }
+            continue; // Don't also create case item or conversation post
+          }
+
+          // ═══════════════════════════════════════════════
+          // TRY CONVERSATION THREAD MATCHING
           // ═══════════════════════════════════════════════
           const convMatch = await matchToConversationThread(msg, headers, normalizedSubject, supabaseAdmin);
           if (convMatch) {
