@@ -26,6 +26,7 @@ interface Props {
   onOpenChange: (open: boolean) => void;
   submissionId: string;
   submissionNo?: string;
+  submissionCompanyId?: string | null;
   customerId?: string | null;
   currentLinkedEventId?: string | null;
 }
@@ -35,6 +36,7 @@ export function LinkExistingTaskDialog({
   onOpenChange,
   submissionId,
   submissionNo,
+  submissionCompanyId,
   customerId,
   currentLinkedEventId,
 }: Props) {
@@ -45,6 +47,24 @@ export function LinkExistingTaskDialog({
   const debounced = useDebounce(search, 250);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
+  // Fetch submission company_id as a safety net (works even if "Alle selskaper" is active
+  // or if user has switched to a different company than the order belongs to).
+  const { data: fetchedCompanyId } = useQuery({
+    queryKey: ["order-company-for-link", submissionId],
+    enabled: open && !submissionCompanyId,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("order_form_submissions")
+        .select("company_id")
+        .eq("id", submissionId)
+        .maybeSingle();
+      return (data as any)?.company_id as string | null;
+    },
+  });
+
+  // Authoritative company for the search: order's company > prop > active company.
+  const searchCompanyId = submissionCompanyId || fetchedCompanyId || activeCompanyId;
+
   useEffect(() => {
     if (open) {
       setSearch("");
@@ -52,9 +72,9 @@ export function LinkExistingTaskDialog({
     }
   }, [open]);
 
-  const { data: events = [], isLoading } = useQuery({
-    queryKey: ["link-task-search", activeCompanyId, debounced, customerId],
-    enabled: open && !!activeCompanyId,
+  const { data: events = [], isLoading, error: searchError } = useQuery({
+    queryKey: ["link-task-search", searchCompanyId, debounced, customerId],
+    enabled: open && !!searchCompanyId,
     queryFn: async () => {
       const baseSelect = `
         id, title, internal_number, project_number, job_number, project_type,
@@ -70,7 +90,7 @@ export function LinkExistingTaskDialog({
         const { data } = await supabase
           .from("events")
           .select(baseSelect)
-          .eq("company_id", activeCompanyId!)
+          .eq("company_id", searchCompanyId!)
           .is("deleted_at", null)
           .order("start_time", { ascending: false, nullsFirst: false })
           .limit(40);
@@ -103,7 +123,7 @@ export function LinkExistingTaskDialog({
         supabase
           .from("events")
           .select(baseSelect)
-          .eq("company_id", activeCompanyId!)
+          .eq("company_id", searchCompanyId!)
           .is("deleted_at", null)
           .or(fieldsForOr(tok))
           .order("start_time", { ascending: false, nullsFirst: false })
@@ -158,7 +178,7 @@ export function LinkExistingTaskDialog({
         const { data: techEvents } = await supabase
           .from("events")
           .select(baseSelect)
-          .eq("company_id", activeCompanyId!)
+          .eq("company_id", searchCompanyId!)
           .is("deleted_at", null)
           .in("id", missingTechIds);
         (techEvents || []).forEach((e: any) => byId.set(e.id, e));
@@ -301,9 +321,15 @@ export function LinkExistingTaskDialog({
               <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
             </div>
           ) : sorted.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-12">
-              Ingen oppgaver funnet
-            </p>
+            <div className="text-center py-12 space-y-1">
+              <p className="text-sm text-muted-foreground">Ingen oppgaver funnet</p>
+              {searchError && (
+                <p className="text-[11px] text-destructive">Søkefeil: {(searchError as any)?.message}</p>
+              )}
+              {!searchCompanyId && (
+                <p className="text-[11px] text-amber-600">Mangler selskap for søk.</p>
+              )}
+            </div>
           ) : (
             <div className="space-y-1">
               {sorted.map((e: any) => {

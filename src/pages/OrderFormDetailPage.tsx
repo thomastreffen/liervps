@@ -1775,6 +1775,7 @@ export default function OrderFormDetailPage() {
         onOpenChange={setLinkTaskOpen}
         submissionId={id!}
         submissionNo={submission.submission_no}
+        submissionCompanyId={(sub as any).company_id}
         customerId={(sub as any).linked_customer_id}
         currentLinkedEventId={(sub as any).linked_event_id}
       />
