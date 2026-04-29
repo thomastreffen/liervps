@@ -6,7 +6,7 @@ import {
   ArrowLeft, MessageSquare, Clock, Paperclip, AlertTriangle,
   ArrowRight, FileText, Download, Mail, MailCheck, MailX, ExternalLink, UserPlus,
   Tag, User, LinkIcon, X, MoreHorizontal, Eye, Send, Globe, UserCheck, Bell, BellRing, Inbox,
-  CalendarDays, LockKeyhole, Loader2,
+  CalendarDays, LockKeyhole, Loader2, Pencil,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -57,6 +57,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { LinkedTaskSection } from "@/components/orders/LinkedTaskSection";
 import { deriveOrderConversationState } from "@/lib/order-request-state";
 import { OrderParticipantsPanel } from "@/components/orders/OrderParticipantsPanel";
+import { EditFieldsDialog } from "@/components/orders/EditFieldsDialog";
 
 export default function OrderFormDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -80,6 +81,7 @@ export default function OrderFormDetailPage() {
   const [recipientOverrideEmail, setRecipientOverrideEmail] = useState("");
   const [recipientOverrideName, setRecipientOverrideName] = useState("");
   const [addressedTo, setAddressedTo] = useState<string | null>(null);
+  const [editFieldsOpen, setEditFieldsOpen] = useState(false);
 
   const { data: submission, isLoading } = useQuery({
     queryKey: ["order-form-submission", id],
@@ -654,6 +656,7 @@ export default function OrderFormDetailPage() {
     exported_to_tripletex: "Eksportert til Tripletex",
     assigned: "Ansvarlig tildelt",
     recipient_changed: "Oppdateringsmottaker endret",
+    fields_updated: "Bestillingsdata etterfylt",
   };
 
   const trackingUrl = sub.public_tracking_token
@@ -841,6 +844,12 @@ export default function OrderFormDetailPage() {
         <Button variant="outline" size="sm" onClick={() => setRequestInfoOpen(true)}>
           <AlertTriangle className="h-3.5 w-3.5 mr-1.5" />
           Be om mer info
+        </Button>
+
+        {/* Primary: Etterfyll informasjon */}
+        <Button variant="outline" size="sm" onClick={() => setEditFieldsOpen(true)}>
+          <Pencil className="h-3.5 w-3.5 mr-1.5" />
+          Etterfyll informasjon
         </Button>
 
         {/* Primary: Opprett oppgave */}
@@ -1687,6 +1696,21 @@ export default function OrderFormDetailPage() {
                       {a.payload?.recipients && (
                         <> · {(a.payload.recipients as string[]).join(", ")}</>
                       )}
+                      {a.event_type === "fields_updated" && Array.isArray(a.payload?.changes) && (
+                        <div className="mt-1 ml-2 space-y-0.5">
+                          {a.payload.changes.map((c: any, i: number) => (
+                            <div key={i} className="text-[11px]">
+                              <span className="text-foreground">{c.label || c.field_key}:</span>{" "}
+                              <span className="line-through text-muted-foreground/70">{c.old_display ?? "(tom)"}</span>
+                              {" → "}
+                              <span className="text-foreground">{c.new_display ?? "(tom)"}</span>
+                            </div>
+                          ))}
+                          {a.payload.actor_name && (
+                            <div className="text-[10px] italic">av {a.payload.actor_name} · manuelt etterfylt</div>
+                          )}
+                        </div>
+                      )}
                       <br />
                       {format(new Date(a.created_at), "d. MMM HH:mm", { locale: nb })}
                     </div>
@@ -1705,6 +1729,14 @@ export default function OrderFormDetailPage() {
         submissionId={id!}
         submissionNo={submission.submission_no}
         bestillerEpost={bestillerEpost}
+      />
+      <EditFieldsDialog
+        open={editFieldsOpen}
+        onOpenChange={setEditFieldsOpen}
+        submissionId={id!}
+        submissionNo={submission.submission_no}
+        sections={sections as any}
+        valuesMap={valuesMap}
       />
       {/* ConvertDialog removed — now uses /orders/:id/convert route */}
       <TripletexExportPanel
