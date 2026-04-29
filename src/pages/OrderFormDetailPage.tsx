@@ -656,6 +656,7 @@ export default function OrderFormDetailPage() {
     exported_to_tripletex: "Eksportert til Tripletex",
     assigned: "Ansvarlig tildelt",
     recipient_changed: "Oppdateringsmottaker endret",
+    fields_updated: "Bestillingsdata etterfylt",
   };
 
   const trackingUrl = sub.public_tracking_token
