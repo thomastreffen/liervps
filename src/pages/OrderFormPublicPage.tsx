@@ -176,6 +176,7 @@ export default function OrderFormPublicPage() {
   };
 
   const handleSubmit = async () => {
+    setSubmitError(null);
     if (!validate() || !template) return;
     setSubmitting(true);
     try {
