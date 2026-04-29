@@ -643,6 +643,23 @@ export default function OrderFormDetailPage() {
     ? `${window.location.origin}/bestilling/status/${sub.public_tracking_token}`
     : null;
 
+  const resendTrackingLink = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.functions.invoke("order-form-notify", {
+        body: { submission_id: id, notification_type: "confirmation" },
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success(`Sporingslenke sendt til ${resolvedRecipient.email}`);
+      qc.invalidateQueries({ queryKey: ["order-form-activity", id] });
+      qc.invalidateQueries({ queryKey: ["order-form-submission", id] });
+    },
+    onError: (err: any) => {
+      toast.error("Kunne ikke sende sporingslenke", { description: err?.message || "Ukjent feil" });
+    },
+  });
+
   const attByCategory: Record<string, any[]> = {};
   attachments.forEach((a: any) => {
     const cat = a.category || "Annet";
@@ -1162,29 +1179,65 @@ export default function OrderFormDetailPage() {
                 <p className="text-[11px] text-muted-foreground mt-0.5">{externalConfig.description}</p>
               </div>
 
-              {/* Tracking link */}
+              {/* Tracking link — bestillerens personlige sporingslenke */}
               {trackingUrl && (
-                <div className="flex gap-1.5">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="flex-1 text-xs h-8"
-                    onClick={() => { navigator.clipboard.writeText(trackingUrl); toast.success("Sporingslenke kopiert"); }}
-                  >
-                    <LinkIcon className="h-3 w-3 mr-1" />
-                    Kopiér lenke
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="text-xs h-8"
-                    asChild
-                  >
-                    <a href={trackingUrl} target="_blank" rel="noopener noreferrer">
-                      <Eye className="h-3 w-3 mr-1" />
-                      Åpne
-                    </a>
-                  </Button>
+                <div className="space-y-2 rounded-md border border-primary/20 bg-primary/5 p-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+                      <LinkIcon className="h-3 w-3" />
+                      Personlig sporingslenke
+                    </span>
+                    <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4">Kun bestiller</Badge>
+                  </div>
+                  <input
+                    readOnly
+                    value={trackingUrl}
+                    onFocus={(e) => e.currentTarget.select()}
+                    className="w-full text-[11px] font-mono bg-background border rounded px-2 py-1.5 text-foreground/80 truncate cursor-text focus:outline-none focus:ring-1 focus:ring-primary"
+                    title={trackingUrl}
+                  />
+                  <div className="flex gap-1.5">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1 text-xs h-7"
+                      onClick={() => { navigator.clipboard.writeText(trackingUrl); toast.success("Sporingslenke kopiert"); }}
+                    >
+                      <LinkIcon className="h-3 w-3 mr-1" />
+                      Kopiér
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1 text-xs h-7"
+                      asChild
+                    >
+                      <a href={trackingUrl} target="_blank" rel="noopener noreferrer">
+                        <Eye className="h-3 w-3 mr-1" />
+                        Åpne
+                      </a>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-xs h-7"
+                      disabled={!resolvedRecipient.email || resendTrackingLink.isPending}
+                      title={resolvedRecipient.email ? "Send sporingslenken på nytt til bestiller" : "Ingen mottakeradresse satt"}
+                      onClick={() => resendTrackingLink.mutate()}
+                    >
+                      {resendTrackingLink.isPending ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <>
+                          <Send className="h-3 w-3 mr-1" />
+                          Send på nytt
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground leading-snug">
+                    Bruk denne hvis e-post eller Safe Links skaper problemer. Lenken gir tilgang til kundesiden uten innlogging.
+                  </p>
                 </div>
               )}
 
