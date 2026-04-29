@@ -40,6 +40,15 @@ For HVERT system MÅ du estimere:
 - qty_vinkel, qty_t_element, qty_term_std, qty_term_nonstd, qty_skjot: kun hvis underlaget eller vanlig praksis tilsier det (skjøter ~ antall straight - 1)
 - vertikal: boolean, qty_vertikal: antall vertikale strekk
 - arbeidstidstype, tilkomstniva, reisetid (timer t/r), riggtid (timer), risiko (% påslag)
+- ENTREPRENØRLEVERANSE (MÅ foreslås — disse driver mesteparten av prisen):
+  - tavletilkobling_el1: timer for tilkobling i hovedtavle. Skaler med strømklasse: ≤1600A → 16 t, 2000–2500A → 24 t, 3200–4000A → 40 t, ≥5000A → 60 t. Juster opp ved trang tilkomst.
+  - tavletilkobling_el2: kun hvis underlaget viser to tavler / to ender; ellers 0.
+  - kontroll_moment_timer: ~0,25 t per skjøt + 4 t for terminaler (min 8 t).
+  - dokumentasjon_hms_timer: 12 t lite prosjekt, 16–20 t normalt, 24+ t komplekst.
+  - rigg_oppstart_timer: 8 t for korte oppdrag, 16 t normalt, 24 t ved drift / vanskelig tilkomst.
+  - smamateriell_belop (kr): 10 000–15 000 normalt, 20 000–40 000 ved store skinner / mange terminaler.
+  - prosjektbuffer_pct: 5 % default, 8–10 % når underlaget er ufullstendig.
+  - usikkerhet_pct: 5 % default, 10–15 % ved mange åpne spørsmål.
 
 REGLER FOR MENGDER:
 - Hvis du har 'total_lengde_m' MÅ du også foreslå konkret antall straight-elementer (qty_straight_1/2/3).
@@ -51,21 +60,11 @@ REGLER FOR MENGDER:
 Returner ALLTID via tool-call 'submit_calc_proposal'. Vær ærlig om usikkerhet:
 - Bruk confidence 0-100 per felt (0 = bare gjetning, 100 = direkte avlest).
 - Skriv klare assumptions og open_questions.
+- For entreprenørfelter: bruk confidence 40–60 (estimat) og legg dem ALLTID inn — kalkulatøren bekrefter eller justerer.
 - Det er BEDRE å foreslå et estimat med lav confidence enn å la et felt stå tomt.
 
-KRITISK: For HVERT system MÅ 'proposed_input' inneholde MINST 'stromklasse' og 'total_lengde_m'.
-Tomt 'proposed_input' er IKKE akseptabelt. Hvis du er usikker, sett confidence lavt — men FYLL FELTENE.
-Eksempel på riktig system:
-{
-  "name": "EL1",
-  "note": "Hovedstigeskinne",
-  "system_confidence": 70,
-  "proposed_input": {
-    "stromklasse": { "value": "3200", "confidence": 90, "reason": "Lest direkte fra tegning" },
-    "total_lengde_m": { "value": 49, "confidence": 70, "reason": "Målt fra plan" },
-    "leverandor": { "value": "schneider", "confidence": 60, "reason": "Canalis-produkt nevnt" }
-  }
-}`;
+KRITISK: For HVERT system MÅ 'proposed_input' inneholde MINST 'stromklasse', 'total_lengde_m', 'tavletilkobling_el1', 'kontroll_moment_timer', 'dokumentasjon_hms_timer', 'rigg_oppstart_timer' og 'smamateriell_belop'.
+Tomt 'proposed_input' er IKKE akseptabelt. Hvis du er usikker, sett confidence lavt — men FYLL FELTENE.`;
 
 // Konkret skjema med eksplisitte felter — Gemini fyller dette mye mer pålitelig
 // enn et abstract additionalProperties-skjema.
@@ -109,6 +108,16 @@ const SYSTEM_FIELDS_SCHEMA = {
     reisetid: FIELD_VALUE({ type: "number" }, "Reisetid t/r i timer"),
     riggtid: FIELD_VALUE({ type: "number" }, "Riggtid i timer"),
     risiko: FIELD_VALUE({ type: "number" }, "Risikopåslag i %"),
+
+    // Entreprenørleveranse — MÅ bekreftes før tilbud kan opprettes
+    tavletilkobling_el1: FIELD_VALUE({ type: "number" }, "Timer for tilkobling i hovedtavle EL1. Typisk 16–60 t."),
+    tavletilkobling_el2: FIELD_VALUE({ type: "number" }, "Timer for tilkobling i sekundærtavle EL2 (0 hvis kun én tavle)."),
+    kontroll_moment_timer: FIELD_VALUE({ type: "number" }, "Kontroll og momenttrekking. Tommelfingerregel ~0,25 t/skjøt + 4 t terminaler."),
+    dokumentasjon_hms_timer: FIELD_VALUE({ type: "number" }, "FDV-dokumentasjon, sluttkontroll, HMS. Typisk 12–24 t."),
+    rigg_oppstart_timer: FIELD_VALUE({ type: "number" }, "Rigg, oppstart, sikring av arbeidssted. Typisk 8–24 t."),
+    smamateriell_belop: FIELD_VALUE({ type: "number" }, "Forbruksmateriell, kabelsko, merking, småjern (kr)."),
+    prosjektbuffer_pct: FIELD_VALUE({ type: "number" }, "Prosjektbuffer i %. Typisk 3–8 % normalt, 8–15 % komplekst."),
+    usikkerhet_pct: FIELD_VALUE({ type: "number" }, "Usikkerhetspåslag i % når underlaget har åpne spørsmål."),
   },
 };
 
@@ -239,6 +248,66 @@ function enrichSystem(sys: any): any {
       };
     }
   }
+
+  // --- Entreprenørleveranse: auto-foreslå når AI glemte dem ---
+  const has = (k: string) => input[k]?.value != null && Number(input[k].value) > 0;
+  const stromAmp = (() => {
+    const v = input.stromklasse?.value;
+    const n = v == null ? 0 : Number(v);
+    return Number.isFinite(n) ? n : 0;
+  })();
+
+  if (!has("tavletilkobling_el1")) {
+    let t = 24;
+    if (stromAmp >= 5000) t = 60;
+    else if (stromAmp >= 3200) t = 40;
+    else if (stromAmp >= 2000) t = 24;
+    else if (stromAmp > 0) t = 16;
+    input.tavletilkobling_el1 = {
+      value: t,
+      confidence: 45,
+      reason: `Auto-estimert ut fra strømklasse ${stromAmp || "?"}A. Bekreft mot faktisk tavle.`,
+    };
+  }
+  if (!has("kontroll_moment_timer")) {
+    const skjot = Number(input.qty_skjot?.value) || 0;
+    const term = (Number(input.qty_term_std?.value) || 0) + (Number(input.qty_term_nonstd?.value) || 0);
+    const t = Math.max(8, Math.round(skjot * 0.25 + Math.max(term, 1) * 4));
+    input.kontroll_moment_timer = {
+      value: t,
+      confidence: 50,
+      reason: `Auto: ${skjot} skjøter × 0,25 t + ${Math.max(term, 1)} terminal(er) × 4 t = ${t} t`,
+    };
+  }
+  if (!has("dokumentasjon_hms_timer")) {
+    const t = lengde && lengde > 30 ? 20 : 16;
+    input.dokumentasjon_hms_timer = {
+      value: t, confidence: 45,
+      reason: `Auto: ${t} t for FDV/HMS basert på prosjektstørrelse.`,
+    };
+  }
+  if (!has("rigg_oppstart_timer")) {
+    input.rigg_oppstart_timer = {
+      value: 12, confidence: 45,
+      reason: "Auto: 12 t for rigg/oppstart. Øk ved drift eller vanskelig tilkomst.",
+    };
+  }
+  if (!has("smamateriell_belop")) {
+    let belop = 15000;
+    if (stromAmp >= 3200) belop = 25000;
+    if (stromAmp >= 5000) belop = 40000;
+    input.smamateriell_belop = {
+      value: belop, confidence: 45,
+      reason: `Auto: ${belop} kr småmateriell ut fra strømklasse ${stromAmp || "?"}A.`,
+    };
+  }
+  if (!has("prosjektbuffer_pct")) {
+    input.prosjektbuffer_pct = { value: 5, confidence: 50, reason: "Standard 5 % prosjektbuffer." };
+  }
+  if (!has("usikkerhet_pct")) {
+    input.usikkerhet_pct = { value: 5, confidence: 50, reason: "Standard 5 % usikkerhet — øk hvis åpne spørsmål." };
+  }
+
   return { ...sys, proposed_input: input };
 }
 

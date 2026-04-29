@@ -8,12 +8,22 @@ import { Separator } from "@/components/ui/separator";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { ArrowLeft, Loader2, Calculator, Trash2, FileText, FileCheck2 } from "lucide-react";
+import { ArrowLeft, Loader2, Calculator, Trash2, FileText, FileCheck2, AlertTriangle } from "lucide-react";
 import { getStatusBadge, formatDateTime } from "@/lib/calc-engine/status-labels";
 import { DeleteCalcDialog, type DeleteTarget } from "@/components/calc-engine/DeleteCalcDialog";
 import { useActiveOfferForSource } from "@/hooks/useActiveOfferForSource";
 import { CommercialCaseHeaderBadge } from "@/components/commercial/CommercialCaseHeaderBadge";
 import { CommercialCasePanel } from "@/components/commercial/CommercialCasePanel";
+import { toast } from "@/hooks/use-toast";
+
+// Felter som MÅ bekreftes (verdi > 0) før tilbud kan opprettes for v2-pakker
+const V2_REQUIRED_KEYS: { key: string; label: string }[] = [
+  { key: "tavletilkobling_el1", label: "Tavletilkobling EL1" },
+  { key: "kontroll_moment_timer", label: "Kontroll og momenttrekking" },
+  { key: "dokumentasjon_hms_timer", label: "Dokumentasjon / HMS" },
+  { key: "rigg_oppstart_timer", label: "Rigg / oppstart" },
+  { key: "smamateriell_belop", label: "Småmateriell" },
+];
 
 function formatNok(n: number): string {
   return new Intl.NumberFormat("nb-NO", { maximumFractionDigits: 0 }).format(n ?? 0);
@@ -49,6 +59,17 @@ export default function CalcEngineDetailPage() {
   if (!calc) return <div className="p-8 text-center">Kalkyle ikke funnet.</div>;
 
   const totals = calc.totals_snapshot ?? {};
+  const pkgSlug: string = calc.calc_packages?.slug ?? "";
+  const isV2 = pkgSlug === "stromskinne-v2";
+  const inputSnap = (calc.input_snapshot ?? {}) as Record<string, any>;
+  const missingRequired = isV2
+    ? V2_REQUIRED_KEYS.filter(({ key }) => {
+        const v = inputSnap[key];
+        const n = v == null ? 0 : Number(v);
+        return !Number.isFinite(n) || n <= 0;
+      })
+    : [];
+  const canCreateOffer = !isV2 || missingRequired.length === 0;
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-[1400px] mx-auto space-y-5">
@@ -90,7 +111,19 @@ export default function CalcEngineDetailPage() {
           <Button
             size="sm"
             className="rounded-xl gap-1.5"
-            onClick={() => navigate(`/sales/calc-engine/offer-from-calc?calc=${calc.id}`)}
+            disabled={!canCreateOffer}
+            title={canCreateOffer ? undefined : `Bekreft først: ${missingRequired.map(m => m.label).join(", ")}`}
+            onClick={() => {
+              if (!canCreateOffer) {
+                toast({
+                  title: "Bekreft entreprenørposter først",
+                  description: `Disse må ha en verdi > 0 før du kan opprette tilbud: ${missingRequired.map(m => m.label).join(", ")}.`,
+                  variant: "destructive",
+                });
+                return;
+              }
+              navigate(`/sales/calc-engine/offer-from-calc?calc=${calc.id}`);
+            }}
           >
             <FileText className="h-3.5 w-3.5" /> Opprett tilbud
           </Button>
@@ -104,6 +137,25 @@ export default function CalcEngineDetailPage() {
           <Trash2 className="h-3.5 w-3.5" /> Slett
         </Button>
       </div>
+
+      {isV2 && missingRequired.length > 0 && !hasOffer && (
+        <Card className="p-4 rounded-2xl border-amber-300 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-900/50">
+          <div className="flex gap-3">
+            <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+            <div className="space-y-1.5 text-sm">
+              <div className="font-semibold text-amber-900 dark:text-amber-200">
+                Bekreft entreprenørposter før tilbud opprettes
+              </div>
+              <p className="text-amber-800 dark:text-amber-300/90">
+                Strømskinne-kalkyler treffer ikke virkelig tilbudsnivå uten disse postene. Åpne kalkylen i editoren og sett verdier som passer prosjektet.
+              </p>
+              <ul className="list-disc list-inside text-amber-800 dark:text-amber-300/90">
+                {missingRequired.map(m => <li key={m.key}>{m.label}</li>)}
+              </ul>
+            </div>
+          </div>
+        </Card>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-5">
         <div className="space-y-5">
