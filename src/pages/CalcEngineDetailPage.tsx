@@ -111,7 +111,19 @@ export default function CalcEngineDetailPage() {
           <Button
             size="sm"
             className="rounded-xl gap-1.5"
-            onClick={() => navigate(`/sales/calc-engine/offer-from-calc?calc=${calc.id}`)}
+            disabled={!canCreateOffer}
+            title={canCreateOffer ? undefined : `Bekreft først: ${missingRequired.map(m => m.label).join(", ")}`}
+            onClick={() => {
+              if (!canCreateOffer) {
+                toast({
+                  title: "Bekreft entreprenørposter først",
+                  description: `Disse må ha en verdi > 0 før du kan opprette tilbud: ${missingRequired.map(m => m.label).join(", ")}.`,
+                  variant: "destructive",
+                });
+                return;
+              }
+              navigate(`/sales/calc-engine/offer-from-calc?calc=${calc.id}`);
+            }}
           >
             <FileText className="h-3.5 w-3.5" /> Opprett tilbud
           </Button>
