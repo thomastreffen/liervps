@@ -254,19 +254,32 @@ export default function OrderFormPublicPage() {
         }
       }
 
+      const failedAttachments: string[] = [];
       for (const att of attachments) {
         const path = `${template.company_id}/${submissionId}/${Date.now()}_${att.file.name}`;
-        await supabase.storage.from("order-form-attachments").upload(path, att.file);
-        await supabase.from("order_form_submission_attachments").insert({
+        const { error: upErr } = await supabase.storage.from("order-form-attachments").upload(path, att.file);
+        if (upErr) {
+          failedAttachments.push(`${att.file.name}: ${upErr.message}`);
+          continue;
+        }
+        const { error: attInsErr } = await supabase.from("order_form_submission_attachments").insert({
           submission_id: submissionId, field_key: att.fieldKey,
           file_name: att.file.name, file_path: path,
           mime_type: att.file.type, file_size: att.file.size,
+        });
+        if (attInsErr) failedAttachments.push(`${att.file.name}: ${attInsErr.message}`);
+      }
+      if (failedAttachments.length > 0) {
+        await supabase.from("order_form_activity_log").insert({
+          submission_id: submissionId,
+          event_type: "submit_attachments_partial_failure",
+          payload: { failures: failedAttachments },
         });
       }
 
       await supabase.from("order_form_activity_log").insert({
         submission_id: submissionId, event_type: "submitted",
-        payload: { source: "external" },
+        payload: { source: "external", value_count: valueRows.length, attachment_count: attachments.length - failedAttachments.length },
       });
 
       // Auto-send notification to postkontor (fire-and-forget)
@@ -286,7 +299,8 @@ export default function OrderFormPublicPage() {
       setTrackingToken(trackingToken);
       setSubmitted(true);
     } catch (err: any) {
-      console.error(err);
+      console.error("Submit failed:", err);
+      setSubmitError(err?.message || "Noe gikk galt under innsending. Prøv igjen, eller kontakt oss om problemet vedvarer.");
     } finally {
       setSubmitting(false);
     }
