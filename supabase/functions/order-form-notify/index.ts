@@ -412,16 +412,32 @@ function buildNewOrderEmail(p: {
 </div>`;
 }
 
+/**
+ * Felles svar-blokk for kundevendte e-poster.
+ * Forklarer eksplisitt at mottaker kan svare direkte på e-posten (med vedlegg)
+ * eller bruke knappen for å gå til kundesiden.
+ */
+function buildReplyBlock(trackingUrl: string | null, buttonLabel = "Følg bestillingen"): string {
+  const button = trackingUrl
+    ? `<div style="margin:14px 0 4px;">
+         <a href="${trackingUrl}" style="display:inline-block;background:#2563EB;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;font-size:14px;font-weight:500;">${buttonLabel}</a>
+       </div>`
+    : "";
+  const altLine = trackingUrl
+    ? `<p style="margin:6px 0 0;font-size:14px;color:#374151;">Du kan også bruke knappen under for å åpne kundesiden og sende melding derfra.</p>`
+    : "";
+  return `
+  <div style="margin:18px 0;padding:14px 16px;background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;">
+    <p style="margin:0;font-size:14px;color:#0F172A;font-weight:600;">Slik svarer du oss</p>
+    <p style="margin:6px 0 0;font-size:14px;color:#374151;">Du kan svare direkte på denne e-posten – også med vedlegg. Svaret havner automatisk i bestillingstråden.</p>
+    ${altLine}
+    ${button}
+  </div>`;
+}
+
 function buildConfirmationEmail(p: {
   submissionNo: string; kundenavn: string; oppdragstittel: string; detailUrl: string; trackingUrl: string | null;
 }): string {
-  const trackingHtml = p.trackingUrl
-    ? `<p style="font-size:14px;color:#374151;">Du kan følge statusen på bestillingen din her:</p>
-       <div style="margin:16px 0;">
-         <a href="${p.trackingUrl}" style="display:inline-block;background:#2563EB;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;font-size:14px;font-weight:500;">Følg bestillingen</a>
-       </div>`
-    : "";
-
   return `
 <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:640px;margin:0 auto;padding:20px;">
   <div style="background:#DCFCE7;border-radius:8px;padding:16px;margin-bottom:16px;">
@@ -431,8 +447,8 @@ function buildConfirmationEmail(p: {
   <p style="font-size:14px;color:#374151;">Hei,</p>
   <p style="font-size:14px;color:#374151;">Vi har mottatt bestillingen din for <strong>${p.oppdragstittel}</strong> (kunde: ${p.kundenavn}).</p>
   <p style="font-size:14px;color:#374151;">Bestillingen er registrert med nummer <strong>${p.submissionNo}</strong> og vil bli behandlet av vårt serviceteam.</p>
-  ${trackingHtml}
   <p style="font-size:14px;color:#374151;">Du vil bli kontaktet dersom vi trenger mer informasjon.</p>
+  ${buildReplyBlock(p.trackingUrl, "Følg bestillingen")}
   <p style="color:#9CA3AF;font-size:11px;margin-top:24px;">Denne e-posten er sendt automatisk fra MCS Service.</p>
 </div>`;
 }
