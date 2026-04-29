@@ -59,6 +59,17 @@ export default function CalcEngineDetailPage() {
   if (!calc) return <div className="p-8 text-center">Kalkyle ikke funnet.</div>;
 
   const totals = calc.totals_snapshot ?? {};
+  const pkgSlug: string = calc.calc_packages?.slug ?? "";
+  const isV2 = pkgSlug === "stromskinne-v2";
+  const inputSnap = (calc.input_snapshot ?? {}) as Record<string, any>;
+  const missingRequired = isV2
+    ? V2_REQUIRED_KEYS.filter(({ key }) => {
+        const v = inputSnap[key];
+        const n = v == null ? 0 : Number(v);
+        return !Number.isFinite(n) || n <= 0;
+      })
+    : [];
+  const canCreateOffer = !isV2 || missingRequired.length === 0;
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-[1400px] mx-auto space-y-5">
