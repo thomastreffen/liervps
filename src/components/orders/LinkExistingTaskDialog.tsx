@@ -80,7 +80,7 @@ export function LinkExistingTaskDialog({
         id, title, internal_number, project_number, job_number, project_type,
         status, start_time, end_time, address, city, postal_code,
         customer, customer_id, description, site_contact_name,
-        event_technicians(technician:technicians(person:people(full_name)))
+        event_technicians(technician:technicians(id, name))
       `;
 
       const term = debounced.trim();
@@ -133,13 +133,16 @@ export function LinkExistingTaskDialog({
       // Also query technicians by name -> their event_ids in this company
       const techQuery = supabase
         .from("event_technicians")
-        .select(`event_id, technician:technicians!inner(person:people!inner(full_name))`)
+        .select(`event_id, technician:technicians!inner(name)`)
         .limit(120);
 
       const [tokenResults, techRes] = await Promise.all([
         Promise.all(queries),
         techQuery,
       ]);
+
+      const firstError = tokenResults.find((r) => r.error)?.error || techRes.error;
+      if (firstError) throw firstError;
 
       // Intersect token results by id (AND)
       const idSets: Set<string>[] = [];
@@ -166,7 +169,7 @@ export function LinkExistingTaskDialog({
       const lowerTokens = tokens.map((t) => t.toLowerCase());
       const techEventIds = new Set<string>();
       (techRes.data || []).forEach((row: any) => {
-        const name = (row.technician?.person?.full_name || "").toLowerCase();
+        const name = (row.technician?.name || "").toLowerCase();
         if (name && lowerTokens.some((t) => name.includes(t))) {
           techEventIds.add(row.event_id);
         }
@@ -337,7 +340,7 @@ export function LinkExistingTaskDialog({
                 const isCurrent = currentLinkedEventId === e.id;
                 const customerMatch = customerId && e.customer_id === customerId;
                 const techNames = (e.event_technicians || [])
-                  .map((et: any) => et.technician?.person?.full_name)
+                  .map((et: any) => et.technician?.name)
                   .filter(Boolean)
                   .join(", ");
                 return (
