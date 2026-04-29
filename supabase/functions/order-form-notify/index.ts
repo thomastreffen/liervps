@@ -521,7 +521,94 @@ function buildMissingInfoEmail(p: {
 </div>`;
 }
 
-function buildCustomerUpdateEmail(p: {
+function escapeHtml(s: string): string {
+  return String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function buildFieldRequestEmail(p: {
+  submissionNo: string;
+  kundenavn: string;
+  oppdragstittel: string;
+  recipientName?: string;
+  fieldItems: string[];
+  freeTextItems: string[];
+  requestedBy?: string;
+  trackingUrl: string | null;
+}): string {
+  const greeting = p.recipientName ? `Hei ${escapeHtml(p.recipientName.split(" ")[0])},` : "Hei,";
+
+  const badgesHtml = p.fieldItems.length > 0
+    ? `<div style="margin:8px 0 4px;">
+         ${p.fieldItems
+           .map(
+             (label) =>
+               `<span style="display:inline-block;background:#EFF6FF;color:#1E40AF;border:1px solid #BFDBFE;padding:5px 11px;border-radius:999px;font-size:13px;font-weight:500;margin:0 6px 6px 0;">${escapeHtml(label)}</span>`
+           )
+           .join("")}
+       </div>`
+    : "";
+
+  const freeTextHtml = p.freeTextItems.length > 0
+    ? `<div style="margin:18px 0 6px;">
+         <p style="margin:0 0 8px;font-size:14px;font-weight:600;color:#0F172A;">Tilleggsinformasjon vi ønsker fra deg</p>
+         <ul style="margin:0;padding-left:20px;">
+           ${p.freeTextItems
+             .map(
+               (q) =>
+                 `<li style="font-size:14px;color:#374151;margin:4px 0;line-height:1.5;">${escapeHtml(q)}</li>`
+             )
+             .join("")}
+         </ul>
+       </div>`
+    : "";
+
+  const ctaButton = p.trackingUrl
+    ? `<div style="margin:22px 0 6px;">
+         <a href="${p.trackingUrl}" style="display:inline-block;background:#2563EB;color:#fff;padding:12px 22px;border-radius:8px;text-decoration:none;font-size:15px;font-weight:600;">Fyll inn manglende informasjon</a>
+       </div>
+       <p style="margin:8px 0 0;font-size:12px;color:#6B7280;">Eller åpne lenken: <a href="${p.trackingUrl}" style="color:#2563EB;">${p.trackingUrl}</a></p>`
+    : "";
+
+  const fromLine = p.requestedBy
+    ? `<p style="margin:14px 0 0;font-size:13px;color:#6B7280;">— ${escapeHtml(p.requestedBy)}, MCS Service</p>`
+    : "";
+
+  return `
+<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:640px;margin:0 auto;padding:20px;color:#0F172A;">
+  <div style="background:#FEF3C7;border-left:4px solid #F59E0B;border-radius:8px;padding:16px 18px;margin-bottom:18px;">
+    <h2 style="margin:0 0 4px;color:#92400E;font-size:18px;">Vi trenger litt mer informasjon</h2>
+    <p style="margin:0;color:#92400E;font-size:13px;">${escapeHtml(p.submissionNo)} · ${escapeHtml(p.kundenavn)} · ${escapeHtml(p.oppdragstittel)}</p>
+  </div>
+
+  <p style="font-size:15px;color:#0F172A;margin:0 0 10px;">${greeting}</p>
+  <p style="font-size:14px;color:#374151;line-height:1.55;margin:0 0 14px;">
+    Vi trenger litt mer informasjon for å komme videre med bestillingen din.
+    Det går raskt — du kan fylle det inn direkte på kundesiden.
+  </p>
+
+  ${p.fieldItems.length > 0 ? `<p style="margin:18px 0 4px;font-size:14px;font-weight:600;color:#0F172A;">Dette mangler vi fra deg:</p>${badgesHtml}` : ""}
+  ${freeTextHtml}
+
+  ${ctaButton}
+
+  <p style="font-size:13px;color:#6B7280;margin:18px 0 0;line-height:1.5;">
+    Du kan også svare direkte på denne e-posten hvis det er enklere — meldingen havner i bestillingstråden.
+  </p>
+
+  ${fromLine}
+
+  <p style="color:#9CA3AF;font-size:11px;margin-top:26px;border-top:1px solid #E5E7EB;padding-top:12px;">
+    Denne e-posten er sendt fordi vi mangler informasjon på bestilling ${escapeHtml(p.submissionNo)}.
+  </p>
+</div>`;
+}
+
+
   submissionNo: string; kundenavn: string; oppdragstittel: string;
   heading: string; bodyText: string; headingBg: string; headingFg: string;
   trackingUrl: string | null;
