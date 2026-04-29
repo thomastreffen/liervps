@@ -219,11 +219,38 @@ export default function OrderFormPublicPage() {
       } as any);
       if (subErr) throw subErr;
 
+      // Normalize values to JSON-safe form and insert with explicit error handling.
+      // If this fails, we MUST NOT show the user a "submission received" success.
       const valueRows = Object.entries(formData)
-        .filter(([, v]) => v != null && v !== "")
-        .map(([key, val]) => ({ submission_id: submissionId, field_key: key, value: val }));
+        .filter(([, v]) => v != null && v !== "" && !(Array.isArray(v) && v.length === 0))
+        .map(([key, val]) => {
+          // Ensure value is JSON-safe (handles nested objects/arrays from address/checkbox_list/etc)
+          let safeVal: any;
+          try {
+            safeVal = JSON.parse(JSON.stringify(val));
+          } catch {
+            safeVal = String(val);
+          }
+          return { submission_id: submissionId, field_key: key, value: safeVal };
+        });
+
       if (valueRows.length > 0) {
-        await supabase.from("order_form_submission_values").insert(valueRows);
+        const { error: valuesErr } = await supabase
+          .from("order_form_submission_values")
+          .insert(valueRows);
+        if (valuesErr) {
+          // Log the failure to activity log so admins can see what happened
+          await supabase.from("order_form_activity_log").insert({
+            submission_id: submissionId,
+            event_type: "submit_values_failed",
+            payload: {
+              error: valuesErr.message,
+              attempted_field_count: valueRows.length,
+              field_keys: valueRows.map(r => r.field_key),
+            },
+          });
+          throw new Error(`Kunne ikke lagre skjemafelt: ${valuesErr.message}`);
+        }
       }
 
       for (const att of attachments) {
