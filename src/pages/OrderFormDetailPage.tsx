@@ -57,6 +57,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { LinkedTaskSection } from "@/components/orders/LinkedTaskSection";
 import { deriveOrderConversationState } from "@/lib/order-request-state";
 import { OrderParticipantsPanel } from "@/components/orders/OrderParticipantsPanel";
+import { EditFieldsDialog } from "@/components/orders/EditFieldsDialog";
 
 export default function OrderFormDetailPage() {
   const { id } = useParams<{ id: string }>();
