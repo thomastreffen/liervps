@@ -1756,6 +1756,24 @@ export default function OrderFormDetailPage() {
         sections={sections as any}
         valuesMap={valuesMap}
       />
+      <RequestFieldsDialog
+        open={requestFieldsOpen}
+        onOpenChange={setRequestFieldsOpen}
+        submissionId={id!}
+        submissionNo={submission.submission_no}
+        sections={sections as any}
+        valuesMap={valuesMap}
+        recipientEmail={resolvedRecipient.email}
+        recipientName={resolvedRecipient.name}
+      />
+      <LinkExistingTaskDialog
+        open={linkTaskOpen}
+        onOpenChange={setLinkTaskOpen}
+        submissionId={id!}
+        submissionNo={submission.submission_no}
+        customerId={(sub as any).linked_customer_id}
+        currentLinkedEventId={(sub as any).linked_event_id}
+      />
       {/* ConvertDialog removed — now uses /orders/:id/convert route */}
       <TripletexExportPanel
         open={tripletexOpen}
