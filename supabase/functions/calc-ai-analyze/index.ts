@@ -248,6 +248,66 @@ function enrichSystem(sys: any): any {
       };
     }
   }
+
+  // --- Entreprenørleveranse: auto-foreslå når AI glemte dem ---
+  const has = (k: string) => input[k]?.value != null && Number(input[k].value) > 0;
+  const stromAmp = (() => {
+    const v = input.stromklasse?.value;
+    const n = v == null ? 0 : Number(v);
+    return Number.isFinite(n) ? n : 0;
+  })();
+
+  if (!has("tavletilkobling_el1")) {
+    let t = 24;
+    if (stromAmp >= 5000) t = 60;
+    else if (stromAmp >= 3200) t = 40;
+    else if (stromAmp >= 2000) t = 24;
+    else if (stromAmp > 0) t = 16;
+    input.tavletilkobling_el1 = {
+      value: t,
+      confidence: 45,
+      reason: `Auto-estimert ut fra strømklasse ${stromAmp || "?"}A. Bekreft mot faktisk tavle.`,
+    };
+  }
+  if (!has("kontroll_moment_timer")) {
+    const skjot = Number(input.qty_skjot?.value) || 0;
+    const term = (Number(input.qty_term_std?.value) || 0) + (Number(input.qty_term_nonstd?.value) || 0);
+    const t = Math.max(8, Math.round(skjot * 0.25 + Math.max(term, 1) * 4));
+    input.kontroll_moment_timer = {
+      value: t,
+      confidence: 50,
+      reason: `Auto: ${skjot} skjøter × 0,25 t + ${Math.max(term, 1)} terminal(er) × 4 t = ${t} t`,
+    };
+  }
+  if (!has("dokumentasjon_hms_timer")) {
+    const t = lengde && lengde > 30 ? 20 : 16;
+    input.dokumentasjon_hms_timer = {
+      value: t, confidence: 45,
+      reason: `Auto: ${t} t for FDV/HMS basert på prosjektstørrelse.`,
+    };
+  }
+  if (!has("rigg_oppstart_timer")) {
+    input.rigg_oppstart_timer = {
+      value: 12, confidence: 45,
+      reason: "Auto: 12 t for rigg/oppstart. Øk ved drift eller vanskelig tilkomst.",
+    };
+  }
+  if (!has("smamateriell_belop")) {
+    let belop = 15000;
+    if (stromAmp >= 3200) belop = 25000;
+    if (stromAmp >= 5000) belop = 40000;
+    input.smamateriell_belop = {
+      value: belop, confidence: 45,
+      reason: `Auto: ${belop} kr småmateriell ut fra strømklasse ${stromAmp || "?"}A.`,
+    };
+  }
+  if (!has("prosjektbuffer_pct")) {
+    input.prosjektbuffer_pct = { value: 5, confidence: 50, reason: "Standard 5 % prosjektbuffer." };
+  }
+  if (!has("usikkerhet_pct")) {
+    input.usikkerhet_pct = { value: 5, confidence: 50, reason: "Standard 5 % usikkerhet — øk hvis åpne spørsmål." };
+  }
+
   return { ...sys, proposed_input: input };
 }
 
