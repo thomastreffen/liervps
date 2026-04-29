@@ -953,6 +953,8 @@ export default function OrderFormDetailPage() {
         submissionId={id!}
         convertedToId={sub.converted_to_id}
         convertedToType={sub.converted_to_type}
+        linkedEventId={(sub as any).linked_event_id}
+        onManageLink={() => setLinkTaskOpen(true)}
       />
 
       {/* Linked entities + notification status */}
