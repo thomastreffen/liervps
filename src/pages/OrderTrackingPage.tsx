@@ -20,6 +20,7 @@ import {
   type ExternalStatus,
 } from "@/types/order-forms";
 import { deriveOrderConversationState } from "@/lib/order-request-state";
+import { CustomerFieldRequests } from "@/components/orders/CustomerFieldRequests";
 
 /* ── External status progress bar ── */
 function StatusProgress({ status }: { status: ExternalStatus }) {
