@@ -661,6 +661,10 @@ export default function OrderFormDetailPage() {
     assigned: "Ansvarlig tildelt",
     recipient_changed: "Oppdateringsmottaker endret",
     fields_updated: "Bestillingsdata etterfylt",
+    field_request_created: "Forespurt felter fra bestiller",
+    customer_filled_field: "Bestiller fylte inn felt",
+    linked_to_existing_task: "Koblet til eksisterende oppgave",
+    unlinked_task: "Kobling til oppgave fjernet",
   };
 
   const trackingUrl = sub.public_tracking_token
