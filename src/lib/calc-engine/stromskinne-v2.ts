@@ -32,16 +32,26 @@ const SKINNE_ELEMENTS: { qtyKey: string; normKey: string; label: string; unit: s
 ];
 
 export function calculateStromskinneV2(ctx: CalcContext): CalcResult {
-  const { input, rateTable, normTable } = ctx;
+  const { input, rateTable, normTable, baselineProfiles } = ctx;
   const rows = rateTable.rows;
   const norms = normTable.rows;
 
-  const costMontor  = rateOf(rows, "cost_montor");
-  const salesMontor = rateOf(rows, "sales_montor");
+  // --- Velg baseline-profil (Metallkapslet/Epoksy) eller legacy ---
+  const baselineSlug = String(input.baseline_profile ?? "legacy");
+  const activeBaseline = baselineSlug !== "legacy"
+    ? (baselineProfiles ?? []).find(p => p.slug === baselineSlug) ?? null
+    : null;
+
+  // Når baseline er aktiv: timesats og fortjenestefaktor styrer kost/salg
+  const costMontor  = activeBaseline ? activeBaseline.hourly_rate_cost : rateOf(rows, "cost_montor");
+  const salesMontor = activeBaseline
+    ? activeBaseline.hourly_rate_cost * activeBaseline.profit_factor
+    : rateOf(rows, "sales_montor");
   const costReise   = rateOf(rows, "cost_reise");
   const salesReise  = rateOf(rows, "sales_reise");
   const costRigg    = rateOf(rows, "cost_rigg");
   const salesRigg   = rateOf(rows, "sales_rigg");
+
 
   // Materiell-rater (med fornuftige fallback om DB-rader mangler)
   const costOppMat   = rateOf(rows, "cost_oppheng_material", 350);
