@@ -72,33 +72,34 @@ export function OrderBriefingSection({ eventId, compact = false }: OrderBriefing
 
       if (!submissionId) return null;
 
-      const [{ data: submission }, { data: values }, { data: attachments }, { data: msg }] =
-        await Promise.all([
-          supabase
-            .from("order_form_submissions")
-            .select(
-              "id, submission_no, status, priority, summary, summitter_name:submitter_name, submitter_email, submitter_user_id, notification_recipient_name, notification_recipient_email, notification_recipient_phone, last_customer_message_at, public_tracking_token"
-            )
-            .eq("id", submissionId)
-            .maybeSingle(),
-          supabase
-            .from("order_form_submission_values")
-            .select("field_key, value")
-            .eq("submission_id", submissionId),
-          supabase
-            .from("order_form_submission_attachments")
-            .select("id, file_name, file_path, mime_type, file_size")
-            .eq("submission_id", submissionId)
-            .order("uploaded_at", { ascending: true }),
-          supabase
-            .from("order_form_messages")
-            .select("body, created_at, direction")
-            .eq("submission_id", submissionId)
-            .eq("direction", "inbound")
-            .order("created_at", { ascending: false })
-            .limit(1)
-            .maybeSingle(),
-        ]);
+      const subRes: any = await supabase
+        .from("order_form_submissions")
+        .select(
+          "id, submission_no, status, priority, summary, submitter_name, submitter_email, notification_recipient_name, notification_recipient_email, notification_recipient_phone"
+        )
+        .eq("id", submissionId)
+        .maybeSingle();
+      const valRes: any = await supabase
+        .from("order_form_submission_values")
+        .select("field_key, value")
+        .eq("submission_id", submissionId);
+      const attRes: any = await supabase
+        .from("order_form_submission_attachments")
+        .select("id, file_name, file_path, mime_type, file_size")
+        .eq("submission_id", submissionId)
+        .order("uploaded_at", { ascending: true });
+      const msgRes: any = await supabase
+        .from("order_form_messages")
+        .select("body, created_at, direction")
+        .eq("submission_id", submissionId)
+        .eq("direction", "inbound")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      const submission = subRes.data;
+      const values = valRes.data;
+      const attachments = attRes.data;
+      const msg = msgRes.data;
 
       return {
         submission,
