@@ -58,6 +58,8 @@ import { LinkedTaskSection } from "@/components/orders/LinkedTaskSection";
 import { deriveOrderConversationState } from "@/lib/order-request-state";
 import { OrderParticipantsPanel } from "@/components/orders/OrderParticipantsPanel";
 import { EditFieldsDialog } from "@/components/orders/EditFieldsDialog";
+import { RequestFieldsDialog } from "@/components/orders/RequestFieldsDialog";
+import { LinkExistingTaskDialog } from "@/components/orders/LinkExistingTaskDialog";
 
 export default function OrderFormDetailPage() {
   const { id } = useParams<{ id: string }>();
