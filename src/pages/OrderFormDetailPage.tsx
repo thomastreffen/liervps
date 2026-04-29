@@ -1696,6 +1696,21 @@ export default function OrderFormDetailPage() {
                       {a.payload?.recipients && (
                         <> · {(a.payload.recipients as string[]).join(", ")}</>
                       )}
+                      {a.event_type === "fields_updated" && Array.isArray(a.payload?.changes) && (
+                        <div className="mt-1 ml-2 space-y-0.5">
+                          {a.payload.changes.map((c: any, i: number) => (
+                            <div key={i} className="text-[11px]">
+                              <span className="text-foreground">{c.label || c.field_key}:</span>{" "}
+                              <span className="line-through text-muted-foreground/70">{c.old_display ?? "(tom)"}</span>
+                              {" → "}
+                              <span className="text-foreground">{c.new_display ?? "(tom)"}</span>
+                            </div>
+                          ))}
+                          {a.payload.actor_name && (
+                            <div className="text-[10px] italic">av {a.payload.actor_name} · manuelt etterfylt</div>
+                          )}
+                        </div>
+                      )}
                       <br />
                       {format(new Date(a.created_at), "d. MMM HH:mm", { locale: nb })}
                     </div>
