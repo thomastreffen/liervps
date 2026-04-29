@@ -1523,6 +1523,9 @@ export function EventDrawer({
                   }}
                 />
               )}
+
+              {/* ═══ FRA BESTILLING (jobbunderlag for montør) ═══ */}
+              <OrderBriefingSection eventId={editEvent.id} />
             </div>
           )}
 
