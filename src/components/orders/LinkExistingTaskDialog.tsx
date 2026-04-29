@@ -321,9 +321,15 @@ export function LinkExistingTaskDialog({
               <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
             </div>
           ) : sorted.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-12">
-              Ingen oppgaver funnet
-            </p>
+            <div className="text-center py-12 space-y-1">
+              <p className="text-sm text-muted-foreground">Ingen oppgaver funnet</p>
+              {searchError && (
+                <p className="text-[11px] text-destructive">Søkefeil: {(searchError as any)?.message}</p>
+              )}
+              {!searchCompanyId && (
+                <p className="text-[11px] text-amber-600">Mangler selskap for søk.</p>
+              )}
+            </div>
           ) : (
             <div className="space-y-1">
               {sorted.map((e: any) => {
