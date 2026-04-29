@@ -158,6 +158,11 @@ export default function OrderTrackingPage() {
   const replyInputRef = useRef<HTMLTextAreaElement>(null);
   const messagesSectionRef = useRef<HTMLDivElement>(null);
 
+  // Always land at the top when opening the tracking page (e.g. from confirmation page)
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  }, [token]);
+
   const { data: submission, isLoading, error } = useQuery({
     queryKey: ["tracking", token],
     enabled: !!token,
@@ -678,7 +683,7 @@ export default function OrderTrackingPage() {
         {/* Footer */}
         <div className="text-center pt-4 pb-8">
           <p className="text-xs text-muted-foreground">
-            Denne siden er kun tilgjengelig via din personlige sporingslenke.
+            Denne lenken er personlig og skal ikke deles med andre.
           </p>
         </div>
       </div>
