@@ -347,7 +347,7 @@ Deno.serve(async (req) => {
 
     // For customer-facing notifications, set replyTo so customer replies are
     // routed back to this submission via the inbox-sync matcher.
-    const customerFacingTypes = new Set(["shared_message", "missing_info", "customer_update", "confirmation"]);
+    const customerFacingTypes = new Set(["shared_message", "missing_info", "customer_update", "confirmation", "field_request"]);
     const isCustomerFacing = customerFacingTypes.has(notification_type);
     const inboundToken = (submission as any).inbound_token as string | undefined;
     const replyToAddress = isCustomerFacing && inboundToken
