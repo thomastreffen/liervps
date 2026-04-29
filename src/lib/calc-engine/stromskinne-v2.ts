@@ -32,16 +32,26 @@ const SKINNE_ELEMENTS: { qtyKey: string; normKey: string; label: string; unit: s
 ];
 
 export function calculateStromskinneV2(ctx: CalcContext): CalcResult {
-  const { input, rateTable, normTable } = ctx;
+  const { input, rateTable, normTable, baselineProfiles } = ctx;
   const rows = rateTable.rows;
   const norms = normTable.rows;
 
-  const costMontor  = rateOf(rows, "cost_montor");
-  const salesMontor = rateOf(rows, "sales_montor");
+  // --- Velg baseline-profil (Metallkapslet/Epoksy) eller legacy ---
+  const baselineSlug = String(input.baseline_profile ?? "legacy");
+  const activeBaseline = baselineSlug !== "legacy"
+    ? (baselineProfiles ?? []).find(p => p.slug === baselineSlug) ?? null
+    : null;
+
+  // Når baseline er aktiv: timesats og fortjenestefaktor styrer kost/salg
+  const costMontor  = activeBaseline ? activeBaseline.hourly_rate_cost : rateOf(rows, "cost_montor");
+  const salesMontor = activeBaseline
+    ? activeBaseline.hourly_rate_cost * activeBaseline.profit_factor
+    : rateOf(rows, "sales_montor");
   const costReise   = rateOf(rows, "cost_reise");
   const salesReise  = rateOf(rows, "sales_reise");
   const costRigg    = rateOf(rows, "cost_rigg");
   const salesRigg   = rateOf(rows, "sales_rigg");
+
 
   // Materiell-rater (med fornuftige fallback om DB-rader mangler)
   const costOppMat   = rateOf(rows, "cost_oppheng_material", 350);
@@ -89,91 +99,217 @@ export function calculateStromskinneV2(ctx: CalcContext): CalcResult {
   const lines: CalcLine[] = [];
   let order = 0;
 
-  // --- 1) Skinne + oppheng arbeid (norm-basert) ---
-  for (const el of SKINNE_ELEMENTS) {
-    const qty = Number(input[el.qtyKey] ?? 0);
-    if (!qty) continue;
-    const nh = normHours(norms, el.normKey);
-    const totalNorm = qty * nh;
-    const adj = totalNorm * factor;
-    lines.push({
-      line_key: el.normKey,
-      source_type: "rule",
-      source_ref: `norm:${el.normKey}`,
-      description: el.label,
-      qty,
-      unit: el.unit,
-      norm_hours: r2(totalNorm),
-      adjusted_hours: r2(adj),
-      cost_amount: r2(adj * costMontor),
-      sales_amount: r2(adj * salesMontor),
-      is_internal_only: false,
-      metadata: { norm_per_unit: nh },
-      sort_order: order++,
-    });
+  // ============================================================
+  // BASELINE-DREVET BERGNING (Metallkapslet / Epoksy)
+  // Når en baseline-profil er valgt, brukes interne erfaringsdata
+  // (timer/m, timer/vinkel, support kr/m, trafo kr/stk, lift kr/dag)
+  // i stedet for de generiske norm-radene.
+  // ============================================================
+  if (activeBaseline) {
+    // Finn riktig amp-rad fra strømklasse-input (matcher amp_min..amp_max)
+    const ampInput = Number(input.stromklasse ?? input.stromAmp ?? 0);
+    let baseRow = activeBaseline.rows.find(r =>
+      ampInput > 0 &&
+      ((r.amp_min ?? 0) <= ampInput) &&
+      ((r.amp_max ?? Number.MAX_SAFE_INTEGER) >= ampInput)
+    );
+    // Fallback: matche på amp_key som streng (f.eks. "1600")
+    if (!baseRow && input.stromklasse) {
+      baseRow = activeBaseline.rows.find(r => r.amp_key === String(input.stromklasse));
+    }
+    // Siste fallback: høyeste tilgjengelige rad
+    if (!baseRow && activeBaseline.rows.length > 0) {
+      baseRow = activeBaseline.rows[activeBaseline.rows.length - 1];
+    }
+
+    if (baseRow) {
+      // Total meter = qty_straight_1*1 + qty_straight_2*2 + qty_straight_3*3
+      const totalMeter =
+        Number(input.qty_straight_1 ?? 0) * 1 +
+        Number(input.qty_straight_2 ?? 0) * 2 +
+        Number(input.qty_straight_3 ?? 0) * 3;
+      const totalVinkel = Number(input.qty_vinkel ?? 0);
+
+      // Skinne montasje (timer/m × meter)
+      if (totalMeter > 0) {
+        const norm = totalMeter * baseRow.hours_per_meter;
+        const adj = norm * factor;
+        lines.push({
+          line_key: "baseline_skinne",
+          source_type: "rule",
+          source_ref: `baseline:${activeBaseline.slug}:${baseRow.amp_key}`,
+          description: `Skinnemontasje ${baseRow.amp_label} (${totalMeter} m × ${baseRow.hours_per_meter} t/m)`,
+          qty: r2(totalMeter), unit: "m",
+          norm_hours: r2(norm),
+          adjusted_hours: r2(adj),
+          cost_amount: r2(adj * costMontor),
+          sales_amount: r2(adj * salesMontor),
+          is_internal_only: false,
+          metadata: { baseline_slug: activeBaseline.slug, amp_key: baseRow.amp_key, hours_per_meter: baseRow.hours_per_meter },
+          sort_order: order++,
+        });
+      }
+
+      // Vinkler
+      if (totalVinkel > 0 && baseRow.hours_per_vinkel > 0) {
+        const norm = totalVinkel * baseRow.hours_per_vinkel;
+        const adj = norm * factor;
+        lines.push({
+          line_key: "baseline_vinkel",
+          source_type: "rule",
+          source_ref: `baseline:${activeBaseline.slug}:vinkel`,
+          description: `Vinkler ${baseRow.amp_label} (${totalVinkel} stk × ${baseRow.hours_per_vinkel} t/stk)`,
+          qty: totalVinkel, unit: "stk",
+          norm_hours: r2(norm),
+          adjusted_hours: r2(adj),
+          cost_amount: r2(adj * costMontor),
+          sales_amount: r2(adj * salesMontor),
+          is_internal_only: false,
+          metadata: { hours_per_vinkel: baseRow.hours_per_vinkel },
+          sort_order: order++,
+        });
+      }
+
+      // Opphengsmateriell / support — kr/m × meter (kost = baseline; salg = kost × profit_factor)
+      if (totalMeter > 0 && baseRow.support_cost_per_meter > 0) {
+        const cost = totalMeter * baseRow.support_cost_per_meter;
+        lines.push({
+          line_key: "baseline_support",
+          source_type: "component",
+          source_ref: `baseline:${activeBaseline.slug}:support`,
+          description: `Opphengsmateriell (${totalMeter} m × ${baseRow.support_cost_per_meter} kr/m)`,
+          qty: r2(totalMeter), unit: "m",
+          norm_hours: 0, adjusted_hours: 0,
+          cost_amount: r2(cost),
+          sales_amount: r2(cost * activeBaseline.profit_factor),
+          is_internal_only: false,
+          sort_order: order++,
+        });
+      }
+
+      // Tavle/trafo-tilkobling — antall × kr/stk
+      const trafoQty = Number(input.qty_trafo_tilkobling ?? input.qty_tavle_trafo ?? 0);
+      if (trafoQty > 0 && baseRow.trafo_connect_cost > 0) {
+        const cost = trafoQty * baseRow.trafo_connect_cost;
+        lines.push({
+          line_key: "baseline_trafo",
+          source_type: "component",
+          source_ref: `baseline:${activeBaseline.slug}:trafo`,
+          description: `Tilkobling Cu-arr. skinne ↔ trafo/tavle (${trafoQty} stk)`,
+          qty: trafoQty, unit: "stk",
+          norm_hours: 0, adjusted_hours: 0,
+          cost_amount: r2(cost),
+          sales_amount: r2(cost * activeBaseline.profit_factor),
+          is_internal_only: false,
+          sort_order: order++,
+        });
+      }
+
+      // Arbeid i høyde / lift — antall dager × kr/dag (fra baseline)
+      const liftDager = Number(input.lift_dager ?? input.stillas_dager ?? 0);
+      if (liftDager > 0 && activeBaseline.lift_cost_per_day > 0) {
+        const cost = liftDager * activeBaseline.lift_cost_per_day;
+        lines.push({
+          line_key: "baseline_lift",
+          source_type: "component",
+          source_ref: `baseline:${activeBaseline.slug}:lift`,
+          description: `Stillas / lift (${liftDager} dager × ${activeBaseline.lift_cost_per_day} kr/dag)`,
+          qty: liftDager, unit: "dag",
+          norm_hours: 0, adjusted_hours: 0,
+          cost_amount: r2(cost),
+          sales_amount: r2(cost * activeBaseline.profit_factor),
+          is_internal_only: false,
+          sort_order: order++,
+        });
+      }
+    }
+  } else {
+    // ============================================================
+    // LEGACY-MODUS: gamle norm-baserte skinne-elementer + oppheng
+    // ============================================================
+    for (const el of SKINNE_ELEMENTS) {
+      const qty = Number(input[el.qtyKey] ?? 0);
+      if (!qty) continue;
+      const nh = normHours(norms, el.normKey);
+      const totalNorm = qty * nh;
+      const adj = totalNorm * factor;
+      lines.push({
+        line_key: el.normKey,
+        source_type: "rule",
+        source_ref: `norm:${el.normKey}`,
+        description: el.label,
+        qty,
+        unit: el.unit,
+        norm_hours: r2(totalNorm),
+        adjusted_hours: r2(adj),
+        cost_amount: r2(adj * costMontor),
+        sales_amount: r2(adj * salesMontor),
+        is_internal_only: false,
+        metadata: { norm_per_unit: nh },
+        sort_order: order++,
+      });
+    }
+
+    if (input.vertikal && Number(input.qty_vertikal ?? 0) > 0) {
+      const qty = Number(input.qty_vertikal);
+      const nh = normHours(norms, "vertikal");
+      const totalNorm = qty * nh;
+      const adj = totalNorm * factor;
+      lines.push({
+        line_key: "vertikal",
+        source_type: "adjustment",
+        source_ref: "norm:vertikal",
+        description: "Vertikalt tillegg",
+        qty, unit: "stk",
+        norm_hours: r2(totalNorm),
+        adjusted_hours: r2(adj),
+        cost_amount: r2(adj * costMontor),
+        sales_amount: r2(adj * salesMontor),
+        is_internal_only: false,
+        sort_order: order++,
+      });
+    }
+
+    const opphengQty = Number(input.qty_oppheng ?? 0);
+    const svinnPct = Number(input.oppheng_svinn_pct ?? 0);
+    const svinnFactor = 1 + (svinnPct / 100);
+    if (opphengQty > 0) {
+      const opMatPrisInput = Number(input.oppheng_material_pris ?? costOppMat);
+      const opMatRatio = costOppMat > 0 ? salesOppMat / costOppMat : 1.5;
+      const opMatCost = opMatPrisInput * opphengQty * svinnFactor;
+      const opMatSales = opMatPrisInput * opMatRatio * opphengQty * svinnFactor;
+      lines.push({
+        line_key: "oppheng_material",
+        source_type: "component",
+        source_ref: "rate:oppheng_material",
+        description: `Oppheng materiell (svinn ${svinnPct}%)`,
+        qty: r2(opphengQty * svinnFactor), unit: "stk",
+        norm_hours: 0, adjusted_hours: 0,
+        cost_amount: r2(opMatCost),
+        sales_amount: r2(opMatSales),
+        is_internal_only: false,
+        sort_order: order++,
+      });
+
+      const festeInput = Number(input.feste_material_pris ?? costFesteMat);
+      const festeRatio = costFesteMat > 0 ? salesFesteMat / costFesteMat : 1.5;
+      const festeCost = festeInput * opphengQty * svinnFactor;
+      const festeSales = festeInput * festeRatio * opphengQty * svinnFactor;
+      lines.push({
+        line_key: "feste_material",
+        source_type: "component",
+        source_ref: "rate:feste_material",
+        description: `Festemateriell oppheng (svinn ${svinnPct}%)`,
+        qty: r2(opphengQty * svinnFactor), unit: "stk",
+        norm_hours: 0, adjusted_hours: 0,
+        cost_amount: r2(festeCost),
+        sales_amount: r2(festeSales),
+        is_internal_only: false,
+        sort_order: order++,
+      });
+    }
   }
 
-  // Vertikalt tillegg
-  if (input.vertikal && Number(input.qty_vertikal ?? 0) > 0) {
-    const qty = Number(input.qty_vertikal);
-    const nh = normHours(norms, "vertikal");
-    const totalNorm = qty * nh;
-    const adj = totalNorm * factor;
-    lines.push({
-      line_key: "vertikal",
-      source_type: "adjustment",
-      source_ref: "norm:vertikal",
-      description: "Vertikalt tillegg",
-      qty, unit: "stk",
-      norm_hours: r2(totalNorm),
-      adjusted_hours: r2(adj),
-      cost_amount: r2(adj * costMontor),
-      sales_amount: r2(adj * salesMontor),
-      is_internal_only: false,
-      sort_order: order++,
-    });
-  }
-
-  // --- 2) Oppheng materiell + festemateriell ---
-  const opphengQty = Number(input.qty_oppheng ?? 0);
-  const svinnPct = Number(input.oppheng_svinn_pct ?? 0);
-  const svinnFactor = 1 + (svinnPct / 100);
-  if (opphengQty > 0) {
-    const opMatPrisInput = Number(input.oppheng_material_pris ?? costOppMat);
-    // Salg = input-pris * markup-forhold fra rates (enkelt: bruk salesOppMat-forhold om input matcher cost)
-    const opMatRatio = costOppMat > 0 ? salesOppMat / costOppMat : 1.5;
-    const opMatCost = opMatPrisInput * opphengQty * svinnFactor;
-    const opMatSales = opMatPrisInput * opMatRatio * opphengQty * svinnFactor;
-    lines.push({
-      line_key: "oppheng_material",
-      source_type: "component",
-      source_ref: "rate:oppheng_material",
-      description: `Oppheng materiell (svinn ${svinnPct}%)`,
-      qty: r2(opphengQty * svinnFactor), unit: "stk",
-      norm_hours: 0, adjusted_hours: 0,
-      cost_amount: r2(opMatCost),
-      sales_amount: r2(opMatSales),
-      is_internal_only: false,
-      sort_order: order++,
-    });
-
-    const festeInput = Number(input.feste_material_pris ?? costFesteMat);
-    const festeRatio = costFesteMat > 0 ? salesFesteMat / costFesteMat : 1.5;
-    const festeCost = festeInput * opphengQty * svinnFactor;
-    const festeSales = festeInput * festeRatio * opphengQty * svinnFactor;
-    lines.push({
-      line_key: "feste_material",
-      source_type: "component",
-      source_ref: "rate:feste_material",
-      description: `Festemateriell oppheng (svinn ${svinnPct}%)`,
-      qty: r2(opphengQty * svinnFactor), unit: "stk",
-      norm_hours: 0, adjusted_hours: 0,
-      cost_amount: r2(festeCost),
-      sales_amount: r2(festeSales),
-      is_internal_only: false,
-      sort_order: order++,
-    });
-  }
 
   // --- 3) Entreprenørleveranse: tavletilkobling EL1/EL2, kontroll, dokumentasjon, rigg, småmateriell ---
   const pushHourLine = (key: string, label: string, hours: number, applyFactor: boolean) => {

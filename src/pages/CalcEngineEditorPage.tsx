@@ -93,7 +93,7 @@ export default function CalcEngineEditorPage() {
   const systemIndex = Number(params.get("system") ?? "0");
   const { user } = useAuth();
   const { activeCompanyId } = useCompanyContext();
-  const { pkg, fields, rateTables, normTables, loading } = useCalcPackageBundle(packageId);
+  const { pkg, fields, rateTables, normTables, baselineProfiles, loading } = useCalcPackageBundle(packageId);
 
   const [inputState, setInputState] = useState<Record<string, any>>({});
   const [title, setTitle] = useState("");
@@ -254,12 +254,12 @@ export default function CalcEngineEditorPage() {
     const norm = normTables.find(n => n.id === selectedNormId);
     if (!rate || !norm) return null;
     try {
-      return evaluator({ input: inputState, rateTable: rate, normTable: norm });
+      return evaluator({ input: inputState, rateTable: rate, normTable: norm, baselineProfiles });
     } catch (e) {
       console.error("Calc evaluator error", e);
       return null;
     }
-  }, [pkg, selectedRateId, selectedNormId, rateTables, normTables, inputState]);
+  }, [pkg, selectedRateId, selectedNormId, rateTables, normTables, inputState, baselineProfiles]);
 
   // ==== AUTOSAVE ====
   const performSave = useCallback(async () => {

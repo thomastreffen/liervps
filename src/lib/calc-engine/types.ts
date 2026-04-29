@@ -101,10 +101,37 @@ export interface CalcResult {
 
 export type CalcInput = Record<string, any>;
 
+export interface BaselineAmpRow {
+  amp_key: string;
+  amp_label: string;
+  amp_min: number | null;
+  amp_max: number | null;
+  hours_per_meter: number;
+  hours_per_vinkel: number;
+  support_cost_per_meter: number;
+  trafo_connect_cost: number;
+  sort_order: number;
+}
+
+export interface BaselineProfile {
+  id: string;
+  slug: string;
+  name: string;
+  hourly_rate_cost: number;
+  profit_factor: number;
+  lift_cost_per_day: number;
+  rows: BaselineAmpRow[];
+}
+
 export interface CalcContext {
   input: CalcInput;
   rateTable: RateTable;
   normTable: NormTable;
+  /** Aktiv baseline-profil (Metallkapslet/Epoksy). Hvis undefined faller motoren tilbake til norm/rate-tabellene. */
+  baselineProfile?: BaselineProfile | null;
+  /** Alle tilgjengelige baseline-profiler for pakken (brukes hvis input.baseline_profile peker på en annen enn aktiv). */
+  baselineProfiles?: BaselineProfile[];
 }
 
 export type CalcEvaluator = (ctx: CalcContext) => CalcResult;
+

@@ -384,6 +384,118 @@ export type Database = {
           },
         ]
       }
+      calc_baseline_amp_rows: {
+        Row: {
+          amp_key: string
+          amp_label: string
+          amp_max: number | null
+          amp_min: number | null
+          hours_per_meter: number
+          hours_per_vinkel: number
+          id: string
+          metadata: Json
+          profile_id: string
+          sort_order: number
+          support_cost_per_meter: number
+          trafo_connect_cost: number
+        }
+        Insert: {
+          amp_key: string
+          amp_label: string
+          amp_max?: number | null
+          amp_min?: number | null
+          hours_per_meter?: number
+          hours_per_vinkel?: number
+          id?: string
+          metadata?: Json
+          profile_id: string
+          sort_order?: number
+          support_cost_per_meter?: number
+          trafo_connect_cost?: number
+        }
+        Update: {
+          amp_key?: string
+          amp_label?: string
+          amp_max?: number | null
+          amp_min?: number | null
+          hours_per_meter?: number
+          hours_per_vinkel?: number
+          id?: string
+          metadata?: Json
+          profile_id?: string
+          sort_order?: number
+          support_cost_per_meter?: number
+          trafo_connect_cost?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calc_baseline_amp_rows_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "calc_baseline_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      calc_baseline_profiles: {
+        Row: {
+          company_id: string | null
+          created_at: string
+          description: string | null
+          hourly_rate_cost: number
+          id: string
+          is_active: boolean
+          lift_cost_per_day: number
+          metadata: Json
+          name: string
+          package_id: string
+          profit_factor: number
+          slug: string
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          company_id?: string | null
+          created_at?: string
+          description?: string | null
+          hourly_rate_cost?: number
+          id?: string
+          is_active?: boolean
+          lift_cost_per_day?: number
+          metadata?: Json
+          name: string
+          package_id: string
+          profit_factor?: number
+          slug: string
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          company_id?: string | null
+          created_at?: string
+          description?: string | null
+          hourly_rate_cost?: number
+          id?: string
+          is_active?: boolean
+          lift_cost_per_day?: number
+          metadata?: Json
+          name?: string
+          package_id?: string
+          profit_factor?: number
+          slug?: string
+          updated_at?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calc_baseline_profiles_package_id_fkey"
+            columns: ["package_id"]
+            isOneToOne: false
+            referencedRelation: "calc_packages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       calc_cases: {
         Row: {
           commercial_case_id: string | null
