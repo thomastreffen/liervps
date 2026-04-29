@@ -109,6 +109,16 @@ const SYSTEM_FIELDS_SCHEMA = {
     reisetid: FIELD_VALUE({ type: "number" }, "Reisetid t/r i timer"),
     riggtid: FIELD_VALUE({ type: "number" }, "Riggtid i timer"),
     risiko: FIELD_VALUE({ type: "number" }, "Risikopåslag i %"),
+
+    // Entreprenørleveranse — MÅ bekreftes før tilbud kan opprettes
+    tavletilkobling_el1: FIELD_VALUE({ type: "number" }, "Timer for tilkobling i hovedtavle EL1. Typisk 16–60 t."),
+    tavletilkobling_el2: FIELD_VALUE({ type: "number" }, "Timer for tilkobling i sekundærtavle EL2 (0 hvis kun én tavle)."),
+    kontroll_moment_timer: FIELD_VALUE({ type: "number" }, "Kontroll og momenttrekking. Tommelfingerregel ~0,25 t/skjøt + 4 t terminaler."),
+    dokumentasjon_hms_timer: FIELD_VALUE({ type: "number" }, "FDV-dokumentasjon, sluttkontroll, HMS. Typisk 12–24 t."),
+    rigg_oppstart_timer: FIELD_VALUE({ type: "number" }, "Rigg, oppstart, sikring av arbeidssted. Typisk 8–24 t."),
+    smamateriell_belop: FIELD_VALUE({ type: "number" }, "Forbruksmateriell, kabelsko, merking, småjern (kr)."),
+    prosjektbuffer_pct: FIELD_VALUE({ type: "number" }, "Prosjektbuffer i %. Typisk 3–8 % normalt, 8–15 % komplekst."),
+    usikkerhet_pct: FIELD_VALUE({ type: "number" }, "Usikkerhetspåslag i % når underlaget har åpne spørsmål."),
   },
 };
 
