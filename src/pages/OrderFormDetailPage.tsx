@@ -614,6 +614,23 @@ export default function OrderFormDetailPage() {
   });
 
 
+  const resendTrackingLink = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.functions.invoke("order-form-notify", {
+        body: { submission_id: id, notification_type: "confirmation" },
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Sporingslenke sendt");
+      qc.invalidateQueries({ queryKey: ["order-form-activity", id] });
+      qc.invalidateQueries({ queryKey: ["order-form-submission", id] });
+    },
+    onError: (err: any) => {
+      toast.error("Kunne ikke sende sporingslenke", { description: err?.message || "Ukjent feil" });
+    },
+  });
+
   if (!submission) return <div className="p-6 text-center text-muted-foreground">Ikke funnet</div>;
 
   const effectiveStatus = conversationState.effectiveInternalStatus;
@@ -643,22 +660,7 @@ export default function OrderFormDetailPage() {
     ? `${window.location.origin}/bestilling/status/${sub.public_tracking_token}`
     : null;
 
-  const resendTrackingLink = useMutation({
-    mutationFn: async () => {
-      const { error } = await supabase.functions.invoke("order-form-notify", {
-        body: { submission_id: id, notification_type: "confirmation" },
-      });
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      toast.success(`Sporingslenke sendt til ${resolvedRecipient.email}`);
-      qc.invalidateQueries({ queryKey: ["order-form-activity", id] });
-      qc.invalidateQueries({ queryKey: ["order-form-submission", id] });
-    },
-    onError: (err: any) => {
-      toast.error("Kunne ikke sende sporingslenke", { description: err?.message || "Ukjent feil" });
-    },
-  });
+
 
   const attByCategory: Record<string, any[]> = {};
   attachments.forEach((a: any) => {
