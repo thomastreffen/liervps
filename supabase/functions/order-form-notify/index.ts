@@ -247,6 +247,50 @@ Deno.serve(async (req) => {
         headingFg: tmpl.colorFg,
         trackingUrl,
       });
+    } else if (notification_type === "field_request") {
+      // Dedicated, action-oriented email when admin asks bestiller to fill in missing fields.
+      if (!bestillerEpost) {
+        return json({ success: false, reason: "no_bestiller_email" });
+      }
+
+      const { field_request_batch_id } = body;
+
+      // Fetch the open requests for this batch (or all open if no batch given)
+      let frQuery = supabase
+        .from("order_form_field_requests")
+        .select("field_label, is_free_text, requested_by_name")
+        .eq("submission_id", submission_id)
+        .eq("status", "open");
+      if (field_request_batch_id) {
+        frQuery = frQuery.eq("request_batch_id", field_request_batch_id);
+      }
+      const { data: requests } = await frQuery;
+
+      const fieldItems = (requests || [])
+        .filter((r: any) => !r.is_free_text)
+        .map((r: any) => r.field_label as string);
+      const freeTextItems = (requests || [])
+        .filter((r: any) => r.is_free_text)
+        .map((r: any) => r.field_label as string);
+      const requestedBy = (requests || []).find((r: any) => r.requested_by_name)?.requested_by_name || "";
+
+      const trackingToken = submission.public_tracking_token;
+      const trackingUrl = trackingToken ? `${appUrl}/bestilling/status/${trackingToken}` : null;
+
+      subject = `Vi trenger litt mer info: ${submission.submission_no} – ${oppdragstittel}`;
+      recipients = [bestillerEpost];
+
+      bodyHtml = buildFieldRequestEmail({
+        submissionNo: submission.submission_no,
+        kundenavn,
+        oppdragstittel,
+        recipientName: resolvedRecipientName,
+        fieldItems,
+        freeTextItems,
+        requestedBy,
+        trackingUrl,
+      });
+
     } else if (notification_type === "shared_message") {
       // Shared message notification to bestiller
       if (!bestillerEpost) {
@@ -303,7 +347,7 @@ Deno.serve(async (req) => {
 
     // For customer-facing notifications, set replyTo so customer replies are
     // routed back to this submission via the inbox-sync matcher.
-    const customerFacingTypes = new Set(["shared_message", "missing_info", "customer_update", "confirmation"]);
+    const customerFacingTypes = new Set(["shared_message", "missing_info", "customer_update", "confirmation", "field_request"]);
     const isCustomerFacing = customerFacingTypes.has(notification_type);
     const inboundToken = (submission as any).inbound_token as string | undefined;
     const replyToAddress = isCustomerFacing && inboundToken
@@ -474,6 +518,93 @@ function buildMissingInfoEmail(p: {
   ${freeTextHtml}
   ${buildReplyBlock(p.trackingUrl, "Svar på forespørselen")}
   <p style="color:#9CA3AF;font-size:11px;margin-top:24px;">Denne e-posten er sendt automatisk fra MCS Service.</p>
+</div>`;
+}
+
+function escapeHtml(s: string): string {
+  return String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function buildFieldRequestEmail(p: {
+  submissionNo: string;
+  kundenavn: string;
+  oppdragstittel: string;
+  recipientName?: string;
+  fieldItems: string[];
+  freeTextItems: string[];
+  requestedBy?: string;
+  trackingUrl: string | null;
+}): string {
+  const greeting = p.recipientName ? `Hei ${escapeHtml(p.recipientName.split(" ")[0])},` : "Hei,";
+
+  const badgesHtml = p.fieldItems.length > 0
+    ? `<div style="margin:8px 0 4px;">
+         ${p.fieldItems
+           .map(
+             (label) =>
+               `<span style="display:inline-block;background:#EFF6FF;color:#1E40AF;border:1px solid #BFDBFE;padding:5px 11px;border-radius:999px;font-size:13px;font-weight:500;margin:0 6px 6px 0;">${escapeHtml(label)}</span>`
+           )
+           .join("")}
+       </div>`
+    : "";
+
+  const freeTextHtml = p.freeTextItems.length > 0
+    ? `<div style="margin:18px 0 6px;">
+         <p style="margin:0 0 8px;font-size:14px;font-weight:600;color:#0F172A;">Tilleggsinformasjon vi ønsker fra deg</p>
+         <ul style="margin:0;padding-left:20px;">
+           ${p.freeTextItems
+             .map(
+               (q) =>
+                 `<li style="font-size:14px;color:#374151;margin:4px 0;line-height:1.5;">${escapeHtml(q)}</li>`
+             )
+             .join("")}
+         </ul>
+       </div>`
+    : "";
+
+  const ctaButton = p.trackingUrl
+    ? `<div style="margin:22px 0 6px;">
+         <a href="${p.trackingUrl}" style="display:inline-block;background:#2563EB;color:#fff;padding:12px 22px;border-radius:8px;text-decoration:none;font-size:15px;font-weight:600;">Fyll inn manglende informasjon</a>
+       </div>
+       <p style="margin:8px 0 0;font-size:12px;color:#6B7280;">Eller åpne lenken: <a href="${p.trackingUrl}" style="color:#2563EB;">${p.trackingUrl}</a></p>`
+    : "";
+
+  const fromLine = p.requestedBy
+    ? `<p style="margin:14px 0 0;font-size:13px;color:#6B7280;">— ${escapeHtml(p.requestedBy)}, MCS Service</p>`
+    : "";
+
+  return `
+<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:640px;margin:0 auto;padding:20px;color:#0F172A;">
+  <div style="background:#FEF3C7;border-left:4px solid #F59E0B;border-radius:8px;padding:16px 18px;margin-bottom:18px;">
+    <h2 style="margin:0 0 4px;color:#92400E;font-size:18px;">Vi trenger litt mer informasjon</h2>
+    <p style="margin:0;color:#92400E;font-size:13px;">${escapeHtml(p.submissionNo)} · ${escapeHtml(p.kundenavn)} · ${escapeHtml(p.oppdragstittel)}</p>
+  </div>
+
+  <p style="font-size:15px;color:#0F172A;margin:0 0 10px;">${greeting}</p>
+  <p style="font-size:14px;color:#374151;line-height:1.55;margin:0 0 14px;">
+    Vi trenger litt mer informasjon for å komme videre med bestillingen din.
+    Det går raskt — du kan fylle det inn direkte på kundesiden.
+  </p>
+
+  ${p.fieldItems.length > 0 ? `<p style="margin:18px 0 4px;font-size:14px;font-weight:600;color:#0F172A;">Dette mangler vi fra deg:</p>${badgesHtml}` : ""}
+  ${freeTextHtml}
+
+  ${ctaButton}
+
+  <p style="font-size:13px;color:#6B7280;margin:18px 0 0;line-height:1.5;">
+    Du kan også svare direkte på denne e-posten hvis det er enklere — meldingen havner i bestillingstråden.
+  </p>
+
+  ${fromLine}
+
+  <p style="color:#9CA3AF;font-size:11px;margin-top:26px;border-top:1px solid #E5E7EB;padding-top:12px;">
+    Denne e-posten er sendt fordi vi mangler informasjon på bestilling ${escapeHtml(p.submissionNo)}.
+  </p>
 </div>`;
 }
 
