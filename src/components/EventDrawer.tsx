@@ -79,6 +79,7 @@ import { useCalendarSync } from "@/hooks/useCalendarSync";
 import { useCompanyContext } from "@/hooks/useCompanyContext";
 import { TimeSelect } from "@/components/ui/time-select";
 import { normalizeOvernightDates, isOvernightRange, autoAdjustEndDate } from "@/lib/overnight";
+import { OrderBriefingSection } from "@/components/orders/OrderBriefingSection";
 
 /* ── Types ── */
 interface ExistingJob {
