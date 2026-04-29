@@ -508,18 +508,40 @@ async function getGraphToken(): Promise<{ token?: string; error?: string }> {
 
 async function sendMailViaGraph(
   token: string,
-  opts: { subject: string; bodyHtml: string; recipients: string[]; mailbox: string; saveToSentItems: boolean }
+  opts: {
+    subject: string;
+    bodyHtml: string;
+    recipients: string[];
+    mailbox: string;
+    saveToSentItems: boolean;
+    replyToAddress?: string;
+    replyToName?: string;
+    extraHeaders?: { name: string; value: string }[];
+  }
 ): Promise<{ error?: string; statusCode?: number }> {
-  const payload = {
-    message: {
-      subject: opts.subject,
-      body: { contentType: "HTML", content: opts.bodyHtml },
-      toRecipients: opts.recipients.map((e) => ({
-        emailAddress: { address: e },
-      })),
-    },
-    saveToSentItems: opts.saveToSentItems,
+  const message: any = {
+    subject: opts.subject,
+    body: { contentType: "HTML", content: opts.bodyHtml },
+    toRecipients: opts.recipients.map((e) => ({
+      emailAddress: { address: e },
+    })),
   };
+
+  if (opts.replyToAddress) {
+    message.replyTo = [{
+      emailAddress: {
+        address: opts.replyToAddress,
+        ...(opts.replyToName ? { name: opts.replyToName } : {}),
+      },
+    }];
+  }
+
+  if (opts.extraHeaders && opts.extraHeaders.length > 0) {
+    // Microsoft Graph requires custom header names to start with "X-"
+    message.internetMessageHeaders = opts.extraHeaders.filter(h => h.name.toUpperCase().startsWith("X-"));
+  }
+
+  const payload = { message, saveToSentItems: opts.saveToSentItems };
 
   try {
     const resp = await fetch(
