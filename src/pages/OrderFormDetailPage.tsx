@@ -846,6 +846,12 @@ export default function OrderFormDetailPage() {
           Be om mer info
         </Button>
 
+        {/* Primary: Etterfyll informasjon */}
+        <Button variant="outline" size="sm" onClick={() => setEditFieldsOpen(true)}>
+          <Pencil className="h-3.5 w-3.5 mr-1.5" />
+          Etterfyll informasjon
+        </Button>
+
         {/* Primary: Opprett oppgave */}
         <Button variant="outline" size="sm" onClick={() => setAssignTaskOpen(true)}>
           <UserPlus className="h-3.5 w-3.5 mr-1.5" />
