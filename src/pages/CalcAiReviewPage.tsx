@@ -45,6 +45,24 @@ export default function CalcAiReviewPage() {
   const { draft, messages, loading, analyzing, analyze, refresh } = useCalcAiDraft(id ?? null);
   const { pkg, fields } = useCalcPackageBundle(draft?.package_id ?? null);
 
+  // Slug → package_id mapping så vi kan rute hver delkalkyle til riktig pakke
+  // (én sak kan inneholde både stromskinne-v2 og tavlemontasje-v1).
+  const [slugToPackageId, setSlugToPackageId] = useState<Record<string, string>>({});
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      const { data } = await supabase
+        .from("calc_packages")
+        .select("id, slug")
+        .eq("is_active", true);
+      if (!mounted) return;
+      const map: Record<string, string> = {};
+      for (const p of data ?? []) map[(p as any).slug] = (p as any).id;
+      setSlugToPackageId(map);
+    })();
+    return () => { mounted = false; };
+  }, []);
+
   const [chatInput, setChatInput] = useState("");
   const chatBottomRef = useRef<HTMLDivElement>(null);
   const triggeredAutorun = useRef(false);
@@ -114,7 +132,16 @@ export default function CalcAiReviewPage() {
 
   const handleApplyToEditor = (systemIndex: number = 0) => {
     if (!draft) return;
-    navigate(`/sales/calc-engine/new?package=${draft.package_id}&from_draft=${draft.id}&system=${systemIndex}`);
+    // Hver delkalkyle kan tilhøre en annen pakke (skinne vs tavle).
+    // Hent system fra ai_proposed_lines og slå opp riktig package_id via slug.
+    const systemsArr = (Array.isArray(draft.ai_proposed_lines) ? draft.ai_proposed_lines : []) as any[];
+    const sys = systemsArr[systemIndex];
+    const slug = sys?.package_slug;
+    const targetPkgId = (slug && slugToPackageId[slug]) || draft.package_id;
+    if (slug && !slugToPackageId[slug]) {
+      console.warn("[CalcAiReview] Ukjent package_slug, faller tilbake til draft.package_id:", slug);
+    }
+    navigate(`/sales/calc-engine/new?package=${targetPkgId}&from_draft=${draft.id}&system=${systemIndex}`);
   };
 
   const handleOpenCalculation = (calcId: string) => {
