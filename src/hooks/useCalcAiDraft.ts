@@ -16,6 +16,8 @@ export interface CalcAiProposedField {
 }
 
 export interface CalcAiSystem {
+  /** Hvilken kalkylepakke denne delkalkylen tilhører ('stromskinne-v2' eller 'tavlemontasje-v1'). */
+  package_slug?: string;
   name: string;
   note?: string | null;
   proposed_input: Record<string, CalcAiProposedField>;
