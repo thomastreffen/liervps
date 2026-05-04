@@ -49,10 +49,38 @@ Ikke pump opp små jobber til full leveranse uten klar kilde i underlaget.
 ──────────────────────────────────────────────────
 PER SYSTEM — felles felter:
   - package_slug ('stromskinne-v2' | 'tavlemontasje-v1')   [PÅKREVD]
+  - scope_profile (se under — PÅKREVD; styrer hvor tunge defaults blir)
   - name (kort identifikator: 'EL1', 'Tavle 432.001 + 433.001', 'Hovedstigeskinne')
   - note (1 setning som forklarer hva delkalkylen dekker)
   - proposed_input (felt-spesifikke verdier — se under)
   - system_confidence (0-100)
+
+──────────────────────────────────────────────────
+SCOPE-KLASSIFISERING (kritisk — påvirker prisen direkte):
+
+For TAVLEMONTASJE:
+  • 'innmontering' (DEFAULT i tvil) — bære inn, oppretting/innfesting, mekanisk montasje, basis oppkobling, merking,
+    enkel FDV. Ingen riv-ut, ingen full idriftsettelse, ingen full FDV-pakke.
+    Positive signaler som tilsier 'innmontering':
+      - underlaget snakker om "inntransport", "heising", "transportskjøt", "moduler", "tavlerom",
+        "krevende logistikk", "bære inn", "løfteutstyr", "kran", "jekketralle"
+      - kun ny tavle skal monteres (gammel tavle blir ikke nevnt)
+      - ingen eksplisitt nevnt idriftsettelse, funksjonstest av hele anlegget eller riv-ut
+      - oppkobling kun nevnt i begrenset omfang (innkommende + et fåtall utgående)
+  • 'komplett' — full leveranse: riv ut gammel tavle, montere ny, full oppkobling alle utgående,
+    funksjonstest, idriftsettelse, full FDV-pakke. Krever klare positive signaler i underlaget.
+
+For STRØMSKINNE:
+  • 'kort_tilkobling' (DEFAULT i tvil ved små leveranser) — kort koblingsskinne (typisk ≤10 m) mellom
+    tavle og eksisterende anlegg, eller mellom to tavler. Lite materiell, én tilkoblingsende, ingen
+    omfattende rigg eller dokumentasjonspakke.
+    Positive signaler som tilsier 'kort_tilkobling':
+      - lengde ≤ 10 m, ingen vinkler eller bare 1 vinkel
+      - kun 1 tilkoblingsende (EL1, ingen EL2)
+      - "tilkoblingsskinne", "stigeskinne", "kort skinne", "fra trafo til tavle"
+      - ingen lange føringsveier nevnt
+  • 'full_leveranse' — komplett skinneanlegg med flere tavler/avgreninger, lange strekk, omfattende
+    dokumentasjon, kontroll og rigg. Krever klare signaler om størrelse.
 
 ──────────────────────────────────────────────────
 STRØMSKINNE (package_slug = 'stromskinne-v2') — proposed_input MÅ inneholde:
@@ -62,15 +90,24 @@ STRØMSKINNE (package_slug = 'stromskinne-v2') — proposed_input MÅ inneholde:
   - total_lengde_m, qty_oppheng, qty_straight_3 (default modul 3 m), qty_straight_2/1, qty_vinkel,
     qty_t_element, qty_term_std, qty_term_nonstd, qty_skjot, vertikal, qty_vertikal
   - arbeidstidstype, tilkomstniva, reisetid, riggtid, risiko
-  - ENTREPRENØRLEVERANSE (driver mesteparten av prisen — fyll alltid):
-    • tavletilkobling_el1 (16 t ≤1600A, 24 t 2000–2500A, 40 t 3200–4000A, 60 t ≥5000A)
-    • tavletilkobling_el2 (kun hvis to tavler / to ender; ellers 0)
-    • kontroll_moment_timer (~0,25 t per skjøt + 4 t per terminal, min 8 t)
-    • dokumentasjon_hms_timer (12–24 t)
-    • rigg_oppstart_timer (8–24 t)
-    • smamateriell_belop (10 000–40 000 kr, høyere ved store skinner)
-    • prosjektbuffer_pct (5 % default)
-    • usikkerhet_pct (5 % default, 10–15 % ved åpne spørsmål)
+  - ENTREPRENØRLEVERANSE — driver mesteparten av prisen, MEN skalerer med scope_profile:
+    KORT TILKOBLING (lite scope):
+      • tavletilkobling_el1: 8–12 t (≤1600A: 8 t, 2000–2500A: 10 t, ≥3200A: 12 t)
+      • tavletilkobling_el2: 0
+      • kontroll_moment_timer: ~4–6 t (min 4 t)
+      • dokumentasjon_hms_timer: 4–6 t
+      • rigg_oppstart_timer: 3–5 t
+      • smamateriell_belop: 5 000–10 000 kr
+      • prosjektbuffer_pct: 3 %
+      • usikkerhet_pct: 3 % (5–10 % ved åpne spørsmål)
+    FULL LEVERANSE:
+      • tavletilkobling_el1: 16 t ≤1600A, 24 t 2000–2500A, 40 t 3200–4000A, 60 t ≥5000A
+      • tavletilkobling_el2: kun hvis to tavler / to ender
+      • kontroll_moment_timer: ~0,25 t per skjøt + 4 t per terminal, min 8 t
+      • dokumentasjon_hms_timer: 12–24 t
+      • rigg_oppstart_timer: 8–24 t
+      • smamateriell_belop: 15 000–40 000 kr
+      • prosjektbuffer_pct: 5 %, usikkerhet_pct: 5 % (10–15 % ved åpne spørsmål)
 
 REGLER MENGDER (skinne):
   - qty_straight_3 = Math.ceil(lengde / 3); kompensér rest med 1× straight_2 eller straight_1
@@ -79,33 +116,29 @@ REGLER MENGDER (skinne):
 
 ──────────────────────────────────────────────────
 TAVLEMONTASJE (package_slug = 'tavlemontasje-v1') — proposed_input MÅ inneholde:
-  - arbeidstidstype: 'dag' | 'kveld' | 'natt' | 'helg'
-  - tilkomstniva: 'normal' | 'hoyde' | 'trang' | 'i_drift'
-  - inntransport: 'enkel' | 'middels' | 'krevende'
-      (krevende = trange korridorer, mange dører, lang vei fra bil, behov for spesialhåndtering)
-  - loftebehov: 'ingen' | 'jekketralle' | 'kran' | 'annet'
-  - antall_felt (totalt antall felt i alle tavlene som monteres — typisk 2–4 per fordeling)
-  - antall_seksjoner (antall fysiske skap/tavler — 1 stor tavle = 1, to underfordelinger = 2)
-  - antall_seksjonsskjoter (skjøter mellom seksjoner — typisk antall_seksjoner - 1, eller 0 om hver tavle står alene)
-  - sammenstilling_pa_stedet (true hvis skap leveres delt og må skjøtes på stedet)
-  - oppretting_innfesting: 'enkel' | 'middels' | 'krevende'
-  - fundament_sokkel_montering (true hvis sokkel skal støpes/monteres som del av leveransen)
-  - oppkoblingstype: 'enkel' | 'middels' | 'krevende' (krevende = store kabler, dårlig plass, stiv kabel)
-  - antall_innkommende, antall_utgaende, antall_internkoblinger (antall kabler)
-  - merking_inkludert, funksjonstest_inkludert, idriftsettelse_inkludert (true/false)
-  - dokumentasjon_hms_inkludert + dokumentasjon_hms_timer (typisk 4–8 t for ren innmontering, 12+ t for full leveranse)
-  - reisetid (timer t/r), riggtid (timer)
-  - demontering_gammel_tavle (true bare hvis underlaget eksplisitt sier riv-ut)
-  - prosjektbuffer_pct (5 % default), usikkerhet_pct (5 % default)
-  - tilbudspris_override (kun hvis underlaget eksplisitt oppgir avtalt totalpris)
+  - arbeidstidstype, tilkomstniva, inntransport, loftebehov
+  - antall_felt, antall_seksjoner, antall_seksjonsskjoter
+  - sammenstilling_pa_stedet, oppretting_innfesting, fundament_sokkel_montering
+  - oppkoblingstype, antall_innkommende, antall_utgaende, antall_internkoblinger
+  - merking_inkludert, funksjonstest_inkludert, idriftsettelse_inkludert
+  - dokumentasjon_hms_inkludert + dokumentasjon_hms_timer
+  - reisetid, riggtid, demontering_gammel_tavle
+  - prosjektbuffer_pct, usikkerhet_pct, tilbudspris_override (bare hvis oppgitt)
 
-REGLER MENGDER (tavle):
-  - REN INNMONTERING (vanlig scope: bære inn, oppretting, mekanisk innfesting, basis oppkobling, merking, dokumentasjon)
-    → ikke sett demontering_gammel_tavle, idriftsettelse_inkludert eller fundament_sokkel_montering uten klar kilde
-    → dokumentasjon_hms_timer 4–6 t, antall_utgaende kun det som faktisk skal kobles av montør
-  - FULL LEVERANSE (riv ut + ny tavle + idrift + full FDV)
-    → da slår alle inkludert-flaggene på, dokumentasjon_hms_timer 12–20 t
-  - 'krevende inntransport' i seg selv kan koste 6–10 t mer enn enkel; det driver mye av prisforskjellen
+REGLER MENGDER (tavle) skalerer med scope_profile:
+  INNMONTERING (lite scope — typisk case):
+    • IKKE sett demontering_gammel_tavle / idriftsettelse_inkludert / fundament_sokkel_montering / funksjonstest_inkludert
+    • dokumentasjon_hms_timer: 3–5 t
+    • antall_utgaende: bare det som faktisk skal kobles av montør (typisk 0 eller få)
+    • riggtid: 2–4 t
+    • prosjektbuffer_pct: 3 %, usikkerhet_pct: 3 %
+    • 'krevende inntransport' i seg selv kan koste 6–10 t mer enn enkel — det dekker logistikkdelen
+  KOMPLETT (full leveranse):
+    • alle inkludert-flagg på når relevant
+    • dokumentasjon_hms_timer: 12–20 t
+    • antall_utgaende: alle utgående
+    • riggtid: 6–12 t
+    • prosjektbuffer_pct: 5 %, usikkerhet_pct: 5 %
 
 ──────────────────────────────────────────────────
 GENERELT:
