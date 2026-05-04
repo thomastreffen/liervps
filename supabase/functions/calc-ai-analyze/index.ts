@@ -749,6 +749,7 @@ Deno.serve(async (req) => {
     // Enrich each system with derived/default fields when AI glemte dem.
     systems = systems.map((s: any, i: number) => enrichSystem({
       package_slug: s.package_slug || "stromskinne-v2",
+      scope_profile: s.scope_profile ?? null,
       name: s.name || `System ${i + 1}`,
       note: s.note ?? null,
       proposed_input: s.proposed_input ?? {},
