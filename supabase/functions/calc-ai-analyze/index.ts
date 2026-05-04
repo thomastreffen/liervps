@@ -334,8 +334,39 @@ async function buildAttachmentParts(
 
 // ───────────────────────────────────────────────────────────────────────────────
 // ENRICHMENT — fyller inn fornuftige defaults når AI har glemt felter.
-// Aldri overskriv noe AI har satt.
+// Aldri overskriv noe AI har satt. Skalerer defaults ut fra scope_profile.
 // ───────────────────────────────────────────────────────────────────────────────
+
+/** Auto-detekter scope for strømskinne hvis AI ikke satte det. */
+function detectStromskinneScope(input: Record<string, any>, sys: any): "kort_tilkobling" | "full_leveranse" {
+  const lengde = Number(input.total_lengde_m?.value) || 0;
+  const vinkel = Number(input.qty_vinkel?.value) || 0;
+  const el2 = Number(input.tavletilkobling_el2?.value) || 0;
+  const text = `${sys?.name ?? ""} ${sys?.note ?? ""}`.toLowerCase();
+  const kortSignal = /tilkobling|stigeskinne|kort skinne|fra trafo|trafo til tavle|koblingsskinne/.test(text);
+  // Liten lengde + 1 ende + få/ingen vinkler → kort
+  if (lengde > 0 && lengde <= 10 && el2 === 0 && vinkel <= 1) return "kort_tilkobling";
+  if (kortSignal && lengde <= 12 && el2 === 0) return "kort_tilkobling";
+  if (lengde > 0 && lengde > 15) return "full_leveranse";
+  // Default ved tvil: kort (jf. kalibreringsanker)
+  return "kort_tilkobling";
+}
+
+/** Auto-detekter scope for tavlemontasje. */
+function detectTavleScope(input: Record<string, any>, sys: any): "innmontering" | "komplett" {
+  const text = `${sys?.name ?? ""} ${sys?.note ?? ""}`.toLowerCase();
+  const rivut = input.demontering_gammel_tavle?.value === true
+    || /riv-?ut|demonter|fjern gammel|skift ut tavle/.test(text);
+  const idrift = input.idriftsettelse_inkludert?.value === true
+    || /idriftsett|igangkjøring|igangkjor/.test(text);
+  const funksjonstest = input.funksjonstest_inkludert?.value === true
+    || /funksjonstest hele|sluttkontroll/.test(text);
+  const fundament = input.fundament_sokkel_montering?.value === true;
+  const utgaende = Number(input.antall_utgaende?.value) || 0;
+  if (rivut || idrift || funksjonstest || fundament || utgaende >= 8) return "komplett";
+  // Positive innmontering-signaler eller default
+  return "innmontering";
+}
 
 function enrichStromskinne(sys: any): any {
   const input = { ...(sys?.proposed_input ?? {}) };
@@ -346,6 +377,12 @@ function enrichStromskinne(sys: any): any {
     return Number.isFinite(n) ? n : null;
   };
   const has = (k: string) => input[k]?.value != null && Number(input[k].value) > 0;
+
+  const scope: "kort_tilkobling" | "full_leveranse" =
+    (sys?.scope_profile === "kort_tilkobling" || sys?.scope_profile === "full_leveranse")
+      ? sys.scope_profile
+      : detectStromskinneScope(input, sys);
+  const isKort = scope === "kort_tilkobling";
 
   const lengde = getNum("total_lengde_m");
   if (lengde && lengde > 0) {
@@ -388,55 +425,77 @@ function enrichStromskinne(sys: any): any {
   })();
 
   if (!has("tavletilkobling_el1")) {
-    let t = 24;
-    if (stromAmp >= 5000) t = 60;
-    else if (stromAmp >= 3200) t = 40;
-    else if (stromAmp >= 2000) t = 24;
-    else if (stromAmp > 0) t = 16;
+    let t: number;
+    if (isKort) {
+      // Kort tilkobling: én ende, redusert tid
+      if (stromAmp >= 3200) t = 12;
+      else if (stromAmp >= 2000) t = 10;
+      else t = 8;
+    } else {
+      if (stromAmp >= 5000) t = 60;
+      else if (stromAmp >= 3200) t = 40;
+      else if (stromAmp >= 2000) t = 24;
+      else if (stromAmp > 0) t = 16;
+      else t = 24;
+    }
     input.tavletilkobling_el1 = {
       value: t, confidence: 45,
-      reason: `Auto-estimert ut fra strømklasse ${stromAmp || "?"}A. Bekreft mot faktisk tavle.`,
+      reason: `Auto (${scope}): ${t} t for tavletilkobling EL1 ut fra strømklasse ${stromAmp || "?"}A.`,
     };
+  }
+  if (isKort && !has("tavletilkobling_el2") && input.tavletilkobling_el2?.value == null) {
+    input.tavletilkobling_el2 = { value: 0, confidence: 60, reason: "Kort tilkobling: kun én tavletilkobling (EL1)." };
   }
   if (!has("kontroll_moment_timer")) {
     const skjot = Number(input.qty_skjot?.value) || 0;
     const term = (Number(input.qty_term_std?.value) || 0) + (Number(input.qty_term_nonstd?.value) || 0);
-    const t = Math.max(8, Math.round(skjot * 0.25 + Math.max(term, 1) * 4));
+    const calc = skjot * 0.25 + Math.max(term, 1) * 4;
+    const t = isKort
+      ? Math.max(4, Math.round(Math.min(calc, 6)))
+      : Math.max(8, Math.round(calc));
     input.kontroll_moment_timer = {
       value: t, confidence: 50,
-      reason: `Auto: ${skjot} skjøter × 0,25 t + ${Math.max(term, 1)} terminal(er) × 4 t = ${t} t`,
+      reason: `Auto (${scope}): ${t} t kontroll/moment.`,
     };
   }
   if (!has("dokumentasjon_hms_timer")) {
-    const t = lengde && lengde > 30 ? 20 : 16;
+    const t = isKort ? 5 : (lengde && lengde > 30 ? 20 : 16);
     input.dokumentasjon_hms_timer = {
       value: t, confidence: 45,
-      reason: `Auto: ${t} t for FDV/HMS basert på prosjektstørrelse.`,
+      reason: `Auto (${scope}): ${t} t FDV/HMS.`,
     };
   }
   if (!has("rigg_oppstart_timer")) {
+    const t = isKort ? 4 : 12;
     input.rigg_oppstart_timer = {
-      value: 12, confidence: 45,
-      reason: "Auto: 12 t for rigg/oppstart. Øk ved drift eller vanskelig tilkomst.",
+      value: t, confidence: 45,
+      reason: `Auto (${scope}): ${t} t rigg/oppstart.`,
     };
   }
   if (!has("smamateriell_belop")) {
-    let belop = 15000;
-    if (stromAmp >= 3200) belop = 25000;
-    if (stromAmp >= 5000) belop = 40000;
+    let belop: number;
+    if (isKort) {
+      belop = stromAmp >= 3200 ? 10000 : 7000;
+    } else {
+      belop = 15000;
+      if (stromAmp >= 3200) belop = 25000;
+      if (stromAmp >= 5000) belop = 40000;
+    }
     input.smamateriell_belop = {
       value: belop, confidence: 45,
-      reason: `Auto: ${belop} kr småmateriell ut fra strømklasse ${stromAmp || "?"}A.`,
+      reason: `Auto (${scope}): ${belop} kr småmateriell ut fra strømklasse ${stromAmp || "?"}A.`,
     };
   }
   if (!has("prosjektbuffer_pct")) {
-    input.prosjektbuffer_pct = { value: 5, confidence: 50, reason: "Standard 5 % prosjektbuffer." };
+    const p = isKort ? 3 : 5;
+    input.prosjektbuffer_pct = { value: p, confidence: 50, reason: `Standard ${p} % prosjektbuffer (${scope}).` };
   }
   if (!has("usikkerhet_pct")) {
-    input.usikkerhet_pct = { value: 5, confidence: 50, reason: "Standard 5 % usikkerhet — øk hvis åpne spørsmål." };
+    const p = isKort ? 3 : 5;
+    input.usikkerhet_pct = { value: p, confidence: 50, reason: `Standard ${p} % usikkerhet (${scope}).` };
   }
 
-  return { ...sys, package_slug: "stromskinne-v2", proposed_input: input };
+  return { ...sys, package_slug: "stromskinne-v2", scope_profile: scope, proposed_input: input };
 }
 
 function enrichTavle(sys: any): any {
@@ -452,6 +511,12 @@ function enrichTavle(sys: any): any {
     input[k] = { value, confidence, reason };
   };
 
+  const scope: "innmontering" | "komplett" =
+    (sys?.scope_profile === "innmontering" || sys?.scope_profile === "komplett")
+      ? sys.scope_profile
+      : detectTavleScope(input, sys);
+  const isInn = scope === "innmontering";
+
   if (!has("arbeidstidstype")) set("arbeidstidstype", "dag", 60, "Default dagarbeid.");
   if (!has("tilkomstniva")) set("tilkomstniva", "normal", 45, "Default normal tilkomst.");
   if (!has("inntransport")) set("inntransport", "middels", 50, "Default middels inntransport.");
@@ -460,7 +525,6 @@ function enrichTavle(sys: any): any {
   const seksjoner = Number(input.antall_seksjoner?.value) || 0;
   if (!has("antall_seksjoner")) set("antall_seksjoner", 1, 40, "Default 1 fordeling.");
   if (!has("antall_felt")) {
-    // Konservativt: 2 felt per seksjon hvis ukjent.
     const felt = Math.max(2, (Number(input.antall_seksjoner?.value) || 1) * 2);
     set("antall_felt", felt, 35, `Auto: ${input.antall_seksjoner?.value || 1} seksjon(er) × 2 felt = ${felt}`);
   }
@@ -469,22 +533,44 @@ function enrichTavle(sys: any): any {
     set("antall_seksjonsskjoter", s, 40, `Auto: ${input.antall_seksjoner?.value || 1} seksjon(er) → ${s} skjøt(er).`);
   }
 
-  if (!has("oppretting_innfesting")) set("oppretting_innfesting", "middels", 45, "Default middels oppretting.");
+  if (!has("oppretting_innfesting")) set("oppretting_innfesting", isInn ? "enkel" : "middels", 45, `Default ${isInn ? "enkel" : "middels"} oppretting (${scope}).`);
   if (!has("oppkoblingstype")) set("oppkoblingstype", "middels", 45, "Default middels oppkobling.");
 
   if (!has("antall_innkommende")) set("antall_innkommende", Math.max(1, seksjoner || 1), 40, "Auto: 1 innkommende per seksjon.");
-  // Vi setter IKKE antall_utgaende automatisk — det hører hjemme i full leveranse, ikke ren innmontering.
+  // antall_utgaende skal ikke auto-settes for innmontering.
+  if (!isInn && !has("antall_utgaende")) {
+    const utg = Math.max(4, (Number(input.antall_seksjoner?.value) || 1) * 4);
+    set("antall_utgaende", utg, 35, `Auto (komplett): ${utg} utgående kabler.`);
+  }
 
   if (!has("merking_inkludert")) set("merking_inkludert", true, 60, "Default på — merking hører normalt med.");
   if (!has("dokumentasjon_hms_inkludert")) set("dokumentasjon_hms_inkludert", true, 60, "Default på — alltid noe FDV/HMS.");
-  if (!has("dokumentasjon_hms_timer")) set("dokumentasjon_hms_timer", 5, 45, "Auto: 5 t FDV/HMS for ren innmontering.");
+  if (!has("dokumentasjon_hms_timer")) {
+    const t = isInn ? 4 : 14;
+    set("dokumentasjon_hms_timer", t, 45, `Auto (${scope}): ${t} t FDV/HMS.`);
+  }
+
+  // Komplett-flagg slås bare på når scope = komplett
+  if (!isInn) {
+    if (input.funksjonstest_inkludert?.value == null) set("funksjonstest_inkludert", true, 55, "Komplett: funksjonstest inkludert.");
+    if (input.idriftsettelse_inkludert?.value == null) set("idriftsettelse_inkludert", true, 55, "Komplett: idriftsettelse inkludert.");
+  }
 
   if (!has("reisetid")) set("reisetid", 2, 40, "Auto: 2 t reise t/r.");
-  if (!has("riggtid")) set("riggtid", 4, 40, "Auto: 4 t rigg/oppstart.");
-  if (!has("prosjektbuffer_pct")) set("prosjektbuffer_pct", 5, 50, "Standard 5 % prosjektbuffer.");
-  if (!has("usikkerhet_pct")) set("usikkerhet_pct", 5, 50, "Standard 5 % usikkerhet.");
+  if (!has("riggtid")) {
+    const t = isInn ? 3 : 8;
+    set("riggtid", t, 40, `Auto (${scope}): ${t} t rigg/oppstart.`);
+  }
+  if (!has("prosjektbuffer_pct")) {
+    const p = isInn ? 3 : 5;
+    set("prosjektbuffer_pct", p, 50, `Standard ${p} % prosjektbuffer (${scope}).`);
+  }
+  if (!has("usikkerhet_pct")) {
+    const p = isInn ? 3 : 5;
+    set("usikkerhet_pct", p, 50, `Standard ${p} % usikkerhet (${scope}).`);
+  }
 
-  return { ...sys, package_slug: "tavlemontasje-v1", proposed_input: input };
+  return { ...sys, package_slug: "tavlemontasje-v1", scope_profile: scope, proposed_input: input };
 }
 
 function enrichSystem(sys: any): any {
