@@ -37,9 +37,14 @@ SKAL du returnere TO systemer — ett per package_slug — ikke prøve å presse
 Hvert system blir én separat kalkyle. Sett ALLTID 'package_slug' på hvert system.
 
 KALIBRERINGSANKERE (faktiske tilbudspriser fra dette firmaet — bruk som sanity-check):
-  • Strømskinne (medium til middels stor leveranse, inkl. montasje):  ca. kr 60 000 – 65 000
-  • Tavlemontasje (innmontering av 2 stk fordelinger m/krevende inntransport, uten full demontering): ca. kr 45 000 – 55 000
-Hvis utkastet ditt avviker stort fra disse i tilsvarende scope, juster ned mengder/timer eller marker assumption.
+  • Strømskinne, KORT TILKOBLINGSSKINNE (≤10 m, 1 tilkobling, lite materiell):  ca. kr 55 000 – 65 000  ← TYPISK CASE
+  • Strømskinne, FULL LEVERANSE (lange skinneanlegg, flere tavler, store lengder): ca. kr 120 000 – 400 000+
+  • Tavlemontasje, INNMONTERING (bære inn, oppretting, basis oppkobling, ingen riv-ut): ca. kr 40 000 – 55 000  ← TYPISK CASE
+  • Tavlemontasje, KOMPLETT LEVERANSE (riv-ut + ny tavle + idriftsettelse + full FDV): ca. kr 80 000 – 200 000+
+
+VIKTIG: De FLESTE casene er KORT TILKOBLING / INNMONTERING. Du SKAL aktivt vurdere scope og sette
+'scope_profile' på hvert system. Default-tyngde skaleres automatisk ut fra denne.
+Ikke pump opp små jobber til full leveranse uten klar kilde i underlaget.
 
 ──────────────────────────────────────────────────
 PER SYSTEM — felles felter:
