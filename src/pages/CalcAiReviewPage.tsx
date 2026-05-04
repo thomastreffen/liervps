@@ -321,6 +321,13 @@ export default function CalcAiReviewPage() {
                           <h3 className="text-base font-semibold">
                             {systems.length > 1 ? `Kalkyle ${sysIdx + 1}: ` : ""}{sys.name}
                           </h3>
+                          {(sys as any).package_slug && (
+                            <Badge variant="outline" className="rounded-md text-[10px]">
+                              {(sys as any).package_slug === "tavlemontasje-v1" ? "Tavlemontasje" :
+                               (sys as any).package_slug === "stromskinne-v2" ? "Strømskinne" :
+                               (sys as any).package_slug}
+                            </Badge>
+                          )}
                           {sys.system_confidence != null && (
                             <Badge variant="outline" className="rounded-md text-[10px] gap-1">
                               <span className={`h-1.5 w-1.5 rounded-full ${confidenceColor(sConf)}`} />
