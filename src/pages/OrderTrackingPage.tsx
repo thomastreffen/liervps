@@ -514,7 +514,7 @@ export default function OrderTrackingPage() {
         </div>
       </div>
 
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 pb-10 space-y-5">
+      <div className="max-w-7xl mx-auto px-4 sm:px-8 pb-10 space-y-5">
         {/* ── HERO ── */}
         <div className="relative overflow-visible rounded-[32px] bg-gradient-to-br from-[hsl(36_55%_95%)] via-[hsl(34_60%_94%)] to-[hsl(28_70%_91%)] dark:from-card dark:via-card dark:to-muted/40 shadow-[0_20px_50px_-20px_hsl(21_90%_40%/0.25)] ring-1 ring-[hsl(28_50%_85%)]/60">
           {/* Subtle brand background shapes */}
