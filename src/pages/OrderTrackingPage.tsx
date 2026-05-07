@@ -128,7 +128,17 @@ function JourneyStepper({ status }: { status: ExternalStatus }) {
 }
 
 /* ── Customer timeline ── */
+const HIGH_PRIORITY_EVENTS = new Set([
+  "missing_info_requested",
+  "customer_reply",
+  "submitted",
+  "converted_to_order",
+  "task_rescheduled",
+]);
+
 function CustomerTimeline({ token }: { token: string }) {
+  const [expanded, setExpanded] = useState(false);
+
   const { data: events = [] } = useQuery({
     queryKey: ["tracking-timeline", token],
     queryFn: async () => {
@@ -162,36 +172,60 @@ function CustomerTimeline({ token }: { token: string }) {
     return statusLabels[payload?.to] || null;
   };
 
-  const visibleEvents = events.filter((e: any) => {
-    if (e.event_type === "status_changed") return !!statusChangeLabel(e.payload);
-    if (e.event_type === "notification_sent" && e.payload?.type === "new_order") return false;
-    return !!timelineLabels[e.event_type];
-  }).slice(0, 12);
+  const allVisible = useMemo(() => {
+    return (events as any[])
+      .filter((e: any) => {
+        if (e.event_type === "status_changed") return !!statusChangeLabel(e.payload);
+        if (e.event_type === "notification_sent" && e.payload?.type === "new_order") return false;
+        return !!timelineLabels[e.event_type];
+      })
+      .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  }, [events]);
 
-  if (visibleEvents.length <= 1) return null;
+  if (allVisible.length <= 1) return null;
+
+  const COLLAPSED_COUNT = 5;
+  const hasMore = allVisible.length > COLLAPSED_COUNT;
+  const shown = expanded ? allVisible : allVisible.slice(0, COLLAPSED_COUNT);
 
   return (
     <Card className="border-0 shadow-[0_4px_16px_-6px_rgba(0,0,0,0.08)] rounded-3xl">
       <CardContent className="pt-7 pb-6 px-6 sm:px-8">
-        <h3 className="text-base font-bold text-foreground mb-5 flex items-center gap-2.5">
-          <span className="h-9 w-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
-            <Clock className="h-4 w-4" />
+        <div className="flex items-center justify-between mb-5">
+          <h3 className="text-base font-bold text-foreground flex items-center gap-2.5">
+            <span className="h-9 w-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+              <Clock className="h-4 w-4" />
+            </span>
+            Hendelseslogg
+          </h3>
+          <span className="text-[11px] text-muted-foreground font-medium">
+            {allVisible.length} hendelser
           </span>
-          Hendelseslogg
-        </h3>
-        <div className="relative pl-5">
-          {/* vertical line */}
+        </div>
+        <div
+          className={cn(
+            "relative pl-5",
+            expanded && hasMore && "max-h-[420px] overflow-y-auto pr-2 -mr-2",
+          )}
+        >
           <div className="absolute left-[7px] top-1.5 bottom-1.5 w-px bg-border" />
           <div className="space-y-4">
-            {visibleEvents.map((e: any, i: number) => {
+            {shown.map((e: any, i: number) => {
               const label = e.event_type === "status_changed"
                 ? statusChangeLabel(e.payload)
                 : timelineLabels[e.event_type];
               const isCustomer = e.event_type === "customer_reply";
               const isInfoRequest = e.event_type === "missing_info_requested";
-              const isFirst = i === 0;
+              const isHighPriority = HIGH_PRIORITY_EVENTS.has(e.event_type);
+              const isLatest = i === 0;
               return (
-                <div key={e.id} className="relative">
+                <div
+                  key={e.id}
+                  className={cn(
+                    "relative",
+                    !isHighPriority && !isLatest && "opacity-60",
+                  )}
+                >
                   <div
                     className={cn(
                       "absolute -left-5 top-1 h-3.5 w-3.5 rounded-full border-2 border-background",
@@ -199,14 +233,22 @@ function CustomerTimeline({ token }: { token: string }) {
                         ? "bg-amber-500 ring-2 ring-amber-200"
                         : isCustomer
                         ? "bg-primary"
-                        : isFirst
+                        : isLatest
                         ? "bg-primary/80 ring-2 ring-primary/20"
+                        : isHighPriority
+                        ? "bg-primary/60"
                         : "bg-muted-foreground/30",
                     )}
                   />
                   <p className={cn(
                     "text-sm leading-snug",
-                    isInfoRequest ? "font-semibold text-amber-900 dark:text-amber-200" : isCustomer ? "font-semibold text-foreground" : "text-foreground",
+                    isInfoRequest
+                      ? "font-semibold text-amber-900 dark:text-amber-200"
+                      : isCustomer || isLatest
+                      ? "font-semibold text-foreground"
+                      : isHighPriority
+                      ? "text-foreground"
+                      : "text-muted-foreground",
                   )}>
                     {label}
                   </p>
@@ -221,6 +263,20 @@ function CustomerTimeline({ token }: { token: string }) {
             })}
           </div>
         </div>
+        {hasMore && (
+          <div className="mt-4 pt-3 border-t border-border/60 flex justify-center">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setExpanded((v) => !v)}
+              className="text-xs font-semibold text-primary hover:text-primary hover:bg-primary/5 rounded-full"
+            >
+              {expanded
+                ? "Skjul historikk"
+                : `Vis hele historikken (${allVisible.length - COLLAPSED_COUNT} til)`}
+            </Button>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
