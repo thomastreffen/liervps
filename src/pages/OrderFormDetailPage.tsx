@@ -1202,14 +1202,33 @@ export default function OrderFormDetailPage() {
               {/* Divider */}
               <div className="border-t" />
 
-              {/* External status */}
-              <div>
-                <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Bestiller ser</span>
-                <div className="flex items-center gap-2 mt-0.5">
-                  <span className={`inline-block h-2 w-2 rounded-full ${externalConfig.color}`} />
-                  <span className="text-sm font-medium">{externalConfig.label}</span>
+              {/* External status — what the customer actually sees */}
+              <div className="space-y-2">
+                <div>
+                  <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Intern status</span>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className={`inline-block h-2 w-2 rounded-full ${statusConfig?.dotClass || "bg-muted"}`} />
+                    <span className="text-sm font-medium">{statusConfig?.label || effectiveStatus}</span>
+                  </div>
                 </div>
-                <p className="text-[11px] text-muted-foreground mt-0.5">{externalConfig.description}</p>
+                <div className="rounded-lg border bg-muted/30 p-2.5">
+                  <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Bestiller ser</span>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className={`inline-block h-2 w-2 rounded-full ${externalConfig.color}`} />
+                    <span className="text-sm font-medium">
+                      {conversationState.hasOpenRequest ? "Under behandling" : externalConfig.label}
+                    </span>
+                  </div>
+                  {conversationState.hasOpenRequest && (
+                    <div className="mt-1.5 flex items-start gap-1.5 rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50 px-2 py-1.5">
+                      <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-500 mt-1.5 shrink-0" />
+                      <p className="text-[11px] text-amber-900 dark:text-amber-200 leading-snug">
+                        <span className="font-semibold">Delstatus:</span> Vi venter på svar fra deg
+                      </p>
+                    </div>
+                  )}
+                  <p className="text-[11px] text-muted-foreground mt-1">{externalConfig.description}</p>
+                </div>
               </div>
 
               {/* Tracking link — bestillerens personlige sporingslenke */}
