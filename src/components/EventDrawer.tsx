@@ -707,6 +707,58 @@ export function EventDrawer({
       }
     }
 
+    // Propager tidsendring til koblede bestillinger (kunde-sporingsside)
+    if (timeChanged) {
+      try {
+        const { data: linkedSubs } = await supabase
+          .from("order_form_submissions")
+          .select("id")
+          .or(`linked_event_id.eq.${editEvent.id},id.eq.${(editEvent as any).sourceOrderFormId ?? "00000000-0000-0000-0000-000000000000"}`)
+          .is("deleted_at", null);
+
+        // Også finn submissions via events.source_order_form_id
+        const { data: ev } = await supabase
+          .from("events")
+          .select("source_order_form_id")
+          .eq("id", editEvent.id)
+          .maybeSingle();
+        const sourceSubId = (ev as any)?.source_order_form_id || null;
+
+        const subIds = new Set<string>();
+        (linkedSubs || []).forEach((s: any) => subIds.add(s.id));
+        if (sourceSubId) subIds.add(sourceSubId);
+
+        if (subIds.size > 0) {
+          const oldStart = format(editEvent.start, "d. MMM yyyy 'kl.' HH:mm", { locale: nb });
+          const newStart = format(new Date(startISO), "d. MMM yyyy 'kl.' HH:mm", { locale: nb });
+          const summary = `Flyttet fra ${oldStart} til ${newStart}`;
+
+          for (const subId of subIds) {
+            await supabase.from("order_form_activity_log").insert({
+              submission_id: subId,
+              event_type: "task_rescheduled",
+              payload: {
+                event_id: editEvent.id,
+                old_start: editEvent.start.toISOString(),
+                new_start: startISO,
+                old_end: editEvent.end.toISOString(),
+                new_end: endISO,
+                summary,
+              },
+              created_by: userId,
+            } as any);
+
+            await supabase
+              .from("order_form_submissions")
+              .update({ last_activity_at: new Date().toISOString() } as any)
+              .eq("id", subId);
+          }
+        }
+      } catch (err) {
+        console.warn("[EventDrawer] Could not propagate reschedule to order submission:", err);
+      }
+    }
+
     if (requiresApproval && techIds.length > 0) {
       await supabase.functions.invoke("create-approval", {
         body: {
