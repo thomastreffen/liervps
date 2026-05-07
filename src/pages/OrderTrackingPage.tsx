@@ -7,6 +7,7 @@ import { nb } from "date-fns/locale";
 import {
   CheckCircle2, Clock, FileText, Loader2, AlertCircle,
   Send, Upload, Paperclip, MessageSquare, X, AlertTriangle,
+  Sparkles, Shield,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -22,45 +23,92 @@ import {
 import { deriveOrderConversationState } from "@/lib/order-request-state";
 import { CustomerFieldRequests } from "@/components/orders/CustomerFieldRequests";
 
-/* ── External status progress bar ── */
-function StatusProgress({ status }: { status: ExternalStatus }) {
-  const config = EXTERNAL_STATUS_CONFIG[status] || EXTERNAL_STATUS_CONFIG.received;
+import mascotReceived from "@/assets/mascot/received.png";
+import mascotProcessing from "@/assets/mascot/processing.png";
+import mascotPlanned from "@/assets/mascot/planned.png";
+import mascotInProgress from "@/assets/mascot/in_progress.png";
+import mascotCompleted from "@/assets/mascot/completed.png";
+
+/* ── Mascot mapping per external status ── */
+const STATUS_MASCOT: Record<ExternalStatus, string> = {
+  received: mascotReceived,
+  processing: mascotProcessing,
+  needs_info: mascotReceived,
+  planned: mascotPlanned,
+  in_progress: mascotInProgress,
+  completed: mascotCompleted,
+  closed: mascotCompleted,
+};
+
+/* ── Friendly "what's happening now" copy per status ── */
+const STATUS_HUMAN_COPY: Record<ExternalStatus, { headline: string; body: string }> = {
+  received: {
+    headline: "Vi har mottatt bestillingen din",
+    body: "Takk! Bestillingen ligger trygt hos oss og blir gjennomgått av vårt team. Du trenger ikke gjøre noe mer akkurat nå.",
+  },
+  processing: {
+    headline: "Vi ser nå gjennom bestillingen",
+    body: "Vi vurderer hva som trengs og planlegger neste steg. Du får oppdatering så snart vi har en plan klar.",
+  },
+  needs_info: {
+    headline: "Vi trenger litt mer fra deg",
+    body: "For å gå videre trenger vi en kjapp avklaring. Se meldingen lenger ned og svar når det passer.",
+  },
+  planned: {
+    headline: "Oppdraget er planlagt",
+    body: "Ansvarlig montør er varslet og oppdraget er satt opp. Vi gir beskjed når vi er på vei.",
+  },
+  in_progress: {
+    headline: "Vi er i gang",
+    body: "Arbeidet er nå under utførelse. Du får beskjed så snart vi er ferdige.",
+  },
+  completed: {
+    headline: "Oppdraget er fullført",
+    body: "Alt arbeid er ferdigstilt. Tusen takk for at du valgte MCS Service – ta kontakt om du lurer på noe.",
+  },
+  closed: {
+    headline: "Saken er avsluttet",
+    body: "Denne bestillingen er avsluttet. Du kan fortsatt se historikken her.",
+  },
+};
+
+/* ── New journey stepper – warm, branded ── */
+function JourneyStepper({ status }: { status: ExternalStatus }) {
+  const cfg = EXTERNAL_STATUS_CONFIG[status] || EXTERNAL_STATUS_CONFIG.received;
   const steps = EXTERNAL_STATUS_STEPS;
-  const currentStep = config.step;
+  const currentStep = cfg.step;
   const isNeedsInfo = status === "needs_info";
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-1">
-        {steps.map((s) => {
-          const stepConfig = EXTERNAL_STATUS_CONFIG[s];
-          const isActive = stepConfig.step <= currentStep;
+    <div className="space-y-3">
+      <div className="flex items-center gap-1.5">
+        {steps.map((s, idx) => {
+          const sCfg = EXTERNAL_STATUS_CONFIG[s];
+          const isDone = sCfg.step < currentStep;
           const isCurrent = s === status || (isNeedsInfo && s === "processing");
+          const isActive = isDone || isCurrent;
           return (
-            <div key={s} className="flex-1 flex flex-col items-center gap-1.5">
-              <div
+            <div key={s} className="flex-1 flex flex-col items-center gap-2">
+              <div className="w-full flex items-center gap-1.5">
+                <div
+                  className={cn(
+                    "h-1.5 flex-1 rounded-full transition-all duration-500",
+                    isActive ? "bg-primary" : "bg-muted",
+                    isCurrent && "shadow-[0_0_0_3px_hsl(var(--primary)/0.15)]",
+                  )}
+                />
+              </div>
+              <span
                 className={cn(
-                  "h-2 w-full rounded-full transition-colors",
-                  isActive ? config.color : "bg-muted",
-                  isCurrent && "ring-2 ring-offset-1 ring-primary/30",
+                  "text-[10px] sm:text-[11px] leading-tight text-center font-medium tracking-wide uppercase",
+                  isCurrent ? "text-primary" : isDone ? "text-foreground/70" : "text-muted-foreground/60",
                 )}
-              />
-              <span className={cn(
-                "text-[10px] leading-tight text-center hidden sm:block",
-                isCurrent ? "font-semibold text-foreground" : "text-muted-foreground",
-              )}>
-                {stepConfig.label}
+              >
+                {sCfg.label}
               </span>
             </div>
           );
         })}
-      </div>
-      <div className="space-y-1">
-        <div className="flex items-center gap-2">
-          <div className={cn("h-3 w-3 rounded-full", config.color)} />
-          <span className="text-base font-semibold text-foreground">{config.label}</span>
-        </div>
-        <p className="text-sm text-muted-foreground">{config.longDescription}</p>
       </div>
     </div>
   );
@@ -105,46 +153,52 @@ function CustomerTimeline({ token }: { token: string }) {
     if (e.event_type === "status_changed") return !!statusChangeLabel(e.payload);
     if (e.event_type === "notification_sent" && e.payload?.type === "new_order") return false;
     return !!timelineLabels[e.event_type];
-  }).slice(0, 8);
+  }).slice(0, 12);
 
   if (visibleEvents.length <= 1) return null;
 
   return (
-    <Card>
-      <CardContent className="pt-5 pb-4">
-        <h3 className="text-sm font-semibold text-foreground mb-3">
-          <Clock className="h-3.5 w-3.5 inline mr-1.5" />
+    <Card className="border-border/60 shadow-sm">
+      <CardContent className="pt-6 pb-5">
+        <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
+          <Clock className="h-4 w-4 text-primary" />
           Hendelseslogg
         </h3>
-        <div className="space-y-3">
-          {visibleEvents.map((e: any) => {
-            const label = e.event_type === "status_changed"
-              ? statusChangeLabel(e.payload)
-              : timelineLabels[e.event_type];
-            const isCustomer = e.event_type === "customer_reply";
-            return (
-              <div key={e.id} className="flex gap-3 items-start">
-                <div className={cn(
-                  "h-2 w-2 rounded-full mt-1.5 shrink-0",
-                  isCustomer ? "bg-primary" : "bg-muted-foreground/40",
-                )} />
-                <div className="flex-1 min-w-0">
-                  <p className={cn(
-                    "text-sm",
-                    isCustomer ? "font-medium text-foreground" : "text-foreground",
-                  )}>
+        <div className="relative pl-5">
+          {/* vertical line */}
+          <div className="absolute left-[7px] top-1.5 bottom-1.5 w-px bg-border" />
+          <div className="space-y-4">
+            {visibleEvents.map((e: any, i: number) => {
+              const label = e.event_type === "status_changed"
+                ? statusChangeLabel(e.payload)
+                : timelineLabels[e.event_type];
+              const isCustomer = e.event_type === "customer_reply";
+              const isFirst = i === 0;
+              return (
+                <div key={e.id} className="relative">
+                  <div
+                    className={cn(
+                      "absolute -left-5 top-1 h-3.5 w-3.5 rounded-full border-2 border-background",
+                      isCustomer
+                        ? "bg-primary"
+                        : isFirst
+                        ? "bg-primary/80 ring-2 ring-primary/20"
+                        : "bg-muted-foreground/30",
+                    )}
+                  />
+                  <p className={cn("text-sm leading-snug", isCustomer ? "font-semibold text-foreground" : "text-foreground")}>
                     {label}
                   </p>
                   {e.payload?.summary && (
-                    <p className="text-xs text-foreground/70">{e.payload.summary}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{e.payload.summary}</p>
                   )}
-                  <p className="text-[11px] text-muted-foreground">
+                  <p className="text-[11px] text-muted-foreground/70 mt-0.5">
                     {format(new Date(e.created_at), "d. MMM yyyy 'kl.' HH:mm", { locale: nb })}
                   </p>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       </CardContent>
     </Card>
@@ -160,7 +214,6 @@ export default function OrderTrackingPage() {
   const replyInputRef = useRef<HTMLTextAreaElement>(null);
   const messagesSectionRef = useRef<HTMLDivElement>(null);
 
-  // Always land at the top when opening the tracking page (e.g. from confirmation page)
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
   }, [token]);
@@ -169,13 +222,11 @@ export default function OrderTrackingPage() {
     queryKey: ["tracking", token],
     enabled: !!token,
     queryFn: async () => {
-      // Use RPC for token-scoped access (no broad anon SELECT policy)
       const { data: rpcData, error: rpcErr } = await (supabase as any)
         .rpc("get_submission_by_tracking_token", { _token: token! });
       if (rpcErr) throw rpcErr;
       const sub = Array.isArray(rpcData) ? rpcData[0] : rpcData;
       if (!sub) return null;
-      // Fetch template info separately
       const { data: tmpl } = await supabase
         .from("order_form_templates")
         .select("name, external_title")
@@ -195,7 +246,6 @@ export default function OrderTrackingPage() {
     },
   });
 
-  // Fetch messages from new order_form_messages table
   const { data: messages = [] } = useQuery({
     queryKey: ["tracking-messages", token],
     enabled: !!token,
@@ -206,7 +256,6 @@ export default function OrderTrackingPage() {
     },
   });
 
-  // Fallback: also fetch old comments for backward compat
   const { data: legacyComments = [] } = useQuery({
     queryKey: ["tracking-comments-legacy", token],
     enabled: !!token,
@@ -264,7 +313,6 @@ export default function OrderTrackingPage() {
       if (!submission) return;
       const sub = submission as any;
 
-      // Insert message into new table
       await supabase.from("order_form_messages").insert({
         submission_id: submission.id,
         sender_type: "customer",
@@ -275,7 +323,6 @@ export default function OrderTrackingPage() {
         requires_reply: false,
       } as any);
 
-      // Also insert legacy comment for backward compat
       if (replyText.trim()) {
         await supabase.from("order_form_comments").insert({
           submission_id: submission.id,
@@ -287,7 +334,6 @@ export default function OrderTrackingPage() {
         } as any);
       }
 
-      // Upload files
       for (const file of replyFiles) {
         const path = `${sub.company_id}/${submission.id}/reply_${Date.now()}_${file.name}`;
         await supabase.storage.from("order-form-attachments").upload(path, file);
@@ -301,7 +347,6 @@ export default function OrderTrackingPage() {
         } as any);
       }
 
-      // Mark open request as replied
       const wasOpenRequest = !!openRequest;
       if (openRequest) {
         await supabase.from("order_form_messages")
@@ -309,7 +354,6 @@ export default function OrderTrackingPage() {
           .eq("id", openRequest.id);
       }
 
-      // Check if there are remaining open requests (besides the one we just closed)
       let hasRemainingOpenRequests = false;
       if (wasOpenRequest) {
         const { data: remaining } = await supabase
@@ -323,12 +367,10 @@ export default function OrderTrackingPage() {
         hasRemainingOpenRequests = (remaining?.length ?? 0) > 0;
       }
 
-      // Determine if we should auto-change status
-      const shouldAutoUpdateStatus = wasOpenRequest 
+      const shouldAutoUpdateStatus = wasOpenRequest
         && !hasRemainingOpenRequests
         && ["missing_info", "waiting_customer"].includes(sub.status);
 
-      // Update submission flags
       await supabase.from("order_form_submissions")
         .update({
           customer_last_reply_at: new Date().toISOString(),
@@ -339,7 +381,6 @@ export default function OrderTrackingPage() {
         } as any)
         .eq("id", submission.id);
 
-      // Log activity
       const logPayload: any = { has_text: !!replyText.trim(), file_count: replyFiles.length };
       if (shouldAutoUpdateStatus) {
         logPayload.auto_status_change = { from: sub.status, to: "under_review" };
@@ -350,7 +391,6 @@ export default function OrderTrackingPage() {
         payload: logPayload,
       } as any);
 
-      // Log system event for auto status change
       if (shouldAutoUpdateStatus) {
         await supabase.from("order_form_activity_log").insert({
           submission_id: submission.id,
@@ -386,14 +426,17 @@ export default function OrderTrackingPage() {
 
   const sub = submission as any;
   const externalStatus: ExternalStatus = conversationState.effectiveExternalStatus;
+  const statusCfg = EXTERNAL_STATUS_CONFIG[externalStatus] || EXTERNAL_STATUS_CONFIG.received;
   const templateName = sub?.order_form_templates?.external_title || sub?.order_form_templates?.name || "Bestilling";
   const needsInfo = conversationState.hasOpenRequest;
   const lastUpdated = sub?.last_activity_at || sub?.updated_at || sub?.submitted_at;
+  const human = STATUS_HUMAN_COPY[externalStatus] || STATUS_HUMAN_COPY.received;
+  const mascot = STATUS_MASCOT[externalStatus] || mascotReceived;
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-background to-muted/30">
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
       </div>
     );
   }
@@ -429,61 +472,108 @@ export default function OrderTrackingPage() {
   const isClosed = externalStatus === "completed" || externalStatus === "closed";
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="max-w-2xl mx-auto px-4 py-6 sm:py-10 space-y-6">
-        {/* Header */}
-        <div className="space-y-1">
-          <div className="flex items-center gap-2 text-muted-foreground">
-            <FileText className="h-4 w-4" />
-            <span className="text-xs font-medium">{templateName}</span>
+    <div className="min-h-screen bg-gradient-to-b from-muted/30 via-background to-background">
+      {/* Top brand bar */}
+      <div className="border-b border-border/40 bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="h-7 w-7 rounded-lg bg-foreground text-background flex items-center justify-center font-bold text-xs tracking-tight">
+              MCS
+            </div>
+            <span className="text-sm font-semibold text-foreground">MCS Service</span>
           </div>
-          <h1 className="text-xl sm:text-2xl font-bold text-foreground">
-            Bestilling {sub.submission_no}
-          </h1>
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
-            <span>Sendt {format(new Date(sub.submitted_at || sub.created_at), "d. MMMM yyyy", { locale: nb })}</span>
-            {lastUpdated && (
-              <span className="flex items-center gap-1">
-                <Clock className="h-3 w-3" />
-                Oppdatert {formatDistanceToNow(new Date(lastUpdated), { addSuffix: true, locale: nb })}
-              </span>
-            )}
-          </div>
+          <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+            <Shield className="h-3 w-3" />
+            Sikker sporing
+          </span>
         </div>
+      </div>
 
-        {/* Status progress */}
-        <Card>
-          <CardContent className="pt-6 pb-5">
-            <StatusProgress status={externalStatus} />
-          </CardContent>
-        </Card>
-
-        {/* Needs info alert */}
-        {needsInfo && (
-          <Card className="border-amber-300 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800">
-            <CardContent className="pt-5 pb-4 space-y-3">
-              <div className="flex items-start gap-3">
-                <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-sm font-medium text-amber-900 dark:text-amber-200">
-                    Vi trenger litt mer informasjon
-                  </p>
-                  <p className="text-xs text-amber-700 dark:text-amber-400 mt-1">
-                    Se meldingen nedenfor og svar med det vi etterspør, så behandler vi bestillingen videre.
+      <div className="max-w-3xl mx-auto px-4 py-6 sm:py-8 space-y-5">
+        {/* ── HERO ── */}
+        <Card className="overflow-hidden border-border/60 shadow-md bg-gradient-to-br from-card via-card to-muted/40">
+          <CardContent className="p-0">
+            <div className="grid sm:grid-cols-[1fr_auto] gap-0 items-stretch">
+              {/* Left: text */}
+              <div className="p-6 sm:p-8 space-y-5 order-2 sm:order-1">
+                <div className="space-y-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge
+                      className={cn(
+                        "text-white border-0 rounded-full px-3 py-1 text-[11px] font-semibold shadow-sm",
+                        statusCfg.color,
+                      )}
+                    >
+                      <span className="inline-block h-1.5 w-1.5 rounded-full bg-white/80 mr-1.5 animate-pulse" />
+                      {statusCfg.label}
+                    </Badge>
+                    <span className="text-[11px] text-muted-foreground font-medium">
+                      {templateName}
+                    </span>
+                  </div>
+                  <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight leading-tight">
+                    {human.headline}
+                  </h1>
+                  <p className="text-sm sm:text-base text-muted-foreground leading-relaxed max-w-xl">
+                    {human.body}
                   </p>
                 </div>
+
+                <div className="flex flex-wrap gap-x-5 gap-y-2 pt-1 text-xs text-muted-foreground">
+                  <div>
+                    <span className="block text-[10px] uppercase tracking-wider text-muted-foreground/70 font-semibold">
+                      Bestilling
+                    </span>
+                    <span className="text-foreground font-semibold">{sub.submission_no}</span>
+                  </div>
+                  <div>
+                    <span className="block text-[10px] uppercase tracking-wider text-muted-foreground/70 font-semibold">
+                      Sendt
+                    </span>
+                    <span className="text-foreground">
+                      {format(new Date(sub.submitted_at || sub.created_at), "d. MMM yyyy", { locale: nb })}
+                    </span>
+                  </div>
+                  {lastUpdated && (
+                    <div>
+                      <span className="block text-[10px] uppercase tracking-wider text-muted-foreground/70 font-semibold">
+                        Oppdatert
+                      </span>
+                      <span className="text-foreground">
+                        {formatDistanceToNow(new Date(lastUpdated), { addSuffix: true, locale: nb })}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {needsInfo && (
+                  <Button
+                    onClick={scrollToReplyAndFocus}
+                    className="w-full sm:w-auto h-11 rounded-full shadow-sm"
+                  >
+                    <MessageSquare className="h-4 w-4 mr-2" />
+                    Se hva vi trenger
+                  </Button>
+                )}
               </div>
-              <Button
-                size="sm"
-                className="w-full sm:w-auto"
-                onClick={scrollToReplyAndFocus}
-              >
-                <MessageSquare className="h-3.5 w-3.5 mr-1.5" />
-                Se melding og svar
-              </Button>
-            </CardContent>
-          </Card>
-        )}
+
+              {/* Right: mascot */}
+              <div className="relative order-1 sm:order-2 flex items-end justify-center sm:justify-end bg-gradient-to-br from-primary/5 via-transparent to-primary/10 sm:min-w-[220px]">
+                <img
+                  src={mascot}
+                  alt={statusCfg.label}
+                  className="w-44 sm:w-56 max-w-full h-auto object-contain drop-shadow-md select-none pointer-events-none mt-4 sm:mt-0"
+                  draggable={false}
+                />
+              </div>
+            </div>
+
+            {/* Journey stepper */}
+            <div className="px-6 sm:px-8 pb-6 pt-2 border-t border-border/40 bg-background/60">
+              <JourneyStepper status={externalStatus} />
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Customer-fillable field requests from admin */}
         <CustomerFieldRequests
@@ -493,14 +583,17 @@ export default function OrderTrackingPage() {
 
         {/* Summary */}
         {visibleSummary.length > 0 && (
-          <Card>
-            <CardContent className="pt-5 pb-4">
-              <h3 className="text-sm font-semibold text-foreground mb-3">Oppsummering</h3>
-              <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2">
+          <Card className="border-border/60 shadow-sm">
+            <CardContent className="pt-6 pb-5">
+              <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-primary" />
+                Oppsummering
+              </h3>
+              <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
                 {visibleSummary.map((f) => (
                   <div key={f.key}>
-                    <dt className="text-xs text-muted-foreground">{f.label}</dt>
-                    <dd className="text-sm text-foreground">{String(valuesMap[f.key])}</dd>
+                    <dt className="text-[11px] uppercase tracking-wider text-muted-foreground/80 font-semibold">{f.label}</dt>
+                    <dd className="text-sm text-foreground mt-0.5">{String(valuesMap[f.key])}</dd>
                   </div>
                 ))}
               </dl>
@@ -513,16 +606,22 @@ export default function OrderTrackingPage() {
 
         {/* Messages - the primary conversation section */}
         <div ref={messagesSectionRef}>
-          <Card>
-            <CardContent className="pt-5 pb-4">
-              <h3 className="text-sm font-semibold text-foreground mb-4">
-                <MessageSquare className="h-3.5 w-3.5 inline mr-1.5" />
-                Meldinger
-              </h3>
+          <Card className="border-border/60 shadow-sm">
+            <CardContent className="pt-6 pb-5">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                  <MessageSquare className="h-4 w-4 text-primary" />
+                  Meldinger
+                </h3>
+                {needsInfo && (
+                  <Badge className="bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 rounded-full text-[10px]">
+                    Venter på deg
+                  </Badge>
+                )}
+              </div>
 
-              {/* Message thread */}
               {hasMessages ? (
-                <div className="space-y-3 mb-4">
+                <div className="space-y-3 mb-5">
                   {allMessages.map((msg) => {
                     const isCustomer = msg.sender_type === "customer";
                     const isRequestInfo = msg.message_type === "request_info";
@@ -530,8 +629,8 @@ export default function OrderTrackingPage() {
 
                     if (isSystem) {
                       return (
-                        <div key={msg.id} className="text-center">
-                          <span className="text-[11px] text-muted-foreground bg-muted/50 px-3 py-1 rounded-full">
+                        <div key={msg.id} className="text-center py-1">
+                          <span className="text-[11px] text-muted-foreground bg-muted/60 px-3 py-1 rounded-full">
                             {msg.body}
                           </span>
                         </div>
@@ -539,55 +638,72 @@ export default function OrderTrackingPage() {
                     }
 
                     return (
-                      <div
-                        key={msg.id}
-                        className={cn(
-                          "rounded-xl p-3.5 text-sm max-w-[85%]",
-                          isCustomer
-                            ? "bg-primary/5 border border-primary/20 ml-auto"
-                            : isRequestInfo
-                            ? "bg-amber-50 border border-amber-200 dark:bg-amber-950/30 dark:border-amber-800 mr-auto"
-                            : "bg-muted/50 mr-auto",
+                      <div key={msg.id} className={cn("flex gap-2.5", isCustomer ? "justify-end" : "justify-start")}>
+                        {!isCustomer && (
+                          <div className="h-8 w-8 rounded-full bg-foreground text-background flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">
+                            MCS
+                          </div>
                         )}
-                      >
-                        {/* Header */}
-                        <div className="flex items-center gap-2 mb-1.5">
-                          {isRequestInfo && (
-                            <AlertTriangle className="h-3 w-3 text-amber-600 shrink-0" />
+                        <div
+                          className={cn(
+                            "rounded-2xl p-3.5 text-sm max-w-[80%] shadow-sm",
+                            isCustomer
+                              ? "bg-primary text-primary-foreground rounded-br-sm"
+                              : isRequestInfo
+                              ? "bg-amber-50 border border-amber-200 dark:bg-amber-950/30 dark:border-amber-800 rounded-bl-sm"
+                              : "bg-muted/70 rounded-bl-sm",
                           )}
-                          <span className={cn(
-                            "text-xs font-medium",
-                            isRequestInfo ? "text-amber-800 dark:text-amber-300" : "text-foreground",
-                          )}>
-                            {isCustomer ? "Du" : (msg.sender_name || "Saksbehandler")}
-                          </span>
-                          {isRequestInfo && (
-                            <Badge variant="outline" className="text-[9px] bg-amber-100 text-amber-700 border-amber-300">
-                              Forespørsel
-                            </Badge>
-                          )}
-                          <span className="text-[10px] text-muted-foreground ml-auto">
-                            {format(new Date(msg.created_at), "d. MMM HH:mm", { locale: nb })}
-                          </span>
-                        </div>
-
-                        {/* Body */}
-                        <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">{msg.body}</p>
-
-                        {/* Reply status for requests */}
-                        {isRequestInfo && msg.requires_reply && (
-                          <div className="mt-2 pt-2 border-t border-amber-200 dark:border-amber-800">
-                            {msg.replied_at ? (
-                              <span className="text-[10px] text-green-600 flex items-center gap-1">
-                                <CheckCircle2 className="h-3 w-3" />
-                                Besvart {format(new Date(msg.replied_at), "d. MMM HH:mm", { locale: nb })}
-                              </span>
-                            ) : (
-                              <span className="text-[10px] text-amber-600 flex items-center gap-1">
-                                <Clock className="h-3 w-3" />
-                                Venter på svar fra deg
-                              </span>
+                        >
+                          <div className="flex items-center gap-2 mb-1">
+                            {isRequestInfo && (
+                              <AlertTriangle className="h-3 w-3 text-amber-600 shrink-0" />
                             )}
+                            <span
+                              className={cn(
+                                "text-[11px] font-semibold",
+                                isCustomer
+                                  ? "text-primary-foreground/90"
+                                  : isRequestInfo
+                                  ? "text-amber-800 dark:text-amber-300"
+                                  : "text-foreground/80",
+                              )}
+                            >
+                              {isCustomer ? "Du" : (msg.sender_name || "MCS Service")}
+                            </span>
+                            {isRequestInfo && (
+                              <Badge variant="outline" className="text-[9px] bg-amber-100 text-amber-700 border-amber-300">
+                                Vi trenger info
+                              </Badge>
+                            )}
+                            <span
+                              className={cn(
+                                "text-[10px] ml-auto",
+                                isCustomer ? "text-primary-foreground/70" : "text-muted-foreground",
+                              )}
+                            >
+                              {format(new Date(msg.created_at), "d. MMM HH:mm", { locale: nb })}
+                            </span>
+                          </div>
+                          <p className="text-sm whitespace-pre-wrap leading-relaxed">{msg.body}</p>
+                          {isRequestInfo && msg.requires_reply && (
+                            <div className="mt-2 pt-2 border-t border-amber-200/70 dark:border-amber-800/70">
+                              {msg.replied_at ? (
+                                <span className="text-[10px] text-green-700 dark:text-green-400 flex items-center gap-1 font-medium">
+                                  <CheckCircle2 className="h-3 w-3" />
+                                  Besvart {format(new Date(msg.replied_at), "d. MMM HH:mm", { locale: nb })}
+                                </span>
+                              ) : (
+                                <span className="text-[10px] text-amber-700 dark:text-amber-400 flex items-center gap-1 font-medium">
+                                  <Clock className="h-3 w-3" />
+                                  Venter på svar fra deg
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                        {isCustomer && (
+                          <div className="h-8 w-8 rounded-full bg-primary/15 text-primary flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">
+                            Du
                           </div>
                         )}
                       </div>
@@ -595,25 +711,25 @@ export default function OrderTrackingPage() {
                   })}
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground mb-4">
-                  Ingen meldinger ennå. Du kan sende melding eller mer informasjon nedenfor.
+                <p className="text-sm text-muted-foreground mb-5 italic">
+                  Ingen meldinger ennå. Skriv gjerne om du har spørsmål eller mer informasjon.
                 </p>
               )}
 
               {/* Reply input */}
               {!isClosed && (
-                <div className="space-y-3 pt-3 border-t">
+                <div className="space-y-3 pt-4 border-t border-border/60">
                   <Textarea
                     ref={replyInputRef}
                     value={replyText}
                     onChange={(e) => setReplyText(e.target.value)}
-                    placeholder={openRequest ? "Skriv svaret ditt her..." : "Skriv en melding..."}
+                    placeholder={openRequest ? "Skriv svaret ditt her..." : "Skriv en melding til oss..."}
                     rows={3}
-                    className="text-sm"
+                    className="text-sm resize-none rounded-xl"
                   />
 
                   <div>
-                    <label className="flex items-center gap-2 cursor-pointer text-sm text-muted-foreground hover:text-foreground transition-colors">
+                    <label className="inline-flex items-center gap-2 cursor-pointer text-sm text-muted-foreground hover:text-foreground transition-colors">
                       <Upload className="h-4 w-4" />
                       <span>Legg ved filer</span>
                       <input
@@ -630,7 +746,7 @@ export default function OrderTrackingPage() {
                     {replyFiles.length > 0 && (
                       <div className="mt-2 space-y-1">
                         {replyFiles.map((f, i) => (
-                          <div key={i} className="flex items-center gap-2 text-xs">
+                          <div key={i} className="flex items-center gap-2 text-xs bg-muted/40 rounded-lg px-2.5 py-1.5">
                             <Paperclip className="h-3 w-3 text-muted-foreground" />
                             <span className="truncate flex-1">{f.name}</span>
                             <button onClick={() => setReplyFiles((prev) => prev.filter((_, j) => j !== i))}>
@@ -645,7 +761,7 @@ export default function OrderTrackingPage() {
                   <Button
                     onClick={() => submitReply.mutate()}
                     disabled={submitReply.isPending || (!replyText.trim() && replyFiles.length === 0)}
-                    className="w-full sm:w-auto h-11 text-sm"
+                    className="w-full sm:w-auto h-11 text-sm rounded-full px-6 shadow-sm"
                   >
                     {submitReply.isPending ? (
                       <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
@@ -662,25 +778,34 @@ export default function OrderTrackingPage() {
 
         {/* Attachments */}
         {attachments.length > 0 && (
-          <Card>
-            <CardContent className="pt-5 pb-4">
-              <h3 className="text-sm font-semibold text-foreground mb-3">
-                <Paperclip className="h-3.5 w-3.5 inline mr-1.5" />
+          <Card className="border-border/60 shadow-sm">
+            <CardContent className="pt-6 pb-5">
+              <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
+                <Paperclip className="h-4 w-4 text-primary" />
                 Vedlegg ({attachments.length})
               </h3>
-              <div className="space-y-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {attachments.map((att: any) => (
-                  <div key={att.id} className="flex items-center gap-2 text-sm">
-                    <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
-                    <span className="flex-1 truncate text-foreground">{att.file_name}</span>
-                    {att.file_size && (
-                      <span className="text-xs text-muted-foreground">
-                        {(att.file_size / 1024).toFixed(0)} KB
-                      </span>
-                    )}
-                    {att.field_key === "customer_reply" && (
-                      <Badge variant="outline" className="text-[9px]">Ettersendt</Badge>
-                    )}
+                  <div
+                    key={att.id}
+                    className="flex items-center gap-3 p-3 rounded-xl border border-border/60 bg-muted/30 hover:bg-muted/50 transition-colors"
+                  >
+                    <div className="h-9 w-9 rounded-lg bg-background border border-border/60 flex items-center justify-center shrink-0">
+                      <FileText className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-foreground truncate">{att.file_name}</p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        {att.file_size && (
+                          <span className="text-[11px] text-muted-foreground">
+                            {(att.file_size / 1024).toFixed(0)} KB
+                          </span>
+                        )}
+                        {att.field_key === "customer_reply" && (
+                          <Badge variant="outline" className="text-[9px]">Ettersendt</Badge>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -689,9 +814,13 @@ export default function OrderTrackingPage() {
         )}
 
         {/* Footer */}
-        <div className="text-center pt-4 pb-8">
-          <p className="text-xs text-muted-foreground">
+        <div className="text-center pt-4 pb-10 space-y-1">
+          <p className="text-xs text-muted-foreground flex items-center justify-center gap-1.5">
+            <Shield className="h-3 w-3" />
             Denne lenken er personlig og skal ikke deles med andre.
+          </p>
+          <p className="text-[11px] text-muted-foreground/70">
+            En tjeneste fra <span className="font-semibold text-foreground/80">MCS Service</span>
           </p>
         </div>
       </div>
