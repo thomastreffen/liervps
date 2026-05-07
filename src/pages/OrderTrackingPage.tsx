@@ -630,10 +630,12 @@ export default function OrderTrackingPage() {
 
         {/* Summary */}
         {visibleSummary.length > 0 && (
-          <Card className="border-border/60 shadow-sm">
-            <CardContent className="pt-6 pb-5">
-              <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
-                <Sparkles className="h-4 w-4 text-primary" />
+          <Card className="border-0 shadow-[0_4px_16px_-6px_rgba(0,0,0,0.08)] rounded-3xl">
+            <CardContent className="pt-7 pb-6 px-6 sm:px-8">
+              <h3 className="text-base font-bold text-foreground mb-5 flex items-center gap-2.5">
+                <span className="h-9 w-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+                  <Sparkles className="h-4 w-4" />
+                </span>
                 Oppsummering
               </h3>
               <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
