@@ -655,11 +655,13 @@ export default function OrderTrackingPage() {
 
         {/* Messages - the primary conversation section */}
         <div ref={messagesSectionRef}>
-          <Card className="border-border/60 shadow-sm">
-            <CardContent className="pt-6 pb-5">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                  <MessageSquare className="h-4 w-4 text-primary" />
+          <Card className="border-0 shadow-[0_4px_16px_-6px_rgba(0,0,0,0.08)] rounded-3xl">
+            <CardContent className="pt-7 pb-6 px-6 sm:px-8">
+              <div className="flex items-center justify-between mb-5">
+                <h3 className="text-base font-bold text-foreground flex items-center gap-2.5">
+                  <span className="h-9 w-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+                    <MessageSquare className="h-4 w-4" />
+                  </span>
                   Meldinger
                 </h3>
                 {needsInfo && (
