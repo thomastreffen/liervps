@@ -77,7 +77,7 @@ function CustomerTimeline({ token }: { token: string }) {
       return all.filter((e: any) => [
         "submitted", "status_changed", "missing_info_requested",
         "customer_reply", "converted_to_order", "notification_sent",
-        "task_created",
+        "task_created", "task_rescheduled",
       ].includes(e.event_type));
     },
   });
@@ -88,6 +88,7 @@ function CustomerTimeline({ token }: { token: string }) {
     customer_reply: "Du sendte svar",
     converted_to_order: "Oppgave opprettet i ressursplan",
     notification_sent: "Oppdatering sendt",
+    task_rescheduled: "Oppgaven er flyttet til ny tid",
   };
 
   const statusChangeLabel = (payload: any): string | null => {
