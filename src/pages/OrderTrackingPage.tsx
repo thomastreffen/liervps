@@ -497,7 +497,7 @@ export default function OrderTrackingPage() {
     <div className="min-h-screen bg-[hsl(36_40%_97%)] dark:bg-background">
       {/* Top brand bar */}
       <div className="bg-transparent">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-4 sm:py-5 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-4 sm:px-8 py-4 sm:py-5 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <div className="h-9 w-9 rounded-xl bg-foreground text-background flex items-center justify-center font-black text-sm tracking-tighter">
               MCS
