@@ -440,12 +440,16 @@ export default function OrderTrackingPage() {
   }, [values]);
 
   const sub = submission as any;
-  const externalStatus: ExternalStatus = conversationState.effectiveExternalStatus;
+  const rawExternalStatus: ExternalStatus = conversationState.effectiveExternalStatus;
+  const needsInfo = conversationState.hasOpenRequest;
+  // Keep main step as "Under behandling" when waiting for customer info — show sub-status separately
+  const externalStatus: ExternalStatus = needsInfo ? "processing" : rawExternalStatus;
   const statusCfg = EXTERNAL_STATUS_CONFIG[externalStatus] || EXTERNAL_STATUS_CONFIG.received;
   const templateName = sub?.order_form_templates?.external_title || sub?.order_form_templates?.name || "Bestilling";
-  const needsInfo = conversationState.hasOpenRequest;
   const lastUpdated = sub?.last_activity_at || sub?.updated_at || sub?.submitted_at;
-  const human = STATUS_HUMAN_COPY[externalStatus] || STATUS_HUMAN_COPY.received;
+  const human = needsInfo
+    ? STATUS_HUMAN_COPY.needs_info
+    : (STATUS_HUMAN_COPY[externalStatus] || STATUS_HUMAN_COPY.received);
   const mascot = STATUS_MASCOT[externalStatus] || mascotReceived;
 
   if (isLoading) {
