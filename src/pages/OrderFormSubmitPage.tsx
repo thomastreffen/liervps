@@ -271,13 +271,12 @@ export default function OrderFormSubmitPage() {
         body: { submission_id: submissionId, notification_type: "new_order" },
       }).catch((err) => console.error("Auto-notify failed:", err));
 
-      // Auto-send confirmation to bestiller if email provided
-      const bestillerEpost = formData.bestiller_epost || formData.epost_kunde || formData.epost;
-      if (bestillerEpost) {
-        supabase.functions.invoke("order-form-notify", {
-          body: { submission_id: submissionId, notification_type: "confirmation" },
-        }).catch((err) => console.error("Auto-confirm failed:", err));
-      }
+      // Auto-send confirmation w/ tracking link to bestiller — edge function resolves email
+      // via fallback chain (notification_recipient_email, submitter_email, prefix-matched
+      // form fields like bestiller_epost_*). Returns no_bestiller_email if none found.
+      supabase.functions.invoke("order-form-notify", {
+        body: { submission_id: submissionId, notification_type: "confirmation" },
+      }).catch((err) => console.error("Auto-confirm failed:", err));
 
       setSubmitted(true);
       toast.success("Bestilling sendt inn");
