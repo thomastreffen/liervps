@@ -543,6 +543,12 @@ export default function OrderTrackingPage() {
                   <span className="inline-block h-1.5 w-1.5 rounded-full bg-white/90 mr-1.5 animate-pulse" />
                   {statusCfg.label}
                 </Badge>
+                {needsInfo && (
+                  <Badge className="bg-amber-500 text-white border-0 rounded-full px-3.5 py-1.5 text-xs font-semibold shadow-sm">
+                    <AlertCircle className="h-3.5 w-3.5 mr-1.5" />
+                    Vi venter på svar fra deg
+                  </Badge>
+                )}
                 <span className="text-xs sm:text-sm text-foreground/70 font-medium">
                   {templateName}
                 </span>
@@ -557,6 +563,24 @@ export default function OrderTrackingPage() {
                   {human.body}
                 </p>
               </div>
+
+              {needsInfo && (
+                <div className="rounded-2xl border-2 border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800/50 p-4 sm:p-5 space-y-2 max-w-xl">
+                  <div className="flex items-start gap-3">
+                    <div className="h-9 w-9 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0">
+                      <AlertCircle className="h-5 w-5" />
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-sm font-bold text-amber-900 dark:text-amber-200">
+                        Vi trenger litt mer informasjon fra deg
+                      </p>
+                      <p className="text-xs sm:text-sm text-amber-800/90 dark:text-amber-200/80 leading-relaxed">
+                        For å komme videre med bestillingen trenger vi at du svarer på spørsmålene eller fyller inn manglende opplysninger nedenfor.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div className="flex flex-wrap gap-x-6 gap-y-3 pt-1">
                 <div className="flex items-start gap-2">
