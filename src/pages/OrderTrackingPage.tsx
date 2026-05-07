@@ -876,6 +876,7 @@ export default function OrderTrackingPage() {
             </CardContent>
           </Card>
         )}
+        </div>
 
         {/* Footer */}
         <div className="text-center pt-4 pb-10 space-y-1">
