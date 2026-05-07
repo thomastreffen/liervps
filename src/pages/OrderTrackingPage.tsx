@@ -494,7 +494,7 @@ export default function OrderTrackingPage() {
   })();
 
   return (
-    <div className="min-h-screen bg-[hsl(30_40%_98%)] dark:bg-background">
+    <div className="min-h-screen bg-[hsl(36_40%_97%)] dark:bg-background">
       {/* Top brand bar */}
       <div className="bg-transparent">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 py-4 sm:py-5 flex items-center justify-between">
@@ -504,7 +504,7 @@ export default function OrderTrackingPage() {
             </div>
             <div className="leading-tight">
               <div className="text-base font-bold text-foreground tracking-tight">Service</div>
-              <div className="text-[10px] text-muted-foreground -mt-0.5">A part of <span className="text-primary font-semibold">Ernstrømgruppen</span></div>
+              <div className="text-[10px] text-muted-foreground -mt-0.5">A part of <span className="text-accent font-semibold">Ernstrømgruppen</span></div>
             </div>
           </div>
           <span className="text-[11px] sm:text-xs text-muted-foreground flex items-center gap-1.5 font-medium">
@@ -516,111 +516,113 @@ export default function OrderTrackingPage() {
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 pb-10 space-y-5">
         {/* ── HERO ── */}
-        <Card className="overflow-hidden border-0 shadow-[0_8px_30px_-8px_hsl(25_60%_50%/0.18)] rounded-[28px] bg-gradient-to-br from-[hsl(30_70%_94%)] via-[hsl(30_70%_96%)] to-[hsl(25_80%_92%)] dark:from-card dark:via-card dark:to-muted/40">
-          <CardContent className="p-0">
-            <div className="grid sm:grid-cols-[1.15fr_1fr] gap-0 items-stretch relative">
-              {/* Decorative dots */}
-              <div className="absolute top-6 right-8 h-3 w-3 rounded-full border-2 border-primary/30 hidden sm:block" />
-              <div className="absolute top-12 right-20 text-primary/40 text-xl hidden sm:block">+</div>
-              <div className="absolute bottom-10 right-6 text-primary/30 text-2xl hidden sm:block">+</div>
+        <div className="relative overflow-visible rounded-[32px] bg-gradient-to-br from-[hsl(36_55%_95%)] via-[hsl(34_60%_94%)] to-[hsl(28_70%_91%)] dark:from-card dark:via-card dark:to-muted/40 shadow-[0_20px_50px_-20px_hsl(21_90%_40%/0.25)] ring-1 ring-[hsl(28_50%_85%)]/60">
+          {/* Subtle brand background shapes */}
+          <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-[32px]">
+            <div className="absolute -top-24 -right-16 h-72 w-72 rounded-full bg-accent/10 blur-3xl" />
+            <div className="absolute -bottom-20 -left-10 h-56 w-56 rounded-full bg-foreground/5 blur-3xl" />
+            <div className="absolute top-8 right-10 text-accent/30 text-3xl font-black hidden sm:block">+</div>
+            <div className="absolute bottom-16 right-8 text-accent/20 text-4xl font-black hidden sm:block">+</div>
+            <div className="absolute top-20 right-32 h-2.5 w-2.5 rounded-full bg-accent/40 hidden sm:block" />
+          </div>
 
-              {/* Left: text */}
-              <div className="p-6 sm:p-10 space-y-6 order-2 sm:order-1 relative z-10">
-                <div className="flex flex-wrap items-center gap-2.5">
-                  <Badge
-                    className={cn(
-                      "text-white border-0 rounded-full px-3.5 py-1.5 text-xs font-semibold shadow-sm",
-                      statusCfg.color,
-                    )}
-                  >
-                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-white/90 mr-1.5 animate-pulse" />
-                    {statusCfg.label}
-                  </Badge>
-                  <span className="text-xs sm:text-sm text-foreground/70 font-medium">
-                    {templateName}
-                  </span>
-                </div>
+          <div className="grid sm:grid-cols-[1.25fr_1fr] gap-0 items-end relative">
+            {/* Left: text */}
+            <div className="p-6 sm:p-12 space-y-7 order-2 sm:order-1 relative z-10">
+              <div className="flex flex-wrap items-center gap-2.5">
+                <Badge
+                  className={cn(
+                    "text-white border-0 rounded-full px-3.5 py-1.5 text-xs font-semibold shadow-sm",
+                    statusCfg.color,
+                  )}
+                >
+                  <span className="inline-block h-1.5 w-1.5 rounded-full bg-white/90 mr-1.5 animate-pulse" />
+                  {statusCfg.label}
+                </Badge>
+                <span className="text-xs sm:text-sm text-foreground/70 font-medium">
+                  {templateName}
+                </span>
+              </div>
 
-                <div className="space-y-3">
-                  <h1 className="text-4xl sm:text-5xl font-black text-foreground tracking-tight leading-[1.05]">
-                    {headlineParts.lead}{headlineParts.lead && " "}
-                    <span className="text-primary block sm:inline">{headlineParts.accent}</span>
-                  </h1>
-                  <p className="text-sm sm:text-base text-foreground/70 leading-relaxed max-w-md">
-                    {human.body}
-                  </p>
-                </div>
+              <div className="space-y-3">
+                <h1 className="text-[2.5rem] sm:text-6xl font-black text-foreground tracking-tight leading-[1.02]">
+                  {headlineParts.lead}{headlineParts.lead && " "}
+                  <span className="text-accent block sm:inline">{headlineParts.accent}</span>
+                </h1>
+                <p className="text-base sm:text-lg text-foreground/70 leading-relaxed max-w-md">
+                  {human.body}
+                </p>
+              </div>
 
-                <div className="flex flex-wrap gap-x-6 gap-y-3 pt-2">
-                  <div className="flex items-start gap-2">
-                    <div className="h-8 w-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0 mt-0.5">
-                      <FileText className="h-4 w-4" />
-                    </div>
-                    <div>
-                      <span className="block text-[10px] uppercase tracking-wider text-muted-foreground font-bold">
-                        Bestilling
-                      </span>
-                      <span className="text-sm text-foreground font-bold">{sub.submission_no}</span>
-                    </div>
+              <div className="flex flex-wrap gap-x-6 gap-y-3 pt-1">
+                <div className="flex items-start gap-2">
+                  <div className="h-8 w-8 rounded-lg bg-accent/15 text-accent flex items-center justify-center shrink-0 mt-0.5">
+                    <FileText className="h-4 w-4" />
                   </div>
+                  <div>
+                    <span className="block text-[10px] uppercase tracking-wider text-muted-foreground font-bold">
+                      Bestilling
+                    </span>
+                    <span className="text-sm text-foreground font-bold">{sub.submission_no}</span>
+                  </div>
+                </div>
+                <div className="flex items-start gap-2">
+                  <div className="h-8 w-8 rounded-lg bg-accent/15 text-accent flex items-center justify-center shrink-0 mt-0.5">
+                    <Calendar className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <span className="block text-[10px] uppercase tracking-wider text-muted-foreground font-bold">
+                      Sendt
+                    </span>
+                    <span className="text-sm text-foreground font-semibold">
+                      {format(new Date(sub.submitted_at || sub.created_at), "d. MMM yyyy", { locale: nb })}
+                    </span>
+                  </div>
+                </div>
+                {lastUpdated && (
                   <div className="flex items-start gap-2">
-                    <div className="h-8 w-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0 mt-0.5">
-                      <Calendar className="h-4 w-4" />
+                    <div className="h-8 w-8 rounded-lg bg-accent/15 text-accent flex items-center justify-center shrink-0 mt-0.5">
+                      <Timer className="h-4 w-4" />
                     </div>
                     <div>
                       <span className="block text-[10px] uppercase tracking-wider text-muted-foreground font-bold">
-                        Sendt
+                        Oppdatert
                       </span>
                       <span className="text-sm text-foreground font-semibold">
-                        {format(new Date(sub.submitted_at || sub.created_at), "d. MMM yyyy", { locale: nb })}
+                        {formatDistanceToNow(new Date(lastUpdated), { addSuffix: true, locale: nb })}
                       </span>
                     </div>
                   </div>
-                  {lastUpdated && (
-                    <div className="flex items-start gap-2">
-                      <div className="h-8 w-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0 mt-0.5">
-                        <Timer className="h-4 w-4" />
-                      </div>
-                      <div>
-                        <span className="block text-[10px] uppercase tracking-wider text-muted-foreground font-bold">
-                          Oppdatert
-                        </span>
-                        <span className="text-sm text-foreground font-semibold">
-                          {formatDistanceToNow(new Date(lastUpdated), { addSuffix: true, locale: nb })}
-                        </span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {needsInfo && (
-                  <Button
-                    onClick={scrollToReplyAndFocus}
-                    className="w-full sm:w-auto h-12 rounded-full shadow-md px-6 font-semibold"
-                  >
-                    <MessageSquare className="h-4 w-4 mr-2" />
-                    Se hva vi trenger
-                  </Button>
                 )}
               </div>
 
-              {/* Right: mascot */}
-              <div className="relative order-1 sm:order-2 flex items-end justify-center pt-6 sm:pt-0">
-                <img
-                  src={mascot}
-                  alt={statusCfg.label}
-                  className="w-64 sm:w-full sm:max-w-[420px] h-auto object-contain object-bottom select-none pointer-events-none drop-shadow-[0_12px_24px_rgba(0,0,0,0.12)]"
-                  draggable={false}
-                />
-              </div>
+              {needsInfo && (
+                <Button
+                  onClick={scrollToReplyAndFocus}
+                  className="w-full sm:w-auto h-12 rounded-full shadow-md px-6 font-semibold bg-accent hover:bg-accent/90 text-accent-foreground"
+                >
+                  <MessageSquare className="h-4 w-4 mr-2" />
+                  Se hva vi trenger
+                </Button>
+              )}
             </div>
 
-            {/* Journey stepper */}
-            <div className="px-6 sm:px-10 pb-7 pt-5 border-t border-primary/10 bg-white/40 dark:bg-background/40 backdrop-blur-sm">
-              <JourneyStepper status={externalStatus} />
+            {/* Right: free-standing mascot (no frame) */}
+            <div className="relative order-1 sm:order-2 flex items-end justify-center pt-8 sm:pt-0 sm:pr-4 min-h-[260px] sm:min-h-[440px]">
+              <img
+                src={mascot}
+                alt={statusCfg.label}
+                className="relative z-10 w-72 sm:w-[120%] sm:max-w-none sm:-mr-6 sm:-mb-4 h-auto object-contain object-bottom select-none pointer-events-none drop-shadow-[0_18px_24px_rgba(20,15,10,0.18)]"
+                draggable={false}
+              />
             </div>
-          </CardContent>
-        </Card>
+          </div>
+
+          {/* Journey stepper */}
+          <div className="relative z-10 px-6 sm:px-12 pb-7 pt-5 mt-2 border-t border-foreground/10 bg-white/50 dark:bg-background/40 backdrop-blur-sm rounded-b-[32px]">
+            <JourneyStepper status={externalStatus} />
+          </div>
+        </div>
 
         {/* Customer-fillable field requests from admin */}
         <CustomerFieldRequests
