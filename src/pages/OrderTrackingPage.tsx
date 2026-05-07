@@ -7,7 +7,7 @@ import { nb } from "date-fns/locale";
 import {
   CheckCircle2, Clock, FileText, Loader2, AlertCircle,
   Send, Upload, Paperclip, MessageSquare, X, AlertTriangle,
-  Sparkles, Shield,
+  Sparkles, Shield, Calendar, Timer, Download, Check,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
