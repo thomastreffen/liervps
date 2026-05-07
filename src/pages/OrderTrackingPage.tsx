@@ -7,7 +7,7 @@ import { nb } from "date-fns/locale";
 import {
   CheckCircle2, Clock, FileText, Loader2, AlertCircle,
   Send, Upload, Paperclip, MessageSquare, X, AlertTriangle,
-  Sparkles, Shield,
+  Sparkles, Shield, Calendar, Timer, Download, Check,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -72,7 +72,7 @@ const STATUS_HUMAN_COPY: Record<ExternalStatus, { headline: string; body: string
   },
 };
 
-/* ── New journey stepper – warm, branded ── */
+/* ── Journey stepper – numbered circles + connecting lines ── */
 function JourneyStepper({ status }: { status: ExternalStatus }) {
   const cfg = EXTERNAL_STATUS_CONFIG[status] || EXTERNAL_STATUS_CONFIG.received;
   const steps = EXTERNAL_STATUS_STEPS;
@@ -80,28 +80,41 @@ function JourneyStepper({ status }: { status: ExternalStatus }) {
   const isNeedsInfo = status === "needs_info";
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-center gap-1.5">
+    <div className="w-full">
+      <div className="flex items-start justify-between gap-1 sm:gap-2">
         {steps.map((s, idx) => {
           const sCfg = EXTERNAL_STATUS_CONFIG[s];
           const isDone = sCfg.step < currentStep;
           const isCurrent = s === status || (isNeedsInfo && s === "processing");
-          const isActive = isDone || isCurrent;
+          const nextDone = idx < steps.length - 1 && EXTERNAL_STATUS_CONFIG[steps[idx + 1]].step <= currentStep;
           return (
-            <div key={s} className="flex-1 flex flex-col items-center gap-2">
-              <div className="w-full flex items-center gap-1.5">
+            <div key={s} className="flex-1 flex flex-col items-center min-w-0">
+              <div className="w-full flex items-center">
+                <div className={cn("h-[2px] flex-1", idx === 0 ? "opacity-0" : isDone || isCurrent ? "bg-primary" : "bg-border")} />
                 <div
                   className={cn(
-                    "h-1.5 flex-1 rounded-full transition-all duration-500",
-                    isActive ? "bg-primary" : "bg-muted",
-                    isCurrent && "shadow-[0_0_0_3px_hsl(var(--primary)/0.15)]",
+                    "h-7 w-7 sm:h-8 sm:w-8 rounded-full flex items-center justify-center shrink-0 transition-all",
+                    isDone
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : isCurrent
+                      ? "bg-primary text-primary-foreground ring-4 ring-primary/20 shadow-md scale-110"
+                      : "bg-background border-2 border-border text-muted-foreground/60",
                   )}
-                />
+                >
+                  {isDone ? (
+                    <Check className="h-4 w-4" strokeWidth={3} />
+                  ) : isCurrent ? (
+                    <span className="h-2 w-2 rounded-full bg-primary-foreground" />
+                  ) : (
+                    <span className="text-[11px] font-semibold">{idx + 1}</span>
+                  )}
+                </div>
+                <div className={cn("h-[2px] flex-1", idx === steps.length - 1 ? "opacity-0" : nextDone ? "bg-primary" : "bg-border")} />
               </div>
               <span
                 className={cn(
-                  "text-[10px] sm:text-[11px] leading-tight text-center font-medium tracking-wide uppercase",
-                  isCurrent ? "text-primary" : isDone ? "text-foreground/70" : "text-muted-foreground/60",
+                  "mt-2 text-[9px] sm:text-[10px] leading-tight text-center font-bold tracking-wider uppercase px-0.5",
+                  isCurrent ? "text-primary" : isDone ? "text-foreground/80" : "text-muted-foreground/60",
                 )}
               >
                 {sCfg.label}
@@ -158,10 +171,12 @@ function CustomerTimeline({ token }: { token: string }) {
   if (visibleEvents.length <= 1) return null;
 
   return (
-    <Card className="border-border/60 shadow-sm">
-      <CardContent className="pt-6 pb-5">
-        <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
-          <Clock className="h-4 w-4 text-primary" />
+    <Card className="border-0 shadow-[0_4px_16px_-6px_rgba(0,0,0,0.08)] rounded-3xl">
+      <CardContent className="pt-7 pb-6 px-6 sm:px-8">
+        <h3 className="text-base font-bold text-foreground mb-5 flex items-center gap-2.5">
+          <span className="h-9 w-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+            <Clock className="h-4 w-4" />
+          </span>
           Hendelseslogg
         </h3>
         <div className="relative pl-5">
@@ -471,77 +486,109 @@ export default function OrderTrackingPage() {
   const hasMessages = allMessages.length > 0;
   const isClosed = externalStatus === "completed" || externalStatus === "closed";
 
+  // Split headline so the last word lands on its own line and gets the primary accent
+  const headlineParts = (() => {
+    const words = human.headline.trim().split(/\s+/);
+    if (words.length < 2) return { lead: "", accent: human.headline };
+    return { lead: words.slice(0, -1).join(" "), accent: words[words.length - 1] };
+  })();
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-muted/30 via-background to-background">
+    <div className="min-h-screen bg-[hsl(30_40%_98%)] dark:bg-background">
       {/* Top brand bar */}
-      <div className="border-b border-border/40 bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="h-7 w-7 rounded-lg bg-foreground text-background flex items-center justify-center font-bold text-xs tracking-tight">
+      <div className="bg-transparent">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-4 sm:py-5 flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="h-9 w-9 rounded-xl bg-foreground text-background flex items-center justify-center font-black text-sm tracking-tighter">
               MCS
             </div>
-            <span className="text-sm font-semibold text-foreground">MCS Service</span>
+            <div className="leading-tight">
+              <div className="text-base font-bold text-foreground tracking-tight">Service</div>
+              <div className="text-[10px] text-muted-foreground -mt-0.5">A part of <span className="text-primary font-semibold">Ernstrømgruppen</span></div>
+            </div>
           </div>
-          <span className="text-[11px] text-muted-foreground flex items-center gap-1">
-            <Shield className="h-3 w-3" />
+          <span className="text-[11px] sm:text-xs text-muted-foreground flex items-center gap-1.5 font-medium">
+            <Shield className="h-3.5 w-3.5" />
             Sikker sporing
           </span>
         </div>
       </div>
 
-      <div className="max-w-3xl mx-auto px-4 py-6 sm:py-8 space-y-5">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 pb-10 space-y-5">
         {/* ── HERO ── */}
-        <Card className="overflow-hidden border-border/60 shadow-md bg-gradient-to-br from-card via-card to-muted/40">
+        <Card className="overflow-hidden border-0 shadow-[0_8px_30px_-8px_hsl(25_60%_50%/0.18)] rounded-[28px] bg-gradient-to-br from-[hsl(30_70%_94%)] via-[hsl(30_70%_96%)] to-[hsl(25_80%_92%)] dark:from-card dark:via-card dark:to-muted/40">
           <CardContent className="p-0">
-            <div className="grid sm:grid-cols-[1fr_auto] gap-0 items-stretch">
+            <div className="grid sm:grid-cols-[1.15fr_1fr] gap-0 items-stretch relative">
+              {/* Decorative dots */}
+              <div className="absolute top-6 right-8 h-3 w-3 rounded-full border-2 border-primary/30 hidden sm:block" />
+              <div className="absolute top-12 right-20 text-primary/40 text-xl hidden sm:block">+</div>
+              <div className="absolute bottom-10 right-6 text-primary/30 text-2xl hidden sm:block">+</div>
+
               {/* Left: text */}
-              <div className="p-6 sm:p-8 space-y-5 order-2 sm:order-1">
-                <div className="space-y-2">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Badge
-                      className={cn(
-                        "text-white border-0 rounded-full px-3 py-1 text-[11px] font-semibold shadow-sm",
-                        statusCfg.color,
-                      )}
-                    >
-                      <span className="inline-block h-1.5 w-1.5 rounded-full bg-white/80 mr-1.5 animate-pulse" />
-                      {statusCfg.label}
-                    </Badge>
-                    <span className="text-[11px] text-muted-foreground font-medium">
-                      {templateName}
-                    </span>
-                  </div>
-                  <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight leading-tight">
-                    {human.headline}
+              <div className="p-6 sm:p-10 space-y-6 order-2 sm:order-1 relative z-10">
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <Badge
+                    className={cn(
+                      "text-white border-0 rounded-full px-3.5 py-1.5 text-xs font-semibold shadow-sm",
+                      statusCfg.color,
+                    )}
+                  >
+                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-white/90 mr-1.5 animate-pulse" />
+                    {statusCfg.label}
+                  </Badge>
+                  <span className="text-xs sm:text-sm text-foreground/70 font-medium">
+                    {templateName}
+                  </span>
+                </div>
+
+                <div className="space-y-3">
+                  <h1 className="text-4xl sm:text-5xl font-black text-foreground tracking-tight leading-[1.05]">
+                    {headlineParts.lead}{headlineParts.lead && " "}
+                    <span className="text-primary block sm:inline">{headlineParts.accent}</span>
                   </h1>
-                  <p className="text-sm sm:text-base text-muted-foreground leading-relaxed max-w-xl">
+                  <p className="text-sm sm:text-base text-foreground/70 leading-relaxed max-w-md">
                     {human.body}
                   </p>
                 </div>
 
-                <div className="flex flex-wrap gap-x-5 gap-y-2 pt-1 text-xs text-muted-foreground">
-                  <div>
-                    <span className="block text-[10px] uppercase tracking-wider text-muted-foreground/70 font-semibold">
-                      Bestilling
-                    </span>
-                    <span className="text-foreground font-semibold">{sub.submission_no}</span>
+                <div className="flex flex-wrap gap-x-6 gap-y-3 pt-2">
+                  <div className="flex items-start gap-2">
+                    <div className="h-8 w-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0 mt-0.5">
+                      <FileText className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <span className="block text-[10px] uppercase tracking-wider text-muted-foreground font-bold">
+                        Bestilling
+                      </span>
+                      <span className="text-sm text-foreground font-bold">{sub.submission_no}</span>
+                    </div>
                   </div>
-                  <div>
-                    <span className="block text-[10px] uppercase tracking-wider text-muted-foreground/70 font-semibold">
-                      Sendt
-                    </span>
-                    <span className="text-foreground">
-                      {format(new Date(sub.submitted_at || sub.created_at), "d. MMM yyyy", { locale: nb })}
-                    </span>
+                  <div className="flex items-start gap-2">
+                    <div className="h-8 w-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0 mt-0.5">
+                      <Calendar className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <span className="block text-[10px] uppercase tracking-wider text-muted-foreground font-bold">
+                        Sendt
+                      </span>
+                      <span className="text-sm text-foreground font-semibold">
+                        {format(new Date(sub.submitted_at || sub.created_at), "d. MMM yyyy", { locale: nb })}
+                      </span>
+                    </div>
                   </div>
                   {lastUpdated && (
-                    <div>
-                      <span className="block text-[10px] uppercase tracking-wider text-muted-foreground/70 font-semibold">
-                        Oppdatert
-                      </span>
-                      <span className="text-foreground">
-                        {formatDistanceToNow(new Date(lastUpdated), { addSuffix: true, locale: nb })}
-                      </span>
+                    <div className="flex items-start gap-2">
+                      <div className="h-8 w-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0 mt-0.5">
+                        <Timer className="h-4 w-4" />
+                      </div>
+                      <div>
+                        <span className="block text-[10px] uppercase tracking-wider text-muted-foreground font-bold">
+                          Oppdatert
+                        </span>
+                        <span className="text-sm text-foreground font-semibold">
+                          {formatDistanceToNow(new Date(lastUpdated), { addSuffix: true, locale: nb })}
+                        </span>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -549,7 +596,7 @@ export default function OrderTrackingPage() {
                 {needsInfo && (
                   <Button
                     onClick={scrollToReplyAndFocus}
-                    className="w-full sm:w-auto h-11 rounded-full shadow-sm"
+                    className="w-full sm:w-auto h-12 rounded-full shadow-md px-6 font-semibold"
                   >
                     <MessageSquare className="h-4 w-4 mr-2" />
                     Se hva vi trenger
@@ -558,18 +605,18 @@ export default function OrderTrackingPage() {
               </div>
 
               {/* Right: mascot */}
-              <div className="relative order-1 sm:order-2 flex items-end justify-center sm:justify-end bg-gradient-to-br from-primary/5 via-transparent to-primary/10 sm:min-w-[220px]">
+              <div className="relative order-1 sm:order-2 flex items-end justify-center pt-6 sm:pt-0">
                 <img
                   src={mascot}
                   alt={statusCfg.label}
-                  className="w-44 sm:w-56 max-w-full h-auto object-contain drop-shadow-md select-none pointer-events-none mt-4 sm:mt-0"
+                  className="w-64 sm:w-full sm:max-w-[420px] h-auto object-contain object-bottom select-none pointer-events-none drop-shadow-[0_12px_24px_rgba(0,0,0,0.12)]"
                   draggable={false}
                 />
               </div>
             </div>
 
             {/* Journey stepper */}
-            <div className="px-6 sm:px-8 pb-6 pt-2 border-t border-border/40 bg-background/60">
+            <div className="px-6 sm:px-10 pb-7 pt-5 border-t border-primary/10 bg-white/40 dark:bg-background/40 backdrop-blur-sm">
               <JourneyStepper status={externalStatus} />
             </div>
           </CardContent>
@@ -583,10 +630,12 @@ export default function OrderTrackingPage() {
 
         {/* Summary */}
         {visibleSummary.length > 0 && (
-          <Card className="border-border/60 shadow-sm">
-            <CardContent className="pt-6 pb-5">
-              <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
-                <Sparkles className="h-4 w-4 text-primary" />
+          <Card className="border-0 shadow-[0_4px_16px_-6px_rgba(0,0,0,0.08)] rounded-3xl">
+            <CardContent className="pt-7 pb-6 px-6 sm:px-8">
+              <h3 className="text-base font-bold text-foreground mb-5 flex items-center gap-2.5">
+                <span className="h-9 w-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+                  <Sparkles className="h-4 w-4" />
+                </span>
                 Oppsummering
               </h3>
               <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
@@ -606,11 +655,13 @@ export default function OrderTrackingPage() {
 
         {/* Messages - the primary conversation section */}
         <div ref={messagesSectionRef}>
-          <Card className="border-border/60 shadow-sm">
-            <CardContent className="pt-6 pb-5">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                  <MessageSquare className="h-4 w-4 text-primary" />
+          <Card className="border-0 shadow-[0_4px_16px_-6px_rgba(0,0,0,0.08)] rounded-3xl">
+            <CardContent className="pt-7 pb-6 px-6 sm:px-8">
+              <div className="flex items-center justify-between mb-5">
+                <h3 className="text-base font-bold text-foreground flex items-center gap-2.5">
+                  <span className="h-9 w-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+                    <MessageSquare className="h-4 w-4" />
+                  </span>
                   Meldinger
                 </h3>
                 {needsInfo && (
@@ -778,23 +829,25 @@ export default function OrderTrackingPage() {
 
         {/* Attachments */}
         {attachments.length > 0 && (
-          <Card className="border-border/60 shadow-sm">
-            <CardContent className="pt-6 pb-5">
-              <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
-                <Paperclip className="h-4 w-4 text-primary" />
+          <Card className="border-0 shadow-[0_4px_16px_-6px_rgba(0,0,0,0.08)] rounded-3xl">
+            <CardContent className="pt-7 pb-6 px-6 sm:px-8">
+              <h3 className="text-base font-bold text-foreground mb-5 flex items-center gap-2.5">
+                <span className="h-9 w-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+                  <Paperclip className="h-4 w-4" />
+                </span>
                 Vedlegg ({attachments.length})
               </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div className="space-y-2.5">
                 {attachments.map((att: any) => (
                   <div
                     key={att.id}
-                    className="flex items-center gap-3 p-3 rounded-xl border border-border/60 bg-muted/30 hover:bg-muted/50 transition-colors"
+                    className="flex items-center gap-3 p-3.5 rounded-2xl border border-border/50 bg-muted/20 hover:bg-muted/40 transition-colors group"
                   >
-                    <div className="h-9 w-9 rounded-lg bg-background border border-border/60 flex items-center justify-center shrink-0">
+                    <div className="h-10 w-10 rounded-xl bg-background border border-border/60 flex items-center justify-center shrink-0">
                       <FileText className="h-4 w-4 text-muted-foreground" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-foreground truncate">{att.file_name}</p>
+                      <p className="text-sm font-semibold text-foreground truncate">{att.file_name}</p>
                       <div className="flex items-center gap-2 mt-0.5">
                         {att.file_size && (
                           <span className="text-[11px] text-muted-foreground">
@@ -806,6 +859,13 @@ export default function OrderTrackingPage() {
                         )}
                       </div>
                     </div>
+                    <button
+                      type="button"
+                      className="h-9 w-9 rounded-xl bg-background border border-border/60 text-muted-foreground hover:text-primary hover:border-primary/40 flex items-center justify-center shrink-0 transition-colors"
+                      aria-label="Last ned"
+                    >
+                      <Download className="h-4 w-4" />
+                    </button>
                   </div>
                 ))}
               </div>
