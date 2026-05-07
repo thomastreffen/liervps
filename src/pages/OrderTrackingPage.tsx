@@ -497,7 +497,7 @@ export default function OrderTrackingPage() {
     <div className="min-h-screen bg-[hsl(36_40%_97%)] dark:bg-background">
       {/* Top brand bar */}
       <div className="bg-transparent">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-4 sm:py-5 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-4 sm:px-8 py-4 sm:py-5 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <div className="h-9 w-9 rounded-xl bg-foreground text-background flex items-center justify-center font-black text-sm tracking-tighter">
               MCS
@@ -514,7 +514,7 @@ export default function OrderTrackingPage() {
         </div>
       </div>
 
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 pb-10 space-y-5">
+      <div className="max-w-7xl mx-auto px-4 sm:px-8 pb-10 space-y-5">
         {/* ── HERO ── */}
         <div className="relative overflow-visible rounded-[32px] bg-gradient-to-br from-[hsl(36_55%_95%)] via-[hsl(34_60%_94%)] to-[hsl(28_70%_91%)] dark:from-card dark:via-card dark:to-muted/40 shadow-[0_20px_50px_-20px_hsl(21_90%_40%/0.25)] ring-1 ring-[hsl(28_50%_85%)]/60">
           {/* Subtle brand background shapes */}
@@ -655,8 +655,10 @@ export default function OrderTrackingPage() {
         {/* Customer timeline */}
         <CustomerTimeline token={token!} />
 
+        {/* Messages + Attachments side-by-side on desktop */}
+        <div className={cn("grid gap-5", attachments.length > 0 ? "lg:grid-cols-3" : "grid-cols-1")}>
         {/* Messages - the primary conversation section */}
-        <div ref={messagesSectionRef}>
+        <div ref={messagesSectionRef} className={attachments.length > 0 ? "lg:col-span-2" : ""}>
           <Card className="border-0 shadow-[0_4px_16px_-6px_rgba(0,0,0,0.08)] rounded-3xl">
             <CardContent className="pt-7 pb-6 px-6 sm:px-8">
               <div className="flex items-center justify-between mb-5">
@@ -874,6 +876,7 @@ export default function OrderTrackingPage() {
             </CardContent>
           </Card>
         )}
+        </div>
 
         {/* Footer */}
         <div className="text-center pt-4 pb-10 space-y-1">
