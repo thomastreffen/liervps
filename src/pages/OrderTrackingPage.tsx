@@ -188,20 +188,26 @@ function CustomerTimeline({ token }: { token: string }) {
                 ? statusChangeLabel(e.payload)
                 : timelineLabels[e.event_type];
               const isCustomer = e.event_type === "customer_reply";
+              const isInfoRequest = e.event_type === "missing_info_requested";
               const isFirst = i === 0;
               return (
                 <div key={e.id} className="relative">
                   <div
                     className={cn(
                       "absolute -left-5 top-1 h-3.5 w-3.5 rounded-full border-2 border-background",
-                      isCustomer
+                      isInfoRequest
+                        ? "bg-amber-500 ring-2 ring-amber-200"
+                        : isCustomer
                         ? "bg-primary"
                         : isFirst
                         ? "bg-primary/80 ring-2 ring-primary/20"
                         : "bg-muted-foreground/30",
                     )}
                   />
-                  <p className={cn("text-sm leading-snug", isCustomer ? "font-semibold text-foreground" : "text-foreground")}>
+                  <p className={cn(
+                    "text-sm leading-snug",
+                    isInfoRequest ? "font-semibold text-amber-900 dark:text-amber-200" : isCustomer ? "font-semibold text-foreground" : "text-foreground",
+                  )}>
                     {label}
                   </p>
                   {e.payload?.summary && (
