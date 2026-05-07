@@ -188,20 +188,26 @@ function CustomerTimeline({ token }: { token: string }) {
                 ? statusChangeLabel(e.payload)
                 : timelineLabels[e.event_type];
               const isCustomer = e.event_type === "customer_reply";
+              const isInfoRequest = e.event_type === "missing_info_requested";
               const isFirst = i === 0;
               return (
                 <div key={e.id} className="relative">
                   <div
                     className={cn(
                       "absolute -left-5 top-1 h-3.5 w-3.5 rounded-full border-2 border-background",
-                      isCustomer
+                      isInfoRequest
+                        ? "bg-amber-500 ring-2 ring-amber-200"
+                        : isCustomer
                         ? "bg-primary"
                         : isFirst
                         ? "bg-primary/80 ring-2 ring-primary/20"
                         : "bg-muted-foreground/30",
                     )}
                   />
-                  <p className={cn("text-sm leading-snug", isCustomer ? "font-semibold text-foreground" : "text-foreground")}>
+                  <p className={cn(
+                    "text-sm leading-snug",
+                    isInfoRequest ? "font-semibold text-amber-900 dark:text-amber-200" : isCustomer ? "font-semibold text-foreground" : "text-foreground",
+                  )}>
                     {label}
                   </p>
                   {e.payload?.summary && (
@@ -440,12 +446,16 @@ export default function OrderTrackingPage() {
   }, [values]);
 
   const sub = submission as any;
-  const externalStatus: ExternalStatus = conversationState.effectiveExternalStatus;
+  const rawExternalStatus: ExternalStatus = conversationState.effectiveExternalStatus;
+  const needsInfo = conversationState.hasOpenRequest;
+  // Keep main step as "Under behandling" when waiting for customer info — show sub-status separately
+  const externalStatus: ExternalStatus = needsInfo ? "processing" : rawExternalStatus;
   const statusCfg = EXTERNAL_STATUS_CONFIG[externalStatus] || EXTERNAL_STATUS_CONFIG.received;
   const templateName = sub?.order_form_templates?.external_title || sub?.order_form_templates?.name || "Bestilling";
-  const needsInfo = conversationState.hasOpenRequest;
   const lastUpdated = sub?.last_activity_at || sub?.updated_at || sub?.submitted_at;
-  const human = STATUS_HUMAN_COPY[externalStatus] || STATUS_HUMAN_COPY.received;
+  const human = needsInfo
+    ? STATUS_HUMAN_COPY.needs_info
+    : (STATUS_HUMAN_COPY[externalStatus] || STATUS_HUMAN_COPY.received);
   const mascot = STATUS_MASCOT[externalStatus] || mascotReceived;
 
   if (isLoading) {
@@ -539,6 +549,12 @@ export default function OrderTrackingPage() {
                   <span className="inline-block h-1.5 w-1.5 rounded-full bg-white/90 mr-1.5 animate-pulse" />
                   {statusCfg.label}
                 </Badge>
+                {needsInfo && (
+                  <Badge className="bg-amber-500 text-white border-0 rounded-full px-3.5 py-1.5 text-xs font-semibold shadow-sm">
+                    <AlertCircle className="h-3.5 w-3.5 mr-1.5" />
+                    Vi venter på svar fra deg
+                  </Badge>
+                )}
                 <span className="text-xs sm:text-sm text-foreground/70 font-medium">
                   {templateName}
                 </span>
@@ -553,6 +569,24 @@ export default function OrderTrackingPage() {
                   {human.body}
                 </p>
               </div>
+
+              {needsInfo && (
+                <div className="rounded-2xl border-2 border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800/50 p-4 sm:p-5 space-y-2 max-w-xl">
+                  <div className="flex items-start gap-3">
+                    <div className="h-9 w-9 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0">
+                      <AlertCircle className="h-5 w-5" />
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-sm font-bold text-amber-900 dark:text-amber-200">
+                        Vi trenger litt mer informasjon fra deg
+                      </p>
+                      <p className="text-xs sm:text-sm text-amber-800/90 dark:text-amber-200/80 leading-relaxed">
+                        For å komme videre med bestillingen trenger vi at du svarer på spørsmålene eller fyller inn manglende opplysninger nedenfor.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div className="flex flex-wrap gap-x-6 gap-y-3 pt-1">
                 <div className="flex items-start gap-2">
