@@ -72,7 +72,7 @@ const STATUS_HUMAN_COPY: Record<ExternalStatus, { headline: string; body: string
   },
 };
 
-/* ── New journey stepper – warm, branded ── */
+/* ── Journey stepper – numbered circles + connecting lines ── */
 function JourneyStepper({ status }: { status: ExternalStatus }) {
   const cfg = EXTERNAL_STATUS_CONFIG[status] || EXTERNAL_STATUS_CONFIG.received;
   const steps = EXTERNAL_STATUS_STEPS;
@@ -80,28 +80,41 @@ function JourneyStepper({ status }: { status: ExternalStatus }) {
   const isNeedsInfo = status === "needs_info";
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-center gap-1.5">
+    <div className="w-full">
+      <div className="flex items-start justify-between gap-1 sm:gap-2">
         {steps.map((s, idx) => {
           const sCfg = EXTERNAL_STATUS_CONFIG[s];
           const isDone = sCfg.step < currentStep;
           const isCurrent = s === status || (isNeedsInfo && s === "processing");
-          const isActive = isDone || isCurrent;
+          const nextDone = idx < steps.length - 1 && EXTERNAL_STATUS_CONFIG[steps[idx + 1]].step <= currentStep;
           return (
-            <div key={s} className="flex-1 flex flex-col items-center gap-2">
-              <div className="w-full flex items-center gap-1.5">
+            <div key={s} className="flex-1 flex flex-col items-center min-w-0">
+              <div className="w-full flex items-center">
+                <div className={cn("h-[2px] flex-1", idx === 0 ? "opacity-0" : isDone || isCurrent ? "bg-primary" : "bg-border")} />
                 <div
                   className={cn(
-                    "h-1.5 flex-1 rounded-full transition-all duration-500",
-                    isActive ? "bg-primary" : "bg-muted",
-                    isCurrent && "shadow-[0_0_0_3px_hsl(var(--primary)/0.15)]",
+                    "h-7 w-7 sm:h-8 sm:w-8 rounded-full flex items-center justify-center shrink-0 transition-all",
+                    isDone
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : isCurrent
+                      ? "bg-primary text-primary-foreground ring-4 ring-primary/20 shadow-md scale-110"
+                      : "bg-background border-2 border-border text-muted-foreground/60",
                   )}
-                />
+                >
+                  {isDone ? (
+                    <Check className="h-4 w-4" strokeWidth={3} />
+                  ) : isCurrent ? (
+                    <span className="h-2 w-2 rounded-full bg-primary-foreground" />
+                  ) : (
+                    <span className="text-[11px] font-semibold">{idx + 1}</span>
+                  )}
+                </div>
+                <div className={cn("h-[2px] flex-1", idx === steps.length - 1 ? "opacity-0" : nextDone ? "bg-primary" : "bg-border")} />
               </div>
               <span
                 className={cn(
-                  "text-[10px] sm:text-[11px] leading-tight text-center font-medium tracking-wide uppercase",
-                  isCurrent ? "text-primary" : isDone ? "text-foreground/70" : "text-muted-foreground/60",
+                  "mt-2 text-[9px] sm:text-[10px] leading-tight text-center font-bold tracking-wider uppercase px-0.5",
+                  isCurrent ? "text-primary" : isDone ? "text-foreground/80" : "text-muted-foreground/60",
                 )}
               >
                 {sCfg.label}
