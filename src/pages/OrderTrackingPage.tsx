@@ -90,31 +90,31 @@ function JourneyStepper({ status }: { status: ExternalStatus }) {
           return (
             <div key={s} className="flex-1 flex flex-col items-center min-w-0">
               <div className="w-full flex items-center">
-                <div className={cn("h-[2px] flex-1", idx === 0 ? "opacity-0" : isDone || isCurrent ? "bg-primary" : "bg-border")} />
+                <div className={cn("h-[2px] flex-1", idx === 0 ? "opacity-0" : isDone || isCurrent ? "bg-accent" : "bg-border")} />
                 <div
                   className={cn(
                     "h-7 w-7 sm:h-8 sm:w-8 rounded-full flex items-center justify-center shrink-0 transition-all",
                     isDone
-                      ? "bg-primary text-primary-foreground shadow-sm"
+                      ? "bg-accent text-accent-foreground shadow-sm"
                       : isCurrent
-                      ? "bg-primary text-primary-foreground ring-4 ring-primary/20 shadow-md scale-110"
+                      ? "bg-accent text-accent-foreground ring-4 ring-accent/20 shadow-md scale-110"
                       : "bg-background border-2 border-border text-muted-foreground/60",
                   )}
                 >
                   {isDone ? (
                     <Check className="h-4 w-4" strokeWidth={3} />
                   ) : isCurrent ? (
-                    <span className="h-2 w-2 rounded-full bg-primary-foreground" />
+                    <span className="h-2 w-2 rounded-full bg-accent-foreground" />
                   ) : (
                     <span className="text-[11px] font-semibold">{idx + 1}</span>
                   )}
                 </div>
-                <div className={cn("h-[2px] flex-1", idx === steps.length - 1 ? "opacity-0" : nextDone ? "bg-primary" : "bg-border")} />
+                <div className={cn("h-[2px] flex-1", idx === steps.length - 1 ? "opacity-0" : nextDone ? "bg-accent" : "bg-border")} />
               </div>
               <span
                 className={cn(
                   "mt-2 text-[9px] sm:text-[10px] leading-tight text-center font-bold tracking-wider uppercase px-0.5",
-                  isCurrent ? "text-primary" : isDone ? "text-foreground/80" : "text-muted-foreground/60",
+                  isCurrent ? "text-accent" : isDone ? "text-foreground/80" : "text-muted-foreground/60",
                 )}
               >
                 {sCfg.label}
