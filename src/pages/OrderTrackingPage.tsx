@@ -655,8 +655,10 @@ export default function OrderTrackingPage() {
         {/* Customer timeline */}
         <CustomerTimeline token={token!} />
 
+        {/* Messages + Attachments side-by-side on desktop */}
+        <div className={cn("grid gap-5", attachments.length > 0 ? "lg:grid-cols-3" : "grid-cols-1")}>
         {/* Messages - the primary conversation section */}
-        <div ref={messagesSectionRef}>
+        <div ref={messagesSectionRef} className={attachments.length > 0 ? "lg:col-span-2" : ""}>
           <Card className="border-0 shadow-[0_4px_16px_-6px_rgba(0,0,0,0.08)] rounded-3xl">
             <CardContent className="pt-7 pb-6 px-6 sm:px-8">
               <div className="flex items-center justify-between mb-5">
