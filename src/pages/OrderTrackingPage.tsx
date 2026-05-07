@@ -171,10 +171,12 @@ function CustomerTimeline({ token }: { token: string }) {
   if (visibleEvents.length <= 1) return null;
 
   return (
-    <Card className="border-border/60 shadow-sm">
-      <CardContent className="pt-6 pb-5">
-        <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
-          <Clock className="h-4 w-4 text-primary" />
+    <Card className="border-0 shadow-[0_4px_16px_-6px_rgba(0,0,0,0.08)] rounded-3xl">
+      <CardContent className="pt-7 pb-6 px-6 sm:px-8">
+        <h3 className="text-base font-bold text-foreground mb-5 flex items-center gap-2.5">
+          <span className="h-9 w-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+            <Clock className="h-4 w-4" />
+          </span>
           Hendelseslogg
         </h3>
         <div className="relative pl-5">
