@@ -823,23 +823,25 @@ export default function OrderTrackingPage() {
 
         {/* Attachments */}
         {attachments.length > 0 && (
-          <Card className="border-border/60 shadow-sm">
-            <CardContent className="pt-6 pb-5">
-              <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
-                <Paperclip className="h-4 w-4 text-primary" />
+          <Card className="border-0 shadow-[0_4px_16px_-6px_rgba(0,0,0,0.08)] rounded-3xl">
+            <CardContent className="pt-7 pb-6 px-6 sm:px-8">
+              <h3 className="text-base font-bold text-foreground mb-5 flex items-center gap-2.5">
+                <span className="h-9 w-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+                  <Paperclip className="h-4 w-4" />
+                </span>
                 Vedlegg ({attachments.length})
               </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div className="space-y-2.5">
                 {attachments.map((att: any) => (
                   <div
                     key={att.id}
-                    className="flex items-center gap-3 p-3 rounded-xl border border-border/60 bg-muted/30 hover:bg-muted/50 transition-colors"
+                    className="flex items-center gap-3 p-3.5 rounded-2xl border border-border/50 bg-muted/20 hover:bg-muted/40 transition-colors group"
                   >
-                    <div className="h-9 w-9 rounded-lg bg-background border border-border/60 flex items-center justify-center shrink-0">
+                    <div className="h-10 w-10 rounded-xl bg-background border border-border/60 flex items-center justify-center shrink-0">
                       <FileText className="h-4 w-4 text-muted-foreground" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-foreground truncate">{att.file_name}</p>
+                      <p className="text-sm font-semibold text-foreground truncate">{att.file_name}</p>
                       <div className="flex items-center gap-2 mt-0.5">
                         {att.file_size && (
                           <span className="text-[11px] text-muted-foreground">
@@ -851,6 +853,13 @@ export default function OrderTrackingPage() {
                         )}
                       </div>
                     </div>
+                    <button
+                      type="button"
+                      className="h-9 w-9 rounded-xl bg-background border border-border/60 text-muted-foreground hover:text-primary hover:border-primary/40 flex items-center justify-center shrink-0 transition-colors"
+                      aria-label="Last ned"
+                    >
+                      <Download className="h-4 w-4" />
+                    </button>
                   </div>
                 ))}
               </div>
