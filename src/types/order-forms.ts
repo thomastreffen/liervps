@@ -188,7 +188,8 @@ export function mapToExternalStatus(internal: OrderFormSubmissionStatus): Extern
     case "under_review": return "processing";
     case "missing_info": case "waiting_customer": return "needs_info";
     case "waiting_internal": return "processing";
-    case "ready_for_planning": case "task_created": return "planned";
+    case "ready_for_planning": return "processing";
+    case "task_created": return "planned";
     case "in_progress": return "in_progress";
     case "closed": return "completed";
     case "rejected": return "closed";
