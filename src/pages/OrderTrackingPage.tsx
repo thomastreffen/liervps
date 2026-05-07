@@ -33,7 +33,7 @@ import mascotCompleted from "@/assets/mascot/completed.png";
 const STATUS_MASCOT: Record<ExternalStatus, string> = {
   received: mascotReceived,
   processing: mascotProcessing,
-  needs_info: mascotReceived,
+  needs_info: mascotProcessing,
   planned: mascotPlanned,
   in_progress: mascotInProgress,
   completed: mascotCompleted,
