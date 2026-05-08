@@ -45,6 +45,7 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { useCompanyContext } from "@/hooks/useCompanyContext";
 import { computeQualityScore, type QualityResult } from "@/lib/order-quality";
+import { getMessageSenderLabel, resolveSenderKind } from "@/lib/order-message-sender";
 import { QualityBadge } from "@/components/orders/QualityBadge";
 import { QualityIssuesPanel } from "@/components/orders/QualityIssuesPanel";
 import { RequestInfoDialog } from "@/components/orders/RequestInfoDialog";
