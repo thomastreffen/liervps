@@ -977,7 +977,7 @@ export default function OrderTrackingPage() {
                                   : "text-foreground/80",
                               )}
                             >
-                              {isCustomer ? "Du" : (msg.sender_name || "MCS Service")}
+                              {senderLabel}
                             </span>
                             {isRequestInfo && (
                               <Badge variant="outline" className="text-[9px] bg-amber-100 text-amber-700 border-amber-300">
