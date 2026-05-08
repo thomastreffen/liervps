@@ -873,8 +873,15 @@ export default function OrderTrackingPage() {
           </Card>
         )}
 
-        {/* Customer timeline */}
-        <CustomerTimeline token={token!} />
+        {/* Timeline (1/3) + other submissions (2/3) */}
+        <div className="grid gap-5 lg:grid-cols-3">
+          <div className="lg:col-span-1">
+            <CustomerTimeline token={token!} />
+          </div>
+          <div className="lg:col-span-2">
+            <OtherSubmissions token={token!} />
+          </div>
+        </div>
 
         {/* Messages + Attachments side-by-side on desktop */}
         <div className={cn("grid gap-5", attachments.length > 0 ? "lg:grid-cols-3" : "grid-cols-1")}>
