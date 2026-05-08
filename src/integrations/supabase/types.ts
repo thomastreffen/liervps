@@ -10443,11 +10443,14 @@ export type Database = {
       get_other_submissions_by_token: {
         Args: { _token: string }
         Returns: {
+          adresse: string
           external_status: string
           id: string
           last_activity_at: string
           oppdragssted: string
           oppdragstittel: string
+          postnummer: string
+          poststed: string
           public_tracking_token: string
           status: string
           submission_no: string
