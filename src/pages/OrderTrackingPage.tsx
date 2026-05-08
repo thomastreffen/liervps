@@ -23,6 +23,7 @@ import {
 import { deriveOrderConversationState } from "@/lib/order-request-state";
 import { CustomerFieldRequests } from "@/components/orders/CustomerFieldRequests";
 import { getSubmissionDisplayTitle, getSubmissionAddressLine } from "@/lib/order-display";
+import { getMessageSenderLabel, resolveSenderKind } from "@/lib/order-message-sender";
 
 import mascotReceived from "@/assets/mascot/received.png";
 import mascotProcessing from "@/assets/mascot/processing.png";
@@ -930,9 +931,11 @@ export default function OrderTrackingPage() {
               {hasMessages ? (
                 <div className="space-y-3 mb-5">
                   {allMessages.map((msg) => {
-                    const isCustomer = msg.sender_type === "customer";
+                    const senderKind = resolveSenderKind(msg as any, submission as any);
+                    const isCustomer = senderKind === "customer";
                     const isRequestInfo = msg.message_type === "request_info";
-                    const isSystem = msg.sender_type === "system";
+                    const isSystem = senderKind === "system";
+                    const senderLabel = getMessageSenderLabel(msg as any, submission as any, "customer");
 
                     if (isSystem) {
                       return (
@@ -975,7 +978,7 @@ export default function OrderTrackingPage() {
                                   : "text-foreground/80",
                               )}
                             >
-                              {isCustomer ? "Du" : (msg.sender_name || "MCS Service")}
+                              {senderLabel}
                             </span>
                             {isRequestInfo && (
                               <Badge variant="outline" className="text-[9px] bg-amber-100 text-amber-700 border-amber-300">
