@@ -1,0 +1,91 @@
+/* Shared helpers for displaying order submissions consistently
+   across customer tracking page and internal admin list. */
+
+type AnyRec = Record<string, any> | null | undefined;
+
+const SITE_KEYS = [
+  "oppdragssted",
+  "oppdrags_sted",
+  "site_name",
+  "project_name",
+  "prosjekt",
+  "prosjektnavn",
+  "anlegg",
+  "anleggsnavn",
+  "facility_name",
+  "oppdragstittel",
+  "tittel",
+];
+
+const ADDRESS_KEYS = [
+  "adresse",
+  "address",
+  "street_address",
+  "anleggsadresse",
+  "besoksadresse",
+  "besøksadresse",
+];
+
+const POSTAL_KEYS = ["poststed", "postal_city", "postnummer", "postcode", "zip"];
+
+const COMPANY_KEYS = ["firmanavn", "firma", "kundenavn", "kunde", "company_name"];
+
+const CONTACT_KEYS = ["bestiller_navn", "kontaktperson_kunde", "kontaktperson", "contact_name"];
+
+function pick(rec: AnyRec, keys: string[]): string | null {
+  if (!rec) return null;
+  for (const k of keys) {
+    const v = rec[k];
+    if (typeof v === "string" && v.trim()) return v.trim();
+  }
+  return null;
+}
+
+/** Best site/facility/project title from a submission. */
+export function getSubmissionSiteTitle(submission: any): string | null {
+  if (!submission) return null;
+  // Direct fields (e.g. RPC response with oppdragssted/oppdragstittel)
+  const direct = pick(submission, SITE_KEYS);
+  if (direct) return direct;
+  // Inside summary jsonb
+  return pick(submission?.summary, SITE_KEYS);
+}
+
+/** Address line "Street, 1234 City". */
+export function getSubmissionAddressLine(submission: any): string | null {
+  if (!submission) return null;
+  const sm = submission.summary || submission;
+  const street = pick(sm, ADDRESS_KEYS) || pick(submission, ADDRESS_KEYS);
+  const postal = pick(sm, POSTAL_KEYS) || pick(submission, POSTAL_KEYS);
+  if (street && postal) return `${street}, ${postal}`;
+  return street || postal;
+}
+
+export function getSubmissionCompany(submission: any): string | null {
+  return (
+    pick(submission?.summary, COMPANY_KEYS) ||
+    pick(submission, COMPANY_KEYS) ||
+    null
+  );
+}
+
+export function getSubmissionContact(submission: any): string | null {
+  return (
+    submission?.submitter_name ||
+    pick(submission?.summary, CONTACT_KEYS) ||
+    pick(submission, CONTACT_KEYS) ||
+    null
+  );
+}
+
+/** Primary display title with sensible fallbacks. */
+export function getSubmissionDisplayTitle(submission: any): string {
+  return (
+    getSubmissionSiteTitle(submission) ||
+    getSubmissionAddressLine(submission) ||
+    getSubmissionCompany(submission) ||
+    getSubmissionContact(submission) ||
+    submission?.submission_no ||
+    "Bestilling"
+  );
+}
