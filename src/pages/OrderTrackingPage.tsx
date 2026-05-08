@@ -549,31 +549,23 @@ export default function OrderTrackingPage() {
       if (!submission) return;
       const sub = submission as any;
 
-      const internalName = isInternalViewer ? (user?.name || user?.email || "MCS Service") : null;
-
-      await supabase.from("order_form_messages").insert({
-        submission_id: submission.id,
-        sender_type: isInternalViewer ? "internal" : "customer",
-        sender_user_id: isInternalViewer ? user?.id : null,
-        sender_name: isInternalViewer
-          ? internalName
-          : (sub.submitter_name || sub.notification_recipient_name || "Bestiller"),
-        message_type: "message",
-        body: replyText.trim() || "(Vedlegg sendt)",
-        is_visible_to_customer: true,
-        requires_reply: false,
-        source: isInternalViewer ? "public_tracking_internal" : "public_tracking_customer",
-      } as any);
-
-      if (replyText.trim()) {
-        await supabase.from("order_form_comments").insert({
-          submission_id: submission.id,
-          body: replyText.trim(),
-          comment_type: isInternalViewer ? "internal_note" : "customer_reply",
-          visibility: "shared",
-          is_customer_reply: !isInternalViewer,
-          author_name: isInternalViewer ? internalName : (sub.submitter_name || "Bestiller"),
-        } as any);
+      // Server-authoritative send: backend decides sender_type/sender_name
+      // based on JWT (intern bruker -> internal, ellers customer).
+      const { data: sendResult, error: sendErr } = await supabase.functions.invoke(
+        "order-message-public-send",
+        {
+          body: {
+            tracking_token: token,
+            body: replyText.trim(),
+            has_attachments: replyFiles.length > 0,
+          },
+        },
+      );
+      if (sendErr) {
+        throw new Error(sendErr.message || "Kunne ikke sende meldingen");
+      }
+      if ((sendResult as any)?.error) {
+        throw new Error((sendResult as any).error);
       }
 
       for (const file of replyFiles) {
