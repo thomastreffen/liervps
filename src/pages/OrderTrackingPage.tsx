@@ -24,6 +24,7 @@ import { deriveOrderConversationState } from "@/lib/order-request-state";
 import { CustomerFieldRequests } from "@/components/orders/CustomerFieldRequests";
 import { getSubmissionDisplayTitle, getSubmissionAddressLine } from "@/lib/order-display";
 import { getMessageSenderLabel, resolveSenderKind } from "@/lib/order-message-sender";
+import { useAuth } from "@/hooks/useAuth";
 
 import mascotReceived from "@/assets/mascot/received.png";
 import mascotProcessing from "@/assets/mascot/processing.png";
@@ -442,6 +443,8 @@ function OtherSubmissions({ token }: { token: string }) {
 export default function OrderTrackingPage() {
   const { token } = useParams<{ token: string }>();
   const qc = useQueryClient();
+  const { user } = useAuth();
+  const isInternalViewer = !!user && user.role !== "customer_user";
   const [replyText, setReplyText] = useState("");
   const [replyFiles, setReplyFiles] = useState<File[]>([]);
   const replyInputRef = useRef<HTMLTextAreaElement>(null);
@@ -546,24 +549,30 @@ export default function OrderTrackingPage() {
       if (!submission) return;
       const sub = submission as any;
 
+      const internalName = isInternalViewer ? (user?.name || user?.email || "MCS Service") : null;
+
       await supabase.from("order_form_messages").insert({
         submission_id: submission.id,
-        sender_type: "customer",
-        sender_name: sub.submitter_name || sub.notification_recipient_name || "Bestiller",
+        sender_type: isInternalViewer ? "internal" : "customer",
+        sender_user_id: isInternalViewer ? user?.id : null,
+        sender_name: isInternalViewer
+          ? internalName
+          : (sub.submitter_name || sub.notification_recipient_name || "Bestiller"),
         message_type: "message",
         body: replyText.trim() || "(Vedlegg sendt)",
         is_visible_to_customer: true,
         requires_reply: false,
+        source: isInternalViewer ? "public_tracking_internal" : "public_tracking_customer",
       } as any);
 
       if (replyText.trim()) {
         await supabase.from("order_form_comments").insert({
           submission_id: submission.id,
           body: replyText.trim(),
-          comment_type: "customer_reply",
+          comment_type: isInternalViewer ? "internal_note" : "customer_reply",
           visibility: "shared",
-          is_customer_reply: true,
-          author_name: sub.submitter_name || "Bestiller",
+          is_customer_reply: !isInternalViewer,
+          author_name: isInternalViewer ? internalName : (sub.submitter_name || "Bestiller"),
         } as any);
       }
 
@@ -1029,11 +1038,23 @@ export default function OrderTrackingPage() {
               {/* Reply input */}
               {!isClosed && (
                 <div className="space-y-3 pt-4 border-t border-border/60">
+                  {isInternalViewer && (
+                    <div className="rounded-lg border border-amber-300/60 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800/60 px-3 py-2 text-xs text-amber-900 dark:text-amber-200 flex items-start gap-2">
+                      <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                      <span>
+                        Du er innlogget som <strong>{user?.name || user?.email}</strong>. Meldingen sendes som <strong>MCS Service</strong>, ikke som kunde.
+                      </span>
+                    </div>
+                  )}
                   <Textarea
                     ref={replyInputRef}
                     value={replyText}
                     onChange={(e) => setReplyText(e.target.value)}
-                    placeholder={openRequest ? "Skriv svaret ditt her..." : "Skriv en melding til oss..."}
+                    placeholder={
+                      isInternalViewer
+                        ? "Skriv en melding til kunden som MCS Service..."
+                        : openRequest ? "Skriv svaret ditt her..." : "Skriv en melding til oss..."
+                    }
                     rows={3}
                     className="text-sm resize-none rounded-xl"
                   />
