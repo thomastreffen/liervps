@@ -25,6 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { getSubmissionDisplayTitle, getSubmissionAddressLine, getSubmissionCompany, getSubmissionContact } from "@/lib/order-display";
 
 const STATUS_TABS: { key: OrderFormSubmissionStatus | "all"; label: string }[] = [
   { key: "all", label: "Alle" },
