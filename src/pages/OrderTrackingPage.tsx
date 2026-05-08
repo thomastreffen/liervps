@@ -930,9 +930,11 @@ export default function OrderTrackingPage() {
               {hasMessages ? (
                 <div className="space-y-3 mb-5">
                   {allMessages.map((msg) => {
-                    const isCustomer = msg.sender_type === "customer";
+                    const senderKind = resolveSenderKind(msg as any, submission as any);
+                    const isCustomer = senderKind === "customer";
                     const isRequestInfo = msg.message_type === "request_info";
-                    const isSystem = msg.sender_type === "system";
+                    const isSystem = senderKind === "system";
+                    const senderLabel = getMessageSenderLabel(msg as any, submission as any, "customer");
 
                     if (isSystem) {
                       return (
