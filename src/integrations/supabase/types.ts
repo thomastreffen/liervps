@@ -10440,6 +10440,21 @@ export type Database = {
           submission_no: string
         }[]
       }
+      get_other_submissions_by_token: {
+        Args: { _token: string }
+        Returns: {
+          external_status: string
+          id: string
+          last_activity_at: string
+          oppdragssted: string
+          oppdragstittel: string
+          public_tracking_token: string
+          status: string
+          submission_no: string
+          submitted_at: string
+          template_name: string
+        }[]
+      }
       get_project_member_type: {
         Args: { _auth_user_id: string; _project_id: string }
         Returns: string
