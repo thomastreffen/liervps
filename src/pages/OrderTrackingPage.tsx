@@ -22,6 +22,7 @@ import {
 } from "@/types/order-forms";
 import { deriveOrderConversationState } from "@/lib/order-request-state";
 import { CustomerFieldRequests } from "@/components/orders/CustomerFieldRequests";
+import { getSubmissionDisplayTitle, getSubmissionAddressLine } from "@/lib/order-display";
 
 import mascotReceived from "@/assets/mascot/received.png";
 import mascotProcessing from "@/assets/mascot/processing.png";
