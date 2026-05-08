@@ -549,24 +549,30 @@ export default function OrderTrackingPage() {
       if (!submission) return;
       const sub = submission as any;
 
+      const internalName = isInternalViewer ? (user?.name || user?.email || "MCS Service") : null;
+
       await supabase.from("order_form_messages").insert({
         submission_id: submission.id,
-        sender_type: "customer",
-        sender_name: sub.submitter_name || sub.notification_recipient_name || "Bestiller",
+        sender_type: isInternalViewer ? "internal" : "customer",
+        sender_user_id: isInternalViewer ? user?.id : null,
+        sender_name: isInternalViewer
+          ? internalName
+          : (sub.submitter_name || sub.notification_recipient_name || "Bestiller"),
         message_type: "message",
         body: replyText.trim() || "(Vedlegg sendt)",
         is_visible_to_customer: true,
         requires_reply: false,
+        source: isInternalViewer ? "public_tracking_internal" : "public_tracking_customer",
       } as any);
 
       if (replyText.trim()) {
         await supabase.from("order_form_comments").insert({
           submission_id: submission.id,
           body: replyText.trim(),
-          comment_type: "customer_reply",
+          comment_type: isInternalViewer ? "internal_note" : "customer_reply",
           visibility: "shared",
-          is_customer_reply: true,
-          author_name: sub.submitter_name || "Bestiller",
+          is_customer_reply: !isInternalViewer,
+          author_name: isInternalViewer ? internalName : (sub.submitter_name || "Bestiller"),
         } as any);
       }
 
