@@ -10378,6 +10378,10 @@ export type Database = {
         Returns: Json
       }
       cleanup_empty_calculations: { Args: never; Returns: Json }
+      compute_submission_summary: {
+        Args: { _submission_id: string }
+        Returns: Json
+      }
       event_technician_company_access: {
         Args: { _auth_user_id: string; _event_id: string }
         Returns: boolean
@@ -10443,11 +10447,14 @@ export type Database = {
       get_other_submissions_by_token: {
         Args: { _token: string }
         Returns: {
+          adresse: string
           external_status: string
           id: string
           last_activity_at: string
           oppdragssted: string
           oppdragstittel: string
+          postnummer: string
+          poststed: string
           public_tracking_token: string
           status: string
           submission_no: string
