@@ -120,14 +120,26 @@ export default function OrderFormsPage() {
     let result = submissions.filter((s: any) => {
       if (search) {
         const q = search.toLowerCase();
-        const match =
-          s.submission_no?.toLowerCase().includes(q) ||
-          s.order_form_templates?.name?.toLowerCase().includes(q) ||
-          s.summary?.oppdragstittel?.toLowerCase().includes(q) ||
-          s.summary?.kundenavn?.toLowerCase().includes(q) ||
-          (s as any).submitter_name?.toLowerCase().includes(q) ||
-          (s as any).submitter_email?.toLowerCase().includes(q);
-        if (!match) return false;
+        const sm = s.summary || {};
+        const haystack = [
+          s.submission_no,
+          s.status,
+          s.order_form_templates?.name,
+          s.order_form_templates?.category,
+          (s as any).submitter_name,
+          (s as any).submitter_email,
+          (s as any).submitter_phone,
+          (s as any)._assignee_name,
+          sm.oppdragstittel,
+          sm.kundenavn,
+          sm.firmanavn,
+          sm.bestiller_navn,
+          sm.kontaktperson_kunde,
+          sm.anleggsadresse,
+          sm.oppdragssted,
+          sm.adresse,
+        ].filter(Boolean).join(" ").toLowerCase();
+        if (!haystack.includes(q)) return false;
       }
       if (categoryFilter !== "all" && s.order_form_templates?.category !== categoryFilter) return false;
       if (priorityFilter !== "all" && s.priority !== priorityFilter) return false;
