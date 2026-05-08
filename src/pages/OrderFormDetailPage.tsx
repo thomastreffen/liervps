@@ -1394,9 +1394,13 @@ export default function OrderFormDetailPage() {
               {(orderMessages as any[]).length > 0 && (
                 <div className="space-y-3 mb-3 max-h-64 overflow-y-auto">
                   {(orderMessages as any[]).map((m: any) => {
-                    const isCustomer = m.sender_type === "customer";
+                    const senderKind = resolveSenderKind(m, submission as any);
+                    const isCustomer = senderKind === "customer";
                     const isRequestInfo = m.message_type === "request_info";
-                    const isSystem = m.sender_type === "system";
+                    const isSystem = senderKind === "system";
+                    const isOwn = senderKind === "internal" && m.sender_user_id && user?.id && m.sender_user_id === user.id;
+                    const senderLabel = getMessageSenderLabel(m, submission as any, "admin");
+                    const displaySender = isOwn ? `Du · ${senderLabel}` : senderLabel;
                     const addressedParticipant = m.addressed_to_participant_id
                       ? participants.find((p: any) => p.id === m.addressed_to_participant_id)
                       : null;
@@ -1409,6 +1413,7 @@ export default function OrderFormDetailPage() {
                     return (
                       <div key={m.id} className={`text-sm border-l-2 pl-3 ${
                         isRequestInfo ? "border-amber-400"
+                        : isSystem ? "border-muted"
                         : isCustomer ? "border-green-400"
                         : m.is_visible_to_customer ? "border-primary/60"
                         : "border-border"
@@ -1423,12 +1428,17 @@ export default function OrderFormDetailPage() {
                             Svar fra bestiller
                           </Badge>
                         )}
+                        {isSystem && (
+                          <Badge variant="outline" className="text-[9px] mb-1 text-muted-foreground">
+                            Automatisk
+                          </Badge>
+                        )}
                         {!isCustomer && !isRequestInfo && !isSystem && m.is_visible_to_customer && (
                           <Badge variant="outline" className="text-[9px] mb-1 bg-primary/10 text-primary border-primary/20">
                             Delt med kunde
                           </Badge>
                         )}
-                        {!m.is_visible_to_customer && !isCustomer && (
+                        {!m.is_visible_to_customer && !isCustomer && !isSystem && (
                           <Badge variant="outline" className="text-[9px] mb-1 text-muted-foreground">
                             Intern
                           </Badge>
@@ -1436,7 +1446,7 @@ export default function OrderFormDetailPage() {
                         <p className="whitespace-pre-wrap">{m.body}</p>
                         <div className="flex items-center gap-2 mt-1 flex-wrap">
                           <span className="text-[10px] text-muted-foreground">
-                            {m.sender_name || (isCustomer ? "Bestiller" : "Saksbehandler")} · {format(new Date(m.created_at), "d. MMM HH:mm", { locale: nb })}
+                            {displaySender} · {format(new Date(m.created_at), "d. MMM HH:mm", { locale: nb })}
                           </span>
                           {m.source === "email" && (
                             <Badge variant="outline" className="text-[8px] bg-blue-50 text-blue-600 border-blue-200">
