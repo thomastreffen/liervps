@@ -120,14 +120,26 @@ export default function OrderFormsPage() {
     let result = submissions.filter((s: any) => {
       if (search) {
         const q = search.toLowerCase();
-        const match =
-          s.submission_no?.toLowerCase().includes(q) ||
-          s.order_form_templates?.name?.toLowerCase().includes(q) ||
-          s.summary?.oppdragstittel?.toLowerCase().includes(q) ||
-          s.summary?.kundenavn?.toLowerCase().includes(q) ||
-          (s as any).submitter_name?.toLowerCase().includes(q) ||
-          (s as any).submitter_email?.toLowerCase().includes(q);
-        if (!match) return false;
+        const sm = s.summary || {};
+        const haystack = [
+          s.submission_no,
+          s.status,
+          s.order_form_templates?.name,
+          s.order_form_templates?.category,
+          (s as any).submitter_name,
+          (s as any).submitter_email,
+          (s as any).submitter_phone,
+          (s as any)._assignee_name,
+          sm.oppdragstittel,
+          sm.kundenavn,
+          sm.firmanavn,
+          sm.bestiller_navn,
+          sm.kontaktperson_kunde,
+          sm.anleggsadresse,
+          sm.oppdragssted,
+          sm.adresse,
+        ].filter(Boolean).join(" ").toLowerCase();
+        if (!haystack.includes(q)) return false;
       }
       if (categoryFilter !== "all" && s.order_form_templates?.category !== categoryFilter) return false;
       if (priorityFilter !== "all" && s.priority !== priorityFilter) return false;
@@ -353,16 +365,22 @@ export default function OrderFormsPage() {
             const hasUnreadReply = sub.customer_last_reply_at &&
               (!sub.last_activity_at || new Date(sub.customer_last_reply_at) > new Date(sub.last_activity_at));
 
-            // Build subtitle
-            const name = sub.submitter_name || sub.summary?.kundenavn || sub.summary?.bestiller_navn;
-            const oppdrag = sub.summary?.oppdragstittel;
-            const sted = sub.summary?.oppdragssted;
-            const subtitle = [name, oppdrag, sted].filter(Boolean).join(" · ") || sub.order_form_templates?.name || "–";
+            // Build subtitle: firma/kunde · oppdragssted/adresse · bestiller
+            const sm = sub.summary || {};
+            const firma = sm.firmanavn || sm.kundenavn;
+            const bestiller = sub.submitter_name || sm.bestiller_navn;
+            const sted = sm.oppdragssted || sm.anleggsadresse || sm.adresse;
+            const oppdrag = sm.oppdragstittel;
+            const subtitleParts = [firma, sted || oppdrag, bestiller && `Bestiller: ${bestiller}`].filter(Boolean);
+            const subtitle = subtitleParts.join(" · ") || sub.order_form_templates?.name || "–";
+            const isDimmed = ["closed", "rejected"].includes(sub.status);
 
             return (
               <Card
                 key={sub.id}
                 className={`hover:shadow-md transition-shadow cursor-pointer group ${
+                  isDimmed ? "opacity-60" : ""
+                } ${
                   isNew ? "border-l-4 border-l-blue-500"
                   : isWaiting ? "border-l-4 border-l-amber-400"
                   : hasUnreadReply ? "border-l-4 border-l-green-500"

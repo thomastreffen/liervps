@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format, formatDistanceToNow } from "date-fns";
@@ -274,6 +274,137 @@ function CustomerTimeline({ token }: { token: string }) {
               {expanded
                 ? "Skjul historikk"
                 : `Vis hele historikken (${allVisible.length - COLLAPSED_COUNT} til)`}
+            </Button>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+/* ── Other submissions for same submitter email ── */
+function OtherSubmissions({ token }: { token: string }) {
+  const [expanded, setExpanded] = useState(false);
+
+  const { data: items = [] } = useQuery({
+    queryKey: ["tracking-other-submissions", token],
+    enabled: !!token,
+    queryFn: async () => {
+      const { data } = await (supabase as any).rpc("get_other_submissions_by_token", { _token: token });
+      return (data || []) as any[];
+    },
+  });
+
+  const sorted = useMemo(() => {
+    const closedSet = new Set(["closed", "rejected"]);
+    return [...items].sort((a, b) => {
+      const aClosed = closedSet.has(a.status);
+      const bClosed = closedSet.has(b.status);
+      if (aClosed !== bClosed) return aClosed ? 1 : -1;
+      return new Date(b.last_activity_at || b.submitted_at).getTime() -
+             new Date(a.last_activity_at || a.submitted_at).getTime();
+    });
+  }, [items]);
+
+  if (sorted.length === 0) {
+    return (
+      <Card className="border-0 shadow-[0_4px_16px_-6px_rgba(0,0,0,0.08)] rounded-3xl h-full">
+        <CardContent className="pt-7 pb-6 px-6 sm:px-8">
+          <h3 className="text-base font-bold text-foreground mb-3 flex items-center gap-2.5">
+            <span className="h-9 w-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+              <FileText className="h-4 w-4" />
+            </span>
+            Dine andre bestillinger
+          </h3>
+          <p className="text-sm text-muted-foreground">
+            Du har ingen andre aktive bestillinger registrert på denne e-postadressen.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const COLLAPSED = 5;
+  const hasMore = sorted.length > COLLAPSED;
+  const shown = expanded ? sorted : sorted.slice(0, COLLAPSED);
+
+  return (
+    <Card className="border-0 shadow-[0_4px_16px_-6px_rgba(0,0,0,0.08)] rounded-3xl h-full">
+      <CardContent className="pt-7 pb-6 px-6 sm:px-8">
+        <div className="flex items-center justify-between mb-5">
+          <h3 className="text-base font-bold text-foreground flex items-center gap-2.5">
+            <span className="h-9 w-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+              <FileText className="h-4 w-4" />
+            </span>
+            Dine andre bestillinger
+          </h3>
+          <span className="text-[11px] text-muted-foreground font-medium">
+            {sorted.length} totalt
+          </span>
+        </div>
+        <div
+          className={cn(
+            "space-y-2",
+            expanded && hasMore && "max-h-[420px] overflow-y-auto pr-1 -mr-1",
+          )}
+        >
+          {shown.map((s: any) => {
+            const isClosed = ["closed", "rejected"].includes(s.status);
+            const ext = (s.external_status || "received") as ExternalStatus;
+            const cfg = EXTERNAL_STATUS_CONFIG[ext] || EXTERNAL_STATUS_CONFIG.received;
+            const sted = s.oppdragssted || s.oppdragstittel;
+            const last = s.last_activity_at || s.submitted_at;
+            return (
+              <Link
+                key={s.id}
+                to={`/track/${s.public_tracking_token}`}
+                className={cn(
+                  "block rounded-2xl border border-border/50 bg-muted/10 px-3.5 py-3 hover:bg-muted/30 hover:border-border transition-colors group",
+                  isClosed && "opacity-60",
+                )}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-sm font-bold text-foreground">{s.submission_no}</span>
+                      <span className="text-xs text-muted-foreground truncate">
+                        {s.template_name || "Bestilling"}
+                      </span>
+                    </div>
+                    {sted && (
+                      <p className="text-xs text-muted-foreground/90 truncate mt-0.5">{sted}</p>
+                    )}
+                    <p className="text-[11px] text-muted-foreground/70 mt-1">
+                      Sendt {format(new Date(s.submitted_at), "d. MMM yyyy", { locale: nb })}
+                      {last && last !== s.submitted_at && (
+                        <> · oppdatert {formatDistanceToNow(new Date(last), { addSuffix: true, locale: nb })}</>
+                      )}
+                    </p>
+                  </div>
+                  <Badge
+                    className={cn(
+                      "text-white border-0 rounded-full text-[10px] px-2.5 py-0.5 shrink-0 shadow-sm",
+                      isClosed ? "bg-muted-foreground" : cfg.color,
+                    )}
+                  >
+                    {cfg.label}
+                  </Badge>
+                </div>
+              </Link>
+            );
+          })}
+        </div>
+        {hasMore && (
+          <div className="mt-4 pt-3 border-t border-border/60 flex justify-center">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setExpanded((v) => !v)}
+              className="text-xs font-semibold text-primary hover:text-primary hover:bg-primary/5 rounded-full"
+            >
+              {expanded
+                ? "Skjul"
+                : `Vis flere bestillinger (${sorted.length - COLLAPSED} til)`}
             </Button>
           </div>
         )}
@@ -742,8 +873,15 @@ export default function OrderTrackingPage() {
           </Card>
         )}
 
-        {/* Customer timeline */}
-        <CustomerTimeline token={token!} />
+        {/* Timeline (1/3) + other submissions (2/3) */}
+        <div className="grid gap-5 lg:grid-cols-3">
+          <div className="lg:col-span-1">
+            <CustomerTimeline token={token!} />
+          </div>
+          <div className="lg:col-span-2">
+            <OtherSubmissions token={token!} />
+          </div>
+        </div>
 
         {/* Messages + Attachments side-by-side on desktop */}
         <div className={cn("grid gap-5", attachments.length > 0 ? "lg:grid-cols-3" : "grid-cols-1")}>
