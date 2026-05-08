@@ -1038,11 +1038,23 @@ export default function OrderTrackingPage() {
               {/* Reply input */}
               {!isClosed && (
                 <div className="space-y-3 pt-4 border-t border-border/60">
+                  {isInternalViewer && (
+                    <div className="rounded-lg border border-amber-300/60 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800/60 px-3 py-2 text-xs text-amber-900 dark:text-amber-200 flex items-start gap-2">
+                      <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                      <span>
+                        Du er innlogget som <strong>{user?.name || user?.email}</strong>. Meldingen sendes som <strong>MCS Service</strong>, ikke som kunde.
+                      </span>
+                    </div>
+                  )}
                   <Textarea
                     ref={replyInputRef}
                     value={replyText}
                     onChange={(e) => setReplyText(e.target.value)}
-                    placeholder={openRequest ? "Skriv svaret ditt her..." : "Skriv en melding til oss..."}
+                    placeholder={
+                      isInternalViewer
+                        ? "Skriv en melding til kunden som MCS Service..."
+                        : openRequest ? "Skriv svaret ditt her..." : "Skriv en melding til oss..."
+                    }
                     rows={3}
                     className="text-sm resize-none rounded-xl"
                   />
