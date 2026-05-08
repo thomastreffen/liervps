@@ -365,16 +365,22 @@ export default function OrderFormsPage() {
             const hasUnreadReply = sub.customer_last_reply_at &&
               (!sub.last_activity_at || new Date(sub.customer_last_reply_at) > new Date(sub.last_activity_at));
 
-            // Build subtitle
-            const name = sub.submitter_name || sub.summary?.kundenavn || sub.summary?.bestiller_navn;
-            const oppdrag = sub.summary?.oppdragstittel;
-            const sted = sub.summary?.oppdragssted;
-            const subtitle = [name, oppdrag, sted].filter(Boolean).join(" · ") || sub.order_form_templates?.name || "–";
+            // Build subtitle: firma/kunde · oppdragssted/adresse · bestiller
+            const sm = sub.summary || {};
+            const firma = sm.firmanavn || sm.kundenavn;
+            const bestiller = sub.submitter_name || sm.bestiller_navn;
+            const sted = sm.oppdragssted || sm.anleggsadresse || sm.adresse;
+            const oppdrag = sm.oppdragstittel;
+            const subtitleParts = [firma, sted || oppdrag, bestiller && `Bestiller: ${bestiller}`].filter(Boolean);
+            const subtitle = subtitleParts.join(" · ") || sub.order_form_templates?.name || "–";
+            const isDimmed = ["closed", "rejected"].includes(sub.status);
 
             return (
               <Card
                 key={sub.id}
                 className={`hover:shadow-md transition-shadow cursor-pointer group ${
+                  isDimmed ? "opacity-60" : ""
+                } ${
                   isNew ? "border-l-4 border-l-blue-500"
                   : isWaiting ? "border-l-4 border-l-amber-400"
                   : hasUnreadReply ? "border-l-4 border-l-green-500"
