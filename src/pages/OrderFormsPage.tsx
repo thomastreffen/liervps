@@ -366,14 +366,21 @@ export default function OrderFormsPage() {
             const hasUnreadReply = sub.customer_last_reply_at &&
               (!sub.last_activity_at || new Date(sub.customer_last_reply_at) > new Date(sub.last_activity_at));
 
-            // Build subtitle: firma/kunde · oppdragssted/adresse · bestiller
-            const sm = sub.summary || {};
-            const firma = sm.firmanavn || sm.kundenavn;
-            const bestiller = sub.submitter_name || sm.bestiller_navn;
-            const sted = sm.oppdragssted || sm.anleggsadresse || sm.adresse;
-            const oppdrag = sm.oppdragstittel;
-            const subtitleParts = [firma, sted || oppdrag, bestiller && `Bestiller: ${bestiller}`].filter(Boolean);
-            const subtitle = subtitleParts.join(" · ") || sub.order_form_templates?.name || "–";
+            // Build display: site title primary, address secondary, BST + template + firma + bestiller meta
+            const siteTitle = getSubmissionDisplayTitle(sub);
+            const addressLine = getSubmissionAddressLine(sub);
+            const firma = getSubmissionCompany(sub);
+            const bestiller = getSubmissionContact(sub);
+            const templateName = sub.order_form_templates?.name;
+            const metaParts = [
+              sub.submission_no,
+              templateName,
+              firma,
+              bestiller,
+            ].filter(Boolean);
+            const metaLine = metaParts.join(" · ");
+            // Avoid duplicating if siteTitle fell back to BST or address
+            const showAddress = addressLine && addressLine !== siteTitle;
             const isDimmed = ["closed", "rejected"].includes(sub.status);
 
             return (
@@ -396,11 +403,8 @@ export default function OrderFormsPage() {
                       <QualityDot score={qs} />
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-                          <span className="text-sm font-semibold text-foreground">
-                            {sub.submission_no}
-                          </span>
-                          <span className="text-xs text-muted-foreground hidden sm:inline">
-                            {sub.order_form_templates?.name || "Ukjent"}
+                          <span className="text-sm font-semibold text-foreground truncate">
+                            {siteTitle}
                           </span>
                           {sub.priority !== "normal" && (
                             <Badge variant="outline" className="text-[10px] font-semibold border-orange-200 text-orange-700 bg-orange-50">
@@ -414,8 +418,13 @@ export default function OrderFormsPage() {
                             </Badge>
                           )}
                         </div>
-                        <p className="text-xs text-muted-foreground truncate mt-0.5">
-                          {subtitle}
+                        {showAddress && (
+                          <p className="text-xs text-muted-foreground truncate mt-0.5">
+                            {addressLine}
+                          </p>
+                        )}
+                        <p className="text-[11px] text-muted-foreground/80 truncate mt-0.5">
+                          {metaLine}
                         </p>
                         {/* Mobile-only meta row */}
                         <div className="flex items-center gap-2 mt-1 sm:hidden flex-wrap">
