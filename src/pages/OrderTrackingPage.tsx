@@ -22,6 +22,7 @@ import {
 } from "@/types/order-forms";
 import { deriveOrderConversationState } from "@/lib/order-request-state";
 import { CustomerFieldRequests } from "@/components/orders/CustomerFieldRequests";
+import { getSubmissionDisplayTitle, getSubmissionAddressLine } from "@/lib/order-display";
 
 import mascotReceived from "@/assets/mascot/received.png";
 import mascotProcessing from "@/assets/mascot/processing.png";
@@ -352,44 +353,67 @@ function OtherSubmissions({ token }: { token: string }) {
             const isClosed = ["closed", "rejected"].includes(s.status);
             const ext = (s.external_status || "received") as ExternalStatus;
             const cfg = EXTERNAL_STATUS_CONFIG[ext] || EXTERNAL_STATUS_CONFIG.received;
-            const sted = s.oppdragssted || s.oppdragstittel;
+            const title = getSubmissionDisplayTitle(s);
+            const address = getSubmissionAddressLine(s);
             const last = s.last_activity_at || s.submitted_at;
+            const tok = s.public_tracking_token;
+            const meta = [
+              s.submission_no,
+              s.template_name,
+              `sendt ${format(new Date(s.submitted_at), "d. MMM", { locale: nb })}`,
+              last && last !== s.submitted_at
+                ? `oppdatert ${formatDistanceToNow(new Date(last), { addSuffix: true, locale: nb })}`
+                : null,
+            ].filter(Boolean).join(" · ");
+
+            const inner = (
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold text-foreground truncate">{title}</p>
+                  {address && address !== title && (
+                    <p className="text-xs text-muted-foreground truncate mt-0.5">{address}</p>
+                  )}
+                  <p className="text-[11px] text-muted-foreground/70 mt-1 truncate">{meta}</p>
+                </div>
+                <Badge
+                  className={cn(
+                    "text-white border-0 rounded-full text-[10px] px-2.5 py-0.5 shrink-0 shadow-sm",
+                    isClosed ? "bg-muted-foreground" : cfg.color,
+                  )}
+                >
+                  {cfg.label}
+                </Badge>
+              </div>
+            );
+
+            if (!tok) {
+              if (import.meta.env.DEV) {
+                // eslint-disable-next-line no-console
+                console.warn("Missing public_tracking_token for submission", s.id);
+              }
+              return (
+                <div
+                  key={s.id}
+                  className={cn(
+                    "block rounded-2xl border border-border/50 bg-muted/10 px-3.5 py-3 cursor-not-allowed",
+                    isClosed && "opacity-60",
+                  )}
+                >
+                  {inner}
+                </div>
+              );
+            }
+
             return (
               <Link
                 key={s.id}
-                to={`/track/${s.public_tracking_token}`}
+                to={`/bestilling/status/${tok}`}
                 className={cn(
-                  "block rounded-2xl border border-border/50 bg-muted/10 px-3.5 py-3 hover:bg-muted/30 hover:border-border transition-colors group",
+                  "block rounded-2xl border border-border/50 bg-muted/10 px-3.5 py-3 hover:bg-muted/30 hover:border-border transition-colors cursor-pointer",
                   isClosed && "opacity-60",
                 )}
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-sm font-bold text-foreground">{s.submission_no}</span>
-                      <span className="text-xs text-muted-foreground truncate">
-                        {s.template_name || "Bestilling"}
-                      </span>
-                    </div>
-                    {sted && (
-                      <p className="text-xs text-muted-foreground/90 truncate mt-0.5">{sted}</p>
-                    )}
-                    <p className="text-[11px] text-muted-foreground/70 mt-1">
-                      Sendt {format(new Date(s.submitted_at), "d. MMM yyyy", { locale: nb })}
-                      {last && last !== s.submitted_at && (
-                        <> · oppdatert {formatDistanceToNow(new Date(last), { addSuffix: true, locale: nb })}</>
-                      )}
-                    </p>
-                  </div>
-                  <Badge
-                    className={cn(
-                      "text-white border-0 rounded-full text-[10px] px-2.5 py-0.5 shrink-0 shadow-sm",
-                      isClosed ? "bg-muted-foreground" : cfg.color,
-                    )}
-                  >
-                    {cfg.label}
-                  </Badge>
-                </div>
+                {inner}
               </Link>
             );
           })}
