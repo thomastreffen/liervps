@@ -443,6 +443,8 @@ function OtherSubmissions({ token }: { token: string }) {
 export default function OrderTrackingPage() {
   const { token } = useParams<{ token: string }>();
   const qc = useQueryClient();
+  const { user } = useAuth();
+  const isInternalViewer = !!user && user.role !== "customer_user";
   const [replyText, setReplyText] = useState("");
   const [replyFiles, setReplyFiles] = useState<File[]>([]);
   const replyInputRef = useRef<HTMLTextAreaElement>(null);
