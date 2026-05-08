@@ -54,9 +54,17 @@ export function getSubmissionSiteTitle(submission: any): string | null {
 /** Address line "Street, 1234 City". */
 export function getSubmissionAddressLine(submission: any): string | null {
   if (!submission) return null;
-  const sm = submission.summary || submission;
-  const street = pick(sm, ADDRESS_KEYS) || pick(submission, ADDRESS_KEYS);
-  const postal = pick(sm, POSTAL_KEYS) || pick(submission, POSTAL_KEYS);
+  const sm = submission.summary || {};
+  const street =
+    pick(sm, ADDRESS_KEYS) ||
+    pick(submission, ADDRESS_KEYS);
+  const code =
+    pick(sm, ["postnummer", "postcode", "postal_code", "zip", "zip_code"]) ||
+    pick(submission, ["postnummer", "postcode", "postal_code", "zip", "zip_code"]);
+  const city =
+    pick(sm, ["poststed", "postal_city", "city", "sted"]) ||
+    pick(submission, ["poststed", "postal_city", "city", "sted"]);
+  const postal = [code, city].filter(Boolean).join(" ") || null;
   if (street && postal) return `${street}, ${postal}`;
   return street || postal;
 }
