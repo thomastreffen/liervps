@@ -546,6 +546,26 @@ const App = () => (
                   <HmsTemplateEditorPage />
                 </ProtectedRoute>
               } />
+              <Route path="/hms/mobile" element={
+                <ProtectedRoute requiredPermission="hms.view">
+                  <HmsMobilePage />
+                </ProtectedRoute>
+              } />
+              <Route path="/hms/mobile/fill/:id" element={
+                <ProtectedRoute requiredPermission="hms.view">
+                  <HmsSubmissionFillPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/hms/submissions" element={
+                <ProtectedRoute requiredPermission="hms.view">
+                  <HmsSubmissionsPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/hms/submissions/:id" element={
+                <ProtectedRoute requiredPermission="hms.view">
+                  <HmsSubmissionDetailPage />
+                </ProtectedRoute>
+              } />
             </Route>
 
             <Route path="*" element={<NotFound />} />
