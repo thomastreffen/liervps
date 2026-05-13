@@ -229,8 +229,8 @@ export default function HmsAmlPage() {
         <Card className="border-dashed">
           <CardContent className="py-10 text-center text-sm text-muted-foreground space-y-2">
             <CheckCircle2 className="h-8 w-8 mx-auto text-emerald-500/60" />
-            <div className="font-medium text-foreground">Ingen åpne AML-varsler</div>
-            <p>Importer timer eller kjør motoren for å oppdatere status.</p>
+            <div className="font-medium text-foreground">Ingen ansatte med timer eller varsler</div>
+            <p>Importer timer for å se AML-status per ansatt.</p>
           </CardContent>
         </Card>
       ) : (
@@ -239,6 +239,12 @@ export default function HmsAmlPage() {
             const crit = u.alerts.filter((a) => a.severity === "critical").length;
             const warn = u.alerts.filter((a) => a.severity === "warning").length;
             const tone = crit ? "alert" : warn ? "warn" : "ok";
+            const subtitle = u.alerts[0]?.title
+              || u.alerts[0]?.explanation
+              || u.alerts[0]?.why
+              || (u.hours > 0
+                  ? `${u.hours.toFixed(1)}t arbeid (${u.overtime.toFixed(1)}t overtid) siste 90 dager · ingen åpne varsler`
+                  : "Ingen timer registrert");
             return (
               <Card
                 key={u.user_id}
@@ -253,13 +259,14 @@ export default function HmsAmlPage() {
                   } />
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-medium truncate">{u.name}</div>
-                    <div className="text-xs text-muted-foreground truncate">
-                      {u.alerts[0]?.title || u.alerts[0]?.explanation || u.alerts[0]?.why || `${u.alerts.length} åpne varsler`}
-                    </div>
+                    <div className="text-xs text-muted-foreground truncate">{subtitle}</div>
                   </div>
                   <div className="flex items-center gap-1.5">
                     {crit > 0 && <Badge variant="destructive" className="text-[10px]">{crit} kritisk</Badge>}
                     {warn > 0 && <Badge variant="outline" className="text-[10px] border-amber-500/40 text-amber-600">{warn} advarsel</Badge>}
+                    {crit === 0 && warn === 0 && u.hours > 0 && (
+                      <Badge variant="outline" className="text-[10px] border-emerald-500/40 text-emerald-600">OK</Badge>
+                    )}
                   </div>
                 </CardContent>
               </Card>
