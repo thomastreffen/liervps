@@ -295,13 +295,27 @@ Deno.serve(async (req) => {
       userIds = Array.from(new Set((userRows ?? []).map((r: any) => r.user_id)));
     }
 
-    // Load default ruleset
-    const { data: rsRow } = await supabase
+    // Load default ruleset; auto-create if missing so the engine is never silently no-op
+    let { data: rsRow } = await supabase
       .from("worktime_rulesets")
       .select("rules")
       .eq("company_id", company_id)
       .eq("is_default", true)
       .maybeSingle();
+    if (!rsRow) {
+      const { data: created } = await supabase
+        .from("worktime_rulesets")
+        .insert({
+          company_id,
+          name: "MCS standard AML",
+          description: "Auto-opprettet standardregelsett for AML-evaluering.",
+          is_default: true,
+          rules: DEFAULT_RULES as any,
+        })
+        .select("rules")
+        .maybeSingle();
+      rsRow = created ?? { rules: DEFAULT_RULES as any };
+    }
     const rules: RuleSet = { ...DEFAULT_RULES, ...((rsRow?.rules as any) ?? {}) };
 
     let totalAlerts = 0;

@@ -45,14 +45,16 @@ export default function HmsAmlPage() {
   const [running, setRunning] = useState(false);
 
   const { data, isLoading, refetch } = useQuery({
-    queryKey: ["hms-aml-v2", activeCompanyId, statusFilter, ruleFilter],
+    queryKey: ["hms-aml-v3", activeCompanyId, statusFilter, ruleFilter],
     enabled: !!activeCompanyId,
     queryFn: async () => {
       const sb = supabase as any;
+
+      // 1) Alerts
       let query = sb
         .from("worktime_alerts")
         .select(
-          "id, user_id, severity, status, rule_key, title, explanation, why, period_start, period_end, value, threshold, recommended_action"
+          "id, user_id, severity, status, rule_key, title, explanation, why, period_start, period_end, value, threshold, recommended_action, updated_at"
         )
         .eq("company_id", activeCompanyId);
       if (statusFilter === "open_ack") query = query.in("status", ["open", "acknowledged"]);
@@ -60,49 +62,90 @@ export default function HmsAmlPage() {
       if (ruleFilter !== "all") query = query.eq("rule_key", ruleFilter);
       const { data: alerts } = await query;
 
-      const userIds = Array.from(new Set(((alerts ?? []) as AlertRow[]).map((a) => a.user_id)));
+      // 2) Recent worktime entries (last 90d) → ansatte med timer, selv uten varsler
+      const since = new Date(); since.setDate(since.getDate() - 90);
+      const { data: entries } = await sb
+        .from("worktime_entries")
+        .select("user_id, total_hours, hours_overtime, work_date")
+        .eq("company_id", activeCompanyId)
+        .gte("work_date", since.toISOString().slice(0, 10))
+        .not("user_id", "is", null);
+
+      const stats = new Map<string, { hours: number; overtime: number; lastDate: string | null }>();
+      for (const e of entries ?? []) {
+        const s = stats.get(e.user_id) ?? { hours: 0, overtime: 0, lastDate: null };
+        s.hours += Number(e.total_hours || 0);
+        s.overtime += Number(e.hours_overtime || 0);
+        if (!s.lastDate || e.work_date > s.lastDate) s.lastDate = e.work_date;
+        stats.set(e.user_id, s);
+      }
+
+      // 3) Resolve names via auth_user_id → user_accounts → people
+      const userIds = Array.from(new Set([
+        ...((alerts ?? []) as AlertRow[]).map((a) => a.user_id),
+        ...stats.keys(),
+      ]));
       let names: Record<string, string> = {};
       if (userIds.length > 0) {
         const { data: accs } = await sb
           .from("user_accounts")
-          .select("id, full_name, email")
-          .in("id", userIds);
+          .select("auth_user_id, person:people!user_accounts_person_id_fkey(full_name, email)")
+          .in("auth_user_id", userIds);
         names = Object.fromEntries(
-          (accs ?? []).map((a: any) => [a.id, a.full_name || a.email || "Ukjent"])
+          (accs ?? []).map((a: any) => [a.auth_user_id, a.person?.full_name || a.person?.email || "Ukjent"])
         );
       }
 
-      const byUser = new Map<string, { name: string; alerts: AlertRow[] }>();
+      // 4) Last AML run (max updated_at across alerts)
+      const lastRun = ((alerts ?? []) as any[]).reduce((mx: string | null, a: any) => {
+        if (!a.updated_at) return mx;
+        return !mx || a.updated_at > mx ? a.updated_at : mx;
+      }, null as string | null);
+
+      // 5) Build per-user view
+      const byUser = new Map<string, { name: string; alerts: AlertRow[]; hours: number; overtime: number; lastDate: string | null }>();
+      for (const uid of userIds) {
+        const s = stats.get(uid) ?? { hours: 0, overtime: 0, lastDate: null };
+        byUser.set(uid, { name: names[uid] ?? "Ukjent", alerts: [], hours: s.hours, overtime: s.overtime, lastDate: s.lastDate });
+      }
       for (const a of (alerts ?? []) as AlertRow[]) {
-        const existing = byUser.get(a.user_id) ?? { name: names[a.user_id] ?? "Ukjent", alerts: [] };
-        existing.alerts.push(a);
-        byUser.set(a.user_id, existing);
+        const v = byUser.get(a.user_id);
+        if (v) v.alerts.push(a);
       }
 
-      return Array.from(byUser.entries()).map(([user_id, v]) => ({ user_id, ...v }));
+      return {
+        users: Array.from(byUser.entries()).map(([user_id, v]) => ({ user_id, ...v })),
+        lastRun,
+        totalEntries: entries?.length ?? 0,
+      };
     },
   });
 
-  const filtered = (data ?? []).filter((u) => {
+  const users = data?.users ?? [];
+  const filtered = users.filter((u) => {
     if (q && !u.name.toLowerCase().includes(q.toLowerCase())) return false;
     if (sevFilter !== "all" && !u.alerts.some((a) => a.severity === sevFilter)) return false;
     return true;
   });
 
   const counts = { critical: 0, warning: 0, info: 0 };
-  for (const u of data ?? []) for (const a of u.alerts) counts[a.severity]++;
+  for (const u of users) for (const a of u.alerts) counts[a.severity]++;
 
   async function runEvaluator() {
     if (!activeCompanyId) return;
     setRunning(true);
     try {
-      await (supabase as any).functions.invoke("worktime-aml-evaluate", {
+      const { data, error } = await (supabase as any).functions.invoke("worktime-aml-evaluate", {
         body: { company_id: activeCompanyId },
       });
-      toast({ title: "AML-motor kjørt" });
+      if (error) throw error;
+      toast({
+        title: "AML-motor kjørt",
+        description: `${data?.users_evaluated ?? 0} ansatte · ${data?.new_alerts ?? 0} nye varsler · ${data?.resolved_alerts ?? 0} løste`,
+      });
       refetch();
     } catch (e: any) {
-      toast({ title: "Feil", description: String(e.message || e), variant: "destructive" });
+      toast({ title: "AML-motor feilet", description: String(e.message || e), variant: "destructive" });
     } finally {
       setRunning(false);
     }
@@ -136,8 +179,14 @@ export default function HmsAmlPage() {
         <SummaryCard title="Kritisk" value={counts.critical} icon={AlertTriangle} tone={counts.critical ? "alert" : "ok"} />
         <SummaryCard title="Advarsel" value={counts.warning} icon={AlertTriangle} tone={counts.warning ? "warn" : "ok"} />
         <SummaryCard title="Info" value={counts.info} icon={AlertTriangle} tone="neutral" />
-        <SummaryCard title="Ansatte" value={data?.length ?? 0} icon={Users} tone="neutral" />
+        <SummaryCard title="Ansatte" value={users.length} icon={Users} tone="neutral" />
       </div>
+
+      {data?.lastRun && (
+        <div className="text-xs text-muted-foreground">
+          Siste AML-kjøring: {new Date(data.lastRun).toLocaleString("nb-NO")} · {data.totalEntries} timeoppføringer evaluert (siste 90 dager)
+        </div>
+      )}
 
       <div className="flex flex-wrap gap-2 items-center">
         <div className="relative flex-1 min-w-[200px] max-w-sm">
@@ -184,8 +233,8 @@ export default function HmsAmlPage() {
         <Card className="border-dashed">
           <CardContent className="py-10 text-center text-sm text-muted-foreground space-y-2">
             <CheckCircle2 className="h-8 w-8 mx-auto text-emerald-500/60" />
-            <div className="font-medium text-foreground">Ingen åpne AML-varsler</div>
-            <p>Importer timer eller kjør motoren for å oppdatere status.</p>
+            <div className="font-medium text-foreground">Ingen ansatte med timer eller varsler</div>
+            <p>Importer timer for å se AML-status per ansatt.</p>
           </CardContent>
         </Card>
       ) : (
@@ -194,6 +243,12 @@ export default function HmsAmlPage() {
             const crit = u.alerts.filter((a) => a.severity === "critical").length;
             const warn = u.alerts.filter((a) => a.severity === "warning").length;
             const tone = crit ? "alert" : warn ? "warn" : "ok";
+            const subtitle = u.alerts[0]?.title
+              || u.alerts[0]?.explanation
+              || u.alerts[0]?.why
+              || (u.hours > 0
+                  ? `${u.hours.toFixed(1)}t arbeid (${u.overtime.toFixed(1)}t overtid) siste 90 dager · ingen åpne varsler`
+                  : "Ingen timer registrert");
             return (
               <Card
                 key={u.user_id}
@@ -208,13 +263,14 @@ export default function HmsAmlPage() {
                   } />
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-medium truncate">{u.name}</div>
-                    <div className="text-xs text-muted-foreground truncate">
-                      {u.alerts[0]?.title || u.alerts[0]?.explanation || u.alerts[0]?.why || `${u.alerts.length} åpne varsler`}
-                    </div>
+                    <div className="text-xs text-muted-foreground truncate">{subtitle}</div>
                   </div>
                   <div className="flex items-center gap-1.5">
                     {crit > 0 && <Badge variant="destructive" className="text-[10px]">{crit} kritisk</Badge>}
                     {warn > 0 && <Badge variant="outline" className="text-[10px] border-amber-500/40 text-amber-600">{warn} advarsel</Badge>}
+                    {crit === 0 && warn === 0 && u.hours > 0 && (
+                      <Badge variant="outline" className="text-[10px] border-emerald-500/40 text-emerald-600">OK</Badge>
+                    )}
                   </div>
                 </CardContent>
               </Card>
