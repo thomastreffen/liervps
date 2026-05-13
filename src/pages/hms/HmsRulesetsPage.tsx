@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "@/hooks/use-toast";
+import { logHmsAudit } from "@/lib/hms/audit";
 import { Skeleton } from "@/components/ui/skeleton";
 
 interface Rules {
@@ -139,9 +140,8 @@ export default function HmsRulesetsPage() {
       if (error) throw error;
 
       // Audit log
-      await (supabase as any).from("hms_audit_log").insert({
+      await logHmsAudit({
         company_id: activeCompanyId,
-        actor_user_id: uid,
         entity_type: "worktime_ruleset",
         entity_id: ins.id,
         action: editing ? "ruleset_revision" : "ruleset_create",

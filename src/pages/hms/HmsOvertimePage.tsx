@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
+import { logHmsAudit } from "@/lib/hms/audit";
 
 const REASON_TYPES = [
   { value: "urgent_job", label: "Hasteoppdrag" },
@@ -66,13 +67,12 @@ export default function HmsOvertimePage() {
       }).eq("id", active.id);
 
       // Audit
-      await (supabase as any).from("hms_audit_log").insert({
+      await logHmsAudit({
         company_id: activeCompanyId,
-        actor_user_id: u.user?.id,
         entity_type: "overtime_approval",
         entity_id: active.id,
         action: decision === "approve" ? "overtime_approved" : "overtime_rejected",
-        payload: { reason, reason_type: reasonType, period_start: active.period_start, period_end: active.period_end, hours: active.approved_hours },
+        payload: { reason, reason_type: reasonType, period_start: active.period_start, period_end: active.period_end, hours: active.approved_hours, user_id: active.user_id },
       });
 
       // Re-evaluate AML for that user
