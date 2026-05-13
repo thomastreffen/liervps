@@ -3,8 +3,11 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams } from "react-router-dom";
 import {
   BookOpen, ChevronRight, FileCheck2, Pencil, Plus, Trash2, MoveUp, MoveDown,
-  CheckCircle2, ShieldCheck, Download, Loader2,
+  CheckCircle2, ShieldCheck, Download, Loader2, Sparkles,
 } from "lucide-react";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompanyContext } from "@/hooks/useCompanyContext";
 import { useAuth } from "@/hooks/useAuth";
@@ -318,6 +321,38 @@ export default function HmsHandbookDetailPage() {
     URL.revokeObjectURL(url);
   };
 
+  const aiDraftMut = useMutation({
+    mutationFn: async (mode: "draft" | "simplify" | "leader" | "short" | "checklist") => {
+      if (!activeChapter || !handbook) throw new Error("Mangler kontekst");
+      const sb = supabase as any;
+      const currentBody = draftHas(activeChapter.id)?.body ?? activeChapter.body ?? "";
+      const { data, error } = await sb.functions.invoke("hms-handbook-ai-draft", {
+        body: {
+          handbookKind: handbook.kind,
+          handbookTitle: handbook.title,
+          chapterTitle: draftHas(activeChapter.id)?.heading ?? activeChapter.heading,
+          currentBody,
+          mode,
+        },
+      });
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      return (data as any)?.content as string;
+    },
+    onSuccess: (content) => {
+      if (!activeChapter || !content) return;
+      setEditedSections((p) => ({
+        ...p,
+        [activeChapter.id]: {
+          heading: draftHas(activeChapter.id)?.heading ?? activeChapter.heading,
+          body: content,
+        },
+      }));
+      toast({ title: "AI-utkast lagt inn", description: "Utkastet er ikke lagret enda – gjennomgå og lagre manuelt." });
+    },
+    onError: (e: any) => toast({ title: "AI feilet", description: String(e.message || e), variant: "destructive" }),
+  });
+
   const activeChapter = useMemo(() => {
     return sections.find((s) => s.id === activeChapterId) ?? sections[0];
   }, [sections, activeChapterId]);
@@ -511,12 +546,44 @@ export default function HmsHandbookDetailPage() {
                   <>
                     <Input value={heading} onChange={(e) => setEditedSections((p) => ({ ...p, [activeChapter.id]: { heading: e.target.value, body } }))} className="text-lg font-semibold" />
                     <Textarea value={body} onChange={(e) => setEditedSections((p) => ({ ...p, [activeChapter.id]: { heading, body: e.target.value } }))} rows={24} className="font-mono text-xs" />
-                    <div className="flex justify-end gap-2">
-                      <Button size="sm" variant="ghost" onClick={() => setEditedSections((p) => { const c = { ...p }; delete c[activeChapter.id]; return c; })} disabled={!draftHas(activeChapter.id)}>Tilbakestill</Button>
-                      <Button size="sm" onClick={() => saveSection.mutate({ id: activeChapter.id, heading, body })} disabled={!draftHas(activeChapter.id) || saveSection.isPending}>
-                        Lagre
-                      </Button>
+                    <div className="flex justify-between items-center gap-2 flex-wrap">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button size="sm" variant="outline" disabled={aiDraftMut.isPending}>
+                            {aiDraftMut.isPending ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Sparkles className="h-4 w-4 mr-1.5" />}
+                            AI-utkast
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start" className="w-64">
+                          <DropdownMenuLabel className="text-xs">Generer / forbedre</DropdownMenuLabel>
+                          <DropdownMenuItem onClick={() => aiDraftMut.mutate("draft")}>
+                            Komplett utkast
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => aiDraftMut.mutate("simplify")}>
+                            Enklere språk for montører
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => aiDraftMut.mutate("leader")}>
+                            Lederversjon
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => aiDraftMut.mutate("short")}>
+                            Kortversjon (mobil)
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem onClick={() => aiDraftMut.mutate("checklist")}>
+                            Foreslå sjekkpunkter / SJA-koblinger
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="ghost" onClick={() => setEditedSections((p) => { const c = { ...p }; delete c[activeChapter.id]; return c; })} disabled={!draftHas(activeChapter.id)}>Tilbakestill</Button>
+                        <Button size="sm" onClick={() => saveSection.mutate({ id: activeChapter.id, heading, body })} disabled={!draftHas(activeChapter.id) || saveSection.isPending}>
+                          Lagre
+                        </Button>
+                      </div>
                     </div>
+                    <p className="text-[11px] text-muted-foreground">
+                      AI-forslag erstatter teksten i editoren, men lagres ikke automatisk. Gjennomgå, lagre, og publiser ny versjon for å aktivere.
+                    </p>
                   </>
                 )}
                 {activeChapter && !editMode && (

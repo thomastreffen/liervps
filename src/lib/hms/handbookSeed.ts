@@ -19,39 +19,78 @@ export interface HandbookSeed {
 interface ChapterSpec {
   title: string;
   formaal: string;
+  omfang: string;
   ansvar: string;
   rutine: string;
   dokumentasjon: string;
   avvik: string;
   henvisninger: string;
+  opplaering?: string;
 }
 
 const renderChapter = (c: ChapterSpec): string =>
   `# ${c.title}\n\n` +
   `> Internt UTKAST. Skal kvalitetssikres av HMS-leder før publisering.\n\n` +
   `## Formål\n${c.formaal}\n\n` +
+  `## Omfang\n${c.omfang}\n\n` +
   `## Ansvar\n${c.ansvar}\n\n` +
   `## Rutine\n${c.rutine}\n\n` +
   `## Dokumentasjon i MCS Kontrollsenter\n${c.dokumentasjon}\n\n` +
   `## Avvik og oppfølging\n${c.avvik}\n\n` +
-  `## Henvisninger\n${c.henvisninger}\n`;
+  `## Henvisninger\n${c.henvisninger}\n` +
+  (c.opplaering ? `\n## Bekreftelse / opplæring\n${c.opplaering}\n` : "");
 
-const ARB: ChapterSpec[] = [
+const ALL = (arr: ReadonlyArray<{ omfang?: string; opplaering?: string } & Omit<ChapterSpec, "omfang" | "opplaering">>): ChapterSpec[] =>
+  arr.map((c) => ({
+    ...c,
+    omfang: c.omfang ?? "Gjelder alle ansatte og innleide i MCS Service som omfattes av kapittelet, samt eksterne underleverandører på MCS-oppdrag der det er relevant.",
+  }));
+
+const ARB: ChapterSpec[] = ALL([
+  {
+    title: "Innledning og formål",
+    formaal: "Beskrive hensikten med Arbeidshåndboken og hvordan den brukes i hverdagen i MCS Service.",
+    omfang: "Gjelder alle ansatte i MCS Service. Innleide og lærlinger orienteres ved oppstart.",
+    ansvar: "Daglig leder eier håndboken. HMS-leder vedlikeholder innholdet. Driftsleder følger opp at egne ansatte har lest gjeldende versjon.",
+    rutine: "Håndboken finnes i MCS Kontrollsenter under HMS & HR → Håndbøker. Endringer publiseres som ny versjon. Ansatte varsles og må bekrefte ny versjon.",
+    dokumentasjon: "Lesebekreftelser, versjonshistorikk og endringslogg lagres i MCS Kontrollsenter.",
+    avvik: "Manglende lesebekreftelse innen frist følges opp av nærmeste leder.",
+    henvisninger: "Arbeidsmiljøloven. Internkontrollforskriften.",
+    opplaering: "Nye ansatte gjennomgår håndboken sammen med driftsleder i løpet av første uke.",
+  },
+  {
+    title: "Roller og ansvar",
+    formaal: "Tydeliggjøre hvem som har ansvar for hva i den daglige driften.",
+    ansvar: "Daglig leder, driftsleder, prosjektleder, FSE-ansvarlig, vernombud og ansatt – hver med definerte oppgaver.",
+    rutine: "Rolleoversikt revideres ved organisasjonsendring og minst én gang i året. Stedfortreder skal være avklart.",
+    dokumentasjon: "Rolleoversikt vedlikeholdes i MCS Kontrollsenter.",
+    avvik: "Uklare roller løftes til ledelsens gjennomgang.",
+    henvisninger: "Arbeidsmiljøloven kap. 2 og 6.",
+  },
   {
     title: "Arbeidstid",
     formaal: "Sikre at arbeidstid planlegges og registreres i tråd med arbeidsmiljøloven og MCS' interne ordning.",
-    ansvar: "Driftsleder planlegger oppdrag innenfor avtalt ordning. Den enkelte ansatte fører korrekte timer i Tripletex/MCS Kontrollsenter.",
+    ansvar: "Driftsleder planlegger oppdrag innenfor avtalt ordning. Den enkelte ansatte fører korrekte timer i Tripletex og MCS Kontrollsenter.",
     rutine: "Normalarbeidstid avtales pr. ansatt. Avvik fra ordningen skal varsles driftsleder samme dag. Skift, beredskap og vakt registreres med riktig kategori.",
     dokumentasjon: "Timer importeres fra Tripletex til MCS Kontrollsenter. AML-modulen overvåker dags-, ukes- og periodegrenser.",
-    avvik: "Brudd på dagsgrense, ukesgrense eller hviletid genererer AML-varsel. Driftsleder skal kvittere ut og iverksette tiltak.",
-    henvisninger: "Arbeidsmiljøloven kap. 10. Intern ordning for arbeidstid (vedlegg).",
+    avvik: "Brudd på dagsgrense, ukesgrense eller hviletid genererer AML-varsel. Driftsleder kvitterer ut og iverksetter tiltak.",
+    henvisninger: "Arbeidsmiljøloven kap. 10. Intern ordning for arbeidstid.",
+  },
+  {
+    title: "Registrering av arbeidstid",
+    formaal: "Sikre at all arbeidstid registreres fortløpende, korrekt og sporbart.",
+    ansvar: "Den enkelte registrerer egne timer. Driftsleder kontrollerer og godkjenner i Tripletex.",
+    rutine: "Timer føres samme dag, senest neste arbeidsdag. Bruk riktig oppdragsnummer, aktivitet og lønnsart. Reise, beredskap og pauser føres iht. kategori.",
+    dokumentasjon: "Timer importeres til MCS Kontrollsenter og brukes i AML, Ressursplan og Fakturagrunnlag.",
+    avvik: "Manglende eller feil registrering rettes ved neste import. Mønsterfeil tas opp i medarbeidersamtale.",
+    henvisninger: "Arbeidsmiljøloven §10-7. Bokføringsloven §10.",
   },
   {
     title: "Overtid",
-    formaal: "Sikre at overtid kun benyttes ved særlig behov, godkjennes på forhånd og kompenseres riktig.",
+    formaal: "Sikre at overtid kun benyttes ved særlig og tidsavgrenset behov, godkjennes på forhånd og kompenseres riktig.",
     ansvar: "Driftsleder vurderer behov og gir forhåndsgodkjenning. Ansatt registrerer overtid med begrunnelse.",
-    rutine: "Overtid skal som hovedregel forhåndsgodkjennes. Akutt overtid godkjennes så snart som mulig i etterkant via MCS Kontrollsenter.",
-    dokumentasjon: "Overtid synliggjøres i Ressursplan og AML. Pending godkjenninger vises i HMS-dashboard.",
+    rutine: "Overtid skal som hovedregel forhåndsgodkjennes. Akutt overtid godkjennes så snart som mulig i etterkant via MCS Kontrollsenter. Maksgrenser i AML overvåkes løpende.",
+    dokumentasjon: "Overtid synliggjøres i Ressursplan og AML. Ventende godkjenninger vises i HMS-dashboard.",
     avvik: "Ikke-godkjent overtid behandles av nærmeste leder. Brudd på maksgrenser løftes til daglig leder.",
     henvisninger: "Arbeidsmiljøloven §10-6. Intern overtidsavtale.",
   },
@@ -60,7 +99,7 @@ const ARB: ChapterSpec[] = [
     formaal: "Tydelig prosess for hvem som godkjenner overtid og hvordan godkjenning dokumenteres.",
     ansvar: "Driftsleder er primær godkjenner. Daglig leder ved overskridelser eller systematisk bruk.",
     rutine: "Overtidsforespørsel sendes via MCS Kontrollsenter eller muntlig + bekreftet skriftlig samme arbeidsdag. Godkjenning loggføres med tidspunkt og godkjenner.",
-    dokumentasjon: "Alle godkjenninger lagres i `overtime_approvals` og er sporbare i ansattprofil.",
+    dokumentasjon: "Alle godkjenninger lagres i overtime_approvals og er sporbare i ansattprofil.",
     avvik: "Manglende godkjenning skal lukkes innen 7 dager, ellers løftes saken.",
     henvisninger: "Intern overtidsavtale. Arbeidsmiljøloven §10-6.",
   },
@@ -69,7 +108,7 @@ const ARB: ChapterSpec[] = [
     formaal: "Sikre lovpålagte og helsemessig nødvendige pauser i løpet av arbeidsdagen.",
     ansvar: "Den enkelte er ansvarlig for å ta pauser. Driftsleder legger til rette for at det er praktisk mulig.",
     rutine: "Minst 30 minutters pause ved arbeidsdag over 5,5 timer. Pause regnes som arbeidstid kun hvis ansatt ikke fritt kan forlate arbeidsstedet.",
-    dokumentasjon: "Pauser registreres ikke separat, men avvik (manglende pause pga drift) skal noteres i timeoppføringen.",
+    dokumentasjon: "Pauser registreres ikke separat, men avvik (manglende pause pga. drift) skal noteres i timeoppføringen.",
     avvik: "Gjentatte avvik tas opp i medarbeidersamtale og vernerunde.",
     henvisninger: "Arbeidsmiljøloven §10-9.",
   },
@@ -77,7 +116,7 @@ const ARB: ChapterSpec[] = [
     title: "Hviletid",
     formaal: "Sikre at ansatte får tilstrekkelig sammenhengende hvile mellom arbeidsperioder.",
     ansvar: "Driftsleder planlegger oppdrag for å unngå brudd på hviletid. Ansatt skal varsle ved risiko for brudd.",
-    rutine: "Minst 11 timer sammenhengende hvile pr. 24t og 35 timer pr. 7 dager, hvis ikke annet er avtalt.",
+    rutine: "Minst 11 timer sammenhengende hvile pr. 24t og 35 timer pr. 7 dager hvis ikke annet er avtalt. Kompenserende hvile gis ved godkjente avvik.",
     dokumentasjon: "AML-modulen analyserer hviletid basert på registrerte timer. Importerte filer uten klokkeslett gir periodebasert kontroll.",
     avvik: "Brudd skal håndteres umiddelbart med kompenserende hvile.",
     henvisninger: "Arbeidsmiljøloven §10-8.",
@@ -94,7 +133,7 @@ const ARB: ChapterSpec[] = [
   {
     title: "Natt- og helgearbeid",
     formaal: "Sikre forsvarlig planlegging og kompensasjon for arbeid utenfor normal arbeidstid.",
-    ansvar: "Driftsleder vurderer behov og innhenter samtykke. Vernombud orienteres ved fast nattarbeid.",
+    ansvar: "Driftsleder vurderer behov og innhenter samtykke. Verneombud orienteres ved fast nattarbeid.",
     rutine: "Nattarbeid (kl. 21–06) og søndagsarbeid skal være begrunnet i drift, beredskap eller særlig oppdrag. Skiftplan kommuniseres skriftlig.",
     dokumentasjon: "Nattøkter merkes i timeoppføring og synliggjøres i AML.",
     avvik: "Faste mønstre uten avtale er avvik og skal lukkes.",
@@ -110,16 +149,35 @@ const ARB: ChapterSpec[] = [
     henvisninger: "Folketrygdloven kap. 8. IA-avtalen.",
   },
   {
+    title: "Ferie",
+    formaal: "Sikre forutsigbar ferieavvikling og overholdelse av ferieloven.",
+    ansvar: "Driftsleder fastsetter hovedferien etter dialog med ansatt. HR registrerer ferie i Tripletex.",
+    rutine: "Ferieønsker meldes innen frist hvert år. Hovedferie gis i perioden 1. juni – 30. september. Restferie planlegges fortløpende.",
+    dokumentasjon: "Ferie synes i Fraværsmodulen og Ressursplan.",
+    avvik: "Endringer skal være skriftlige og avtalt med driftsleder.",
+    henvisninger: "Ferieloven.",
+  },
+  {
     title: "Bruk av MCS Kontrollsenter",
     formaal: "Sikre at alle ansatte bruker MCS Kontrollsenter som primært arbeidsverktøy.",
     ansvar: "Alle ansatte er ansvarlige for å holde sine oppgaver, timer, SJA og avvik oppdatert i systemet.",
     rutine: "Logg inn via Microsoft 365. Bruk mobilversjon i felt. Skriv kort, klart og faktabasert. Last opp bilder ved behov.",
-    dokumentasjon: "Aktivitet logges automatisk i `activity_log`. Dokumenter lagres i prosjektmappen.",
+    dokumentasjon: "Aktivitet logges automatisk i activity_log. Dokumenter lagres i prosjektmappen.",
     avvik: "Tekniske feil meldes til IT/systemansvarlig med skjermbilde.",
     henvisninger: "Brukerveiledning MCS Kontrollsenter (intern).",
+    opplaering: "Nye brukere får intro av driftsleder. Mobilbruk demonstreres på første oppdrag.",
   },
   {
-    title: "HMS-ansvar",
+    title: "AML-overvåking i MCS Kontrollsenter",
+    formaal: "Beskrive hvordan MCS bruker AML-modulen til å overvåke arbeidstid og overtid.",
+    ansvar: "HMS-leder eier regelsettet. Driftsleder følger opp varsler for sine ansatte.",
+    rutine: "Timer importeres fra Tripletex. AML-modulen kontrollerer dag, uke og periode. Overtidsvarsler følges opp av leder. Overtid skal ha særskilt og tidsavgrenset behov. Mangler i datagrunnlag, for eksempel manglende start- og sluttid i Tripletex månedsoversikt, gjør at enkelte 24-timers vurderinger blir periodebaserte – dette er kommentert i hvert varsel.",
+    dokumentasjon: "AML-varsler, kvitteringer og løsninger lagres i hms_alerts og activity_log.",
+    avvik: "Kritiske varsler skal kvitteres innen 7 dager. Mønsterbrudd løftes til daglig leder.",
+    henvisninger: "Arbeidsmiljøloven kap. 10.",
+  },
+  {
+    title: "HMS-ansvar for ansatte",
     formaal: "Klargjøre den enkeltes ansvar for egen og kollegers sikkerhet.",
     ansvar: "Daglig leder har øverste HMS-ansvar. Driftsleder har operativt ansvar pr. oppdrag. Hver ansatt er ansvarlig for egen sikkerhet og å varsle om risiko.",
     rutine: "Stopp arbeidet ved akutt fare. Bruk verneutstyr. Følg SJA og prosedyrer. Meld avvik straks.",
@@ -131,14 +189,60 @@ const ARB: ChapterSpec[] = [
     title: "Avvik og varsling",
     formaal: "Sikre lav terskel for å melde avvik og kritikkverdige forhold.",
     ansvar: "Alle ansatte kan og skal melde avvik. HMS-leder behandler. Daglig leder ved varsling om kritikkverdige forhold.",
-    rutine: "Bruk avviksskjema i MCS Kontrollsenter. Beskriv hva, hvor, når og foreslått tiltak. Vernombud orienteres om HMS-avvik.",
+    rutine: "Bruk avviksskjema i MCS Kontrollsenter. Beskriv hva, hvor, når og foreslått tiltak. Verneombud orienteres om HMS-avvik.",
     dokumentasjon: "Avvik følges fra meldt til lukket med tiltak og ansvarlig.",
     avvik: "Gjengangere analyseres i ledelsens gjennomgang.",
     henvisninger: "Arbeidsmiljøloven kap. 2A om varsling.",
   },
-];
+  {
+    title: "Arbeid hos kunde",
+    formaal: "Sikre profesjonell og forsvarlig opptreden hos kunde.",
+    ansvar: "Driftsleder for oppdraget. Den enkelte representerer MCS i felt.",
+    rutine: "Meld ankomst til kontaktperson. Følg kundens HMS-regime og adgangsrutiner. Rydd og dokumenter ved avslutning. Kommuniser eventuelle avvik direkte til kunde og MCS.",
+    dokumentasjon: "Sluttdokumentasjon, bilder og signaturer arkiveres i prosjektet.",
+    avvik: "Avvik som påvirker kundens drift varsles umiddelbart både til kunde og driftsleder.",
+    henvisninger: "Kundespesifikke prosedyrer.",
+  },
+  {
+    title: "Datacenter-rutiner",
+    formaal: "Egne arbeidsregler for arbeid i datacenter.",
+    ansvar: "Driftsleder for datacenteroppdraget.",
+    rutine: "Følg kundens sikkerhetsregime: adgang, ESD, kjøling, brann, dobbeltgulv og redundans. Aldri jobb alene på kritiske systemer uten klarering. Verktøy og kabler skal være sikret.",
+    dokumentasjon: "Adgangslogg og arbeidstillatelser oppbevares pr. oppdrag.",
+    avvik: "Hendelser eskaleres umiddelbart til kunden og driftsleder.",
+    henvisninger: "Kundespesifikke prosedyrer (vedlegg pr. kunde).",
+  },
+  {
+    title: "Næringsbygg-rutiner",
+    formaal: "Standard arbeidsmetode i næringsbygg, kontor og forretning.",
+    ansvar: "Driftsleder pr. oppdrag.",
+    rutine: "Avklar adgang, brannrutiner, åpningstider og sikring av arbeidsområde. Begrens støy og støv i driftstid. Rydd dagens arbeid før avslutning.",
+    dokumentasjon: "Adgangs- og nøkkelhåndtering loggføres.",
+    avvik: "Skader på inventar eller bygg meldes som RUH og til kunde.",
+    henvisninger: "Internkontrollforskriften.",
+  },
+  {
+    title: "Tavle og strømskinner",
+    formaal: "Sikker arbeidsmetode på tavler og strømskinneanlegg.",
+    ansvar: "FSE-ansvarlig leder arbeidet. Sertifisert tavlemontør utfører arbeid i tavle.",
+    rutine: "Spenningstest, jording, skilting og avskjerming før arbeid. Bruk lysbueverntøy ved arbeid på eller nær spenning. Trekk dokumentert moment. Sluttkontroll og termografi etter behov.",
+    dokumentasjon: "Sluttkontroll og termografi lagres pr. anlegg.",
+    avvik: "Funn ved kontroll behandles som risikoflagg i prosjektet.",
+    henvisninger: "FSE. NEK 439. NEK 400.",
+  },
+  {
+    title: "Bekreftelse lest og forstått",
+    formaal: "Bekrefte at den ansatte har lest og forstått innholdet i Arbeidshåndboken.",
+    ansvar: "Den enkelte ansatte. Driftsleder følger opp ved manglende bekreftelse.",
+    rutine: "Bekreftelse skjer i MCS Kontrollsenter etter publisering av ny versjon. Tekst: \"Jeg har lest og forstått denne håndboken.\"",
+    dokumentasjon: "Lesebekreftelser lagres med tidspunkt, bruker og versjon.",
+    avvik: "Manglende bekreftelse innen frist eskaleres til daglig leder.",
+    henvisninger: "Internkontrollforskriften §5.",
+    opplaering: "Ved vesentlige endringer kan det kreves muntlig gjennomgang i tillegg til lesebekreftelse.",
+  },
+]);
 
-const HMS: ChapterSpec[] = [
+const HMS: ChapterSpec[] = ALL([
   {
     title: "Internkontroll",
     formaal: "Sikre systematisk HMS-arbeid i MCS Service i tråd med internkontrollforskriften.",
@@ -149,6 +253,15 @@ const HMS: ChapterSpec[] = [
     henvisninger: "Internkontrollforskriften.",
   },
   {
+    title: "HMS-mål",
+    formaal: "Sette tydelige, målbare HMS-mål og følge dem opp.",
+    ansvar: "Daglig leder fastsetter målene. HMS-leder rapporterer status.",
+    rutine: "Mål settes årlig. Status rapporteres kvartalsvis. Eksempler: 0 alvorlige skader, sykefravær < x%, antall RUH > y, andel SJA-fullføring 100%.",
+    dokumentasjon: "Mål og status synes i HMS-dashboard og ledelsens gjennomgang.",
+    avvik: "Avvik fra mål utløser tiltaksplan.",
+    henvisninger: "Internkontrollforskriften §5 nr. 4.",
+  },
+  {
     title: "Roller og ansvar",
     formaal: "Tydeliggjøre HMS-roller i organisasjonen.",
     ansvar: "Daglig leder, HMS-leder, driftsleder, vernombud, ansatt – hver med definert ansvar.",
@@ -156,6 +269,25 @@ const HMS: ChapterSpec[] = [
     dokumentasjon: "Rolleoversikt vedlikeholdes i MCS Kontrollsenter.",
     avvik: "Uklare roller løftes til ledelsens gjennomgang.",
     henvisninger: "Arbeidsmiljøloven kap. 6 og 7.",
+  },
+  {
+    title: "Medvirkning",
+    formaal: "Sikre at ansatte og verneombud medvirker i HMS-arbeidet.",
+    ansvar: "Verneombud representerer ansatte. Driftsleder legger til rette for medvirkning.",
+    rutine: "Faste HMS-punkter på personalmøter. Vernerunder med deltakelse fra verneombud. Innspill til prosedyrer kan meldes via MCS Kontrollsenter.",
+    dokumentasjon: "Møtereferater og innspill loggføres.",
+    avvik: "Manglende medvirkning er avvik mot internkontroll.",
+    henvisninger: "Arbeidsmiljøloven kap. 6.",
+  },
+  {
+    title: "Opplæring og kompetanse",
+    formaal: "Sikre at alle har nødvendig kompetanse for sine oppgaver.",
+    ansvar: "Driftsleder kartlegger behov. HMS-leder forvalter opplæringsplan.",
+    rutine: "Kompetanseplan oppdateres årlig. FSE-kurs årlig. Førstehjelp hvert 12. mnd. for utsatte grupper. Sertifikater fornyes før utløp.",
+    dokumentasjon: "Kompetanse og kurs registreres i MCS Kontrollsenter.",
+    avvik: "Arbeid uten gyldig sertifisering er avvik og stoppes.",
+    henvisninger: "Arbeidsmiljøloven §3-2. FSE.",
+    opplaering: "Ny ansatt får sjekkliste for opplæring og fadder de første 4 ukene.",
   },
   {
     title: "SJA – sikker jobbanalyse",
@@ -171,9 +303,27 @@ const HMS: ChapterSpec[] = [
     formaal: "Kartlegge og redusere risiko i drift og prosjekter.",
     ansvar: "HMS-leder fasiliterer. Driftsleder gjennomfører for sine oppdrag.",
     rutine: "Identifiser risiko, vurder sannsynlighet og konsekvens, beslutt tiltak, sett ansvarlig og frist.",
-    dokumentasjon: "Risikovurderinger arkiveres pr. aktivitet/oppdrag.",
+    dokumentasjon: "Risikovurderinger arkiveres pr. aktivitet eller oppdrag.",
     avvik: "Manglende vurdering på kritiske aktiviteter er avvik.",
     henvisninger: "Internkontrollforskriften §5.",
+  },
+  {
+    title: "Sjekklister",
+    formaal: "Standardisere kontroll og dokumentasjon på tilbakevendende oppgaver.",
+    ansvar: "HMS-leder forvalter maler. Den som utfører oppgaven fyller ut.",
+    rutine: "Bruk sjekklister i HMS-modulen for sluttkontroll, tavle, termografi, vernerunde m.m. Påkrevde skjemaer blokkerer fullføring av oppdrag.",
+    dokumentasjon: "Utfylte sjekklister lagres i submissions og kobles til oppdrag.",
+    avvik: "Manglende eller mangelfullt utfylt sjekkliste er avvik.",
+    henvisninger: "Internkontrollforskriften §5.",
+  },
+  {
+    title: "Vernerunder",
+    formaal: "Avdekke risiko, mangler og forbedringsmuligheter i arbeidsmiljøet.",
+    ansvar: "HMS-leder planlegger. Driftsleder gjennomfører sammen med verneombud.",
+    rutine: "Vernerunde minst 2 ganger per år, og ved oppstart av store prosjekter. Funn registreres som tiltak med ansvarlig og frist.",
+    dokumentasjon: "Rapporter lagres i HMS-modulen.",
+    avvik: "Funn som ikke lukkes innen frist løftes.",
+    henvisninger: "Arbeidsmiljøloven §3-1.",
   },
   {
     title: "Avvik og RUH",
@@ -185,6 +335,15 @@ const HMS: ChapterSpec[] = [
     henvisninger: "Internkontrollforskriften §5 nr. 7.",
   },
   {
+    title: "Tiltak og lukking",
+    formaal: "Sikre at avvik og funn faktisk lukkes med kontrollerbar effekt.",
+    ansvar: "Tiltakseier er ansvarlig for gjennomføring. HMS-leder verifiserer lukking.",
+    rutine: "Hvert tiltak skal ha ansvarlig, frist og verifiseringskriterium. Lukking krever dokumentasjon (bilde, signatur eller kommentar).",
+    dokumentasjon: "Tiltaksregister vedlikeholdes i HMS-modulen.",
+    avvik: "Tiltak som ikke lukkes innen frist eskaleres automatisk.",
+    henvisninger: "Internkontrollforskriften §5.",
+  },
+  {
     title: "FSE og elsikkerhet",
     formaal: "Sikre at alt arbeid på elektriske anlegg utføres iht. FSE.",
     ansvar: "Driftsleder/installatør er ansvarlig for at FSE-krav oppfylles. Alle som arbeider med el må ha gyldig FSE-opplæring.",
@@ -192,12 +351,13 @@ const HMS: ChapterSpec[] = [
     dokumentasjon: "Opplæring og repetisjon registreres i kompetanseoversikt.",
     avvik: "Arbeid uten gyldig FSE er avvik og stoppes.",
     henvisninger: "Forskrift om sikkerhet ved arbeid i og drift av elektriske anlegg (FSE).",
+    opplaering: "Årlig FSE-repetisjon dokumenteres med signatur og dato.",
   },
   {
-    title: "Arbeid nær elektriske anlegg",
+    title: "Arbeid på eller nær elektriske anlegg",
     formaal: "Beskrive sikker arbeidsmetode ved arbeid nær spenningsførende deler.",
     ansvar: "Ansvarlig for arbeidet etter FSE skal utpekes før oppstart.",
-    rutine: "Velg metode: utkoblet, nær eller under spenning. Sikre med tiltak iht. valgt metode. Alltid bruk personlig verneutstyr og isolerte verktøy.",
+    rutine: "Velg metode: utkoblet, nær spenning eller under spenning. Sikre med tiltak iht. valgt metode. Bruk personlig verneutstyr og isolerte verktøy.",
     dokumentasjon: "Metode dokumenteres i SJA og oppdragslogg.",
     avvik: "Endring av metode underveis krever ny risikovurdering.",
     henvisninger: "FSE §10–§17.",
@@ -215,43 +375,43 @@ const HMS: ChapterSpec[] = [
     title: "Alvorlig ulykke",
     formaal: "Tydelig beredskap ved alvorlig personskade eller dødsfall.",
     ansvar: "Daglig leder er kriseleder. HMS-leder koordinerer rapportering.",
-    rutine: "Sikre stedet, varsle nødetater, varsle pårørende via politiet, varsle Arbeidstilsynet/politiet, ta vare på spor og dokumentasjon.",
+    rutine: "Sikre stedet, varsle nødetater, varsle pårørende via politiet, varsle Arbeidstilsynet og politiet, ta vare på spor og dokumentasjon.",
     dokumentasjon: "Hendelseslogg opprettes umiddelbart. Egen rapport til myndigheter.",
     avvik: "Avvik fra beredskap evalueres i ettertid.",
     henvisninger: "Arbeidsmiljøloven §5-2. Internkontrollforskriften.",
   },
   {
-    title: "Verneutstyr",
+    title: "Personlig verneutstyr",
     formaal: "Sikre at riktig personlig verneutstyr (PVU) brukes.",
     ansvar: "MCS dekker pålagt PVU. Ansatt skal bruke og vedlikeholde det.",
-    rutine: "Vernesko, hjelm, briller, hørselvern, hansker og lysbueverntøy etter behov. Sjekk utstyr før bruk.",
+    rutine: "Vernesko, hjelm, briller, hørselvern, hansker og lysbueverntøy etter behov. Sjekk utstyr før bruk. Defekt utstyr byttes umiddelbart.",
     dokumentasjon: "Utlevering registreres pr. ansatt.",
-    avvik: "Defekt utstyr skiftes umiddelbart.",
+    avvik: "Manglende eller feil bruk er avvik.",
     henvisninger: "Forskrift om utførelse av arbeid §15.",
   },
   {
-    title: "Datacenter",
+    title: "Arbeid i datacenter",
     formaal: "Egne sikkerhetskrav for arbeid i datacenter.",
     ansvar: "Driftsleder for datacenteroppdraget.",
-    rutine: "Følg kundens sikkerhetsregime. Adgang, ESD, kjøling, brann, dobbeltgulv, redundans. Aldri jobb alene på kritiske systemer uten klarering.",
+    rutine: "Følg kundens sikkerhetsregime. ESD, kjøling, brann, dobbeltgulv, redundans. Aldri jobb alene på kritiske systemer uten klarering.",
     dokumentasjon: "Adgangslogg og arbeidstillatelser oppbevares pr. oppdrag.",
-    avvik: "Hendelser i datacenter eskaleres umiddelbart til kunden.",
-    henvisninger: "Kundespesifikke prosedyrer (vedlegg pr. kunde).",
+    avvik: "Hendelser eskaleres umiddelbart til kunden.",
+    henvisninger: "Kundespesifikke prosedyrer.",
   },
   {
-    title: "Næringsbygg",
-    formaal: "Standard arbeidsmetode i næringsbygg, kontor og forretning.",
+    title: "Arbeid i næringsbygg",
+    formaal: "Sikker og hensynsfull arbeidsmetode i næringsbygg.",
     ansvar: "Driftsleder pr. oppdrag.",
     rutine: "Avklar adgang, brannrutiner, åpningstider og sikring av arbeidsområde. Begrens støy og støv i driftstid.",
     dokumentasjon: "Adgangs- og nøkkelhåndtering loggføres.",
-    avvik: "Skader på inventar/bygg meldes som RUH og til kunde.",
+    avvik: "Skader på inventar eller bygg meldes som RUH og til kunde.",
     henvisninger: "Internkontrollforskriften.",
   },
   {
-    title: "Tavler og strømskinner",
+    title: "Tavlemontasje og strømskinner",
     formaal: "Sikker montasje, kontroll og service på tavler og strømskinneanlegg.",
     ansvar: "FSE-ansvarlig leder arbeidet. Sertifisert tavlemontør utfører arbeidet i tavle.",
-    rutine: "Spenningstest, jording, skilting og avskjerming før arbeid. Bruk lysbueverntøy ved arbeid på/nær spenning. Trekk dokumentert moment. Sluttkontroll og termografi etter behov.",
+    rutine: "Spenningstest, jording, skilting og avskjerming før arbeid. Bruk lysbueverntøy ved arbeid på eller nær spenning. Trekk dokumentert moment. Sluttkontroll og termografi etter behov.",
     dokumentasjon: "Sluttkontroll og termografi lagres pr. anlegg.",
     avvik: "Funn ved kontroll behandles som risikoflagg i prosjektet.",
     henvisninger: "FSE. NEK 439. NEK 400.",
@@ -275,7 +435,7 @@ const HMS: ChapterSpec[] = [
     henvisninger: "Forskrift om utførelse av arbeid kap. 4.",
   },
   {
-    title: "EE-avfall",
+    title: "EE-avfall og miljø",
     formaal: "Sikre miljøriktig håndtering av elektrisk og elektronisk avfall.",
     ansvar: "Driftsleder pr. oppdrag. Ansatt sorterer på riktig måte.",
     rutine: "EE-avfall sorteres separat og leveres til godkjent mottak. Kabel, lysstoffrør, batterier og kondensatorer behandles som farlig avfall.",
@@ -292,21 +452,30 @@ const HMS: ChapterSpec[] = [
     avvik: "Manglende øvelse er avvik mot internkontroll.",
     henvisninger: "Internkontrollforskriften §5 nr. 6.",
   },
-];
+  {
+    title: "Ledelsens gjennomgang",
+    formaal: "Sikre at ledelsen jevnlig vurderer at HMS-systemet fungerer og fastsetter forbedringer.",
+    ansvar: "Daglig leder gjennomfører. HMS-leder forbereder underlag.",
+    rutine: "Minst én gang i året. Gjennomgang av mål, avvik, RUH, vernerunder, kompetanse, ulykker og status på tiltak. Beslutt forbedringer for neste periode.",
+    dokumentasjon: "Referat med beslutninger arkiveres i HMS-modulen.",
+    avvik: "Manglende gjennomgang er alvorlig avvik mot internkontroll.",
+    henvisninger: "Internkontrollforskriften §5 nr. 8.",
+  },
+]);
 
 export const MCS_HANDBOOK_SEEDS: HandbookSeed[] = [
   {
     kind: "employee_handbook",
     title: "Arbeidshåndbok – MCS Service",
     description:
-      "Arbeidstid, overtid, pauser, hviletid, reisetid, natt/helg, fravær, bruk av MCS Kontrollsenter, HMS-ansvar og avvik.",
+      "Arbeidstid, registrering, overtid, pauser, hviletid, reisetid, natt/helg, fravær, ferie, AML-overvåking, bruk av MCS Kontrollsenter, kunde-/datacenter-/næringsbygg-rutiner, tavle og strømskinner, HMS-ansvar, avvik og lesebekreftelse.",
     chapters: ARB.map((c) => ({ title: c.title, body: renderChapter(c) })),
   },
   {
     kind: "hms_handbook",
     title: "HMS-håndbok – MCS Service",
     description:
-      "Internkontroll, roller, SJA, risiko, avvik, FSE, elsikkerhet, ulykker, verneutstyr, datacenter, næringsbygg, tavler, kjemikalier, asbest, EE-avfall og beredskap.",
+      "Internkontroll, HMS-mål, roller, medvirkning, opplæring, SJA, risiko, sjekklister, vernerunder, avvik/RUH, tiltak, FSE og elsikkerhet, strømulykke, alvorlig ulykke, PVU, datacenter, næringsbygg, tavlemontasje og strømskinner, kjemikalier, asbest, EE-avfall, beredskap og ledelsens gjennomgang.",
     chapters: HMS.map((c) => ({ title: c.title, body: renderChapter(c) })),
   },
 ];
