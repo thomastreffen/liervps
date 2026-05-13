@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   AlertTriangle,
@@ -33,6 +33,34 @@ interface AlertRow {
   why: string | null;
   period_start: string | null;
   period_end: string | null;
+  recommended_action: string | null;
+}
+
+type PeriodKey = "30d" | "90d" | "month" | "custom";
+
+function isoWeekStart(d: Date): string {
+  const dt = new Date(d);
+  const day = (dt.getUTCDay() + 6) % 7;
+  dt.setUTCDate(dt.getUTCDate() - day);
+  return dt.toISOString().slice(0, 10);
+}
+
+function periodRange(p: PeriodKey, customFrom: string, customTo: string): { from: string; to: string } {
+  const today = new Date();
+  const to = today.toISOString().slice(0, 10);
+  if (p === "30d") {
+    const from = new Date(today); from.setDate(from.getDate() - 30);
+    return { from: from.toISOString().slice(0, 10), to };
+  }
+  if (p === "90d") {
+    const from = new Date(today); from.setDate(from.getDate() - 90);
+    return { from: from.toISOString().slice(0, 10), to };
+  }
+  if (p === "month") {
+    const from = new Date(today.getFullYear(), today.getMonth(), 1);
+    return { from: from.toISOString().slice(0, 10), to };
+  }
+  return { from: customFrom || "2000-01-01", to: customTo || to };
 }
 
 export default function HmsAmlPage() {
@@ -42,45 +70,87 @@ export default function HmsAmlPage() {
   const [sevFilter, setSevFilter] = useState<"all" | Severity>("all");
   const [statusFilter, setStatusFilter] = useState<"open_ack" | "open" | "acknowledged" | "resolved" | "all">("open_ack");
   const [ruleFilter, setRuleFilter] = useState<string>("all");
+  const [period, setPeriod] = useState<PeriodKey>("90d");
+  const [customFrom, setCustomFrom] = useState("");
+  const [customTo, setCustomTo] = useState("");
   const [running, setRunning] = useState(false);
 
+  const range = useMemo(() => periodRange(period, customFrom, customTo), [period, customFrom, customTo]);
+
   const { data, isLoading, refetch } = useQuery({
-    queryKey: ["hms-aml-v3", activeCompanyId, statusFilter, ruleFilter],
+    queryKey: ["hms-aml-v4", activeCompanyId, statusFilter, ruleFilter, range.from, range.to],
     enabled: !!activeCompanyId,
     queryFn: async () => {
       const sb = supabase as any;
 
-      // 1) Alerts
       let query = sb
         .from("worktime_alerts")
         .select(
           "id, user_id, severity, status, rule_key, title, explanation, why, period_start, period_end, value, threshold, recommended_action, updated_at"
         )
-        .eq("company_id", activeCompanyId);
+        .eq("company_id", activeCompanyId)
+        .gte("period_end", range.from)
+        .lte("period_start", range.to);
       if (statusFilter === "open_ack") query = query.in("status", ["open", "acknowledged"]);
       else if (statusFilter !== "all") query = query.eq("status", statusFilter);
       if (ruleFilter !== "all") query = query.eq("rule_key", ruleFilter);
       const { data: alerts } = await query;
 
-      // 2) Recent worktime entries (last 90d) → ansatte med timer, selv uten varsler
-      const since = new Date(); since.setDate(since.getDate() - 90);
       const { data: entries } = await sb
         .from("worktime_entries")
         .select("user_id, total_hours, hours_overtime, work_date")
         .eq("company_id", activeCompanyId)
-        .gte("work_date", since.toISOString().slice(0, 10))
+        .gte("work_date", range.from)
+        .lte("work_date", range.to)
         .not("user_id", "is", null);
 
-      const stats = new Map<string, { hours: number; overtime: number; lastDate: string | null }>();
+      const today = new Date();
+      const ot4wFrom = new Date(today); ot4wFrom.setDate(ot4wFrom.getDate() - 28);
+      const ot4wFromStr = ot4wFrom.toISOString().slice(0, 10);
+
+      type S = { hours: number; overtime: number; ot4w: number; lastDate: string | null; maxDay: { date: string; sum: number } | null; maxWeek: { ws: string; sum: number } | null };
+      const stats = new Map<string, S>();
+      const dayTotals = new Map<string, Map<string, number>>(); // user -> date -> sum
+      const weekTotals = new Map<string, Map<string, number>>();
+
       for (const e of entries ?? []) {
-        const s = stats.get(e.user_id) ?? { hours: 0, overtime: 0, lastDate: null };
-        s.hours += Number(e.total_hours || 0);
+        const s = stats.get(e.user_id) ?? { hours: 0, overtime: 0, ot4w: 0, lastDate: null, maxDay: null, maxWeek: null };
+        const h = Number(e.total_hours || 0);
+        s.hours += h;
         s.overtime += Number(e.hours_overtime || 0);
+        if (e.work_date >= ot4wFromStr) s.ot4w += Number(e.hours_overtime || 0);
         if (!s.lastDate || e.work_date > s.lastDate) s.lastDate = e.work_date;
         stats.set(e.user_id, s);
+
+        const dMap = dayTotals.get(e.user_id) ?? new Map<string, number>();
+        dMap.set(e.work_date, (dMap.get(e.work_date) ?? 0) + h);
+        dayTotals.set(e.user_id, dMap);
+
+        const ws = isoWeekStart(new Date(e.work_date + "T00:00:00Z"));
+        const wMap = weekTotals.get(e.user_id) ?? new Map<string, number>();
+        wMap.set(ws, (wMap.get(ws) ?? 0) + h);
+        weekTotals.set(e.user_id, wMap);
       }
 
-      // 3) Resolve names via auth_user_id → user_accounts → people
+      for (const [uid, s] of stats.entries()) {
+        const dMap = dayTotals.get(uid);
+        if (dMap) {
+          let best: { date: string; sum: number } | null = null;
+          for (const [date, sum] of dMap.entries()) {
+            if (!best || sum > best.sum) best = { date, sum };
+          }
+          s.maxDay = best;
+        }
+        const wMap = weekTotals.get(uid);
+        if (wMap) {
+          let best: { ws: string; sum: number } | null = null;
+          for (const [ws, sum] of wMap.entries()) {
+            if (!best || sum > best.sum) best = { ws, sum };
+          }
+          s.maxWeek = best;
+        }
+      }
+
       const userIds = Array.from(new Set([
         ...((alerts ?? []) as AlertRow[]).map((a) => a.user_id),
         ...stats.keys(),
@@ -96,17 +166,15 @@ export default function HmsAmlPage() {
         );
       }
 
-      // 4) Last AML run (max updated_at across alerts)
       const lastRun = ((alerts ?? []) as any[]).reduce((mx: string | null, a: any) => {
         if (!a.updated_at) return mx;
         return !mx || a.updated_at > mx ? a.updated_at : mx;
       }, null as string | null);
 
-      // 5) Build per-user view
-      const byUser = new Map<string, { name: string; alerts: AlertRow[]; hours: number; overtime: number; lastDate: string | null }>();
+      const byUser = new Map<string, { name: string; alerts: AlertRow[]; s: S }>();
       for (const uid of userIds) {
-        const s = stats.get(uid) ?? { hours: 0, overtime: 0, lastDate: null };
-        byUser.set(uid, { name: names[uid] ?? "Ukjent", alerts: [], hours: s.hours, overtime: s.overtime, lastDate: s.lastDate });
+        const s = stats.get(uid) ?? { hours: 0, overtime: 0, ot4w: 0, lastDate: null, maxDay: null, maxWeek: null };
+        byUser.set(uid, { name: names[uid] ?? "Ukjent", alerts: [], s });
       }
       for (const a of (alerts ?? []) as AlertRow[]) {
         const v = byUser.get(a.user_id);
@@ -122,10 +190,25 @@ export default function HmsAmlPage() {
   });
 
   const users = data?.users ?? [];
+
   const filtered = users.filter((u) => {
     if (q && !u.name.toLowerCase().includes(q.toLowerCase())) return false;
     if (sevFilter !== "all" && !u.alerts.some((a) => a.severity === sevFilter)) return false;
     return true;
+  });
+
+  // Sort: most critical, then warning, then highest recent load (max day sum, then ot4w)
+  const sorted = [...filtered].sort((a, b) => {
+    const ac = a.alerts.filter((x) => x.severity === "critical").length;
+    const bc = b.alerts.filter((x) => x.severity === "critical").length;
+    if (ac !== bc) return bc - ac;
+    const aw = a.alerts.filter((x) => x.severity === "warning").length;
+    const bw = b.alerts.filter((x) => x.severity === "warning").length;
+    if (aw !== bw) return bw - aw;
+    const ad = a.s.maxDay?.sum ?? 0;
+    const bd = b.s.maxDay?.sum ?? 0;
+    if (ad !== bd) return bd - ad;
+    return (b.s.ot4w ?? 0) - (a.s.ot4w ?? 0);
   });
 
   const counts = { critical: 0, warning: 0, info: 0 };
@@ -184,7 +267,7 @@ export default function HmsAmlPage() {
 
       {data?.lastRun && (
         <div className="text-xs text-muted-foreground">
-          Siste AML-kjøring: {new Date(data.lastRun).toLocaleString("nb-NO")} · {data.totalEntries} timeoppføringer evaluert (siste 90 dager)
+          Siste AML-kjøring: {new Date(data.lastRun).toLocaleString("nb-NO")} · {data.totalEntries} timeoppføringer evaluert ({range.from} – {range.to})
         </div>
       )}
 
@@ -193,6 +276,21 @@ export default function HmsAmlPage() {
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Søk ansatt" className="pl-8" />
         </div>
+        <Select value={period} onValueChange={(v) => setPeriod(v as PeriodKey)}>
+          <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="30d">Siste 30 dager</SelectItem>
+            <SelectItem value="90d">Siste 90 dager</SelectItem>
+            <SelectItem value="month">Inneværende måned</SelectItem>
+            <SelectItem value="custom">Egendefinert</SelectItem>
+          </SelectContent>
+        </Select>
+        {period === "custom" && (
+          <>
+            <Input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} className="w-[150px]" />
+            <Input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)} className="w-[150px]" />
+          </>
+        )}
         <Select value={sevFilter} onValueChange={(v) => setSevFilter(v as any)}>
           <SelectTrigger className="w-[150px]"><SelectValue /></SelectTrigger>
           <SelectContent>
@@ -216,20 +314,22 @@ export default function HmsAmlPage() {
           <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Alle regler</SelectItem>
-            <SelectItem value="max_hours_per_day">Maks t/dag</SelectItem>
-            <SelectItem value="max_hours_per_week">Maks t/uke</SelectItem>
-            <SelectItem value="avg_8w">8-ukers snitt</SelectItem>
-            <SelectItem value="min_rest">Hviletid</SelectItem>
-            <SelectItem value="max_overtime_7d">OT 7 dager</SelectItem>
-            <SelectItem value="max_overtime_4w">OT 4 uker</SelectItem>
-            <SelectItem value="max_overtime_52w">OT 52 uker</SelectItem>
+            <SelectItem value="max_hours_24h">Maks t/dag</SelectItem>
+            <SelectItem value="approaching_24h">Nærmer seg dagsgrense</SelectItem>
+            <SelectItem value="week_over_48">Uke over 48t</SelectItem>
+            <SelectItem value="avg_8w_over_48">8-ukers snitt</SelectItem>
+            <SelectItem value="rest_below_min">Hviletid</SelectItem>
+            <SelectItem value="ot_7d">OT 7 dager</SelectItem>
+            <SelectItem value="ot_4w">OT 4 uker</SelectItem>
+            <SelectItem value="ot_52w">OT 52 uker</SelectItem>
+            <SelectItem value="ot_no_approval">OT uten godkjenning</SelectItem>
           </SelectContent>
         </Select>
       </div>
 
       {isLoading ? (
         <Skeleton className="h-40" />
-      ) : filtered.length === 0 ? (
+      ) : sorted.length === 0 ? (
         <Card className="border-dashed">
           <CardContent className="py-10 text-center text-sm text-muted-foreground space-y-2">
             <CheckCircle2 className="h-8 w-8 mx-auto text-emerald-500/60" />
@@ -239,37 +339,59 @@ export default function HmsAmlPage() {
         </Card>
       ) : (
         <div className="space-y-2">
-          {filtered.map((u) => {
+          {sorted.map((u) => {
             const crit = u.alerts.filter((a) => a.severity === "critical").length;
             const warn = u.alerts.filter((a) => a.severity === "warning").length;
             const tone = crit ? "alert" : warn ? "warn" : "ok";
-            const subtitle = u.alerts[0]?.title
-              || u.alerts[0]?.explanation
-              || u.alerts[0]?.why
-              || (u.hours > 0
-                  ? `${u.hours.toFixed(1)}t arbeid (${u.overtime.toFixed(1)}t overtid) siste 90 dager · ingen åpne varsler`
-                  : "Ingen timer registrert");
+
+            // Top alert (highest severity, latest period_end)
+            const sevRank = (s: Severity) => (s === "critical" ? 0 : s === "warning" ? 1 : 2);
+            const topAlert = [...u.alerts].sort((a, b) => {
+              const r = sevRank(a.severity) - sevRank(b.severity);
+              if (r !== 0) return r;
+              return (b.period_end ?? "").localeCompare(a.period_end ?? "");
+            })[0];
+
             return (
               <Card
                 key={u.user_id}
                 className="border-border/60 cursor-pointer hover:border-primary/40 transition"
                 onClick={() => navigate(`/hms/aml/${u.user_id}`)}
               >
-                <CardContent className="py-3 flex items-center gap-3">
+                <CardContent className="py-3 flex items-start gap-3">
                   <div className={
-                    tone === "alert" ? "h-2 w-2 rounded-full bg-destructive"
-                      : tone === "warn" ? "h-2 w-2 rounded-full bg-amber-500"
-                      : "h-2 w-2 rounded-full bg-emerald-500"
+                    "h-2 w-2 rounded-full mt-2 " + (
+                      tone === "alert" ? "bg-destructive"
+                        : tone === "warn" ? "bg-amber-500"
+                        : "bg-emerald-500")
                   } />
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium truncate">{u.name}</div>
-                    <div className="text-xs text-muted-foreground truncate">{subtitle}</div>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    {crit > 0 && <Badge variant="destructive" className="text-[10px]">{crit} kritisk</Badge>}
-                    {warn > 0 && <Badge variant="outline" className="text-[10px] border-amber-500/40 text-amber-600">{warn} advarsel</Badge>}
-                    {crit === 0 && warn === 0 && u.hours > 0 && (
-                      <Badge variant="outline" className="text-[10px] border-emerald-500/40 text-emerald-600">OK</Badge>
+                  <div className="flex-1 min-w-0 space-y-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <div className="text-sm font-medium truncate">{u.name}</div>
+                      {crit > 0 && <Badge variant="destructive" className="text-[10px]">{crit} kritisk</Badge>}
+                      {warn > 0 && <Badge variant="outline" className="text-[10px] border-amber-500/40 text-amber-600">{warn} advarsel</Badge>}
+                      {crit === 0 && warn === 0 && u.s.hours > 0 && (
+                        <Badge variant="outline" className="text-[10px] border-emerald-500/40 text-emerald-600">OK</Badge>
+                      )}
+                    </div>
+                    <div className="text-xs text-muted-foreground flex flex-wrap gap-x-3 gap-y-0.5">
+                      {u.s.maxDay && (
+                        <span>Høyeste dag: <strong className={u.s.maxDay.sum > 13 ? "text-destructive" : ""}>{u.s.maxDay.sum.toFixed(1)}t</strong> ({u.s.maxDay.date})</span>
+                      )}
+                      {u.s.maxWeek && (
+                        <span>Høyeste uke: <strong className={u.s.maxWeek.sum > 48 ? "text-amber-600" : ""}>{u.s.maxWeek.sum.toFixed(1)}t</strong></span>
+                      )}
+                      <span>OT 4u: <strong>{u.s.ot4w.toFixed(1)}t</strong></span>
+                    </div>
+                    {topAlert && (
+                      <div className="text-xs text-muted-foreground truncate">
+                        <span className="font-medium text-foreground">Viktigste:</span> {topAlert.title || topAlert.explanation}
+                        {topAlert.recommended_action && (
+                          <span className="block truncate">
+                            <span className="font-medium text-foreground">Anbefalt:</span> {topAlert.recommended_action}
+                          </span>
+                        )}
+                      </div>
                     )}
                   </div>
                 </CardContent>
