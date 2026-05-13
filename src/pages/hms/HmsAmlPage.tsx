@@ -97,10 +97,10 @@ export default function HmsAmlPage() {
       }
 
       // 4) Last AML run (max updated_at across alerts)
-      const lastRun = (alerts ?? []).reduce<string | null>((mx, a: any) => {
+      const lastRun = ((alerts ?? []) as any[]).reduce((mx: string | null, a: any) => {
         if (!a.updated_at) return mx;
         return !mx || a.updated_at > mx ? a.updated_at : mx;
-      }, null);
+      }, null as string | null);
 
       // 5) Build per-user view
       const byUser = new Map<string, { name: string; alerts: AlertRow[]; hours: number; overtime: number; lastDate: string | null }>();
