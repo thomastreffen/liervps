@@ -5291,6 +5291,104 @@ export type Database = {
           },
         ]
       }
+      hms_area_catalog: {
+        Row: {
+          area_key: string
+          category: string
+          created_at: string
+          description: string | null
+          is_active: boolean
+          label: string
+          legal_reference: string | null
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          area_key: string
+          category: string
+          created_at?: string
+          description?: string | null
+          is_active?: boolean
+          label: string
+          legal_reference?: string | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          area_key?: string
+          category?: string
+          created_at?: string
+          description?: string | null
+          is_active?: boolean
+          label?: string
+          legal_reference?: string | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      hms_area_suggestion_rules: {
+        Row: {
+          area_key: string
+          building_types: string[] | null
+          chemicals: boolean | null
+          created_at: string
+          ee_waste: boolean | null
+          id: string
+          is_active: boolean
+          min_building_age_years: number | null
+          near_electrical: boolean | null
+          off_hours: boolean | null
+          project_kinds: string[] | null
+          rule_label: string
+          score: number
+          updated_at: string
+          work_types: string[] | null
+        }
+        Insert: {
+          area_key: string
+          building_types?: string[] | null
+          chemicals?: boolean | null
+          created_at?: string
+          ee_waste?: boolean | null
+          id?: string
+          is_active?: boolean
+          min_building_age_years?: number | null
+          near_electrical?: boolean | null
+          off_hours?: boolean | null
+          project_kinds?: string[] | null
+          rule_label: string
+          score?: number
+          updated_at?: string
+          work_types?: string[] | null
+        }
+        Update: {
+          area_key?: string
+          building_types?: string[] | null
+          chemicals?: boolean | null
+          created_at?: string
+          ee_waste?: boolean | null
+          id?: string
+          is_active?: boolean
+          min_building_age_years?: number | null
+          near_electrical?: boolean | null
+          off_hours?: boolean | null
+          project_kinds?: string[] | null
+          rule_label?: string
+          score?: number
+          updated_at?: string
+          work_types?: string[] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hms_area_suggestion_rules_area_key_fkey"
+            columns: ["area_key"]
+            isOneToOne: false
+            referencedRelation: "hms_area_catalog"
+            referencedColumns: ["area_key"]
+          },
+        ]
+      }
       hms_audit_log: {
         Row: {
           action: string
@@ -5377,6 +5475,7 @@ export type Database = {
           body: string | null
           created_at: string
           heading: string
+          hms_areas: string[]
           id: string
           ordering: number
           parent_id: string | null
@@ -5387,6 +5486,7 @@ export type Database = {
           body?: string | null
           created_at?: string
           heading: string
+          hms_areas?: string[]
           id?: string
           ordering?: number
           parent_id?: string | null
@@ -5397,6 +5497,7 @@ export type Database = {
           body?: string | null
           created_at?: string
           heading?: string
+          hms_areas?: string[]
           id?: string
           ordering?: number
           parent_id?: string | null
@@ -5660,6 +5761,7 @@ export type Database = {
           consequence: number
           created_at: string
           description: string
+          hms_areas: string[]
           id: string
           probability: number
           proposed_action: string | null
@@ -5674,6 +5776,7 @@ export type Database = {
           consequence?: number
           created_at?: string
           description: string
+          hms_areas?: string[]
           id?: string
           probability?: number
           proposed_action?: string | null
@@ -5688,6 +5791,7 @@ export type Database = {
           consequence?: number
           created_at?: string
           description?: string
+          hms_areas?: string[]
           id?: string
           probability?: number
           proposed_action?: string | null
@@ -5898,39 +6002,66 @@ export type Database = {
           ai_hint: string | null
           created_at: string
           help_text: string | null
+          hms_areas: string[]
           id: string
           is_required: boolean
           item_type: string
           label: string
           options: Json | null
           ordering: number
+          requires_chemicals: boolean | null
+          requires_ee_waste: boolean | null
+          requires_min_building_age_years: number | null
+          requires_near_electrical: boolean | null
+          requires_off_hours: boolean | null
           section_id: string
+          suggested_building_types: string[]
+          suggested_project_kinds: string[]
+          suggested_work_types: string[]
           template_id: string
         }
         Insert: {
           ai_hint?: string | null
           created_at?: string
           help_text?: string | null
+          hms_areas?: string[]
           id?: string
           is_required?: boolean
           item_type: string
           label: string
           options?: Json | null
           ordering?: number
+          requires_chemicals?: boolean | null
+          requires_ee_waste?: boolean | null
+          requires_min_building_age_years?: number | null
+          requires_near_electrical?: boolean | null
+          requires_off_hours?: boolean | null
           section_id: string
+          suggested_building_types?: string[]
+          suggested_project_kinds?: string[]
+          suggested_work_types?: string[]
           template_id: string
         }
         Update: {
           ai_hint?: string | null
           created_at?: string
           help_text?: string | null
+          hms_areas?: string[]
           id?: string
           is_required?: boolean
           item_type?: string
           label?: string
           options?: Json | null
           ordering?: number
+          requires_chemicals?: boolean | null
+          requires_ee_waste?: boolean | null
+          requires_min_building_age_years?: number | null
+          requires_near_electrical?: boolean | null
+          requires_off_hours?: boolean | null
           section_id?: string
+          suggested_building_types?: string[]
+          suggested_project_kinds?: string[]
+          suggested_work_types?: string[]
           template_id?: string
         }
         Relationships: [
@@ -5994,10 +6125,19 @@ export type Database = {
           deleted_at: string | null
           deleted_by: string | null
           description: string | null
+          hms_areas: string[]
           id: string
           is_active: boolean
           kind: string
           name: string
+          requires_chemicals: boolean | null
+          requires_ee_waste: boolean | null
+          requires_min_building_age_years: number | null
+          requires_near_electrical: boolean | null
+          requires_off_hours: boolean | null
+          suggested_building_types: string[]
+          suggested_project_kinds: string[]
+          suggested_work_types: string[]
           updated_at: string
           version: number
         }
@@ -6009,10 +6149,19 @@ export type Database = {
           deleted_at?: string | null
           deleted_by?: string | null
           description?: string | null
+          hms_areas?: string[]
           id?: string
           is_active?: boolean
           kind: string
           name: string
+          requires_chemicals?: boolean | null
+          requires_ee_waste?: boolean | null
+          requires_min_building_age_years?: number | null
+          requires_near_electrical?: boolean | null
+          requires_off_hours?: boolean | null
+          suggested_building_types?: string[]
+          suggested_project_kinds?: string[]
+          suggested_work_types?: string[]
           updated_at?: string
           version?: number
         }
@@ -6024,10 +6173,19 @@ export type Database = {
           deleted_at?: string | null
           deleted_by?: string | null
           description?: string | null
+          hms_areas?: string[]
           id?: string
           is_active?: boolean
           kind?: string
           name?: string
+          requires_chemicals?: boolean | null
+          requires_ee_waste?: boolean | null
+          requires_min_building_age_years?: number | null
+          requires_near_electrical?: boolean | null
+          requires_off_hours?: boolean | null
+          suggested_building_types?: string[]
+          suggested_project_kinds?: string[]
+          suggested_work_types?: string[]
           updated_at?: string
           version?: number
         }
@@ -11953,6 +12111,24 @@ export type Database = {
       submission_matches_token: {
         Args: { _submission_id: string; _token: string }
         Returns: boolean
+      }
+      suggest_hms_areas: {
+        Args: {
+          _building_age_years?: number
+          _building_type?: string
+          _chemicals?: boolean
+          _ee_waste?: boolean
+          _near_electrical?: boolean
+          _off_hours?: boolean
+          _project_kind?: string
+          _work_types?: string[]
+        }
+        Returns: {
+          area_key: string
+          label: string
+          reasons: string[]
+          score: number
+        }[]
       }
       sweep_orphan_schedule_blocks: { Args: never; Returns: Json }
       update_commercial_case_crm: {
