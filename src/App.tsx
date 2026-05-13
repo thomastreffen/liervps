@@ -107,6 +107,7 @@ import OrderFormsCatalogPage from "./pages/OrderFormsCatalogPage";
 import OrderTrackingPage from "./pages/OrderTrackingPage";
 import HmsOverviewPage from "./pages/hms/HmsOverviewPage";
 import HmsHandbooksPage from "./pages/hms/HmsHandbooksPage";
+import HmsHandbookDetailPage from "./pages/hms/HmsHandbookDetailPage";
 import HmsAmlPage from "./pages/hms/HmsAmlPage";
 import HmsAreasPage from "./pages/hms/HmsAreasPage";
 import HmsTemplatesPage from "./pages/hms/HmsTemplatesPage";
@@ -530,6 +531,11 @@ const App = () => (
               <Route path="/hms/handbooks" element={
                 <ProtectedRoute requiredPermission="hms.view">
                   <HmsHandbooksPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/hms/handbooks/:id" element={
+                <ProtectedRoute requiredPermission="hms.view">
+                  <HmsHandbookDetailPage />
                 </ProtectedRoute>
               } />
               <Route path="/hms/aml" element={
