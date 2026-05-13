@@ -59,17 +59,38 @@ export default function HmsMobilePage() {
   });
 
   const { data: handbooks } = useQuery({
-    queryKey: ["hms-mobile-handbooks", cid],
+    queryKey: ["hms-mobile-handbooks", cid, user?.id],
     enabled: !!cid && tab === "håndbok",
     queryFn: async () => {
       const sb = supabase as any;
-      const { data } = await sb
+      const { data: hbs } = await sb
         .from("hms_handbooks")
-        .select("id, title, description, version")
+        .select("id, title, description, kind, current_version_id")
         .eq("company_id", cid)
         .is("deleted_at", null)
         .order("title", { ascending: true });
-      return (data ?? []) as any[];
+      const list = (hbs ?? []) as any[];
+      const versionIds = list.map((h) => h.current_version_id).filter(Boolean);
+      if (!versionIds.length || !user?.id) {
+        return list.map((h) => ({ ...h, requires_ack: false, my_ack: null, version_number: null }));
+      }
+      const [{ data: vers }, { data: acks }] = await Promise.all([
+        sb.from("hms_handbook_versions")
+          .select("id, version_number, requires_acknowledgement").in("id", versionIds),
+        sb.from("hms_handbook_acknowledgements")
+          .select("version_id, acknowledged_at").in("version_id", versionIds).eq("user_id", user.id),
+      ]);
+      const vMap = new Map((vers ?? []).map((v: any) => [v.id, v]));
+      const aMap = new Map((acks ?? []).map((a: any) => [a.version_id, a.acknowledged_at]));
+      return list.map((h) => {
+        const v = h.current_version_id ? vMap.get(h.current_version_id) : null;
+        return {
+          ...h,
+          version_number: v?.version_number ?? null,
+          requires_ack: !!v?.requires_acknowledgement,
+          my_ack: h.current_version_id ? aMap.get(h.current_version_id) ?? null : null,
+        };
+      });
     },
   });
 
@@ -209,16 +230,33 @@ export default function HmsMobilePage() {
                 Ingen håndbøker funnet.
               </div>
             )}
-            {(handbooks ?? []).map((h) => (
-              <div key={h.id} className="p-3 rounded-lg border border-border/60 bg-card">
-                <div className="text-sm font-medium">{h.title}</div>
-                {h.description && <div className="text-[11px] text-muted-foreground mt-0.5">{h.description}</div>}
-                <div className="text-[10px] text-muted-foreground mt-1">v{h.version ?? 1}</div>
-              </div>
-            ))}
-            <Button asChild variant="outline" size="sm" className="w-full mt-3">
-              <Link to="/hms/handbooks">Åpne full håndbok</Link>
-            </Button>
+            {(handbooks ?? []).map((h) => {
+              const needsAck = h.requires_ack && !h.my_ack && h.version_number;
+              return (
+                <Link
+                  key={h.id}
+                  to={`/hms/handbooks/${h.id}`}
+                  className={`block p-3 rounded-lg border bg-card active:scale-[0.99] transition-transform ${needsAck ? "border-amber-300 bg-amber-50/40" : "border-border/60"}`}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-medium">{h.title}</div>
+                      {h.description && <div className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2">{h.description}</div>}
+                      <div className="text-[10px] text-muted-foreground mt-1">
+                        {h.version_number ? `v${h.version_number}` : "Ikke publisert"}
+                      </div>
+                    </div>
+                    {h.version_number && (
+                      h.my_ack ? (
+                        <Badge variant="outline" className="text-[10px] bg-emerald-50 text-emerald-700 border-emerald-200">Lest</Badge>
+                      ) : needsAck ? (
+                        <Badge className="text-[10px] bg-amber-600">Les og bekreft</Badge>
+                      ) : null
+                    )}
+                  </div>
+                </Link>
+              );
+            })}
           </TabsContent>
         </Tabs>
       </div>
