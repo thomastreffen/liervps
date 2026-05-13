@@ -5600,6 +5600,7 @@ export type Database = {
           description: string | null
           handbook_type: string
           id: string
+          kind: string
           status: string
           title: string
           updated_at: string
@@ -5614,6 +5615,7 @@ export type Database = {
           description?: string | null
           handbook_type?: string
           id?: string
+          kind?: string
           status?: string
           title: string
           updated_at?: string
@@ -5628,6 +5630,7 @@ export type Database = {
           description?: string | null
           handbook_type?: string
           id?: string
+          kind?: string
           status?: string
           title?: string
           updated_at?: string
