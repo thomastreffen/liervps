@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { toast } from "@/hooks/use-toast";
+import { logHmsAudit } from "@/lib/hms/audit";
 import { ManualEntryDialog } from "@/components/hms/ManualEntryDialog";
 
 const RULE_GROUPS: Record<string, { label: string; rules: string[] }> = {
