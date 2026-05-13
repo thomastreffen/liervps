@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { ShieldCheck, BookOpen, ClipboardCheck, AlertTriangle, Clock, Users } from "lucide-react";
+import { ShieldCheck, BookOpen, ClipboardCheck, AlertTriangle, Clock, Users, FileCheck, Smartphone } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompanyContext } from "@/hooks/useCompanyContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -53,7 +53,16 @@ export default function HmsOverviewPage() {
         sb.from("employee_work_profiles").select("id", { count: "exact", head: true })
           .eq("company_id", cid).eq("is_active", true)
       );
-      return { handbooks, openAlerts, criticalAlerts, pendingOvertime, openActions, profiles };
+      const pendingReview = await countOf(
+        sb.from("hms_submissions").select("id", { count: "exact", head: true })
+          .eq("company_id", cid).eq("status", "submitted").is("deleted_at", null)
+      );
+      const since = new Date(Date.now() - 7 * 86400000).toISOString();
+      const submitted7d = await countOf(
+        sb.from("hms_submissions").select("id", { count: "exact", head: true })
+          .eq("company_id", cid).gte("submitted_at", since).is("deleted_at", null)
+      );
+      return { handbooks, openAlerts, criticalAlerts, pendingOvertime, openActions, profiles, pendingReview, submitted7d };
     },
   });
 
@@ -99,6 +108,22 @@ export default function HmsOverviewPage() {
       href: "/hms",
       icon: ClipboardCheck,
       tone: data?.openActions ? "warn" : "ok",
+    },
+    {
+      title: "Til godkjenning",
+      value: data?.pendingReview ?? 0,
+      hint: "SJA/sjekklister fra felt",
+      href: "/hms/submissions",
+      icon: FileCheck,
+      tone: data?.pendingReview ? "warn" : "ok",
+    },
+    {
+      title: "Sendt inn siste 7 dager",
+      value: data?.submitted7d ?? 0,
+      hint: "Aktivitet fra felt",
+      href: "/hms/submissions",
+      icon: Smartphone,
+      tone: "neutral",
     },
   ];
 

@@ -5856,6 +5856,8 @@ export type Database = {
           display_name: string
           id: string
           role: string | null
+          signature_id: string | null
+          signed_at: string | null
           submission_id: string
           user_id: string | null
         }
@@ -5864,6 +5866,8 @@ export type Database = {
           display_name: string
           id?: string
           role?: string | null
+          signature_id?: string | null
+          signed_at?: string | null
           submission_id: string
           user_id?: string | null
         }
@@ -5872,10 +5876,19 @@ export type Database = {
           display_name?: string
           id?: string
           role?: string | null
+          signature_id?: string | null
+          signed_at?: string | null
           submission_id?: string
           user_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "hms_submission_participants_signature_id_fkey"
+            columns: ["signature_id"]
+            isOneToOne: false
+            referencedRelation: "hms_submission_signatures"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "hms_submission_participants_submission_id_fkey"
             columns: ["submission_id"]
@@ -5887,33 +5900,58 @@ export type Database = {
       }
       hms_submission_signatures: {
         Row: {
+          confirmation_text: string
           id: string
           ip_address: string | null
+          participant_id: string | null
+          role_label: string | null
           signature_data: string | null
+          signature_type: string
           signed_at: string
           signer_name: string
           signer_user_id: string | null
           submission_id: string
+          template_version: number
+          user_agent: string | null
         }
         Insert: {
+          confirmation_text?: string
           id?: string
           ip_address?: string | null
+          participant_id?: string | null
+          role_label?: string | null
           signature_data?: string | null
+          signature_type?: string
           signed_at?: string
           signer_name: string
           signer_user_id?: string | null
           submission_id: string
+          template_version?: number
+          user_agent?: string | null
         }
         Update: {
+          confirmation_text?: string
           id?: string
           ip_address?: string | null
+          participant_id?: string | null
+          role_label?: string | null
           signature_data?: string | null
+          signature_type?: string
           signed_at?: string
           signer_name?: string
           signer_user_id?: string | null
           submission_id?: string
+          template_version?: number
+          user_agent?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "hms_submission_signatures_participant_id_fkey"
+            columns: ["participant_id"]
+            isOneToOne: false
+            referencedRelation: "hms_submission_participants"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "hms_submission_signatures_submission_id_fkey"
             columns: ["submission_id"]
@@ -5930,11 +5968,15 @@ export type Database = {
           created_at: string
           deleted_at: string | null
           deleted_by: string | null
+          event_id: string | null
           gps_lat: number | null
           gps_lng: number | null
+          hms_areas: string[]
           id: string
+          kind: string | null
           location: string | null
           project_id: string | null
+          rejection_reason: string | null
           reviewed_at: string | null
           reviewed_by: string | null
           status: string
@@ -5942,6 +5984,7 @@ export type Database = {
           submitted_by: string | null
           template_id: string | null
           template_snapshot: Json | null
+          template_version: number
           title: string | null
           updated_at: string
         }
@@ -5951,11 +5994,15 @@ export type Database = {
           created_at?: string
           deleted_at?: string | null
           deleted_by?: string | null
+          event_id?: string | null
           gps_lat?: number | null
           gps_lng?: number | null
+          hms_areas?: string[]
           id?: string
+          kind?: string | null
           location?: string | null
           project_id?: string | null
+          rejection_reason?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
           status?: string
@@ -5963,6 +6010,7 @@ export type Database = {
           submitted_by?: string | null
           template_id?: string | null
           template_snapshot?: Json | null
+          template_version?: number
           title?: string | null
           updated_at?: string
         }
@@ -5972,11 +6020,15 @@ export type Database = {
           created_at?: string
           deleted_at?: string | null
           deleted_by?: string | null
+          event_id?: string | null
           gps_lat?: number | null
           gps_lng?: number | null
+          hms_areas?: string[]
           id?: string
+          kind?: string | null
           location?: string | null
           project_id?: string | null
+          rejection_reason?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
           status?: string
@@ -5984,6 +6036,7 @@ export type Database = {
           submitted_by?: string | null
           template_id?: string | null
           template_snapshot?: Json | null
+          template_version?: number
           title?: string | null
           updated_at?: string
         }
