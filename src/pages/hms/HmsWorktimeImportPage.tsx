@@ -64,15 +64,25 @@ export default function HmsWorktimeImportPage() {
   // employee_number -> user_id (manual override, also persisted)
   const [manualMap, setManualMap] = useState<Record<string, string>>({});
 
+  // Active users in selected company. user_id we expose = auth_user_id (matches worktime_entries.user_id and employee_work_profiles.user_id semantics).
   const { data: people } = useQuery({
     queryKey: ["company-people", activeCompanyId],
     enabled: !!activeCompanyId,
     queryFn: async () => {
-      const { data } = await (supabase as any)
+      const { data, error } = await (supabase as any)
         .from("user_accounts")
-        .select("id, full_name, email")
+        .select("id, auth_user_id, person:people!user_accounts_person_id_fkey(full_name, email)")
+        .eq("company_id", activeCompanyId)
         .eq("is_active", true);
-      return (data ?? []) as { id: string; full_name: string | null; email: string | null }[];
+      if (error) {
+        console.error("[import] failed to load people", error);
+        return [] as { id: string; full_name: string | null; email: string | null }[];
+      }
+      return (data ?? []).map((r: any) => ({
+        id: r.auth_user_id as string,
+        full_name: r.person?.full_name ?? null,
+        email: r.person?.email ?? null,
+      })) as { id: string; full_name: string | null; email: string | null }[];
     },
   });
 
@@ -581,7 +591,11 @@ export default function HmsWorktimeImportPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {unmatchedEmpCount > 0 && (
+            {(people?.length ?? 0) === 0 ? (
+              <div className="p-4 rounded-md bg-amber-500/10 border border-amber-500/30 text-sm">
+                Ingen ansatte funnet i valgt selskap. Sjekk bruker-/ansattregister eller tilgang.
+              </div>
+            ) : unmatchedEmpCount > 0 && (
               <div className="p-3 rounded-md bg-amber-500/10 border border-amber-500/30 text-xs">
                 <strong>{unmatchedEmpCount} ansatte mangler kobling.</strong> Velg riktig MCS-ansatt fra listen. Tripletex ansattnummer lagres på MCS-ansatten for fremtidige importer.
               </div>
@@ -598,39 +612,59 @@ export default function HmsWorktimeImportPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {employeeMatches.map((e) => (
-                    <TableRow key={e.key}>
-                      <TableCell className="text-xs font-mono">{e.number || "—"}</TableCell>
-                      <TableCell className="text-xs">{e.name}</TableCell>
-                      <TableCell className="text-right text-xs">{e.lines}</TableCell>
-                      <TableCell>
-                        {e.user_id
-                          ? <Badge variant="outline" className="text-[10px]">{e.source === "manual" ? "Manuell" : e.source === "external_id" ? "Ansattnr" : "Navn"}</Badge>
-                          : <Badge variant="outline" className="text-[10px] border-amber-500/40 text-amber-600">Må kobles</Badge>}
-                      </TableCell>
-                      <TableCell>
-                        <Select
-                          value={e.user_id ?? "__none__"}
-                          onValueChange={(v) => setManualMap((m) => {
-                            const next = { ...m };
-                            if (v === "__none__") delete next[e.key];
-                            else next[e.key] = v;
-                            return next;
-                          })}
-                        >
-                          <SelectTrigger className="h-8 w-[260px]">
-                            <SelectValue placeholder="Velg MCS-ansatt" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="__none__">— ikke koblet —</SelectItem>
-                            {(people ?? []).map((p) => (
-                              <SelectItem key={p.id} value={p.id}>{p.full_name || p.email}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {employeeMatches.map((e) => {
+                    // Build a quick lookup: which user already has an external_employee_id?
+                    const linkedExt = new Map<string, string>();
+                    for (const p of profiles ?? []) {
+                      if (p.external_employee_id) linkedExt.set(p.user_id, p.external_employee_id);
+                    }
+                    return (
+                      <TableRow key={e.key}>
+                        <TableCell className="text-xs font-mono">{e.number || "—"}</TableCell>
+                        <TableCell className="text-xs">{e.name}</TableCell>
+                        <TableCell className="text-right text-xs">{e.lines}</TableCell>
+                        <TableCell>
+                          {e.user_id
+                            ? <Badge variant="outline" className="text-[10px]">{e.source === "manual" ? "Manuell" : e.source === "external_id" ? "Ansattnr" : "Navn"}</Badge>
+                            : <Badge variant="outline" className="text-[10px] border-amber-500/40 text-amber-600">Må kobles</Badge>}
+                        </TableCell>
+                        <TableCell>
+                          <Select
+                            value={e.user_id ?? "__none__"}
+                            onValueChange={(v) => setManualMap((m) => {
+                              const next = { ...m };
+                              if (v === "__none__") delete next[e.key];
+                              else next[e.key] = v;
+                              return next;
+                            })}
+                          >
+                            <SelectTrigger className="h-9 w-[300px]">
+                              <SelectValue placeholder="Velg MCS-ansatt" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="__none__">— ikke koblet —</SelectItem>
+                              {(people ?? []).length === 0 && (
+                                <div className="px-2 py-2 text-xs text-muted-foreground">Ingen ansatte i valgt selskap</div>
+                              )}
+                              {(people ?? []).map((p) => {
+                                const ext = linkedExt.get(p.id);
+                                return (
+                                  <SelectItem key={p.id} value={p.id}>
+                                    <div className="flex flex-col text-left">
+                                      <span className="text-sm">{p.full_name || p.email || p.id}</span>
+                                      <span className="text-[10px] text-muted-foreground">
+                                        {p.email}{ext ? ` · Tripletex #${ext}` : ""}
+                                      </span>
+                                    </div>
+                                  </SelectItem>
+                                );
+                              })}
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>
