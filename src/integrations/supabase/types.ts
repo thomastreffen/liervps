@@ -12210,6 +12210,10 @@ export type Database = {
         Args: { _auth_user_id: string; _folder_id: string }
         Returns: boolean
       }
+      has_hms_attachment_access: {
+        Args: { _auth_user_id: string; _name: string }
+        Returns: boolean
+      }
       has_hms_manage: {
         Args: { _auth_user_id: string; _company_id: string }
         Returns: boolean
