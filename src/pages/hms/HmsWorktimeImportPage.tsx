@@ -196,8 +196,8 @@ export default function HmsWorktimeImportPage() {
 
   async function handleFile(f: File) {
     setFile(f);
+    setManualMap({});
     try {
-      // First try wide-format detection by reading headers
       const { headers: hdrs, rows } = await readWorktimeFile(f);
       if (looksLikeMonthlyOverview(hdrs)) {
         const m = await parseTripletexMonthlyOverview(f);
@@ -205,7 +205,7 @@ export default function HmsWorktimeImportPage() {
         setMonthly(m);
         setHeaders(hdrs);
         setRawRows(rows);
-        setStep("preview");
+        setStep("match");
         toast({
           title: "Tripletex månedsoversikt detektert",
           description: `${m.source_month} • ${m.normalized.length} normaliserte linjer`,
@@ -221,6 +221,37 @@ export default function HmsWorktimeImportPage() {
       toast({ title: "Feil ved lesing", description: String(e.message || e), variant: "destructive" });
     }
   }
+
+  // Persist external_employee_id on employee_work_profiles for future imports
+  const saveMappingMut = useMutation({
+    mutationFn: async (entries: { user_id: string; external_employee_id: string }[]) => {
+      if (!activeCompanyId) throw new Error("Mangler selskap");
+      const sb = supabase as any;
+      for (const e of entries) {
+        if (!e.external_employee_id) continue;
+        const { data: existing } = await sb
+          .from("employee_work_profiles")
+          .select("id, external_employee_id")
+          .eq("company_id", activeCompanyId)
+          .eq("user_id", e.user_id)
+          .maybeSingle();
+        if (existing) {
+          if (existing.external_employee_id !== e.external_employee_id) {
+            await sb.from("employee_work_profiles")
+              .update({ external_employee_id: e.external_employee_id })
+              .eq("id", existing.id);
+          }
+        } else {
+          await sb.from("employee_work_profiles").insert({
+            company_id: activeCompanyId,
+            user_id: e.user_id,
+            external_employee_id: e.external_employee_id,
+          });
+        }
+      }
+      await qc.invalidateQueries({ queryKey: ["employee-profiles", activeCompanyId] });
+    },
+  });
 
   // ---- Generic import (existing flow) ----
   const importMut = useMutation({
