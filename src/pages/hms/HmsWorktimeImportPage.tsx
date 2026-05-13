@@ -812,12 +812,16 @@ export default function HmsWorktimeImportPage() {
             <div>Oppdaterte linjer: <strong>{result.updated}</strong></div>
             <div>Hoppet over (dubletter): <strong>{result.skipped}</strong></div>
             <div>Ikke matchet ansatt: <strong>{result.unmatched}</strong></div>
-            {result.aml && (
+            {result.aml ? (
               <div className="pt-2 border-t mt-2">
                 <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1">AML-motor</div>
                 <div>Ansatte evaluert: <strong>{result.aml.users_evaluated}</strong></div>
                 <div>Nye varsler: <strong>{result.aml.new_alerts}</strong></div>
                 <div>Auto-løste varsler: <strong>{result.aml.resolved_alerts}</strong></div>
+              </div>
+            ) : (
+              <div className="p-3 rounded-md bg-amber-500/10 border border-amber-500/30 text-xs">
+                AML-motoren ble ikke kjørt etter import{result.amlError ? `: ${result.amlError}` : ""}. Du kan kjøre den manuelt fra AML-status.
               </div>
             )}
             <div className="flex gap-2 pt-3">
