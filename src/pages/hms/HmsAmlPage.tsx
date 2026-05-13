@@ -135,13 +135,17 @@ export default function HmsAmlPage() {
     if (!activeCompanyId) return;
     setRunning(true);
     try {
-      await (supabase as any).functions.invoke("worktime-aml-evaluate", {
+      const { data, error } = await (supabase as any).functions.invoke("worktime-aml-evaluate", {
         body: { company_id: activeCompanyId },
       });
-      toast({ title: "AML-motor kjørt" });
+      if (error) throw error;
+      toast({
+        title: "AML-motor kjørt",
+        description: `${data?.users_evaluated ?? 0} ansatte · ${data?.new_alerts ?? 0} nye varsler · ${data?.resolved_alerts ?? 0} løste`,
+      });
       refetch();
     } catch (e: any) {
-      toast({ title: "Feil", description: String(e.message || e), variant: "destructive" });
+      toast({ title: "AML-motor feilet", description: String(e.message || e), variant: "destructive" });
     } finally {
       setRunning(false);
     }
