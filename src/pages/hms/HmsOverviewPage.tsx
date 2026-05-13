@@ -109,6 +109,22 @@ export default function HmsOverviewPage() {
       icon: ClipboardCheck,
       tone: data?.openActions ? "warn" : "ok",
     },
+    {
+      title: "Til godkjenning",
+      value: data?.pendingReview ?? 0,
+      hint: "SJA/sjekklister fra felt",
+      href: "/hms/submissions",
+      icon: FileCheck,
+      tone: data?.pendingReview ? "warn" : "ok",
+    },
+    {
+      title: "Sendt inn siste 7 dager",
+      value: data?.submitted7d ?? 0,
+      hint: "Aktivitet fra felt",
+      href: "/hms/submissions",
+      icon: Smartphone,
+      tone: "neutral",
+    },
   ];
 
   return (
