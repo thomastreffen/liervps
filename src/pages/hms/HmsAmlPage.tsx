@@ -40,20 +40,25 @@ export default function HmsAmlPage() {
   const { activeCompanyId } = useCompanyContext();
   const [q, setQ] = useState("");
   const [sevFilter, setSevFilter] = useState<"all" | Severity>("all");
+  const [statusFilter, setStatusFilter] = useState<"open_ack" | "open" | "acknowledged" | "resolved" | "all">("open_ack");
+  const [ruleFilter, setRuleFilter] = useState<string>("all");
   const [running, setRunning] = useState(false);
 
   const { data, isLoading, refetch } = useQuery({
-    queryKey: ["hms-aml-v2", activeCompanyId],
+    queryKey: ["hms-aml-v2", activeCompanyId, statusFilter, ruleFilter],
     enabled: !!activeCompanyId,
     queryFn: async () => {
       const sb = supabase as any;
-      const { data: alerts } = await sb
+      let query = sb
         .from("worktime_alerts")
         .select(
-          "id, user_id, severity, status, rule_key, title, explanation, why, period_start, period_end"
+          "id, user_id, severity, status, rule_key, title, explanation, why, period_start, period_end, value, threshold, recommended_action"
         )
-        .eq("company_id", activeCompanyId)
-        .in("status", ["open", "acknowledged"]);
+        .eq("company_id", activeCompanyId);
+      if (statusFilter === "open_ack") query = query.in("status", ["open", "acknowledged"]);
+      else if (statusFilter !== "all") query = query.eq("status", statusFilter);
+      if (ruleFilter !== "all") query = query.eq("rule_key", ruleFilter);
+      const { data: alerts } = await query;
 
       const userIds = Array.from(new Set(((alerts ?? []) as AlertRow[]).map((a) => a.user_id)));
       let names: Record<string, string> = {};
@@ -127,24 +132,48 @@ export default function HmsAmlPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <SummaryCard title="Kritiske varsler" value={counts.critical} icon={AlertTriangle} tone={counts.critical ? "alert" : "ok"} />
-        <SummaryCard title="Advarsler" value={counts.warning} icon={AlertTriangle} tone={counts.warning ? "warn" : "ok"} />
-        <SummaryCard title="Ansatte med åpne varsler" value={data?.length ?? 0} icon={Users} tone="neutral" />
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <SummaryCard title="Kritisk" value={counts.critical} icon={AlertTriangle} tone={counts.critical ? "alert" : "ok"} />
+        <SummaryCard title="Advarsel" value={counts.warning} icon={AlertTriangle} tone={counts.warning ? "warn" : "ok"} />
+        <SummaryCard title="Info" value={counts.info} icon={AlertTriangle} tone="neutral" />
+        <SummaryCard title="Ansatte" value={data?.length ?? 0} icon={Users} tone="neutral" />
       </div>
 
       <div className="flex flex-wrap gap-2 items-center">
-        <div className="relative flex-1 min-w-[220px] max-w-sm">
+        <div className="relative flex-1 min-w-[200px] max-w-sm">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Søk ansatt" className="pl-8" />
         </div>
         <Select value={sevFilter} onValueChange={(v) => setSevFilter(v as any)}>
-          <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="w-[150px]"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Alle alvorligheter</SelectItem>
             <SelectItem value="critical">Kritisk</SelectItem>
             <SelectItem value="warning">Advarsel</SelectItem>
             <SelectItem value="info">Info</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as any)}>
+          <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="open_ack">Åpne + kvitterte</SelectItem>
+            <SelectItem value="open">Kun åpne</SelectItem>
+            <SelectItem value="acknowledged">Kun kvitterte</SelectItem>
+            <SelectItem value="resolved">Løst</SelectItem>
+            <SelectItem value="all">Alle</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={ruleFilter} onValueChange={setRuleFilter}>
+          <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Alle regler</SelectItem>
+            <SelectItem value="max_hours_per_day">Maks t/dag</SelectItem>
+            <SelectItem value="max_hours_per_week">Maks t/uke</SelectItem>
+            <SelectItem value="avg_8w">8-ukers snitt</SelectItem>
+            <SelectItem value="min_rest">Hviletid</SelectItem>
+            <SelectItem value="max_overtime_7d">OT 7 dager</SelectItem>
+            <SelectItem value="max_overtime_4w">OT 4 uker</SelectItem>
+            <SelectItem value="max_overtime_52w">OT 52 uker</SelectItem>
           </SelectContent>
         </Select>
       </div>
