@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Upload, FileSpreadsheet, ArrowLeft, CheckCircle2, AlertCircle, Loader2, CalendarDays } from "lucide-react";
@@ -623,7 +623,7 @@ function fmt(n: number) {
   return n.toFixed(2).replace(".", ",");
 }
 
-function Stat({ label, value, sub, warn }: { label: string; value: React.ReactNode; sub?: string; warn?: boolean }) {
+function Stat({ label, value, sub, warn }: { label: string; value: ReactNode; sub?: string; warn?: boolean }) {
   return (
     <div className={`rounded-md border p-3 ${warn ? "border-amber-500/40 bg-amber-500/5" : "bg-card"}`}>
       <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
