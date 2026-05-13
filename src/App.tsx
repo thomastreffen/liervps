@@ -109,6 +109,8 @@ import HmsOverviewPage from "./pages/hms/HmsOverviewPage";
 import HmsHandbooksPage from "./pages/hms/HmsHandbooksPage";
 import HmsAmlPage from "./pages/hms/HmsAmlPage";
 import HmsAreasPage from "./pages/hms/HmsAreasPage";
+import HmsTemplatesPage from "./pages/hms/HmsTemplatesPage";
+import HmsTemplateEditorPage from "./pages/hms/HmsTemplateEditorPage";
 import { CompanyProvider, useCompanyContext } from "@/hooks/useCompanyContext";
 import { ActiveCompanyForPermissions } from "@/hooks/usePermissions";
 import { PreviewModeProvider } from "@/hooks/usePreviewMode";
@@ -528,6 +530,16 @@ const App = () => (
               <Route path="/hms/areas" element={
                 <ProtectedRoute requiredPermission="hms.view">
                   <HmsAreasPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/hms/templates" element={
+                <ProtectedRoute requiredPermission="hms.view">
+                  <HmsTemplatesPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/hms/templates/:id" element={
+                <ProtectedRoute requiredPermission="hms.manage">
+                  <HmsTemplateEditorPage />
                 </ProtectedRoute>
               } />
             </Route>
