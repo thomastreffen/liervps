@@ -38,7 +38,10 @@ export default function HmsEmployeeAmlPage() {
       const since = addDays(new Date(), -56).toISOString().slice(0, 10);
       const since365 = addDays(new Date(), -365).toISOString().slice(0, 10);
       const [{ data: acct }, { data: alerts }, { data: entries }, { data: ot }] = await Promise.all([
-        sb.from("user_accounts").select("id, full_name, email").eq("id", id).maybeSingle(),
+        sb.from("user_accounts")
+          .select("id, auth_user_id, person:people!user_accounts_person_id_fkey(full_name, email)")
+          .eq("auth_user_id", id)
+          .maybeSingle(),
         sb.from("worktime_alerts").select("*").eq("company_id", activeCompanyId).eq("user_id", id).order("created_at", { ascending: false }),
         sb.from("worktime_entries").select("*").eq("company_id", activeCompanyId).eq("user_id", id).gte("work_date", since365).order("work_date", { ascending: false }),
         sb.from("overtime_approvals").select("*").eq("company_id", activeCompanyId).eq("user_id", id).order("created_at", { ascending: false }),
