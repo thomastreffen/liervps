@@ -53,7 +53,16 @@ export default function HmsOverviewPage() {
         sb.from("employee_work_profiles").select("id", { count: "exact", head: true })
           .eq("company_id", cid).eq("is_active", true)
       );
-      return { handbooks, openAlerts, criticalAlerts, pendingOvertime, openActions, profiles };
+      const pendingReview = await countOf(
+        sb.from("hms_submissions").select("id", { count: "exact", head: true })
+          .eq("company_id", cid).eq("status", "submitted").is("deleted_at", null)
+      );
+      const since = new Date(Date.now() - 7 * 86400000).toISOString();
+      const submitted7d = await countOf(
+        sb.from("hms_submissions").select("id", { count: "exact", head: true })
+          .eq("company_id", cid).gte("submitted_at", since).is("deleted_at", null)
+      );
+      return { handbooks, openAlerts, criticalAlerts, pendingOvertime, openActions, profiles, pendingReview, submitted7d };
     },
   });
 
