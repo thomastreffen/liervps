@@ -119,6 +119,34 @@ export default function HmsEmployeeAmlPage() {
     },
   });
 
+  const bulkAckMut = useMutation({
+    mutationFn: async (ids: string[]) => {
+      if (ids.length === 0) return;
+      await (supabase as any)
+        .from("worktime_alerts")
+        .update({ status: "acknowledged", acknowledged_at: new Date().toISOString() })
+        .in("id", ids);
+    },
+    onSuccess: (_d, ids) => {
+      toast({ title: `${ids.length} varsler kvittert` });
+      qc.invalidateQueries({ queryKey: ["hms-aml-employee"] });
+    },
+  });
+
+  const bulkResolveMut = useMutation({
+    mutationFn: async ({ ids, comment }: { ids: string[]; comment: string }) => {
+      if (ids.length === 0) return;
+      await (supabase as any)
+        .from("worktime_alerts")
+        .update({ status: "resolved", resolved_at: new Date().toISOString(), resolution_comment: comment })
+        .in("id", ids);
+    },
+    onSuccess: (_d, vars) => {
+      toast({ title: `${vars.ids.length} varsler løst` });
+      qc.invalidateQueries({ queryKey: ["hms-aml-employee"] });
+    },
+  });
+
   const [editEntry, setEditEntry] = useState<any | null>(null);
 
   if (isLoading || !data) return <div className="p-6"><Skeleton className="h-40" /></div>;
