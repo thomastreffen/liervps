@@ -121,12 +121,11 @@ export default function HmsIncidentReportPage() {
 
       // 3. Audit
       await logHmsAudit({
-        companyId: activeCompanyId,
-        userId: user.id,
+        company_id: activeCompanyId,
         action: "incident.reported",
-        entityType: "hms_incident",
-        entityId: incident.id,
-        details: { severity, type: incidentType, has_files: uploaded.length },
+        entity_type: "hms_incident",
+        entity_id: incident.id,
+        payload: { severity, type: incidentType, attachments: uploaded.length },
       }).catch(() => {});
 
       return incident.id as string;
