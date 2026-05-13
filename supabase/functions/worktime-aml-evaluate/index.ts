@@ -270,7 +270,7 @@ function evaluateUser(entries: Entry[], rules: RuleSet, requireApproval: boolean
         value: total,
         threshold: 0,
         title: `${total.toFixed(1)}t overtid uten godkjenning`,
-        explanation: `${unapproved.length} timeoppføringer med overtid mangler ledergodkjenning.`,
+        explanation: `${unapproved.length} timeoppføringer med overtid mangler ledergodkjenning. Overtid fra import er registrert, men ikke automatisk sendt til godkjenning.`,
         possible_company_consequence: "Manglende sporbarhet kan svekke selskapets dokumentasjonskrav.",
         recommended_action: "Be leder godkjenne overtid med årsak.",
       });
