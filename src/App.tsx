@@ -508,6 +508,22 @@ const App = () => (
                   </ProtectedRoute>
                 }
               />
+              {/* HMS & HR module */}
+              <Route path="/hms" element={
+                <ProtectedRoute requiredPermission="hms.view">
+                  <HmsOverviewPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/hms/handbooks" element={
+                <ProtectedRoute requiredPermission="hms.view">
+                  <HmsHandbooksPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/hms/aml" element={
+                <ProtectedRoute requiredPermission="hms.view">
+                  <HmsAmlPage />
+                </ProtectedRoute>
+              } />
             </Route>
 
             <Route path="*" element={<NotFound />} />
