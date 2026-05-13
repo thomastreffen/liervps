@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { ShieldCheck, BookOpen, ClipboardCheck, AlertTriangle, Clock, Users } from "lucide-react";
+import { ShieldCheck, BookOpen, ClipboardCheck, AlertTriangle, Clock, Users, FileCheck, Smartphone } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompanyContext } from "@/hooks/useCompanyContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
