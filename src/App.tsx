@@ -108,6 +108,7 @@ import OrderTrackingPage from "./pages/OrderTrackingPage";
 import HmsOverviewPage from "./pages/hms/HmsOverviewPage";
 import HmsHandbooksPage from "./pages/hms/HmsHandbooksPage";
 import HmsAmlPage from "./pages/hms/HmsAmlPage";
+import HmsAreasPage from "./pages/hms/HmsAreasPage";
 import { CompanyProvider, useCompanyContext } from "@/hooks/useCompanyContext";
 import { ActiveCompanyForPermissions } from "@/hooks/usePermissions";
 import { PreviewModeProvider } from "@/hooks/usePreviewMode";
