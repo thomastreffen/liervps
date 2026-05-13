@@ -321,6 +321,38 @@ export default function HmsHandbookDetailPage() {
     URL.revokeObjectURL(url);
   };
 
+  const aiDraftMut = useMutation({
+    mutationFn: async (mode: "draft" | "simplify" | "leader" | "short" | "checklist") => {
+      if (!activeChapter || !handbook) throw new Error("Mangler kontekst");
+      const sb = supabase as any;
+      const currentBody = draftHas(activeChapter.id)?.body ?? activeChapter.body ?? "";
+      const { data, error } = await sb.functions.invoke("hms-handbook-ai-draft", {
+        body: {
+          handbookKind: handbook.kind,
+          handbookTitle: handbook.title,
+          chapterTitle: draftHas(activeChapter.id)?.heading ?? activeChapter.heading,
+          currentBody,
+          mode,
+        },
+      });
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      return (data as any)?.content as string;
+    },
+    onSuccess: (content) => {
+      if (!activeChapter || !content) return;
+      setEditedSections((p) => ({
+        ...p,
+        [activeChapter.id]: {
+          heading: draftHas(activeChapter.id)?.heading ?? activeChapter.heading,
+          body: content,
+        },
+      }));
+      toast({ title: "AI-utkast lagt inn", description: "Utkastet er ikke lagret enda – gjennomgå og lagre manuelt." });
+    },
+    onError: (e: any) => toast({ title: "AI feilet", description: String(e.message || e), variant: "destructive" }),
+  });
+
   const activeChapter = useMemo(() => {
     return sections.find((s) => s.id === activeChapterId) ?? sections[0];
   }, [sections, activeChapterId]);
