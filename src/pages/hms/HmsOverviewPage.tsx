@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import {
   ShieldCheck, AlertTriangle, Clock, Users,
   FileCheck, FileWarning, Inbox, FileBarChart2, ArrowRight,
+  Smartphone, ShieldAlert,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompanyContext } from "@/hooks/useCompanyContext";
