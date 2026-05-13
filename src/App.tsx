@@ -122,6 +122,8 @@ import HmsRulesetsPage from "./pages/hms/HmsRulesetsPage";
 import HmsOvertimePage from "./pages/hms/HmsOvertimePage";
 import HmsImportBatchesPage from "./pages/hms/HmsImportBatchesPage";
 import HmsReportsPage from "./pages/hms/HmsReportsPage";
+import HmsIncidentReportPage from "./pages/hms/HmsIncidentReportPage";
+import HmsIncidentsListPage from "./pages/hms/HmsIncidentsListPage";
 import { CompanyProvider, useCompanyContext } from "@/hooks/useCompanyContext";
 import { ActiveCompanyForPermissions } from "@/hooks/usePermissions";
 import { PreviewModeProvider } from "@/hooks/usePreviewMode";
