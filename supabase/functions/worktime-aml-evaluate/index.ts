@@ -349,7 +349,7 @@ Deno.serve(async (req) => {
       const { data: entries } = await supabase
         .from("worktime_entries")
         .select(
-          "id,user_id,work_date,start_at,end_at,hours,hours_overtime,total_hours,ordinary_hours,approved_by"
+          "id,user_id,work_date,start_at,end_at,hours,hours_overtime,total_hours,ordinary_hours,approved_by,source_system"
         )
         .eq("company_id", company_id)
         .eq("user_id", uid)
