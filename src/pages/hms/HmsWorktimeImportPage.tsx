@@ -749,10 +749,19 @@ export default function HmsWorktimeImportPage() {
         <Card>
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
-              <CheckCircle2 className="h-5 w-5 text-emerald-500" /> Import fullført
+              {result.inserted + result.updated === 0 ? (
+                <><AlertCircle className="h-5 w-5 text-amber-500" /> Import fullført – ingen linjer opprettet</>
+              ) : (
+                <><CheckCircle2 className="h-5 w-5 text-emerald-500" /> Import fullført</>
+              )}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2 text-sm">
+            {result.inserted + result.updated === 0 && result.unmatched > 0 && (
+              <div className="p-3 rounded-md bg-amber-500/10 border border-amber-500/30 text-xs">
+                Ingen arbeidstidslinjer ble opprettet fordi {result.unmatched} linjer mangler ansattkobling. Gå tilbake til Ansattmatching og koble ansatte før du importerer på nytt.
+              </div>
+            )}
             <div>Nye linjer: <strong>{result.inserted}</strong></div>
             <div>Oppdaterte linjer: <strong>{result.updated}</strong></div>
             <div>Hoppet over (dubletter): <strong>{result.skipped}</strong></div>
