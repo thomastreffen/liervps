@@ -17,6 +17,7 @@ interface Entry {
   total_hours: number;
   ordinary_hours: number;
   approved_by: string | null;
+  source_system: string | null;
 }
 
 interface RuleSet {
