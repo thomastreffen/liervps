@@ -631,12 +631,23 @@ export default function HmsWorktimeImportPage() {
                         <TableCell>
                           <Select
                             value={e.user_id ?? "__none__"}
-                            onValueChange={(v) => setManualMap((m) => {
-                              const next = { ...m };
-                              if (v === "__none__") delete next[e.key];
-                              else next[e.key] = v;
-                              return next;
-                            })}
+                            onValueChange={(v) => {
+                              if (v !== "__none__") {
+                                const existingExt = linkedExt.get(v);
+                                if (existingExt && e.number && existingExt !== e.number) {
+                                  const ok = window.confirm(
+                                    `Denne ansatte er allerede koblet til Tripletex #${existingExt}. Vil du endre kobling til #${e.number}?`
+                                  );
+                                  if (!ok) return;
+                                }
+                              }
+                              setManualMap((m) => {
+                                const next = { ...m };
+                                if (v === "__none__") delete next[e.key];
+                                else next[e.key] = v;
+                                return next;
+                              });
+                            }}
                           >
                             <SelectTrigger className="h-9 w-[300px]">
                               <SelectValue placeholder="Velg MCS-ansatt" />
