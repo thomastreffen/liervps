@@ -155,6 +155,52 @@ export default function HmsMobilePage() {
           </TabsList>
 
           <TabsContent value="start" className="space-y-4 mt-4">
+            {/* Quick actions grid – store touch-targets */}
+            <div className="grid grid-cols-2 gap-2">
+              <QuickAction
+                icon={<ShieldAlert className="h-5 w-5" />}
+                label="Meld avvik / RUH"
+                tone="rose"
+                onClick={() => navigate("/hms/incidents/new")}
+              />
+              <QuickAction
+                icon={<Eye className="h-5 w-5" />}
+                label="HMS-observasjon"
+                tone="amber"
+                onClick={() => navigate("/hms/incidents/new?type=observation")}
+              />
+              <QuickAction
+                icon={<ClipboardList className="h-5 w-5" />}
+                label="Start SJA"
+                tone="primary"
+                onClick={() => {
+                  const el = document.getElementById("sja-list");
+                  el?.scrollIntoView({ behavior: "smooth", block: "start" });
+                }}
+              />
+              <QuickAction
+                icon={<FileCheck className="h-5 w-5" />}
+                label="Sjekkliste"
+                tone="primary"
+                onClick={() => {
+                  const el = document.getElementById("checklist-list");
+                  el?.scrollIntoView({ behavior: "smooth", block: "start" });
+                }}
+              />
+              <QuickAction
+                icon={<BookOpen className="h-5 w-5" />}
+                label="Håndbøker"
+                tone="muted"
+                onClick={() => setTab("håndbok")}
+              />
+              <QuickAction
+                icon={<FileCheck className="h-5 w-5" />}
+                label="Mine innsendinger"
+                tone="muted"
+                onClick={() => setTab("mine")}
+              />
+            </div>
+
             {drafts.length > 0 && (
               <Card className="border-amber-200/60 bg-amber-50/30">
                 <CardHeader className="pb-2">
@@ -182,21 +228,25 @@ export default function HmsMobilePage() {
               </Card>
             )}
 
-            <SectionList
-              title="SJA"
-              icon={<ClipboardList className="h-4 w-4 text-primary" />}
-              items={sjaTemplates}
-              onPick={(id) => startMut.mutate(id)}
-              busy={startMut.isPending}
-            />
+            <div id="sja-list">
+              <SectionList
+                title="SJA"
+                icon={<ClipboardList className="h-4 w-4 text-primary" />}
+                items={sjaTemplates}
+                onPick={(id) => startMut.mutate(id)}
+                busy={startMut.isPending}
+              />
+            </div>
 
-            <SectionList
-              title="Sjekklister"
-              icon={<FileCheck className="h-4 w-4 text-primary" />}
-              items={checklistTemplates}
-              onPick={(id) => startMut.mutate(id)}
-              busy={startMut.isPending}
-            />
+            <div id="checklist-list">
+              <SectionList
+                title="Sjekklister"
+                icon={<FileCheck className="h-4 w-4 text-primary" />}
+                items={checklistTemplates}
+                onPick={(id) => startMut.mutate(id)}
+                busy={startMut.isPending}
+              />
+            </div>
           </TabsContent>
 
           <TabsContent value="mine" className="space-y-2 mt-4">
