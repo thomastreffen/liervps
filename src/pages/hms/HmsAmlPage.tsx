@@ -376,7 +376,7 @@ export default function HmsAmlPage() {
                     </div>
                     <div className="text-xs text-muted-foreground flex flex-wrap gap-x-3 gap-y-0.5">
                       {u.s.maxDay && (
-                        <span>Høyeste dag: <strong className={u.s.maxDay.sum > 13 ? "text-destructive" : ""}>{u.s.maxDay.sum.toFixed(1)}t</strong> ({u.s.maxDay.date})</span>
+                        <span>Høyeste dagsregistrering: <strong className={u.s.maxDay.sum > 13 ? "text-destructive" : ""}>{u.s.maxDay.sum.toFixed(1)}t</strong> ({u.s.maxDay.date})</span>
                       )}
                       {u.s.maxWeek && (
                         <span>Høyeste uke: <strong className={u.s.maxWeek.sum > 48 ? "text-amber-600" : ""}>{u.s.maxWeek.sum.toFixed(1)}t</strong></span>
