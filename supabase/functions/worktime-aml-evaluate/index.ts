@@ -120,7 +120,7 @@ function evaluateUser(entries: Entry[], rules: RuleSet, requireApproval: boolean
         possible_company_consequence: "Brudd på AML §10-5. Kan utløse sanksjon ved tilsyn.",
         recommended_action: "Kontroller at registreringen er korrekt og dokumenter årsak til avvik.",
       });
-    } else if (total >= rules.max_hours_per_day * warnPct) {
+    } else if (!isCritical && total >= rules.max_hours_per_day * warnPct) {
       alerts.push({
         user_id: userId,
         rule_key: "approaching_24h",
