@@ -410,15 +410,22 @@ Deno.serve(async (req) => {
         .eq("company_id", company_id)
         .eq("user_id", uid)
         .in("status", ["open", "acknowledged"]);
+      // Build supersede map: day -> true if a critical day-rule was computed
+      const criticalDays = new Set(
+        computed.filter((c) => c.rule_key === "max_hours_24h").map((c) => c.period_start)
+      );
       for (const o of openOnes ?? []) {
         const key = `${uid}|${o.rule_key}|${o.period_start}|${o.period_end}`;
         if (!computedKeys.has(key)) {
+          const superseded = o.rule_key === "approaching_24h" && criticalDays.has(o.period_start);
           await supabase
             .from("worktime_alerts")
             .update({
               status: "resolved",
               resolved_at: new Date().toISOString(),
-              resolution_comment: "Auto-løst: forhold ikke lenger til stede",
+              resolution_comment: superseded
+                ? "Erstattet av mer alvorlig varsel for samme dato"
+                : "Auto-løst: forhold ikke lenger til stede",
             })
             .eq("id", o.id);
           totalResolved++;
