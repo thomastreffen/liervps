@@ -525,6 +525,11 @@ const App = () => (
                   <HmsAmlPage />
                 </ProtectedRoute>
               } />
+              <Route path="/hms/areas" element={
+                <ProtectedRoute requiredPermission="hms.view">
+                  <HmsAreasPage />
+                </ProtectedRoute>
+              } />
             </Route>
 
             <Route path="*" element={<NotFound />} />
