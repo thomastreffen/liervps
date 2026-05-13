@@ -45,12 +45,26 @@ export default function HmsHandbooksPage() {
     mutationFn: async () => {
       const sb = supabase as any;
       const { data: u } = await supabase.auth.getUser();
+      let created = 0;
+      let skipped = 0;
       for (const seed of MCS_HANDBOOK_SEEDS) {
+        // Idempotency: skip if a handbook with same company + kind + title exists
+        const { data: existing } = await sb
+          .from("hms_handbooks")
+          .select("id")
+          .eq("company_id", activeCompanyId)
+          .eq("kind", seed.kind)
+          .eq("title", seed.title)
+          .is("deleted_at", null)
+          .maybeSingle();
+        if (existing) { skipped++; continue; }
+
         const { data: hb, error } = await sb.from("hms_handbooks").insert({
           company_id: activeCompanyId,
           title: seed.title,
           description: seed.description,
           kind: seed.kind,
+          handbook_type: seed.kind === "employee_handbook" ? "employee" : "hms",
           created_by: u.user?.id,
         }).select("id").single();
         if (error) throw error;
@@ -58,26 +72,31 @@ export default function HmsHandbooksPage() {
         const { data: ver, error: vErr } = await sb.from("hms_handbook_versions").insert({
           handbook_id: hb.id,
           company_id: activeCompanyId,
-          version: 1,
+          version_number: 1,
           status: "draft",
           created_by: u.user?.id,
         }).select("id").single();
         if (vErr) throw vErr;
 
         const sections = seed.chapters.map((c, i) => ({
-          handbook_id: hb.id,
           version_id: ver.id,
-          company_id: activeCompanyId,
-          title: c.title,
-          body_md: c.body,
-          sort_order: i,
+          heading: c.title,
+          body: c.body,
+          ordering: i,
         }));
-        await sb.from("hms_handbook_sections").insert(sections);
+        const { error: sErr } = await sb.from("hms_handbook_sections").insert(sections);
+        if (sErr) throw sErr;
         await sb.from("hms_handbooks").update({ current_version_id: ver.id }).eq("id", hb.id);
+        created++;
       }
+      return { created, skipped };
     },
-    onSuccess: () => {
-      toast({ title: "MCS-håndbøker opprettet", description: "Arbeidshåndbok og HMS-håndbok med MCS-kapitler" });
+    onSuccess: (r) => {
+      if (r.created === 0) {
+        toast({ title: "MCS-startstruktur finnes allerede", description: `${r.skipped} håndbøker var allerede opprettet.` });
+      } else {
+        toast({ title: "MCS-håndbøker opprettet", description: `${r.created} ny${r.created === 1 ? "" : "e"}, ${r.skipped} hoppet over.` });
+      }
       qc.invalidateQueries({ queryKey: ["hms-handbooks"] });
     },
     onError: (e: any) => toast({ title: "Feil", description: String(e.message || e), variant: "destructive" }),
