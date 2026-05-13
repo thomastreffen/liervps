@@ -111,7 +111,11 @@ export default function HmsWorktimeImportPage() {
 
   const unmatched = matched.filter((m) => !m.user_id);
 
-  // Monthly matching: prefer external_employee_id from profiles, fallback to name
+  // Monthly matching: manual override → external_employee_id → normalized name
+  function normalizeName(s: string) {
+    return s.toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim();
+  }
+
   const matchedMonthly = useMemo(() => {
     if (!monthly) return [];
     const byExt = new Map<string, string>();
@@ -119,17 +123,45 @@ export default function HmsWorktimeImportPage() {
       if (p.external_employee_id) byExt.set(p.external_employee_id.trim(), p.user_id);
     }
     return monthly.normalized.map((r) => {
-      let user_id: string | null = byExt.get(r.employee_number) ?? null;
+      const key = r.employee_number || r.employee_name;
+      let user_id: string | null = manualMap[key] ?? byExt.get(r.employee_number) ?? null;
       if (!user_id && people) {
-        const nameLower = r.employee_name.toLowerCase().trim();
-        const found = people.find(
-          (p) => p.full_name && p.full_name.toLowerCase().trim() === nameLower
-        );
+        const nameLower = normalizeName(r.employee_name);
+        const found = people.find((p) => p.full_name && normalizeName(p.full_name) === nameLower);
         user_id = found?.id ?? null;
       }
       return { row: r, user_id };
     });
-  }, [monthly, profiles, people]);
+  }, [monthly, profiles, people, manualMap]);
+
+  // Unique employee list for the matching step
+  type EmpMatch = { key: string; number: string; name: string; user_id: string | null; source: "manual" | "external_id" | "name" | "none"; lines: number };
+  const employeeMatches = useMemo<EmpMatch[]>(() => {
+    if (!monthly) return [];
+    const byExt = new Map<string, string>();
+    for (const p of profiles ?? []) {
+      if (p.external_employee_id) byExt.set(p.external_employee_id.trim(), p.user_id);
+    }
+    const map = new Map<string, EmpMatch>();
+    for (const r of monthly.normalized) {
+      const key = r.employee_number || r.employee_name;
+      const existing = map.get(key);
+      if (existing) { existing.lines++; continue; }
+      let user_id: string | null = null;
+      let source: EmpMatch["source"] = "none";
+      if (manualMap[key]) { user_id = manualMap[key]; source = "manual"; }
+      else if (byExt.get(r.employee_number)) { user_id = byExt.get(r.employee_number)!; source = "external_id"; }
+      else if (people) {
+        const nameLower = normalizeName(r.employee_name);
+        const found = people.find((p) => p.full_name && normalizeName(p.full_name) === nameLower);
+        if (found) { user_id = found.id; source = "name"; }
+      }
+      map.set(key, { key, number: r.employee_number, name: r.employee_name, user_id, source, lines: 1 });
+    }
+    return Array.from(map.values()).sort((a, b) => Number(!!b.user_id) - Number(!!a.user_id) || a.name.localeCompare(b.name));
+  }, [monthly, profiles, people, manualMap]);
+
+  const unmatchedEmpCount = employeeMatches.filter((e) => !e.user_id).length;
 
   const monthlySummary = useMemo(() => {
     if (!monthly) return null;
