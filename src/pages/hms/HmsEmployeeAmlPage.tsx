@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, AlertTriangle, CheckCircle2, ShieldCheck, Clock, Plus, Pencil } from "lucide-react";
+import { ArrowLeft, AlertTriangle, CheckCircle2, ShieldCheck, Clock, Plus, Pencil, ChevronDown } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, ReferenceLine } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompanyContext } from "@/hooks/useCompanyContext";
@@ -9,8 +9,24 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { toast } from "@/hooks/use-toast";
 import { ManualEntryDialog } from "@/components/hms/ManualEntryDialog";
+
+const RULE_GROUPS: Record<string, { label: string; rules: string[] }> = {
+  day: { label: "Dagsgrenser", rules: ["max_hours_24h", "approaching_24h"] },
+  week: { label: "Ukegrenser", rules: ["week_over_48", "avg_8w_over_48"] },
+  ot_unapproved: { label: "Overtid uten godkjenning", rules: ["ot_no_approval"] },
+  ot_period: { label: "Overtid periode", rules: ["ot_7d", "ot_4w", "ot_52w"] },
+  rest: { label: "Hviletid", rules: ["rest_below_min"] },
+  other: { label: "Datakvalitet / annet", rules: [] },
+};
+
+function groupForRule(ruleKey: string | null): string {
+  if (!ruleKey) return "other";
+  for (const [k, g] of Object.entries(RULE_GROUPS)) if (g.rules.includes(ruleKey)) return k;
+  return "other";
+}
 
 function isoWeekStart(d: Date) {
   const dt = new Date(d);
