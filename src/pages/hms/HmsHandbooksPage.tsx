@@ -117,12 +117,10 @@ export default function HmsHandbooksPage() {
           </p>
         </div>
         <div className="flex gap-2">
-          {handbooks.length === 0 && (
-            <Button size="sm" variant="outline" onClick={() => seedMut.mutate()} disabled={seedMut.isPending}>
-              <Sparkles className="h-4 w-4 mr-1.5" />
-              {seedMut.isPending ? "Oppretter…" : "Opprett MCS-startstruktur"}
-            </Button>
-          )}
+          <Button size="sm" variant="outline" onClick={() => seedMut.mutate()} disabled={seedMut.isPending}>
+            <Sparkles className="h-4 w-4 mr-1.5" />
+            {seedMut.isPending ? "Oppretter…" : "Opprett MCS-startstruktur"}
+          </Button>
           <Button size="sm" disabled title="Kommer">
             <Plus className="h-4 w-4 mr-1.5" />
             Ny håndbok
