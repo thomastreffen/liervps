@@ -35,6 +35,14 @@ interface ActionRow {
 
 export default function HmsOverviewPage() {
   const { activeCompanyId } = useCompanyContext();
+  const { user } = useAuth();
+  const isMobile = useIsMobile();
+
+  // Montør on mobile → operative HMS flow
+  if (isMobile && user?.role === "montør") {
+    return <Navigate to="/hms/mobile" replace />;
+  }
+
 
   const { data, isLoading } = useQuery({
     queryKey: ["hms-overview-v2", activeCompanyId],
