@@ -337,31 +337,29 @@ export default function HmsWorktimeImportPage() {
           },
           status,
         };
+        // Natural key lookup: company + employee + work_date + activity_number + source_month + source_system.
+        // source_hash is only used to detect whether the row content changed.
         const { data: existing } = await sb
-          .from("worktime_entries").select("id, total_hours")
-          .eq("company_id", activeCompanyId).eq("source_hash", hash).maybeSingle();
-        if (existing) {
-          // Same hash means same total_hours → true duplicate; nothing to update.
-          // But if a prior import had different hours, hash would differ, so we need to also check
-          // by (employee/date/activity) to detect updates.
-          skipped++;
-          continue;
-        }
-        // Check for change: same (user/date/activity) but different total_hours
-        const { data: same } = await sb
-          .from("worktime_entries").select("id")
+          .from("worktime_entries").select("id, source_hash")
           .eq("company_id", activeCompanyId)
           .eq("user_id", m.user_id)
           .eq("work_date", r.work_date)
           .eq("source_system", TRIPLETEX_MONTHLY_SOURCE)
-          .contains("raw_payload", { activity_number: r.activity_number, activity_name: r.activity_name })
+          .contains("raw_payload", {
+            activity_number: r.activity_number,
+            source_month: monthly.source_month,
+          })
           .maybeSingle();
-        if (same) {
-          const { error } = await sb.from("worktime_entries").update(payload).eq("id", same.id);
-          if (error) skipped++; else updated++;
-        } else {
+        if (!existing) {
           const { error } = await sb.from("worktime_entries").insert(payload);
           if (error) skipped++; else inserted++;
+        } else if (existing.source_hash === hash) {
+          // Unchanged content → true duplicate
+          skipped++;
+        } else {
+          // Same natural key, changed hours/content → update in place
+          const { error } = await sb.from("worktime_entries").update(payload).eq("id", existing.id);
+          if (error) skipped++; else updated++;
         }
       }
 
