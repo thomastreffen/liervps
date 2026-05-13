@@ -546,12 +546,44 @@ export default function HmsHandbookDetailPage() {
                   <>
                     <Input value={heading} onChange={(e) => setEditedSections((p) => ({ ...p, [activeChapter.id]: { heading: e.target.value, body } }))} className="text-lg font-semibold" />
                     <Textarea value={body} onChange={(e) => setEditedSections((p) => ({ ...p, [activeChapter.id]: { heading, body: e.target.value } }))} rows={24} className="font-mono text-xs" />
-                    <div className="flex justify-end gap-2">
-                      <Button size="sm" variant="ghost" onClick={() => setEditedSections((p) => { const c = { ...p }; delete c[activeChapter.id]; return c; })} disabled={!draftHas(activeChapter.id)}>Tilbakestill</Button>
-                      <Button size="sm" onClick={() => saveSection.mutate({ id: activeChapter.id, heading, body })} disabled={!draftHas(activeChapter.id) || saveSection.isPending}>
-                        Lagre
-                      </Button>
+                    <div className="flex justify-between items-center gap-2 flex-wrap">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button size="sm" variant="outline" disabled={aiDraftMut.isPending}>
+                            {aiDraftMut.isPending ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Sparkles className="h-4 w-4 mr-1.5" />}
+                            AI-utkast
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start" className="w-64">
+                          <DropdownMenuLabel className="text-xs">Generer / forbedre</DropdownMenuLabel>
+                          <DropdownMenuItem onClick={() => aiDraftMut.mutate("draft")}>
+                            Komplett utkast
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => aiDraftMut.mutate("simplify")}>
+                            Enklere språk for montører
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => aiDraftMut.mutate("leader")}>
+                            Lederversjon
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => aiDraftMut.mutate("short")}>
+                            Kortversjon (mobil)
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem onClick={() => aiDraftMut.mutate("checklist")}>
+                            Foreslå sjekkpunkter / SJA-koblinger
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="ghost" onClick={() => setEditedSections((p) => { const c = { ...p }; delete c[activeChapter.id]; return c; })} disabled={!draftHas(activeChapter.id)}>Tilbakestill</Button>
+                        <Button size="sm" onClick={() => saveSection.mutate({ id: activeChapter.id, heading, body })} disabled={!draftHas(activeChapter.id) || saveSection.isPending}>
+                          Lagre
+                        </Button>
+                      </div>
                     </div>
+                    <p className="text-[11px] text-muted-foreground">
+                      AI-forslag erstatter teksten i editoren, men lagres ikke automatisk. Gjennomgå, lagre, og publiser ny versjon for å aktivere.
+                    </p>
                   </>
                 )}
                 {activeChapter && !editMode && (
