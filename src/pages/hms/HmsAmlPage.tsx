@@ -175,8 +175,14 @@ export default function HmsAmlPage() {
         <SummaryCard title="Kritisk" value={counts.critical} icon={AlertTriangle} tone={counts.critical ? "alert" : "ok"} />
         <SummaryCard title="Advarsel" value={counts.warning} icon={AlertTriangle} tone={counts.warning ? "warn" : "ok"} />
         <SummaryCard title="Info" value={counts.info} icon={AlertTriangle} tone="neutral" />
-        <SummaryCard title="Ansatte" value={data?.length ?? 0} icon={Users} tone="neutral" />
+        <SummaryCard title="Ansatte" value={users.length} icon={Users} tone="neutral" />
       </div>
+
+      {data?.lastRun && (
+        <div className="text-xs text-muted-foreground">
+          Siste AML-kjøring: {new Date(data.lastRun).toLocaleString("nb-NO")} · {data.totalEntries} timeoppføringer evaluert (siste 90 dager)
+        </div>
+      )}
 
       <div className="flex flex-wrap gap-2 items-center">
         <div className="relative flex-1 min-w-[200px] max-w-sm">
