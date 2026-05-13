@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
+import { logHmsAudit } from "@/lib/hms/audit";
 
 interface Props {
   userId: string;
@@ -63,13 +64,12 @@ export function ManualEntryDialog({ userId, trigger, initial, onClose }: Props) 
       } else {
         await (supabase as any).from("worktime_entries").insert(payload);
       }
-      await (supabase as any).from("hms_audit_log").insert({
+      await logHmsAudit({
         company_id: activeCompanyId,
-        actor_user_id: u.user?.id,
         entity_type: "worktime_entry",
         entity_id: initial?.id,
         action: isEdit ? "manual_edit" : "manual_create",
-        payload: { work_date: workDate, ordinary, overtime, reason },
+        payload: { work_date: workDate, ordinary, overtime, reason, user_id: userId },
       });
       try {
         await (supabase as any).functions.invoke("worktime-aml-evaluate", {
@@ -95,13 +95,12 @@ export function ManualEntryDialog({ userId, trigger, initial, onClose }: Props) 
         adjustment_reason: reason,
         manually_adjusted: true,
       }).eq("id", initial.id);
-      await (supabase as any).from("hms_audit_log").insert({
+      await logHmsAudit({
         company_id: activeCompanyId,
-        actor_user_id: u.user?.id,
         entity_type: "worktime_entry",
         entity_id: initial.id,
         action: "manual_cancel",
-        payload: { reason },
+        payload: { reason, user_id: userId },
       });
       try {
         await (supabase as any).functions.invoke("worktime-aml-evaluate", {

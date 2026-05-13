@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { toast } from "@/hooks/use-toast";
+import { logHmsAudit } from "@/lib/hms/audit";
 import { ManualEntryDialog } from "@/components/hms/ManualEntryDialog";
 
 const RULE_GROUPS: Record<string, { label: string; rules: string[] }> = {
@@ -98,6 +99,7 @@ export default function HmsEmployeeAmlPage() {
         .from("worktime_alerts")
         .update({ status: "acknowledged", acknowledged_at: new Date().toISOString() })
         .eq("id", alertId);
+      await logHmsAudit({ company_id: activeCompanyId, entity_type: "worktime_alert", entity_id: alertId, action: "alert_acknowledged", payload: { user_id: id } });
     },
     onSuccess: () => {
       toast({ title: "Kvittert" });
@@ -112,6 +114,7 @@ export default function HmsEmployeeAmlPage() {
         .from("worktime_alerts")
         .update({ status: "resolved", resolved_at: new Date().toISOString(), resolution_comment: comment })
         .eq("id", alertId);
+      await logHmsAudit({ company_id: activeCompanyId, entity_type: "worktime_alert", entity_id: alertId, action: "alert_resolved", payload: { comment, user_id: id } });
     },
     onSuccess: () => {
       toast({ title: "Løst" });
@@ -126,6 +129,7 @@ export default function HmsEmployeeAmlPage() {
         .from("worktime_alerts")
         .update({ status: "acknowledged", acknowledged_at: new Date().toISOString() })
         .in("id", ids);
+      await logHmsAudit({ company_id: activeCompanyId, entity_type: "worktime_alert", action: "alert_bulk_acknowledged", payload: { count: ids.length, ids, user_id: id } });
     },
     onSuccess: (_d, ids) => {
       toast({ title: `${ids.length} varsler kvittert` });
@@ -140,6 +144,7 @@ export default function HmsEmployeeAmlPage() {
         .from("worktime_alerts")
         .update({ status: "resolved", resolved_at: new Date().toISOString(), resolution_comment: comment })
         .in("id", ids);
+      await logHmsAudit({ company_id: activeCompanyId, entity_type: "worktime_alert", action: "alert_bulk_resolved", payload: { count: ids.length, ids, comment, user_id: id } });
     },
     onSuccess: (_d, vars) => {
       toast({ title: `${vars.ids.length} varsler løst` });
