@@ -6,8 +6,10 @@ export interface HandbookChapterSeed {
   body: string;
 }
 
+export type HandbookKind = "hms_handbook" | "employee_handbook" | "procedure" | "safety_rule";
+
 export interface HandbookSeed {
-  kind: "work_handbook" | "hms_handbook";
+  kind: HandbookKind;
   title: string;
   description: string;
   chapters: HandbookChapterSeed[];
@@ -18,7 +20,7 @@ const placeholder = (h: string) =>
 
 export const MCS_HANDBOOK_SEEDS: HandbookSeed[] = [
   {
-    kind: "work_handbook",
+    kind: "employee_handbook",
     title: "Arbeidshåndbok – MCS Service",
     description: "Arbeidstid, fravær, pauser, reise og særrutiner for datacenter, næringsbygg og service.",
     chapters: [
