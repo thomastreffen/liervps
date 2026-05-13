@@ -532,6 +532,11 @@ const App = () => (
                   <HmsHandbooksPage />
                 </ProtectedRoute>
               } />
+              <Route path="/hms/handbooks/:id" element={
+                <ProtectedRoute requiredPermission="hms.view">
+                  <HmsHandbookDetailPage />
+                </ProtectedRoute>
+              } />
               <Route path="/hms/aml" element={
                 <ProtectedRoute requiredPermission="hms.view">
                   <HmsAmlPage />
