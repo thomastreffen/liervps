@@ -94,6 +94,7 @@ function evaluateUser(entries: Entry[], rules: RuleSet, requireApproval: boolean
   for (const [day, list] of Object.entries(byDay)) {
     const total = list.reduce((s, e) => s + (e.total_hours || e.hours || 0), 0);
     const hasTimes = list.some((e) => e.start_at && e.end_at);
+    const isCritical = total > rules.max_hours_per_day;
     const sources = Array.from(new Set(list.map((e) => e.source_system).filter(Boolean)));
     const sourceLabel = sources.includes("tripletex_monthly")
       ? "Tripletex månedsoversikt"
@@ -119,7 +120,7 @@ function evaluateUser(entries: Entry[], rules: RuleSet, requireApproval: boolean
         possible_company_consequence: "Brudd på AML §10-5. Kan utløse sanksjon ved tilsyn.",
         recommended_action: "Kontroller at registreringen er korrekt og dokumenter årsak til avvik.",
       });
-    } else if (total >= rules.max_hours_per_day * warnPct) {
+    } else if (!isCritical && total >= rules.max_hours_per_day * warnPct) {
       alerts.push({
         user_id: userId,
         rule_key: "approaching_24h",
@@ -409,15 +410,22 @@ Deno.serve(async (req) => {
         .eq("company_id", company_id)
         .eq("user_id", uid)
         .in("status", ["open", "acknowledged"]);
+      // Build supersede map: day -> true if a critical day-rule was computed
+      const criticalDays = new Set(
+        computed.filter((c) => c.rule_key === "max_hours_24h").map((c) => c.period_start)
+      );
       for (const o of openOnes ?? []) {
         const key = `${uid}|${o.rule_key}|${o.period_start}|${o.period_end}`;
         if (!computedKeys.has(key)) {
+          const superseded = o.rule_key === "approaching_24h" && criticalDays.has(o.period_start);
           await supabase
             .from("worktime_alerts")
             .update({
               status: "resolved",
               resolved_at: new Date().toISOString(),
-              resolution_comment: "Auto-løst: forhold ikke lenger til stede",
+              resolution_comment: superseded
+                ? "Erstattet av mer alvorlig varsel for samme dato"
+                : "Auto-løst: forhold ikke lenger til stede",
             })
             .eq("id", o.id);
           totalResolved++;

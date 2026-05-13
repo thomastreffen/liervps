@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, AlertTriangle, CheckCircle2, ShieldCheck, Clock, Plus, Pencil } from "lucide-react";
+import { ArrowLeft, AlertTriangle, CheckCircle2, ShieldCheck, Clock, Plus, Pencil, ChevronDown } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, ReferenceLine } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompanyContext } from "@/hooks/useCompanyContext";
@@ -9,8 +9,24 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { toast } from "@/hooks/use-toast";
 import { ManualEntryDialog } from "@/components/hms/ManualEntryDialog";
+
+const RULE_GROUPS: Record<string, { label: string; rules: string[] }> = {
+  day: { label: "Dagsgrenser", rules: ["max_hours_24h", "approaching_24h"] },
+  week: { label: "Ukegrenser", rules: ["week_over_48", "avg_8w_over_48"] },
+  ot_unapproved: { label: "Overtid uten godkjenning", rules: ["ot_no_approval"] },
+  ot_period: { label: "Overtid periode", rules: ["ot_7d", "ot_4w", "ot_52w"] },
+  rest: { label: "Hviletid", rules: ["rest_below_min"] },
+  other: { label: "Datakvalitet / annet", rules: [] },
+};
+
+function groupForRule(ruleKey: string | null): string {
+  if (!ruleKey) return "other";
+  for (const [k, g] of Object.entries(RULE_GROUPS)) if (g.rules.includes(ruleKey)) return k;
+  return "other";
+}
 
 function isoWeekStart(d: Date) {
   const dt = new Date(d);
@@ -103,6 +119,34 @@ export default function HmsEmployeeAmlPage() {
     },
   });
 
+  const bulkAckMut = useMutation({
+    mutationFn: async (ids: string[]) => {
+      if (ids.length === 0) return;
+      await (supabase as any)
+        .from("worktime_alerts")
+        .update({ status: "acknowledged", acknowledged_at: new Date().toISOString() })
+        .in("id", ids);
+    },
+    onSuccess: (_d, ids) => {
+      toast({ title: `${ids.length} varsler kvittert` });
+      qc.invalidateQueries({ queryKey: ["hms-aml-employee"] });
+    },
+  });
+
+  const bulkResolveMut = useMutation({
+    mutationFn: async ({ ids, comment }: { ids: string[]; comment: string }) => {
+      if (ids.length === 0) return;
+      await (supabase as any)
+        .from("worktime_alerts")
+        .update({ status: "resolved", resolved_at: new Date().toISOString(), resolution_comment: comment })
+        .in("id", ids);
+    },
+    onSuccess: (_d, vars) => {
+      toast({ title: `${vars.ids.length} varsler løst` });
+      qc.invalidateQueries({ queryKey: ["hms-aml-employee"] });
+    },
+  });
+
   const [editEntry, setEditEntry] = useState<any | null>(null);
 
   if (isLoading || !data) return <div className="p-6"><Skeleton className="h-40" /></div>;
@@ -170,34 +214,74 @@ export default function HmsEmployeeAmlPage() {
               <CheckCircle2 className="inline h-4 w-4 mr-1 text-emerald-500" /> Ingen åpne varsler
             </p>
           )}
-          {open.map((a: any) => (
-            <div key={a.id} className="rounded-lg border p-3 space-y-2">
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex-1">
+          {Object.entries(RULE_GROUPS).map(([groupKey, group]) => {
+            const groupAlerts = open.filter((a: any) => groupForRule(a.rule_key) === groupKey);
+            if (groupAlerts.length === 0) return null;
+            const ids = groupAlerts.map((a: any) => a.id);
+            const openIds = groupAlerts.filter((a: any) => a.status === "open").map((a: any) => a.id);
+            const defaultOpen = groupAlerts.length <= 3;
+            const groupCrit = groupAlerts.filter((a: any) => a.severity === "critical").length;
+            const groupWarn = groupAlerts.filter((a: any) => a.severity === "warning").length;
+            return (
+              <Collapsible key={groupKey} defaultOpen={defaultOpen} className="rounded-lg border">
+                <CollapsibleTrigger className="w-full flex items-center justify-between px-3 py-2 hover:bg-muted/40 transition rounded-t-lg [&[data-state=open]>svg]:rotate-180">
                   <div className="flex items-center gap-2">
-                    <Badge variant={a.severity === "critical" ? "destructive" : "outline"}
-                      className={a.severity === "warning" ? "border-amber-500/40 text-amber-600" : ""}>
-                      {a.severity}
-                    </Badge>
-                    <span className="text-sm font-medium">{a.title || a.rule_key}</span>
+                    <span className="text-sm font-medium">{group.label}</span>
+                    <Badge variant="outline" className="text-[10px]">{groupAlerts.length}</Badge>
+                    {groupCrit > 0 && <Badge variant="destructive" className="text-[10px]">{groupCrit} kritisk</Badge>}
+                    {groupWarn > 0 && <Badge variant="outline" className="text-[10px] border-amber-500/40 text-amber-600">{groupWarn} adv</Badge>}
                   </div>
-                  <p className="text-xs text-muted-foreground mt-1">{a.explanation || a.why}</p>
-                  {a.recommended_action && (
-                    <p className="text-xs mt-1"><strong>Tiltak:</strong> {a.recommended_action}</p>
-                  )}
-                  <p className="text-[10px] text-muted-foreground mt-1">
-                    {a.period_start} – {a.period_end} · {a.value} / {a.threshold}
-                  </p>
-                </div>
-                <div className="flex flex-col gap-1">
-                  {a.status === "open" && (
-                    <Button size="sm" variant="outline" onClick={() => ackMut.mutate(a.id)}>Kvitter</Button>
-                  )}
-                  <Button size="sm" onClick={() => resolveMut.mutate(a.id)}>Løs</Button>
-                </div>
-              </div>
-            </div>
-          ))}
+                  <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform" />
+                </CollapsibleTrigger>
+                <CollapsibleContent className="px-3 pb-3 space-y-2">
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    <Button size="sm" variant="outline" disabled={openIds.length === 0}
+                      onClick={() => bulkAckMut.mutate(openIds)}>
+                      Kvitter alle ({openIds.length})
+                    </Button>
+                    <Button size="sm" onClick={() => {
+                      const comment = prompt(`Påkrevd kommentar / tiltak for å løse ${ids.length} varsler i "${group.label}":`);
+                      if (!comment || !comment.trim()) {
+                        toast({ title: "Kommentar påkrevd", variant: "destructive" });
+                        return;
+                      }
+                      bulkResolveMut.mutate({ ids, comment: comment.trim() });
+                    }}>
+                      Løs alle ({ids.length})
+                    </Button>
+                  </div>
+                  {groupAlerts.map((a: any) => (
+                    <div key={a.id} className="rounded-md border p-2.5 space-y-1.5">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <Badge variant={a.severity === "critical" ? "destructive" : "outline"}
+                              className={a.severity === "warning" ? "border-amber-500/40 text-amber-600" : ""}>
+                              {a.severity}
+                            </Badge>
+                            <span className="text-sm font-medium">{a.title || a.rule_key}</span>
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-1">{a.explanation || a.why}</p>
+                          {a.recommended_action && (
+                            <p className="text-xs mt-1"><strong>Tiltak:</strong> {a.recommended_action}</p>
+                          )}
+                          <p className="text-[10px] text-muted-foreground mt-1">
+                            {a.period_start} – {a.period_end} · {a.value} / {a.threshold}
+                          </p>
+                        </div>
+                        <div className="flex flex-col gap-1 shrink-0">
+                          {a.status === "open" && (
+                            <Button size="sm" variant="outline" onClick={() => ackMut.mutate(a.id)}>Kvitter</Button>
+                          )}
+                          <Button size="sm" onClick={() => resolveMut.mutate(a.id)}>Løs</Button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </CollapsibleContent>
+              </Collapsible>
+            );
+          })}
         </CardContent>
       </Card>
 

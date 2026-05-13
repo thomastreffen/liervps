@@ -1,8 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import {
-  ShieldCheck, BookOpen, ClipboardCheck, AlertTriangle, Clock, Users,
-  FileCheck, Smartphone, FileWarning, UserX, Inbox, FileBarChart2, ArrowRight,
+  ShieldCheck, AlertTriangle, Clock, Users,
+  FileCheck, FileWarning, Inbox, FileBarChart2, ArrowRight,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompanyContext } from "@/hooks/useCompanyContext";
@@ -152,24 +152,49 @@ export default function HmsOverviewPage() {
       const sevOrder = { critical: 0, warning: 1, info: 2 };
       actions.sort((a, b) => sevOrder[a.severity] - sevOrder[b.severity]);
 
+      // Top employees by open alerts
+      const { data: openAlertRows } = await sb
+        .from("worktime_alerts")
+        .select("user_id, severity")
+        .eq("company_id", cid)
+        .in("status", ["open", "acknowledged"]);
+      const perUser = new Map<string, { crit: number; warn: number; total: number }>();
+      for (const a of openAlertRows ?? []) {
+        const v = perUser.get(a.user_id) ?? { crit: 0, warn: 0, total: 0 };
+        v.total++;
+        if (a.severity === "critical") v.crit++;
+        else if (a.severity === "warning") v.warn++;
+        perUser.set(a.user_id, v);
+      }
+      const topUserIds = [...perUser.entries()]
+        .sort((a, b) => (b[1].crit - a[1].crit) || (b[1].warn - a[1].warn) || (b[1].total - a[1].total))
+        .slice(0, 5);
+      let topNames: Record<string, string> = {};
+      if (topUserIds.length > 0) {
+        const { data: accs } = await sb
+          .from("user_accounts")
+          .select("auth_user_id, person:people!user_accounts_person_id_fkey(full_name, email)")
+          .in("auth_user_id", topUserIds.map(([uid]) => uid));
+        topNames = Object.fromEntries(
+          (accs ?? []).map((a: any) => [a.auth_user_id, a.person?.full_name || a.person?.email || "Ukjent"])
+        );
+      }
+      const topEmployees = topUserIds.map(([uid, c]) => ({ user_id: uid, name: topNames[uid] ?? "Ukjent", ...c }));
+
       return {
         handbooks, openAlerts, criticalAlerts, pendingOvertime, openActions,
         profiles, pendingReview, submitted7d, importBatchesIssues, missingProfiles,
         actions: actions.slice(0, 10),
+        topEmployees,
       };
     },
   });
 
   const cards: KpiCard[] = [
-    { title: "Håndbøker", value: data?.handbooks ?? 0, hint: "Aktive HMS- og arbeidshåndbøker", href: "/hms/handbooks", icon: BookOpen, tone: "neutral" },
-    { title: "Aktive ansatte", value: data?.profiles ?? 0, hint: "Med arbeidstidsprofil", href: "/hms/aml", icon: Users, tone: "neutral" },
-    { title: "AML-varsler", value: data?.openAlerts ?? 0, hint: data?.criticalAlerts ? `${data.criticalAlerts} kritisk${data.criticalAlerts === 1 ? "" : "e"}` : "Ingen kritiske", href: "/hms/aml", icon: AlertTriangle, tone: data?.criticalAlerts ? "alert" : data?.openAlerts ? "warn" : "ok" },
+    { title: "Kritiske AML-varsler", value: data?.criticalAlerts ?? 0, hint: data?.openAlerts ? `${data.openAlerts} åpne totalt` : "Ingen åpne", href: "/hms/aml", icon: AlertTriangle, tone: data?.criticalAlerts ? "alert" : data?.openAlerts ? "warn" : "ok" },
     { title: "Overtid til godkjenning", value: data?.pendingOvertime ?? 0, hint: "Venter på leder", href: "/hms/overtime", icon: Clock, tone: data?.pendingOvertime ? "warn" : "ok" },
-    { title: "Åpne tiltak", value: data?.openActions ?? 0, hint: "Fra SJA, risiko og avvik", href: "/hms", icon: ClipboardCheck, tone: data?.openActions ? "warn" : "ok" },
-    { title: "Til godkjenning", value: data?.pendingReview ?? 0, hint: "SJA / sjekklister fra felt", href: "/hms/submissions", icon: FileCheck, tone: data?.pendingReview ? "warn" : "ok" },
-    { title: "Sendt inn (7d)", value: data?.submitted7d ?? 0, hint: "Aktivitet fra felt", href: "/hms/submissions", icon: Smartphone, tone: "neutral" },
     { title: "Importkonflikter", value: data?.importBatchesIssues ?? 0, hint: "Batcher med hopp/feil", href: "/hms/import/batches", icon: FileWarning, tone: data?.importBatchesIssues ? "warn" : "ok" },
-    { title: "Uten arbeidstidsprofil", value: Math.max(0, (data?.missingProfiles ?? 0) - (data?.profiles ?? 0)), hint: "Mangler regelsett", href: "/hms/rulesets", icon: UserX, tone: "neutral" },
+    { title: "Til godkjenning", value: data?.pendingReview ?? 0, hint: "SJA / sjekklister fra felt", href: "/hms/submissions", icon: FileCheck, tone: data?.pendingReview ? "warn" : "ok" },
   ];
 
   return (
@@ -254,6 +279,29 @@ export default function HmsOverviewPage() {
           </Link>
         ))}
       </div>
+
+      {/* ---- Topp ansatte med åpne AML-varsler ---- */}
+      {data?.topEmployees && data.topEmployees.length > 0 && (
+        <Card className="border-border/60">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Users className="h-4 w-4 text-muted-foreground" />
+              Ansatte med flest åpne AML-varsler
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-1">
+            {data.topEmployees.map((u) => (
+              <Link key={u.user_id} to={`/hms/aml/${u.user_id}`}
+                className="flex items-center gap-3 rounded-md border border-border/60 px-3 py-2 hover:border-primary/40 transition">
+                <div className="flex-1 min-w-0 text-sm font-medium truncate">{u.name}</div>
+                {u.crit > 0 && <Badge variant="destructive" className="text-[10px]">{u.crit} kritisk</Badge>}
+                {u.warn > 0 && <Badge variant="outline" className="text-[10px] border-amber-500/40 text-amber-600">{u.warn} adv</Badge>}
+                <Badge variant="outline" className="text-[10px]">{u.total} totalt</Badge>
+              </Link>
+            ))}
+          </CardContent>
+        </Card>
+      )}
 
       {/* ---- Snarveier ---- */}
       <Card className="border-border/60">
