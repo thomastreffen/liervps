@@ -292,6 +292,7 @@ export function AppSidebar() {
                          <NavItem item={{ title: "Oversikt", url: "/hms", icon: Gauge }} isActive={(url) => location.pathname === "/hms"} collapsed={collapsed} />
                          <NavItem item={{ title: "Håndbøker", url: "/hms/handbooks", icon: BookOpen }} isActive={isActive} collapsed={collapsed} />
                          <NavItem item={{ title: "AML-status", url: "/hms/aml", icon: AlertTriangle }} isActive={isActive} collapsed={collapsed} />
+                         <NavItem item={{ title: "SJA & sjekklister", url: "/hms/templates", icon: ClipboardList }} isActive={isActive} collapsed={collapsed} />
                          <NavItem item={{ title: "Bransjeområder", url: "/hms/areas", icon: ClipboardList }} isActive={isActive} collapsed={collapsed} />
                        </SidebarMenu>
                      </CollapsibleContent>
