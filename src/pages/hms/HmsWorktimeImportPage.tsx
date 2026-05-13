@@ -59,8 +59,10 @@ export default function HmsWorktimeImportPage() {
   const [rawRows, setRawRows] = useState<Record<string, string>[]>([]);
   const [mapping, setMapping] = useState<WorktimeMapping>({});
   const [monthly, setMonthly] = useState<MonthlyParseResult | null>(null);
-  const [step, setStep] = useState<"upload" | "map" | "preview" | "done">("upload");
+  const [step, setStep] = useState<"upload" | "map" | "match" | "preview" | "done">("upload");
   const [result, setResult] = useState<any>(null);
+  // employee_number -> user_id (manual override, also persisted)
+  const [manualMap, setManualMap] = useState<Record<string, string>>({});
 
   const { data: people } = useQuery({
     queryKey: ["company-people", activeCompanyId],
