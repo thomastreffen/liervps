@@ -100,6 +100,8 @@ export default function HmsEmployeeAmlPage() {
     },
   });
 
+  const [editEntry, setEditEntry] = useState<any | null>(null);
+
   if (isLoading || !data) return <div className="p-6"><Skeleton className="h-40" /></div>;
 
   const open = data.alerts.filter((a: any) => a.status === "open" || a.status === "acknowledged");
@@ -109,7 +111,6 @@ export default function HmsEmployeeAmlPage() {
     week: week.slice(5),
     hours: Number((hours as number).toFixed(1)),
   }));
-  const [editEntry, setEditEntry] = useState<any | null>(null);
 
 
   return (
