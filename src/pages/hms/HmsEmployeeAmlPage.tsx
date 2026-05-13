@@ -214,34 +214,74 @@ export default function HmsEmployeeAmlPage() {
               <CheckCircle2 className="inline h-4 w-4 mr-1 text-emerald-500" /> Ingen åpne varsler
             </p>
           )}
-          {open.map((a: any) => (
-            <div key={a.id} className="rounded-lg border p-3 space-y-2">
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex-1">
+          {Object.entries(RULE_GROUPS).map(([groupKey, group]) => {
+            const groupAlerts = open.filter((a: any) => groupForRule(a.rule_key) === groupKey);
+            if (groupAlerts.length === 0) return null;
+            const ids = groupAlerts.map((a: any) => a.id);
+            const openIds = groupAlerts.filter((a: any) => a.status === "open").map((a: any) => a.id);
+            const defaultOpen = groupAlerts.length <= 3;
+            const groupCrit = groupAlerts.filter((a: any) => a.severity === "critical").length;
+            const groupWarn = groupAlerts.filter((a: any) => a.severity === "warning").length;
+            return (
+              <Collapsible key={groupKey} defaultOpen={defaultOpen} className="rounded-lg border">
+                <CollapsibleTrigger className="w-full flex items-center justify-between px-3 py-2 hover:bg-muted/40 transition rounded-t-lg [&[data-state=open]>svg]:rotate-180">
                   <div className="flex items-center gap-2">
-                    <Badge variant={a.severity === "critical" ? "destructive" : "outline"}
-                      className={a.severity === "warning" ? "border-amber-500/40 text-amber-600" : ""}>
-                      {a.severity}
-                    </Badge>
-                    <span className="text-sm font-medium">{a.title || a.rule_key}</span>
+                    <span className="text-sm font-medium">{group.label}</span>
+                    <Badge variant="outline" className="text-[10px]">{groupAlerts.length}</Badge>
+                    {groupCrit > 0 && <Badge variant="destructive" className="text-[10px]">{groupCrit} kritisk</Badge>}
+                    {groupWarn > 0 && <Badge variant="outline" className="text-[10px] border-amber-500/40 text-amber-600">{groupWarn} adv</Badge>}
                   </div>
-                  <p className="text-xs text-muted-foreground mt-1">{a.explanation || a.why}</p>
-                  {a.recommended_action && (
-                    <p className="text-xs mt-1"><strong>Tiltak:</strong> {a.recommended_action}</p>
-                  )}
-                  <p className="text-[10px] text-muted-foreground mt-1">
-                    {a.period_start} – {a.period_end} · {a.value} / {a.threshold}
-                  </p>
-                </div>
-                <div className="flex flex-col gap-1">
-                  {a.status === "open" && (
-                    <Button size="sm" variant="outline" onClick={() => ackMut.mutate(a.id)}>Kvitter</Button>
-                  )}
-                  <Button size="sm" onClick={() => resolveMut.mutate(a.id)}>Løs</Button>
-                </div>
-              </div>
-            </div>
-          ))}
+                  <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform" />
+                </CollapsibleTrigger>
+                <CollapsibleContent className="px-3 pb-3 space-y-2">
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    <Button size="sm" variant="outline" disabled={openIds.length === 0}
+                      onClick={() => bulkAckMut.mutate(openIds)}>
+                      Kvitter alle ({openIds.length})
+                    </Button>
+                    <Button size="sm" onClick={() => {
+                      const comment = prompt(`Påkrevd kommentar / tiltak for å løse ${ids.length} varsler i "${group.label}":`);
+                      if (!comment || !comment.trim()) {
+                        toast({ title: "Kommentar påkrevd", variant: "destructive" });
+                        return;
+                      }
+                      bulkResolveMut.mutate({ ids, comment: comment.trim() });
+                    }}>
+                      Løs alle ({ids.length})
+                    </Button>
+                  </div>
+                  {groupAlerts.map((a: any) => (
+                    <div key={a.id} className="rounded-md border p-2.5 space-y-1.5">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <Badge variant={a.severity === "critical" ? "destructive" : "outline"}
+                              className={a.severity === "warning" ? "border-amber-500/40 text-amber-600" : ""}>
+                              {a.severity}
+                            </Badge>
+                            <span className="text-sm font-medium">{a.title || a.rule_key}</span>
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-1">{a.explanation || a.why}</p>
+                          {a.recommended_action && (
+                            <p className="text-xs mt-1"><strong>Tiltak:</strong> {a.recommended_action}</p>
+                          )}
+                          <p className="text-[10px] text-muted-foreground mt-1">
+                            {a.period_start} – {a.period_end} · {a.value} / {a.threshold}
+                          </p>
+                        </div>
+                        <div className="flex flex-col gap-1 shrink-0">
+                          {a.status === "open" && (
+                            <Button size="sm" variant="outline" onClick={() => ackMut.mutate(a.id)}>Kvitter</Button>
+                          )}
+                          <Button size="sm" onClick={() => resolveMut.mutate(a.id)}>Løs</Button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </CollapsibleContent>
+              </Collapsible>
+            );
+          })}
         </CardContent>
       </Card>
 
