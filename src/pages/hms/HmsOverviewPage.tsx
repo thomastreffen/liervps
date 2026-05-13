@@ -280,6 +280,29 @@ export default function HmsOverviewPage() {
         ))}
       </div>
 
+      {/* ---- Topp ansatte med åpne AML-varsler ---- */}
+      {data?.topEmployees && data.topEmployees.length > 0 && (
+        <Card className="border-border/60">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Users className="h-4 w-4 text-muted-foreground" />
+              Ansatte med flest åpne AML-varsler
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-1">
+            {data.topEmployees.map((u) => (
+              <Link key={u.user_id} to={`/hms/aml/${u.user_id}`}
+                className="flex items-center gap-3 rounded-md border border-border/60 px-3 py-2 hover:border-primary/40 transition">
+                <div className="flex-1 min-w-0 text-sm font-medium truncate">{u.name}</div>
+                {u.crit > 0 && <Badge variant="destructive" className="text-[10px]">{u.crit} kritisk</Badge>}
+                {u.warn > 0 && <Badge variant="outline" className="text-[10px] border-amber-500/40 text-amber-600">{u.warn} adv</Badge>}
+                <Badge variant="outline" className="text-[10px]">{u.total} totalt</Badge>
+              </Link>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
       {/* ---- Snarveier ---- */}
       <Card className="border-border/60">
         <CardHeader className="pb-2"><CardTitle className="text-sm">Snarveier</CardTitle></CardHeader>
