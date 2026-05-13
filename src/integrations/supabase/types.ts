@@ -4107,43 +4107,58 @@ export type Database = {
       }
       employee_work_profiles: {
         Row: {
+          active_from: string | null
+          active_to: string | null
           averaging_enabled: boolean
           averaging_period_weeks: number | null
           company_id: string
           created_at: string
+          daily_norm_hours: number
           external_employee_id: string | null
           fte_pct: number
           id: string
           notes: string | null
+          overtime_requires_approval: boolean
           ruleset_id: string | null
+          tariff_or_agreement: string | null
           updated_at: string
           user_id: string
           weekly_norm_hours: number
         }
         Insert: {
+          active_from?: string | null
+          active_to?: string | null
           averaging_enabled?: boolean
           averaging_period_weeks?: number | null
           company_id: string
           created_at?: string
+          daily_norm_hours?: number
           external_employee_id?: string | null
           fte_pct?: number
           id?: string
           notes?: string | null
+          overtime_requires_approval?: boolean
           ruleset_id?: string | null
+          tariff_or_agreement?: string | null
           updated_at?: string
           user_id: string
           weekly_norm_hours?: number
         }
         Update: {
+          active_from?: string | null
+          active_to?: string | null
           averaging_enabled?: boolean
           averaging_period_weeks?: number | null
           company_id?: string
           created_at?: string
+          daily_norm_hours?: number
           external_employee_id?: string | null
           fte_pct?: number
           id?: string
           notes?: string | null
+          overtime_requires_approval?: boolean
           ruleset_id?: string | null
+          tariff_or_agreement?: string | null
           updated_at?: string
           user_id?: string
           weekly_norm_hours?: number
@@ -9252,9 +9267,11 @@ export type Database = {
           period_end: string
           period_start: string
           reason: string | null
+          reason_type: string | null
           status: string
           updated_at: string
           user_id: string
+          worktime_entry_id: string | null
         }
         Insert: {
           approved_at?: string | null
@@ -9267,9 +9284,11 @@ export type Database = {
           period_end: string
           period_start: string
           reason?: string | null
+          reason_type?: string | null
           status?: string
           updated_at?: string
           user_id: string
+          worktime_entry_id?: string | null
         }
         Update: {
           approved_at?: string | null
@@ -9282,11 +9301,21 @@ export type Database = {
           period_end?: string
           period_start?: string
           reason?: string | null
+          reason_type?: string | null
           status?: string
           updated_at?: string
           user_id?: string
+          worktime_entry_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "overtime_approvals_worktime_entry_id_fkey"
+            columns: ["worktime_entry_id"]
+            isOneToOne: false
+            referencedRelation: "worktime_entries"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       people: {
         Row: {
@@ -11473,70 +11502,110 @@ export type Database = {
       }
       worktime_alerts: {
         Row: {
+          acknowledged_at: string | null
+          acknowledged_by: string | null
+          assigned_to: string | null
           company_id: string
           consequence: string
           created_at: string
+          explanation: string | null
           id: string
           period_end: string
           period_start: string
+          possible_company_consequence: string | null
+          recommended_action: string | null
+          resolution_comment: string | null
           resolved_at: string | null
           resolved_by: string | null
           rule_key: string
           severity: string
+          source_import_batch_id: string | null
           status: string
           suggested_action: string
           threshold: number
+          title: string | null
           updated_at: string
           user_id: string
           value: number
           why: string
         }
         Insert: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          assigned_to?: string | null
           company_id: string
           consequence: string
           created_at?: string
+          explanation?: string | null
           id?: string
           period_end: string
           period_start: string
+          possible_company_consequence?: string | null
+          recommended_action?: string | null
+          resolution_comment?: string | null
           resolved_at?: string | null
           resolved_by?: string | null
           rule_key: string
           severity?: string
+          source_import_batch_id?: string | null
           status?: string
           suggested_action: string
           threshold: number
+          title?: string | null
           updated_at?: string
           user_id: string
           value: number
           why: string
         }
         Update: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          assigned_to?: string | null
           company_id?: string
           consequence?: string
           created_at?: string
+          explanation?: string | null
           id?: string
           period_end?: string
           period_start?: string
+          possible_company_consequence?: string | null
+          recommended_action?: string | null
+          resolution_comment?: string | null
           resolved_at?: string | null
           resolved_by?: string | null
           rule_key?: string
           severity?: string
+          source_import_batch_id?: string | null
           status?: string
           suggested_action?: string
           threshold?: number
+          title?: string | null
           updated_at?: string
           user_id?: string
           value?: number
           why?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "worktime_alerts_source_import_batch_id_fkey"
+            columns: ["source_import_batch_id"]
+            isOneToOne: false
+            referencedRelation: "worktime_import_batches"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       worktime_entries: {
         Row: {
           activity: string | null
+          adjustment_reason: string | null
+          approved_at: string | null
+          approved_by: string | null
           batch_id: string | null
+          break_minutes: number
           company_id: string
           created_at: string
+          created_manually: boolean
           description: string | null
           employee_name: string | null
           end_at: string | null
@@ -11544,21 +11613,33 @@ export type Database = {
           hours: number
           hours_overtime: number
           id: string
+          manually_adjusted: boolean
+          ordinary_hours: number
           project_external_ref: string | null
+          project_id: string | null
+          project_number_raw: string | null
           raw_payload: Json | null
           source_external_id: string | null
           source_hash: string
           source_system: string
           start_at: string | null
+          status: string
+          time_type: string | null
+          total_hours: number
           updated_at: string
           user_id: string | null
           work_date: string
         }
         Insert: {
           activity?: string | null
+          adjustment_reason?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
           batch_id?: string | null
+          break_minutes?: number
           company_id: string
           created_at?: string
+          created_manually?: boolean
           description?: string | null
           employee_name?: string | null
           end_at?: string | null
@@ -11566,21 +11647,33 @@ export type Database = {
           hours?: number
           hours_overtime?: number
           id?: string
+          manually_adjusted?: boolean
+          ordinary_hours?: number
           project_external_ref?: string | null
+          project_id?: string | null
+          project_number_raw?: string | null
           raw_payload?: Json | null
           source_external_id?: string | null
           source_hash: string
           source_system?: string
           start_at?: string | null
+          status?: string
+          time_type?: string | null
+          total_hours?: number
           updated_at?: string
           user_id?: string | null
           work_date: string
         }
         Update: {
           activity?: string | null
+          adjustment_reason?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
           batch_id?: string | null
+          break_minutes?: number
           company_id?: string
           created_at?: string
+          created_manually?: boolean
           description?: string | null
           employee_name?: string | null
           end_at?: string | null
@@ -11588,12 +11681,19 @@ export type Database = {
           hours?: number
           hours_overtime?: number
           id?: string
+          manually_adjusted?: boolean
+          ordinary_hours?: number
           project_external_ref?: string | null
+          project_id?: string | null
+          project_number_raw?: string | null
           raw_payload?: Json | null
           source_external_id?: string | null
           source_hash?: string
           source_system?: string
           start_at?: string | null
+          status?: string
+          time_type?: string | null
+          total_hours?: number
           updated_at?: string
           user_id?: string | null
           work_date?: string
@@ -11703,6 +11803,8 @@ export type Database = {
       }
       worktime_rulesets: {
         Row: {
+          active_from: string | null
+          active_to: string | null
           company_id: string
           created_at: string
           description: string | null
@@ -11711,8 +11813,11 @@ export type Database = {
           name: string
           rules: Json
           updated_at: string
+          version: number
         }
         Insert: {
+          active_from?: string | null
+          active_to?: string | null
           company_id: string
           created_at?: string
           description?: string | null
@@ -11721,8 +11826,11 @@ export type Database = {
           name: string
           rules?: Json
           updated_at?: string
+          version?: number
         }
         Update: {
+          active_from?: string | null
+          active_to?: string | null
           company_id?: string
           created_at?: string
           description?: string | null
@@ -11731,6 +11839,7 @@ export type Database = {
           name?: string
           rules?: Json
           updated_at?: string
+          version?: number
         }
         Relationships: []
       }
