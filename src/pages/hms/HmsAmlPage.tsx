@@ -45,14 +45,16 @@ export default function HmsAmlPage() {
   const [running, setRunning] = useState(false);
 
   const { data, isLoading, refetch } = useQuery({
-    queryKey: ["hms-aml-v2", activeCompanyId, statusFilter, ruleFilter],
+    queryKey: ["hms-aml-v3", activeCompanyId, statusFilter, ruleFilter],
     enabled: !!activeCompanyId,
     queryFn: async () => {
       const sb = supabase as any;
+
+      // 1) Alerts
       let query = sb
         .from("worktime_alerts")
         .select(
-          "id, user_id, severity, status, rule_key, title, explanation, why, period_start, period_end, value, threshold, recommended_action"
+          "id, user_id, severity, status, rule_key, title, explanation, why, period_start, period_end, value, threshold, recommended_action, updated_at"
         )
         .eq("company_id", activeCompanyId);
       if (statusFilter === "open_ack") query = query.in("status", ["open", "acknowledged"]);
@@ -60,37 +62,74 @@ export default function HmsAmlPage() {
       if (ruleFilter !== "all") query = query.eq("rule_key", ruleFilter);
       const { data: alerts } = await query;
 
-      const userIds = Array.from(new Set(((alerts ?? []) as AlertRow[]).map((a) => a.user_id)));
+      // 2) Recent worktime entries (last 90d) → ansatte med timer, selv uten varsler
+      const since = new Date(); since.setDate(since.getDate() - 90);
+      const { data: entries } = await sb
+        .from("worktime_entries")
+        .select("user_id, total_hours, hours_overtime, work_date")
+        .eq("company_id", activeCompanyId)
+        .gte("work_date", since.toISOString().slice(0, 10))
+        .not("user_id", "is", null);
+
+      const stats = new Map<string, { hours: number; overtime: number; lastDate: string | null }>();
+      for (const e of entries ?? []) {
+        const s = stats.get(e.user_id) ?? { hours: 0, overtime: 0, lastDate: null };
+        s.hours += Number(e.total_hours || 0);
+        s.overtime += Number(e.hours_overtime || 0);
+        if (!s.lastDate || e.work_date > s.lastDate) s.lastDate = e.work_date;
+        stats.set(e.user_id, s);
+      }
+
+      // 3) Resolve names via auth_user_id → user_accounts → people
+      const userIds = Array.from(new Set([
+        ...((alerts ?? []) as AlertRow[]).map((a) => a.user_id),
+        ...stats.keys(),
+      ]));
       let names: Record<string, string> = {};
       if (userIds.length > 0) {
         const { data: accs } = await sb
           .from("user_accounts")
-          .select("id, full_name, email")
-          .in("id", userIds);
+          .select("auth_user_id, person:people!user_accounts_person_id_fkey(full_name, email)")
+          .in("auth_user_id", userIds);
         names = Object.fromEntries(
-          (accs ?? []).map((a: any) => [a.id, a.full_name || a.email || "Ukjent"])
+          (accs ?? []).map((a: any) => [a.auth_user_id, a.person?.full_name || a.person?.email || "Ukjent"])
         );
       }
 
-      const byUser = new Map<string, { name: string; alerts: AlertRow[] }>();
+      // 4) Last AML run (max updated_at across alerts)
+      const lastRun = (alerts ?? []).reduce<string | null>((mx, a: any) => {
+        if (!a.updated_at) return mx;
+        return !mx || a.updated_at > mx ? a.updated_at : mx;
+      }, null);
+
+      // 5) Build per-user view
+      const byUser = new Map<string, { name: string; alerts: AlertRow[]; hours: number; overtime: number; lastDate: string | null }>();
+      for (const uid of userIds) {
+        const s = stats.get(uid) ?? { hours: 0, overtime: 0, lastDate: null };
+        byUser.set(uid, { name: names[uid] ?? "Ukjent", alerts: [], hours: s.hours, overtime: s.overtime, lastDate: s.lastDate });
+      }
       for (const a of (alerts ?? []) as AlertRow[]) {
-        const existing = byUser.get(a.user_id) ?? { name: names[a.user_id] ?? "Ukjent", alerts: [] };
-        existing.alerts.push(a);
-        byUser.set(a.user_id, existing);
+        const v = byUser.get(a.user_id);
+        if (v) v.alerts.push(a);
       }
 
-      return Array.from(byUser.entries()).map(([user_id, v]) => ({ user_id, ...v }));
+      return {
+        users: Array.from(byUser.entries()).map(([user_id, v]) => ({ user_id, ...v })),
+        lastRun,
+        totalEntries: entries?.length ?? 0,
+      };
     },
   });
 
-  const filtered = (data ?? []).filter((u) => {
+  const users = data?.users ?? [];
+  const filtered = users.filter((u) => {
     if (q && !u.name.toLowerCase().includes(q.toLowerCase())) return false;
     if (sevFilter !== "all" && !u.alerts.some((a) => a.severity === sevFilter)) return false;
     return true;
   });
 
   const counts = { critical: 0, warning: 0, info: 0 };
-  for (const u of data ?? []) for (const a of u.alerts) counts[a.severity]++;
+  for (const u of users) for (const a of u.alerts) counts[a.severity]++;
 
   async function runEvaluator() {
     if (!activeCompanyId) return;
