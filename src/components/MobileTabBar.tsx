@@ -21,6 +21,7 @@ import {
   Gauge,
   Inbox,
   ClipboardList,
+  HardHat,
 } from "lucide-react";
 import { useNotifications } from "@/hooks/useNotifications";
 import { useActionRequired } from "@/hooks/useActionRequired";
@@ -95,6 +96,7 @@ interface MoreMenuItem {
 }
 
 const moreMenuItems: MoreMenuItem[] = [
+  { label: "HMS & HR", icon: HardHat, path: "/hms", moduleKey: "hms", modulePermission: "module.hms" },
   { label: "Bestillinger", icon: ClipboardList, path: "/orders", moduleKey: "orders", modulePermission: "module.orders" },
   { label: "Fravær", icon: CalendarOff, path: "/absence", moduleKey: "absence", modulePermission: "module.absence" },
   { label: "Fakturagrunnlag", icon: Receipt, path: "/invoice-basis", moduleKey: "invoice_basis", modulePermission: "module.invoice_basis", requiredPermission: "jobs.view_pricing" },
@@ -256,11 +258,17 @@ export function MobileTabBar() {
 
       {/* "More" Drawer – shows all modules user has access to */}
       <Drawer open={moreOpen} onOpenChange={setMoreOpen}>
-        <DrawerContent>
-          <DrawerHeader className="pb-2">
+        <DrawerContent className="max-h-[88dvh]">
+          <DrawerHeader className="pb-2 shrink-0">
             <DrawerTitle className="text-base">Moduler</DrawerTitle>
           </DrawerHeader>
-          <div className="flex flex-col gap-0.5 px-4 pb-6">
+          <div
+            className="flex flex-col gap-0.5 px-4 overflow-y-auto overscroll-contain flex-1 min-h-0"
+            style={{
+              WebkitOverflowScrolling: "touch",
+              paddingBottom: "calc(env(safe-area-inset-bottom) + 1.5rem)",
+            }}
+          >
             {/* Notifications always available */}
             <DrawerClose asChild>
               <button
