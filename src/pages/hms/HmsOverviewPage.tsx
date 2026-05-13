@@ -152,10 +152,40 @@ export default function HmsOverviewPage() {
       const sevOrder = { critical: 0, warning: 1, info: 2 };
       actions.sort((a, b) => sevOrder[a.severity] - sevOrder[b.severity]);
 
+      // Top employees by open alerts
+      const { data: openAlertRows } = await sb
+        .from("worktime_alerts")
+        .select("user_id, severity")
+        .eq("company_id", cid)
+        .in("status", ["open", "acknowledged"]);
+      const perUser = new Map<string, { crit: number; warn: number; total: number }>();
+      for (const a of openAlertRows ?? []) {
+        const v = perUser.get(a.user_id) ?? { crit: 0, warn: 0, total: 0 };
+        v.total++;
+        if (a.severity === "critical") v.crit++;
+        else if (a.severity === "warning") v.warn++;
+        perUser.set(a.user_id, v);
+      }
+      const topUserIds = [...perUser.entries()]
+        .sort((a, b) => (b[1].crit - a[1].crit) || (b[1].warn - a[1].warn) || (b[1].total - a[1].total))
+        .slice(0, 5);
+      let topNames: Record<string, string> = {};
+      if (topUserIds.length > 0) {
+        const { data: accs } = await sb
+          .from("user_accounts")
+          .select("auth_user_id, person:people!user_accounts_person_id_fkey(full_name, email)")
+          .in("auth_user_id", topUserIds.map(([uid]) => uid));
+        topNames = Object.fromEntries(
+          (accs ?? []).map((a: any) => [a.auth_user_id, a.person?.full_name || a.person?.email || "Ukjent"])
+        );
+      }
+      const topEmployees = topUserIds.map(([uid, c]) => ({ user_id: uid, name: topNames[uid] ?? "Ukjent", ...c }));
+
       return {
         handbooks, openAlerts, criticalAlerts, pendingOvertime, openActions,
         profiles, pendingReview, submitted7d, importBatchesIssues, missingProfiles,
         actions: actions.slice(0, 10),
+        topEmployees,
       };
     },
   });
