@@ -22,6 +22,9 @@ import {
   Inbox,
   ClipboardList,
   HardHat,
+  ShieldAlert,
+  Eye,
+  FileCheck,
 } from "lucide-react";
 import { useNotifications } from "@/hooks/useNotifications";
 import { useActionRequired } from "@/hooks/useActionRequired";
@@ -85,6 +88,37 @@ const planAction: QuickAction = {
   onAction: () => window.dispatchEvent(new CustomEvent("resource-plan:new-activity")),
 };
 
+const hmsActions: QuickAction[] = [
+  {
+    label: "Meld avvik / RUH",
+    description: "Rapporter HMS-avvik, nestenulykke eller skade",
+    icon: ShieldAlert,
+    path: "/hms/incidents/new",
+    permission: "hms.view",
+  },
+  {
+    label: "HMS-observasjon",
+    description: "Registrer en sikker eller utrygg observasjon",
+    icon: Eye,
+    path: "/hms/incidents/new?type=observation",
+    permission: "hms.view",
+  },
+  {
+    label: "Ny SJA",
+    description: "Start sikker jobbanalyse på mobil",
+    icon: ClipboardList,
+    path: "/hms/mobile?start=sja",
+    permission: "hms.view",
+  },
+  {
+    label: "Ny sjekkliste",
+    description: "Fyll ut HMS-sjekkliste",
+    icon: FileCheck,
+    path: "/hms/mobile?start=checklist",
+    permission: "hms.view",
+  },
+];
+
 /* ── "More" menu items derived from same module model as desktop sidebar ── */
 interface MoreMenuItem {
   label: string;
@@ -124,9 +158,14 @@ export function MobileTabBar() {
 
   const jobsDot = actionRequiredCount > 0;
   const isOnPlan = location.pathname === "/projects/plan";
+  const isOnHms = location.pathname.startsWith("/hms");
 
-  const quickActions: QuickAction[] = isOnPlan
+  const quickActions: QuickAction[] = isOnHms
+    ? [...hmsActions, ...baseQuickActions]
+    : isOnPlan
     ? [planAction, ...baseQuickActions]
+    : isMontør
+    ? [...hmsActions.slice(0, 2), ...baseQuickActions]
     : baseQuickActions;
 
   const availableActions = quickActions.filter((action) => {

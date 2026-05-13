@@ -5650,6 +5650,7 @@ export type Database = {
       }
       hms_incidents: {
         Row: {
+          attachments: Json
           closed_at: string | null
           closed_by: string | null
           closure_notes: string | null
@@ -5663,6 +5664,7 @@ export type Database = {
           location: string | null
           occurred_at: string
           project_id: string | null
+          proposed_action: string | null
           reported_by: string | null
           severity: string
           status: string
@@ -5670,6 +5672,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          attachments?: Json
           closed_at?: string | null
           closed_by?: string | null
           closure_notes?: string | null
@@ -5683,6 +5686,7 @@ export type Database = {
           location?: string | null
           occurred_at?: string
           project_id?: string | null
+          proposed_action?: string | null
           reported_by?: string | null
           severity?: string
           status?: string
@@ -5690,6 +5694,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          attachments?: Json
           closed_at?: string | null
           closed_by?: string | null
           closure_notes?: string | null
@@ -5703,6 +5708,7 @@ export type Database = {
           location?: string | null
           occurred_at?: string
           project_id?: string | null
+          proposed_action?: string | null
           reported_by?: string | null
           severity?: string
           status?: string

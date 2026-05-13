@@ -122,6 +122,8 @@ import HmsRulesetsPage from "./pages/hms/HmsRulesetsPage";
 import HmsOvertimePage from "./pages/hms/HmsOvertimePage";
 import HmsImportBatchesPage from "./pages/hms/HmsImportBatchesPage";
 import HmsReportsPage from "./pages/hms/HmsReportsPage";
+import HmsIncidentReportPage from "./pages/hms/HmsIncidentReportPage";
+import HmsIncidentsListPage from "./pages/hms/HmsIncidentsListPage";
 import { CompanyProvider, useCompanyContext } from "@/hooks/useCompanyContext";
 import { ActiveCompanyForPermissions } from "@/hooks/usePermissions";
 import { PreviewModeProvider } from "@/hooks/usePreviewMode";
@@ -606,6 +608,21 @@ const App = () => (
               <Route path="/hms/reports" element={
                 <ProtectedRoute requiredPermission="hms.view">
                   <HmsReportsPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/hms/incidents" element={
+                <ProtectedRoute requiredPermission="hms.view">
+                  <HmsIncidentsListPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/hms/incidents/new" element={
+                <ProtectedRoute requiredPermission="hms.view">
+                  <HmsIncidentReportPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/hms/incidents/:id" element={
+                <ProtectedRoute requiredPermission="hms.view">
+                  <HmsIncidentsListPage />
                 </ProtectedRoute>
               } />
             </Route>
