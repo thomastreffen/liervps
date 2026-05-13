@@ -22,6 +22,9 @@ import {
   Inbox,
   ClipboardList,
   HardHat,
+  ShieldAlert,
+  Eye,
+  FileCheck,
 } from "lucide-react";
 import { useNotifications } from "@/hooks/useNotifications";
 import { useActionRequired } from "@/hooks/useActionRequired";
