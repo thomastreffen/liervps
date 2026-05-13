@@ -18,7 +18,7 @@ export default function HmsSubmissionDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
   const { hasPermission } = useRbac();
-  const navigate = useNavigate();
+  
   const { toast } = useToast();
   const qc = useQueryClient();
   const [rejectOpen, setRejectOpen] = useState(false);
