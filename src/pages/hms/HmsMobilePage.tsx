@@ -361,3 +361,27 @@ function StatusBadge({ status }: { status: SubmissionStatus }) {
     "bg-muted text-muted-foreground border-border";
   return <Badge variant="outline" className={`text-[10px] ${cls}`}>{STATUS_LABELS[status] ?? status}</Badge>;
 }
+
+function QuickAction({
+  icon, label, onClick, tone,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  onClick: () => void;
+  tone: "primary" | "rose" | "amber" | "muted";
+}) {
+  const toneCls =
+    tone === "rose" ? "bg-rose-50 text-rose-700 border-rose-200 active:bg-rose-100" :
+    tone === "amber" ? "bg-amber-50 text-amber-800 border-amber-200 active:bg-amber-100" :
+    tone === "muted" ? "bg-card text-foreground border-border active:bg-muted" :
+    "bg-primary/5 text-primary border-primary/30 active:bg-primary/10";
+  return (
+    <button
+      onClick={onClick}
+      className={`min-h-[80px] rounded-xl border-2 px-3 py-3 flex flex-col items-start justify-between gap-2 text-left transition active:scale-[0.99] ${toneCls}`}
+    >
+      <span className="h-9 w-9 rounded-lg bg-background/60 grid place-items-center">{icon}</span>
+      <span className="text-sm font-semibold leading-tight">{label}</span>
+    </button>
+  );
+}
