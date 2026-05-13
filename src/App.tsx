@@ -105,6 +105,9 @@ import OrderFormBuilderPage from "./pages/OrderFormBuilderPage";
 import OrderFormPublicPage from "./pages/OrderFormPublicPage";
 import OrderFormsCatalogPage from "./pages/OrderFormsCatalogPage";
 import OrderTrackingPage from "./pages/OrderTrackingPage";
+import HmsOverviewPage from "./pages/hms/HmsOverviewPage";
+import HmsHandbooksPage from "./pages/hms/HmsHandbooksPage";
+import HmsAmlPage from "./pages/hms/HmsAmlPage";
 import { CompanyProvider, useCompanyContext } from "@/hooks/useCompanyContext";
 import { ActiveCompanyForPermissions } from "@/hooks/usePermissions";
 import { PreviewModeProvider } from "@/hooks/usePreviewMode";
@@ -505,6 +508,22 @@ const App = () => (
                   </ProtectedRoute>
                 }
               />
+              {/* HMS & HR module */}
+              <Route path="/hms" element={
+                <ProtectedRoute requiredPermission="hms.view">
+                  <HmsOverviewPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/hms/handbooks" element={
+                <ProtectedRoute requiredPermission="hms.view">
+                  <HmsHandbooksPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/hms/aml" element={
+                <ProtectedRoute requiredPermission="hms.view">
+                  <HmsAmlPage />
+                </ProtectedRoute>
+              } />
             </Route>
 
             <Route path="*" element={<NotFound />} />

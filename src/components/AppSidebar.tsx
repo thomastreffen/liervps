@@ -20,6 +20,8 @@ import {
   ClipboardList,
   Calculator,
   Briefcase,
+  ShieldCheck,
+  AlertTriangle,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/hooks/useAuth";
@@ -266,6 +268,34 @@ export function AppSidebar() {
                      </Collapsible>
                    </SidebarMenuItem>
                  </>
+               )}
+               {canAccessModule("hms", "module.hms") && (
+                 <SidebarMenuItem>
+                   <Collapsible defaultOpen={isActive("/hms")}>
+                     <CollapsibleTrigger asChild>
+                       <SidebarMenuButton
+                         tooltip="HMS & HR"
+                         className={cn(
+                           "rounded-xl h-10 transition-all duration-150",
+                           isActive("/hms")
+                             ? "bg-primary/10 text-primary font-semibold shadow-sm"
+                             : "text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent"
+                         )}
+                       >
+                         <ShieldCheck className="h-[19px] w-[19px]" />
+                         <span className="text-[13px] flex-1">HMS & HR</span>
+                         {!collapsed && <ChevronDown className="h-3 w-3 transition-transform duration-200 [[data-state=open]>&]:rotate-180" />}
+                       </SidebarMenuButton>
+                     </CollapsibleTrigger>
+                     <CollapsibleContent>
+                       <SidebarMenu className="ml-5 mt-1 space-y-0.5 border-l border-sidebar-border/40 pl-2">
+                         <NavItem item={{ title: "Oversikt", url: "/hms", icon: Gauge }} isActive={(url) => location.pathname === "/hms"} collapsed={collapsed} />
+                         <NavItem item={{ title: "Håndbøker", url: "/hms/handbooks", icon: BookOpen }} isActive={isActive} collapsed={collapsed} />
+                         <NavItem item={{ title: "AML-status", url: "/hms/aml", icon: AlertTriangle }} isActive={isActive} collapsed={collapsed} />
+                       </SidebarMenu>
+                     </CollapsibleContent>
+                   </Collapsible>
+                 </SidebarMenuItem>
                )}
                {canAccessModule("management" /* no moduleKey in module_settings yet */, "module.management") && (
                  <NavItem item={{ title: "Lederoversikt", url: "/management", icon: Gauge }} isActive={isActive} collapsed={collapsed} />
