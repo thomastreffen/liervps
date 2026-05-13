@@ -4105,6 +4105,59 @@ export type Database = {
           },
         ]
       }
+      employee_work_profiles: {
+        Row: {
+          averaging_enabled: boolean
+          averaging_period_weeks: number | null
+          company_id: string
+          created_at: string
+          external_employee_id: string | null
+          fte_pct: number
+          id: string
+          notes: string | null
+          ruleset_id: string | null
+          updated_at: string
+          user_id: string
+          weekly_norm_hours: number
+        }
+        Insert: {
+          averaging_enabled?: boolean
+          averaging_period_weeks?: number | null
+          company_id: string
+          created_at?: string
+          external_employee_id?: string | null
+          fte_pct?: number
+          id?: string
+          notes?: string | null
+          ruleset_id?: string | null
+          updated_at?: string
+          user_id: string
+          weekly_norm_hours?: number
+        }
+        Update: {
+          averaging_enabled?: boolean
+          averaging_period_weeks?: number | null
+          company_id?: string
+          created_at?: string
+          external_employee_id?: string | null
+          fte_pct?: number
+          id?: string
+          notes?: string | null
+          ruleset_id?: string | null
+          updated_at?: string
+          user_id?: string
+          weekly_norm_hours?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_work_profiles_ruleset_id_fkey"
+            columns: ["ruleset_id"]
+            isOneToOne: false
+            referencedRelation: "worktime_rulesets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       employment_profiles: {
         Row: {
           archived_at: string | null
@@ -5142,6 +5195,843 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      hms_action_items: {
+        Row: {
+          alert_id: string | null
+          assignee_user_id: string | null
+          company_id: string
+          completed_at: string | null
+          completed_by: string | null
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          deleted_by: string | null
+          description: string | null
+          due_date: string | null
+          id: string
+          incident_id: string | null
+          priority: string
+          risk_item_id: string | null
+          status: string
+          submission_id: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          alert_id?: string | null
+          assignee_user_id?: string | null
+          company_id: string
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          incident_id?: string | null
+          priority?: string
+          risk_item_id?: string | null
+          status?: string
+          submission_id?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          alert_id?: string | null
+          assignee_user_id?: string | null
+          company_id?: string
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          incident_id?: string | null
+          priority?: string
+          risk_item_id?: string | null
+          status?: string
+          submission_id?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hms_action_items_alert_fk"
+            columns: ["alert_id"]
+            isOneToOne: false
+            referencedRelation: "worktime_alerts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hms_action_items_incident_fk"
+            columns: ["incident_id"]
+            isOneToOne: false
+            referencedRelation: "hms_incidents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hms_action_items_risk_item_id_fkey"
+            columns: ["risk_item_id"]
+            isOneToOne: false
+            referencedRelation: "hms_risk_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hms_action_items_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "hms_submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hms_audit_log: {
+        Row: {
+          action: string
+          company_id: string | null
+          entity_id: string | null
+          entity_type: string
+          id: string
+          payload: Json | null
+          performed_at: string
+          performed_by: string | null
+        }
+        Insert: {
+          action: string
+          company_id?: string | null
+          entity_id?: string | null
+          entity_type: string
+          id?: string
+          payload?: Json | null
+          performed_at?: string
+          performed_by?: string | null
+        }
+        Update: {
+          action?: string
+          company_id?: string | null
+          entity_id?: string | null
+          entity_type?: string
+          id?: string
+          payload?: Json | null
+          performed_at?: string
+          performed_by?: string | null
+        }
+        Relationships: []
+      }
+      hms_handbook_acknowledgements: {
+        Row: {
+          acknowledged_at: string
+          company_id: string
+          handbook_id: string
+          id: string
+          ip_address: string | null
+          user_agent: string | null
+          user_id: string
+          version_id: string
+        }
+        Insert: {
+          acknowledged_at?: string
+          company_id: string
+          handbook_id: string
+          id?: string
+          ip_address?: string | null
+          user_agent?: string | null
+          user_id: string
+          version_id: string
+        }
+        Update: {
+          acknowledged_at?: string
+          company_id?: string
+          handbook_id?: string
+          id?: string
+          ip_address?: string | null
+          user_agent?: string | null
+          user_id?: string
+          version_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hms_handbook_acknowledgements_handbook_id_fkey"
+            columns: ["handbook_id"]
+            isOneToOne: false
+            referencedRelation: "hms_handbooks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hms_handbook_acknowledgements_version_id_fkey"
+            columns: ["version_id"]
+            isOneToOne: false
+            referencedRelation: "hms_handbook_versions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hms_handbook_sections: {
+        Row: {
+          body: string | null
+          created_at: string
+          heading: string
+          id: string
+          ordering: number
+          parent_id: string | null
+          updated_at: string
+          version_id: string
+        }
+        Insert: {
+          body?: string | null
+          created_at?: string
+          heading: string
+          id?: string
+          ordering?: number
+          parent_id?: string | null
+          updated_at?: string
+          version_id: string
+        }
+        Update: {
+          body?: string | null
+          created_at?: string
+          heading?: string
+          id?: string
+          ordering?: number
+          parent_id?: string | null
+          updated_at?: string
+          version_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hms_handbook_sections_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "hms_handbook_sections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hms_handbook_sections_version_id_fkey"
+            columns: ["version_id"]
+            isOneToOne: false
+            referencedRelation: "hms_handbook_versions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hms_handbook_versions: {
+        Row: {
+          changelog: string | null
+          company_id: string
+          created_at: string
+          created_by: string | null
+          handbook_id: string
+          id: string
+          published_at: string | null
+          published_by: string | null
+          requires_acknowledgement: boolean
+          status: string
+          updated_at: string
+          version_number: number
+        }
+        Insert: {
+          changelog?: string | null
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          handbook_id: string
+          id?: string
+          published_at?: string | null
+          published_by?: string | null
+          requires_acknowledgement?: boolean
+          status?: string
+          updated_at?: string
+          version_number: number
+        }
+        Update: {
+          changelog?: string | null
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          handbook_id?: string
+          id?: string
+          published_at?: string | null
+          published_by?: string | null
+          requires_acknowledgement?: boolean
+          status?: string
+          updated_at?: string
+          version_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hms_handbook_versions_handbook_id_fkey"
+            columns: ["handbook_id"]
+            isOneToOne: false
+            referencedRelation: "hms_handbooks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hms_handbooks: {
+        Row: {
+          company_id: string
+          created_at: string
+          created_by: string | null
+          current_version_id: string | null
+          deleted_at: string | null
+          deleted_by: string | null
+          description: string | null
+          handbook_type: string
+          id: string
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          current_version_id?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          description?: string | null
+          handbook_type?: string
+          id?: string
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          current_version_id?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          description?: string | null
+          handbook_type?: string
+          id?: string
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hms_handbooks_current_version_fk"
+            columns: ["current_version_id"]
+            isOneToOne: false
+            referencedRelation: "hms_handbook_versions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hms_incidents: {
+        Row: {
+          closed_at: string | null
+          closed_by: string | null
+          closure_notes: string | null
+          company_id: string
+          created_at: string
+          deleted_at: string | null
+          deleted_by: string | null
+          description: string | null
+          id: string
+          incident_type: string
+          location: string | null
+          occurred_at: string
+          project_id: string | null
+          reported_by: string | null
+          severity: string
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          closed_at?: string | null
+          closed_by?: string | null
+          closure_notes?: string | null
+          company_id: string
+          created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
+          description?: string | null
+          id?: string
+          incident_type: string
+          location?: string | null
+          occurred_at?: string
+          project_id?: string | null
+          reported_by?: string | null
+          severity?: string
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          closed_at?: string | null
+          closed_by?: string | null
+          closure_notes?: string | null
+          company_id?: string
+          created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
+          description?: string | null
+          id?: string
+          incident_type?: string
+          location?: string | null
+          occurred_at?: string
+          project_id?: string | null
+          reported_by?: string | null
+          severity?: string
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      hms_risk_assessments: {
+        Row: {
+          company_id: string
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          deleted_by: string | null
+          description: string | null
+          id: string
+          project_id: string | null
+          status: string
+          submission_id: string | null
+          template_id: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          description?: string | null
+          id?: string
+          project_id?: string | null
+          status?: string
+          submission_id?: string | null
+          template_id?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          description?: string | null
+          id?: string
+          project_id?: string | null
+          status?: string
+          submission_id?: string | null
+          template_id?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hms_risk_assessments_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "hms_submissions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hms_risk_assessments_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "hms_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hms_risk_items: {
+        Row: {
+          ai_generated: boolean
+          assessment_id: string
+          company_id: string
+          consequence: number
+          created_at: string
+          description: string
+          id: string
+          probability: number
+          proposed_action: string | null
+          score: number | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          ai_generated?: boolean
+          assessment_id: string
+          company_id: string
+          consequence?: number
+          created_at?: string
+          description: string
+          id?: string
+          probability?: number
+          proposed_action?: string | null
+          score?: number | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          ai_generated?: boolean
+          assessment_id?: string
+          company_id?: string
+          consequence?: number
+          created_at?: string
+          description?: string
+          id?: string
+          probability?: number
+          proposed_action?: string | null
+          score?: number | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hms_risk_items_assessment_id_fkey"
+            columns: ["assessment_id"]
+            isOneToOne: false
+            referencedRelation: "hms_risk_assessments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hms_submission_answers: {
+        Row: {
+          created_at: string
+          id: string
+          item_id: string | null
+          item_key: string | null
+          photos: string[] | null
+          submission_id: string
+          updated_at: string
+          value: Json | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          item_id?: string | null
+          item_key?: string | null
+          photos?: string[] | null
+          submission_id: string
+          updated_at?: string
+          value?: Json | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          item_id?: string | null
+          item_key?: string | null
+          photos?: string[] | null
+          submission_id?: string
+          updated_at?: string
+          value?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hms_submission_answers_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "hms_submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hms_submission_participants: {
+        Row: {
+          created_at: string
+          display_name: string
+          id: string
+          role: string | null
+          submission_id: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          display_name: string
+          id?: string
+          role?: string | null
+          submission_id: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          display_name?: string
+          id?: string
+          role?: string | null
+          submission_id?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hms_submission_participants_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "hms_submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hms_submission_signatures: {
+        Row: {
+          id: string
+          ip_address: string | null
+          signature_data: string | null
+          signed_at: string
+          signer_name: string
+          signer_user_id: string | null
+          submission_id: string
+        }
+        Insert: {
+          id?: string
+          ip_address?: string | null
+          signature_data?: string | null
+          signed_at?: string
+          signer_name: string
+          signer_user_id?: string | null
+          submission_id: string
+        }
+        Update: {
+          id?: string
+          ip_address?: string | null
+          signature_data?: string | null
+          signed_at?: string
+          signer_name?: string
+          signer_user_id?: string | null
+          submission_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hms_submission_signatures_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "hms_submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hms_submissions: {
+        Row: {
+          client_request_id: string | null
+          company_id: string
+          created_at: string
+          deleted_at: string | null
+          deleted_by: string | null
+          gps_lat: number | null
+          gps_lng: number | null
+          id: string
+          location: string | null
+          project_id: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          submitted_at: string | null
+          submitted_by: string | null
+          template_id: string | null
+          template_snapshot: Json | null
+          title: string | null
+          updated_at: string
+        }
+        Insert: {
+          client_request_id?: string | null
+          company_id: string
+          created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
+          gps_lat?: number | null
+          gps_lng?: number | null
+          id?: string
+          location?: string | null
+          project_id?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          submitted_at?: string | null
+          submitted_by?: string | null
+          template_id?: string | null
+          template_snapshot?: Json | null
+          title?: string | null
+          updated_at?: string
+        }
+        Update: {
+          client_request_id?: string | null
+          company_id?: string
+          created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
+          gps_lat?: number | null
+          gps_lng?: number | null
+          id?: string
+          location?: string | null
+          project_id?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          submitted_at?: string | null
+          submitted_by?: string | null
+          template_id?: string | null
+          template_snapshot?: Json | null
+          title?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hms_submissions_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "hms_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hms_template_items: {
+        Row: {
+          ai_hint: string | null
+          created_at: string
+          help_text: string | null
+          id: string
+          is_required: boolean
+          item_type: string
+          label: string
+          options: Json | null
+          ordering: number
+          section_id: string
+          template_id: string
+        }
+        Insert: {
+          ai_hint?: string | null
+          created_at?: string
+          help_text?: string | null
+          id?: string
+          is_required?: boolean
+          item_type: string
+          label: string
+          options?: Json | null
+          ordering?: number
+          section_id: string
+          template_id: string
+        }
+        Update: {
+          ai_hint?: string | null
+          created_at?: string
+          help_text?: string | null
+          id?: string
+          is_required?: boolean
+          item_type?: string
+          label?: string
+          options?: Json | null
+          ordering?: number
+          section_id?: string
+          template_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hms_template_items_section_id_fkey"
+            columns: ["section_id"]
+            isOneToOne: false
+            referencedRelation: "hms_template_sections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hms_template_items_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "hms_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hms_template_sections: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          ordering: number
+          template_id: string
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          ordering?: number
+          template_id: string
+          title: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          ordering?: number
+          template_id?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hms_template_sections_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "hms_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hms_templates: {
+        Row: {
+          category: string
+          company_id: string
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          deleted_by: string | null
+          description: string | null
+          id: string
+          is_active: boolean
+          kind: string
+          name: string
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          category?: string
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          kind: string
+          name: string
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          category?: string
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          kind?: string
+          name?: string
+          updated_at?: string
+          version?: number
+        }
+        Relationships: []
       }
       image_text_extracts: {
         Row: {
@@ -8139,6 +9029,54 @@ export type Database = {
           },
         ]
       }
+      overtime_approvals: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          approved_hours: number
+          company_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          period_end: string
+          period_start: string
+          reason: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          approved_hours?: number
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          period_end: string
+          period_start: string
+          reason?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          approved_hours?: number
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          period_end?: string
+          period_start?: string
+          reason?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       people: {
         Row: {
           created_at: string
@@ -10287,6 +11225,304 @@ export type Database = {
           },
         ]
       }
+      worktime_alert_actions: {
+        Row: {
+          action: string
+          alert_id: string
+          created_at: string
+          id: string
+          notes: string | null
+          performed_by: string | null
+        }
+        Insert: {
+          action: string
+          alert_id: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          performed_by?: string | null
+        }
+        Update: {
+          action?: string
+          alert_id?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          performed_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "worktime_alert_actions_alert_id_fkey"
+            columns: ["alert_id"]
+            isOneToOne: false
+            referencedRelation: "worktime_alerts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      worktime_alerts: {
+        Row: {
+          company_id: string
+          consequence: string
+          created_at: string
+          id: string
+          period_end: string
+          period_start: string
+          resolved_at: string | null
+          resolved_by: string | null
+          rule_key: string
+          severity: string
+          status: string
+          suggested_action: string
+          threshold: number
+          updated_at: string
+          user_id: string
+          value: number
+          why: string
+        }
+        Insert: {
+          company_id: string
+          consequence: string
+          created_at?: string
+          id?: string
+          period_end: string
+          period_start: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          rule_key: string
+          severity?: string
+          status?: string
+          suggested_action: string
+          threshold: number
+          updated_at?: string
+          user_id: string
+          value: number
+          why: string
+        }
+        Update: {
+          company_id?: string
+          consequence?: string
+          created_at?: string
+          id?: string
+          period_end?: string
+          period_start?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          rule_key?: string
+          severity?: string
+          status?: string
+          suggested_action?: string
+          threshold?: number
+          updated_at?: string
+          user_id?: string
+          value?: number
+          why?: string
+        }
+        Relationships: []
+      }
+      worktime_entries: {
+        Row: {
+          activity: string | null
+          batch_id: string | null
+          company_id: string
+          created_at: string
+          description: string | null
+          employee_name: string | null
+          end_at: string | null
+          external_employee_id: string | null
+          hours: number
+          hours_overtime: number
+          id: string
+          project_external_ref: string | null
+          raw_payload: Json | null
+          source_external_id: string | null
+          source_hash: string
+          source_system: string
+          start_at: string | null
+          updated_at: string
+          user_id: string | null
+          work_date: string
+        }
+        Insert: {
+          activity?: string | null
+          batch_id?: string | null
+          company_id: string
+          created_at?: string
+          description?: string | null
+          employee_name?: string | null
+          end_at?: string | null
+          external_employee_id?: string | null
+          hours?: number
+          hours_overtime?: number
+          id?: string
+          project_external_ref?: string | null
+          raw_payload?: Json | null
+          source_external_id?: string | null
+          source_hash: string
+          source_system?: string
+          start_at?: string | null
+          updated_at?: string
+          user_id?: string | null
+          work_date: string
+        }
+        Update: {
+          activity?: string | null
+          batch_id?: string | null
+          company_id?: string
+          created_at?: string
+          description?: string | null
+          employee_name?: string | null
+          end_at?: string | null
+          external_employee_id?: string | null
+          hours?: number
+          hours_overtime?: number
+          id?: string
+          project_external_ref?: string | null
+          raw_payload?: Json | null
+          source_external_id?: string | null
+          source_hash?: string
+          source_system?: string
+          start_at?: string | null
+          updated_at?: string
+          user_id?: string | null
+          work_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "worktime_entries_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "worktime_import_batches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      worktime_import_batches: {
+        Row: {
+          company_id: string
+          created_at: string
+          error_message: string | null
+          filename: string | null
+          finished_at: string | null
+          id: string
+          imported_by: string | null
+          mapping: Json | null
+          new_rows: number | null
+          skipped_rows: number | null
+          source_system: string
+          status: string
+          total_rows: number | null
+          unchanged_rows: number | null
+          updated_rows: number | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          error_message?: string | null
+          filename?: string | null
+          finished_at?: string | null
+          id?: string
+          imported_by?: string | null
+          mapping?: Json | null
+          new_rows?: number | null
+          skipped_rows?: number | null
+          source_system?: string
+          status?: string
+          total_rows?: number | null
+          unchanged_rows?: number | null
+          updated_rows?: number | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          error_message?: string | null
+          filename?: string | null
+          finished_at?: string | null
+          id?: string
+          imported_by?: string | null
+          mapping?: Json | null
+          new_rows?: number | null
+          skipped_rows?: number | null
+          source_system?: string
+          status?: string
+          total_rows?: number | null
+          unchanged_rows?: number | null
+          updated_rows?: number | null
+        }
+        Relationships: []
+      }
+      worktime_rule_checks: {
+        Row: {
+          checked_at: string
+          company_id: string
+          id: string
+          period_end: string
+          period_start: string
+          rule_key: string
+          status: string
+          threshold: number
+          user_id: string
+          value: number
+        }
+        Insert: {
+          checked_at?: string
+          company_id: string
+          id?: string
+          period_end: string
+          period_start: string
+          rule_key: string
+          status: string
+          threshold: number
+          user_id: string
+          value: number
+        }
+        Update: {
+          checked_at?: string
+          company_id?: string
+          id?: string
+          period_end?: string
+          period_start?: string
+          rule_key?: string
+          status?: string
+          threshold?: number
+          user_id?: string
+          value?: number
+        }
+        Relationships: []
+      }
+      worktime_rulesets: {
+        Row: {
+          company_id: string
+          created_at: string
+          description: string | null
+          id: string
+          is_default: boolean
+          name: string
+          rules: Json
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_default?: boolean
+          name: string
+          rules?: Json
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_default?: boolean
+          name?: string
+          rules?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       technicians_v: {
@@ -10649,6 +11885,14 @@ export type Database = {
       }
       has_folder_access: {
         Args: { _auth_user_id: string; _folder_id: string }
+        Returns: boolean
+      }
+      has_hms_manage: {
+        Args: { _auth_user_id: string; _company_id: string }
+        Returns: boolean
+      }
+      has_hms_view: {
+        Args: { _auth_user_id: string; _company_id: string }
         Returns: boolean
       }
       has_role: {
