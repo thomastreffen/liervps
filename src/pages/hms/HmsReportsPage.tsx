@@ -36,10 +36,15 @@ export default function HmsReportsPage() {
   const [to, setTo] = useState(today);
   const [busy, setBusy] = useState<string | null>(null);
 
-  async function lookupNames(ids: string[]) {
-    if (!ids.length) return {};
-    const { data } = await (supabase as any).from("user_accounts").select("id, full_name, email").in("id", ids);
-    return Object.fromEntries((data ?? []).map((x: any) => [x.id, x.full_name || x.email || x.id]));
+  async function lookupNames(authUserIds: string[]) {
+    if (!authUserIds.length) return {};
+    const { data } = await (supabase as any)
+      .from("user_accounts")
+      .select("auth_user_id, person:people!user_accounts_person_id_fkey(full_name, email)")
+      .in("auth_user_id", authUserIds);
+    return Object.fromEntries(
+      (data ?? []).map((x: any) => [x.auth_user_id, x.person?.full_name || x.person?.email || x.auth_user_id])
+    );
   }
 
   async function exportAml(status: "open" | "all") {
