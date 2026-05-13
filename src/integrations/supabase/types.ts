@@ -5441,6 +5441,7 @@ export type Database = {
         Row: {
           acknowledged_at: string
           company_id: string
+          confirmation_text: string | null
           handbook_id: string
           id: string
           ip_address: string | null
@@ -5451,6 +5452,7 @@ export type Database = {
         Insert: {
           acknowledged_at?: string
           company_id: string
+          confirmation_text?: string | null
           handbook_id: string
           id?: string
           ip_address?: string | null
@@ -5461,6 +5463,7 @@ export type Database = {
         Update: {
           acknowledged_at?: string
           company_id?: string
+          confirmation_text?: string | null
           handbook_id?: string
           id?: string
           ip_address?: string | null
