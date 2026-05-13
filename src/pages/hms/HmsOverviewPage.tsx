@@ -24,29 +24,35 @@ export default function HmsOverviewPage() {
     enabled: !!activeCompanyId,
     queryFn: async () => {
       const cid = activeCompanyId!;
-      const [handbooks, openAlerts, criticalAlerts, pendingOvertime, openActions, profiles] =
-        await Promise.all([
-          supabase.from("hms_handbooks").select("id", { count: "exact", head: true })
-            .eq("company_id", cid).is("deleted_at", null),
-          supabase.from("worktime_alerts").select("id", { count: "exact", head: true })
-            .eq("company_id", cid).eq("status", "open"),
-          supabase.from("worktime_alerts").select("id", { count: "exact", head: true })
-            .eq("company_id", cid).eq("status", "open").eq("severity", "critical"),
-          supabase.from("overtime_approvals").select("id", { count: "exact", head: true })
-            .eq("company_id", cid).eq("status", "pending"),
-          supabase.from("hms_action_items").select("id", { count: "exact", head: true })
-            .eq("company_id", cid).in("status", ["open", "in_progress"]),
-          supabase.from("employee_work_profiles").select("id", { count: "exact", head: true })
-            .eq("company_id", cid).eq("is_active", true),
-        ]);
-      return {
-        handbooks: handbooks.count ?? 0,
-        openAlerts: openAlerts.count ?? 0,
-        criticalAlerts: criticalAlerts.count ?? 0,
-        pendingOvertime: pendingOvertime.count ?? 0,
-        openActions: openActions.count ?? 0,
-        profiles: profiles.count ?? 0,
+      const countOf = async (p: any): Promise<number> => {
+        const { count } = await p;
+        return count ?? 0;
       };
+      const handbooks = await countOf(
+        supabase.from("hms_handbooks").select("id", { count: "exact", head: true })
+          .eq("company_id", cid).is("deleted_at", null)
+      );
+      const openAlerts = await countOf(
+        supabase.from("worktime_alerts").select("id", { count: "exact", head: true })
+          .eq("company_id", cid).eq("status", "open")
+      );
+      const criticalAlerts = await countOf(
+        supabase.from("worktime_alerts").select("id", { count: "exact", head: true })
+          .eq("company_id", cid).eq("status", "open").eq("severity", "critical")
+      );
+      const pendingOvertime = await countOf(
+        supabase.from("overtime_approvals").select("id", { count: "exact", head: true })
+          .eq("company_id", cid).eq("status", "pending")
+      );
+      const openActions = await countOf(
+        supabase.from("hms_action_items").select("id", { count: "exact", head: true })
+          .eq("company_id", cid).in("status", ["open", "in_progress"])
+      );
+      const profiles = await countOf(
+        supabase.from("employee_work_profiles").select("id", { count: "exact", head: true })
+          .eq("company_id", cid).eq("is_active", true)
+      );
+      return { handbooks, openAlerts, criticalAlerts, pendingOvertime, openActions, profiles };
     },
   });
 
