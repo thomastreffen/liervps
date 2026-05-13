@@ -573,6 +573,91 @@ export default function HmsWorktimeImportPage() {
         </Card>
       )}
 
+      {step === "match" && mode === "monthly" && monthly && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">
+              Ansattmatching – {employeeMatches.length} ansatte i fil ({unmatchedEmpCount} uten kobling)
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {unmatchedEmpCount > 0 && (
+              <div className="p-3 rounded-md bg-amber-500/10 border border-amber-500/30 text-xs">
+                <strong>{unmatchedEmpCount} ansatte mangler kobling.</strong> Velg riktig MCS-ansatt fra listen. Tripletex ansattnummer lagres på MCS-ansatten for fremtidige importer.
+              </div>
+            )}
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Ansattnr</TableHead>
+                    <TableHead>Navn (Tripletex)</TableHead>
+                    <TableHead className="text-right">Linjer</TableHead>
+                    <TableHead>Kilde</TableHead>
+                    <TableHead>MCS-ansatt</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {employeeMatches.map((e) => (
+                    <TableRow key={e.key}>
+                      <TableCell className="text-xs font-mono">{e.number || "—"}</TableCell>
+                      <TableCell className="text-xs">{e.name}</TableCell>
+                      <TableCell className="text-right text-xs">{e.lines}</TableCell>
+                      <TableCell>
+                        {e.user_id
+                          ? <Badge variant="outline" className="text-[10px]">{e.source === "manual" ? "Manuell" : e.source === "external_id" ? "Ansattnr" : "Navn"}</Badge>
+                          : <Badge variant="outline" className="text-[10px] border-amber-500/40 text-amber-600">Må kobles</Badge>}
+                      </TableCell>
+                      <TableCell>
+                        <Select
+                          value={e.user_id ?? "__none__"}
+                          onValueChange={(v) => setManualMap((m) => {
+                            const next = { ...m };
+                            if (v === "__none__") delete next[e.key];
+                            else next[e.key] = v;
+                            return next;
+                          })}
+                        >
+                          <SelectTrigger className="h-8 w-[260px]">
+                            <SelectValue placeholder="Velg MCS-ansatt" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__none__">— ikke koblet —</SelectItem>
+                            {(people ?? []).map((p) => (
+                              <SelectItem key={p.id} value={p.id}>{p.full_name || p.email}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="ghost" onClick={() => { setStep("upload"); setMonthly(null); setMode("generic"); setManualMap({}); }}>Tilbake</Button>
+              <Button
+                onClick={async () => {
+                  const toSave = employeeMatches
+                    .filter((e) => e.user_id && e.number)
+                    .map((e) => ({ user_id: e.user_id!, external_employee_id: e.number }));
+                  try {
+                    if (toSave.length) await saveMappingMut.mutateAsync(toSave);
+                  } catch (err: any) {
+                    toast({ title: "Kunne ikke lagre kobling", description: String(err.message || err), variant: "destructive" });
+                  }
+                  setStep("preview");
+                }}
+                disabled={saveMappingMut.isPending}
+              >
+                {saveMappingMut.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                Bekreft kobling og forhåndsvis
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {step === "preview" && mode === "monthly" && monthly && monthlySummary && (
         <div className="space-y-4">
           <Card>
