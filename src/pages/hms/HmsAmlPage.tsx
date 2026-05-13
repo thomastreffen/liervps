@@ -271,6 +271,12 @@ export default function HmsAmlPage() {
         </div>
       )}
 
+      <div className="rounded-md border border-border/60 bg-muted/30 px-3 py-2 text-xs text-muted-foreground space-y-0.5">
+        <div><strong className="text-foreground">Datakilde:</strong> Tripletex månedsoversikt (eller manuelle timer)</div>
+        <div><strong className="text-foreground">Start/slutt:</strong> Ikke tilgjengelig på månedsoversikt — eksakt 24-timersvurdering kan ikke kontrolleres.</div>
+        <div><strong className="text-foreground">Kontrolltype:</strong> dato-, uke- og periodebasert.</div>
+      </div>
+
       <div className="flex flex-wrap gap-2 items-center">
         <div className="relative flex-1 min-w-[200px] max-w-sm">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
