@@ -161,15 +161,10 @@ export default function HmsOverviewPage() {
   });
 
   const cards: KpiCard[] = [
-    { title: "Håndbøker", value: data?.handbooks ?? 0, hint: "Aktive HMS- og arbeidshåndbøker", href: "/hms/handbooks", icon: BookOpen, tone: "neutral" },
-    { title: "Aktive ansatte", value: data?.profiles ?? 0, hint: "Med arbeidstidsprofil", href: "/hms/aml", icon: Users, tone: "neutral" },
-    { title: "AML-varsler", value: data?.openAlerts ?? 0, hint: data?.criticalAlerts ? `${data.criticalAlerts} kritisk${data.criticalAlerts === 1 ? "" : "e"}` : "Ingen kritiske", href: "/hms/aml", icon: AlertTriangle, tone: data?.criticalAlerts ? "alert" : data?.openAlerts ? "warn" : "ok" },
+    { title: "Kritiske AML-varsler", value: data?.criticalAlerts ?? 0, hint: data?.openAlerts ? `${data.openAlerts} åpne totalt` : "Ingen åpne", href: "/hms/aml", icon: AlertTriangle, tone: data?.criticalAlerts ? "alert" : data?.openAlerts ? "warn" : "ok" },
     { title: "Overtid til godkjenning", value: data?.pendingOvertime ?? 0, hint: "Venter på leder", href: "/hms/overtime", icon: Clock, tone: data?.pendingOvertime ? "warn" : "ok" },
-    { title: "Åpne tiltak", value: data?.openActions ?? 0, hint: "Fra SJA, risiko og avvik", href: "/hms", icon: ClipboardCheck, tone: data?.openActions ? "warn" : "ok" },
-    { title: "Til godkjenning", value: data?.pendingReview ?? 0, hint: "SJA / sjekklister fra felt", href: "/hms/submissions", icon: FileCheck, tone: data?.pendingReview ? "warn" : "ok" },
-    { title: "Sendt inn (7d)", value: data?.submitted7d ?? 0, hint: "Aktivitet fra felt", href: "/hms/submissions", icon: Smartphone, tone: "neutral" },
     { title: "Importkonflikter", value: data?.importBatchesIssues ?? 0, hint: "Batcher med hopp/feil", href: "/hms/import/batches", icon: FileWarning, tone: data?.importBatchesIssues ? "warn" : "ok" },
-    { title: "Uten arbeidstidsprofil", value: Math.max(0, (data?.missingProfiles ?? 0) - (data?.profiles ?? 0)), hint: "Mangler regelsett", href: "/hms/rulesets", icon: UserX, tone: "neutral" },
+    { title: "Til godkjenning", value: data?.pendingReview ?? 0, hint: "SJA / sjekklister fra felt", href: "/hms/submissions", icon: FileCheck, tone: data?.pendingReview ? "warn" : "ok" },
   ];
 
   return (
