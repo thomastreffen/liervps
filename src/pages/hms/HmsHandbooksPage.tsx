@@ -11,6 +11,7 @@ import { format } from "date-fns";
 import { nb } from "date-fns/locale";
 import { MCS_HANDBOOK_SEEDS } from "@/lib/hms/handbookSeed";
 import { toast } from "@/hooks/use-toast";
+import { logHmsAudit } from "@/lib/hms/audit";
 
 interface Handbook {
   id: string;
@@ -87,6 +88,10 @@ export default function HmsHandbooksPage() {
         const { error: sErr } = await sb.from("hms_handbook_sections").insert(sections);
         if (sErr) throw sErr;
         await sb.from("hms_handbooks").update({ current_version_id: ver.id }).eq("id", hb.id);
+        await logHmsAudit({
+          company_id: activeCompanyId, entity_type: "hms_handbook", entity_id: hb.id,
+          action: "handbook.created", payload: { kind: seed.kind, title: seed.title, source: "mcs_seed" },
+        });
         created++;
       }
       return { created, skipped };
