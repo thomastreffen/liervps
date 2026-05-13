@@ -210,7 +210,14 @@ export default function HmsOverviewPage() {
             Status på håndbøker, SJA, risiko og arbeidsmiljølovens grenser for MCS Service.
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
+          <Button asChild variant="default" size="sm" className="bg-rose-600 hover:bg-rose-700 text-white">
+            <Link to="/hms/incidents/new"><ShieldAlert className="h-3.5 w-3.5 mr-1" /> Meld avvik</Link>
+          </Button>
+          <Button asChild variant="outline" size="sm">
+            <Link to="/hms/mobile"><Smartphone className="h-3.5 w-3.5 mr-1" /> Mobil utfylling</Link>
+          </Button>
+          <Button asChild variant="outline" size="sm"><Link to="/hms/incidents">Avvik</Link></Button>
           <Button asChild variant="outline" size="sm"><Link to="/hms/reports">Rapporter</Link></Button>
           <Button asChild variant="outline" size="sm"><Link to="/hms/rulesets">Regelsett</Link></Button>
           <Button asChild size="sm"><Link to="/hms/aml">AML-status</Link></Button>
