@@ -236,12 +236,13 @@ function renderValue(v: any, type: string) {
 
 function PhotoThumb({ path }: { path: string }) {
   const [url, setUrl] = useState<string>("");
-  useState(() => {
+  useEffect(() => {
+    let active = true;
     supabase.storage.from("hms-attachments").createSignedUrl(path, 3600).then(({ data }) => {
-      if (data?.signedUrl) setUrl(data.signedUrl);
+      if (active && data?.signedUrl) setUrl(data.signedUrl);
     });
-    return undefined;
-  });
+    return () => { active = false; };
+  }, [path]);
   if (!url) return <div className="h-12 w-12 rounded bg-muted grid place-items-center"><ImageIcon className="h-3 w-3 text-muted-foreground" /></div>;
   return <img src={url} alt="" className="h-12 w-12 rounded object-cover border" />;
 }
