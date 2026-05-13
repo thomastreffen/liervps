@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ShieldCheck, ClipboardList, FileCheck, Plus, BookOpen, Clock, CheckCircle2, AlertTriangle } from "lucide-react";
+import { ShieldCheck, ClipboardList, FileCheck, Plus, BookOpen, Clock, CheckCircle2, AlertTriangle, ShieldAlert, Eye } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompanyContext } from "@/hooks/useCompanyContext";
 import { useAuth } from "@/hooks/useAuth";
