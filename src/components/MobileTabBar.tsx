@@ -158,9 +158,14 @@ export function MobileTabBar() {
 
   const jobsDot = actionRequiredCount > 0;
   const isOnPlan = location.pathname === "/projects/plan";
+  const isOnHms = location.pathname.startsWith("/hms");
 
-  const quickActions: QuickAction[] = isOnPlan
+  const quickActions: QuickAction[] = isOnHms
+    ? [...hmsActions, ...baseQuickActions]
+    : isOnPlan
     ? [planAction, ...baseQuickActions]
+    : isMontør
+    ? [...hmsActions.slice(0, 2), ...baseQuickActions]
     : baseQuickActions;
 
   const availableActions = quickActions.filter((action) => {
