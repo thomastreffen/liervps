@@ -17,6 +17,7 @@ interface Entry {
   total_hours: number;
   ordinary_hours: number;
   approved_by: string | null;
+  source_system: string | null;
 }
 
 interface RuleSet {
@@ -92,6 +93,14 @@ function evaluateUser(entries: Entry[], rules: RuleSet, requireApproval: boolean
 
   for (const [day, list] of Object.entries(byDay)) {
     const total = list.reduce((s, e) => s + (e.total_hours || e.hours || 0), 0);
+    const hasTimes = list.some((e) => e.start_at && e.end_at);
+    const sources = Array.from(new Set(list.map((e) => e.source_system).filter(Boolean)));
+    const sourceLabel = sources.includes("tripletex_monthly")
+      ? "Tripletex månedsoversikt"
+      : sources.join(", ") || "ukjent";
+    const noteNoTimes = hasTimes
+      ? ""
+      : ` Importfilen (${sourceLabel}) mangler start- og sluttid, så eksakt 24-timersvurdering kan ikke kontrolleres. Kontrolltype: dato-basert.`;
     if (total > rules.max_hours_per_day) {
       alerts.push({
         user_id: userId,
@@ -101,8 +110,12 @@ function evaluateUser(entries: Entry[], rules: RuleSet, requireApproval: boolean
         period_end: day,
         value: total,
         threshold: rules.max_hours_per_day,
-        title: `Over ${rules.max_hours_per_day}t arbeidstid på 24t (${day})`,
-        explanation: `Samlet arbeidstid ${total.toFixed(1)}t overstiger AML-grensen på ${rules.max_hours_per_day}t per døgn.`,
+        title: hasTimes
+          ? `Over ${rules.max_hours_per_day}t arbeidstid på 24t (${day})`
+          : `Over ${rules.max_hours_per_day}t registrert arbeidstid på dato (${day})`,
+        explanation: hasTimes
+          ? `Samlet arbeidstid ${total.toFixed(1)}t overstiger AML-grensen på ${rules.max_hours_per_day}t per døgn.`
+          : `Det er registrert ${total.toFixed(1)}t arbeidstid på samme dato (grense ${rules.max_hours_per_day}t).${noteNoTimes}`,
         possible_company_consequence: "Brudd på AML §10-5. Kan utløse sanksjon ved tilsyn.",
         recommended_action: "Kontroller at registreringen er korrekt og dokumenter årsak til avvik.",
       });
@@ -115,8 +128,10 @@ function evaluateUser(entries: Entry[], rules: RuleSet, requireApproval: boolean
         period_end: day,
         value: total,
         threshold: rules.max_hours_per_day,
-        title: `Nærmer seg dagsgrense (${day})`,
-        explanation: `Ansatt har ${total.toFixed(1)}t arbeid – nærmer seg ${rules.max_hours_per_day}t.`,
+        title: hasTimes
+          ? `Nærmer seg dagsgrense (${day})`
+          : `Nærmer seg dagsgrense på dato (${day})`,
+        explanation: `Ansatt har ${total.toFixed(1)}t arbeid – nærmer seg ${rules.max_hours_per_day}t.${noteNoTimes}`,
         possible_company_consequence: "Risiko for brudd ved videre arbeid samme døgn.",
         recommended_action: "Unngå ytterligere overtid i dag.",
       });
@@ -255,7 +270,7 @@ function evaluateUser(entries: Entry[], rules: RuleSet, requireApproval: boolean
         value: total,
         threshold: 0,
         title: `${total.toFixed(1)}t overtid uten godkjenning`,
-        explanation: `${unapproved.length} timeoppføringer med overtid mangler ledergodkjenning.`,
+        explanation: `${unapproved.length} timeoppføringer med overtid mangler ledergodkjenning. Overtid fra import er registrert, men ikke automatisk sendt til godkjenning.`,
         possible_company_consequence: "Manglende sporbarhet kan svekke selskapets dokumentasjonskrav.",
         recommended_action: "Be leder godkjenne overtid med årsak.",
       });
@@ -334,7 +349,7 @@ Deno.serve(async (req) => {
       const { data: entries } = await supabase
         .from("worktime_entries")
         .select(
-          "id,user_id,work_date,start_at,end_at,hours,hours_overtime,total_hours,ordinary_hours,approved_by"
+          "id,user_id,work_date,start_at,end_at,hours,hours_overtime,total_hours,ordinary_hours,approved_by,source_system"
         )
         .eq("company_id", company_id)
         .eq("user_id", uid)
