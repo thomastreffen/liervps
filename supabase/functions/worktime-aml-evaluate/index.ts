@@ -94,6 +94,7 @@ function evaluateUser(entries: Entry[], rules: RuleSet, requireApproval: boolean
   for (const [day, list] of Object.entries(byDay)) {
     const total = list.reduce((s, e) => s + (e.total_hours || e.hours || 0), 0);
     const hasTimes = list.some((e) => e.start_at && e.end_at);
+    const isCritical = total > rules.max_hours_per_day;
     const sources = Array.from(new Set(list.map((e) => e.source_system).filter(Boolean)));
     const sourceLabel = sources.includes("tripletex_monthly")
       ? "Tripletex månedsoversikt"
