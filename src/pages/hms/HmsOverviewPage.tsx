@@ -1,5 +1,8 @@
+import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
+import { useIsMobile } from "@/hooks/use-mobile";
 import {
   ShieldCheck, AlertTriangle, Clock, Users,
   FileCheck, FileWarning, Inbox, FileBarChart2, ArrowRight,
