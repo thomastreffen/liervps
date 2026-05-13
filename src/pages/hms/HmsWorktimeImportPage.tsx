@@ -463,9 +463,12 @@ export default function HmsWorktimeImportPage() {
       </div>
 
       <div className="flex items-center gap-2 text-xs flex-wrap">
-        {(["upload", mode === "monthly" ? "preview" : "map", "preview", "done"] as const).map((s, i) => (
+        {(mode === "monthly"
+          ? ([["upload","Last opp"],["match","Ansattmatching"],["preview","Forhåndsvis"],["done","Ferdig"]] as const)
+          : ([["upload","Last opp"],["map","Mapping"],["preview","Forhåndsvis"],["done","Ferdig"]] as const)
+        ).map(([s, label], i) => (
           <Badge key={`${s}-${i}`} variant={step === s ? "default" : "outline"}>
-            {i + 1}. {s === "upload" ? "Last opp" : s === "map" ? "Mapping" : s === "preview" ? "Forhåndsvis" : "Ferdig"}
+            {i + 1}. {label}
           </Badge>
         ))}
         {mode === "monthly" && monthly && (
