@@ -336,10 +336,11 @@ export default function HmsWorktimeImportPage() {
         skipped_rows: skipped + unmatchedCount, finished_at: new Date().toISOString(),
       }).eq("id", batch.id);
 
-      const { data: aml } = await sb.functions.invoke("worktime-aml-evaluate", {
+      const { data: aml, error: amlErr } = await sb.functions.invoke("worktime-aml-evaluate", {
         body: { company_id: activeCompanyId, batch_id: batch.id },
       });
-      return { batch_id: batch.id, inserted, updated, skipped, unmatched: unmatchedCount, aml };
+      if (amlErr) console.error("AML evaluate failed", amlErr);
+      return { batch_id: batch.id, inserted, updated, skipped, unmatched: unmatchedCount, aml: aml ?? null, amlError: amlErr ? String(amlErr?.message || amlErr) : null };
     },
     onSuccess: (r) => {
       setResult(r); setStep("done");
