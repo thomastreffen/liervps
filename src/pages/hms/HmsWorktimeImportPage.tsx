@@ -64,15 +64,25 @@ export default function HmsWorktimeImportPage() {
   // employee_number -> user_id (manual override, also persisted)
   const [manualMap, setManualMap] = useState<Record<string, string>>({});
 
+  // Active users in selected company. user_id we expose = auth_user_id (matches worktime_entries.user_id and employee_work_profiles.user_id semantics).
   const { data: people } = useQuery({
     queryKey: ["company-people", activeCompanyId],
     enabled: !!activeCompanyId,
     queryFn: async () => {
-      const { data } = await (supabase as any)
+      const { data, error } = await (supabase as any)
         .from("user_accounts")
-        .select("id, full_name, email")
+        .select("id, auth_user_id, person:people!user_accounts_person_id_fkey(full_name, email)")
+        .eq("company_id", activeCompanyId)
         .eq("is_active", true);
-      return (data ?? []) as { id: string; full_name: string | null; email: string | null }[];
+      if (error) {
+        console.error("[import] failed to load people", error);
+        return [] as { id: string; full_name: string | null; email: string | null }[];
+      }
+      return (data ?? []).map((r: any) => ({
+        id: r.auth_user_id as string,
+        full_name: r.person?.full_name ?? null,
+        email: r.person?.email ?? null,
+      })) as { id: string; full_name: string | null; email: string | null }[];
     },
   });
 
