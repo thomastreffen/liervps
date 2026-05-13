@@ -21,6 +21,7 @@ import {
   Gauge,
   Inbox,
   ClipboardList,
+  HardHat,
 } from "lucide-react";
 import { useNotifications } from "@/hooks/useNotifications";
 import { useActionRequired } from "@/hooks/useActionRequired";
