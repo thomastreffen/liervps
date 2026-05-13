@@ -49,8 +49,12 @@ export default function HmsIncidentReportPage() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const fileRef = useRef<HTMLInputElement>(null);
+  const [search] = useSearchParams();
+  const initialType = (search.get("type") as IncidentType) || "hms";
 
-  const [incidentType, setIncidentType] = useState<IncidentType>("hms");
+  const [incidentType, setIncidentType] = useState<IncidentType>(
+    Object.keys(TYPE_LABELS).includes(initialType) ? initialType : "hms"
+  );
   const [severity, setSeverity] = useState<Severity>("medium");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
