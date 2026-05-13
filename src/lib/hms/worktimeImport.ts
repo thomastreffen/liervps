@@ -111,11 +111,11 @@ export function applyMapping(rows: Record<string, string>[], map: WorktimeMappin
 export async function readWorktimeFile(file: File): Promise<{ headers: string[]; rows: Record<string, string>[] }> {
   const lower = file.name.toLowerCase();
   if (lower.endsWith(".xlsx") || lower.endsWith(".xls")) {
-    const XLSX = await import("xlsx");
+    const XLSX: any = await import("xlsx");
     const buf = await file.arrayBuffer();
     const wb = XLSX.read(buf, { type: "array" });
     const ws = wb.Sheets[wb.SheetNames[0]];
-    const json = XLSX.utils.sheet_to_json<Record<string, any>>(ws, { defval: "", raw: false });
+    const json = XLSX.utils.sheet_to_json(ws, { defval: "", raw: false }) as Record<string, any>[];
     const headers = json.length > 0 ? Object.keys(json[0]) : [];
     const rows = json.map((r) => {
       const out: Record<string, string> = {};
