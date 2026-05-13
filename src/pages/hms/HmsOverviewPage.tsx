@@ -1,8 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import {
-  ShieldCheck, BookOpen, ClipboardCheck, AlertTriangle, Clock, Users,
-  FileCheck, Smartphone, FileWarning, UserX, Inbox, FileBarChart2, ArrowRight,
+  ShieldCheck, AlertTriangle, Clock, Users,
+  FileCheck, FileWarning, Inbox, FileBarChart2, ArrowRight,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompanyContext } from "@/hooks/useCompanyContext";
