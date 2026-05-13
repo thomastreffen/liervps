@@ -59,8 +59,10 @@ export default function HmsWorktimeImportPage() {
   const [rawRows, setRawRows] = useState<Record<string, string>[]>([]);
   const [mapping, setMapping] = useState<WorktimeMapping>({});
   const [monthly, setMonthly] = useState<MonthlyParseResult | null>(null);
-  const [step, setStep] = useState<"upload" | "map" | "preview" | "done">("upload");
+  const [step, setStep] = useState<"upload" | "map" | "match" | "preview" | "done">("upload");
   const [result, setResult] = useState<any>(null);
+  // employee_number -> user_id (manual override, also persisted)
+  const [manualMap, setManualMap] = useState<Record<string, string>>({});
 
   const { data: people } = useQuery({
     queryKey: ["company-people", activeCompanyId],
@@ -109,7 +111,11 @@ export default function HmsWorktimeImportPage() {
 
   const unmatched = matched.filter((m) => !m.user_id);
 
-  // Monthly matching: prefer external_employee_id from profiles, fallback to name
+  // Monthly matching: manual override → external_employee_id → normalized name
+  function normalizeName(s: string) {
+    return s.toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim();
+  }
+
   const matchedMonthly = useMemo(() => {
     if (!monthly) return [];
     const byExt = new Map<string, string>();
@@ -117,17 +123,45 @@ export default function HmsWorktimeImportPage() {
       if (p.external_employee_id) byExt.set(p.external_employee_id.trim(), p.user_id);
     }
     return monthly.normalized.map((r) => {
-      let user_id: string | null = byExt.get(r.employee_number) ?? null;
+      const key = r.employee_number || r.employee_name;
+      let user_id: string | null = manualMap[key] ?? byExt.get(r.employee_number) ?? null;
       if (!user_id && people) {
-        const nameLower = r.employee_name.toLowerCase().trim();
-        const found = people.find(
-          (p) => p.full_name && p.full_name.toLowerCase().trim() === nameLower
-        );
+        const nameLower = normalizeName(r.employee_name);
+        const found = people.find((p) => p.full_name && normalizeName(p.full_name) === nameLower);
         user_id = found?.id ?? null;
       }
       return { row: r, user_id };
     });
-  }, [monthly, profiles, people]);
+  }, [monthly, profiles, people, manualMap]);
+
+  // Unique employee list for the matching step
+  type EmpMatch = { key: string; number: string; name: string; user_id: string | null; source: "manual" | "external_id" | "name" | "none"; lines: number };
+  const employeeMatches = useMemo<EmpMatch[]>(() => {
+    if (!monthly) return [];
+    const byExt = new Map<string, string>();
+    for (const p of profiles ?? []) {
+      if (p.external_employee_id) byExt.set(p.external_employee_id.trim(), p.user_id);
+    }
+    const map = new Map<string, EmpMatch>();
+    for (const r of monthly.normalized) {
+      const key = r.employee_number || r.employee_name;
+      const existing = map.get(key);
+      if (existing) { existing.lines++; continue; }
+      let user_id: string | null = null;
+      let source: EmpMatch["source"] = "none";
+      if (manualMap[key]) { user_id = manualMap[key]; source = "manual"; }
+      else if (byExt.get(r.employee_number)) { user_id = byExt.get(r.employee_number)!; source = "external_id"; }
+      else if (people) {
+        const nameLower = normalizeName(r.employee_name);
+        const found = people.find((p) => p.full_name && normalizeName(p.full_name) === nameLower);
+        if (found) { user_id = found.id; source = "name"; }
+      }
+      map.set(key, { key, number: r.employee_number, name: r.employee_name, user_id, source, lines: 1 });
+    }
+    return Array.from(map.values()).sort((a, b) => Number(!!b.user_id) - Number(!!a.user_id) || a.name.localeCompare(b.name));
+  }, [monthly, profiles, people, manualMap]);
+
+  const unmatchedEmpCount = employeeMatches.filter((e) => !e.user_id).length;
 
   const monthlySummary = useMemo(() => {
     if (!monthly) return null;
@@ -162,8 +196,8 @@ export default function HmsWorktimeImportPage() {
 
   async function handleFile(f: File) {
     setFile(f);
+    setManualMap({});
     try {
-      // First try wide-format detection by reading headers
       const { headers: hdrs, rows } = await readWorktimeFile(f);
       if (looksLikeMonthlyOverview(hdrs)) {
         const m = await parseTripletexMonthlyOverview(f);
@@ -171,7 +205,7 @@ export default function HmsWorktimeImportPage() {
         setMonthly(m);
         setHeaders(hdrs);
         setRawRows(rows);
-        setStep("preview");
+        setStep("match");
         toast({
           title: "Tripletex månedsoversikt detektert",
           description: `${m.source_month} • ${m.normalized.length} normaliserte linjer`,
@@ -187,6 +221,37 @@ export default function HmsWorktimeImportPage() {
       toast({ title: "Feil ved lesing", description: String(e.message || e), variant: "destructive" });
     }
   }
+
+  // Persist external_employee_id on employee_work_profiles for future imports
+  const saveMappingMut = useMutation({
+    mutationFn: async (entries: { user_id: string; external_employee_id: string }[]) => {
+      if (!activeCompanyId) throw new Error("Mangler selskap");
+      const sb = supabase as any;
+      for (const e of entries) {
+        if (!e.external_employee_id) continue;
+        const { data: existing } = await sb
+          .from("employee_work_profiles")
+          .select("id, external_employee_id")
+          .eq("company_id", activeCompanyId)
+          .eq("user_id", e.user_id)
+          .maybeSingle();
+        if (existing) {
+          if (existing.external_employee_id !== e.external_employee_id) {
+            await sb.from("employee_work_profiles")
+              .update({ external_employee_id: e.external_employee_id })
+              .eq("id", existing.id);
+          }
+        } else {
+          await sb.from("employee_work_profiles").insert({
+            company_id: activeCompanyId,
+            user_id: e.user_id,
+            external_employee_id: e.external_employee_id,
+          });
+        }
+      }
+      await qc.invalidateQueries({ queryKey: ["employee-profiles", activeCompanyId] });
+    },
+  });
 
   // ---- Generic import (existing flow) ----
   const importMut = useMutation({
@@ -398,9 +463,12 @@ export default function HmsWorktimeImportPage() {
       </div>
 
       <div className="flex items-center gap-2 text-xs flex-wrap">
-        {(["upload", mode === "monthly" ? "preview" : "map", "preview", "done"] as const).map((s, i) => (
+        {(mode === "monthly"
+          ? ([["upload","Last opp"],["match","Ansattmatching"],["preview","Forhåndsvis"],["done","Ferdig"]] as const)
+          : ([["upload","Last opp"],["map","Mapping"],["preview","Forhåndsvis"],["done","Ferdig"]] as const)
+        ).map(([s, label], i) => (
           <Badge key={`${s}-${i}`} variant={step === s ? "default" : "outline"}>
-            {i + 1}. {s === "upload" ? "Last opp" : s === "map" ? "Mapping" : s === "preview" ? "Forhåndsvis" : "Ferdig"}
+            {i + 1}. {label}
           </Badge>
         ))}
         {mode === "monthly" && monthly && (
@@ -505,6 +573,91 @@ export default function HmsWorktimeImportPage() {
         </Card>
       )}
 
+      {step === "match" && mode === "monthly" && monthly && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">
+              Ansattmatching – {employeeMatches.length} ansatte i fil ({unmatchedEmpCount} uten kobling)
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {unmatchedEmpCount > 0 && (
+              <div className="p-3 rounded-md bg-amber-500/10 border border-amber-500/30 text-xs">
+                <strong>{unmatchedEmpCount} ansatte mangler kobling.</strong> Velg riktig MCS-ansatt fra listen. Tripletex ansattnummer lagres på MCS-ansatten for fremtidige importer.
+              </div>
+            )}
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Ansattnr</TableHead>
+                    <TableHead>Navn (Tripletex)</TableHead>
+                    <TableHead className="text-right">Linjer</TableHead>
+                    <TableHead>Kilde</TableHead>
+                    <TableHead>MCS-ansatt</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {employeeMatches.map((e) => (
+                    <TableRow key={e.key}>
+                      <TableCell className="text-xs font-mono">{e.number || "—"}</TableCell>
+                      <TableCell className="text-xs">{e.name}</TableCell>
+                      <TableCell className="text-right text-xs">{e.lines}</TableCell>
+                      <TableCell>
+                        {e.user_id
+                          ? <Badge variant="outline" className="text-[10px]">{e.source === "manual" ? "Manuell" : e.source === "external_id" ? "Ansattnr" : "Navn"}</Badge>
+                          : <Badge variant="outline" className="text-[10px] border-amber-500/40 text-amber-600">Må kobles</Badge>}
+                      </TableCell>
+                      <TableCell>
+                        <Select
+                          value={e.user_id ?? "__none__"}
+                          onValueChange={(v) => setManualMap((m) => {
+                            const next = { ...m };
+                            if (v === "__none__") delete next[e.key];
+                            else next[e.key] = v;
+                            return next;
+                          })}
+                        >
+                          <SelectTrigger className="h-8 w-[260px]">
+                            <SelectValue placeholder="Velg MCS-ansatt" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__none__">— ikke koblet —</SelectItem>
+                            {(people ?? []).map((p) => (
+                              <SelectItem key={p.id} value={p.id}>{p.full_name || p.email}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="ghost" onClick={() => { setStep("upload"); setMonthly(null); setMode("generic"); setManualMap({}); }}>Tilbake</Button>
+              <Button
+                onClick={async () => {
+                  const toSave = employeeMatches
+                    .filter((e) => e.user_id && e.number)
+                    .map((e) => ({ user_id: e.user_id!, external_employee_id: e.number }));
+                  try {
+                    if (toSave.length) await saveMappingMut.mutateAsync(toSave);
+                  } catch (err: any) {
+                    toast({ title: "Kunne ikke lagre kobling", description: String(err.message || err), variant: "destructive" });
+                  }
+                  setStep("preview");
+                }}
+                disabled={saveMappingMut.isPending}
+              >
+                {saveMappingMut.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                Bekreft kobling og forhåndsvis
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {step === "preview" && mode === "monthly" && monthly && monthlySummary && (
         <div className="space-y-4">
           <Card>
@@ -572,11 +725,19 @@ export default function HmsWorktimeImportPage() {
                   <p className="text-xs text-muted-foreground mt-2">Viser 100 av {matchedMonthly.length} linjer.</p>
                 )}
               </div>
+              {monthlySummary.unmatchedEmployees > 0 && (
+                <div className="mt-3 p-3 rounded-md bg-amber-500/10 border border-amber-500/30 text-xs">
+                  <strong>{matchedMonthly.filter((m) => !m.user_id).length} linjer kan ikke importeres</strong> fordi {monthlySummary.unmatchedEmployees} ansatte mangler kobling. Gå tilbake til Ansattmatching for å koble dem.
+                </div>
+              )}
               <div className="flex justify-end gap-2 mt-4">
-                <Button variant="ghost" onClick={() => { setStep("upload"); setMonthly(null); setMode("generic"); }}>Tilbake</Button>
-                <Button onClick={() => importMonthlyMut.mutate()} disabled={importMonthlyMut.isPending}>
+                <Button variant="ghost" onClick={() => setStep("match")}>Tilbake til matching</Button>
+                <Button
+                  onClick={() => importMonthlyMut.mutate()}
+                  disabled={importMonthlyMut.isPending || matchedMonthly.filter((m) => m.user_id).length === 0}
+                >
                   {importMonthlyMut.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                  Importer & kjør AML
+                  Importer matchede & kjør AML ({matchedMonthly.filter((m) => m.user_id).length})
                 </Button>
               </div>
             </CardContent>
@@ -588,10 +749,19 @@ export default function HmsWorktimeImportPage() {
         <Card>
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
-              <CheckCircle2 className="h-5 w-5 text-emerald-500" /> Import fullført
+              {result.inserted + result.updated === 0 ? (
+                <><AlertCircle className="h-5 w-5 text-amber-500" /> Import fullført – ingen linjer opprettet</>
+              ) : (
+                <><CheckCircle2 className="h-5 w-5 text-emerald-500" /> Import fullført</>
+              )}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2 text-sm">
+            {result.inserted + result.updated === 0 && result.unmatched > 0 && (
+              <div className="p-3 rounded-md bg-amber-500/10 border border-amber-500/30 text-xs">
+                Ingen arbeidstidslinjer ble opprettet fordi {result.unmatched} linjer mangler ansattkobling. Gå tilbake til Ansattmatching og koble ansatte før du importerer på nytt.
+              </div>
+            )}
             <div>Nye linjer: <strong>{result.inserted}</strong></div>
             <div>Oppdaterte linjer: <strong>{result.updated}</strong></div>
             <div>Hoppet over (dubletter): <strong>{result.skipped}</strong></div>
