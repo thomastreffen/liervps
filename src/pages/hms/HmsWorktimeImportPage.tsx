@@ -725,11 +725,19 @@ export default function HmsWorktimeImportPage() {
                   <p className="text-xs text-muted-foreground mt-2">Viser 100 av {matchedMonthly.length} linjer.</p>
                 )}
               </div>
+              {monthlySummary.unmatchedEmployees > 0 && (
+                <div className="mt-3 p-3 rounded-md bg-amber-500/10 border border-amber-500/30 text-xs">
+                  <strong>{matchedMonthly.filter((m) => !m.user_id).length} linjer kan ikke importeres</strong> fordi {monthlySummary.unmatchedEmployees} ansatte mangler kobling. Gå tilbake til Ansattmatching for å koble dem.
+                </div>
+              )}
               <div className="flex justify-end gap-2 mt-4">
-                <Button variant="ghost" onClick={() => { setStep("upload"); setMonthly(null); setMode("generic"); }}>Tilbake</Button>
-                <Button onClick={() => importMonthlyMut.mutate()} disabled={importMonthlyMut.isPending}>
+                <Button variant="ghost" onClick={() => setStep("match")}>Tilbake til matching</Button>
+                <Button
+                  onClick={() => importMonthlyMut.mutate()}
+                  disabled={importMonthlyMut.isPending || matchedMonthly.filter((m) => m.user_id).length === 0}
+                >
                   {importMonthlyMut.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                  Importer & kjør AML
+                  Importer matchede & kjør AML ({matchedMonthly.filter((m) => m.user_id).length})
                 </Button>
               </div>
             </CardContent>
