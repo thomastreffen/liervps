@@ -83,7 +83,7 @@ export default function HmsMobilePage() {
       const vMap = new Map((vers ?? []).map((v: any) => [v.id, v]));
       const aMap = new Map((acks ?? []).map((a: any) => [a.version_id, a.acknowledged_at]));
       return list.map((h) => {
-        const v = h.current_version_id ? vMap.get(h.current_version_id) : null;
+        const v: any = h.current_version_id ? vMap.get(h.current_version_id) : null;
         return {
           ...h,
           version_number: v?.version_number ?? null,
