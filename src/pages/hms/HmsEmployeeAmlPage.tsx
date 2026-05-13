@@ -125,7 +125,7 @@ export default function HmsEmployeeAmlPage() {
             <div className="flex items-center gap-2 text-xs text-muted-foreground uppercase tracking-wider">
               <ShieldCheck className="h-3.5 w-3.5" /> AML-detalj
             </div>
-            <h1 className="text-2xl font-semibold">{data.acct?.full_name || data.acct?.email || "Ukjent"}</h1>
+            <h1 className="text-2xl font-semibold">{data.acct?.person?.full_name || data.acct?.person?.email || id?.slice(0, 8) || "Ukjent"}</h1>
           </div>
         </div>
         <ManualEntryDialog
