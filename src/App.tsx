@@ -117,6 +117,10 @@ import HmsSubmissionsPage from "./pages/hms/HmsSubmissionsPage";
 import HmsSubmissionDetailPage from "./pages/hms/HmsSubmissionDetailPage";
 import HmsWorktimeImportPage from "./pages/hms/HmsWorktimeImportPage";
 import HmsEmployeeAmlPage from "./pages/hms/HmsEmployeeAmlPage";
+import HmsRulesetsPage from "./pages/hms/HmsRulesetsPage";
+import HmsOvertimePage from "./pages/hms/HmsOvertimePage";
+import HmsImportBatchesPage from "./pages/hms/HmsImportBatchesPage";
+import HmsReportsPage from "./pages/hms/HmsReportsPage";
 import { CompanyProvider, useCompanyContext } from "@/hooks/useCompanyContext";
 import { ActiveCompanyForPermissions } from "@/hooks/usePermissions";
 import { PreviewModeProvider } from "@/hooks/usePreviewMode";
@@ -576,6 +580,26 @@ const App = () => (
               <Route path="/hms/aml/:id" element={
                 <ProtectedRoute requiredPermission="hms.view">
                   <HmsEmployeeAmlPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/hms/rulesets" element={
+                <ProtectedRoute requiredPermission="hms.manage">
+                  <HmsRulesetsPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/hms/overtime" element={
+                <ProtectedRoute requiredPermission="hms.view">
+                  <HmsOvertimePage />
+                </ProtectedRoute>
+              } />
+              <Route path="/hms/import/batches" element={
+                <ProtectedRoute requiredPermission="hms.manage">
+                  <HmsImportBatchesPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/hms/reports" element={
+                <ProtectedRoute requiredPermission="hms.view">
+                  <HmsReportsPage />
                 </ProtectedRoute>
               } />
             </Route>

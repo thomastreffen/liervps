@@ -1,6 +1,6 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { BookOpen, Plus, FileCheck2 } from "lucide-react";
+import { BookOpen, Plus, FileCheck2, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompanyContext } from "@/hooks/useCompanyContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,6 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
 import { nb } from "date-fns/locale";
+import { MCS_HANDBOOK_SEEDS } from "@/lib/hms/handbookSeed";
+import { toast } from "@/hooks/use-toast";
 
 interface Handbook {
   id: string;
@@ -21,6 +23,7 @@ interface Handbook {
 
 export default function HmsHandbooksPage() {
   const { activeCompanyId } = useCompanyContext();
+  const qc = useQueryClient();
 
   const { data: handbooks = [], isLoading } = useQuery({
     queryKey: ["hms-handbooks", activeCompanyId],
@@ -38,6 +41,48 @@ export default function HmsHandbooksPage() {
     },
   });
 
+  const seedMut = useMutation({
+    mutationFn: async () => {
+      const sb = supabase as any;
+      const { data: u } = await supabase.auth.getUser();
+      for (const seed of MCS_HANDBOOK_SEEDS) {
+        const { data: hb, error } = await sb.from("hms_handbooks").insert({
+          company_id: activeCompanyId,
+          title: seed.title,
+          description: seed.description,
+          kind: seed.kind,
+          created_by: u.user?.id,
+        }).select("id").single();
+        if (error) throw error;
+
+        const { data: ver, error: vErr } = await sb.from("hms_handbook_versions").insert({
+          handbook_id: hb.id,
+          company_id: activeCompanyId,
+          version: 1,
+          status: "draft",
+          created_by: u.user?.id,
+        }).select("id").single();
+        if (vErr) throw vErr;
+
+        const sections = seed.chapters.map((c, i) => ({
+          handbook_id: hb.id,
+          version_id: ver.id,
+          company_id: activeCompanyId,
+          title: c.title,
+          body_md: c.body,
+          sort_order: i,
+        }));
+        await sb.from("hms_handbook_sections").insert(sections);
+        await sb.from("hms_handbooks").update({ current_version_id: ver.id }).eq("id", hb.id);
+      }
+    },
+    onSuccess: () => {
+      toast({ title: "MCS-håndbøker opprettet", description: "Arbeidshåndbok og HMS-håndbok med MCS-kapitler" });
+      qc.invalidateQueries({ queryKey: ["hms-handbooks"] });
+    },
+    onError: (e: any) => toast({ title: "Feil", description: String(e.message || e), variant: "destructive" }),
+  });
+
   return (
     <div className="p-4 sm:p-6 space-y-6 max-w-6xl mx-auto">
       <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -52,10 +97,18 @@ export default function HmsHandbooksPage() {
             samles her.
           </p>
         </div>
-        <Button size="sm" disabled title="Kommer i runde B">
-          <Plus className="h-4 w-4 mr-1.5" />
-          Ny håndbok
-        </Button>
+        <div className="flex gap-2">
+          {handbooks.length === 0 && (
+            <Button size="sm" variant="outline" onClick={() => seedMut.mutate()} disabled={seedMut.isPending}>
+              <Sparkles className="h-4 w-4 mr-1.5" />
+              {seedMut.isPending ? "Oppretter…" : "Opprett MCS-startstruktur"}
+            </Button>
+          )}
+          <Button size="sm" disabled title="Kommer">
+            <Plus className="h-4 w-4 mr-1.5" />
+            Ny håndbok
+          </Button>
+        </div>
       </div>
 
       {isLoading ? (

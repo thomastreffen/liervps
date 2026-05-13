@@ -22,6 +22,7 @@ import {
   Briefcase,
   ShieldCheck,
   AlertTriangle,
+  Clock,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/hooks/useAuth";
@@ -292,9 +293,13 @@ export function AppSidebar() {
                          <NavItem item={{ title: "Oversikt", url: "/hms", icon: Gauge }} isActive={(url) => location.pathname === "/hms"} collapsed={collapsed} />
                          <NavItem item={{ title: "Håndbøker", url: "/hms/handbooks", icon: BookOpen }} isActive={isActive} collapsed={collapsed} />
                          <NavItem item={{ title: "AML-status", url: "/hms/aml", icon: AlertTriangle }} isActive={isActive} collapsed={collapsed} />
+                         <NavItem item={{ title: "Regelsett", url: "/hms/rulesets", icon: Settings }} isActive={isActive} collapsed={collapsed} />
+                         <NavItem item={{ title: "Overtid", url: "/hms/overtime", icon: Clock }} isActive={isActive} collapsed={collapsed} />
                          <NavItem item={{ title: "SJA & sjekklister", url: "/hms/templates", icon: ClipboardList }} isActive={isActive} collapsed={collapsed} />
                          <NavItem item={{ title: "Innsendinger", url: "/hms/submissions", icon: ClipboardList }} isActive={isActive} collapsed={collapsed} />
                          <NavItem item={{ title: "Mobil utfylling", url: "/hms/mobile", icon: ClipboardList }} isActive={isActive} collapsed={collapsed} />
+                         <NavItem item={{ title: "Importbatcher", url: "/hms/import/batches", icon: FileText }} isActive={isActive} collapsed={collapsed} />
+                         <NavItem item={{ title: "Rapporter", url: "/hms/reports", icon: BarChart3 }} isActive={isActive} collapsed={collapsed} />
                          <NavItem item={{ title: "Bransjeområder", url: "/hms/areas", icon: ClipboardList }} isActive={isActive} collapsed={collapsed} />
                        </SidebarMenu>
                      </CollapsibleContent>

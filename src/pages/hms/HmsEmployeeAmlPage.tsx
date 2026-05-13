@@ -1,7 +1,8 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, AlertTriangle, CheckCircle2, ShieldCheck, Clock } from "lucide-react";
+import { ArrowLeft, AlertTriangle, CheckCircle2, ShieldCheck, Clock, Plus, Pencil } from "lucide-react";
+import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, ReferenceLine } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompanyContext } from "@/hooks/useCompanyContext";
 import { Button } from "@/components/ui/button";
@@ -9,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/hooks/use-toast";
+import { ManualEntryDialog } from "@/components/hms/ManualEntryDialog";
 
 function isoWeekStart(d: Date) {
   const dt = new Date(d);
@@ -98,21 +100,35 @@ export default function HmsEmployeeAmlPage() {
     },
   });
 
+  const [editEntry, setEditEntry] = useState<any | null>(null);
+
   if (isLoading || !data) return <div className="p-6"><Skeleton className="h-40" /></div>;
 
   const open = data.alerts.filter((a: any) => a.status === "open" || a.status === "acknowledged");
   const history = data.alerts.filter((a: any) => a.status === "resolved" || a.status === "dismissed");
 
+  const chartData = (stats?.weeks8 ?? []).map(([week, hours]) => ({
+    week: week.slice(5),
+    hours: Number((hours as number).toFixed(1)),
+  }));
+
+
   return (
     <div className="p-4 sm:p-6 max-w-5xl mx-auto space-y-6">
-      <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={() => navigate("/hms/aml")}><ArrowLeft className="h-4 w-4" /></Button>
-        <div>
-          <div className="flex items-center gap-2 text-xs text-muted-foreground uppercase tracking-wider">
-            <ShieldCheck className="h-3.5 w-3.5" /> AML-detalj
+      <div className="flex items-center gap-3 justify-between flex-wrap">
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="icon" onClick={() => navigate("/hms/aml")}><ArrowLeft className="h-4 w-4" /></Button>
+          <div>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground uppercase tracking-wider">
+              <ShieldCheck className="h-3.5 w-3.5" /> AML-detalj
+            </div>
+            <h1 className="text-2xl font-semibold">{data.acct?.full_name || data.acct?.email || "Ukjent"}</h1>
           </div>
-          <h1 className="text-2xl font-semibold">{data.acct?.full_name || data.acct?.email || "Ukjent"}</h1>
         </div>
+        <ManualEntryDialog
+          userId={id!}
+          trigger={<Button size="sm"><Plus className="h-4 w-4 mr-1" />Manuell timelinje</Button>}
+        />
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
@@ -122,6 +138,26 @@ export default function HmsEmployeeAmlPage() {
         <StatCard label="OT 4u" value={`${stats?.ot28.toFixed(1)}t`} />
         <StatCard label="OT 52u" value={`${stats?.ot365.toFixed(1)}t`} />
       </div>
+
+      {chartData.length > 0 && (
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-base">Timer per uke (siste 8)</CardTitle></CardHeader>
+          <CardContent>
+            <div className="h-48">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartData}>
+                  <XAxis dataKey="week" tick={{ fontSize: 10 }} />
+                  <YAxis tick={{ fontSize: 10 }} />
+                  <Tooltip />
+                  <ReferenceLine y={48} stroke="hsl(var(--destructive))" strokeDasharray="3 3" />
+                  <ReferenceLine y={40} stroke="hsl(var(--muted-foreground))" strokeDasharray="3 3" />
+                  <Bar dataKey="hours" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader><CardTitle className="text-base">Åpne varsler ({open.length})</CardTitle></CardHeader>
@@ -167,10 +203,22 @@ export default function HmsEmployeeAmlPage() {
         <CardContent>
           <div className="space-y-1 max-h-80 overflow-y-auto">
             {data.entries.slice(0, 30).map((e: any) => (
-              <div key={e.id} className="flex items-center justify-between text-xs py-1 border-b last:border-0">
+              <div key={e.id} className="flex items-center justify-between text-xs py-1 border-b last:border-0 group">
                 <span>{e.work_date}</span>
-                <span className="text-muted-foreground">{e.project_number_raw || e.activity || e.time_type || "—"}</span>
-                <span className="font-medium">{Number(e.total_hours || e.hours).toFixed(1)}t {e.hours_overtime > 0 && <span className="text-amber-600">(+{Number(e.hours_overtime).toFixed(1)} OT)</span>}</span>
+                <span className="text-muted-foreground flex items-center gap-1">
+                  {e.source_system === "manual" && <Badge variant="outline" className="text-[9px] py-0">Manuell</Badge>}
+                  {e.status === "cancelled" && <Badge variant="destructive" className="text-[9px] py-0">Annullert</Badge>}
+                  {e.project_number_raw || e.activity || e.time_type || "—"}
+                </span>
+                <span className="font-medium flex items-center gap-2">
+                  {Number(e.total_hours || e.hours).toFixed(1)}t
+                  {e.hours_overtime > 0 && <span className="text-amber-600">(+{Number(e.hours_overtime).toFixed(1)} OT)</span>}
+                  {(e.source_system === "manual" || e.manually_adjusted) && (
+                    <Button size="icon" variant="ghost" className="h-5 w-5 opacity-0 group-hover:opacity-100" onClick={() => setEditEntry(e)}>
+                      <Pencil className="h-3 w-3" />
+                    </Button>
+                  )}
+                </span>
               </div>
             ))}
             {data.entries.length === 0 && (
@@ -179,6 +227,10 @@ export default function HmsEmployeeAmlPage() {
           </div>
         </CardContent>
       </Card>
+
+      {editEntry && (
+        <ManualEntryDialog userId={id!} initial={editEntry} onClose={() => setEditEntry(null)} />
+      )}
 
       <Card>
         <CardHeader><CardTitle className="text-base">Overtidsgodkjenninger ({data.approvals.length})</CardTitle></CardHeader>
