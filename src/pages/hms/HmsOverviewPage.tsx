@@ -198,9 +198,33 @@ export default function HmsOverviewPage() {
       }
       const topEmployees = topUserIds.map(([uid, c]) => ({ user_id: uid, name: topNames[uid] ?? "Ukjent", ...c }));
 
+      // Critical/high open HMS incidents → Krever handling
+      const { data: critIncidents } = await sb
+        .from("hms_incidents")
+        .select("id, title, severity, occurred_at, assigned_to, reported_by")
+        .eq("company_id", cid).is("deleted_at", null)
+        .in("severity", ["critical","high"])
+        .not("status", "in", "(closed,rejected)")
+        .order("occurred_at", { ascending: false }).limit(5);
+      for (const x of critIncidents ?? []) {
+        actions.push({
+          id: `inc-${x.id}`,
+          title: x.severity === "critical" ? `Kritisk HMS-avvik: ${x.title}` : `HMS-avvik (høy): ${x.title}`,
+          detail: x.assigned_to ? "Under behandling" : "Ingen ansvarlig satt",
+          severity: x.severity === "critical" ? "critical" : "warning",
+          href: `/hms/incidents/${x.id}`,
+          cta: "Åpne",
+        });
+      }
+
+      // sort by severity
+      const sevOrder = { critical: 0, warning: 1, info: 2 };
+      actions.sort((a, b) => sevOrder[a.severity] - sevOrder[b.severity]);
+
       return {
         handbooks, openAlerts, criticalAlerts, pendingOvertime, openActions,
         profiles, pendingReview, submitted7d, importBatchesIssues, missingProfiles,
+        openIncidents, criticalIncidents, overdueActions, unassignedIncidents,
         actions: actions.slice(0, 10),
         topEmployees,
       };
