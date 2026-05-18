@@ -378,21 +378,27 @@ export default function HmsIncidentReportPage() {
         </div>
       </div>
 
-      {/* Sticky submit */}
+      {/* Sticky submit – above mobile tab bar (h≈64px), flush bottom on desktop */}
       <div
-        className="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur border-t border-border/60 p-4 z-20"
-        style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 1rem)" }}
+        className="fixed left-0 right-0 bg-background/95 backdrop-blur border-t border-border/60 px-4 pt-3 z-[60] bottom-[64px] lg:bottom-0"
+        style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 0.75rem)" }}
       >
-        <div className="max-w-2xl mx-auto">
+        <div className="max-w-2xl mx-auto space-y-1.5">
+          {!title.trim() && (
+            <div className="text-[11px] text-amber-700 text-center">
+              Fyll inn «Hva skjedde?» for å sende inn
+            </div>
+          )}
           <Button
             onClick={() => submitMut.mutate()}
             disabled={submitMut.isPending || !title.trim()}
-            className="w-full h-12 text-base"
+            className="w-full h-12 text-base font-semibold shadow-lg"
+            size="lg"
           >
             {submitMut.isPending ? (
               <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Sender inn...</>
             ) : (
-              <>Send inn avvik</>
+              <>Send inn avvik/RUH</>
             )}
           </Button>
         </div>
