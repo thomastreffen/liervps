@@ -191,7 +191,10 @@ export default function HmsIncidentReportPage() {
   const isHigh = severity === "high" || severity === "critical";
 
   return (
-    <div className="min-h-screen bg-background pb-32">
+    <div
+      className="min-h-screen bg-background"
+      style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 160px)" }}
+    >
       {/* Header */}
       <header className="sticky top-0 z-10 bg-background/95 backdrop-blur border-b border-border/60">
         <div className="px-4 py-3 max-w-2xl mx-auto flex items-center gap-2">
