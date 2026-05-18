@@ -165,9 +165,8 @@ export default function HmsOverviewPage() {
         });
       }
 
-      // sort by severity
-      const sevOrder = { critical: 0, warning: 1, info: 2 };
-      actions.sort((a, b) => sevOrder[a.severity] - sevOrder[b.severity]);
+      // (sort moved below, after HMS incidents pushed)
+
 
       // Top employees by open alerts
       const { data: openAlertRows } = await sb
