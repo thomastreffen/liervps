@@ -1,13 +1,20 @@
-import { useMemo } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { useMemo, useState } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { ChevronLeft, ShieldAlert, Plus, AlertTriangle } from "lucide-react";
+import {
+  ShieldAlert, Plus, AlertTriangle, Search, ChevronLeft, Paperclip, Calendar, User as UserIcon,
+} from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompanyContext } from "@/hooks/useCompanyContext";
+import { useAuth } from "@/hooks/useAuth";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { formatDistanceToNow } from "date-fns";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { formatDistanceToNow, format } from "date-fns";
 import { nb } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 
@@ -25,122 +32,343 @@ const TYPE_LABEL: Record<string, string> = {
   material_damage: "Materiell skade",
   quality: "Kvalitet",
   environment: "Miljø",
-  observation: "Observasjon",
+  observation: "HMS-observasjon",
+};
+const STATUS_LABEL: Record<string, string> = {
+  open: "Ny",
+  in_progress: "Under behandling",
+  action_pending: "Tiltak opprettet",
+  closed: "Lukket",
+  rejected: "Avvist",
+};
+const STATUS_TONE: Record<string, string> = {
+  open: "bg-rose-50 text-rose-700 border-rose-200",
+  in_progress: "bg-blue-50 text-blue-700 border-blue-200",
+  action_pending: "bg-amber-50 text-amber-700 border-amber-200",
+  closed: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  rejected: "bg-muted text-muted-foreground border-border",
 };
 
 export default function HmsIncidentsListPage() {
   const { activeCompanyId } = useCompanyContext();
+  const { user } = useAuth();
   const navigate = useNavigate();
-  const { id: highlightId } = useParams();
+  const isMobile = useIsMobile();
+  const [search, setSearch] = useSearchParams();
+
+  const [q, setQ] = useState(search.get("q") ?? "");
+  const [scope, setScope] = useState<"all" | "mine">((search.get("scope") as any) ?? "all");
+  const [statusF, setStatusF] = useState<string>(search.get("status") ?? "open_all");
+  const [sevF, setSevF] = useState<string>(search.get("sev") ?? "all");
+  const [typeF, setTypeF] = useState<string>(search.get("type") ?? "all");
+  const highlightId = search.get("highlight");
 
   const { data: incidents, isLoading } = useQuery({
-    queryKey: ["hms-incidents", activeCompanyId],
+    queryKey: ["hms-incidents-list", activeCompanyId],
     enabled: !!activeCompanyId,
     queryFn: async () => {
       const sb = supabase as any;
       const { data } = await sb
         .from("hms_incidents")
-        .select("id, title, description, severity, status, incident_type, location, occurred_at, created_at, reported_by, project_id")
+        .select("id, title, description, severity, status, incident_type, location, occurred_at, created_at, reported_by, project_id, assigned_to, due_date, attachments")
         .eq("company_id", activeCompanyId!)
         .is("deleted_at", null)
         .order("created_at", { ascending: false })
-        .limit(100);
+        .limit(500);
       return (data ?? []) as any[];
     },
   });
 
-  const grouped = useMemo(() => {
-    const open = (incidents ?? []).filter((i) => i.status !== "closed");
-    const closed = (incidents ?? []).filter((i) => i.status === "closed");
-    return { open, closed };
+  // Resolve people names + project numbers
+  const userIds = useMemo(() => {
+    const s = new Set<string>();
+    (incidents ?? []).forEach((i) => { if (i.reported_by) s.add(i.reported_by); if (i.assigned_to) s.add(i.assigned_to); });
+    return Array.from(s);
   }, [incidents]);
+  const projectIds = useMemo(() => Array.from(new Set((incidents ?? []).map((i) => i.project_id).filter(Boolean))), [incidents]);
+
+  const { data: names } = useQuery({
+    queryKey: ["hms-incident-names", userIds],
+    enabled: userIds.length > 0,
+    queryFn: async () => {
+      const sb = supabase as any;
+      const { data } = await sb
+        .from("user_accounts")
+        .select("auth_user_id, person:people!user_accounts_person_id_fkey(full_name, email)")
+        .in("auth_user_id", userIds);
+      return Object.fromEntries((data ?? []).map((a: any) => [a.auth_user_id, a.person?.full_name || a.person?.email || "Ukjent"])) as Record<string, string>;
+    },
+  });
+
+  const { data: projects } = useQuery({
+    queryKey: ["hms-incident-projects-meta", projectIds],
+    enabled: projectIds.length > 0,
+    queryFn: async () => {
+      const sb = supabase as any;
+      const { data } = await sb
+        .from("events")
+        .select("id, project_number, title")
+        .in("id", projectIds);
+      return Object.fromEntries((data ?? []).map((p: any) => [p.id, { number: p.project_number, title: p.title }])) as Record<string, { number?: string; title?: string }>;
+    },
+  });
+
+  const filtered = useMemo(() => {
+    const term = q.trim().toLowerCase();
+    return (incidents ?? []).filter((i) => {
+      if (scope === "mine" && i.reported_by !== user?.id && i.assigned_to !== user?.id) return false;
+      if (statusF === "open_all" && i.status === "closed") return false;
+      if (statusF !== "all" && statusF !== "open_all" && i.status !== statusF) return false;
+      if (sevF !== "all" && i.severity !== sevF) return false;
+      if (typeF !== "all" && i.incident_type !== typeF) return false;
+      if (term) {
+        const hay = `${i.title ?? ""} ${i.description ?? ""} ${i.location ?? ""} ${names?.[i.reported_by] ?? ""} ${projects?.[i.project_id]?.title ?? ""} ${projects?.[i.project_id]?.number ?? ""}`.toLowerCase();
+        if (!hay.includes(term)) return false;
+      }
+      return true;
+    });
+  }, [incidents, scope, statusF, sevF, typeF, q, user?.id, names, projects]);
+
+  const counts = useMemo(() => {
+    const all = incidents ?? [];
+    return {
+      open: all.filter((i) => i.status !== "closed" && i.status !== "rejected").length,
+      critical: all.filter((i) => (i.severity === "critical" || i.severity === "high") && i.status !== "closed").length,
+      unassigned: all.filter((i) => !i.assigned_to && i.status !== "closed" && i.status !== "rejected").length,
+      mine: all.filter((i) => i.reported_by === user?.id || i.assigned_to === user?.id).length,
+    };
+  }, [incidents, user?.id]);
+
+  const update = (k: string, v: string | null) => {
+    const next = new URLSearchParams(search);
+    if (!v || v === "all" || v === "open_all") next.delete(k); else next.set(k, v);
+    setSearch(next, { replace: true });
+  };
 
   return (
-    <div className="min-h-screen bg-background pb-24">
+    <div className="min-h-screen bg-background pb-12">
       <header className="sticky top-0 z-10 bg-background/95 backdrop-blur border-b border-border/60">
-        <div className="px-4 py-3 max-w-3xl mx-auto flex items-center gap-2">
-          <Button variant="ghost" size="icon" onClick={() => navigate(-1)} aria-label="Tilbake">
-            <ChevronLeft className="h-5 w-5" />
-          </Button>
-          <div className="flex-1">
-            <div className="text-[11px] uppercase tracking-wider text-muted-foreground">HMS</div>
-            <div className="text-base font-semibold flex items-center gap-1.5">
-              <ShieldAlert className="h-4 w-4 text-rose-600" /> Avvik / RUH
+        <div className="px-4 lg:px-6 py-3 max-w-7xl mx-auto flex items-center gap-2">
+          {isMobile && (
+            <Button variant="ghost" size="icon" onClick={() => navigate(-1)} aria-label="Tilbake">
+              <ChevronLeft className="h-5 w-5" />
+            </Button>
+          )}
+          <div className="flex-1 min-w-0">
+            <div className="text-[11px] uppercase tracking-wider text-muted-foreground">HMS &amp; HR</div>
+            <div className="text-base lg:text-lg font-semibold flex items-center gap-1.5">
+              <ShieldAlert className="h-4 w-4 text-rose-600" /> HMS-avvik / RUH
             </div>
           </div>
           <Button asChild size="sm">
-            <Link to="/hms/incidents/new"><Plus className="h-4 w-4 mr-1" /> Meld</Link>
+            <Link to="/hms/incidents/new"><Plus className="h-4 w-4 mr-1" /> Meld avvik</Link>
           </Button>
         </div>
       </header>
 
-      <div className="px-4 py-4 max-w-3xl mx-auto space-y-6">
-        {isLoading && <div className="text-sm text-muted-foreground py-12 text-center">Laster…</div>}
+      <div className="px-4 lg:px-6 py-5 max-w-7xl mx-auto space-y-4">
+        {/* KPI row */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <KpiTile label="Åpne" value={counts.open} tone={counts.open ? "warn" : "ok"} />
+          <KpiTile label="Høy / kritisk åpen" value={counts.critical} tone={counts.critical ? "alert" : "ok"} />
+          <KpiTile label="Uten ansvarlig" value={counts.unassigned} tone={counts.unassigned ? "warn" : "ok"} />
+          <KpiTile label="Mine" value={counts.mine} tone="neutral" />
+        </div>
 
-        {!isLoading && (incidents ?? []).length === 0 && (
+        {/* Filters */}
+        <Card>
+          <CardContent className="p-3 space-y-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="relative flex-1 min-w-[220px]">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  value={q}
+                  onChange={(e) => { setQ(e.target.value); update("q", e.target.value); }}
+                  placeholder="Søk tittel, beskrivelse, sted, prosjekt, rapportør…"
+                  className="pl-8"
+                />
+              </div>
+              <Tabs value={scope} onValueChange={(v) => { setScope(v as any); update("scope", v); }}>
+                <TabsList>
+                  <TabsTrigger value="all" className="text-xs">Alle</TabsTrigger>
+                  <TabsTrigger value="mine" className="text-xs">Kun mine</TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <FilterSelect label="Status" value={statusF} onChange={(v) => { setStatusF(v); update("status", v); }}
+                options={[
+                  { value: "open_all", label: "Aktive (skjul lukket)" },
+                  { value: "all", label: "Alle statuser" },
+                  ...Object.entries(STATUS_LABEL).map(([value, label]) => ({ value, label })),
+                ]} />
+              <FilterSelect label="Alvorlighet" value={sevF} onChange={(v) => { setSevF(v); update("sev", v); }}
+                options={[{ value: "all", label: "Alle" }, ...Object.entries(SEV_LABEL).map(([value, label]) => ({ value, label }))]} />
+              <FilterSelect label="Type" value={typeF} onChange={(v) => { setTypeF(v); update("type", v); }}
+                options={[{ value: "all", label: "Alle" }, ...Object.entries(TYPE_LABEL).map(([value, label]) => ({ value, label }))]} />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Results */}
+        {isLoading && <div className="text-sm text-muted-foreground py-12 text-center">Laster…</div>}
+        {!isLoading && filtered.length === 0 && (
           <div className="text-center py-16 text-muted-foreground">
             <ShieldAlert className="h-10 w-10 mx-auto mb-3 opacity-30" />
-            <div className="text-sm">Ingen avvik registrert ennå.</div>
-            <Button asChild className="mt-4"><Link to="/hms/incidents/new">Meld første avvik</Link></Button>
+            <div className="text-sm">Ingen HMS-avvik matcher filtrene dine.</div>
+            <Button asChild variant="outline" className="mt-4"><Link to="/hms/incidents/new">Meld nytt avvik</Link></Button>
           </div>
         )}
 
-        {grouped.open.length > 0 && (
-          <Section title={`Åpne (${grouped.open.length})`}>
-            {grouped.open.map((i) => <IncidentRow key={i.id} i={i} highlight={i.id === highlightId} />)}
-          </Section>
-        )}
+        {!isLoading && filtered.length > 0 && (
+          <>
+            {/* Mobile: card list */}
+            <div className="lg:hidden space-y-2">
+              {filtered.map((i) => (
+                <IncidentCard key={i.id} i={i} names={names} projects={projects} highlight={i.id === highlightId} />
+              ))}
+            </div>
 
-        {grouped.closed.length > 0 && (
-          <Section title={`Lukket (${grouped.closed.length})`}>
-            {grouped.closed.map((i) => <IncidentRow key={i.id} i={i} />)}
-          </Section>
+            {/* Desktop: table */}
+            <div className="hidden lg:block">
+              <Card>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-muted/40 text-xs text-muted-foreground">
+                      <tr>
+                        <th className="text-left font-medium px-4 py-2.5">Tittel</th>
+                        <th className="text-left font-medium px-3 py-2.5">Type</th>
+                        <th className="text-left font-medium px-3 py-2.5">Alvorlighet</th>
+                        <th className="text-left font-medium px-3 py-2.5">Status</th>
+                        <th className="text-left font-medium px-3 py-2.5">Rapportør</th>
+                        <th className="text-left font-medium px-3 py-2.5">Ansvarlig</th>
+                        <th className="text-left font-medium px-3 py-2.5">Prosjekt</th>
+                        <th className="text-left font-medium px-3 py-2.5">Frist</th>
+                        <th className="text-left font-medium px-3 py-2.5">Meldt</th>
+                        <th className="text-left font-medium px-3 py-2.5"></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filtered.map((i) => {
+                        const attCount = Array.isArray(i.attachments) ? i.attachments.length : 0;
+                        const proj = projects?.[i.project_id];
+                        return (
+                          <tr
+                            key={i.id}
+                            onClick={() => navigate(`/hms/incidents/${i.id}`)}
+                            className={cn(
+                              "border-t border-border/60 hover:bg-muted/30 cursor-pointer",
+                              i.id === highlightId && "bg-primary/5",
+                            )}
+                          >
+                            <td className="px-4 py-2.5">
+                              <div className="font-medium">{i.title}</div>
+                              {i.location && <div className="text-[11px] text-muted-foreground">{i.location}</div>}
+                            </td>
+                            <td className="px-3 py-2.5 text-muted-foreground">{TYPE_LABEL[i.incident_type] ?? i.incident_type}</td>
+                            <td className="px-3 py-2.5">
+                              <Badge variant="outline" className={cn("text-[10px]", SEV_TONE[i.severity])}>
+                                {(i.severity === "critical" || i.severity === "high") && <AlertTriangle className="h-3 w-3 mr-0.5" />}
+                                {SEV_LABEL[i.severity] ?? i.severity}
+                              </Badge>
+                            </td>
+                            <td className="px-3 py-2.5">
+                              <Badge variant="outline" className={cn("text-[10px]", STATUS_TONE[i.status])}>
+                                {STATUS_LABEL[i.status] ?? i.status}
+                              </Badge>
+                            </td>
+                            <td className="px-3 py-2.5 text-muted-foreground">{names?.[i.reported_by] ?? "—"}</td>
+                            <td className="px-3 py-2.5 text-muted-foreground">
+                              {i.assigned_to ? names?.[i.assigned_to] ?? "—" : <span className="text-amber-600">Ikke satt</span>}
+                            </td>
+                            <td className="px-3 py-2.5 text-muted-foreground">
+                              {proj ? (proj.number || proj.title || "—") : <span className="text-muted-foreground/50">—</span>}
+                            </td>
+                            <td className="px-3 py-2.5 text-muted-foreground">
+                              {i.due_date ? format(new Date(i.due_date), "d. MMM", { locale: nb }) : "—"}
+                            </td>
+                            <td className="px-3 py-2.5 text-muted-foreground whitespace-nowrap">
+                              {formatDistanceToNow(new Date(i.occurred_at || i.created_at), { addSuffix: true, locale: nb })}
+                            </td>
+                            <td className="px-3 py-2.5 text-muted-foreground">
+                              {attCount > 0 && (
+                                <span className="inline-flex items-center gap-1 text-xs">
+                                  <Paperclip className="h-3 w-3" /> {attCount}
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </Card>
+            </div>
+          </>
         )}
       </div>
     </div>
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function KpiTile({ label, value, tone }: { label: string; value: number; tone: "ok" | "warn" | "alert" | "neutral" }) {
+  const cls =
+    tone === "alert" ? "text-rose-700 border-rose-200 bg-rose-50/40"
+    : tone === "warn" ? "text-amber-800 border-amber-200 bg-amber-50/40"
+    : tone === "ok" ? "text-emerald-700 border-emerald-200 bg-emerald-50/40"
+    : "text-foreground border-border bg-card";
   return (
-    <div className="space-y-2">
-      <div className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider px-1">{title}</div>
-      <div className="space-y-2">{children}</div>
+    <div className={cn("rounded-lg border px-4 py-3", cls)}>
+      <div className="text-[11px] uppercase tracking-wider opacity-70">{label}</div>
+      <div className="text-2xl font-semibold tabular-nums">{value}</div>
     </div>
   );
 }
 
-function IncidentRow({ i, highlight }: { i: any; highlight?: boolean }) {
+function FilterSelect({ label, value, onChange, options }: { label: string; value: string; onChange: (v: string) => void; options: { value: string; label: string }[] }) {
   return (
-    <Card className={cn(
-      "transition",
-      highlight && "ring-2 ring-primary border-primary/40",
-    )}>
-      <CardContent className="p-3 space-y-1.5">
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0 flex-1">
-            <div className="text-sm font-medium">{i.title}</div>
-            <div className="text-[11px] text-muted-foreground mt-0.5">
-              {TYPE_LABEL[i.incident_type] ?? i.incident_type}
-              {i.location ? ` · ${i.location}` : ""}
-              {" · "}
-              {formatDistanceToNow(new Date(i.occurred_at || i.created_at), { addSuffix: true, locale: nb })}
+    <div className="flex items-center gap-1.5">
+      <span className="text-[11px] uppercase tracking-wider text-muted-foreground">{label}</span>
+      <Select value={value} onValueChange={onChange}>
+        <SelectTrigger className="h-8 text-xs w-auto min-w-[140px]"><SelectValue /></SelectTrigger>
+        <SelectContent>
+          {options.map((o) => <SelectItem key={o.value} value={o.value} className="text-xs">{o.label}</SelectItem>)}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}
+
+function IncidentCard({ i, names, projects, highlight }: { i: any; names?: Record<string, string>; projects?: Record<string, any>; highlight?: boolean }) {
+  const proj = projects?.[i.project_id];
+  return (
+    <Link to={`/hms/incidents/${i.id}`} className="block">
+      <Card className={cn("transition active:scale-[0.99]", highlight && "ring-2 ring-primary border-primary/40")}>
+        <CardContent className="p-3 space-y-1.5">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0 flex-1">
+              <div className="text-sm font-medium">{i.title}</div>
+              <div className="text-[11px] text-muted-foreground mt-0.5">
+                {TYPE_LABEL[i.incident_type] ?? i.incident_type}
+                {i.location ? ` · ${i.location}` : ""}
+                {" · "}
+                {formatDistanceToNow(new Date(i.occurred_at || i.created_at), { addSuffix: true, locale: nb })}
+              </div>
             </div>
+            <Badge variant="outline" className={cn("text-[10px]", SEV_TONE[i.severity])}>
+              {(i.severity === "critical" || i.severity === "high") && <AlertTriangle className="h-3 w-3 mr-0.5" />}
+              {SEV_LABEL[i.severity] ?? i.severity}
+            </Badge>
           </div>
-          <Badge variant="outline" className={cn("text-[10px]", SEV_TONE[i.severity] ?? "")}>
-            {(i.severity === "critical" || i.severity === "high") && <AlertTriangle className="h-3 w-3 mr-0.5" />}
-            {SEV_LABEL[i.severity] ?? i.severity}
-          </Badge>
-        </div>
-        {i.description && (
-          <div className="text-xs text-muted-foreground line-clamp-2">{i.description}</div>
-        )}
-        <div className="flex items-center justify-between pt-0.5">
-          <Badge variant="outline" className="text-[10px]">
-            {i.status === "closed" ? "Lukket" : i.status === "in_progress" ? "Pågår" : "Åpen"}
-          </Badge>
-        </div>
-      </CardContent>
-    </Card>
+          <div className="flex items-center justify-between gap-2 pt-0.5 flex-wrap text-[11px] text-muted-foreground">
+            <Badge variant="outline" className={cn("text-[10px]", STATUS_TONE[i.status])}>{STATUS_LABEL[i.status] ?? i.status}</Badge>
+            {names?.[i.reported_by] && <span className="inline-flex items-center gap-1"><UserIcon className="h-3 w-3" /> {names[i.reported_by]}</span>}
+            {proj && <span>{proj.number || proj.title}</span>}
+            {i.due_date && <span className="inline-flex items-center gap-1"><Calendar className="h-3 w-3" /> {format(new Date(i.due_date), "d. MMM", { locale: nb })}</span>}
+          </div>
+        </CardContent>
+      </Card>
+    </Link>
   );
 }
