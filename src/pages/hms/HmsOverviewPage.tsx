@@ -60,6 +60,7 @@ export default function HmsOverviewPage() {
       const [
         handbooks, openAlerts, criticalAlerts, pendingOvertime, openActions,
         profiles, pendingReview, submitted7d, importBatchesIssues, missingProfiles,
+        openIncidents, criticalIncidents, overdueActions, unassignedIncidents,
       ] = await Promise.all([
         countOf(sb.from("hms_handbooks").select("id", { count: "exact", head: true }).eq("company_id", cid).is("deleted_at", null)),
         countOf(sb.from("worktime_alerts").select("id", { count: "exact", head: true }).eq("company_id", cid).eq("status", "open")),
@@ -71,6 +72,10 @@ export default function HmsOverviewPage() {
         countOf(sb.from("hms_submissions").select("id", { count: "exact", head: true }).eq("company_id", cid).gte("submitted_at", since7).is("deleted_at", null)),
         countOf(sb.from("worktime_import_batches").select("id", { count: "exact", head: true }).eq("company_id", cid).gt("skipped_rows", 0)),
         countOf(sb.from("user_accounts").select("id", { count: "exact", head: true }).eq("is_active", true)),
+        countOf(sb.from("hms_incidents").select("id", { count: "exact", head: true }).eq("company_id", cid).is("deleted_at", null).not("status", "in", "(closed,rejected)")),
+        countOf(sb.from("hms_incidents").select("id", { count: "exact", head: true }).eq("company_id", cid).is("deleted_at", null).in("severity", ["critical","high"]).not("status", "in", "(closed,rejected)")),
+        countOf(sb.from("hms_action_items").select("id", { count: "exact", head: true }).eq("company_id", cid).in("status", ["open","in_progress"]).is("deleted_at", null).not("due_date", "is", null).lte("due_date", new Date().toISOString().slice(0,10))),
+        countOf(sb.from("hms_incidents").select("id", { count: "exact", head: true }).eq("company_id", cid).is("deleted_at", null).is("assigned_to", null).not("status", "in", "(closed,rejected)")),
       ]);
 
       // ---- Krever handling ----
