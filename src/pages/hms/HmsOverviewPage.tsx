@@ -231,10 +231,12 @@ export default function HmsOverviewPage() {
   });
 
   const cards: KpiCard[] = [
+    { title: "Åpne HMS-avvik", value: data?.openIncidents ?? 0, hint: data?.unassignedIncidents ? `${data.unassignedIncidents} uten ansvarlig` : "Følges opp", href: "/hms/incidents", icon: ShieldAlert, tone: data?.openIncidents ? "warn" : "ok" },
+    { title: "Kritiske HMS-avvik", value: data?.criticalIncidents ?? 0, hint: "Høy / kritisk åpen", href: "/hms/incidents?sev=critical", icon: ShieldAlert, tone: data?.criticalIncidents ? "alert" : "ok" },
+    { title: "Forfalte HMS-tiltak", value: data?.overdueActions ?? 0, hint: "Frist passert", href: "/hms/incidents", icon: Clock, tone: data?.overdueActions ? "alert" : "ok" },
     { title: "Kritiske AML-varsler", value: data?.criticalAlerts ?? 0, hint: data?.openAlerts ? `${data.openAlerts} åpne totalt` : "Ingen åpne", href: "/hms/aml", icon: AlertTriangle, tone: data?.criticalAlerts ? "alert" : data?.openAlerts ? "warn" : "ok" },
     { title: "Overtid til godkjenning", value: data?.pendingOvertime ?? 0, hint: "Venter på leder", href: "/hms/overtime", icon: Clock, tone: data?.pendingOvertime ? "warn" : "ok" },
-    { title: "Importkonflikter", value: data?.importBatchesIssues ?? 0, hint: "Batcher med hopp/feil", href: "/hms/import/batches", icon: FileWarning, tone: data?.importBatchesIssues ? "warn" : "ok" },
-    { title: "Til godkjenning", value: data?.pendingReview ?? 0, hint: "SJA / sjekklister fra felt", href: "/hms/submissions", icon: FileCheck, tone: data?.pendingReview ? "warn" : "ok" },
+    { title: "Til godkjenning (SJA)", value: data?.pendingReview ?? 0, hint: "SJA / sjekklister fra felt", href: "/hms/submissions", icon: FileCheck, tone: data?.pendingReview ? "warn" : "ok" },
   ];
 
   return (
