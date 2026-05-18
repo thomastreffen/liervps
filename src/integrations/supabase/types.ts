@@ -5648,17 +5648,99 @@ export type Database = {
           },
         ]
       }
+      hms_incident_comments: {
+        Row: {
+          attachments: Json | null
+          author_id: string
+          body: string
+          company_id: string
+          created_at: string
+          id: string
+          incident_id: string
+        }
+        Insert: {
+          attachments?: Json | null
+          author_id: string
+          body: string
+          company_id: string
+          created_at?: string
+          id?: string
+          incident_id: string
+        }
+        Update: {
+          attachments?: Json | null
+          author_id?: string
+          body?: string
+          company_id?: string
+          created_at?: string
+          id?: string
+          incident_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hms_incident_comments_incident_id_fkey"
+            columns: ["incident_id"]
+            isOneToOne: false
+            referencedRelation: "hms_incidents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hms_incident_status_log: {
+        Row: {
+          changed_by: string | null
+          company_id: string
+          created_at: string
+          from_status: string | null
+          id: string
+          incident_id: string
+          reason: string | null
+          to_status: string
+        }
+        Insert: {
+          changed_by?: string | null
+          company_id: string
+          created_at?: string
+          from_status?: string | null
+          id?: string
+          incident_id: string
+          reason?: string | null
+          to_status: string
+        }
+        Update: {
+          changed_by?: string | null
+          company_id?: string
+          created_at?: string
+          from_status?: string | null
+          id?: string
+          incident_id?: string
+          reason?: string | null
+          to_status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hms_incident_status_log_incident_id_fkey"
+            columns: ["incident_id"]
+            isOneToOne: false
+            referencedRelation: "hms_incidents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hms_incidents: {
         Row: {
+          assigned_to: string | null
           attachments: Json
           closed_at: string | null
           closed_by: string | null
+          closed_reason: string | null
           closure_notes: string | null
           company_id: string
           created_at: string
           deleted_at: string | null
           deleted_by: string | null
           description: string | null
+          due_date: string | null
           id: string
           incident_type: string
           location: string | null
@@ -5672,15 +5754,18 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          assigned_to?: string | null
           attachments?: Json
           closed_at?: string | null
           closed_by?: string | null
+          closed_reason?: string | null
           closure_notes?: string | null
           company_id: string
           created_at?: string
           deleted_at?: string | null
           deleted_by?: string | null
           description?: string | null
+          due_date?: string | null
           id?: string
           incident_type: string
           location?: string | null
@@ -5694,15 +5779,18 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          assigned_to?: string | null
           attachments?: Json
           closed_at?: string | null
           closed_by?: string | null
+          closed_reason?: string | null
           closure_notes?: string | null
           company_id?: string
           created_at?: string
           deleted_at?: string | null
           deleted_by?: string | null
           description?: string | null
+          due_date?: string | null
           id?: string
           incident_type?: string
           location?: string | null
@@ -12221,6 +12309,10 @@ export type Database = {
       }
       has_hms_attachment_access: {
         Args: { _auth_user_id: string; _name: string }
+        Returns: boolean
+      }
+      has_hms_incident_access: {
+        Args: { _auth_user_id: string; _incident_id: string }
         Returns: boolean
       }
       has_hms_manage: {
