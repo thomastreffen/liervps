@@ -250,9 +250,19 @@ export default function HmsMobilePage() {
           </TabsContent>
 
           <TabsContent value="mine" className="space-y-2 mt-4">
+            <Link
+              to="/hms/incidents?scope=mine"
+              className="flex items-center justify-between p-3 rounded-lg border border-rose-200 bg-rose-50/40 active:scale-[0.99] transition-transform"
+            >
+              <div className="flex items-center gap-2">
+                <ShieldAlert className="h-4 w-4 text-rose-600" />
+                <span className="text-sm font-medium">Mine HMS-avvik / RUH</span>
+              </div>
+              <Badge variant="outline" className="text-[10px]">Åpne liste</Badge>
+            </Link>
             {(mySubmissions ?? []).length === 0 && (
               <div className="text-center text-sm text-muted-foreground py-12">
-                Du har ingen innsendinger ennå.
+                Du har ingen SJA/sjekklist-innsendinger ennå.
               </div>
             )}
             {others.map((s) => (

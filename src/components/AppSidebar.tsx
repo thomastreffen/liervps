@@ -23,6 +23,7 @@ import {
   ShieldCheck,
   AlertTriangle,
   Clock,
+  ShieldAlert,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/hooks/useAuth";
@@ -292,6 +293,7 @@ export function AppSidebar() {
                        <SidebarMenu className="ml-5 mt-1 space-y-0.5 border-l border-sidebar-border/40 pl-2">
                          <NavItem item={{ title: "Oversikt", url: "/hms", icon: Gauge }} isActive={(url) => location.pathname === "/hms"} collapsed={collapsed} />
                          <NavItem item={{ title: "Håndbøker", url: "/hms/handbooks", icon: BookOpen }} isActive={isActive} collapsed={collapsed} />
+                         <NavItem item={{ title: "Avvik / RUH", url: "/hms/incidents", icon: ShieldAlert }} isActive={isActive} collapsed={collapsed} />
                          <NavItem item={{ title: "AML-status", url: "/hms/aml", icon: AlertTriangle }} isActive={isActive} collapsed={collapsed} />
                          <NavItem item={{ title: "Regelsett", url: "/hms/rulesets", icon: Settings }} isActive={isActive} collapsed={collapsed} />
                          <NavItem item={{ title: "Overtid", url: "/hms/overtime", icon: Clock }} isActive={isActive} collapsed={collapsed} />

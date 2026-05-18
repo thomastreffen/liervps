@@ -60,6 +60,7 @@ export default function HmsOverviewPage() {
       const [
         handbooks, openAlerts, criticalAlerts, pendingOvertime, openActions,
         profiles, pendingReview, submitted7d, importBatchesIssues, missingProfiles,
+        openIncidents, criticalIncidents, overdueActions, unassignedIncidents,
       ] = await Promise.all([
         countOf(sb.from("hms_handbooks").select("id", { count: "exact", head: true }).eq("company_id", cid).is("deleted_at", null)),
         countOf(sb.from("worktime_alerts").select("id", { count: "exact", head: true }).eq("company_id", cid).eq("status", "open")),
@@ -71,6 +72,10 @@ export default function HmsOverviewPage() {
         countOf(sb.from("hms_submissions").select("id", { count: "exact", head: true }).eq("company_id", cid).gte("submitted_at", since7).is("deleted_at", null)),
         countOf(sb.from("worktime_import_batches").select("id", { count: "exact", head: true }).eq("company_id", cid).gt("skipped_rows", 0)),
         countOf(sb.from("user_accounts").select("id", { count: "exact", head: true }).eq("is_active", true)),
+        countOf(sb.from("hms_incidents").select("id", { count: "exact", head: true }).eq("company_id", cid).is("deleted_at", null).not("status", "in", "(closed,rejected)")),
+        countOf(sb.from("hms_incidents").select("id", { count: "exact", head: true }).eq("company_id", cid).is("deleted_at", null).in("severity", ["critical","high"]).not("status", "in", "(closed,rejected)")),
+        countOf(sb.from("hms_action_items").select("id", { count: "exact", head: true }).eq("company_id", cid).in("status", ["open","in_progress"]).is("deleted_at", null).not("due_date", "is", null).lte("due_date", new Date().toISOString().slice(0,10))),
+        countOf(sb.from("hms_incidents").select("id", { count: "exact", head: true }).eq("company_id", cid).is("deleted_at", null).is("assigned_to", null).not("status", "in", "(closed,rejected)")),
       ]);
 
       // ---- Krever handling ----
@@ -160,9 +165,8 @@ export default function HmsOverviewPage() {
         });
       }
 
-      // sort by severity
-      const sevOrder = { critical: 0, warning: 1, info: 2 };
-      actions.sort((a, b) => sevOrder[a.severity] - sevOrder[b.severity]);
+      // (sort moved below, after HMS incidents pushed)
+
 
       // Top employees by open alerts
       const { data: openAlertRows } = await sb
@@ -193,9 +197,33 @@ export default function HmsOverviewPage() {
       }
       const topEmployees = topUserIds.map(([uid, c]) => ({ user_id: uid, name: topNames[uid] ?? "Ukjent", ...c }));
 
+      // Critical/high open HMS incidents → Krever handling
+      const { data: critIncidents } = await sb
+        .from("hms_incidents")
+        .select("id, title, severity, occurred_at, assigned_to, reported_by")
+        .eq("company_id", cid).is("deleted_at", null)
+        .in("severity", ["critical","high"])
+        .not("status", "in", "(closed,rejected)")
+        .order("occurred_at", { ascending: false }).limit(5);
+      for (const x of critIncidents ?? []) {
+        actions.push({
+          id: `inc-${x.id}`,
+          title: x.severity === "critical" ? `Kritisk HMS-avvik: ${x.title}` : `HMS-avvik (høy): ${x.title}`,
+          detail: x.assigned_to ? "Under behandling" : "Ingen ansvarlig satt",
+          severity: x.severity === "critical" ? "critical" : "warning",
+          href: `/hms/incidents/${x.id}`,
+          cta: "Åpne",
+        });
+      }
+
+      // sort by severity
+      const sevOrder = { critical: 0, warning: 1, info: 2 };
+      actions.sort((a, b) => sevOrder[a.severity] - sevOrder[b.severity]);
+
       return {
         handbooks, openAlerts, criticalAlerts, pendingOvertime, openActions,
         profiles, pendingReview, submitted7d, importBatchesIssues, missingProfiles,
+        openIncidents, criticalIncidents, overdueActions, unassignedIncidents,
         actions: actions.slice(0, 10),
         topEmployees,
       };
@@ -203,10 +231,12 @@ export default function HmsOverviewPage() {
   });
 
   const cards: KpiCard[] = [
+    { title: "Åpne HMS-avvik", value: data?.openIncidents ?? 0, hint: data?.unassignedIncidents ? `${data.unassignedIncidents} uten ansvarlig` : "Følges opp", href: "/hms/incidents", icon: ShieldAlert, tone: data?.openIncidents ? "warn" : "ok" },
+    { title: "Kritiske HMS-avvik", value: data?.criticalIncidents ?? 0, hint: "Høy / kritisk åpen", href: "/hms/incidents?sev=critical", icon: ShieldAlert, tone: data?.criticalIncidents ? "alert" : "ok" },
+    { title: "Forfalte HMS-tiltak", value: data?.overdueActions ?? 0, hint: "Frist passert", href: "/hms/incidents", icon: Clock, tone: data?.overdueActions ? "alert" : "ok" },
     { title: "Kritiske AML-varsler", value: data?.criticalAlerts ?? 0, hint: data?.openAlerts ? `${data.openAlerts} åpne totalt` : "Ingen åpne", href: "/hms/aml", icon: AlertTriangle, tone: data?.criticalAlerts ? "alert" : data?.openAlerts ? "warn" : "ok" },
     { title: "Overtid til godkjenning", value: data?.pendingOvertime ?? 0, hint: "Venter på leder", href: "/hms/overtime", icon: Clock, tone: data?.pendingOvertime ? "warn" : "ok" },
-    { title: "Importkonflikter", value: data?.importBatchesIssues ?? 0, hint: "Batcher med hopp/feil", href: "/hms/import/batches", icon: FileWarning, tone: data?.importBatchesIssues ? "warn" : "ok" },
-    { title: "Til godkjenning", value: data?.pendingReview ?? 0, hint: "SJA / sjekklister fra felt", href: "/hms/submissions", icon: FileCheck, tone: data?.pendingReview ? "warn" : "ok" },
+    { title: "Til godkjenning (SJA)", value: data?.pendingReview ?? 0, hint: "SJA / sjekklister fra felt", href: "/hms/submissions", icon: FileCheck, tone: data?.pendingReview ? "warn" : "ok" },
   ];
 
   return (
