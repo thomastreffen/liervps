@@ -166,10 +166,12 @@ export default function HmsIncidentReportPage() {
                 ? "HMS-leder er varslet umiddelbart."
                 : "HMS-leder vil følge opp."}
             </p>
+            <div className="text-xs font-medium text-emerald-700">Avviket er sendt inn</div>
             <div className="flex flex-col gap-2 pt-2">
-              <Button onClick={() => navigate("/hms/mobile")}>Tilbake til HMS-mobil</Button>
+              <Button onClick={() => navigate(`/hms/incidents?highlight=${submitted.id}`)}>Se avvik</Button>
+              <Button variant="outline" onClick={() => navigate("/hms/mobile")}>Til HMS mobil</Button>
               <Button
-                variant="outline"
+                variant="ghost"
                 onClick={() => {
                   setSubmitted(null);
                   setTitle(""); setDescription(""); setLocation("");
