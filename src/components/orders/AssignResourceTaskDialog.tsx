@@ -294,19 +294,56 @@ export function AssignResourceTaskDialog({
         console.warn("[AssignResourceTask] Calendar sync failed:", e);
       }
 
-      return newEvent;
+      // Notify requester now if user opted in
+      let notifyResult: { attempted: boolean; sent: boolean; error?: string } = { attempted: false, sent: false };
+      if (notifyRequester && bestillerEpost) {
+        notifyResult.attempted = true;
+        try {
+          const { data, error } = await supabase.functions.invoke("order-form-notify", {
+            body: {
+              submission_id: submissionId,
+              notification_type: "customer_update",
+              event_key: "task_created",
+            },
+          });
+          if (error) throw error;
+          if (data && data.success === false) {
+            notifyResult.error = data.error || data.reason || "Sending feilet";
+          } else {
+            notifyResult.sent = true;
+          }
+        } catch (e: any) {
+          notifyResult.error = e?.message || String(e);
+          console.error("[AssignResourceTask] Notify failed:", e);
+        }
+      } else if (notifyRequester && !bestillerEpost) {
+        notifyResult.attempted = true;
+        notifyResult.error = "Mangler e-postadresse til bestiller";
+      }
+
+      return { newEvent, notifyResult };
     },
-    onSuccess: (newEvent) => {
+    onSuccess: ({ newEvent, notifyResult }) => {
       qc.invalidateQueries({ queryKey: ["order-form-submission", submissionId] });
       qc.invalidateQueries({ queryKey: ["order-form-activity", submissionId] });
-      toast.success("Ressursoppgave opprettet", {
-        action: {
-          label: "Åpne i ressursplan",
-          onClick: () => {
-            window.location.href = `/projects/plan?openTask=${newEvent.id}`;
-          },
+
+      const openAction = {
+        label: "Åpne i ressursplan",
+        onClick: () => {
+          window.location.href = `/projects/plan?openTask=${newEvent.id}`;
         },
-      });
+      };
+
+      if (notifyResult.attempted && notifyResult.sent) {
+        toast.success("Oppgave opprettet og bestiller varslet", { action: openAction });
+      } else if (notifyResult.attempted && !notifyResult.sent) {
+        toast.warning("Oppgave opprettet – varsel ikke sendt", {
+          description: notifyResult.error || "Ukjent feil",
+          action: openAction,
+        });
+      } else {
+        toast.success("Oppgave opprettet (bestiller ikke varslet)", { action: openAction });
+      }
       onOpenChange(false);
     },
     onError: (err: any) => {
