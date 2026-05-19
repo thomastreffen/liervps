@@ -843,7 +843,7 @@ export default function OrderFormDetailPage() {
                   className="h-3.5 w-3.5"
                 />
                 <Bell className="h-3 w-3" />
-                Varsle bestiller
+                Varsle bestiller nå
               </label>
             )}
           </PopoverContent>
