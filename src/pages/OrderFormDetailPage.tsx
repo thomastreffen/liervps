@@ -1826,6 +1826,8 @@ export default function OrderFormDetailPage() {
         summary={submission.summary as Record<string, any> | null}
         values={valuesMap}
         attachments={attachments as any[]}
+        bestillerEpost={bestillerEpost || undefined}
+        autoNotifyDefault={!!(submission as any).auto_notify_on_status_change}
       />
       <AttachmentPreviewDrawer
         open={previewAttIdx !== null}
