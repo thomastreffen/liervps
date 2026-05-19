@@ -589,6 +589,36 @@ export function AssignResourceTaskDialog({
             </div>
           )}
 
+          <Separator />
+
+          {/* Notify requester now */}
+          <div className="rounded-lg border bg-muted/20 p-3">
+            <label className={cn("flex items-start gap-2 select-none", bestillerEpost ? "cursor-pointer" : "cursor-not-allowed opacity-60")}>
+              <Checkbox
+                checked={notifyRequester}
+                onCheckedChange={(c) => setNotifyRequester(!!c && !!bestillerEpost)}
+                disabled={!bestillerEpost}
+                className="mt-0.5"
+              />
+              <div className="flex-1 min-w-0">
+                <div className="text-xs font-medium flex items-center gap-1.5">
+                  {notifyRequester ? <Bell className="h-3 w-3 text-primary" /> : <BellOff className="h-3 w-3 text-muted-foreground" />}
+                  Varsle bestiller nå
+                </div>
+                <p className="text-[10px] text-muted-foreground mt-0.5">
+                  {bestillerEpost
+                    ? <>Sender e-post til <span className="font-medium text-foreground">{bestillerEpost}</span> om at oppgaven er planlagt.</>
+                    : "Ingen e-postadresse til bestiller – kan ikke varsle."}
+                </p>
+                {notifyRequester && bestillerEpost && (
+                  <p className="text-[10px] text-primary mt-1 flex items-center gap-1">
+                    <MailCheck className="h-3 w-3" /> Varsel logges i aktivitetsloggen
+                  </p>
+                )}
+              </div>
+            </label>
+          </div>
+
           <Button
             className="w-full"
             onClick={() => mutation.mutate()}
@@ -598,6 +628,7 @@ export function AssignResourceTaskDialog({
               <>
                 <UserPlus className="h-4 w-4 mr-1.5" />
                 Opprett og tildel ({selectedTechIds.length} montør{selectedTechIds.length !== 1 ? "er" : ""})
+                {notifyRequester && bestillerEpost && <span className="ml-1.5 opacity-90">+ varsle</span>}
               </>
             )}
           </Button>
