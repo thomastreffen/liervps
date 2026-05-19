@@ -23,8 +23,9 @@ import {
 } from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import { UserPlus, CalendarDays, Paperclip, CalendarIcon, Clock, ArrowRight, MapPin, Building2, Phone, User } from "lucide-react";
+import { UserPlus, CalendarDays, Paperclip, CalendarIcon, Clock, ArrowRight, MapPin, Building2, Phone, User, Bell, BellOff, MailCheck, MailX } from "lucide-react";
 import { TechnicianMultiSelect } from "@/components/TechnicianMultiSelect";
 import { format, setHours, setMinutes } from "date-fns";
 import { nb } from "date-fns/locale";
@@ -38,6 +39,8 @@ interface AssignResourceTaskDialogProps {
   summary: Record<string, any> | null;
   values: Record<string, any>;
   attachments: any[];
+  bestillerEpost?: string;
+  autoNotifyDefault?: boolean;
 }
 
 // Generate time options in 15-min intervals for full 24h
@@ -56,6 +59,8 @@ export function AssignResourceTaskDialog({
   summary,
   values,
   attachments,
+  bestillerEpost,
+  autoNotifyDefault,
 }: AssignResourceTaskDialogProps) {
   const { user } = useAuth();
   const { activeCompanyId } = useCompanyContext();
@@ -129,6 +134,7 @@ export function AssignResourceTaskDialog({
   const [endTime, setEndTime] = useState("16:00");
   const [selectedTechIds, setSelectedTechIds] = useState<string[]>([]);
   const [includeAttachments, setIncludeAttachments] = useState(true);
+  const [notifyRequester, setNotifyRequester] = useState(false);
 
   // Reset all fields when dialog opens with fresh data
   useEffect(() => {
@@ -152,6 +158,7 @@ export function AssignResourceTaskDialog({
     setEndTime("16:00");
     setSelectedTechIds([]);
     setIncludeAttachments(true);
+    setNotifyRequester(!!bestillerEpost && !!autoNotifyDefault);
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const applyTime = (date: Date | undefined, time: string): Date => {
@@ -287,19 +294,56 @@ export function AssignResourceTaskDialog({
         console.warn("[AssignResourceTask] Calendar sync failed:", e);
       }
 
-      return newEvent;
+      // Notify requester now if user opted in
+      let notifyResult: { attempted: boolean; sent: boolean; error?: string } = { attempted: false, sent: false };
+      if (notifyRequester && bestillerEpost) {
+        notifyResult.attempted = true;
+        try {
+          const { data, error } = await supabase.functions.invoke("order-form-notify", {
+            body: {
+              submission_id: submissionId,
+              notification_type: "customer_update",
+              event_key: "task_created",
+            },
+          });
+          if (error) throw error;
+          if (data && data.success === false) {
+            notifyResult.error = data.error || data.reason || "Sending feilet";
+          } else {
+            notifyResult.sent = true;
+          }
+        } catch (e: any) {
+          notifyResult.error = e?.message || String(e);
+          console.error("[AssignResourceTask] Notify failed:", e);
+        }
+      } else if (notifyRequester && !bestillerEpost) {
+        notifyResult.attempted = true;
+        notifyResult.error = "Mangler e-postadresse til bestiller";
+      }
+
+      return { newEvent, notifyResult };
     },
-    onSuccess: (newEvent) => {
+    onSuccess: ({ newEvent, notifyResult }) => {
       qc.invalidateQueries({ queryKey: ["order-form-submission", submissionId] });
       qc.invalidateQueries({ queryKey: ["order-form-activity", submissionId] });
-      toast.success("Ressursoppgave opprettet", {
-        action: {
-          label: "Åpne i ressursplan",
-          onClick: () => {
-            window.location.href = `/projects/plan?openTask=${newEvent.id}`;
-          },
+
+      const openAction = {
+        label: "Åpne i ressursplan",
+        onClick: () => {
+          window.location.href = `/projects/plan?openTask=${newEvent.id}`;
         },
-      });
+      };
+
+      if (notifyResult.attempted && notifyResult.sent) {
+        toast.success("Oppgave opprettet og bestiller varslet", { action: openAction });
+      } else if (notifyResult.attempted && !notifyResult.sent) {
+        toast.warning("Oppgave opprettet – varsel ikke sendt", {
+          description: notifyResult.error || "Ukjent feil",
+          action: openAction,
+        });
+      } else {
+        toast.success("Oppgave opprettet (bestiller ikke varslet)", { action: openAction });
+      }
       onOpenChange(false);
     },
     onError: (err: any) => {
@@ -545,6 +589,36 @@ export function AssignResourceTaskDialog({
             </div>
           )}
 
+          <Separator />
+
+          {/* Notify requester now */}
+          <div className="rounded-lg border bg-muted/20 p-3">
+            <label className={cn("flex items-start gap-2 select-none", bestillerEpost ? "cursor-pointer" : "cursor-not-allowed opacity-60")}>
+              <Checkbox
+                checked={notifyRequester}
+                onCheckedChange={(c) => setNotifyRequester(!!c && !!bestillerEpost)}
+                disabled={!bestillerEpost}
+                className="mt-0.5"
+              />
+              <div className="flex-1 min-w-0">
+                <div className="text-xs font-medium flex items-center gap-1.5">
+                  {notifyRequester ? <Bell className="h-3 w-3 text-primary" /> : <BellOff className="h-3 w-3 text-muted-foreground" />}
+                  Varsle bestiller nå
+                </div>
+                <p className="text-[10px] text-muted-foreground mt-0.5">
+                  {bestillerEpost
+                    ? <>Sender e-post til <span className="font-medium text-foreground">{bestillerEpost}</span> om at oppgaven er planlagt.</>
+                    : "Ingen e-postadresse til bestiller – kan ikke varsle."}
+                </p>
+                {notifyRequester && bestillerEpost && (
+                  <p className="text-[10px] text-primary mt-1 flex items-center gap-1">
+                    <MailCheck className="h-3 w-3" /> Varsel logges i aktivitetsloggen
+                  </p>
+                )}
+              </div>
+            </label>
+          </div>
+
           <Button
             className="w-full"
             onClick={() => mutation.mutate()}
@@ -554,6 +628,7 @@ export function AssignResourceTaskDialog({
               <>
                 <UserPlus className="h-4 w-4 mr-1.5" />
                 Opprett og tildel ({selectedTechIds.length} montør{selectedTechIds.length !== 1 ? "er" : ""})
+                {notifyRequester && bestillerEpost && <span className="ml-1.5 opacity-90">+ varsle</span>}
               </>
             )}
           </Button>

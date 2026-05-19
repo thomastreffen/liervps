@@ -383,11 +383,13 @@ export default function OrderFormDetailPage() {
       await supabase.from("order_form_activity_log").insert({
         submission_id: id!,
         event_type: "status_changed",
-        payload: { from: submission?.status, to: newStatus },
+        payload: { from: submission?.status, to: newStatus, notified_requester: !!notifyOnStatusChange },
         created_by: user?.id,
       });
       // Send customer notification if toggle is on
+      let notify: { attempted: boolean; sent: boolean; error?: string } = { attempted: false, sent: false };
       if (notifyOnStatusChange) {
+        notify.attempted = true;
         const eventKeyMap: Record<string, string> = {
           in_progress: "in_progress",
           closed: "completed",
@@ -396,16 +398,30 @@ export default function OrderFormDetailPage() {
           ready_for_planning: "task_created",
         };
         const eventKey = eventKeyMap[newStatus] || "status_changed";
-        await supabase.functions.invoke("order-form-notify", {
-          body: { submission_id: id, notification_type: "customer_update", event_key: eventKey },
-        });
+        try {
+          const { data, error: invErr } = await supabase.functions.invoke("order-form-notify", {
+            body: { submission_id: id, notification_type: "customer_update", event_key: eventKey },
+          });
+          if (invErr) throw invErr;
+          if (data && data.success === false) notify.error = data.error || data.reason || "Sending feilet";
+          else notify.sent = true;
+        } catch (e: any) {
+          notify.error = e?.message || String(e);
+        }
       }
+      return notify;
     },
-    onSuccess: () => {
+    onSuccess: (notify) => {
       qc.invalidateQueries({ queryKey: ["order-form-submission", id] });
       qc.invalidateQueries({ queryKey: ["order-form-activity", id] });
       setNotifyOnStatusChange(false);
-      toast.success("Status oppdatert");
+      if (notify.attempted && notify.sent) {
+        toast.success("Status oppdatert og bestiller varslet");
+      } else if (notify.attempted && !notify.sent) {
+        toast.warning("Status oppdatert – varsel ikke sendt", { description: notify.error });
+      } else {
+        toast.success("Status oppdatert");
+      }
     },
   });
 
@@ -554,20 +570,36 @@ export default function OrderFormDetailPage() {
       }
 
       // Send customer notification if toggle is on
+      let notify: { attempted: boolean; sent: boolean; error?: string } = { attempted: false, sent: false };
       if (notifyOnAssign && assigneeId) {
-        await supabase.functions.invoke("order-form-notify", {
-          body: { submission_id: id, notification_type: "customer_update", event_key: "assigned" },
-        });
+        notify.attempted = true;
+        try {
+          const { data, error: invErr } = await supabase.functions.invoke("order-form-notify", {
+            body: { submission_id: id, notification_type: "customer_update", event_key: "assigned" },
+          });
+          if (invErr) throw invErr;
+          if (data && data.success === false) notify.error = data.error || data.reason || "Sending feilet";
+          else notify.sent = true;
+        } catch (e: any) {
+          notify.error = e?.message || String(e);
+        }
       }
+      return notify;
     },
-    onSuccess: () => {
+    onSuccess: (notify) => {
       qc.invalidateQueries({ queryKey: ["order-form-submission", id] });
       qc.invalidateQueries({ queryKey: ["order-form-activity", id] });
       qc.invalidateQueries({ queryKey: ["assignee-name"] });
       setAssignPopoverOpen(false);
       setAssignSearch("");
       setNotifyOnAssign(false);
-      toast.success("Ansvarlig oppdatert");
+      if (notify.attempted && notify.sent) {
+        toast.success("Ansvarlig oppdatert og bestiller varslet");
+      } else if (notify.attempted && !notify.sent) {
+        toast.warning("Ansvarlig oppdatert – varsel ikke sendt", { description: notify.error });
+      } else {
+        toast.success("Ansvarlig oppdatert");
+      }
     },
   });
 
@@ -757,7 +789,7 @@ export default function OrderFormDetailPage() {
                 className="h-3.5 w-3.5"
               />
               <Bell className="h-3 w-3" />
-              Varsle bestiller
+              Varsle bestiller nå
             </label>
           )}
         </div>
@@ -843,7 +875,7 @@ export default function OrderFormDetailPage() {
                   className="h-3.5 w-3.5"
                 />
                 <Bell className="h-3 w-3" />
-                Varsle bestiller
+                Varsle bestiller nå
               </label>
             )}
           </PopoverContent>
@@ -1189,12 +1221,12 @@ export default function OrderFormDetailPage() {
                       ) : (
                         <Bell className="h-3 w-3 text-muted-foreground" />
                       )}
-                      Varsle bestiller automatisk
+                      Varsle bestiller automatisk ved fremtidige oppdateringer
                     </span>
                     <p className="text-[10px] text-muted-foreground">
                       {(submission as any).auto_notify_on_status_change
-                        ? "E-post sendes automatisk ved delte oppdateringer"
-                        : "E-postvarsler sendes kun manuelt"}
+                        ? "Forhåndskrysser «Varsle bestiller nå» ved status-endring, tildeling og delte meldinger. Du kan alltid huke av."
+                        : "«Varsle bestiller nå» må aktivt hukes av for hver handling for å sende e-post."}
                     </p>
                   </div>
                 </label>
@@ -1826,6 +1858,8 @@ export default function OrderFormDetailPage() {
         summary={submission.summary as Record<string, any> | null}
         values={valuesMap}
         attachments={attachments as any[]}
+        bestillerEpost={bestillerEpost || undefined}
+        autoNotifyDefault={!!(submission as any).auto_notify_on_status_change}
       />
       <AttachmentPreviewDrawer
         open={previewAttIdx !== null}
