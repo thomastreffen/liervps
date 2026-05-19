@@ -158,6 +158,7 @@ export function AssignResourceTaskDialog({
     setEndTime("16:00");
     setSelectedTechIds([]);
     setIncludeAttachments(true);
+    setNotifyRequester(!!bestillerEpost && !!autoNotifyDefault);
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const applyTime = (date: Date | undefined, time: string): Date => {
