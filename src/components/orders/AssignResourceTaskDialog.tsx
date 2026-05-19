@@ -59,6 +59,8 @@ export function AssignResourceTaskDialog({
   summary,
   values,
   attachments,
+  bestillerEpost,
+  autoNotifyDefault,
 }: AssignResourceTaskDialogProps) {
   const { user } = useAuth();
   const { activeCompanyId } = useCompanyContext();
