@@ -570,20 +570,36 @@ export default function OrderFormDetailPage() {
       }
 
       // Send customer notification if toggle is on
+      let notify: { attempted: boolean; sent: boolean; error?: string } = { attempted: false, sent: false };
       if (notifyOnAssign && assigneeId) {
-        await supabase.functions.invoke("order-form-notify", {
-          body: { submission_id: id, notification_type: "customer_update", event_key: "assigned" },
-        });
+        notify.attempted = true;
+        try {
+          const { data, error: invErr } = await supabase.functions.invoke("order-form-notify", {
+            body: { submission_id: id, notification_type: "customer_update", event_key: "assigned" },
+          });
+          if (invErr) throw invErr;
+          if (data && data.success === false) notify.error = data.error || data.reason || "Sending feilet";
+          else notify.sent = true;
+        } catch (e: any) {
+          notify.error = e?.message || String(e);
+        }
       }
+      return notify;
     },
-    onSuccess: () => {
+    onSuccess: (notify) => {
       qc.invalidateQueries({ queryKey: ["order-form-submission", id] });
       qc.invalidateQueries({ queryKey: ["order-form-activity", id] });
       qc.invalidateQueries({ queryKey: ["assignee-name"] });
       setAssignPopoverOpen(false);
       setAssignSearch("");
       setNotifyOnAssign(false);
-      toast.success("Ansvarlig oppdatert");
+      if (notify.attempted && notify.sent) {
+        toast.success("Ansvarlig oppdatert og bestiller varslet");
+      } else if (notify.attempted && !notify.sent) {
+        toast.warning("Ansvarlig oppdatert – varsel ikke sendt", { description: notify.error });
+      } else {
+        toast.success("Ansvarlig oppdatert");
+      }
     },
   });
 
