@@ -134,6 +134,7 @@ export function AssignResourceTaskDialog({
   const [endTime, setEndTime] = useState("16:00");
   const [selectedTechIds, setSelectedTechIds] = useState<string[]>([]);
   const [includeAttachments, setIncludeAttachments] = useState(true);
+  const [notifyRequester, setNotifyRequester] = useState(false);
 
   // Reset all fields when dialog opens with fresh data
   useEffect(() => {
