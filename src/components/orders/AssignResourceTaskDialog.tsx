@@ -23,8 +23,9 @@ import {
 } from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import { UserPlus, CalendarDays, Paperclip, CalendarIcon, Clock, ArrowRight, MapPin, Building2, Phone, User } from "lucide-react";
+import { UserPlus, CalendarDays, Paperclip, CalendarIcon, Clock, ArrowRight, MapPin, Building2, Phone, User, Bell, BellOff, MailCheck, MailX } from "lucide-react";
 import { TechnicianMultiSelect } from "@/components/TechnicianMultiSelect";
 import { format, setHours, setMinutes } from "date-fns";
 import { nb } from "date-fns/locale";
@@ -38,6 +39,8 @@ interface AssignResourceTaskDialogProps {
   summary: Record<string, any> | null;
   values: Record<string, any>;
   attachments: any[];
+  bestillerEpost?: string;
+  autoNotifyDefault?: boolean;
 }
 
 // Generate time options in 15-min intervals for full 24h
