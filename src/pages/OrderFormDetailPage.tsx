@@ -1221,12 +1221,12 @@ export default function OrderFormDetailPage() {
                       ) : (
                         <Bell className="h-3 w-3 text-muted-foreground" />
                       )}
-                      Varsle bestiller automatisk
+                      Varsle bestiller automatisk ved fremtidige oppdateringer
                     </span>
                     <p className="text-[10px] text-muted-foreground">
                       {(submission as any).auto_notify_on_status_change
-                        ? "E-post sendes automatisk ved delte oppdateringer"
-                        : "E-postvarsler sendes kun manuelt"}
+                        ? "Forhåndskrysser «Varsle bestiller nå» ved status-endring, tildeling og delte meldinger. Du kan alltid huke av."
+                        : "«Varsle bestiller nå» må aktivt hukes av for hver handling for å sende e-post."}
                     </p>
                   </div>
                 </label>
