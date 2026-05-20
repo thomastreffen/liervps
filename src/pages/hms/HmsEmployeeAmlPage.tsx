@@ -174,7 +174,15 @@ export default function HmsEmployeeAmlPage() {
             <div className="flex items-center gap-2 text-xs text-muted-foreground uppercase tracking-wider">
               <ShieldCheck className="h-3.5 w-3.5" /> AML-detalj
             </div>
-            <h1 className="text-2xl font-semibold">{data.acct?.person?.full_name || data.acct?.person?.email || id?.slice(0, 8) || "Ukjent"}</h1>
+            <h1 className="text-2xl font-semibold">{
+              data.acct?.person?.full_name
+                || data.entries.find((e: any) => e.employee_name)?.employee_name
+                || data.acct?.person?.email
+                || (() => {
+                    const ext = data.entries.find((e: any) => e.external_employee_id)?.external_employee_id;
+                    return ext ? `Ansatt #${ext}` : (id?.slice(0, 8) || "Ukjent");
+                  })()
+            }</h1>
           </div>
         </div>
         <ManualEntryDialog

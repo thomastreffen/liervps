@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -65,6 +65,7 @@ function periodRange(p: PeriodKey, customFrom: string, customTo: string): { from
 
 export default function HmsAmlPage() {
   const navigate = useNavigate();
+  const qc = useQueryClient();
   const { activeCompanyId } = useCompanyContext();
   const [q, setQ] = useState("");
   const [sevFilter, setSevFilter] = useState<"all" | Severity>("all");
@@ -98,7 +99,7 @@ export default function HmsAmlPage() {
 
       const { data: entries } = await sb
         .from("worktime_entries")
-        .select("user_id, total_hours, hours_overtime, work_date")
+        .select("user_id, total_hours, hours_overtime, work_date, employee_name, external_employee_id")
         .eq("company_id", activeCompanyId)
         .gte("work_date", range.from)
         .lte("work_date", range.to)
@@ -155,15 +156,35 @@ export default function HmsAmlPage() {
         ...((alerts ?? []) as AlertRow[]).map((a) => a.user_id),
         ...stats.keys(),
       ]));
-      let names: Record<string, string> = {};
+
+      // Build fallback identifiers from worktime entries (employee_name + external_employee_id)
+      const entryFallback = new Map<string, { name?: string; ext?: string }>();
+      for (const e of entries ?? []) {
+        const cur = entryFallback.get(e.user_id) ?? {};
+        if (!cur.name && e.employee_name) cur.name = e.employee_name as string;
+        if (!cur.ext && e.external_employee_id) cur.ext = e.external_employee_id as string;
+        entryFallback.set(e.user_id, cur);
+      }
+
+      let accountInfo: Record<string, { name?: string; email?: string }> = {};
       if (userIds.length > 0) {
         const { data: accs } = await sb
           .from("user_accounts")
           .select("auth_user_id, person:people!user_accounts_person_id_fkey(full_name, email)")
           .in("auth_user_id", userIds);
-        names = Object.fromEntries(
-          (accs ?? []).map((a: any) => [a.auth_user_id, a.person?.full_name || a.person?.email || "Ukjent"])
+        accountInfo = Object.fromEntries(
+          (accs ?? []).map((a: any) => [a.auth_user_id, { name: a.person?.full_name, email: a.person?.email }])
         );
+      }
+
+      function resolveName(uid: string): string {
+        const acc = accountInfo[uid];
+        if (acc?.name) return acc.name;
+        const fb = entryFallback.get(uid);
+        if (fb?.name) return fb.name;
+        if (acc?.email) return acc.email;
+        if (fb?.ext) return `Ansatt #${fb.ext}`;
+        return "Ukjent";
       }
 
       const lastRun = ((alerts ?? []) as any[]).reduce((mx: string | null, a: any) => {
@@ -174,7 +195,7 @@ export default function HmsAmlPage() {
       const byUser = new Map<string, { name: string; alerts: AlertRow[]; s: S }>();
       for (const uid of userIds) {
         const s = stats.get(uid) ?? { hours: 0, overtime: 0, ot4w: 0, lastDate: null, maxDay: null, maxWeek: null };
-        byUser.set(uid, { name: names[uid] ?? "Ukjent", alerts: [], s });
+        byUser.set(uid, { name: resolveName(uid), alerts: [], s });
       }
       for (const a of (alerts ?? []) as AlertRow[]) {
         const v = byUser.get(a.user_id);
@@ -222,11 +243,18 @@ export default function HmsAmlPage() {
         body: { company_id: activeCompanyId },
       });
       if (error) throw error;
+      // Invalidate all AML/employee-related caches so names/data refresh together
+      await Promise.all([
+        qc.invalidateQueries({ predicate: (q) => {
+          const k = q.queryKey?.[0];
+          return typeof k === "string" && (k.startsWith("hms-aml") || k === "employee-profiles" || k === "hms-import-batches");
+        }}),
+      ]);
+      await refetch();
       toast({
         title: "AML-motor kjørt",
         description: `${data?.users_evaluated ?? 0} ansatte · ${data?.new_alerts ?? 0} nye varsler · ${data?.resolved_alerts ?? 0} løste`,
       });
-      refetch();
     } catch (e: any) {
       toast({ title: "AML-motor feilet", description: String(e.message || e), variant: "destructive" });
     } finally {
@@ -333,7 +361,14 @@ export default function HmsAmlPage() {
         </Select>
       </div>
 
-      {isLoading ? (
+      {running && (
+        <div className="rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-xs text-primary flex items-center gap-2">
+          <span className="inline-block h-2 w-2 rounded-full bg-primary animate-pulse" />
+          Oppdaterer AML-status og ansattdata… vent til prosessen er ferdig.
+        </div>
+      )}
+
+      {isLoading || running ? (
         <Skeleton className="h-40" />
       ) : sorted.length === 0 ? (
         <Card className="border-dashed">

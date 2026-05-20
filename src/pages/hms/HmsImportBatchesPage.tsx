@@ -34,9 +34,12 @@ export default function HmsImportBatchesPage() {
         body: { company_id: activeCompanyId, batch_id: batchId },
       });
     },
-    onSuccess: () => {
+    onSuccess: async () => {
+      await qc.invalidateQueries({ predicate: (q) => {
+        const k = q.queryKey?.[0];
+        return typeof k === "string" && (k.startsWith("hms-aml") || k === "employee-profiles" || k === "hms-import-batches");
+      }});
       toast({ title: "AML-kontroll kjørt på nytt" });
-      qc.invalidateQueries({ queryKey: ["hms-aml-v2"] });
     },
     onError: (e: any) => toast({ title: "Feil", description: String(e.message || e), variant: "destructive" }),
   });
