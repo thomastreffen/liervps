@@ -65,6 +65,7 @@ function periodRange(p: PeriodKey, customFrom: string, customTo: string): { from
 
 export default function HmsAmlPage() {
   const navigate = useNavigate();
+  const qc = useQueryClient();
   const { activeCompanyId } = useCompanyContext();
   const [q, setQ] = useState("");
   const [sevFilter, setSevFilter] = useState<"all" | Severity>("all");
