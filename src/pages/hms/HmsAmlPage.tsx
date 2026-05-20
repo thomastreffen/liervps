@@ -243,11 +243,18 @@ export default function HmsAmlPage() {
         body: { company_id: activeCompanyId },
       });
       if (error) throw error;
+      // Invalidate all AML/employee-related caches so names/data refresh together
+      await Promise.all([
+        qc.invalidateQueries({ predicate: (q) => {
+          const k = q.queryKey?.[0];
+          return typeof k === "string" && (k.startsWith("hms-aml") || k === "employee-profiles" || k === "hms-import-batches");
+        }}),
+      ]);
+      await refetch();
       toast({
         title: "AML-motor kjørt",
         description: `${data?.users_evaluated ?? 0} ansatte · ${data?.new_alerts ?? 0} nye varsler · ${data?.resolved_alerts ?? 0} løste`,
       });
-      refetch();
     } catch (e: any) {
       toast({ title: "AML-motor feilet", description: String(e.message || e), variant: "destructive" });
     } finally {
