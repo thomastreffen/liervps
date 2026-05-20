@@ -99,7 +99,7 @@ export default function HmsAmlPage() {
 
       const { data: entries } = await sb
         .from("worktime_entries")
-        .select("user_id, total_hours, hours_overtime, work_date")
+        .select("user_id, total_hours, hours_overtime, work_date, employee_name, external_employee_id")
         .eq("company_id", activeCompanyId)
         .gte("work_date", range.from)
         .lte("work_date", range.to)
