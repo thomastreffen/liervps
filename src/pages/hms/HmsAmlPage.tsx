@@ -361,7 +361,14 @@ export default function HmsAmlPage() {
         </Select>
       </div>
 
-      {isLoading ? (
+      {running && (
+        <div className="rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-xs text-primary flex items-center gap-2">
+          <span className="inline-block h-2 w-2 rounded-full bg-primary animate-pulse" />
+          Oppdaterer AML-status og ansattdata… vent til prosessen er ferdig.
+        </div>
+      )}
+
+      {isLoading || running ? (
         <Skeleton className="h-40" />
       ) : sorted.length === 0 ? (
         <Card className="border-dashed">
