@@ -342,9 +342,12 @@ export default function HmsWorktimeImportPage() {
       if (amlErr) console.error("AML evaluate failed", amlErr);
       return { batch_id: batch.id, inserted, updated, skipped, unmatched: unmatchedCount, aml: aml ?? null, amlError: amlErr ? String(amlErr?.message || amlErr) : null };
     },
-    onSuccess: (r) => {
+    onSuccess: async (r) => {
       setResult(r); setStep("done");
-      qc.invalidateQueries({ queryKey: ["hms-aml"] });
+      await qc.invalidateQueries({ predicate: (q) => {
+        const k = q.queryKey?.[0];
+        return typeof k === "string" && (k.startsWith("hms-aml") || k === "employee-profiles" || k === "hms-import-batches");
+      }});
       toast({ title: "Import fullført", description: `${r.inserted} nye, ${r.updated} oppdatert` });
     },
     onError: (e: any) => {
