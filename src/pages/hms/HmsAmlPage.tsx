@@ -156,15 +156,35 @@ export default function HmsAmlPage() {
         ...((alerts ?? []) as AlertRow[]).map((a) => a.user_id),
         ...stats.keys(),
       ]));
-      let names: Record<string, string> = {};
+
+      // Build fallback identifiers from worktime entries (employee_name + external_employee_id)
+      const entryFallback = new Map<string, { name?: string; ext?: string }>();
+      for (const e of entries ?? []) {
+        const cur = entryFallback.get(e.user_id) ?? {};
+        if (!cur.name && e.employee_name) cur.name = e.employee_name as string;
+        if (!cur.ext && e.external_employee_id) cur.ext = e.external_employee_id as string;
+        entryFallback.set(e.user_id, cur);
+      }
+
+      let accountInfo: Record<string, { name?: string; email?: string }> = {};
       if (userIds.length > 0) {
         const { data: accs } = await sb
           .from("user_accounts")
           .select("auth_user_id, person:people!user_accounts_person_id_fkey(full_name, email)")
           .in("auth_user_id", userIds);
-        names = Object.fromEntries(
-          (accs ?? []).map((a: any) => [a.auth_user_id, a.person?.full_name || a.person?.email || "Ukjent"])
+        accountInfo = Object.fromEntries(
+          (accs ?? []).map((a: any) => [a.auth_user_id, { name: a.person?.full_name, email: a.person?.email }])
         );
+      }
+
+      function resolveName(uid: string): string {
+        const acc = accountInfo[uid];
+        if (acc?.name) return acc.name;
+        const fb = entryFallback.get(uid);
+        if (fb?.name) return fb.name;
+        if (acc?.email) return acc.email;
+        if (fb?.ext) return `Ansatt #${fb.ext}`;
+        return "Ukjent";
       }
 
       const lastRun = ((alerts ?? []) as any[]).reduce((mx: string | null, a: any) => {
@@ -175,7 +195,7 @@ export default function HmsAmlPage() {
       const byUser = new Map<string, { name: string; alerts: AlertRow[]; s: S }>();
       for (const uid of userIds) {
         const s = stats.get(uid) ?? { hours: 0, overtime: 0, ot4w: 0, lastDate: null, maxDay: null, maxWeek: null };
-        byUser.set(uid, { name: names[uid] ?? "Ukjent", alerts: [], s });
+        byUser.set(uid, { name: resolveName(uid), alerts: [], s });
       }
       for (const a of (alerts ?? []) as AlertRow[]) {
         const v = byUser.get(a.user_id);
