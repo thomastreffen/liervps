@@ -229,12 +229,12 @@ export default function HmsAmlPage() {
     if (import.meta.env.DEV && !isLoading && !running && data) {
       console.debug("[HMS init] AML rows built", {
         companyId: activeCompanyId,
-        employeeProfiles: hmsContext.employeeProfiles.length,
+        employeeProfiles: employeeProfilesQuery.data?.length ?? 0,
         rows: data.users.length,
         unknownRows: data.users.filter((u: any) => u.name === "Ukjent").length,
       });
     }
-  }, [activeCompanyId, data, hmsContext.employeeProfiles.length, isLoading, running]);
+  }, [activeCompanyId, data, employeeProfilesQuery.data?.length, isLoading, running]);
 
   const filtered = users.filter((u) => {
     if (q && !u.name.toLowerCase().includes(q.toLowerCase())) return false;
