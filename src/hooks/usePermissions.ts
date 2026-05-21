@@ -41,6 +41,7 @@ export function usePermissions(): PermissionState {
   const [scope, setScope] = useState<"own" | "company" | "all">("own");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+  const [resolvedContextKey, setResolvedContextKey] = useState<string | null>(null);
   const requestSeq = useRef(0);
 
   const fetchPermissions = useCallback(async () => {
@@ -161,6 +162,7 @@ export function usePermissions(): PermissionState {
 
       if (seq !== requestSeq.current) return;
       setPermissions(merged);
+      setResolvedContextKey(`${user.id}:${activeCompanyId ?? "all"}`);
 
       if (merged["scope.view.all"]) setScope("all");
       else if (merged["scope.view.company"]) setScope("company");
@@ -189,16 +191,19 @@ export function usePermissions(): PermissionState {
     [permissions, preview]
   );
 
+  const currentContextKey = user ? `${user.id}:${activeCompanyId ?? "all"}` : null;
+  const contextLoading = !!user && resolvedContextKey !== currentContextKey;
+
   if (preview?.active) {
     return {
       permissions: preview.permissions,
       scope: preview.scope,
-      loading: preview.loading,
+      loading: preview.loading || contextLoading,
       error: null,
       hasPermission,
       refetch: fetchPermissions,
     };
   }
 
-  return { permissions, scope, loading, error, hasPermission, refetch: fetchPermissions };
+  return { permissions, scope, loading: loading || contextLoading, error, hasPermission, refetch: fetchPermissions };
 }
