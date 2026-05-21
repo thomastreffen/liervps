@@ -492,6 +492,17 @@ export default function OrderTrackingPage() {
     },
   });
 
+  const { data: linkedEvent } = useQuery({
+    queryKey: ["tracking-linked-event", token, (submission as any)?.linked_event_id],
+    enabled: !!token && !!(submission as any)?.linked_event_id,
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .rpc("get_linked_event_for_tracking_token", { _token: token! });
+      const row = Array.isArray(data) ? data[0] : data;
+      return row || null;
+    },
+  });
+
   const { data: legacyComments = [] } = useQuery({
     queryKey: ["tracking-comments-legacy", token],
     enabled: !!token,
