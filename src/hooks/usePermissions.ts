@@ -51,6 +51,7 @@ export function usePermissions(): PermissionState {
       setScope("own");
       setLoading(false);
       setError(null);
+      setResolvedContextKey(null);
       return;
     }
 
@@ -171,6 +172,7 @@ export function usePermissions(): PermissionState {
       console.warn("[Permissions] fetch error:", err);
       if (seq === requestSeq.current) {
         setError(err instanceof Error ? err : new Error(String(err)));
+        setResolvedContextKey(`${user.id}:${activeCompanyId ?? "all"}`);
       }
     } finally {
       if (seq === requestSeq.current) setLoading(false);
