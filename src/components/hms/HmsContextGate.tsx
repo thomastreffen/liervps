@@ -28,6 +28,45 @@ export type EmployeeProfileLookup = {
   email: string | null;
 };
 
+export function useHmsEmployeeProfiles(companyId: string | null, enabled = true) {
+  return useQuery({
+    queryKey: ["employee-profiles", "hms-context", companyId],
+    enabled: !!companyId && enabled,
+    staleTime: 30_000,
+    queryFn: async () => {
+      const sb = supabase as any;
+      const { data, error } = await sb
+        .from("employee_work_profiles")
+        .select("user_id, external_employee_id")
+        .eq("company_id", companyId);
+      if (error) throw error;
+
+      const profiles = (data ?? []) as { user_id: string; external_employee_id: string | null }[];
+      const userIds = [...new Set(profiles.map((p) => p.user_id).filter(Boolean))];
+      let accountInfo: Record<string, { name: string | null; email: string | null }> = {};
+      if (userIds.length > 0) {
+        const { data: accounts, error: accountError } = await sb
+          .from("user_accounts")
+          .select("auth_user_id, person:people!user_accounts_person_id_fkey(full_name, email)")
+          .in("auth_user_id", userIds);
+        if (accountError) throw accountError;
+        accountInfo = Object.fromEntries(
+          (accounts ?? []).map((a: any) => [
+            a.auth_user_id,
+            { name: a.person?.full_name ?? null, email: a.person?.email ?? null },
+          ])
+        );
+      }
+
+      return profiles.map((p) => ({
+        ...p,
+        name: accountInfo[p.user_id]?.name ?? null,
+        email: accountInfo[p.user_id]?.email ?? null,
+      })) as EmployeeProfileLookup[];
+    },
+  });
+}
+
 export function useHmsContextReady(): HmsContextState {
   const { user, isAdmin } = useAuth();
   const company = useCompanyContext();
