@@ -36,7 +36,7 @@ export function useHmsContextReady(): HmsContextState {
   const companyId = company.activeCompanyId;
 
   const employeeProfilesQuery = useQuery({
-    queryKey: ["hms-context", "employee-profiles", companyId],
+    queryKey: ["employee-profiles", "hms-context", companyId],
     enabled: !!companyId && !!user?.id,
     staleTime: 30_000,
     queryFn: async () => {
