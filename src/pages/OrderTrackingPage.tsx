@@ -720,12 +720,56 @@ export default function OrderTrackingPage() {
   const hasMessages = allMessages.length > 0;
   const isClosed = externalStatus === "completed" || externalStatus === "closed";
 
-  // Split headline so the last word lands on its own line and gets the primary accent
-  const headlineParts = (() => {
-    const words = human.headline.trim().split(/\s+/);
-    if (words.length < 2) return { lead: "", accent: human.headline };
-    return { lead: words.slice(0, -1).join(" "), accent: words[words.length - 1] };
+  // === New hero identity: site/address is primary, customer/template secondary ===
+  const pickStr = (...vals: any[]) =>
+    vals.map((v) => (typeof v === "string" ? v.trim() : "")).find((v) => v) || "";
+
+  const siteTitle =
+    pickStr(
+      valuesMap.oppdragssted,
+      valuesMap.anleggsadresse,
+      valuesMap.oppdragstittel,
+      getSubmissionDisplayTitle(sub),
+    ) || sub.submission_no || "Bestilling";
+
+  const customerName = pickStr(
+    valuesMap.firmanavn,
+    valuesMap.kundenavn,
+    sub.summary?.firmanavn,
+    sub.summary?.kundenavn,
+  );
+
+  // "Servicejobb for Elektroentreprenøren AS"
+  const heroSubtitle = (() => {
+    const tmpl = templateName && templateName !== "Bestilling" ? templateName : "";
+    if (tmpl && customerName) return `${tmpl} for ${customerName}`;
+    if (tmpl) return tmpl;
+    if (customerName) return `For ${customerName}`;
+    return "";
   })();
+
+  const addressLine = getSubmissionAddressLine(sub) || pickStr(valuesMap.anleggsadresse);
+  // Avoid showing address twice when it's already the title
+  const showSecondaryAddress = addressLine && addressLine !== siteTitle && !siteTitle.includes(addressLine);
+
+  // Planned event time block
+  const ev = (linkedEvent as any) || null;
+  const plannedBlock = (() => {
+    if (!ev?.start_time) return null;
+    if (!["planned", "in_progress"].includes(externalStatus)) return null;
+    const start = new Date(ev.start_time);
+    const end = ev.end_time ? new Date(ev.end_time) : null;
+    const sameDay = end && start.toDateString() === end.toDateString();
+    const dayLabel = format(start, "EEEE d. MMMM", { locale: nb });
+    const timeLabel = end
+      ? sameDay
+        ? `${format(start, "HH:mm")}–${format(end, "HH:mm")}`
+        : `${format(start, "d. MMM HH:mm")} – ${format(end, "d. MMM HH:mm", { locale: nb })}`
+      : format(start, "HH:mm");
+    const verb = externalStatus === "in_progress" ? "Pågår" : "Planlagt";
+    return { label: `${verb} ${dayLabel} kl. ${timeLabel}` };
+  })();
+
 
   return (
     <div className="min-h-screen bg-[hsl(36_40%_97%)] dark:bg-background">
