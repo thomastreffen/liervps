@@ -115,7 +115,19 @@ export function useHmsContextReady(): HmsContextState {
 export function HmsContextGate({ children, label = "Laster HMS & HR…" }: { children: ReactNode; label?: string }) {
   const context = useHmsContextReady();
 
-  if (context.loading || !context.companyId) return <HmsLoading label={label} />;
+  if (context.loading) return <HmsLoading label={label} />;
+
+  if (!context.companyId) {
+    return (
+      <div className="p-4 sm:p-6 max-w-3xl mx-auto">
+        <Alert>
+          <ShieldCheck className="h-4 w-4" />
+          <AlertTitle>Velg selskap for HMS &amp; HR</AlertTitle>
+          <AlertDescription>HMS-data må åpnes i ett valgt selskap for å unngå blandet cache og feil tilgangsbilde.</AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
 
   if (context.error) {
     return (
