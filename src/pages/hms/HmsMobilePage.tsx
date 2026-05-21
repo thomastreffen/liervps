@@ -309,7 +309,17 @@ export default function HmsMobilePage() {
           </TabsContent>
 
           <TabsContent value="håndbok" className="space-y-2 mt-4">
-            {(handbooks ?? []).length === 0 && (
+            {handbooksLoading ? (
+              <div className="space-y-2">
+                <div className="text-sm text-muted-foreground py-2">Laster håndbøker…</div>
+                <div className="h-16 rounded-lg bg-muted animate-pulse" />
+                <div className="h-16 rounded-lg bg-muted animate-pulse" />
+              </div>
+            ) : handbooksError ? (
+              <div className="text-center text-sm text-destructive py-12">
+                Kunne ikke laste håndbøker: {(handbooksError as Error).message}
+              </div>
+            ) : (handbooks ?? []).length === 0 && (
               <div className="text-center text-sm text-muted-foreground py-12">
                 Ingen håndbøker funnet.
               </div>
