@@ -807,6 +807,7 @@ export default function OrderTrackingPage() {
           <div className="grid sm:grid-cols-[1.25fr_1fr] gap-0 items-end relative">
             {/* Left: text */}
             <div className="p-6 sm:p-12 space-y-7 order-2 sm:order-1 relative z-10">
+              {/* Status + planned time */}
               <div className="flex flex-wrap items-center gap-2.5">
                 <Badge
                   className={cn(
@@ -823,20 +824,34 @@ export default function OrderTrackingPage() {
                     Vi venter på svar fra deg
                   </Badge>
                 )}
-                <span className="text-xs sm:text-sm text-foreground/70 font-medium">
-                  {templateName}
-                </span>
+                {plannedBlock && (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-foreground/[0.06] text-foreground/80 px-3 py-1.5 text-xs font-semibold">
+                    <Calendar className="h-3.5 w-3.5 text-accent" />
+                    {plannedBlock.label}
+                  </span>
+                )}
               </div>
 
-              <div className="space-y-3">
-                <h1 className="text-[2.5rem] sm:text-6xl font-black text-foreground tracking-tight leading-[1.02]">
-                  {headlineParts.lead}{headlineParts.lead && " "}
-                  <span className="text-accent block sm:inline">{headlineParts.accent}</span>
+              {/* Primary identity: site/address */}
+              <div className="space-y-2">
+                <h1 className="text-[2.25rem] sm:text-[3.25rem] font-black text-foreground tracking-tight leading-[1.05] break-words">
+                  {siteTitle}
                 </h1>
-                <p className="text-base sm:text-lg text-foreground/70 leading-relaxed max-w-md">
-                  {human.body}
-                </p>
+                {heroSubtitle && (
+                  <p className="text-base sm:text-xl text-foreground/75 font-semibold leading-snug">
+                    {heroSubtitle}
+                  </p>
+                )}
+                {showSecondaryAddress && (
+                  <p className="text-sm text-foreground/60">{addressLine}</p>
+                )}
               </div>
+
+              {/* Human-friendly status copy as supporting paragraph */}
+              <p className="text-sm sm:text-base text-foreground/70 leading-relaxed max-w-md">
+                <span className="font-semibold text-foreground/85">{human.headline}.</span>{" "}
+                {human.body}
+              </p>
 
               {needsInfo && (
                 <div className="rounded-2xl border-2 border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800/50 p-4 sm:p-5 space-y-2 max-w-xl">
@@ -856,47 +871,26 @@ export default function OrderTrackingPage() {
                 </div>
               )}
 
-              <div className="flex flex-wrap gap-x-6 gap-y-3 pt-1">
-                <div className="flex items-start gap-2">
-                  <div className="h-8 w-8 rounded-lg bg-accent/15 text-accent flex items-center justify-center shrink-0 mt-0.5">
-                    <FileText className="h-4 w-4" />
-                  </div>
-                  <div>
-                    <span className="block text-[10px] uppercase tracking-wider text-muted-foreground font-bold">
-                      Bestilling
-                    </span>
-                    <span className="text-sm text-foreground font-bold">{sub.submission_no}</span>
-                  </div>
-                </div>
-                <div className="flex items-start gap-2">
-                  <div className="h-8 w-8 rounded-lg bg-accent/15 text-accent flex items-center justify-center shrink-0 mt-0.5">
-                    <Calendar className="h-4 w-4" />
-                  </div>
-                  <div>
-                    <span className="block text-[10px] uppercase tracking-wider text-muted-foreground font-bold">
-                      Sendt
-                    </span>
-                    <span className="text-sm text-foreground font-semibold">
-                      {format(new Date(sub.submitted_at || sub.created_at), "d. MMM yyyy", { locale: nb })}
-                    </span>
-                  </div>
-                </div>
+              {/* Compact metadata line */}
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-foreground/60 font-medium pt-1">
+                <span className="inline-flex items-center gap-1.5 font-mono text-foreground/80">
+                  <FileText className="h-3.5 w-3.5 text-accent" />
+                  {sub.submission_no}
+                </span>
+                <span aria-hidden className="text-foreground/30">·</span>
+                <span>
+                  sendt {format(new Date(sub.submitted_at || sub.created_at), "d. MMMM yyyy", { locale: nb })}
+                </span>
                 {lastUpdated && (
-                  <div className="flex items-start gap-2">
-                    <div className="h-8 w-8 rounded-lg bg-accent/15 text-accent flex items-center justify-center shrink-0 mt-0.5">
-                      <Timer className="h-4 w-4" />
-                    </div>
-                    <div>
-                      <span className="block text-[10px] uppercase tracking-wider text-muted-foreground font-bold">
-                        Oppdatert
-                      </span>
-                      <span className="text-sm text-foreground font-semibold">
-                        {formatDistanceToNow(new Date(lastUpdated), { addSuffix: true, locale: nb })}
-                      </span>
-                    </div>
-                  </div>
+                  <>
+                    <span aria-hidden className="text-foreground/30">·</span>
+                    <span>
+                      oppdatert {formatDistanceToNow(new Date(lastUpdated), { addSuffix: true, locale: nb })}
+                    </span>
+                  </>
                 )}
               </div>
+
 
               {needsInfo && (
                 <Button
