@@ -128,6 +128,21 @@ function NavItem({ item, isActive, collapsed, badge }: {
   );
 }
 
+function SidebarLoadingRows({ collapsed }: { collapsed: boolean }) {
+  return (
+    <>
+      {Array.from({ length: 8 }).map((_, i) => (
+        <SidebarMenuItem key={i}>
+          <div className="flex h-10 items-center gap-3 rounded-xl px-3">
+            <Skeleton className="h-[19px] w-[19px] rounded-md" />
+            {!collapsed && <Skeleton className="h-3.5 flex-1" />}
+          </div>
+        </SidebarMenuItem>
+      ))}
+    </>
+  );
+}
+
 export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
