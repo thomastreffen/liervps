@@ -12073,6 +12073,17 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      get_linked_event_for_tracking_token: {
+        Args: { _token: string }
+        Returns: {
+          address: string
+          end_time: string
+          id: string
+          start_time: string
+          status: string
+          title: string
+        }[]
+      }
       get_order_company_id: {
         Args: { _submission_id: string }
         Returns: string
