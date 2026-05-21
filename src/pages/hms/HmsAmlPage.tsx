@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   AlertTriangle,
@@ -19,6 +19,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
+import { useHmsContextReady } from "@/components/hms/HmsContextGate";
 
 type Severity = "info" | "warning" | "critical";
 
@@ -67,6 +68,7 @@ export default function HmsAmlPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const { activeCompanyId } = useCompanyContext();
+  const hmsContext = useHmsContextReady();
   const [q, setQ] = useState("");
   const [sevFilter, setSevFilter] = useState<"all" | Severity>("all");
   const [statusFilter, setStatusFilter] = useState<"open_ack" | "open" | "acknowledged" | "resolved" | "all">("open_ack");
@@ -77,10 +79,17 @@ export default function HmsAmlPage() {
   const [running, setRunning] = useState(false);
 
   const range = useMemo(() => periodRange(period, customFrom, customTo), [period, customFrom, customTo]);
+  const employeeProfileMap = useMemo(() => new Map(
+    hmsContext.employeeProfiles.map((p) => [p.user_id, { name: p.name ?? undefined, email: p.email ?? undefined, ext: p.external_employee_id ?? undefined }])
+  ), [hmsContext.employeeProfiles]);
+  const employeeProfileVersion = useMemo(
+    () => hmsContext.employeeProfiles.map((p) => `${p.user_id}:${p.name ?? ""}:${p.email ?? ""}:${p.external_employee_id ?? ""}`).sort().join("|"),
+    [hmsContext.employeeProfiles]
+  );
 
   const { data, isLoading, refetch } = useQuery({
-    queryKey: ["hms-aml-v4", activeCompanyId, statusFilter, ruleFilter, range.from, range.to],
-    enabled: !!activeCompanyId,
+    queryKey: ["hms-aml-v5", activeCompanyId, statusFilter, ruleFilter, range.from, range.to, employeeProfileVersion],
+    enabled: !!activeCompanyId && hmsContext.ready,
     queryFn: async () => {
       const sb = supabase as any;
 
@@ -178,11 +187,15 @@ export default function HmsAmlPage() {
       }
 
       function resolveName(uid: string): string {
+        const profile = employeeProfileMap.get(uid);
+        if (profile?.name) return profile.name;
         const acc = accountInfo[uid];
         if (acc?.name) return acc.name;
         const fb = entryFallback.get(uid);
         if (fb?.name) return fb.name;
+        if (profile?.email) return profile.email;
         if (acc?.email) return acc.email;
+        if (profile?.ext) return `Ansatt #${profile.ext}`;
         if (fb?.ext) return `Ansatt #${fb.ext}`;
         return "Ukjent";
       }
@@ -211,6 +224,17 @@ export default function HmsAmlPage() {
   });
 
   const users = data?.users ?? [];
+
+  useEffect(() => {
+    if (import.meta.env.DEV && !isLoading && !running && data) {
+      console.debug("[HMS init] AML rows built", {
+        companyId: activeCompanyId,
+        employeeProfiles: hmsContext.employeeProfiles.length,
+        rows: data.users.length,
+        unknownRows: data.users.filter((u: any) => u.name === "Ukjent").length,
+      });
+    }
+  }, [activeCompanyId, data, hmsContext.employeeProfiles.length, isLoading, running]);
 
   const filtered = users.filter((u) => {
     if (q && !u.name.toLowerCase().includes(q.toLowerCase())) return false;
