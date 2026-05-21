@@ -533,102 +533,102 @@ const App = () => (
               {/* HMS & HR module */}
               <Route path="/hms" element={
                 <ProtectedRoute requiredPermission="hms.view">
-                  <HmsOverviewPage />
+                  <HmsPage><HmsOverviewPage /></HmsPage>
                 </ProtectedRoute>
               } />
               <Route path="/hms/handbooks" element={
                 <ProtectedRoute requiredPermission="hms.view">
-                  <HmsHandbooksPage />
+                  <HmsPage><HmsHandbooksPage /></HmsPage>
                 </ProtectedRoute>
               } />
               <Route path="/hms/handbooks/:id" element={
                 <ProtectedRoute requiredPermission="hms.view">
-                  <HmsHandbookDetailPage />
+                  <HmsPage><HmsHandbookDetailPage /></HmsPage>
                 </ProtectedRoute>
               } />
               <Route path="/hms/aml" element={
                 <ProtectedRoute requiredPermission="hms.view">
-                  <HmsAmlPage />
+                  <HmsPage><HmsAmlPage /></HmsPage>
                 </ProtectedRoute>
               } />
               <Route path="/hms/areas" element={
                 <ProtectedRoute requiredPermission="hms.view">
-                  <HmsAreasPage />
+                  <HmsPage><HmsAreasPage /></HmsPage>
                 </ProtectedRoute>
               } />
               <Route path="/hms/templates" element={
                 <ProtectedRoute requiredPermission="hms.view">
-                  <HmsTemplatesPage />
+                  <HmsPage><HmsTemplatesPage /></HmsPage>
                 </ProtectedRoute>
               } />
               <Route path="/hms/templates/:id" element={
                 <ProtectedRoute requiredPermission="hms.manage">
-                  <HmsTemplateEditorPage />
+                  <HmsPage><HmsTemplateEditorPage /></HmsPage>
                 </ProtectedRoute>
               } />
               <Route path="/hms/mobile" element={
                 <ProtectedRoute requiredPermission="hms.view">
-                  <HmsMobilePage />
+                  <HmsPage><HmsMobilePage /></HmsPage>
                 </ProtectedRoute>
               } />
               <Route path="/hms/mobile/fill/:id" element={
                 <ProtectedRoute requiredPermission="hms.view">
-                  <HmsSubmissionFillPage />
+                  <HmsPage><HmsSubmissionFillPage /></HmsPage>
                 </ProtectedRoute>
               } />
               <Route path="/hms/submissions" element={
                 <ProtectedRoute requiredPermission="hms.view">
-                  <HmsSubmissionsPage />
+                  <HmsPage><HmsSubmissionsPage /></HmsPage>
                 </ProtectedRoute>
               } />
               <Route path="/hms/submissions/:id" element={
                 <ProtectedRoute requiredPermission="hms.view">
-                  <HmsSubmissionDetailPage />
+                  <HmsPage><HmsSubmissionDetailPage /></HmsPage>
                 </ProtectedRoute>
               } />
               <Route path="/hms/import" element={
                 <ProtectedRoute requiredPermission="hms.manage">
-                  <HmsWorktimeImportPage />
+                  <HmsPage><HmsWorktimeImportPage /></HmsPage>
                 </ProtectedRoute>
               } />
               <Route path="/hms/aml/:id" element={
                 <ProtectedRoute requiredPermission="hms.view">
-                  <HmsEmployeeAmlPage />
+                  <HmsPage><HmsEmployeeAmlPage /></HmsPage>
                 </ProtectedRoute>
               } />
               <Route path="/hms/rulesets" element={
                 <ProtectedRoute requiredPermission="hms.manage">
-                  <HmsRulesetsPage />
+                  <HmsPage><HmsRulesetsPage /></HmsPage>
                 </ProtectedRoute>
               } />
               <Route path="/hms/overtime" element={
                 <ProtectedRoute requiredPermission="hms.view">
-                  <HmsOvertimePage />
+                  <HmsPage><HmsOvertimePage /></HmsPage>
                 </ProtectedRoute>
               } />
               <Route path="/hms/import/batches" element={
                 <ProtectedRoute requiredPermission="hms.manage">
-                  <HmsImportBatchesPage />
+                  <HmsPage><HmsImportBatchesPage /></HmsPage>
                 </ProtectedRoute>
               } />
               <Route path="/hms/reports" element={
                 <ProtectedRoute requiredPermission="hms.view">
-                  <HmsReportsPage />
+                  <HmsPage><HmsReportsPage /></HmsPage>
                 </ProtectedRoute>
               } />
               <Route path="/hms/incidents" element={
                 <ProtectedRoute requiredPermission="hms.view">
-                  <HmsIncidentsListPage />
+                  <HmsPage><HmsIncidentsListPage /></HmsPage>
                 </ProtectedRoute>
               } />
               <Route path="/hms/incidents/new" element={
                 <ProtectedRoute requiredPermission="hms.view">
-                  <HmsIncidentReportPage />
+                  <HmsPage><HmsIncidentReportPage /></HmsPage>
                 </ProtectedRoute>
               } />
               <Route path="/hms/incidents/:id" element={
                 <ProtectedRoute requiredPermission="hms.view">
-                  <HmsIncidentDetailPage />
+                  <HmsPage><HmsIncidentDetailPage /></HmsPage>
                 </ProtectedRoute>
               } />
             </Route>
