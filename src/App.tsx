@@ -125,6 +125,7 @@ import HmsReportsPage from "./pages/hms/HmsReportsPage";
 import HmsIncidentReportPage from "./pages/hms/HmsIncidentReportPage";
 import HmsIncidentsListPage from "./pages/hms/HmsIncidentsListPage";
 import HmsIncidentDetailPage from "./pages/hms/HmsIncidentDetailPage";
+import { HmsContextGate } from "@/components/hms/HmsContextGate";
 import { CompanyProvider, useCompanyContext } from "@/hooks/useCompanyContext";
 import { ActiveCompanyForPermissions } from "@/hooks/usePermissions";
 import { PreviewModeProvider } from "@/hooks/usePreviewMode";
@@ -152,6 +153,10 @@ function PermissionCompanyBridge({ children }: { children: React.ReactNode }) {
       {children}
     </ActiveCompanyForPermissions>
   );
+}
+
+function HmsPage({ children }: { children: React.ReactNode }) {
+  return <HmsContextGate>{children}</HmsContextGate>;
 }
 
 const App = () => (
