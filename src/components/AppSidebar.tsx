@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/hooks/useAuth";
+import { useCompanyContext } from "@/hooks/useCompanyContext";
 import { usePreviewMode } from "@/hooks/usePreviewMode";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useModuleVisibility } from "@/hooks/useModuleVisibility";
@@ -49,6 +50,8 @@ import {
 } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 
 /**
  * TWO-LAYER MODULE ACCESS:
@@ -129,8 +132,11 @@ export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
   const { isAdmin: realIsAdmin, isSuperAdmin: realIsSuperAdmin, user } = useAuth();
-  const { hasPermission } = usePermissions();
-  const { isModuleVisible } = useModuleVisibility();
+  const { activeCompanyId, loading: companyLoading } = useCompanyContext();
+  const permissions = usePermissions();
+  const { hasPermission, loading: permissionsLoading, error: permissionsError } = permissions;
+  const modules = useModuleVisibility();
+  const { isModuleVisible, loading: modulesLoading, error: modulesError } = modules;
   const { active: previewActive, effectiveRole } = usePreviewMode();
   const location = useLocation();
 
@@ -201,6 +207,21 @@ export function AppSidebar() {
 
   const adminActive = filteredAdmin.some((item) => isActive(item.url));
 
+  const navLoading = companyLoading || permissionsLoading || modulesLoading;
+  const navError = permissionsError ?? modulesError;
+
+  useEffect(() => {
+    if (import.meta.env.DEV && !navLoading && !navError) {
+      console.debug("[HMS init] sidebar items built", {
+        companyId: activeCompanyId,
+        permissionsLoaded: !permissionsLoading,
+        enabledModulesLoaded: !modulesLoading,
+        hmsVisible: canAccessModule("hms", "module.hms"),
+        hmsItems: canAccessModule("hms", "module.hms") ? 12 : 0,
+      });
+    }
+  }, [activeCompanyId, modulesLoading, navError, navLoading, permissionsLoading]);
+
   const getBadge = (url: string): number | undefined => {
     if (url === "/projects") return projectCount > 0 ? projectCount : undefined;
     return undefined;
@@ -228,6 +249,19 @@ export function AppSidebar() {
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu className="space-y-1">
+              {navLoading && (
+                <SidebarLoadingRows collapsed={collapsed} />
+              )}
+              {!navLoading && navError && (
+                <SidebarMenuItem>
+                  <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-xs text-destructive space-y-2">
+                    {!collapsed && <p>Kunne ikke laste menytilganger.</p>}
+                    {!collapsed && <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => { permissions.refetch(); modules.refetch(); }}>Prøv igjen</Button>}
+                    {collapsed && <AlertTriangle className="h-4 w-4" />}
+                  </div>
+                </SidebarMenuItem>
+              )}
+              {!navLoading && !navError && <>
               {visibleMainNav.map((item) => (
                 <NavItem key={item.url} item={item} isActive={isActive} collapsed={collapsed} badge={getBadge(item.url)} />
               ))}
@@ -314,6 +348,7 @@ export function AppSidebar() {
                {canAccessModule("customers", "module.customers") && (hasPermission("jobs.view") || isAdmin) && (
                 <NavItem item={{ title: "Kunder", url: "/customers", icon: Users }} isActive={isActive} collapsed={collapsed} />
               )}
+              </>}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
