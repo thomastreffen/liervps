@@ -19,7 +19,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
-import { useHmsContextReady } from "@/components/hms/HmsContextGate";
+import { useHmsEmployeeProfiles } from "@/components/hms/HmsContextGate";
 
 type Severity = "info" | "warning" | "critical";
 
@@ -68,7 +68,7 @@ export default function HmsAmlPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const { activeCompanyId } = useCompanyContext();
-  const hmsContext = useHmsContextReady();
+  const employeeProfilesQuery = useHmsEmployeeProfiles(activeCompanyId, !!activeCompanyId);
   const [q, setQ] = useState("");
   const [sevFilter, setSevFilter] = useState<"all" | Severity>("all");
   const [statusFilter, setStatusFilter] = useState<"open_ack" | "open" | "acknowledged" | "resolved" | "all">("open_ack");
@@ -80,16 +80,16 @@ export default function HmsAmlPage() {
 
   const range = useMemo(() => periodRange(period, customFrom, customTo), [period, customFrom, customTo]);
   const employeeProfileMap = useMemo(() => new Map(
-    hmsContext.employeeProfiles.map((p) => [p.user_id, { name: p.name ?? undefined, email: p.email ?? undefined, ext: p.external_employee_id ?? undefined }])
-  ), [hmsContext.employeeProfiles]);
+    (employeeProfilesQuery.data ?? []).map((p) => [p.user_id, { name: p.name ?? undefined, email: p.email ?? undefined, ext: p.external_employee_id ?? undefined }])
+  ), [employeeProfilesQuery.data]);
   const employeeProfileVersion = useMemo(
-    () => hmsContext.employeeProfiles.map((p) => `${p.user_id}:${p.name ?? ""}:${p.email ?? ""}:${p.external_employee_id ?? ""}`).sort().join("|"),
-    [hmsContext.employeeProfiles]
+    () => (employeeProfilesQuery.data ?? []).map((p) => `${p.user_id}:${p.name ?? ""}:${p.email ?? ""}:${p.external_employee_id ?? ""}`).sort().join("|"),
+    [employeeProfilesQuery.data]
   );
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ["hms-aml-v5", activeCompanyId, statusFilter, ruleFilter, range.from, range.to, employeeProfileVersion],
-    enabled: !!activeCompanyId && hmsContext.ready,
+    enabled: !!activeCompanyId && !employeeProfilesQuery.isLoading,
     queryFn: async () => {
       const sb = supabase as any;
 
