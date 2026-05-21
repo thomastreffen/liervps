@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, createContext, useContext } from "react";
+import { useEffect, useState, useCallback, createContext, useContext, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -23,6 +23,7 @@ export interface PermissionState {
   permissions: Record<string, boolean>;
   scope: "own" | "company" | "all";
   loading: boolean;
+  error: Error | null;
   hasPermission: (key: string) => boolean;
   refetch: () => void;
 }
@@ -39,15 +40,23 @@ export function usePermissions(): PermissionState {
   const [permissions, setPermissions] = useState<Record<string, boolean>>({});
   const [scope, setScope] = useState<"own" | "company" | "all">("own");
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+  const [resolvedContextKey, setResolvedContextKey] = useState<string | null>(null);
+  const requestSeq = useRef(0);
 
   const fetchPermissions = useCallback(async () => {
+    const seq = ++requestSeq.current;
     if (!user) {
       setPermissions({});
       setScope("own");
       setLoading(false);
+      setError(null);
+      setResolvedContextKey(null);
       return;
     }
 
+    setLoading(true);
+    setError(null);
     try {
       // 1. Check for per-company role via user_memberships
       let membershipRoleId: string | null = null;
@@ -152,15 +161,21 @@ export function usePermissions(): PermissionState {
         }
       }
 
+      if (seq !== requestSeq.current) return;
       setPermissions(merged);
+      setResolvedContextKey(`${user.id}:${activeCompanyId ?? "all"}`);
 
       if (merged["scope.view.all"]) setScope("all");
       else if (merged["scope.view.company"]) setScope("company");
       else setScope("own");
     } catch (err) {
       console.warn("[Permissions] fetch error:", err);
+      if (seq === requestSeq.current) {
+        setError(err instanceof Error ? err : new Error(String(err)));
+        setResolvedContextKey(`${user.id}:${activeCompanyId ?? "all"}`);
+      }
     } finally {
-      setLoading(false);
+      if (seq === requestSeq.current) setLoading(false);
     }
   }, [user, activeCompanyId]);
 
@@ -178,15 +193,19 @@ export function usePermissions(): PermissionState {
     [permissions, preview]
   );
 
+  const currentContextKey = user ? `${user.id}:${activeCompanyId ?? "all"}` : null;
+  const contextLoading = !!user && resolvedContextKey !== currentContextKey;
+
   if (preview?.active) {
     return {
       permissions: preview.permissions,
       scope: preview.scope,
-      loading: preview.loading,
+      loading: preview.loading || contextLoading,
+      error: null,
       hasPermission,
       refetch: fetchPermissions,
     };
   }
 
-  return { permissions, scope, loading, hasPermission, refetch: fetchPermissions };
+  return { permissions, scope, loading: loading || contextLoading, error, hasPermission, refetch: fetchPermissions };
 }

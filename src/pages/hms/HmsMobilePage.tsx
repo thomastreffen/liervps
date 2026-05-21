@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ShieldCheck, ClipboardList, FileCheck, Plus, BookOpen, Clock, CheckCircle2, AlertTriangle, ShieldAlert, Eye } from "lucide-react";
@@ -13,6 +13,7 @@ import { startSubmission, STATUS_LABELS, type SubmissionStatus } from "@/lib/hms
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
 import { nb } from "date-fns/locale";
+import { HmsLoading } from "@/components/hms/HmsContextGate";
 
 export default function HmsMobilePage() {
   const { user } = useAuth();
@@ -24,7 +25,7 @@ export default function HmsMobilePage() {
 
   const cid = activeCompanyId;
 
-  const { data: templates } = useQuery({
+  const { data: templates, isLoading: templatesLoading, error: templatesError } = useQuery({
     queryKey: ["hms-mobile-templates", cid],
     enabled: !!cid,
     queryFn: async () => {
@@ -41,7 +42,7 @@ export default function HmsMobilePage() {
     },
   });
 
-  const { data: mySubmissions } = useQuery({
+  const { data: mySubmissions, isLoading: submissionsLoading, error: submissionsError } = useQuery({
     queryKey: ["hms-mobile-mine", cid, user?.id],
     enabled: !!cid && !!user?.id,
     queryFn: async () => {
@@ -58,7 +59,7 @@ export default function HmsMobilePage() {
     },
   });
 
-  const { data: handbooks } = useQuery({
+  const { data: handbooks, isLoading: handbooksLoading, error: handbooksError } = useQuery({
     queryKey: ["hms-mobile-handbooks", cid, user?.id],
     enabled: !!cid && tab === "håndbok",
     queryFn: async () => {
@@ -118,6 +119,29 @@ export default function HmsMobilePage() {
 
   const drafts = (mySubmissions ?? []).filter((s) => s.status === "draft");
   const others = (mySubmissions ?? []).filter((s) => s.status !== "draft");
+  const initialLoading = templatesLoading || submissionsLoading;
+  const initialError = templatesError || submissionsError;
+
+  useEffect(() => {
+    if (import.meta.env.DEV && !initialLoading && !initialError) {
+      console.debug("[HMS init] mobile cards built", {
+        companyId: cid,
+        templates: templates?.length ?? 0,
+        sja: sjaTemplates.length,
+        checklists: checklistTemplates.length,
+        mySubmissions: mySubmissions?.length ?? 0,
+      });
+    }
+  }, [checklistTemplates.length, cid, initialError, initialLoading, mySubmissions?.length, sjaTemplates.length, templates?.length]);
+
+  if (initialLoading) return <HmsLoading label="Laster HMS & HR…" />;
+  if (initialError) {
+    return (
+      <div className="p-4 max-w-2xl mx-auto text-sm text-destructive">
+        Kunne ikke laste HMS-mobil: {(initialError as Error).message}
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/20 pb-20">
@@ -285,7 +309,17 @@ export default function HmsMobilePage() {
           </TabsContent>
 
           <TabsContent value="håndbok" className="space-y-2 mt-4">
-            {(handbooks ?? []).length === 0 && (
+            {handbooksLoading ? (
+              <div className="space-y-2">
+                <div className="text-sm text-muted-foreground py-2">Laster håndbøker…</div>
+                <div className="h-16 rounded-lg bg-muted animate-pulse" />
+                <div className="h-16 rounded-lg bg-muted animate-pulse" />
+              </div>
+            ) : handbooksError ? (
+              <div className="text-center text-sm text-destructive py-12">
+                Kunne ikke laste håndbøker: {(handbooksError as Error).message}
+              </div>
+            ) : (handbooks ?? []).length === 0 && (
               <div className="text-center text-sm text-muted-foreground py-12">
                 Ingen håndbøker funnet.
               </div>

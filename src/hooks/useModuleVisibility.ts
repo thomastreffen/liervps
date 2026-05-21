@@ -16,11 +16,11 @@ export interface ModuleUserOverride {
 }
 
 export function useModuleVisibility() {
-  const { isSuperAdmin } = useAuth();
+  const { isSuperAdmin, user } = useAuth();
   const queryClient = useQueryClient();
 
   // Fetch global module settings
-  const { data: modules = [] } = useQuery<ModuleSetting[]>({
+  const modulesQuery = useQuery<ModuleSetting[]>({
     queryKey: ["module-settings"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -30,22 +30,22 @@ export function useModuleVisibility() {
       if (error) throw error;
       return data ?? [];
     },
+    staleTime: 60_000,
   });
+  const modules = modulesQuery.data ?? [];
 
   // Fetch current user's overrides
-  const { data: userOverrides = [] } = useQuery<ModuleUserOverride[]>({
-    queryKey: ["module-user-overrides"],
+  const overridesQuery = useQuery<ModuleUserOverride[]>({
+    queryKey: ["module-user-overrides", user?.id ?? "anonymous"],
+    enabled: !!user?.id,
     queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return [];
-
       // Get user_account_id
       const { data: ua } = await supabase
         .from("user_accounts")
         .select("id")
-        .eq("auth_user_id", user.id)
+        .eq("auth_user_id", user!.id)
         .eq("is_active", true)
-        .single();
+        .maybeSingle();
       if (!ua) return [];
 
       const { data, error } = await supabase
@@ -55,7 +55,9 @@ export function useModuleVisibility() {
       if (error) throw error;
       return data ?? [];
     },
+    staleTime: 30_000,
   });
+  const userOverrides = overridesQuery.data ?? [];
 
   /**
    * Check if a module should be visible for the current user.
@@ -135,5 +137,10 @@ export function useModuleVisibility() {
     toggleGlobal,
     setUserOverride,
     removeUserOverride,
+    loading: modulesQuery.isLoading || overridesQuery.isLoading,
+    error: (modulesQuery.error as Error | null) ?? (overridesQuery.error as Error | null) ?? null,
+    refetch: async () => {
+      await Promise.all([modulesQuery.refetch(), overridesQuery.refetch()]);
+    },
   };
 }
