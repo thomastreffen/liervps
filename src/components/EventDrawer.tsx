@@ -1520,37 +1520,71 @@ export function EventDrawer({
           {/* ═══ SECTION: EXISTING JOB SEARCH ═══ */}
           {mode === "existing" && !isEditing && !projectId && (
             <section className="space-y-3">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Søk prosjekt (tittel, kunde, nr)..."
-                  className="pl-9"
-                />
-              </div>
-              {searchLoading && (
-                <div className="flex justify-center py-3"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /></div>
-              )}
-              {searchResults.length > 0 && (
-                <div className="max-h-40 overflow-y-auto space-y-1 rounded-lg border border-border p-1">
-                  {searchResults.map((job) => (
-                    <button key={job.id} type="button"
-                      onClick={() => {
-                        setSelectedJobId(job.id);
-                        setTitle(job.title);
-                      }}
-                      className={cn(
-                        "w-full text-left rounded-md px-3 py-2 text-sm transition-colors",
-                        selectedJobId === job.id ? "bg-primary/10 border border-primary/30" : "hover:bg-muted"
-                      )}>
-                      <p className="font-medium truncate">{job.title}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {job.internal_number} · {job.customer || "Ingen kunde"}
-                      </p>
-                    </button>
-                  ))}
+              {/* Selected project chip — persists regardless of search state */}
+              {selectedJobSnapshot && (
+                <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-semibold uppercase tracking-widest text-primary mb-0.5">Valgt prosjekt</p>
+                    <p className="text-sm font-medium truncate">{selectedJobSnapshot.title}</p>
+                    <p className="text-xs text-muted-foreground truncate">
+                      {selectedJobSnapshot.internal_number} · {selectedJobSnapshot.customer || "Ingen kunde"}
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs shrink-0"
+                    onClick={() => {
+                      setSelectedJobId(null);
+                      setSelectedJobSnapshot(null);
+                      setSearchQuery("");
+                      setSearchResults([]);
+                    }}
+                  >
+                    Endre
+                  </Button>
                 </div>
+              )}
+
+              {!selectedJobSnapshot && (
+                <>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Søk prosjekt (tittel, kunde, nr)..."
+                      className="pl-9"
+                    />
+                  </div>
+                  {searchLoading && (
+                    <div className="flex justify-center py-3"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /></div>
+                  )}
+                  {searchResults.length > 0 && (
+                    <div className="max-h-40 overflow-y-auto space-y-1 rounded-lg border border-border p-1">
+                      {searchResults.map((job) => (
+                        <button key={job.id} type="button"
+                          onClick={() => {
+                            console.info("[resource-plan:select-existing-project]", { id: job.id, title: job.title });
+                            setSelectedJobId(job.id);
+                            setSelectedJobSnapshot(job);
+                            setTitle(job.title);
+                            if (job.customer) setCustomer(job.customer);
+                          }}
+                          className={cn(
+                            "w-full text-left rounded-md px-3 py-2 text-sm transition-colors",
+                            selectedJobId === job.id ? "bg-primary/10 border border-primary/30" : "hover:bg-muted"
+                          )}>
+                          <p className="font-medium truncate">{job.title}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {job.internal_number} · {job.customer || "Ingen kunde"}
+                          </p>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </>
               )}
             </section>
           )}
