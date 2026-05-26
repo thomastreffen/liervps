@@ -260,9 +260,19 @@ export function EventDrawer({
   }, [techApprovals, allTechnicians]);
   const { insights: techInsights } = useTechnicianInsights(techInsightUserIds);
 
-  // Populate form from props
+  // Populate form from props — only on open transition or when key inputs change.
+  // We deliberately DO NOT depend on companies/activeCompanyId/isAllCompanies so
+  // a background context refetch can never overwrite the user's selections
+  // (e.g. wiping a freshly-picked existing project).
+  const prevOpenRef = useRef(false);
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      prevOpenRef.current = false;
+      return;
+    }
+    const justOpened = !prevOpenRef.current;
+    prevOpenRef.current = true;
+    if (!justOpened) return;
 
     if (editEvent) {
       setTitle(editEvent.title);
