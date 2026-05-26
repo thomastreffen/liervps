@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useProjectSuggestions, type ProjectSuggestion } from "@/hooks/useProjectSuggestions";
 import { ProjectSuggestionList } from "./ProjectSuggestionList";
 import { FileUpload } from "./FileUpload";
