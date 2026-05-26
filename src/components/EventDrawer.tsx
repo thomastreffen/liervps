@@ -989,8 +989,9 @@ export function EventDrawer({
            changeSet: detectedChanges,
          });
       } else if (mode === "existing" && selectedJobId) {
-        // Link technicians to existing project + create per-tech time entries
-        // Do NOT overwrite the project's own start_time/end_time
+        // Plan a NEW activity on an existing project (project = context only).
+        // Per produktregel skal eksisterende prosjekt ikke arve gammel
+        // ressursplan-state — vi bruker kun de feltene brukeren har fylt ut nå.
         const { startISO, endISO } = date
           ? normalizeOvernightDates(date, startTime, endDate, endTime)
           : { startISO: null, endISO: null };
@@ -1012,14 +1013,33 @@ export function EventDrawer({
           .from("event_technicians").select("technician_id").eq("event_id", selectedJobId);
         const existingIds = new Set((existing || []).map((e) => e.technician_id));
         const newTechs = techIds.filter((id) => !existingIds.has(id));
+
+        // Compute all planning dates for THIS new activity (base + copy-to-dates).
+        const allDates: string[] = date ? [date] : [];
+        if (repeatEnabled && repeatDates.length > 0) {
+          for (const d of repeatDates) {
+            const ds = format(d, "yyyy-MM-dd");
+            if (!allDates.includes(ds)) allDates.push(ds);
+          }
+        }
+
+        console.info("[resource-plan:create-activity:existing-project]", {
+          projectId: selectedJobId,
+          installerIds: techIds,
+          baseDate: date,
+          copyToDates: repeatEnabled ? repeatDates.map((d) => format(d, "yyyy-MM-dd")) : [],
+          allDates,
+          expectedBlockRows: techIds.length * allDates.length,
+        });
+
         const assignmentLogEntries: any[] = [];
         const assignmentSummary = startISO && endISO
-          ? `${format(new Date(startISO), "d. MMM yyyy 'kl.' HH:mm", { locale: nb })}–${format(new Date(endISO), "HH:mm", { locale: nb })}`
+          ? `${format(new Date(startISO), "d. MMM yyyy 'kl.' HH:mm", { locale: nb })}–${format(new Date(endISO), "HH:mm", { locale: nb })}${allDates.length > 1 ? ` (+${allDates.length - 1} ekstra dager)` : ""}`
           : null;
 
+        // 1) Ensure event_technicians rows exist (UNIQUE event_id+technician_id)
         if (newTechs.length > 0) {
-          // Insert event_technicians with per-tech time overrides
-          await supabase.from("event_technicians").insert(
+          const { error: etErr } = await supabase.from("event_technicians").insert(
             newTechs.map((tid) => ({
               event_id: selectedJobId,
               technician_id: tid,
@@ -1027,25 +1047,56 @@ export function EventDrawer({
               ...(endISO ? { end_at: endISO } : {}),
             } as any))
           );
+          if (etErr) {
+            console.error("[resource-plan:create-activity:existing] event_technicians insert failed", etErr);
+            toast.error("Kunne ikke tildele montører", { description: etErr.message });
+            setSaving(false);
+            return;
+          }
+        }
 
-          // Create schedule_blocks for each new tech on this date
-          if (startISO && endISO && evtCompanyId) {
-            for (const tid of newTechs) {
-              await (supabase as any).from("schedule_blocks").insert({
+        // 2) Build per-(technician × date) schedule blocks for this new activity
+        if (allDates.length > 0 && evtCompanyId && techIds.length > 0) {
+          const blockRows: any[] = [];
+          for (const tid of techIds) {
+            for (const ds of allDates) {
+              const { startISO: dStart, endISO: dEnd } = normalizeOvernightDates(
+                ds, startTime, ds, endTime,
+              );
+              blockRows.push({
                 company_id: evtCompanyId,
                 technician_id: tid,
                 project_id: selectedJobId,
                 source: "manual",
-                start_at: startISO,
-                end_at: endISO,
+                start_at: dStart,
+                end_at: dEnd,
                 title: title || "Prosjektarbeid",
                 match_state: "manual",
                 match_confidence: 100,
-                match_reason: "Montør tildelt via planlegger",
+                match_reason: allDates.length > 1
+                  ? "Planlagt over flere dager via planlegger"
+                  : (newTechs.length > 0 ? "Montør tildelt via planlegger" : "Ekstra dag lagt til via planlegger"),
               });
             }
           }
 
+          const { data: insertedBlocks, error: sbErr } = await (supabase as any)
+            .from("schedule_blocks")
+            .insert(blockRows)
+            .select("id");
+          console.info("[resource-plan:create-activity:existing:result]", {
+            insertedCount: insertedBlocks?.length ?? 0,
+            error: sbErr?.message,
+          });
+          if (sbErr) {
+            toast.error("Kunne ikke opprette planblokker", { description: sbErr.message });
+            setSaving(false);
+            return;
+          }
+        }
+
+        // 3) Approvals + activity log
+        if (newTechs.length > 0) {
           const addedNames = newTechs.map((id) => techNameMap.get(id) || "Montør");
           assignmentLogEntries.push({
             event_id: selectedJobId,
@@ -1066,23 +1117,7 @@ export function EventDrawer({
               response_required: reminderConfig.responseRequired,
             },
           });
-        } else if (startISO && endISO && evtCompanyId) {
-          // Existing techs but new date: create additional schedule_blocks
-          for (const tid of techIds) {
-            await (supabase as any).from("schedule_blocks").insert({
-              company_id: evtCompanyId,
-              technician_id: tid,
-              project_id: selectedJobId,
-              source: "manual",
-              start_at: startISO,
-              end_at: endISO,
-              title: title || "Prosjektarbeid",
-              match_state: "manual",
-              match_confidence: 100,
-              match_reason: "Ekstra dag lagt til via planlegger",
-            });
-          }
-
+        } else if (allDates.length > 0) {
           const assignedNames = techIds.map((id) => techNameMap.get(id) || "Montør");
           assignmentLogEntries.push({
             event_id: selectedJobId,
