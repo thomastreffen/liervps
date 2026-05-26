@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useProjectSuggestions, type ProjectSuggestion } from "@/hooks/useProjectSuggestions";
 import { ProjectSuggestionList } from "./ProjectSuggestionList";
 import { FileUpload } from "./FileUpload";
@@ -204,6 +204,7 @@ export function EventDrawer({
   const [searchResults, setSearchResults] = useState<ExistingJob[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
+  const [selectedJobSnapshot, setSelectedJobSnapshot] = useState<ExistingJob | null>(null);
 
   // Conflicts
   const [conflicts, setConflicts] = useState<ConflictInfo[]>([]);
@@ -259,9 +260,19 @@ export function EventDrawer({
   }, [techApprovals, allTechnicians]);
   const { insights: techInsights } = useTechnicianInsights(techInsightUserIds);
 
-  // Populate form from props
+  // Populate form from props — only on open transition or when key inputs change.
+  // We deliberately DO NOT depend on companies/activeCompanyId/isAllCompanies so
+  // a background context refetch can never overwrite the user's selections
+  // (e.g. wiping a freshly-picked existing project).
+  const prevOpenRef = useRef(false);
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      prevOpenRef.current = false;
+      return;
+    }
+    const justOpened = !prevOpenRef.current;
+    prevOpenRef.current = true;
+    if (!justOpened) return;
 
     if (editEvent) {
       setTitle(editEvent.title);
@@ -292,6 +303,7 @@ export function EventDrawer({
       setMode(projectId ? "existing" : "new");
       setEventType("project");
       setSelectedJobId(projectId || null);
+      setSelectedJobSnapshot(null);
     }
     setConflicts([]);
     setSearchQuery("");
@@ -354,7 +366,8 @@ export function EventDrawer({
           });
         });
     }
-  }, [open, editEvent, preselectedStart, preselectedEnd, preselectedTechId, projectId, projectTitle, isAllCompanies, activeCompanyId, companies]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, editEvent, preselectedStart, preselectedEnd, preselectedTechId, projectId, projectTitle]);
 
   // Search existing jobs
   useEffect(() => {
@@ -976,8 +989,9 @@ export function EventDrawer({
            changeSet: detectedChanges,
          });
       } else if (mode === "existing" && selectedJobId) {
-        // Link technicians to existing project + create per-tech time entries
-        // Do NOT overwrite the project's own start_time/end_time
+        // Plan a NEW activity on an existing project (project = context only).
+        // Per produktregel skal eksisterende prosjekt ikke arve gammel
+        // ressursplan-state — vi bruker kun de feltene brukeren har fylt ut nå.
         const { startISO, endISO } = date
           ? normalizeOvernightDates(date, startTime, endDate, endTime)
           : { startISO: null, endISO: null };
@@ -999,14 +1013,33 @@ export function EventDrawer({
           .from("event_technicians").select("technician_id").eq("event_id", selectedJobId);
         const existingIds = new Set((existing || []).map((e) => e.technician_id));
         const newTechs = techIds.filter((id) => !existingIds.has(id));
+
+        // Compute all planning dates for THIS new activity (base + copy-to-dates).
+        const allDates: string[] = date ? [date] : [];
+        if (repeatEnabled && repeatDates.length > 0) {
+          for (const d of repeatDates) {
+            const ds = format(d, "yyyy-MM-dd");
+            if (!allDates.includes(ds)) allDates.push(ds);
+          }
+        }
+
+        console.info("[resource-plan:create-activity:existing-project]", {
+          projectId: selectedJobId,
+          installerIds: techIds,
+          baseDate: date,
+          copyToDates: repeatEnabled ? repeatDates.map((d) => format(d, "yyyy-MM-dd")) : [],
+          allDates,
+          expectedBlockRows: techIds.length * allDates.length,
+        });
+
         const assignmentLogEntries: any[] = [];
         const assignmentSummary = startISO && endISO
-          ? `${format(new Date(startISO), "d. MMM yyyy 'kl.' HH:mm", { locale: nb })}–${format(new Date(endISO), "HH:mm", { locale: nb })}`
+          ? `${format(new Date(startISO), "d. MMM yyyy 'kl.' HH:mm", { locale: nb })}–${format(new Date(endISO), "HH:mm", { locale: nb })}${allDates.length > 1 ? ` (+${allDates.length - 1} ekstra dager)` : ""}`
           : null;
 
+        // 1) Ensure event_technicians rows exist (UNIQUE event_id+technician_id)
         if (newTechs.length > 0) {
-          // Insert event_technicians with per-tech time overrides
-          await supabase.from("event_technicians").insert(
+          const { error: etErr } = await supabase.from("event_technicians").insert(
             newTechs.map((tid) => ({
               event_id: selectedJobId,
               technician_id: tid,
@@ -1014,25 +1047,56 @@ export function EventDrawer({
               ...(endISO ? { end_at: endISO } : {}),
             } as any))
           );
+          if (etErr) {
+            console.error("[resource-plan:create-activity:existing] event_technicians insert failed", etErr);
+            toast.error("Kunne ikke tildele montører", { description: etErr.message });
+            setSaving(false);
+            return;
+          }
+        }
 
-          // Create schedule_blocks for each new tech on this date
-          if (startISO && endISO && evtCompanyId) {
-            for (const tid of newTechs) {
-              await (supabase as any).from("schedule_blocks").insert({
+        // 2) Build per-(technician × date) schedule blocks for this new activity
+        if (allDates.length > 0 && evtCompanyId && techIds.length > 0) {
+          const blockRows: any[] = [];
+          for (const tid of techIds) {
+            for (const ds of allDates) {
+              const { startISO: dStart, endISO: dEnd } = normalizeOvernightDates(
+                ds, startTime, ds, endTime,
+              );
+              blockRows.push({
                 company_id: evtCompanyId,
                 technician_id: tid,
                 project_id: selectedJobId,
                 source: "manual",
-                start_at: startISO,
-                end_at: endISO,
+                start_at: dStart,
+                end_at: dEnd,
                 title: title || "Prosjektarbeid",
                 match_state: "manual",
                 match_confidence: 100,
-                match_reason: "Montør tildelt via planlegger",
+                match_reason: allDates.length > 1
+                  ? "Planlagt over flere dager via planlegger"
+                  : (newTechs.length > 0 ? "Montør tildelt via planlegger" : "Ekstra dag lagt til via planlegger"),
               });
             }
           }
 
+          const { data: insertedBlocks, error: sbErr } = await (supabase as any)
+            .from("schedule_blocks")
+            .insert(blockRows)
+            .select("id");
+          console.info("[resource-plan:create-activity:existing:result]", {
+            insertedCount: insertedBlocks?.length ?? 0,
+            error: sbErr?.message,
+          });
+          if (sbErr) {
+            toast.error("Kunne ikke opprette planblokker", { description: sbErr.message });
+            setSaving(false);
+            return;
+          }
+        }
+
+        // 3) Approvals + activity log
+        if (newTechs.length > 0) {
           const addedNames = newTechs.map((id) => techNameMap.get(id) || "Montør");
           assignmentLogEntries.push({
             event_id: selectedJobId,
@@ -1053,23 +1117,7 @@ export function EventDrawer({
               response_required: reminderConfig.responseRequired,
             },
           });
-        } else if (startISO && endISO && evtCompanyId) {
-          // Existing techs but new date: create additional schedule_blocks
-          for (const tid of techIds) {
-            await (supabase as any).from("schedule_blocks").insert({
-              company_id: evtCompanyId,
-              technician_id: tid,
-              project_id: selectedJobId,
-              source: "manual",
-              start_at: startISO,
-              end_at: endISO,
-              title: title || "Prosjektarbeid",
-              match_state: "manual",
-              match_confidence: 100,
-              match_reason: "Ekstra dag lagt til via planlegger",
-            });
-          }
-
+        } else if (allDates.length > 0) {
           const assignedNames = techIds.map((id) => techNameMap.get(id) || "Montør");
           assignmentLogEntries.push({
             event_id: selectedJobId,
@@ -1507,37 +1555,71 @@ export function EventDrawer({
           {/* ═══ SECTION: EXISTING JOB SEARCH ═══ */}
           {mode === "existing" && !isEditing && !projectId && (
             <section className="space-y-3">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Søk prosjekt (tittel, kunde, nr)..."
-                  className="pl-9"
-                />
-              </div>
-              {searchLoading && (
-                <div className="flex justify-center py-3"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /></div>
-              )}
-              {searchResults.length > 0 && (
-                <div className="max-h-40 overflow-y-auto space-y-1 rounded-lg border border-border p-1">
-                  {searchResults.map((job) => (
-                    <button key={job.id} type="button"
-                      onClick={() => {
-                        setSelectedJobId(job.id);
-                        setTitle(job.title);
-                      }}
-                      className={cn(
-                        "w-full text-left rounded-md px-3 py-2 text-sm transition-colors",
-                        selectedJobId === job.id ? "bg-primary/10 border border-primary/30" : "hover:bg-muted"
-                      )}>
-                      <p className="font-medium truncate">{job.title}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {job.internal_number} · {job.customer || "Ingen kunde"}
-                      </p>
-                    </button>
-                  ))}
+              {/* Selected project chip — persists regardless of search state */}
+              {selectedJobSnapshot && (
+                <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-semibold uppercase tracking-widest text-primary mb-0.5">Valgt prosjekt</p>
+                    <p className="text-sm font-medium truncate">{selectedJobSnapshot.title}</p>
+                    <p className="text-xs text-muted-foreground truncate">
+                      {selectedJobSnapshot.internal_number} · {selectedJobSnapshot.customer || "Ingen kunde"}
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs shrink-0"
+                    onClick={() => {
+                      setSelectedJobId(null);
+                      setSelectedJobSnapshot(null);
+                      setSearchQuery("");
+                      setSearchResults([]);
+                    }}
+                  >
+                    Endre
+                  </Button>
                 </div>
+              )}
+
+              {!selectedJobSnapshot && (
+                <>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Søk prosjekt (tittel, kunde, nr)..."
+                      className="pl-9"
+                    />
+                  </div>
+                  {searchLoading && (
+                    <div className="flex justify-center py-3"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /></div>
+                  )}
+                  {searchResults.length > 0 && (
+                    <div className="max-h-40 overflow-y-auto space-y-1 rounded-lg border border-border p-1">
+                      {searchResults.map((job) => (
+                        <button key={job.id} type="button"
+                          onClick={() => {
+                            console.info("[resource-plan:select-existing-project]", { id: job.id, title: job.title });
+                            setSelectedJobId(job.id);
+                            setSelectedJobSnapshot(job);
+                            setTitle(job.title);
+                            if (job.customer) setCustomer(job.customer);
+                          }}
+                          className={cn(
+                            "w-full text-left rounded-md px-3 py-2 text-sm transition-colors",
+                            selectedJobId === job.id ? "bg-primary/10 border border-primary/30" : "hover:bg-muted"
+                          )}>
+                          <p className="font-medium truncate">{job.title}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {job.internal_number} · {job.customer || "Ingen kunde"}
+                          </p>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </>
               )}
             </section>
           )}
@@ -1649,6 +1731,15 @@ export function EventDrawer({
               onLinkProject={(proj) => {
                 setMode("existing");
                 setSelectedJobId(proj.id);
+                setSelectedJobSnapshot({
+                  id: proj.id,
+                  title: proj.title,
+                  customer: proj.customer || null,
+                  internal_number: (proj as any).internal_number || (proj as any).jobNumber || "",
+                  start_time: null,
+                  end_time: null,
+                  status: null,
+                } as any);
                 setTitle(proj.title);
                 setCustomer(proj.customer || "");
               }}
@@ -1832,8 +1923,8 @@ export function EventDrawer({
               </div>
             )}
 
-            {/* Multi-day repeat (only for new events, not editing or linking) */}
-            {!isEditing && mode === "new" && !readOnly && (
+            {/* Multi-day repeat — available for new events AND when planlegging på eksisterende prosjekt */}
+            {!isEditing && !readOnly && (mode === "new" || (mode === "existing" && selectedJobId)) && (
               <div className="rounded-lg border border-border/40 bg-card p-3 space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
