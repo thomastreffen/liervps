@@ -1888,8 +1888,8 @@ export function EventDrawer({
               </div>
             )}
 
-            {/* Multi-day repeat (only for new events, not editing or linking) */}
-            {!isEditing && mode === "new" && !readOnly && (
+            {/* Multi-day repeat — available for new events AND when planlegging på eksisterende prosjekt */}
+            {!isEditing && !readOnly && (mode === "new" || (mode === "existing" && selectedJobId)) && (
               <div className="rounded-lg border border-border/40 bg-card p-3 space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
