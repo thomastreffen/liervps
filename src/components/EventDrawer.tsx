@@ -1696,6 +1696,15 @@ export function EventDrawer({
               onLinkProject={(proj) => {
                 setMode("existing");
                 setSelectedJobId(proj.id);
+                setSelectedJobSnapshot({
+                  id: proj.id,
+                  title: proj.title,
+                  customer: proj.customer || null,
+                  internal_number: (proj as any).internal_number || (proj as any).jobNumber || "",
+                  start_time: null,
+                  end_time: null,
+                  status: null,
+                } as any);
                 setTitle(proj.title);
                 setCustomer(proj.customer || "");
               }}
