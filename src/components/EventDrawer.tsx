@@ -303,6 +303,7 @@ export function EventDrawer({
       setMode(projectId ? "existing" : "new");
       setEventType("project");
       setSelectedJobId(projectId || null);
+      setSelectedJobSnapshot(null);
     }
     setConflicts([]);
     setSearchQuery("");
