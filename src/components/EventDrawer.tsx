@@ -1166,28 +1166,83 @@ export function EventDrawer({
               }
             }
 
-            // Build event_technicians rows. For multi-day, each row gets per-tech
-            // start_at/end_at overrides → trigger creates one schedule_block per row.
-            const etRows: any[] = [];
+            // event_technicians has UNIQUE (event_id, technician_id) → one row per tech.
+            // For the assignment row itself we attach the primary-day window so the
+            // event has a canonical timestamp; per-day blocks are handled below.
+            const { startISO: primStart, endISO: primEnd } = normalizeOvernightDates(
+              date, startTime, date, endTime,
+            );
+            const etRows = techIds.map((tid) => ({
+              event_id: createdId,
+              technician_id: tid,
+              start_at: primStart,
+              end_at: primEnd,
+            } as any));
+
+            console.info("[resource-plan:create-activity]", {
+              installerIds: techIds,
+              baseDate: date,
+              copyToDates: repeatEnabled ? repeatDates.map((d) => format(d, "yyyy-MM-dd")) : [],
+              allDates,
+              expectedBlockRows: techIds.length * allDates.length,
+            });
+
+            const { error: etErr } = await supabase
+              .from("event_technicians")
+              .insert(etRows);
+            if (etErr) {
+              console.error("[resource-plan:create-activity] event_technicians insert failed", etErr, etRows);
+              toast.error("Kunne ikke tildele montører", { description: etErr.message });
+              setSaving(false);
+              return;
+            }
+
+            // Build one schedule_block per (technician, date) combination so that
+            // multi-day + multi-tech expands to N×M planned occurrences.
+            const blockRows: any[] = [];
             for (const tid of techIds) {
-              if (allDates.length === 1) {
-                etRows.push({ event_id: createdId, technician_id: tid });
-              } else {
-                for (const ds of allDates) {
-                  const { startISO: dStart, endISO: dEnd } = normalizeOvernightDates(
-                    ds, startTime, ds, endTime,
-                  );
-                  etRows.push({
-                    event_id: createdId,
-                    technician_id: tid,
-                    start_at: dStart,
-                    end_at: dEnd,
-                  });
-                }
+              for (const ds of allDates) {
+                const { startISO: dStart, endISO: dEnd } = normalizeOvernightDates(
+                  ds, startTime, ds, endTime,
+                );
+                blockRows.push({
+                  company_id: resolvedCompanyId,
+                  technician_id: tid,
+                  project_id: createdId,
+                  source: "manual",
+                  start_at: dStart,
+                  end_at: dEnd,
+                  title: title.trim() || "Prosjektarbeid",
+                  match_state: "manual",
+                  match_confidence: 100,
+                  match_reason: allDates.length > 1
+                    ? "Planlagt over flere dager via planlegger"
+                    : "Montør tildelt via planlegger",
+                });
               }
             }
 
-            await supabase.from("event_technicians").insert(etRows);
+            const { data: insertedBlocks, error: sbErr } = await (supabase as any)
+              .from("schedule_blocks")
+              .insert(blockRows)
+              .select("id");
+            console.info("[resource-plan:create-activity:result]", {
+              insertedCount: insertedBlocks?.length ?? 0,
+              expected: blockRows.length,
+              error: sbErr,
+            });
+            if (sbErr) {
+              console.error("[resource-plan:create-activity] schedule_blocks insert failed", sbErr, blockRows);
+              toast.error("Kunne ikke planlegge dager", { description: sbErr.message });
+              setSaving(false);
+              return;
+            }
+            if (!insertedBlocks || insertedBlocks.length === 0) {
+              console.error("[resource-plan:create-activity] no rows inserted", blockRows);
+              toast.error("Ingen planlagte dager ble opprettet");
+              setSaving(false);
+              return;
+            }
 
             const assignedNames = techIds.map((id) => techNameMap.get(id) || "Montør");
             await supabase.from("event_logs").insert({
