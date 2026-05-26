@@ -366,7 +366,8 @@ export function EventDrawer({
           });
         });
     }
-  }, [open, editEvent, preselectedStart, preselectedEnd, preselectedTechId, projectId, projectTitle, isAllCompanies, activeCompanyId, companies]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, editEvent, preselectedStart, preselectedEnd, preselectedTechId, projectId, projectTitle]);
 
   // Search existing jobs
   useEffect(() => {
