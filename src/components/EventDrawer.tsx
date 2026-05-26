@@ -204,6 +204,7 @@ export function EventDrawer({
   const [searchResults, setSearchResults] = useState<ExistingJob[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
+  const [selectedJobSnapshot, setSelectedJobSnapshot] = useState<ExistingJob | null>(null);
 
   // Conflicts
   const [conflicts, setConflicts] = useState<ConflictInfo[]>([]);
