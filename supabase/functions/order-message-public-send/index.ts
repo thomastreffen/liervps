@@ -86,10 +86,13 @@ Deno.serve(async (req) => {
         global: { headers: { Authorization: authHeader } },
         auth: { persistSession: false, autoRefreshToken: false },
       });
-      const { data: claimsData } = await userClient.auth.getClaims(
+      const { data: userData, error: userErr } = await userClient.auth.getUser(
         authHeader.replace("Bearer ", ""),
       );
-      const uid = claimsData?.claims?.sub as string | undefined;
+      if (userErr) {
+        console.warn("auth_getuser_failed", userErr.message);
+      }
+      const uid = userData?.user?.id;
       if (uid) {
         // Authoritative internal check: must be active membership in submission's company,
         // and must NOT be a customer_user role.
@@ -164,7 +167,11 @@ Deno.serve(async (req) => {
 
   if (msgErr) {
     console.error("message_insert_failed", msgErr);
-    return json(500, { error: "Kunne ikke lagre meldingen" });
+    return json(500, {
+      error: "Kunne ikke lagre meldingen",
+      detail: msgErr.message,
+      code: msgErr.code,
+    });
   }
 
   // 5. Mirror to legacy comments table for backward compatibility
