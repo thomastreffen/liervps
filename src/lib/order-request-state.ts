@@ -171,7 +171,9 @@ export function buildUnifiedOrderConversation(
         id: String(comment.id),
         body: isRequestInfo ? stripLegacyRequestPrefix(comment.body) : comment.body || "",
         sender_type: (isCustomerReply ? "customer" : "admin") as SenderType,
-        sender_name: isCustomerReply ? comment.author_name || "Du" : "Saksbehandler",
+        sender_name: isCustomerReply
+          ? (comment.author_name || "Du")
+          : (comment.author_name || "Saksbehandler"),
         message_type: (isRequestInfo ? "request_info" : "message") as MessageType,
         requires_reply: isRequestInfo,
         replied_at: null,
