@@ -167,7 +167,11 @@ Deno.serve(async (req) => {
 
   if (msgErr) {
     console.error("message_insert_failed", msgErr);
-    return json(500, { error: "Kunne ikke lagre meldingen" });
+    return json(500, {
+      error: "Kunne ikke lagre meldingen",
+      detail: msgErr.message,
+      code: msgErr.code,
+    });
   }
 
   // 5. Mirror to legacy comments table for backward compatibility
