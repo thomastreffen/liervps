@@ -148,6 +148,27 @@ Deno.serve(async (req) => {
     ? "public_tracking_internal"
     : "public_tracking_customer";
 
+  const clientRequestId = (payload.client_request_id || "").trim() || null;
+
+  // 3b. Idempotency: if this client_request_id already produced a row, return it.
+  if (clientRequestId) {
+    const { data: existing } = await admin
+      .from("order_form_messages")
+      .select("id, created_at, sender_type, sender_name, sender_user_id, source")
+      .eq("submission_id", submission.id)
+      .eq("client_request_id", clientRequestId)
+      .maybeSingle();
+    if (existing) {
+      return json(200, {
+        ok: true,
+        message: existing,
+        sender_type: existing.sender_type,
+        is_internal: isInternal,
+        idempotent: true,
+      });
+    }
+  }
+
   // 4. Insert message
   const { data: inserted, error: msgErr } = await admin
     .from("order_form_messages")
@@ -162,11 +183,31 @@ Deno.serve(async (req) => {
       requires_reply: false,
       visibility: "shared",
       source,
+      client_request_id: clientRequestId,
     })
     .select("id, created_at, sender_type, sender_name, sender_user_id, source")
     .single();
 
   if (msgErr) {
+    // Unique-violation on (submission_id, client_request_id) → another concurrent
+    // request already inserted this exact submit. Fetch & return it.
+    if (msgErr.code === "23505" && clientRequestId) {
+      const { data: dup } = await admin
+        .from("order_form_messages")
+        .select("id, created_at, sender_type, sender_name, sender_user_id, source")
+        .eq("submission_id", submission.id)
+        .eq("client_request_id", clientRequestId)
+        .maybeSingle();
+      if (dup) {
+        return json(200, {
+          ok: true,
+          message: dup,
+          sender_type: dup.sender_type,
+          is_internal: isInternal,
+          idempotent: true,
+        });
+      }
+    }
     console.error("message_insert_failed", msgErr);
     return json(500, {
       error: "Kunne ikke lagre meldingen",
