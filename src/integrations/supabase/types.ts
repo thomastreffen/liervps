@@ -8648,6 +8648,7 @@ export type Database = {
         Row: {
           addressed_to_participant_id: string | null
           body: string
+          client_request_id: string | null
           created_at: string
           email_notification_sent: boolean
           email_notification_sent_at: string | null
@@ -8670,6 +8671,7 @@ export type Database = {
         Insert: {
           addressed_to_participant_id?: string | null
           body: string
+          client_request_id?: string | null
           created_at?: string
           email_notification_sent?: boolean
           email_notification_sent_at?: string | null
@@ -8692,6 +8694,7 @@ export type Database = {
         Update: {
           addressed_to_participant_id?: string | null
           body?: string
+          client_request_id?: string | null
           created_at?: string
           email_notification_sent?: boolean
           email_notification_sent_at?: string | null
@@ -12261,6 +12264,7 @@ export type Database = {
         Returns: {
           addressed_to_participant_id: string | null
           body: string
+          client_request_id: string | null
           created_at: string
           email_notification_sent: boolean
           email_notification_sent_at: string | null

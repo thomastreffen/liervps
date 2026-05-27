@@ -560,6 +560,12 @@ export default function OrderTrackingPage() {
       if (!submission) return;
       const sub = submission as any;
 
+      // Idempotency key — same submit (e.g. double-click, retry) must not create two messages.
+      const clientRequestId =
+        (typeof crypto !== "undefined" && "randomUUID" in crypto)
+          ? crypto.randomUUID()
+          : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
       // Server-authoritative send: backend decides sender_type/sender_name
       // based on JWT (intern bruker -> internal, ellers customer).
       const { data: sendResult, error: sendErr } = await supabase.functions.invoke(
@@ -569,6 +575,7 @@ export default function OrderTrackingPage() {
             tracking_token: token,
             body: replyText.trim(),
             has_attachments: replyFiles.length > 0,
+            client_request_id: clientRequestId,
           },
         },
       );

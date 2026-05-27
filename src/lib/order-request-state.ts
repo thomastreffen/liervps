@@ -107,11 +107,21 @@ function toTimestamp(value: string | null | undefined) {
   return Number.isNaN(timestamp) ? 0 : timestamp;
 }
 
+function senderKindGroup(senderType: SenderType | string | null | undefined): "staff" | "customer" | "system" | "other" {
+  const t = (senderType || "").toString();
+  if (t === "admin" || t === "internal") return "staff";
+  if (t === "customer") return "customer";
+  if (t === "system") return "system";
+  return "other";
+}
+
 function looksLikeDuplicate(
   candidate: UnifiedOrderConversationMessage,
   existing: UnifiedOrderConversationMessage,
 ) {
-  if (candidate.sender_type !== existing.sender_type) return false;
+  // Treat admin/internal as same kind so the legacy comment mirror (sender_type=admin)
+  // is deduped against the canonical order_form_messages row (sender_type=internal).
+  if (senderKindGroup(candidate.sender_type) !== senderKindGroup(existing.sender_type)) return false;
   if (candidate.message_type !== existing.message_type) return false;
 
   const bodyA = normalizeText(candidate.body);
@@ -119,7 +129,7 @@ function looksLikeDuplicate(
   const bodyMatch = bodyA === bodyB || bodyA.includes(bodyB) || bodyB.includes(bodyA);
   if (!bodyMatch) return false;
 
-  return Math.abs(toTimestamp(candidate.created_at) - toTimestamp(existing.created_at)) <= 2 * 60 * 1000;
+  return Math.abs(toTimestamp(candidate.created_at) - toTimestamp(existing.created_at)) <= 5 * 60 * 1000;
 }
 
 export function buildUnifiedOrderConversation(
@@ -161,7 +171,9 @@ export function buildUnifiedOrderConversation(
         id: String(comment.id),
         body: isRequestInfo ? stripLegacyRequestPrefix(comment.body) : comment.body || "",
         sender_type: (isCustomerReply ? "customer" : "admin") as SenderType,
-        sender_name: isCustomerReply ? comment.author_name || "Du" : "Saksbehandler",
+        sender_name: isCustomerReply
+          ? (comment.author_name || "Du")
+          : (comment.author_name || "Saksbehandler"),
         message_type: (isRequestInfo ? "request_info" : "message") as MessageType,
         requires_reply: isRequestInfo,
         replied_at: null,
