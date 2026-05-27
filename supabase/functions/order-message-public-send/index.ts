@@ -19,6 +19,7 @@ interface Body {
   tracking_token?: string;
   body?: string;
   has_attachments?: boolean;
+  client_request_id?: string;
 }
 
 function json(status: number, payload: unknown) {
