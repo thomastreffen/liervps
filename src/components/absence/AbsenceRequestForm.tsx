@@ -46,6 +46,7 @@ const TEAL = "#1D9E75";
 
 const fmtDate = (d: Date) => format(d, "yyyy-MM-dd");
 const fmtNice = (d: Date) => format(d, "d. MMM", { locale: nb });
+const fmtShort = (d: Date) => format(d, "dd.MM", { locale: nb });
 
 function buildMonthGrid(month: Date) {
   const start = startOfISOWeek(startOfMonth(month));
@@ -168,7 +169,7 @@ export function AbsenceRequestForm() {
           start: d,
           end: d,
           kind: "single",
-          label: format(d, "EEE d. MMM", { locale: nb }),
+          label: fmtShort(d),
         });
       }
     }
@@ -188,7 +189,7 @@ export function AbsenceRequestForm() {
         start: a,
         end: b,
         kind: "range",
-        label: isSameDay(a, b) ? fmtNice(a) : `${fmtNice(a)} – ${fmtNice(b)}`,
+        label: isSameDay(a, b) ? fmtShort(a) : `${fmtShort(a)} – ${fmtShort(b)}`,
       });
     }
     isDraggingRef.current = false;
@@ -203,7 +204,6 @@ export function AbsenceRequestForm() {
   });
 
   const handleWeekClick = (weekDays: Date[]) => {
-    // Mon (index 0) – Fri (index 4) for ISO week starting Monday
     const monday = weekDays[0];
     const friday = weekDays[4];
     const weekNum = getISOWeek(monday);
@@ -218,7 +218,7 @@ export function AbsenceRequestForm() {
         start: monday,
         end: friday,
         kind: "week",
-        label: `Uke ${weekNum} (${format(monday, "d. MMM", { locale: nb })} – ${format(friday, "d. MMM", { locale: nb })})`,
+        label: `Uke ${weekNum}`,
       });
     }
   };
