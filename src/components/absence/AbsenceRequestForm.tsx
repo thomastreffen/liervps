@@ -189,7 +189,7 @@ export function AbsenceRequestForm() {
         start: a,
         end: b,
         kind: "range",
-        label: isSameDay(a, b) ? fmtNice(a) : `${fmtNice(a)} – ${fmtNice(b)}`,
+        label: isSameDay(a, b) ? fmtShort(a) : `${fmtShort(a)} – ${fmtShort(b)}`,
       });
     }
     isDraggingRef.current = false;
