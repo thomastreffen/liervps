@@ -562,12 +562,27 @@ export const ResourceCalendar = memo(function ResourceCalendar({
       // Filter by selected technician
       if (technicianId && ab.technicianId !== technicianId) continue;
 
-      const colors = ABSENCE_COLORS[ab.absenceType] || ABSENCE_COLORS.annet;
+      const absenceColors = ABSENCE_COLORS[ab.absenceType] || ABSENCE_COLORS.annet;
+      // Keep the technician's individual color as background (same as normal slots);
+      // the absence type is conveyed via the colored border + label + icon.
+      const techColor = techColorMap.get(ab.technicianId) || absenceColors.bg;
       const techFirstName = ab.technicianName?.split(" ")[0] || "";
 
+      const sharedExtended = {
+        source: "absence" as const,
+        renderKey: ab.id,
+        isAbsence: true,
+        absenceType: ab.absenceType,
+        absenceLabel: ab.label,
+        technicianId: ab.technicianId,
+        techName: techFirstName,
+        techFullName: ab.technicianName,
+        comment: ab.comment,
+        displayName: ab.technicianName,
+        absenceAccent: absenceColors.bg,
+      };
+
       if (ab.isFullDay) {
-        // Render full-day absence as a normal working-day block inside the day grid,
-        // not in FullCalendar's all-day row, so it becomes visible in resource planning.
         const dayStart = new Date(ab.date);
         dayStart.setHours(operatingStartHour, 0, 0, 0);
         const dayEnd = new Date(ab.date);
@@ -579,25 +594,13 @@ export const ResourceCalendar = memo(function ResourceCalendar({
           start: dayStart,
           end: dayEnd,
           allDay: false,
-          backgroundColor: hexToRgba(colors.bg, 0.9),
-          borderColor: colors.border,
-          textColor: colors.text,
+          backgroundColor: hexToRgba(techColor, 0.85),
+          borderColor: absenceColors.border,
+          textColor: "#FFFFFF",
           editable: false,
-          extendedProps: {
-            source: "absence",
-            renderKey: ab.id,
-            isAbsence: true,
-            absenceType: ab.absenceType,
-            absenceLabel: ab.label,
-            technicianId: ab.technicianId,
-            techName: techFirstName,
-            techFullName: ab.technicianName,
-            comment: ab.comment,
-            displayName: ab.technicianName,
-          },
+          extendedProps: sharedExtended,
         });
       } else {
-        // Partial day absence with specific times
         const startParts = (ab.startTime || "08:00").split(":");
         const endParts = (ab.endTime || "16:00").split(":");
         const start = new Date(ab.date);
@@ -610,22 +613,11 @@ export const ResourceCalendar = memo(function ResourceCalendar({
           title: `${ab.label} – ${techFirstName}`,
           start,
           end,
-          backgroundColor: hexToRgba(colors.bg, 0.85),
-          borderColor: colors.border,
-          textColor: colors.text,
+          backgroundColor: hexToRgba(techColor, 0.85),
+          borderColor: absenceColors.border,
+          textColor: "#FFFFFF",
           editable: false,
-          extendedProps: {
-            source: "absence",
-            renderKey: ab.id,
-            isAbsence: true,
-            absenceType: ab.absenceType,
-            absenceLabel: ab.label,
-            technicianId: ab.technicianId,
-            techName: techFirstName,
-            techFullName: ab.technicianName,
-            comment: ab.comment,
-            displayName: ab.technicianName,
-          },
+          extendedProps: sharedExtended,
         });
       }
     }
