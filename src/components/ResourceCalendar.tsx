@@ -583,22 +583,25 @@ export const ResourceCalendar = memo(function ResourceCalendar({
       };
 
       if (ab.isFullDay) {
+        // Render full-day absences as a COMPACT banner at the top of the day,
+        // not a full-column fill. This keeps the day overview readable when
+        // multiple technicians are absent on the same day.
         const dayStart = new Date(ab.date);
         dayStart.setHours(operatingStartHour, 0, 0, 0);
         const dayEnd = new Date(ab.date);
-        dayEnd.setHours(operatingEndHour, 0, 0, 0);
+        dayEnd.setHours(operatingStartHour, 45, 0, 0);
 
         result.push({
           id: ab.id,
-          title: `${ab.label} – ${techFirstName}`,
+          title: `${ab.label} – ${techFirstName} (hele dagen)`,
           start: dayStart,
           end: dayEnd,
           allDay: false,
-          backgroundColor: hexToRgba(techColor, 0.85),
+          backgroundColor: hexToRgba(techColor, 0.95),
           borderColor: absenceColors.border,
           textColor: "#FFFFFF",
           editable: false,
-          extendedProps: sharedExtended,
+          extendedProps: { ...sharedExtended, isFullDayAbsence: true },
         });
       } else {
         const startParts = (ab.startTime || "08:00").split(":");
