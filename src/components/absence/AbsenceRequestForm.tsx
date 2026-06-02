@@ -46,6 +46,7 @@ const TEAL = "#1D9E75";
 
 const fmtDate = (d: Date) => format(d, "yyyy-MM-dd");
 const fmtNice = (d: Date) => format(d, "d. MMM", { locale: nb });
+const fmtShort = (d: Date) => format(d, "dd.MM", { locale: nb });
 
 function buildMonthGrid(month: Date) {
   const start = startOfISOWeek(startOfMonth(month));
