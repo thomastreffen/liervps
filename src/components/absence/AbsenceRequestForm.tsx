@@ -169,7 +169,7 @@ export function AbsenceRequestForm() {
           start: d,
           end: d,
           kind: "single",
-          label: format(d, "EEE d. MMM", { locale: nb }),
+          label: fmtShort(d),
         });
       }
     }
