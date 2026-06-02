@@ -548,81 +548,54 @@ export const ResourceCalendar = memo(function ResourceCalendar({
     }
 
     // ── Absence blocks ──
-    const ABSENCE_COLORS: Record<string, { bg: string; border: string; text: string }> = {
-      ferie: { bg: "#F59E0B", border: "#D97706", text: "#FFFFFF" },
-      egenmelding: { bg: "#F97316", border: "#EA580C", text: "#FFFFFF" },
-      sykemelding: { bg: "#EF4444", border: "#DC2626", text: "#FFFFFF" },
-      avspasering: { bg: "#3B82F6", border: "#2563EB", text: "#FFFFFF" },
-      permisjon: { bg: "#8B5CF6", border: "#7C3AED", text: "#FFFFFF" },
-      kurs: { bg: "#22C55E", border: "#16A34A", text: "#FFFFFF" },
-      annet: { bg: "#6B7280", border: "#4B5563", text: "#FFFFFF" },
-    };
-
+    // Absences render as regular slots in the technician's own color,
+    // identical to task slots. Full-day absences default to an 8-hour
+    // (480 min) block starting at the operating hour.
     for (const ab of absenceBlocks) {
-      // Filter by selected technician
       if (technicianId && ab.technicianId !== technicianId) continue;
 
-      const absenceColors = ABSENCE_COLORS[ab.absenceType] || ABSENCE_COLORS.annet;
-      // Keep the technician's individual color as background (same as normal slots);
-      // the absence type is conveyed via the colored border + label + icon.
-      const techColor = techColorMap.get(ab.technicianId) || absenceColors.bg;
+      const techColor = techColorMap.get(ab.technicianId) || "#6B7280";
       const techFirstName = ab.technicianName?.split(" ")[0] || "";
 
-      const sharedExtended = {
-        source: "absence" as const,
-        renderKey: ab.id,
-        isAbsence: true,
-        absenceType: ab.absenceType,
-        absenceLabel: ab.label,
-        technicianId: ab.technicianId,
-        techName: techFirstName,
-        techFullName: ab.technicianName,
-        comment: ab.comment,
-        displayName: ab.technicianName,
-        absenceAccent: absenceColors.bg,
-      };
-
+      let start: Date;
+      let end: Date;
       if (ab.isFullDay) {
-        // Render full-day absences as a COMPACT banner at the top of the day,
-        // not a full-column fill. This keeps the day overview readable when
-        // multiple technicians are absent on the same day.
-        const dayStart = new Date(ab.date);
-        dayStart.setHours(operatingStartHour, 0, 0, 0);
-        const dayEnd = new Date(ab.date);
-        dayEnd.setHours(operatingStartHour, 45, 0, 0);
-
-        result.push({
-          id: ab.id,
-          title: `${ab.label} – ${techFirstName} (hele dagen)`,
-          start: dayStart,
-          end: dayEnd,
-          allDay: false,
-          backgroundColor: hexToRgba(techColor, 0.95),
-          borderColor: absenceColors.border,
-          textColor: "#FFFFFF",
-          editable: false,
-          extendedProps: { ...sharedExtended, isFullDayAbsence: true },
-        });
+        start = new Date(ab.date);
+        start.setHours(operatingStartHour, 0, 0, 0);
+        end = new Date(start.getTime() + 8 * 60 * 60 * 1000);
       } else {
-        const startParts = (ab.startTime || "08:00").split(":");
-        const endParts = (ab.endTime || "16:00").split(":");
-        const start = new Date(ab.date);
-        start.setHours(parseInt(startParts[0]), parseInt(startParts[1] || "0"), 0, 0);
-        const end = new Date(ab.date);
-        end.setHours(parseInt(endParts[0]), parseInt(endParts[1] || "0"), 0, 0);
-
-        result.push({
-          id: ab.id,
-          title: `${ab.label} – ${techFirstName}`,
-          start,
-          end,
-          backgroundColor: hexToRgba(techColor, 0.85),
-          borderColor: absenceColors.border,
-          textColor: "#FFFFFF",
-          editable: false,
-          extendedProps: sharedExtended,
-        });
+        const [sh, sm] = (ab.startTime || "08:00").split(":");
+        const [eh, em] = (ab.endTime || "16:00").split(":");
+        start = new Date(ab.date);
+        start.setHours(parseInt(sh), parseInt(sm || "0"), 0, 0);
+        end = new Date(ab.date);
+        end.setHours(parseInt(eh), parseInt(em || "0"), 0, 0);
       }
+
+      result.push({
+        id: ab.id,
+        title: `${ab.label} – ${techFirstName}`,
+        start,
+        end,
+        allDay: false,
+        backgroundColor: hexToRgba(techColor, 0.85),
+        borderColor: techColor,
+        textColor: "#FFFFFF",
+        editable: false,
+        extendedProps: {
+          source: "absence" as const,
+          renderKey: ab.id,
+          isAbsence: true,
+          absenceType: ab.absenceType,
+          absenceLabel: ab.label,
+          technicianId: ab.technicianId,
+          techName: techFirstName,
+          techFullName: ab.technicianName,
+          comment: ab.comment,
+          displayName: ab.technicianName,
+          absenceAccent: techColor,
+        },
+      });
     }
 
     return result;
