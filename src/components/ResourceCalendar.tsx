@@ -883,15 +883,20 @@ export const ResourceCalendar = memo(function ResourceCalendar({
             return (
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <div className="flex items-center gap-1.5 px-2 py-1 h-full cursor-default select-none">
-                    <CalendarOff className="h-3 w-3 shrink-0 opacity-90" />
+                  <div className="relative flex items-center gap-1.5 px-2 py-1 h-full cursor-default select-none overflow-hidden">
+                    <span
+                      className="absolute left-0 top-0 bottom-0 w-1.5"
+                      style={{ backgroundColor: props.absenceAccent }}
+                      aria-hidden
+                    />
+                    <CalendarOff className="h-3 w-3 shrink-0 opacity-90 ml-1.5" />
                     <span className="text-[11px] font-bold truncate">{props.absenceLabel}</span>
                     <span className="text-[10px] opacity-80 truncate">– {props.techName}</span>
                   </div>
                 </TooltipTrigger>
                 <TooltipContent side="top">
                   <div className="space-y-1 text-xs max-w-[220px]">
-                    <p className="font-semibold">{props.absenceLabel}</p>
+                    <p className="font-semibold" style={{ color: props.absenceAccent }}>{props.absenceLabel}</p>
                     <p>{props.techFullName}</p>
                     {props.comment && <p className="text-muted-foreground italic">{props.comment}</p>}
                   </div>
