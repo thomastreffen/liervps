@@ -204,7 +204,6 @@ export function AbsenceRequestForm() {
   });
 
   const handleWeekClick = (weekDays: Date[]) => {
-    // Mon (index 0) – Fri (index 4) for ISO week starting Monday
     const monday = weekDays[0];
     const friday = weekDays[4];
     const weekNum = getISOWeek(monday);
@@ -219,7 +218,7 @@ export function AbsenceRequestForm() {
         start: monday,
         end: friday,
         kind: "week",
-        label: `Uke ${weekNum} (${format(monday, "d. MMM", { locale: nb })} – ${format(friday, "d. MMM", { locale: nb })})`,
+        label: `Uke ${weekNum}`,
       });
     }
   };
