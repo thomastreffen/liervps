@@ -257,9 +257,16 @@ export default function OrderFormPublicPage() {
 
       const failedAttachments: string[] = [];
       for (const att of attachments) {
-        const path = `${template.company_id}/${submissionId}/${Date.now()}_${att.file.name}`;
-        const { error: upErr } = await supabase.storage.from("order-form-attachments").upload(path, att.file);
+        const safeName = sanitizeStorageFileName(att.file.name);
+        const path = `${template.company_id}/${submissionId}/${Date.now()}_${safeName}`;
+        const { error: upErr } = await supabase.storage
+          .from("order-form-attachments")
+          .upload(path, att.file, {
+            contentType: att.file.type || "application/octet-stream",
+            upsert: false,
+          });
         if (upErr) {
+          console.error("[OrderFormPublic] upload failed", { path, file: att.file.name, error: upErr });
           failedAttachments.push(`${att.file.name}: ${upErr.message}`);
           continue;
         }
