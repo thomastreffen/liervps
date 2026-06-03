@@ -465,6 +465,42 @@ export default function OrderFormDetailPage() {
       } as any).select("id").single();
       if (error) throw error;
 
+      // Upload attachments (if any) to storage + register in DB
+      const companyId = (submission as any)?.company_id;
+      const uploadFailures: string[] = [];
+      for (const file of commentFiles) {
+        const safeName = sanitizeStorageFileName(file.name);
+        const path = `${companyId}/${id}/admin_${Date.now()}_${safeName}`;
+        const { error: upErr } = await supabase.storage
+          .from("order-form-attachments")
+          .upload(path, file, {
+            contentType: file.type || "application/octet-stream",
+            upsert: false,
+          });
+        if (upErr) {
+          console.error("[admin-message upload] failed", { path, file: file.name, error: upErr });
+          uploadFailures.push(`${file.name}: ${upErr.message}`);
+          continue;
+        }
+        const { error: insErr } = await supabase.from("order_form_submission_attachments").insert({
+          submission_id: id!,
+          field_key: "admin_message",
+          category: isShared ? "Sendt til kunde" : "Intern",
+          file_name: file.name,
+          file_path: path,
+          mime_type: file.type,
+          file_size: file.size,
+          uploaded_by: user?.id,
+        } as any);
+        if (insErr) {
+          console.error("[admin-message attachment insert] failed", { path, error: insErr });
+          uploadFailures.push(`${file.name}: ${insErr.message}`);
+        }
+      }
+      if (uploadFailures.length > 0) {
+        toast.error("Noen vedlegg ble ikke lastet opp", { description: uploadFailures.join("\n") });
+      }
+
       // Also write to legacy comments for backward compatibility
       await supabase.from("order_form_comments").insert({
         submission_id: id!,
@@ -494,10 +530,12 @@ export default function OrderFormDetailPage() {
     },
     onSuccess: () => {
       setComment("");
+      setCommentFiles([]);
       setAddressedTo(null);
       setSendEmailNotification(false);
       qc.invalidateQueries({ queryKey: ["order-form-comments", id] });
       qc.invalidateQueries({ queryKey: ["order-form-messages", id] });
+      qc.invalidateQueries({ queryKey: ["order-form-attachments", id] });
       toast.success(commentVisibility === "shared" ? "Melding delt med bestiller" : "Intern kommentar lagt til");
     },
     onError: (err: any) => {
