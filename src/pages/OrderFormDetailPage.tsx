@@ -61,6 +61,8 @@ import { OrderParticipantsPanel } from "@/components/orders/OrderParticipantsPan
 import { EditFieldsDialog } from "@/components/orders/EditFieldsDialog";
 import { RequestFieldsDialog } from "@/components/orders/RequestFieldsDialog";
 import { LinkExistingTaskDialog } from "@/components/orders/LinkExistingTaskDialog";
+import { FileUpload } from "@/components/FileUpload";
+import { sanitizeStorageFileName } from "@/lib/storage-path";
 
 export default function OrderFormDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -69,6 +71,7 @@ export default function OrderFormDetailPage() {
   const { user } = useAuth();
   const { activeCompanyId } = useCompanyContext();
   const [comment, setComment] = useState("");
+  const [commentFiles, setCommentFiles] = useState<File[]>([]);
   const [commentVisibility, setCommentVisibility] = useState<"internal" | "shared">("internal");
   const [sendEmailNotification, setSendEmailNotification] = useState(false);
   const [requestInfoOpen, setRequestInfoOpen] = useState(false);
