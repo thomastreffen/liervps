@@ -1779,7 +1779,7 @@ export default function OrderFormDetailPage() {
                 <div className="flex items-center justify-end pt-1 border-t border-border/40">
                   <Button
                     size="sm"
-                    disabled={!comment.trim() || addComment.isPending}
+                    disabled={(!comment.trim() && commentFiles.length === 0) || addComment.isPending}
                     onClick={() => addComment.mutate()}
                     className="gap-1.5"
                   >
