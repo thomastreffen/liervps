@@ -41,7 +41,14 @@ export function AttachmentPreviewDrawer({
       const { data, error: err } = await supabase.storage
         .from("order-form-attachments")
         .createSignedUrl(current.file_path, 600);
-      if (err || !data?.signedUrl) throw new Error("Kunne ikke hente fil");
+      if (err || !data?.signedUrl) {
+        console.error("[AttachmentPreview] signed URL failed", {
+          bucket: "order-form-attachments",
+          path: current.file_path,
+          error: err,
+        });
+        throw new Error(err?.message || "Filen finnes ikke i lageret");
+      }
       setSignedUrl(data.signedUrl);
     } catch (e: any) {
       setError(e.message || "Feil ved henting av fil");

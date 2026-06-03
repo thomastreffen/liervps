@@ -25,6 +25,7 @@ import { CustomerFieldRequests } from "@/components/orders/CustomerFieldRequests
 import { getSubmissionDisplayTitle, getSubmissionAddressLine } from "@/lib/order-display";
 import { getMessageSenderLabel, resolveSenderKind } from "@/lib/order-message-sender";
 import { useAuth } from "@/hooks/useAuth";
+import { sanitizeStorageFileName } from "@/lib/storage-path";
 
 import mascotReceived from "@/assets/mascot/received.png";
 import mascotProcessing from "@/assets/mascot/processing.png";
@@ -587,9 +588,20 @@ export default function OrderTrackingPage() {
       }
 
       for (const file of replyFiles) {
-        const path = `${sub.company_id}/${submission.id}/reply_${Date.now()}_${file.name}`;
-        await supabase.storage.from("order-form-attachments").upload(path, file);
-        await supabase.from("order_form_submission_attachments").insert({
+        const safeName = sanitizeStorageFileName(file.name);
+        const path = `${sub.company_id}/${submission.id}/reply_${Date.now()}_${safeName}`;
+        const { error: upErr } = await supabase.storage
+          .from("order-form-attachments")
+          .upload(path, file, {
+            contentType: file.type || "application/octet-stream",
+            upsert: false,
+          });
+        if (upErr) {
+          console.error("[OrderTracking] upload failed", { path, file: file.name, error: upErr });
+          toast.error(`Kunne ikke laste opp ${file.name}: ${upErr.message}`);
+          continue;
+        }
+        const { error: insErr } = await supabase.from("order_form_submission_attachments").insert({
           submission_id: submission.id,
           field_key: "customer_reply",
           file_name: file.name,
@@ -597,6 +609,10 @@ export default function OrderTrackingPage() {
           mime_type: file.type,
           file_size: file.size,
         } as any);
+        if (insErr) {
+          console.error("[OrderTracking] attachment insert failed", { path, error: insErr });
+          toast.error(`Kunne ikke registrere ${file.name}: ${insErr.message}`);
+        }
       }
 
       const wasOpenRequest = !!openRequest;
