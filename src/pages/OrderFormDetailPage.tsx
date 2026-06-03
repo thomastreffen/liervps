@@ -1695,6 +1695,10 @@ export default function OrderFormDetailPage() {
                   className="min-h-[60px] text-sm"
                 />
 
+                <FileUpload files={commentFiles} onChange={setCommentFiles} />
+
+
+
                 {/* Row 1: Synlighet */}
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Synlighet</label>
