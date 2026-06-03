@@ -238,12 +238,17 @@ export default function OrderFormSubmitPage() {
 
       // Upload attachments
       for (const att of attachments) {
-        const path = `${activeCompanyId}/${submissionId}/${Date.now()}_${att.file.name}`;
+        const safeName = sanitizeStorageFileName(att.file.name);
+        const path = `${activeCompanyId}/${submissionId}/${Date.now()}_${safeName}`;
         const { error: uploadErr } = await supabase.storage
           .from("order-form-attachments")
-          .upload(path, att.file);
+          .upload(path, att.file, {
+            contentType: att.file.type || "application/octet-stream",
+            upsert: false,
+          });
         if (uploadErr) {
-          console.error("Upload failed:", uploadErr);
+          console.error("[OrderFormSubmit] upload failed", { path, file: att.file.name, error: uploadErr });
+          toast.error(`Kunne ikke laste opp ${att.file.name}: ${uploadErr.message}`);
           continue;
         }
         await supabase.from("order_form_submission_attachments").insert({
