@@ -61,6 +61,8 @@ import { OrderParticipantsPanel } from "@/components/orders/OrderParticipantsPan
 import { EditFieldsDialog } from "@/components/orders/EditFieldsDialog";
 import { RequestFieldsDialog } from "@/components/orders/RequestFieldsDialog";
 import { LinkExistingTaskDialog } from "@/components/orders/LinkExistingTaskDialog";
+import { FileUpload } from "@/components/FileUpload";
+import { sanitizeStorageFileName } from "@/lib/storage-path";
 
 export default function OrderFormDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -69,6 +71,7 @@ export default function OrderFormDetailPage() {
   const { user } = useAuth();
   const { activeCompanyId } = useCompanyContext();
   const [comment, setComment] = useState("");
+  const [commentFiles, setCommentFiles] = useState<File[]>([]);
   const [commentVisibility, setCommentVisibility] = useState<"internal" | "shared">("internal");
   const [sendEmailNotification, setSendEmailNotification] = useState(false);
   const [requestInfoOpen, setRequestInfoOpen] = useState(false);
@@ -427,7 +430,7 @@ export default function OrderFormDetailPage() {
 
   const addComment = useMutation({
     mutationFn: async () => {
-      if (!comment.trim()) return;
+      if (!comment.trim() && commentFiles.length === 0) return;
       const isShared = commentVisibility === "shared";
       const shouldEmail = isShared && sendEmailNotification && !!bestillerEpost;
 
@@ -462,6 +465,42 @@ export default function OrderFormDetailPage() {
       } as any).select("id").single();
       if (error) throw error;
 
+      // Upload attachments (if any) to storage + register in DB
+      const companyId = (submission as any)?.company_id;
+      const uploadFailures: string[] = [];
+      for (const file of commentFiles) {
+        const safeName = sanitizeStorageFileName(file.name);
+        const path = `${companyId}/${id}/admin_${Date.now()}_${safeName}`;
+        const { error: upErr } = await supabase.storage
+          .from("order-form-attachments")
+          .upload(path, file, {
+            contentType: file.type || "application/octet-stream",
+            upsert: false,
+          });
+        if (upErr) {
+          console.error("[admin-message upload] failed", { path, file: file.name, error: upErr });
+          uploadFailures.push(`${file.name}: ${upErr.message}`);
+          continue;
+        }
+        const { error: insErr } = await supabase.from("order_form_submission_attachments").insert({
+          submission_id: id!,
+          field_key: "admin_message",
+          category: isShared ? "Sendt til kunde" : "Intern",
+          file_name: file.name,
+          file_path: path,
+          mime_type: file.type,
+          file_size: file.size,
+          uploaded_by: user?.id,
+        } as any);
+        if (insErr) {
+          console.error("[admin-message attachment insert] failed", { path, error: insErr });
+          uploadFailures.push(`${file.name}: ${insErr.message}`);
+        }
+      }
+      if (uploadFailures.length > 0) {
+        toast.error("Noen vedlegg ble ikke lastet opp", { description: uploadFailures.join("\n") });
+      }
+
       // Also write to legacy comments for backward compatibility
       await supabase.from("order_form_comments").insert({
         submission_id: id!,
@@ -491,10 +530,12 @@ export default function OrderFormDetailPage() {
     },
     onSuccess: () => {
       setComment("");
+      setCommentFiles([]);
       setAddressedTo(null);
       setSendEmailNotification(false);
       qc.invalidateQueries({ queryKey: ["order-form-comments", id] });
       qc.invalidateQueries({ queryKey: ["order-form-messages", id] });
+      qc.invalidateQueries({ queryKey: ["order-form-attachments", id] });
       toast.success(commentVisibility === "shared" ? "Melding delt med bestiller" : "Intern kommentar lagt til");
     },
     onError: (err: any) => {
@@ -1654,6 +1695,10 @@ export default function OrderFormDetailPage() {
                   className="min-h-[60px] text-sm"
                 />
 
+                <FileUpload files={commentFiles} onChange={setCommentFiles} />
+
+
+
                 {/* Row 1: Synlighet */}
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Synlighet</label>
@@ -1734,7 +1779,7 @@ export default function OrderFormDetailPage() {
                 <div className="flex items-center justify-end pt-1 border-t border-border/40">
                   <Button
                     size="sm"
-                    disabled={!comment.trim() || addComment.isPending}
+                    disabled={(!comment.trim() && commentFiles.length === 0) || addComment.isPending}
                     onClick={() => addComment.mutate()}
                     className="gap-1.5"
                   >
