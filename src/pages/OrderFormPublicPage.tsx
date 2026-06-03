@@ -15,6 +15,7 @@ import {
 import { Check, AlertCircle, Upload, Info, Loader2, FileText as FileIcon, X } from "lucide-react";
 import { ModernDatePicker, ModernTimePicker } from "@/components/ui/modern-date-time-picker";
 import type { ConditionalLogic } from "@/types/order-forms";
+import { sanitizeStorageFileName } from "@/lib/storage-path";
 
 export default function OrderFormPublicPage() {
   const { slug } = useParams<{ slug: string }>();
