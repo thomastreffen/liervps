@@ -430,7 +430,7 @@ export default function OrderFormDetailPage() {
 
   const addComment = useMutation({
     mutationFn: async () => {
-      if (!comment.trim()) return;
+      if (!comment.trim() && commentFiles.length === 0) return;
       const isShared = commentVisibility === "shared";
       const shouldEmail = isShared && sendEmailNotification && !!bestillerEpost;
 
