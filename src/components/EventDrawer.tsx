@@ -1128,7 +1128,7 @@ export function EventDrawer({
             metadata: { added_names: addedNames },
           } as any);
 
-          await supabase.functions.invoke("create-approval", {
+          const { error: approvalErr } = await supabase.functions.invoke("create-approval", {
             body: {
               job_id: createdActivityId,
               technician_ids: techIds,
@@ -1137,6 +1137,13 @@ export function EventDrawer({
               response_required: reminderConfig.responseRequired,
             },
           });
+
+          if (approvalErr) {
+            console.error("[resource-plan:create-activity:existing] create-approval failed", approvalErr);
+            toast.warning("Arbeidsbesøk opprettet, men forespørsel ble ikke sendt", {
+              description: approvalErr.message,
+            });
+          }
         }
 
         // 6) Attachments on the NEW activity
