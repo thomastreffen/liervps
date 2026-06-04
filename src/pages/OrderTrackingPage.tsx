@@ -1094,6 +1094,18 @@ export default function OrderTrackingPage() {
                               )}
                             </div>
                           )}
+                          {isCustomer && (() => {
+                            const summary = customerReads.get(msg.id);
+                            const readByInternal = !!summary && summary.internal_read_count > 0;
+                            return (
+                              <div className="mt-1.5 flex justify-end text-primary-foreground/80">
+                                <CustomerMessageReadIndicator
+                                  readByInternal={readByInternal}
+                                  readAt={summary?.internal_first_read_at || null}
+                                />
+                              </div>
+                            );
+                          })()}
                         </div>
                         {isCustomer && (
                           <div className="h-8 w-8 rounded-full bg-primary/15 text-primary flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">
