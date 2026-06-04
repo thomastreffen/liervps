@@ -849,6 +849,7 @@ export default function ResourcePlan() {
             scheduleBlocks={scheduleBlocks}
             absenceBlocks={absenceBlocks}
             techCapacities={canReadBusy ? techCapacities : undefined}
+            visibleStatuses={visibleStatuses}
             onBlockClick={(block) => {
               const targetId = block.job_id || block.project_id;
               if (!targetId) return;
