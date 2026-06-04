@@ -16,8 +16,32 @@ import {
   type GroupedOffer,
 } from "@/lib/tripletex-csv-parser";
 
-export type MatchStatus = "match" | "new" | "needs_review" | "ignored" | "error" | "imported" | "possible_duplicate";
+export type MatchStatus = "match" | "new" | "needs_review" | "ignored" | "error" | "imported" | "possible_duplicate" | "unchanged";
 export type ImportAction = "create" | "update" | "ignore" | "link";
+
+// Stable payload hash for idempotency. Tomme strings normaliseres slik at
+// kjøring nummer to alltid kan oppdage "uendret" når Tripletex-data ikke har endret seg.
+async function computeProjectPayloadHash(input: {
+  tripletex_project_id: string;
+  tripletex_project_number: string | null;
+  title: string | null;
+  customer: string | null;
+  startDate: string | null;
+  endDate: string | null;
+  description: string | null;
+}): Promise<string> {
+  const stable = JSON.stringify({
+    id: input.tripletex_project_id,
+    n: input.tripletex_project_number ?? "",
+    t: (input.title ?? "").trim(),
+    c: (input.customer ?? "").trim(),
+    s: input.startDate ?? "",
+    e: input.endDate ?? "",
+    d: (input.description ?? "").trim(),
+  });
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(stable));
+  return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
 
 export interface ProjectRow {
   idx: number;
@@ -42,6 +66,10 @@ export interface ProjectRow {
   missingCustomer?: boolean;
   /** Resolved local customer id (set during matching) */
   resolvedCustomerId?: string;
+  /** Stable hash of the Tripletex payload — used to detect "unchanged" rows. */
+  payloadHash?: string;
+  /** Mapping row info if a previous import has been recorded for this Tripletex project. */
+  mappingId?: string;
   raw: Record<string, string>;
 }
 
@@ -131,8 +159,8 @@ export function useTripletexImport() {
   };
 
   const matchProjects = async (parsed: ParsedCSV) => {
-    // Fetch existing projects and customers for matching
-    const [{ data: existing }, { data: customers }] = await Promise.all([
+    // Fetch existing projects, customers, AND tripletex mappings (idempotency layer)
+    const [{ data: existing }, { data: customers }, { data: mappingRows }] = await Promise.all([
       supabase
         .from("events")
         .select("id, title, project_number, external_tripletex_id, external_system, external_project_id, customer, project_type, normalized_name")
@@ -140,7 +168,23 @@ export function useTripletexImport() {
       supabase
         .from("customers")
         .select("id, name, org_number, external_tripletex_id"),
+      companyId
+        ? supabase
+            .from("tripletex_project_mappings")
+            .select("id, tripletex_project_id, tripletex_project_number, mcs_project_id, last_payload_hash")
+            .eq("company_id", companyId)
+        : Promise.resolve({ data: [] as Array<{ id: string; tripletex_project_id: string; tripletex_project_number: string | null; mcs_project_id: string; last_payload_hash: string | null }> }),
     ]);
+
+    // Mapping lookup (by Tripletex project id OR project number)
+    const mappingByTtId = new Map<string, { id: string; mcs_project_id: string; hash: string | null }>();
+    const mappingByTtNum = new Map<string, { id: string; mcs_project_id: string; hash: string | null }>();
+    for (const m of (mappingRows as Array<{ id: string; tripletex_project_id: string; tripletex_project_number: string | null; mcs_project_id: string; last_payload_hash: string | null }> | null) ?? []) {
+      mappingByTtId.set(String(m.tripletex_project_id).toLowerCase(), { id: m.id, mcs_project_id: m.mcs_project_id, hash: m.last_payload_hash });
+      if (m.tripletex_project_number) {
+        mappingByTtNum.set(String(m.tripletex_project_number).toLowerCase(), { id: m.id, mcs_project_id: m.mcs_project_id, hash: m.last_payload_hash });
+      }
+    }
 
     const allProjects = (existing || []);
     const allCustomers = (customers || []);
@@ -170,13 +214,14 @@ export function useTripletexImport() {
 
     const maps: CustomerMaps = { customerByOrgNr, customerByTripletexId, customerByName };
 
-    const rows: ProjectRow[] = parsed.rows.map((row, idx) => {
+    const rows: ProjectRow[] = await Promise.all(parsed.rows.map(async (row, idx) => {
       const projectNumber = getCol(row, "Prosjektnummer");
       const projectName = getCol(row, "Prosjektnavn");
       const customerName = getCol(row, "Kundenavn");
       const customerNumber = getCol(row, "Kundenummer");
       const startDate = parseNorwegianDate(getCol(row, "Startdato"));
       const endDate = parseNorwegianDate(getCol(row, "Sluttdato"));
+      const description = getCol(row, "Prosjektbeskrivelse");
 
       let matchStatus: MatchStatus = "new";
       let matchedEntityId: string | undefined;
@@ -184,56 +229,93 @@ export function useTripletexImport() {
       let candidates: ProjectRow["candidates"] = undefined;
       let error: string | undefined;
       let action: ImportAction = "create";
+      let mappingId: string | undefined;
+
+      // Beregn idempotens-hash for denne raden (Tripletex-data)
+      const payloadHash = projectNumber
+        ? await computeProjectPayloadHash({
+            tripletex_project_id: projectNumber,
+            tripletex_project_number: projectNumber,
+            title: projectName,
+            customer: customerName,
+            startDate,
+            endDate,
+            description,
+          })
+        : undefined;
 
       if (!projectNumber) {
         matchStatus = "error";
         error = "Mangler prosjektnummer";
         action = "ignore";
       } else {
-        // 1. Exact match on external_system='tripletex' + external_project_id
-        const externalMatch = byExternalId.get(projectNumber.toLowerCase());
-        if (externalMatch) {
-          matchStatus = "match";
-          matchedEntityId = externalMatch.id;
-          matchedEntityTitle = externalMatch.title;
-          action = "update";
-        } else {
-        // 2. Exact match on tripletex ID (legacy field)
-        const tripletexMatch = byTripletexId.get(projectNumber.toLowerCase());
-        if (tripletexMatch) {
-          matchStatus = "match";
-          matchedEntityId = tripletexMatch.id;
-          matchedEntityTitle = tripletexMatch.title;
-          action = "update";
-        } else {
-          // 2. Exact match on project number
-          const numMatch = byProjectNumber.get(projectNumber.toLowerCase());
-          if (numMatch) {
-            matchStatus = "match";
-            matchedEntityId = numMatch.id;
-            matchedEntityTitle = numMatch.title;
-            action = "update";
-          } else {
-            // 3. Fuzzy matching on name + customer
-            const fuzzyMatches = allProjects
-              .map(e => {
-                const nameScore = stringSimilarity(projectName, e.title);
-                const customerScore = stringSimilarity(customerName, e.customer || "");
-                const combined = nameScore * 0.6 + customerScore * 0.4;
-                return { id: e.id, title: e.title, customer: e.customer, score: combined };
-              })
-              .filter(m => m.score > 0.5)
-              .sort((a, b) => b.score - a.score)
-              .slice(0, 3);
-
-            if (fuzzyMatches.length > 0) {
-              matchStatus = "possible_duplicate";
-              candidates = fuzzyMatches;
-              matchedEntityId = fuzzyMatches[0].id;
-              matchedEntityTitle = fuzzyMatches[0].title;
+        // 0) Sjekk eksisterende mapping (idempotens) FØRST.
+        const mapHit =
+          mappingByTtId.get(projectNumber.toLowerCase()) ||
+          mappingByTtNum.get(projectNumber.toLowerCase());
+        if (mapHit) {
+          // Verifiser at MCS-prosjektet fortsatt finnes
+          const stillAlive = allProjects.find((p) => p.id === mapHit.mcs_project_id);
+          if (stillAlive) {
+            mappingId = mapHit.id;
+            matchedEntityId = mapHit.mcs_project_id;
+            matchedEntityTitle = stillAlive.title;
+            if (payloadHash && mapHit.hash && mapHit.hash === payloadHash) {
+              matchStatus = "unchanged";
+              action = "ignore";
+            } else {
+              matchStatus = "match";
+              action = "update";
             }
           }
         }
+
+        if (!matchedEntityId) {
+          // 1) external_system='tripletex' + external_project_id
+          const externalMatch = byExternalId.get(projectNumber.toLowerCase());
+          if (externalMatch) {
+            matchStatus = "match";
+            matchedEntityId = externalMatch.id;
+            matchedEntityTitle = externalMatch.title;
+            action = "update";
+          } else {
+            // 2) Legacy tripletex_id
+            const tripletexMatch = byTripletexId.get(projectNumber.toLowerCase());
+            if (tripletexMatch) {
+              matchStatus = "match";
+              matchedEntityId = tripletexMatch.id;
+              matchedEntityTitle = tripletexMatch.title;
+              action = "update";
+            } else {
+              // 3) Eksakt prosjektnummer
+              const numMatch = byProjectNumber.get(projectNumber.toLowerCase());
+              if (numMatch) {
+                matchStatus = "match";
+                matchedEntityId = numMatch.id;
+                matchedEntityTitle = numMatch.title;
+                action = "update";
+              } else {
+                // 4) Fuzzy navn + kunde → needs_review
+                const fuzzyMatches = allProjects
+                  .map(e => {
+                    const nameScore = stringSimilarity(projectName, e.title);
+                    const customerScore = stringSimilarity(customerName, e.customer || "");
+                    const combined = nameScore * 0.6 + customerScore * 0.4;
+                    return { id: e.id, title: e.title, customer: e.customer, score: combined };
+                  })
+                  .filter(m => m.score > 0.5)
+                  .sort((a, b) => b.score - a.score)
+                  .slice(0, 3);
+
+                if (fuzzyMatches.length > 0) {
+                  matchStatus = "possible_duplicate";
+                  candidates = fuzzyMatches;
+                  matchedEntityId = fuzzyMatches[0].id;
+                  matchedEntityTitle = fuzzyMatches[0].title;
+                }
+              }
+            }
+          }
         }
       }
       // Resolve customer
@@ -260,7 +342,7 @@ export function useTripletexImport() {
         customerNumber,
         startDate,
         endDate,
-        description: getCol(row, "Prosjektbeskrivelse"),
+        description,
         reference: getCol(row, "Referanse"),
         projectLeader: getCol(row, "Prosjektleder"),
         department: getCol(row, "Avdeling"),
@@ -272,9 +354,11 @@ export function useTripletexImport() {
         error,
         missingCustomer,
         resolvedCustomerId,
+        payloadHash,
+        mappingId,
         raw: row,
       };
-    });
+    }));
 
     // Store customer maps for use during import execution
     customerMapsRef.current = maps;
@@ -437,7 +521,41 @@ export function useTripletexImport() {
         }
 
         // --- Phase 2: Import projects ---
+        // Tally for unchanged so vi kan rapportere idempotente kjøringer
+        let unchanged = 0;
+        // Helper for å holde mapping-tabellen ajour for ENHVER vellykket berøring
+        const touchMapping = async (row: ProjectRow, mcsProjectId: string) => {
+          if (!companyId || !row.projectNumber) return;
+          try {
+            await supabase
+              .from("tripletex_project_mappings")
+              .upsert(
+                {
+                  company_id: companyId,
+                  tripletex_project_id: row.projectNumber,
+                  tripletex_project_number: row.projectNumber,
+                  mcs_project_id: mcsProjectId,
+                  last_imported_at: new Date().toISOString(),
+                  last_payload_hash: row.payloadHash ?? null,
+                  created_by: user.id,
+                },
+                { onConflict: "company_id,tripletex_project_id" },
+              );
+          } catch (e) {
+            console.warn("tripletex mapping upsert failed", e);
+          }
+        };
+
         for (const row of projectRows) {
+          // "Uendret": mapping finnes og hash er identisk. Vi rører ikke prosjektet,
+          // bare oppdaterer last_imported_at slik at vi har et ferskt revisjonsspor.
+          if (row.matchStatus === "unchanged" && row.matchedEntityId) {
+            unchanged++;
+            await touchMapping(row, row.matchedEntityId);
+            await insertResult(logId, row.projectNumber, "project", "unchanged", "Uendret siden forrige import", row.raw, row.matchedEntityId);
+            continue;
+          }
+
           if (row.action === "ignore" || row.matchStatus === "error") {
             ignored++;
             await insertResult(logId, row.projectNumber, "project", "ignored", "Ignorert", row.raw);
@@ -460,6 +578,7 @@ export function useTripletexImport() {
                 customer_id: customerId || undefined,
               } as any).eq("id", row.matchedEntityId);
               updated++;
+              await touchMapping(row, row.matchedEntityId);
               await insertResult(logId, row.projectNumber, "project", "linked", "Koblet til eksisterende", row.raw, row.matchedEntityId);
             } else if (row.action === "create") {
               const { data, error: insertError } = await supabase.from("events").insert({
@@ -472,6 +591,7 @@ export function useTripletexImport() {
                 end_time: row.endDate ? `${row.endDate}T16:00:00` : new Date(Date.now() + 86400000 * 90).toISOString(),
                 status: "approved" as any,
                 project_type: "project",
+                parent_project_id: null,
                 company_id: companyId,
                 external_tripletex_id: row.projectNumber,
                 external_system: 'tripletex',
@@ -485,24 +605,49 @@ export function useTripletexImport() {
                 await insertResult(logId, row.projectNumber, "project", "failed", insertError.message, row.raw);
               } else {
                 created++;
+                if (data?.id) await touchMapping(row, data.id);
                 await insertResult(logId, row.projectNumber, "project", "created", "Opprettet", row.raw, data?.id);
               }
             } else if (row.action === "update" && row.matchedEntityId) {
-              await supabase.from("events").update({
-                title: row.projectName || undefined,
-                customer: row.customerName || undefined,
-                customer_id: customerId || undefined,
-                description: row.description || undefined,
+              // Ikke overskriv eksisterende felter med blanke Tripletex-verdier.
+              const updatePayload: Record<string, unknown> = {
                 external_tripletex_id: row.projectNumber,
                 external_system: 'tripletex',
                 external_project_id: row.projectNumber,
-              } as any).eq("id", row.matchedEntityId);
+              };
+              if (row.projectName) updatePayload.title = row.projectName;
+              if (row.customerName) updatePayload.customer = row.customerName;
+              if (customerId) updatePayload.customer_id = customerId;
+              if (row.description) updatePayload.description = row.description;
+              await supabase.from("events").update(updatePayload as any).eq("id", row.matchedEntityId);
               updated++;
+              await touchMapping(row, row.matchedEntityId);
               await insertResult(logId, row.projectNumber, "project", "updated", "Oppdatert", row.raw, row.matchedEntityId);
             }
           } catch (e: any) {
             failed++;
             await insertResult(logId, row.projectNumber, "project", "failed", e?.message || "Feil ved import", row.raw);
+          }
+        }
+
+        // Logg dedikert tripletex_import_runs-rad for audit/idempotensbevis
+        if (companyId) {
+          try {
+            await supabase.from("tripletex_import_runs").insert({
+              company_id: companyId,
+              started_by: user.id,
+              mode: "apply",
+              status: failed > 0 ? "completed" : "completed",
+              source_filename: fileName,
+              total_rows: projectRows.length,
+              counts: {
+                created, updated, unchanged, ignored, failed,
+                needs_review: projectRows.filter(r => r.matchStatus === "needs_review" || r.matchStatus === "possible_duplicate").length,
+              },
+              finished_at: new Date().toISOString(),
+            });
+          } catch (e) {
+            console.warn("tripletex_import_runs insert failed", e);
           }
         }
       } else if (detectedType === "quote") {

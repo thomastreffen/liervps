@@ -62,12 +62,13 @@ export function TripletexProjectImport() {
   const missingCustomerCount = projectRows.filter(r => r.missingCustomer && r.action !== "ignore").length;
 
   const summary = {
+    unchanged: projectRows.filter(r => r.matchStatus === "unchanged").length,
     match: projectRows.filter(r => r.matchStatus === "match").length,
     new: projectRows.filter(r => r.matchStatus === "new").length,
     possible_duplicate: projectRows.filter(r => r.matchStatus === "possible_duplicate").length,
     needs_review: projectRows.filter(r => r.matchStatus === "needs_review").length,
     error: projectRows.filter(r => r.matchStatus === "error").length,
-    ignored: projectRows.filter(r => r.action === "ignore").length,
+    ignored: projectRows.filter(r => r.action === "ignore" && r.matchStatus !== "unchanged").length,
   };
 
   return (
@@ -88,8 +89,11 @@ export function TripletexProjectImport() {
 
       {/* Summary */}
       <div className="flex flex-wrap gap-2">
-        <Badge variant="default">{summary.match} matcher</Badge>
         <Badge variant="secondary">{summary.new} nye</Badge>
+        <Badge variant="default">{summary.match} oppdateres</Badge>
+        {summary.unchanged > 0 && (
+          <Badge variant="outline" className="border-muted text-muted-foreground">{summary.unchanged} uendret</Badge>
+        )}
         {summary.possible_duplicate > 0 && (
           <Badge variant="outline" className="border-orange-500 text-orange-700">{summary.possible_duplicate} mulig eksisterende</Badge>
         )}
