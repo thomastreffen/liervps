@@ -8,6 +8,7 @@ export interface ScheduleBlock {
   company_id: string;
   technician_id: string;
   project_id: string | null;
+  job_id: string | null;
   outlook_event_id: string | null;
   calendar_id: string | null;
   source: "outlook" | "manual" | "system";
@@ -37,6 +38,9 @@ export interface ScheduleBlock {
   project_title?: string | null;
   job_number?: string | null;
   internal_number?: string | null;
+  job_title?: string | null;
+  job_status?: string | null;
+  job_number_resolved?: string | null;
 }
 
 function mapRow(row: any): ScheduleBlock {
@@ -49,6 +53,9 @@ function mapRow(row: any): ScheduleBlock {
     project_title: row.events?.title ?? null,
     job_number: row.events?.job_number ?? null,
     internal_number: row.events?.internal_number ?? null,
+    job_title: row.job?.title ?? null,
+    job_status: row.job?.status ?? null,
+    job_number_resolved: row.job?.job_number ?? row.events?.job_number ?? null,
   };
 }
 
@@ -95,7 +102,8 @@ export function useScheduleBlocks(
         .select(`
           *,
           technicians!inner(name, color),
-          events!schedule_blocks_project_id_fkey(title, job_number, internal_number)
+          events!schedule_blocks_project_id_fkey(title, job_number, internal_number),
+          job:events!schedule_blocks_job_id_fkey(title, status, job_number)
         `)
         .is("deleted_at", null)
         .lt("start_at", weekEnd.toISOString())
