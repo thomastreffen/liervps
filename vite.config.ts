@@ -25,8 +25,8 @@ export default defineConfig(({ mode }) => ({
       manifest: false,
       workbox: {
         maximumFileSizeToCacheInBytes: 10 * 1024 * 1024,
-        navigateFallback: "/offline.html",
-        navigateFallbackDenylist: [/^\/~oauth/, /^\/api\//, /^\/functions\//],
+        navigateFallback: "/index.html",
+        navigateFallbackDenylist: [/^\/~oauth/, /^\/api\//, /^\/functions\//, /^\/auth\/callback/],
         globPatterns: ["**/*.{js,css,html,svg,png,ico,woff2}"],
         cleanupOutdatedCaches: true,
         clientsClaim: true,
@@ -39,6 +39,7 @@ export default defineConfig(({ mode }) => ({
             options: {
               cacheName: "html-navigations",
               networkTimeoutSeconds: 4,
+              precacheFallback: { fallbackURL: "/offline.html" },
             },
           },
           {
