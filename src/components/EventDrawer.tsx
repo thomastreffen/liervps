@@ -1281,10 +1281,24 @@ export function EventDrawer({
               }
             }
 
+            console.info("[resource-plan:multi-date-debug]", {
+              baseDate: date,
+              repeatEnabled,
+              repeatDates: repeatDates.map((d) => format(d, "yyyy-MM-dd")),
+              allDates,
+              blockRows: blockRows.map((b) => ({
+                technician_id: b.technician_id,
+                start_at: b.start_at,
+                end_at: b.end_at,
+                title: b.title,
+              })),
+            });
+
             const { data: insertedBlocks, error: sbErr } = await (supabase as any)
               .from("schedule_blocks")
               .insert(blockRows)
               .select("id");
+
             console.info("[resource-plan:create-activity:result]", {
               insertedCount: insertedBlocks?.length ?? 0,
               expected: blockRows.length,
