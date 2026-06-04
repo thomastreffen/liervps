@@ -43,6 +43,7 @@ import { MobileResourceHeader } from "@/components/resource-plan/MobileResourceH
 import { CapacityStatusBar } from "@/components/resource-plan/CapacityStatusBar";
 import { UnplannedProjectsBanner } from "@/components/resource-plan/UnplannedProjectsBanner";
 import { UnplannedJobsStrip } from "@/components/resource-plan/UnplannedJobsStrip";
+import { UnplannedDrawer } from "@/components/resource-plan/UnplannedDrawer";
 import { FollowUpStrip, getFilteredJobIds, type FollowUpCategory } from "@/components/resource-plan/FollowUpStrip";
 import { RecommendedActions } from "@/components/resource-plan/RecommendedActions";
 import { CapacityGapsStrip } from "@/components/resource-plan/CapacityGapsStrip";
@@ -212,6 +213,7 @@ export default function ResourcePlan() {
   }, [selectedTechId, technicians]);
 
   const unplannedCount = useUnplannedProjects(effectiveCompanyId, allowedCompanyIds);
+  const [unplannedDrawerOpen, setUnplannedDrawerOpen] = useState(false);
 
   const { busySlots, getBusySlotsForDay, getExternalBusyMinutesForDay, refetch: refetchBusySlots } = useExternalBusy(
     canReadBusy ? selectedTechId : "__disabled__",
@@ -849,8 +851,8 @@ export default function ResourcePlan() {
                 variant="outline"
                 size="sm"
                 className="gap-1.5 rounded-lg h-8 text-xs"
-                onClick={() => navigate("/projects?filter=unplanned")}
-                title="Prosjekter som mangler planlegging"
+                onClick={() => setUnplannedDrawerOpen(true)}
+                title="Uplanlagte jobber – planlegg inn i matrisen"
               >
                 Uplanlagt
                 <Badge variant="secondary" className="h-4 px-1.5 text-[10px]">{unplannedCount}</Badge>
@@ -972,6 +974,24 @@ export default function ResourcePlan() {
           }}
         />
       )}
+
+      <UnplannedDrawer
+        open={unplannedDrawerOpen}
+        onOpenChange={setUnplannedDrawerOpen}
+        companyId={effectiveCompanyId}
+        allowedCompanyIds={allowedCompanyIds}
+        refreshKey={refreshKey}
+        onPickJob={(calEvent, techId) => {
+          setEditEvent(calEvent);
+          setClickedTechId(techId ?? null);
+          setPreselectedStart(null);
+          setPreselectedEnd(null);
+          setDropProjectId(null);
+          setDropProjectTitle(null);
+          setDrawerOpen(true);
+        }}
+      />
+
 
     </div>
   );
