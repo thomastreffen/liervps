@@ -70,7 +70,7 @@ export function MessageReadStatus({
   // Compact label
   let label: string;
   let Icon = Check;
-  let tone: "muted" | "ok" | "warn" = "muted";
+  let tone: "muted" | "ok" = "muted";
 
   if (noneRead) {
     label = isLastInThread ? "Ikke lest ennå" : "Ikke lest";
