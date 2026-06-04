@@ -124,24 +124,23 @@ export function TeamView({
 
   const showAbsence = !visibleStatuses || visibleStatuses.has("absence");
 
-  // Index blocks by tech+day
+  // Index blocks by tech+day, using the block's own start_at as the source of truth.
+  // We intentionally do NOT use overlap matching here — overnight blocks (e.g. 16:00–06:00)
+  // would otherwise render in both the start day and the next-morning column, causing
+  // duplicate cards. schedule_blocks.start_at decides which day column the card belongs to.
   const blocksByTechDay = useMemo(() => {
     const map = new Map<string, ScheduleBlock[]>();
     for (const b of filteredBlocks) {
-      for (const day of days) {
-        const dayStart = new Date(day); dayStart.setHours(0, 0, 0, 0);
-        const dayEnd = new Date(day); dayEnd.setHours(23, 59, 59, 999);
-        if (b.start_at <= dayEnd && b.end_at >= dayStart) {
-          const key = `${b.technician_id}__${format(day, "yyyy-MM-dd")}`;
-          const arr = map.get(key) || [];
-          arr.push(b);
-          map.set(key, arr);
-        }
-      }
+      const dayKey = format(b.start_at, "yyyy-MM-dd");
+      const key = `${b.technician_id}__${dayKey}`;
+      const arr = map.get(key) || [];
+      arr.push(b);
+      map.set(key, arr);
     }
     for (const arr of map.values()) arr.sort((a, b) => a.start_at.getTime() - b.start_at.getTime());
     return map;
-  }, [filteredBlocks, days]);
+  }, [filteredBlocks]);
+
 
   const absencesByTechDay = useMemo(() => {
     const map = new Map<string, AbsenceBlock[]>();
