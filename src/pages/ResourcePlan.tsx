@@ -213,6 +213,7 @@ export default function ResourcePlan() {
   }, [selectedTechId, technicians]);
 
   const unplannedCount = useUnplannedProjects(effectiveCompanyId, allowedCompanyIds);
+  const [unplannedDrawerOpen, setUnplannedDrawerOpen] = useState(false);
 
   const { busySlots, getBusySlotsForDay, getExternalBusyMinutesForDay, refetch: refetchBusySlots } = useExternalBusy(
     canReadBusy ? selectedTechId : "__disabled__",
