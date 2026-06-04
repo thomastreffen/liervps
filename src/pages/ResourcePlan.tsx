@@ -761,6 +761,50 @@ export default function ResourcePlan() {
               />
             )}
 
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 rounded-lg h-8 text-xs"
+                  title="Filtrer farger / statuser"
+                >
+                  <Palette className="h-3.5 w-3.5" />
+                  Farger
+                  {hiddenCount > 0 && (
+                    <Badge variant="secondary" className="h-4 px-1.5 text-[10px]">{hiddenCount}</Badge>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-64 p-3">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Vis statuser</p>
+                  <button
+                    type="button"
+                    className="text-[11px] text-primary hover:underline"
+                    onClick={() => setAllStatuses(visibleStatuses.size !== ALL_STATUS_KEYS.length)}
+                  >
+                    {visibleStatuses.size === ALL_STATUS_KEYS.length ? "Skjul alle" : "Vis alle"}
+                  </button>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  {TEAM_STATUS_OPTIONS.map((opt) => {
+                    const checked = visibleStatuses.has(opt.key);
+                    return (
+                      <label
+                        key={opt.key}
+                        className="flex items-center gap-2.5 px-2 py-1.5 rounded-md hover:bg-accent cursor-pointer text-sm"
+                      >
+                        <Checkbox checked={checked} onCheckedChange={() => toggleStatus(opt.key)} />
+                        <span className={cn("h-3 w-3 rounded-sm border shrink-0", opt.swatch)} />
+                        <span className="flex-1 truncate">{opt.label}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </PopoverContent>
+            </Popover>
+
             {unplannedCount > 0 && (
               <Button
                 variant="outline"
