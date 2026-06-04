@@ -381,8 +381,10 @@ export function EventDrawer({
       setSearchLoading(true);
       const { data } = await supabase
         .from("events")
-        .select("id, title, customer, start_time, end_time, status, internal_number")
+        .select("id, title, customer, start_time, end_time, status, internal_number, parent_project_id, project_type")
         .is("deleted_at", null)
+        .is("parent_project_id", null)
+        .neq("project_type", "task")
         .or(`title.ilike.%${searchQuery}%,customer.ilike.%${searchQuery}%,internal_number.ilike.%${searchQuery}%`)
         .order("start_time", { ascending: false })
         .limit(10);
