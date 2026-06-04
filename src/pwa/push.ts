@@ -5,6 +5,8 @@ export type PushSupport =
   | { supported: true }
   | { supported: false; reason: "no-sw" | "no-push" | "no-notification" | "ios-not-installed" };
 
+type PushReason = "no-sw" | "no-push" | "no-notification" | "ios-not-installed";
+
 export function getPushSupport(): PushSupport {
   if (typeof window === "undefined") return { supported: false, reason: "no-sw" };
   if (!("serviceWorker" in navigator)) return { supported: false, reason: "no-sw" };
@@ -12,9 +14,10 @@ export function getPushSupport(): PushSupport {
     // iOS only supports web push when installed to home screen
     const ua = navigator.userAgent;
     const ios = /iPad|iPhone|iPod/.test(ua);
+    const w = window as Window & { navigator: Navigator & { standalone?: boolean } };
     const standalone =
-      window.matchMedia?.("(display-mode: standalone)").matches ||
-      (window.navigator as unknown as { standalone?: boolean }).standalone === true;
+      w.matchMedia?.("(display-mode: standalone)").matches ||
+      w.navigator.standalone === true;
     if (ios && !standalone) return { supported: false, reason: "ios-not-installed" };
     return { supported: false, reason: "no-push" };
   }
