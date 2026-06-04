@@ -236,6 +236,7 @@ export function TeamView({
 
   // Today highlight
   const today = new Date();
+  const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
 
   return (
     <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
@@ -268,23 +269,27 @@ export function TeamView({
                 <div
                   key={d.toISOString()}
                   className={cn(
-                    "px-2 py-3 text-center border-r border-border last:border-r-0",
-                    isWeekend && "bg-muted/30",
+                    "px-2 py-3 text-center border-r border-border last:border-r-0 transition-colors",
+                    isWeekend && "bg-muted/40",
+                    isToday && !isWeekend && "bg-primary/10 border-b-2 border-b-primary",
                   )}
                 >
                   <div className={cn(
-                    "text-[10px] font-semibold uppercase tracking-wider",
-                    isToday ? "text-primary" : "text-muted-foreground"
+                    "text-[10px] font-bold uppercase tracking-wider",
+                    isToday ? "text-primary" : "text-foreground/70"
                   )}>
                     {format(d, "EEE", { locale: nb })}
                   </div>
                   <div className={cn(
-                    "text-base font-semibold leading-tight mt-0.5",
+                    "text-lg font-bold leading-tight mt-0.5 tabular-nums",
                     isToday ? "text-primary" : "text-foreground",
                   )}>
                     {format(d, "d")}
                   </div>
-                  <div className={cn("text-[10px] tabular-nums mt-0.5", isWeekend ? "text-muted-foreground/60" : utilColor(pct))}>
+                  <div className={cn(
+                    "text-[10px] tabular-nums mt-0.5",
+                    isWeekend ? "text-muted-foreground/50" : utilColor(pct),
+                  )}>
                     {isWeekend ? "—" : (pct > 0 ? `${pct} %` : "—")}
                   </div>
                 </div>
@@ -302,21 +307,21 @@ export function TeamView({
               <div
                 key={t.id}
                 className={cn(
-                  "grid border-b border-border last:border-b-0 group/row",
-                  rowIdx % 2 === 1 && "bg-muted/10",
+                  "grid border-b border-border last:border-b-0 group/row transition-colors hover:bg-accent/20",
+                  rowIdx % 2 === 1 && "bg-muted/[0.04]",
                 )}
                 style={{ gridTemplateColumns: "200px repeat(7, minmax(0,1fr))" }}
               >
                 {/* Sticky tech cell */}
-                <div className="sticky left-0 z-10 bg-card px-3 py-3 flex items-center gap-3 border-r border-border">
+                <div className="sticky left-0 z-10 bg-card group-hover/row:bg-accent/20 px-3 py-3 flex items-center gap-3 border-r border-border transition-colors">
                   <div
-                    className="h-9 w-9 rounded-full flex items-center justify-center text-[11px] font-semibold text-white shrink-0 ring-2 ring-background"
+                    className="h-9 w-9 rounded-full flex items-center justify-center text-[11px] font-bold text-white shrink-0 ring-2 ring-background shadow-sm"
                     style={{ backgroundColor: color }}
                   >
                     {initials(t.name)}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className="text-[13px] font-medium leading-tight truncate text-foreground">{t.name}</div>
+                    <div className="text-[13px] font-semibold leading-tight truncate text-foreground">{t.name}</div>
                     <div className="text-[11px] text-muted-foreground mt-0.5 tabular-nums">
                       {tc ? (
                         tc.weekPlannedHours > 0
@@ -335,6 +340,7 @@ export function TeamView({
                   const key = `${t.id}__${format(day, "yyyy-MM-dd")}`;
                   const cellBlocks = blocksByTechDay.get(key) || [];
                   const cellAbsences = absencesByTechDay.get(key) || [];
+                  const isEmpty = cellBlocks.length === 0 && cellAbsences.length === 0;
 
                   return (
                     <button
@@ -347,16 +353,25 @@ export function TeamView({
                         onCellCreate?.(t.id, day);
                       }}
                       className={cn(
-                        "relative min-h-[76px] border-r border-border last:border-r-0 px-1.5 py-1.5 flex flex-col gap-1 text-left transition-colors",
-                        isWeekend ? "bg-muted/30 cursor-default" : "hover:bg-accent/40 cursor-pointer",
-                        isToday && !isWeekend && "bg-primary/5",
+                        "relative min-h-[78px] border-r border-border last:border-r-0 px-1.5 py-1.5 flex flex-col gap-1 text-left transition-colors group/cell",
+                        isWeekend ? "bg-muted/40 cursor-default" : "hover:bg-primary/[0.04] cursor-pointer",
+                        isToday && !isWeekend && "bg-primary/[0.04]",
                       )}
                     >
+                      {/* Empty-cell + indicator (visible on hover) */}
+                      {isEmpty && !isWeekend && (
+                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/cell:opacity-100 transition-opacity pointer-events-none">
+                          <div className="h-6 w-6 rounded-full border border-dashed border-primary/40 flex items-center justify-center bg-background/80">
+                            <Plus className="h-3 w-3 text-primary/60" />
+                          </div>
+                        </div>
+                      )}
+
                       {cellAbsences.map((a) => (
                         <div
                           key={a.id}
                           data-chip
-                          className="rounded-md border border-stone-200 bg-stone-50 dark:border-stone-800 dark:bg-stone-900/40 px-2 py-1 text-[11px] text-stone-600 dark:text-stone-300 flex items-center gap-1.5"
+                          className="rounded-md border border-dashed border-stone-300 bg-stone-100/70 dark:border-stone-700 dark:bg-stone-900/40 px-2 py-1 text-[11px] text-stone-700 dark:text-stone-300 flex items-center gap-1.5"
                           title={a.label}
                         >
                           <Palmtree className="h-3 w-3 shrink-0 opacity-70" />
@@ -366,6 +381,8 @@ export function TeamView({
 
                       {cellBlocks.map((b) => {
                         const tone = statusTone(b.job_status);
+                        const dotCls = statusDot(b.job_status);
+                        const isSelected = selectedBlockId === b.id;
                         // Primary: human-readable title (job → block → parent project)
                         const primaryTitle = b.job_title
                           || b.title
@@ -386,22 +403,32 @@ export function TeamView({
                             tabIndex={0}
                             onClick={(e) => {
                               e.stopPropagation();
+                              setSelectedBlockId(b.id);
                               onBlockClick?.(b);
                             }}
                             onKeyDown={(e) => {
                               if (e.key === "Enter" || e.key === " ") {
                                 e.preventDefault();
+                                setSelectedBlockId(b.id);
                                 onBlockClick?.(b);
                               }
                             }}
                             className={cn(
-                              "rounded-md border px-2 py-1 text-[11px] leading-tight cursor-pointer transition-all hover:shadow-sm hover:-translate-y-px",
+                              "rounded-md border px-2 py-1 text-[11px] leading-tight cursor-pointer transition-all",
+                              "hover:shadow-md hover:-translate-y-px hover:border-foreground/30",
+                              "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
                               tone,
+                              isSelected && "ring-2 ring-primary ring-offset-1 shadow-md",
                             )}
                             title={refId ? `${primaryTitle} (${refId}) · ${timeStr}` : `${primaryTitle} · ${timeStr}`}
                           >
-                            <div className="font-medium line-clamp-2 break-words">{primaryTitle}</div>
-                            <div className="text-[10px] opacity-75 tabular-nums truncate">{secondary}</div>
+                            <div className="flex items-start gap-1.5">
+                              <span className={cn("mt-1 h-1.5 w-1.5 rounded-full shrink-0", dotCls)} aria-hidden />
+                              <div className="min-w-0 flex-1">
+                                <div className="font-semibold line-clamp-2 break-words">{primaryTitle}</div>
+                                <div className="text-[10px] opacity-70 tabular-nums truncate font-normal mt-0.5">{secondary}</div>
+                              </div>
+                            </div>
                           </div>
                         );
                       })}
