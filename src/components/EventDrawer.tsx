@@ -90,6 +90,8 @@ interface ExistingJob {
   end_time: string;
   status: string;
   internal_number: string | null;
+  parent_project_id: string | null;
+  project_type: string | null;
 }
 
 interface ConflictInfo {
