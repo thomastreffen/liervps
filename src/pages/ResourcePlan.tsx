@@ -791,19 +791,8 @@ export default function ResourcePlan() {
                   </Button>
                 )}
 
-                <div className="flex items-center gap-0.5 border border-border/40 rounded-md p-0.5 ml-1">
-                  {VIEW_OPTIONS.map((v) => (
-                    <Button
-                      key={v.value}
-                      variant={calendarView === v.value ? "default" : "ghost"}
-                      size="sm"
-                      className="h-6 text-[11px] rounded px-2"
-                      onClick={() => setCalendarView(v.value)}
-                    >
-                      {v.label}
-                    </Button>
-                  ))}
-                </div>
+                {/* View toggle removed — Ressursplan uses team matrix exclusively */}
+
               </div>
 
               {/* Right: Search + Primary actions */}
