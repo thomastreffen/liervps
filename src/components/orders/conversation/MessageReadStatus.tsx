@@ -99,7 +99,6 @@ export function MessageReadStatus({
             "inline-flex items-center gap-1 text-[10px] rounded-full px-1.5 py-0.5 transition-colors",
             tone === "ok" && "text-primary hover:bg-primary/10",
             tone === "muted" && "text-muted-foreground hover:bg-muted",
-            tone === "warn" && "text-amber-700 hover:bg-amber-50",
             className,
           )}
         >
