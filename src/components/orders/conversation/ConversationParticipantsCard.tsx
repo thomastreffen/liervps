@@ -117,8 +117,7 @@ export function ConversationParticipantsCard({ submissionId, companyId, latestMe
     queryKey: ["company-technicians-participants", companyId],
     enabled: !!companyId && addOpen && addType === "technician",
     queryFn: async () => {
-      const { data } = await supabase
-        .from("technicians")
+      const { data } = await (supabase.from("technicians") as any)
         .select("id, name, email, user_id")
         .eq("company_id", companyId)
         .eq("is_active", true);
