@@ -96,14 +96,16 @@ export function AbsenceApprovalList() {
       body: { action: "delete", absence_id: deleteDialog.id },
     }).catch((e) => console.error("[AbsenceSync] delete error:", e));
 
-    const { error } = await supabase
+    const { error, count } = await supabase
       .from("absence_requests")
-      .delete()
+      .delete({ count: "exact" })
       .eq("id", deleteDialog.id);
     setActing(null);
     setDeleteDialog(null);
     if (error) {
       toast.error("Feil ved sletting", { description: error.message });
+    } else if (!count) {
+      toast.error("Kunne ikke slette", { description: "Du har ikke tilgang til å slette dette fraværet." });
     } else {
       toast.success("Fraværet er slettet");
       refetch();
