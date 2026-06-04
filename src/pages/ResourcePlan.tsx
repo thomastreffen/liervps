@@ -975,6 +975,24 @@ export default function ResourcePlan() {
         />
       )}
 
+      <UnplannedDrawer
+        open={unplannedDrawerOpen}
+        onOpenChange={setUnplannedDrawerOpen}
+        companyId={effectiveCompanyId}
+        allowedCompanyIds={allowedCompanyIds}
+        refreshKey={refreshKey}
+        onPickJob={(calEvent, techId) => {
+          setEditEvent(calEvent);
+          setClickedTechId(techId ?? null);
+          setPreselectedStart(null);
+          setPreselectedEnd(null);
+          setDropProjectId(null);
+          setDropProjectTitle(null);
+          setDrawerOpen(true);
+        }}
+      />
+
+
     </div>
   );
 }
