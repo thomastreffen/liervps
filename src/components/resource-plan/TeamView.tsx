@@ -131,13 +131,16 @@ export function TeamView({
               const isWeekend = dow === 0 || dow === 6;
               const isToday = isSameDay(d, today);
               // Aggregate utilisation across all visible techs for this day
-              let plannedH = 0;
-              let capH = 0;
+              let plannedMin = 0;
+              let capMin = 0;
               for (const tc of techCapacities || []) {
                 const dc = tc.days.find((dd) => isSameDay(dd.date, d));
-                if (dc) { plannedH += dc.plannedHours; capH += dc.capacityHours; }
+                if (dc) {
+                  plannedMin += dc.totalMinutes;
+                  capMin += (tc.weekCapacityMinutes / 5); // approx per workday
+                }
               }
-              const pct = capH > 0 ? Math.round((plannedH / capH) * 100) : 0;
+              const pct = capMin > 0 ? Math.round((plannedMin / capMin) * 100) : 0;
               return (
                 <div
                   key={d.toISOString()}

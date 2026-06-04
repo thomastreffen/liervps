@@ -1057,11 +1057,13 @@ export default function ResourcePlan() {
               ? technicians.filter((t) => filteredTechForSidebar.has(t.id))
               : technicians) as any}
             technicianMap={technicianMap}
-            events={calEvents}
+            scheduleBlocks={scheduleBlocks}
             absenceBlocks={absenceBlocks}
             techCapacities={canReadBusy ? techCapacities : undefined}
-            onEventClick={(eventId) => {
-              const ev = calEvents.find((e) => e.id === eventId);
+            onBlockClick={(block) => {
+              const targetId = block.job_id || block.project_id;
+              if (!targetId) return;
+              const ev = calEvents.find((e) => e.id === targetId);
               if (ev) handleEventClick(ev);
             }}
             onCellCreate={(techId, day) => {
