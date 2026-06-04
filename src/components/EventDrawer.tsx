@@ -90,6 +90,8 @@ interface ExistingJob {
   end_time: string;
   status: string;
   internal_number: string | null;
+  parent_project_id: string | null;
+  project_type: string | null;
 }
 
 interface ConflictInfo {
@@ -379,8 +381,10 @@ export function EventDrawer({
       setSearchLoading(true);
       const { data } = await supabase
         .from("events")
-        .select("id, title, customer, start_time, end_time, status, internal_number")
+        .select("id, title, customer, start_time, end_time, status, internal_number, parent_project_id, project_type")
         .is("deleted_at", null)
+        .is("parent_project_id", null)
+        .neq("project_type", "task")
         .or(`title.ilike.%${searchQuery}%,customer.ilike.%${searchQuery}%,internal_number.ilike.%${searchQuery}%`)
         .order("start_time", { ascending: false })
         .limit(10);
@@ -1124,7 +1128,7 @@ export function EventDrawer({
             metadata: { added_names: addedNames },
           } as any);
 
-          await supabase.functions.invoke("create-approval", {
+          const { error: approvalErr } = await supabase.functions.invoke("create-approval", {
             body: {
               job_id: createdActivityId,
               technician_ids: techIds,
@@ -1133,6 +1137,13 @@ export function EventDrawer({
               response_required: reminderConfig.responseRequired,
             },
           });
+
+          if (approvalErr) {
+            console.error("[resource-plan:create-activity:existing] create-approval failed", approvalErr);
+            toast.warning("Arbeidsbesøk opprettet, men forespørsel ble ikke sendt", {
+              description: approvalErr.message,
+            });
+          }
         }
 
         // 6) Attachments on the NEW activity
