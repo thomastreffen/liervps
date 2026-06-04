@@ -851,8 +851,8 @@ export default function ResourcePlan() {
                 variant="outline"
                 size="sm"
                 className="gap-1.5 rounded-lg h-8 text-xs"
-                onClick={() => navigate("/projects?filter=unplanned")}
-                title="Prosjekter som mangler planlegging"
+                onClick={() => setUnplannedDrawerOpen(true)}
+                title="Uplanlagte jobber – planlegg inn i matrisen"
               >
                 Uplanlagt
                 <Badge variant="secondary" className="h-4 px-1.5 text-[10px]">{unplannedCount}</Badge>
