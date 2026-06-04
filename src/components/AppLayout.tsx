@@ -32,6 +32,8 @@ export function AppLayout() {
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
+  const [installOpen, setInstallOpen] = useState(false);
+  const [statusOpen, setStatusOpen] = useState(false);
   const { active: previewActive, realIsSuperAdmin } = usePreviewMode();
 
   // Show preview trigger only for real superadmins (not in preview mode context)
