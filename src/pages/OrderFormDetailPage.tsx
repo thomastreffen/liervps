@@ -159,6 +159,18 @@ export default function OrderFormDetailPage() {
     },
   });
 
+  // Conversation reads (internal/admin flow)
+  const visibleMessageIdsAdmin = useMemo(
+    () => (orderMessages as any[]).map((m) => m.id as string),
+    [orderMessages],
+  );
+  const conversation = useConversationReads({
+    submissionId: id,
+    visibleMessageIds: visibleMessageIdsAdmin,
+    enableInternalMarkRead: true,
+  });
+  const latestMessageId = visibleMessageIdsAdmin[visibleMessageIdsAdmin.length - 1] || null;
+
   // Fetch participants for this order
   const { data: participants = [] } = useQuery({
     queryKey: ["order-participants", id],
