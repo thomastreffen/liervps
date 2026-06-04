@@ -146,6 +146,10 @@ export function useAbsenceBlocks(
         const days = eachDayOfInterval({ start: rangeStart, end: rangeEnd });
 
         for (const day of days) {
+          // Skip weekends — absence does not render on Saturdays/Sundays
+          const dow = day.getDay();
+          if (dow === 0 || dow === 6) continue;
+
           result.push({
             id: `absence-${absence.id}-${format(day, "yyyy-MM-dd")}`,
             absenceRequestId: absence.id,

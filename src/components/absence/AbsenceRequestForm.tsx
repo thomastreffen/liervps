@@ -223,7 +223,10 @@ export function AbsenceRequestForm() {
     }
   };
 
+  const submittingRef = useRef(false);
+
   const handleSubmit = async () => {
+    if (submittingRef.current) return;
     if (!companyId || !personId) {
       toast.error("Velg ansatt og selskap");
       return;
@@ -232,27 +235,70 @@ export function AbsenceRequestForm() {
       toast.error("Velg minst én periode");
       return;
     }
+
+    // Dedupe periods by start/end (same person, same range)
+    const seen = new Set<string>();
+    const uniquePeriods = periods.filter((p) => {
+      const key = `${fmtDate(p.start)}__${fmtDate(p.end)}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
+    submittingRef.current = true;
     setSubmitting(true);
-    const rows = periods.map((p) => ({
-      person_id: personId,
-      company_id: companyId,
-      absence_type: absenceType,
-      start_date: fmtDate(p.start),
-      end_date: fmtDate(p.end),
-      start_time: null,
-      end_time: null,
-      is_full_day: true,
-      comment: comment || null,
-      requested_by: user?.id || null,
-    }));
-    const { error } = await supabase.from("absence_requests").insert(rows);
-    setSubmitting(false);
-    if (error) {
-      toast.error("Feil ved innsending", { description: error.message });
-    } else {
-      toast.success(`${rows.length} ${rows.length === 1 ? "forespørsel" : "forespørsler"} sendt`);
-      setPeriods([]);
-      setComment("");
+
+    try {
+      // Check for existing approved/pending overlapping requests for the same person
+      const minStart = uniquePeriods.reduce((m, p) => (p.start < m ? p.start : m), uniquePeriods[0].start);
+      const maxEnd = uniquePeriods.reduce((m, p) => (p.end > m ? p.end : m), uniquePeriods[0].end);
+
+      const { data: existing } = await supabase
+        .from("absence_requests")
+        .select("start_date, end_date, status")
+        .eq("person_id", personId)
+        .in("status", ["approved", "pending"])
+        .lte("start_date", fmtDate(maxEnd))
+        .gte("end_date", fmtDate(minStart));
+
+      const conflicting = uniquePeriods.filter((p) =>
+        (existing || []).some((e: any) => {
+          const es = new Date(e.start_date + "T00:00:00");
+          const ee = new Date(e.end_date + "T00:00:00");
+          return p.start <= ee && p.end >= es;
+        }),
+      );
+
+      if (conflicting.length > 0) {
+        toast.error("Overlappende fravær finnes allerede", {
+          description: conflicting.map((c) => c.label).join(", "),
+        });
+        return;
+      }
+
+      const rows = uniquePeriods.map((p) => ({
+        person_id: personId,
+        company_id: companyId,
+        absence_type: absenceType,
+        start_date: fmtDate(p.start),
+        end_date: fmtDate(p.end),
+        start_time: null,
+        end_time: null,
+        is_full_day: true,
+        comment: comment || null,
+        requested_by: user?.id || null,
+      }));
+      const { error } = await supabase.from("absence_requests").insert(rows);
+      if (error) {
+        toast.error("Feil ved innsending", { description: error.message });
+      } else {
+        toast.success(`${rows.length} ${rows.length === 1 ? "forespørsel" : "forespørsler"} sendt`);
+        setPeriods([]);
+        setComment("");
+      }
+    } finally {
+      submittingRef.current = false;
+      setSubmitting(false);
     }
   };
 
