@@ -25,6 +25,8 @@ import { CustomerFieldRequests } from "@/components/orders/CustomerFieldRequests
 import { getSubmissionDisplayTitle, getSubmissionAddressLine } from "@/lib/order-display";
 import { getMessageSenderLabel, resolveSenderKind } from "@/lib/order-message-sender";
 import { useAuth } from "@/hooks/useAuth";
+import { useCustomerConversationReads } from "@/hooks/useCustomerConversationReads";
+import { CustomerMessageReadIndicator } from "@/components/orders/conversation/CustomerMessageReadIndicator";
 import { sanitizeStorageFileName } from "@/lib/storage-path";
 
 import mascotReceived from "@/assets/mascot/received.png";
