@@ -24,6 +24,7 @@ export default defineConfig(({ mode }) => ({
       devOptions: { enabled: false },
       manifest: false,
       workbox: {
+        maximumFileSizeToCacheInBytes: 10 * 1024 * 1024,
         navigateFallback: "/offline.html",
         navigateFallbackDenylist: [/^\/~oauth/, /^\/api\//, /^\/functions\//],
         globPatterns: ["**/*.{js,css,html,svg,png,ico,woff2}"],
