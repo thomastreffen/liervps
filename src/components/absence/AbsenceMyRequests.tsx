@@ -82,14 +82,16 @@ export function AbsenceMyRequests() {
   const handleDelete = useCallback(async () => {
     if (!deleteDialog) return;
     setDeleting(true);
-    const { error } = await supabase
+    const { error, count } = await supabase
       .from("absence_requests")
-      .delete()
+      .delete({ count: "exact" })
       .eq("id", deleteDialog.id);
     setDeleting(false);
     setDeleteDialog(null);
     if (error) {
       toast.error("Feil ved sletting", { description: error.message });
+    } else if (!count) {
+      toast.error("Kunne ikke slette", { description: "Du har ikke tilgang til å slette dette fraværet." });
     } else {
       toast.success("Fraværet er slettet");
       fetchMine();
