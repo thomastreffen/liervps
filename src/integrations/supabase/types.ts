@@ -11996,6 +11996,7 @@ export type Database = {
         }
         Returns: Json
       }
+      apply_duplicate_schedule_blocks_cleanup: { Args: never; Returns: Json }
       backfill_commercial_cases_for_active: { Args: never; Returns: Json }
       can_access_record: {
         Args: {
@@ -12040,6 +12041,21 @@ export type Database = {
       compute_submission_summary: {
         Args: { _submission_id: string }
         Returns: Json
+      }
+      dry_run_duplicate_schedule_blocks: {
+        Args: never
+        Returns: {
+          count: number
+          duplicate_ids: string[]
+          duplicate_key: string
+          end_at: string
+          job_id: string
+          keep_id: string
+          project_id: string
+          source: string
+          start_at: string
+          technician_id: string
+        }[]
       }
       event_technician_company_access: {
         Args: { _auth_user_id: string; _event_id: string }
