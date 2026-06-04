@@ -19,8 +19,13 @@ import {
   AlertTriangle,
   History,
   Users,
+  Download,
+  Smartphone,
+  User as UserIcon,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { InstallAppDialog } from "@/components/pwa/InstallAppDialog";
+import { PwaStatusDialog } from "@/components/pwa/PwaStatusDialog";
 import { useAuth } from "@/hooks/useAuth";
 import { useNotifications } from "@/hooks/useNotifications";
 import { NotificationDrawer } from "@/components/NotificationDrawer";
