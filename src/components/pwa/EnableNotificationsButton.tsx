@@ -16,7 +16,8 @@ export function EnableNotificationsButton() {
       setPermission(Notification.permission);
       return;
     }
-    setPermission(support.reason === "ios-not-installed" ? "ios-not-installed" : "unsupported");
+    const reason = (support as { reason: string }).reason;
+    setPermission(reason === "ios-not-installed" ? "ios-not-installed" : "unsupported");
   }, []);
 
   if (permission === "unsupported") {
