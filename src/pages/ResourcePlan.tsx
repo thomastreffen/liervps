@@ -5,6 +5,7 @@ import { nb } from "date-fns/locale";
 import { TechnicianList } from "@/components/TechnicianList";
 import { StatusLegend } from "@/components/StatusLegend";
 import { ResourceCalendar } from "@/components/ResourceCalendar";
+import { TeamView } from "@/components/resource-plan/TeamView";
 import { EventDrawer } from "@/components/EventDrawer";
 import { TaskResourceStrip } from "@/components/tasks/TaskResourceStrip";
 import { Button } from "@/components/ui/button";
