@@ -7,6 +7,46 @@ import type { ScheduleBlock } from "@/hooks/useScheduleBlocks";
 import type { AbsenceBlock } from "@/hooks/useAbsenceBlocks";
 import type { TechDayCapacity } from "@/hooks/useCapacity";
 
+export type TeamStatusKey =
+  | "approved"
+  | "scheduled"
+  | "in_progress"
+  | "rejected"
+  | "requested"
+  | "time_change_proposed"
+  | "absence";
+
+export const TEAM_STATUS_OPTIONS: { key: TeamStatusKey; label: string; swatch: string }[] = [
+  { key: "approved", label: "Godkjent", swatch: "bg-emerald-300 border-emerald-400" },
+  { key: "scheduled", label: "Planlagt", swatch: "bg-sky-300 border-sky-400" },
+  { key: "in_progress", label: "Pågår", swatch: "bg-amber-300 border-amber-400" },
+  { key: "requested", label: "Forespurt", swatch: "bg-violet-300 border-violet-400" },
+  { key: "time_change_proposed", label: "Tidsendring foreslått", swatch: "bg-orange-300 border-orange-400" },
+  { key: "rejected", label: "Avslått", swatch: "bg-rose-300 border-rose-400" },
+  { key: "absence", label: "Ferie/fravær", swatch: "bg-stone-300 border-stone-400" },
+];
+
+export function blockStatusKey(status?: string | null): TeamStatusKey {
+  switch (status) {
+    case "approved":
+    case "completed":
+    case "ready_for_invoicing":
+    case "invoiced":
+      return "approved";
+    case "in_progress":
+      return "in_progress";
+    case "rejected":
+    case "cancelled":
+      return "rejected";
+    case "requested":
+      return "requested";
+    case "time_change_proposed":
+      return "time_change_proposed";
+    default:
+      return "scheduled";
+  }
+}
+
 interface TechMeta {
   name: string;
   color: string | null;
@@ -20,6 +60,7 @@ interface TeamViewProps {
   scheduleBlocks: ScheduleBlock[];
   absenceBlocks: AbsenceBlock[];
   techCapacities?: TechDayCapacity[];
+  visibleStatuses?: Set<TeamStatusKey>;
   onBlockClick?: (block: ScheduleBlock) => void;
   onCellCreate?: (techId: string, day: Date) => void;
 }
