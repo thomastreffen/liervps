@@ -1460,9 +1460,10 @@ export default function OrderFormDetailPage() {
           </Card>
 
           {/* Participants panel */}
-          <OrderParticipantsPanel
+          <ConversationParticipantsCard
             submissionId={id!}
             companyId={submission.company_id}
+            latestMessageId={latestMessageId}
           />
 
           {/* Messages - unified view */}
