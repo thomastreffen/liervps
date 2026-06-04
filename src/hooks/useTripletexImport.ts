@@ -521,7 +521,41 @@ export function useTripletexImport() {
         }
 
         // --- Phase 2: Import projects ---
+        // Tally for unchanged so vi kan rapportere idempotente kjøringer
+        let unchanged = 0;
+        // Helper for å holde mapping-tabellen ajour for ENHVER vellykket berøring
+        const touchMapping = async (row: ProjectRow, mcsProjectId: string) => {
+          if (!companyId || !row.projectNumber) return;
+          try {
+            await supabase
+              .from("tripletex_project_mappings")
+              .upsert(
+                {
+                  company_id: companyId,
+                  tripletex_project_id: row.projectNumber,
+                  tripletex_project_number: row.projectNumber,
+                  mcs_project_id: mcsProjectId,
+                  last_imported_at: new Date().toISOString(),
+                  last_payload_hash: row.payloadHash ?? null,
+                  created_by: user.id,
+                },
+                { onConflict: "company_id,tripletex_project_id" },
+              );
+          } catch (e) {
+            console.warn("tripletex mapping upsert failed", e);
+          }
+        };
+
         for (const row of projectRows) {
+          // "Uendret": mapping finnes og hash er identisk. Vi rører ikke prosjektet,
+          // bare oppdaterer last_imported_at slik at vi har et ferskt revisjonsspor.
+          if (row.matchStatus === "unchanged" && row.matchedEntityId) {
+            unchanged++;
+            await touchMapping(row, row.matchedEntityId);
+            await insertResult(logId, row.projectNumber, "project", "unchanged", "Uendret siden forrige import", row.raw, row.matchedEntityId);
+            continue;
+          }
+
           if (row.action === "ignore" || row.matchStatus === "error") {
             ignored++;
             await insertResult(logId, row.projectNumber, "project", "ignored", "Ignorert", row.raw);
@@ -544,6 +578,7 @@ export function useTripletexImport() {
                 customer_id: customerId || undefined,
               } as any).eq("id", row.matchedEntityId);
               updated++;
+              await touchMapping(row, row.matchedEntityId);
               await insertResult(logId, row.projectNumber, "project", "linked", "Koblet til eksisterende", row.raw, row.matchedEntityId);
             } else if (row.action === "create") {
               const { data, error: insertError } = await supabase.from("events").insert({
@@ -556,6 +591,7 @@ export function useTripletexImport() {
                 end_time: row.endDate ? `${row.endDate}T16:00:00` : new Date(Date.now() + 86400000 * 90).toISOString(),
                 status: "approved" as any,
                 project_type: "project",
+                parent_project_id: null,
                 company_id: companyId,
                 external_tripletex_id: row.projectNumber,
                 external_system: 'tripletex',
@@ -569,24 +605,49 @@ export function useTripletexImport() {
                 await insertResult(logId, row.projectNumber, "project", "failed", insertError.message, row.raw);
               } else {
                 created++;
+                if (data?.id) await touchMapping(row, data.id);
                 await insertResult(logId, row.projectNumber, "project", "created", "Opprettet", row.raw, data?.id);
               }
             } else if (row.action === "update" && row.matchedEntityId) {
-              await supabase.from("events").update({
-                title: row.projectName || undefined,
-                customer: row.customerName || undefined,
-                customer_id: customerId || undefined,
-                description: row.description || undefined,
+              // Ikke overskriv eksisterende felter med blanke Tripletex-verdier.
+              const updatePayload: Record<string, unknown> = {
                 external_tripletex_id: row.projectNumber,
                 external_system: 'tripletex',
                 external_project_id: row.projectNumber,
-              } as any).eq("id", row.matchedEntityId);
+              };
+              if (row.projectName) updatePayload.title = row.projectName;
+              if (row.customerName) updatePayload.customer = row.customerName;
+              if (customerId) updatePayload.customer_id = customerId;
+              if (row.description) updatePayload.description = row.description;
+              await supabase.from("events").update(updatePayload as any).eq("id", row.matchedEntityId);
               updated++;
+              await touchMapping(row, row.matchedEntityId);
               await insertResult(logId, row.projectNumber, "project", "updated", "Oppdatert", row.raw, row.matchedEntityId);
             }
           } catch (e: any) {
             failed++;
             await insertResult(logId, row.projectNumber, "project", "failed", e?.message || "Feil ved import", row.raw);
+          }
+        }
+
+        // Logg dedikert tripletex_import_runs-rad for audit/idempotensbevis
+        if (companyId) {
+          try {
+            await supabase.from("tripletex_import_runs").insert({
+              company_id: companyId,
+              started_by: user.id,
+              mode: "apply",
+              status: failed > 0 ? "completed" : "completed",
+              source_filename: fileName,
+              total_rows: projectRows.length,
+              counts: {
+                created, updated, unchanged, ignored, failed,
+                needs_review: projectRows.filter(r => r.matchStatus === "needs_review" || r.matchStatus === "possible_duplicate").length,
+              },
+              finished_at: new Date().toISOString(),
+            });
+          } catch (e) {
+            console.warn("tripletex_import_runs insert failed", e);
           }
         }
       } else if (detectedType === "quote") {
