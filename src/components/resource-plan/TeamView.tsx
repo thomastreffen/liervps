@@ -243,14 +243,18 @@ export function TeamView({
 
                       {cellBlocks.map((b) => {
                         const tone = statusTone(b.job_status);
-                        const label = b.job_number_resolved
-                          || b.job_title
-                          || b.internal_number
+                        // Primary: human-readable title (job → block → parent project)
+                        const primaryTitle = b.job_title
+                          || b.title
                           || b.project_title
                           || b.outlook_subject
-                          || b.title
+                          || b.job_number_resolved
+                          || b.internal_number
                           || "Oppdrag";
+                        // Secondary: JOB-ID / internal number badge
+                        const refId = b.job_number_resolved || b.internal_number || null;
                         const timeStr = `${fmtHour(b.start_at)}–${fmtHour(b.end_at)}`;
+                        const secondary = refId ? `${refId} · ${timeStr}` : timeStr;
                         return (
                           <div
                             key={b.id}
@@ -271,10 +275,10 @@ export function TeamView({
                               "rounded-md border px-2 py-1 text-[11px] leading-tight cursor-pointer transition-all hover:shadow-sm hover:-translate-y-px",
                               tone,
                             )}
-                            title={`${label} · ${timeStr}`}
+                            title={refId ? `${primaryTitle} (${refId}) · ${timeStr}` : `${primaryTitle} · ${timeStr}`}
                           >
-                            <div className="font-medium truncate">{label}</div>
-                            <div className="text-[10px] opacity-75 tabular-nums">{timeStr}</div>
+                            <div className="font-medium line-clamp-2 break-words">{primaryTitle}</div>
+                            <div className="text-[10px] opacity-75 tabular-nums truncate">{secondary}</div>
                           </div>
                         );
                       })}

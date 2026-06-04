@@ -98,24 +98,16 @@ function CompactTechList({
   );
 }
 
+// Legacy view types retained for compatibility with ResourceCalendar (not exposed in UI).
 type CalendarViewType = "team" | "timeGridDay" | "timeGridWeek" | "dayGridMonth" | "listWeek";
 
 const VIEW_STORAGE_KEY = "resourcePlanView";
-const VIEW_OPTIONS: { value: CalendarViewType; label: string; icon: typeof Calendar }[] = [
-  { value: "team", label: "Team", icon: CalendarDays },
-  { value: "timeGridDay", label: "Dag", icon: Calendar },
-  { value: "timeGridWeek", label: "Uke", icon: CalendarDays },
-  { value: "dayGridMonth", label: "Måned", icon: Calendar },
-  { value: "listWeek", label: "Liste", icon: List },
-];
 
 function getStoredView(): CalendarViewType {
-  try {
-    const stored = localStorage.getItem(VIEW_STORAGE_KEY);
-    if (stored && VIEW_OPTIONS.some((v) => v.value === stored)) return stored as CalendarViewType;
-  } catch {}
+  // Ressursplan har kun én visning nå: team-matrise. Ignorer gamle lagrede verdier.
   return "team";
 }
+
 
 export default function ResourcePlan() {
   const isMobile = useIsMobile();
@@ -680,7 +672,7 @@ export default function ResourcePlan() {
     ? format(referenceDate, "EEEE d. MMMM", { locale: nb })
     : `Uke ${format(weekStart, "w", { locale: nb })}`;
 
-  const periodSub = (calendarView === "timeGridWeek" || calendarView === "listWeek")
+  const periodSub = (calendarView === "team" || calendarView === "timeGridWeek" || calendarView === "listWeek")
     ? `${format(weekStart, "d. MMM", { locale: nb })} – ${format(addWeeks(weekStart, 1), "d. MMM yyyy", { locale: nb })}`
     : null;
 
@@ -799,19 +791,8 @@ export default function ResourcePlan() {
                   </Button>
                 )}
 
-                <div className="flex items-center gap-0.5 border border-border/40 rounded-md p-0.5 ml-1">
-                  {VIEW_OPTIONS.map((v) => (
-                    <Button
-                      key={v.value}
-                      variant={calendarView === v.value ? "default" : "ghost"}
-                      size="sm"
-                      className="h-6 text-[11px] rounded px-2"
-                      onClick={() => setCalendarView(v.value)}
-                    >
-                      {v.label}
-                    </Button>
-                  ))}
-                </div>
+                {/* View toggle removed — Ressursplan uses team matrix exclusively */}
+
               </div>
 
               {/* Right: Search + Primary actions */}

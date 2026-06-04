@@ -37,13 +37,8 @@ interface MobileResourceHeaderProps {
   onMinFreeMinutesChange: (v: number | null) => void;
 }
 
-const VIEW_OPTIONS: { value: CalendarViewType; label: string }[] = [
-  { value: "team", label: "Team" },
-  { value: "timeGridDay", label: "Dag" },
-  { value: "timeGridWeek", label: "Uke" },
-  { value: "dayGridMonth", label: "Mnd" },
-  { value: "listWeek", label: "Liste" },
-];
+// View toggle removed — Ressursplan har kun team-matrise.
+
 
 export const MobileResourceHeader = memo(function MobileResourceHeader(props: MobileResourceHeaderProps) {
   const {
@@ -133,19 +128,8 @@ export const MobileResourceHeader = memo(function MobileResourceHeader(props: Mo
           <ChevronRight className="h-4 w-4" />
         </Button>
 
-        <div className="flex items-center gap-0.5 border border-border/40 rounded-lg p-0.5 shrink-0">
-          {VIEW_OPTIONS.map((v) => (
-            <Button
-              key={v.value}
-              variant={calendarView === v.value ? "default" : "ghost"}
-              size="sm"
-              className="h-6 text-[10px] rounded-md px-1.5"
-              onClick={() => onCalendarViewChange(v.value)}
-            >
-              {v.label}
-            </Button>
-          ))}
-        </div>
+        {/* View toggle removed — Ressursplan har kun team-matrise. */}
+
 
         <MobileFilterSheet {...filterProps} />
       </div>
