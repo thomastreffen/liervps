@@ -1192,6 +1192,7 @@ export default function ResourcePlan() {
             setCalendarView("timeGridDay");
           }}
         />
+        )}
         </div>
       </div>
 
