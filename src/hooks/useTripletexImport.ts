@@ -214,13 +214,14 @@ export function useTripletexImport() {
 
     const maps: CustomerMaps = { customerByOrgNr, customerByTripletexId, customerByName };
 
-    const rows: ProjectRow[] = parsed.rows.map((row, idx) => {
+    const rows: ProjectRow[] = await Promise.all(parsed.rows.map(async (row, idx) => {
       const projectNumber = getCol(row, "Prosjektnummer");
       const projectName = getCol(row, "Prosjektnavn");
       const customerName = getCol(row, "Kundenavn");
       const customerNumber = getCol(row, "Kundenummer");
       const startDate = parseNorwegianDate(getCol(row, "Startdato"));
       const endDate = parseNorwegianDate(getCol(row, "Sluttdato"));
+      const description = getCol(row, "Prosjektbeskrivelse");
 
       let matchStatus: MatchStatus = "new";
       let matchedEntityId: string | undefined;
@@ -228,56 +229,93 @@ export function useTripletexImport() {
       let candidates: ProjectRow["candidates"] = undefined;
       let error: string | undefined;
       let action: ImportAction = "create";
+      let mappingId: string | undefined;
+
+      // Beregn idempotens-hash for denne raden (Tripletex-data)
+      const payloadHash = projectNumber
+        ? await computeProjectPayloadHash({
+            tripletex_project_id: projectNumber,
+            tripletex_project_number: projectNumber,
+            title: projectName,
+            customer: customerName,
+            startDate,
+            endDate,
+            description,
+          })
+        : undefined;
 
       if (!projectNumber) {
         matchStatus = "error";
         error = "Mangler prosjektnummer";
         action = "ignore";
       } else {
-        // 1. Exact match on external_system='tripletex' + external_project_id
-        const externalMatch = byExternalId.get(projectNumber.toLowerCase());
-        if (externalMatch) {
-          matchStatus = "match";
-          matchedEntityId = externalMatch.id;
-          matchedEntityTitle = externalMatch.title;
-          action = "update";
-        } else {
-        // 2. Exact match on tripletex ID (legacy field)
-        const tripletexMatch = byTripletexId.get(projectNumber.toLowerCase());
-        if (tripletexMatch) {
-          matchStatus = "match";
-          matchedEntityId = tripletexMatch.id;
-          matchedEntityTitle = tripletexMatch.title;
-          action = "update";
-        } else {
-          // 2. Exact match on project number
-          const numMatch = byProjectNumber.get(projectNumber.toLowerCase());
-          if (numMatch) {
-            matchStatus = "match";
-            matchedEntityId = numMatch.id;
-            matchedEntityTitle = numMatch.title;
-            action = "update";
-          } else {
-            // 3. Fuzzy matching on name + customer
-            const fuzzyMatches = allProjects
-              .map(e => {
-                const nameScore = stringSimilarity(projectName, e.title);
-                const customerScore = stringSimilarity(customerName, e.customer || "");
-                const combined = nameScore * 0.6 + customerScore * 0.4;
-                return { id: e.id, title: e.title, customer: e.customer, score: combined };
-              })
-              .filter(m => m.score > 0.5)
-              .sort((a, b) => b.score - a.score)
-              .slice(0, 3);
-
-            if (fuzzyMatches.length > 0) {
-              matchStatus = "possible_duplicate";
-              candidates = fuzzyMatches;
-              matchedEntityId = fuzzyMatches[0].id;
-              matchedEntityTitle = fuzzyMatches[0].title;
+        // 0) Sjekk eksisterende mapping (idempotens) FØRST.
+        const mapHit =
+          mappingByTtId.get(projectNumber.toLowerCase()) ||
+          mappingByTtNum.get(projectNumber.toLowerCase());
+        if (mapHit) {
+          // Verifiser at MCS-prosjektet fortsatt finnes
+          const stillAlive = allProjects.find((p) => p.id === mapHit.mcs_project_id);
+          if (stillAlive) {
+            mappingId = mapHit.id;
+            matchedEntityId = mapHit.mcs_project_id;
+            matchedEntityTitle = stillAlive.title;
+            if (payloadHash && mapHit.hash && mapHit.hash === payloadHash) {
+              matchStatus = "unchanged";
+              action = "ignore";
+            } else {
+              matchStatus = "match";
+              action = "update";
             }
           }
         }
+
+        if (!matchedEntityId) {
+          // 1) external_system='tripletex' + external_project_id
+          const externalMatch = byExternalId.get(projectNumber.toLowerCase());
+          if (externalMatch) {
+            matchStatus = "match";
+            matchedEntityId = externalMatch.id;
+            matchedEntityTitle = externalMatch.title;
+            action = "update";
+          } else {
+            // 2) Legacy tripletex_id
+            const tripletexMatch = byTripletexId.get(projectNumber.toLowerCase());
+            if (tripletexMatch) {
+              matchStatus = "match";
+              matchedEntityId = tripletexMatch.id;
+              matchedEntityTitle = tripletexMatch.title;
+              action = "update";
+            } else {
+              // 3) Eksakt prosjektnummer
+              const numMatch = byProjectNumber.get(projectNumber.toLowerCase());
+              if (numMatch) {
+                matchStatus = "match";
+                matchedEntityId = numMatch.id;
+                matchedEntityTitle = numMatch.title;
+                action = "update";
+              } else {
+                // 4) Fuzzy navn + kunde → needs_review
+                const fuzzyMatches = allProjects
+                  .map(e => {
+                    const nameScore = stringSimilarity(projectName, e.title);
+                    const customerScore = stringSimilarity(customerName, e.customer || "");
+                    const combined = nameScore * 0.6 + customerScore * 0.4;
+                    return { id: e.id, title: e.title, customer: e.customer, score: combined };
+                  })
+                  .filter(m => m.score > 0.5)
+                  .sort((a, b) => b.score - a.score)
+                  .slice(0, 3);
+
+                if (fuzzyMatches.length > 0) {
+                  matchStatus = "possible_duplicate";
+                  candidates = fuzzyMatches;
+                  matchedEntityId = fuzzyMatches[0].id;
+                  matchedEntityTitle = fuzzyMatches[0].title;
+                }
+              }
+            }
+          }
         }
       }
       // Resolve customer
@@ -304,7 +342,7 @@ export function useTripletexImport() {
         customerNumber,
         startDate,
         endDate,
-        description: getCol(row, "Prosjektbeskrivelse"),
+        description,
         reference: getCol(row, "Referanse"),
         projectLeader: getCol(row, "Prosjektleder"),
         department: getCol(row, "Avdeling"),
@@ -316,9 +354,11 @@ export function useTripletexImport() {
         error,
         missingCustomer,
         resolvedCustomerId,
+        payloadHash,
+        mappingId,
         raw: row,
       };
-    });
+    }));
 
     // Store customer maps for use during import execution
     customerMapsRef.current = maps;
