@@ -38,6 +38,7 @@ interface MobileResourceHeaderProps {
 }
 
 const VIEW_OPTIONS: { value: CalendarViewType; label: string }[] = [
+  { value: "team", label: "Team" },
   { value: "timeGridDay", label: "Dag" },
   { value: "timeGridWeek", label: "Uke" },
   { value: "dayGridMonth", label: "Mnd" },
