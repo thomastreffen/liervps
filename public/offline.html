@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="nb-NO">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Du er offline – MCS</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { margin:0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background:#f8fafc; color:#0f172a; display:flex; align-items:center; justify-content:center; min-height:100vh; padding:2rem; }
+  .card { max-width:380px; text-align:center; }
+  .dot { width:64px;height:64px;margin:0 auto 1.5rem;border-radius:16px;background:#0F766E;display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:22px;letter-spacing:1px;}
+  h1 { font-size:1.25rem; margin:0 0 .5rem; }
+  p { color:#475569; line-height:1.5; margin:0 0 1.5rem; }
+  button { background:#0F766E;color:white;border:0;padding:.75rem 1.25rem;border-radius:10px;font-weight:600;cursor:pointer; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="dot">MCS</div>
+    <h1>Du er offline</h1>
+    <p>Ingen internettforbindelse akkurat nå. Sjekk nettverket og prøv igjen.</p>
+    <button onclick="location.reload()">Prøv på nytt</button>
+  </div>
+</body>
+</html>
