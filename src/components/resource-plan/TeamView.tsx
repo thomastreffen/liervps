@@ -106,6 +106,7 @@ export function TeamView({
   scheduleBlocks,
   absenceBlocks,
   techCapacities,
+  visibleStatuses,
   onBlockClick,
   onCellCreate,
 }: TeamViewProps) {
@@ -116,10 +117,17 @@ export function TeamView({
   );
   const days = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart]);
 
+  const filteredBlocks = useMemo(() => {
+    if (!visibleStatuses) return scheduleBlocks;
+    return scheduleBlocks.filter((b) => visibleStatuses.has(blockStatusKey(b.job_status)));
+  }, [scheduleBlocks, visibleStatuses]);
+
+  const showAbsence = !visibleStatuses || visibleStatuses.has("absence");
+
   // Index blocks by tech+day
   const blocksByTechDay = useMemo(() => {
     const map = new Map<string, ScheduleBlock[]>();
-    for (const b of scheduleBlocks) {
+    for (const b of filteredBlocks) {
       for (const day of days) {
         const dayStart = new Date(day); dayStart.setHours(0, 0, 0, 0);
         const dayEnd = new Date(day); dayEnd.setHours(23, 59, 59, 999);
@@ -133,10 +141,11 @@ export function TeamView({
     }
     for (const arr of map.values()) arr.sort((a, b) => a.start_at.getTime() - b.start_at.getTime());
     return map;
-  }, [scheduleBlocks, days]);
+  }, [filteredBlocks, days]);
 
   const absencesByTechDay = useMemo(() => {
     const map = new Map<string, AbsenceBlock[]>();
+    if (!showAbsence) return map;
     for (const b of absenceBlocks) {
       const key = `${b.technicianId}__${format(b.date, "yyyy-MM-dd")}`;
       const arr = map.get(key) || [];
@@ -144,7 +153,7 @@ export function TeamView({
       map.set(key, arr);
     }
     return map;
-  }, [absenceBlocks]);
+  }, [absenceBlocks, showAbsence]);
 
   const capByTech = useMemo(() => {
     const map = new Map<string, TechDayCapacity>();
