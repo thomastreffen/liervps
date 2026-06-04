@@ -45,6 +45,7 @@ const scheduleBlockA: ScheduleBlock = {
   company_id: "company-1",
   technician_id: techA.id,
   project_id: multiTechEvent.id,
+  job_id: multiTechEvent.id,
   outlook_event_id: techA.calendarEventId,
   calendar_id: "andre@example.com",
   source: "outlook",

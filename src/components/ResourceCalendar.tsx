@@ -715,6 +715,7 @@ export const ResourceCalendar = memo(function ResourceCalendar({
           company_id: "",
           technician_id: busyTechId,
           project_id: null,
+          job_id: null,
           outlook_event_id: null,
           calendar_id: null,
           source: "outlook",
