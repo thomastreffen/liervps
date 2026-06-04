@@ -91,6 +91,27 @@ export function AppLayout() {
                 </span>
               )}
 
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="gap-1.5 h-8 text-xs text-muted-foreground">
+                    <Smartphone className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline">App</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56 bg-popover z-50">
+                  <DropdownMenuLabel>MCS app</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onSelect={() => setInstallOpen(true)}>
+                    <Download className="h-4 w-4 mr-2" />
+                    Installer app
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => setStatusOpen(true)}>
+                    <Info className="h-4 w-4 mr-2" />
+                    App-status
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
               <Button variant="ghost" size="sm" onClick={signOut} className="gap-1.5 h-8 text-xs text-muted-foreground">
                 <LogOut className="h-3.5 w-3.5" />
                 <span className="hidden sm:inline">Logg ut</span>
