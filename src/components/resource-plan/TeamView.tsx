@@ -162,15 +162,67 @@ export function TeamView({
   const weekEndExclusive = useMemo(() => addDays(weekStart, 7), [weekStart]);
   const days = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart]);
 
+  // Defensive dedup: same schedule_blocks.id must never render more than once.
+  // Also dedup on logical key (job_id|project_id|technician_id|start|end) — real DB
+  // duplicates do exist (see [team-view:duplicate-audit] warnings); we surface them
+  // in console but only render one block per logical key.
+  const dedupedBlocks = useMemo(() => {
+    const byId = Array.from(
+      new Map(scheduleBlocks.map((b) => [b.id, b])).values(),
+    );
+    const byLogicalKey = new Map<string, ScheduleBlock>();
+    const dupGroups: Record<string, string[]> = {};
+    for (const b of byId) {
+      const key = [
+        b.job_id ?? "_",
+        b.project_id ?? "_",
+        b.technician_id,
+        b.start_at.toISOString(),
+        b.end_at.toISOString(),
+      ].join("|");
+      if (!byLogicalKey.has(key)) {
+        byLogicalKey.set(key, b);
+        dupGroups[key] = [b.id];
+      } else {
+        dupGroups[key].push(b.id);
+      }
+    }
+    if (import.meta.env.DEV) {
+      const duplicates = Object.entries(dupGroups).filter(([, ids]) => ids.length > 1);
+      console.info("[team-view:duplicate-audit]", {
+        rawCount: scheduleBlocks.length,
+        afterIdDedup: byId.length,
+        afterLogicalDedup: byLogicalKey.size,
+        blocks: scheduleBlocks.map((b) => ({
+          id: b.id,
+          job_id: b.job_id,
+          project_id: b.project_id,
+          technician_id: b.technician_id,
+          start_at: b.start_at,
+          end_at: b.end_at,
+          title: b.title,
+        })),
+        duplicateKeys: duplicates,
+      });
+      if (duplicates.length > 0) {
+        console.warn(
+          "[team-view:duplicate-audit] Real DB duplicates detected — only one block per logical key is rendered. Run cleanup migration to resolve.",
+          duplicates,
+        );
+      }
+    }
+    return Array.from(byLogicalKey.values());
+  }, [scheduleBlocks]);
+
   // Hard week-window filter: schedule_blocks.start_at must be inside [weekStart, weekEndExclusive).
   // This guards against stale blocks lekke inn fra parent-prosjektets start_time eller andre uker.
   const filteredBlocks = useMemo(() => {
-    const inWindow = scheduleBlocks.filter(
+    const inWindow = dedupedBlocks.filter(
       (b) => b.start_at >= weekStart && b.start_at < weekEndExclusive,
     );
     if (!visibleStatuses) return inWindow;
     return inWindow.filter((b) => visibleStatuses.has(blockStatusKey(b.job_status)));
-  }, [scheduleBlocks, visibleStatuses, weekStart, weekEndExclusive]);
+  }, [dedupedBlocks, visibleStatuses, weekStart, weekEndExclusive]);
 
   const showAbsence = !visibleStatuses || visibleStatuses.has("absence");
 
@@ -191,29 +243,6 @@ export function TeamView({
     return map;
   }, [filteredBlocks]);
 
-  // Dev-only audit: verifies that rendered placement comes from schedule_blocks alone.
-  if (import.meta.env.DEV) {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    useMemo(() => {
-      console.info("[resource-plan:data-source-audit]", {
-        weekStart: format(weekStart, "yyyy-MM-dd"),
-        weekEndExclusive: format(weekEndExclusive, "yyyy-MM-dd"),
-        blockCount: filteredBlocks.length,
-        blocks: filteredBlocks.map((b) => ({
-          id: b.id,
-          technician_id: b.technician_id,
-          start_at: b.start_at.toISOString(),
-          end_at: b.end_at.toISOString(),
-          job_id: b.job_id,
-          project_id: b.project_id,
-          renderedDateKey: format(b.start_at, "yyyy-MM-dd"),
-          // These must NOT influence placement — logged for verification only:
-          jobStartTime: (b as any).job?.start_time ?? null,
-          projectStartTime: (b as any).project?.start_time ?? null,
-        })),
-      });
-    }, [filteredBlocks, weekStart, weekEndExclusive]);
-  }
 
 
   const absencesByTechDay = useMemo(() => {
