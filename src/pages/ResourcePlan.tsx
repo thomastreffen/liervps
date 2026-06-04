@@ -43,6 +43,7 @@ import { MobileResourceHeader } from "@/components/resource-plan/MobileResourceH
 import { CapacityStatusBar } from "@/components/resource-plan/CapacityStatusBar";
 import { UnplannedProjectsBanner } from "@/components/resource-plan/UnplannedProjectsBanner";
 import { UnplannedJobsStrip } from "@/components/resource-plan/UnplannedJobsStrip";
+import { UnplannedDrawer } from "@/components/resource-plan/UnplannedDrawer";
 import { FollowUpStrip, getFilteredJobIds, type FollowUpCategory } from "@/components/resource-plan/FollowUpStrip";
 import { RecommendedActions } from "@/components/resource-plan/RecommendedActions";
 import { CapacityGapsStrip } from "@/components/resource-plan/CapacityGapsStrip";
