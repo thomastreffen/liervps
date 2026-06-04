@@ -202,7 +202,6 @@ export function DropConfirmPopover({ payload, onClose, onCreated }: DropConfirmP
             company_id: companyId,
             technician_id: techId,
             project_id: payload.projectId || null,
-            job_id: payload.taskId || null,
             source: "manual",
             start_at: startIso,
             end_at: endIso,
@@ -211,6 +210,7 @@ export function DropConfirmPopover({ payload, onClose, onCreated }: DropConfirmP
             match_confidence: 100,
             match_reason: payload.type === "task" ? "Oppgave dratt til kalender" : "Prosjekt dratt til kalender",
           });
+
         }
 
 
