@@ -678,365 +678,96 @@ export default function ResourcePlan() {
 
   return (
     <div className={cn("flex flex-1 overflow-hidden h-full", focusMode && "focus-mode")}>
-      {!isMobile && (
-        <aside className={cn(
-          "shrink-0 border-r border-border/30 bg-card/50 overflow-y-auto transition-all duration-200",
-          sidebarCollapsed ? "w-14 p-1.5" : "w-56 p-3"
-        )}>
-          {/* Sidebar collapse toggle */}
-          <Button
-            variant="ghost"
-            size="sm"
-            className="w-full h-7 text-[10px] mb-2 gap-1"
-            onClick={() => setSidebarCollapsed(v => !v)}
-          >
-            {sidebarCollapsed ? <PanelLeftOpen className="h-3.5 w-3.5" /> : <PanelLeftClose className="h-3.5 w-3.5" />}
-            {!sidebarCollapsed && "Minimer"}
-          </Button>
-          {sidebarCollapsed ? (
-            <CompactTechList
-              technicians={technicians}
-              selectedId={selectedTechId}
-              onSelect={setSelectedTechId}
-              filterIds={filteredTechForSidebar}
-            />
-          ) : (
-            <TechnicianList
-              technicians={technicians}
-              isGlobalScope={effectiveCompanyId === null}
-              selectedId={selectedTechId}
-              onSelect={setSelectedTechId}
-              allowDeselect
-              filterIds={filteredTechForSidebar}
-              nowStatusMap={canReadBusy ? nowStatusMap : undefined}
-              onColorChange={handleTechColorChange}
-              techDayPercents={canReadBusy ? techDayPercents : undefined}
-              techWeekCapacities={canReadBusy ? techWeekCapacities : undefined}
-            />
-          )}
-        </aside>
-      )}
-
       <div className={cn("flex-1 overflow-y-auto relative", focusMode ? "p-2" : "p-2 sm:p-4 lg:p-6")}>
-        {isMobile ? (
-          <MobileResourceHeader
-            technicians={technicians}
-            selectedTechId={selectedTechId}
-            onSelectTech={setSelectedTechId}
-            capacityFilter={capacityFilter}
-            onCapacityFilterChange={setCapacityFilter}
-            calendarView={calendarView}
-            onCalendarViewChange={setCalendarView}
-            referenceDate={referenceDate}
-            isCurrentPeriod={isCurrentWeek}
-            onPrev={goToPrev}
-            onNext={goToNext}
-            onToday={goToToday}
-            externalBlocksCapacity={externalBlocksCapacity}
-            onExternalBlocksCapacityChange={setExternalBlocksCapacity}
-            hideExternalEvents={hideExternalEvents}
-            onHideExternalEventsChange={handleHideExternalChange}
-            isSuperAdmin={canViewExternal}
-            minFreeMinutes={canReadBusy ? minFreeMinutes : null}
-            onMinFreeMinutesChange={canReadBusy ? setMinFreeMinutes : undefined}
-          />
-        ) : (
-          <>
-            {/* ═══ PRIMARY ROW (sticky in focus mode) ═══ */}
-            <div className={cn(
-              "flex items-center justify-between mb-2",
-              focusMode && "sticky top-0 z-20 bg-background/95 backdrop-blur-sm py-1.5 -mx-2 px-2 border-b border-border/20"
-            )}>
-              {/* Left: Title + selected tech */}
-              <div className="flex items-center gap-3 min-w-0">
-                <h1 className="text-lg font-bold tracking-tight flex items-center gap-2 shrink-0">
-                  <CalendarDays className="h-5 w-5 text-primary" />
-                  Ressursplan
-                </h1>
-                {selectedTech && (
-                  <span
-                    className="inline-flex items-center gap-1.5 text-sm font-semibold px-2.5 py-0.5 rounded-full shrink-0"
-                    style={{
-                      backgroundColor: `${selectedTech.color || "#6366f1"}15`,
-                      color: selectedTech.color || "#6366f1",
-                    }}
-                  >
-                    <span className="h-2 w-2 rounded-full" style={{ backgroundColor: selectedTech.color || "#6366f1" }} />
-                    {selectedTech.name}
-                  </span>
-                )}
-              </div>
+        {/* ═══ Ressursplan toppbar (ren, kompakt) ═══ */}
+        <div className={cn(
+          "flex items-center justify-between gap-3 mb-3 flex-wrap",
+          focusMode && "sticky top-0 z-20 bg-background/95 backdrop-blur-sm py-1.5 -mx-2 px-2 border-b border-border/20"
+        )}>
+          {/* Tittel */}
+          <div className="flex items-center gap-2 min-w-0">
+            <h1 className="text-lg font-bold tracking-tight flex items-center gap-2 shrink-0">
+              <CalendarDays className="h-5 w-5 text-primary" />
+              Ressursplan
+            </h1>
+          </div>
 
-              {/* Center: Nav + period + view */}
-              <div className="flex items-center gap-2">
-                <Button variant="ghost" size="icon" onClick={goToPrev} className="h-7 w-7 rounded-md">
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-
-                <div className="text-center min-w-[120px]">
-                  <p className="text-sm font-semibold text-foreground leading-tight">{periodLabel}</p>
-                  {periodSub && (
-                    <p className="text-[10px] text-muted-foreground leading-tight">{periodSub}</p>
-                  )}
-                </div>
-
-                <Button variant="ghost" size="icon" onClick={goToNext} className="h-7 w-7 rounded-md">
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-
-                {!isCurrentWeek && (
-                  <Button variant="outline" size="sm" onClick={goToToday} className="gap-1 rounded-md text-xs h-7 px-2">
-                    <RotateCcw className="h-3 w-3" />
-                    I dag
-                  </Button>
-                )}
-
-                {/* View toggle removed — Ressursplan uses team matrix exclusively */}
-
-              </div>
-
-              {/* Right: Search + Primary actions */}
-              <div className="flex items-center gap-2 shrink-0">
-                {canWriteEvents && (
-                  <QuickProjectSearch
-                    onPlanProject={(projectId, projectTitle) => {
-                      setEditEvent(null);
-                      setDropProjectId(projectId);
-                      setDropProjectTitle(projectTitle);
-                      // Use last date-selected range if available, otherwise no time
-                      setClickedTechId(selectedTechId || null);
-                      // Keep preselectedStart/End as-is (from last calendar selection)
-                      setDrawerOpen(true);
-                    }}
-                  />
-                )}
-
-                {confirmationCount > 0 && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="gap-1 rounded-lg relative h-8 text-xs"
-                    onClick={() => navigate("/calendar/confirmations")}
-                  >
-                    <Bell className="h-3.5 w-3.5" />
-                    {confirmationCount}
-                  </Button>
-                )}
-
-                {canWriteEvents && (
-                  <Button onClick={handleNewEvent} size="sm" className="gap-1.5 rounded-lg h-8">
-                    <Plus className="h-4 w-4" />
-                    {!focusMode && "Ny aktivitet"}
-                  </Button>
-                )}
-
-                <TooltipProvider delayDuration={200}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant={focusMode ? "default" : "outline"}
-                        size="icon"
-                        className="h-8 w-8 rounded-lg"
-                        onClick={toggleFocusMode}
-                      >
-                        {focusMode ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent side="bottom" className="text-xs">
-                      {focusMode ? "Vis alt" : "Fokusmodus"}
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </div>
+          {/* Ukenavigasjon */}
+          <div className="flex items-center gap-1.5">
+            <Button variant="ghost" size="icon" onClick={goToPrev} className="h-7 w-7 rounded-md" aria-label="Forrige uke">
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <div className="text-center min-w-[140px]">
+              <p className="text-sm font-semibold leading-tight">{periodLabel}</p>
+              {periodSub && (
+                <p className="text-[10px] text-muted-foreground leading-tight">{periodSub}</p>
+              )}
             </div>
-
-            {/* ═══ SECONDARY ROW (hidden in focus mode) ═══ */}
-            {!focusMode && (
-            <div className="flex items-center justify-between mb-3 gap-2 py-1.5 px-3 bg-muted/30 rounded-lg border border-border/20">
-              <div className="flex items-center gap-3 flex-wrap">
-                {/* Capacity filter chips */}
-                <div className="flex items-center gap-0.5 border border-border/30 rounded-md p-0.5">
-                  <Button variant={capacityFilter === "all" ? "default" : "ghost"} size="sm" className="h-6 text-[10px] rounded px-2" onClick={() => setCapacityFilter("all")}>Alle</Button>
-                  <Button variant={capacityFilter === "available" ? "default" : "ghost"} size="sm" className="h-6 text-[10px] rounded px-2 gap-0.5" onClick={() => setCapacityFilter("available")}>
-                    <UserCheck className="h-3 w-3" />Ledige
-                  </Button>
-                  <Button variant={capacityFilter === "partial" ? "default" : "ghost"} size="sm" className="h-6 text-[10px] rounded px-2 gap-0.5" onClick={() => setCapacityFilter("partial")}>
-                    <UserMinus className="h-3 w-3" />Delvis
-                  </Button>
-                </div>
-
-                {/* Min free minutes */}
-                <Select value={minFreeMinutes?.toString() || "none"} onValueChange={(v) => setMinFreeMinutes(v === "none" ? null : Number(v))}>
-                  <SelectTrigger className="w-[120px] h-6 text-[10px] rounded-md border-border/30">
-                    <Clock className="h-3 w-3 mr-0.5 text-muted-foreground" />
-                    <SelectValue placeholder="Min. ledig" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Alle (ingen min.)</SelectItem>
-                    <SelectItem value="30">Ledig 30+ min</SelectItem>
-                    <SelectItem value="60">Ledig 60+ min</SelectItem>
-                    <SelectItem value="90">Ledig 90+ min</SelectItem>
-                    <SelectItem value="120">Ledig 120+ min</SelectItem>
-                  </SelectContent>
-                </Select>
-
-                <div className="h-4 w-px bg-border/40" />
-
-                {/* Toggles */}
-                <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                  <Switch checked={externalBlocksCapacity} onCheckedChange={setExternalBlocksCapacity} className="scale-[0.6]" />
-                  <span className="whitespace-nowrap">Ekstern blokkerer</span>
-                </div>
-
-                {canViewExternal && (
-                  <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                    <Switch checked={hideExternalEvents} onCheckedChange={handleHideExternalChange} className="scale-[0.6]" />
-                    <span className="whitespace-nowrap">Skjul eksterne</span>
-                  </div>
-                )}
-
-                <div className="h-4 w-px bg-border/40" />
-
-                <StatusLegend />
-              </div>
-
-              <div className="flex items-center gap-2 shrink-0">
-                {/* Sync health */}
-                {hasPermission("admin.manage_settings") && (
-                  <TooltipProvider delayDuration={200}>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <div className="flex items-center gap-1 text-[10px] cursor-default">
-                          <span
-                            className="h-1.5 w-1.5 rounded-full shrink-0"
-                            style={{
-                              backgroundColor: syncHealth.color === "green" ? "hsl(var(--success, 142 71% 45%))"
-                                : syncHealth.color === "yellow" ? "hsl(var(--accent, 38 92% 50%))"
-                                : "hsl(var(--destructive, 0 84% 60%))",
-                            }}
-                          />
-                          <span className="text-muted-foreground whitespace-nowrap">{syncHealth.label}</span>
-                        </div>
-                      </TooltipTrigger>
-                      <TooltipContent side="bottom" className="text-xs">
-                        {syncHealth.minutesAgo !== null
-                          ? `Siste synkronisering ${syncHealth.minutesAgo} min siden${syncHealth.status === "error" ? " (feil)" : ""}`
-                          : "Ingen synkroniseringsdata"}
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                )}
-
-                {/* Zoom + quick nav */}
-                {(calendarView === "timeGridDay" || calendarView === "timeGridWeek") && (
-                  <div className="flex items-center gap-0.5 border border-border/30 rounded-md p-0.5">
-                    {(["compact", "normal", "detailed"] as ZoomLevel[]).map((z) => (
-                      <Button
-                        key={z}
-                        variant={operatingHours.zoom === z ? "default" : "ghost"}
-                        size="sm"
-                        className="h-5 text-[9px] rounded px-1.5"
-                        onClick={() => operatingHours.setZoom(z)}
-                      >
-                        {z === "compact" ? "1t" : z === "normal" ? "30m" : "15m"}
-                      </Button>
-                    ))}
-                  </div>
-                )}
-
-                {(calendarView === "timeGridDay" || calendarView === "timeGridWeek") && (
-                  <div className="flex items-center gap-0.5 border border-border/30 rounded-md p-0.5">
-                    <Button variant="ghost" size="sm" className="h-5 text-[9px] rounded px-1.5 gap-0.5" onClick={() => {
-                      window.dispatchEvent(new CustomEvent("resource-calendar:scroll-to", { detail: "06:00:00" }));
-                    }}>
-                      <Sunrise className="h-2.5 w-2.5" /> Morgen
-                    </Button>
-                    <Button variant="ghost" size="sm" className="h-5 text-[9px] rounded px-1.5 gap-0.5" onClick={() => {
-                      window.dispatchEvent(new CustomEvent("resource-calendar:scroll-to", { detail: "18:00:00" }));
-                    }}>
-                      <Sun className="h-2.5 w-2.5" /> Kveld
-                    </Button>
-                    <Button variant="ghost" size="sm" className="h-5 text-[9px] rounded px-1.5 gap-0.5" onClick={() => {
-                      window.dispatchEvent(new CustomEvent("resource-calendar:scroll-to", { detail: "00:00:00" }));
-                    }}>
-                      <Moon className="h-2.5 w-2.5" /> Natt
-                    </Button>
-                  </div>
-                )}
-
-                <Badge variant="outline" className="text-[9px] h-4 px-1.5">
-                  {operatingHours.profile === "office" ? "Kontor" : operatingHours.profile === "extended" ? "Utvidet" : "24/7"}
-                </Badge>
-              </div>
-            </div>
+            <Button variant="ghost" size="icon" onClick={goToNext} className="h-7 w-7 rounded-md" aria-label="Neste uke">
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+            {!isCurrentWeek && (
+              <Button variant="outline" size="sm" onClick={goToToday} className="gap-1 rounded-md text-xs h-7 px-2">
+                <RotateCcw className="h-3 w-3" />
+                I dag
+              </Button>
             )}
-          </>
-        )}
+          </div>
 
-        {/* Capacity status bar (hidden in focus mode) */}
-        {!isMobile && !focusMode && canReadBusy && techCapacities.length > 0 && (
-          <CapacityStatusBar
-            techCapacities={techCapacities}
-            todayDayIndex={todayDayIndex}
-            onFilterClick={handleCapacityFilterClick}
-            activeFilter={capacityFilter}
-          />
-        )}
+          {/* Søk + handlinger */}
+          <div className="flex items-center gap-2 shrink-0">
+            {canWriteEvents && (
+              <QuickProjectSearch
+                onPlanProject={(projectId, projectTitle) => {
+                  setEditEvent(null);
+                  setDropProjectId(projectId);
+                  setDropProjectTitle(projectTitle);
+                  setClickedTechId(selectedTechId || null);
+                  setDrawerOpen(true);
+                }}
+              />
+            )}
 
-        {/* Unplanned projects warning (hidden in focus mode) */}
-        {!isMobile && !focusMode && <UnplannedProjectsBanner count={unplannedCount} />}
+            {unplannedCount > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 rounded-lg h-8 text-xs"
+                onClick={() => navigate("/projects?filter=unplanned")}
+                title="Prosjekter som mangler planlegging"
+              >
+                Uplanlagt
+                <Badge variant="secondary" className="h-4 px-1.5 text-[10px]">{unplannedCount}</Badge>
+              </Button>
+            )}
 
-        {/* Draggable unplanned jobs (hidden in focus mode) */}
-        {!isMobile && !focusMode && canWriteEvents && (
-          <UnplannedJobsStrip companyId={effectiveCompanyId} />
-        )}
+            {confirmationCount > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1 rounded-lg relative h-8 text-xs"
+                onClick={() => navigate("/calendar/confirmations")}
+                aria-label={`${confirmationCount} bekreftelser`}
+              >
+                <Bell className="h-3.5 w-3.5" />
+                {confirmationCount}
+              </Button>
+            )}
 
-        {/* Follow-up strip (shown as compact in focus mode) */}
-        {!isMobile && (
-          <FollowUpStrip
-            summaries={approvalSummaries}
-            events={calEvents}
-            activeFilter={followUpFilter}
-            onFilterChange={setFollowUpFilter}
-          />
-        )}
+            {canWriteEvents && (
+              <Button onClick={handleNewEvent} size="sm" className="gap-1.5 rounded-lg h-8">
+                <Plus className="h-4 w-4" />
+                Ny aktivitet
+              </Button>
+            )}
+          </div>
+        </div>
 
-        {/* Recommended actions (hidden in focus mode) */}
-        {!isMobile && !focusMode && (
-          <RecommendedActions
-            summaries={approvalSummaries}
-            events={calEvents}
-            onActionClick={(jobId) => {
-              const event = calEvents.find(e => e.id === jobId);
-              if (event) handleEventClick(event);
-            }}
-          />
-        )}
-
-        {/* Capacity gaps (hidden in focus mode) */}
-        {!isMobile && !focusMode && canReadBusy && (
-          <CapacityGapsStrip
-            summary={capacityGapsSummary}
-            onGapClick={handleGapClick}
-          />
-        )}
-
-        {/* Unscheduled tasks strip (hidden in focus mode) */}
-        {!focusMode && (
-          <TaskResourceStrip
-            technicianUserId={null}
-            referenceDate={referenceDate}
-          />
-        )}
-
-        {/* Interactive FullCalendar */}
+        {/* ═══ Team-matrise (eier montørvisning, kapasitet og legende) ═══ */}
         <div onTouchStart={isMobile ? handleTouchStart : undefined} onTouchEnd={isMobile ? handleTouchEnd : undefined}>
-        {calendarView === "team" ? (
           <TeamView
             referenceDate={referenceDate}
-            technicians={(filteredTechForSidebar
-              ? technicians.filter((t) => filteredTechForSidebar.has(t.id))
-              : technicians) as any}
+            technicians={technicians as any}
             technicianMap={technicianMap}
             scheduleBlocks={scheduleBlocks}
             absenceBlocks={absenceBlocks}
@@ -1048,6 +779,7 @@ export default function ResourcePlan() {
               if (ev) handleEventClick(ev);
             }}
             onCellCreate={(techId, day) => {
+              if (!canWriteEvents) return;
               setEditEvent(null);
               setClickedTechId(techId);
               const start = new Date(day);
@@ -1059,126 +791,9 @@ export default function ResourcePlan() {
               setDrawerOpen(true);
             }}
           />
-        ) : (
-        <ResourceCalendar
-          key={refreshKey}
-          technicianId={capacityFilter !== "all" && filteredTechForSidebar
-            ? (filteredTechForSidebar.size === 1 ? Array.from(filteredTechForSidebar)[0] : selectedTechId)
-            : selectedTechId}
-          companyId={effectiveCompanyId}
-          referenceDate={referenceDate}
-          calendarView={calendarView}
-          technicianMap={technicianMap}
-          getBusySlotsForDay={canReadBusy ? getBusySlotsForDay : undefined}
-          dayCapacities={canReadBusy ? aggregatedDays : undefined}
-          scheduleBlocks={scheduleBlocks}
-          absenceBlocks={absenceBlocks}
-          onEventClick={handleEventClick}
-          onScheduleBlockClick={(block) => {
-            (async () => {
-              console.info("[ResourcePlan][OpenScheduleBlock]", {
-                block_id: block.id,
-                source: block.source,
-                event_id: block.project_id,
-                event_technician_id: null,
-                technician_id: block.technician_id,
-                calendar_event_id: block.outlook_event_id || block.calendar_id || null,
-                title: block.outlook_subject || block.title,
-                start: block.start_at?.toISOString?.() ?? null,
-                end: block.end_at?.toISOString?.() ?? null,
-                display_name: block.technician_name ?? null,
-              });
-
-              // If the block is linked to a project, try to open the EventDrawer
-              // instead of the ScheduleBlockDetailPanel (which is read-only)
-              if (block.project_id) {
-                const { data: eventData } = await supabase
-                  .from("events")
-                  .select(`
-                    id, title, customer, address, description,
-                    start_time, end_time, status,
-                    job_number, internal_number, project_number,
-                    microsoft_event_id, attachments, created_at, updated_at,
-                    event_technicians (
-                      id, technician_id, calendar_event_id, start_at, end_at,
-                      technicians ( id, name, color )
-                    )
-                  `)
-                  .eq("id", block.project_id)
-                  .is("deleted_at", null)
-                  .single();
-
-                if (eventData) {
-                  const technicians: TechnicianInfo[] = (eventData.event_technicians ?? [])
-                    .filter((et: any) => et.technicians)
-                    .map((et: any) => ({
-                      id: et.technicians.id,
-                      name: et.technicians.name,
-                      color: et.technicians.color,
-                      eventTechnicianId: et.id ?? null,
-                      calendarEventId: et.calendar_event_id ?? null,
-                      startAt: et.start_at ? parseUtc(et.start_at) : null,
-                      endAt: et.end_at ? parseUtc(et.end_at) : null,
-                    }));
-
-                  const calEvent: CalendarEvent = {
-                    id: eventData.id,
-                    microsoftEventId: eventData.microsoft_event_id ?? "",
-                    technicianIds: technicians.map((t) => t.id),
-                    attendeeStatuses: [],
-                    title: eventData.title,
-                    customer: eventData.customer ?? "",
-                    address: eventData.address ?? "",
-                    description: eventData.description ?? "",
-                    // Use the schedule_block time as the displayed time
-                    start: block.start_at,
-                    end: block.end_at,
-                    status: eventData.status as any,
-                    jobNumber: eventData.job_number,
-                    internalNumber: eventData.internal_number,
-                    projectNumber: (eventData as any).project_number ?? null,
-                    attachments: (eventData.attachments ?? []) as any[],
-                    technicians,
-                  };
-
-                  console.info("[ResourcePlan][OpenEventDrawer(from-block)]", {
-                    event_id: calEvent.id,
-                    block_id: block.id,
-                    technician_id: block.technician_id,
-                  });
-                  handleEventClick(calEvent, block.technician_id);
-                  return;
-                }
-              }
-
-              // Fallback: show schedule block detail panel
-              setSelectedBlock(block);
-            })();
-          }}
-          onDateSelect={canWriteEvents ? handleDateSelect : undefined}
-          onEventDrop={canWriteEvents ? handleEventDrop : undefined}
-          onEventResize={canWriteEvents ? handleEventResize : undefined}
-          onExternalDrop={canWriteEvents ? handleExternalDrop : undefined}
-          canWriteEvents={canWriteEvents}
-          canViewExternalDetails={canViewExternal}
-          canReadBusy={canReadBusy}
-          hideExternalEvents={hideExternalEvents}
-          slotMinTime={operatingHours.slotMinTime}
-          slotMaxTime={operatingHours.slotMaxTime}
-          slotDuration={operatingHours.slotDuration}
-          operatingStartHour={operatingHours.startHour}
-          operatingEndHour={operatingHours.endHour}
-          hasNightHours={operatingHours.hasNightHours}
-          approvalSummaries={approvalSummaries}
-          highlightEventIds={followUpJobIds}
-          onMonthDayClick={(date) => {
-            setReferenceDate(date);
-            setCalendarView("timeGridDay");
-          }}
-        />
-        )}
         </div>
       </div>
+
 
       <EventDrawer
         open={drawerOpen}
