@@ -11191,6 +11191,104 @@ export type Database = {
         }
         Relationships: []
       }
+      tripletex_import_runs: {
+        Row: {
+          company_id: string
+          counts: Json
+          created_at: string
+          error_message: string | null
+          finished_at: string | null
+          id: string
+          mode: string
+          preview_payload: Json | null
+          source_filename: string | null
+          started_at: string
+          started_by: string | null
+          status: string
+          total_rows: number
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          counts?: Json
+          created_at?: string
+          error_message?: string | null
+          finished_at?: string | null
+          id?: string
+          mode: string
+          preview_payload?: Json | null
+          source_filename?: string | null
+          started_at?: string
+          started_by?: string | null
+          status?: string
+          total_rows?: number
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          counts?: Json
+          created_at?: string
+          error_message?: string | null
+          finished_at?: string | null
+          id?: string
+          mode?: string
+          preview_payload?: Json | null
+          source_filename?: string | null
+          started_at?: string
+          started_by?: string | null
+          status?: string
+          total_rows?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      tripletex_project_mappings: {
+        Row: {
+          company_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          last_imported_at: string | null
+          last_payload_hash: string | null
+          mcs_project_id: string
+          tripletex_project_id: string
+          tripletex_project_number: string | null
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          last_imported_at?: string | null
+          last_payload_hash?: string | null
+          mcs_project_id: string
+          tripletex_project_id: string
+          tripletex_project_number?: string | null
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          last_imported_at?: string | null
+          last_payload_hash?: string | null
+          mcs_project_id?: string
+          tripletex_project_id?: string
+          tripletex_project_number?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tripletex_project_mappings_mcs_project_id_fkey"
+            columns: ["mcs_project_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_accounts: {
         Row: {
           auth_user_id: string
