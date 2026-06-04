@@ -9,6 +9,7 @@ const config: Record<MatchStatus, { label: string; variant: "default" | "seconda
   ignored: { label: "Ignoreres", variant: "outline" },
   error: { label: "Feil", variant: "destructive" },
   imported: { label: "Importert", variant: "default" },
+  unchanged: { label: "Uendret", variant: "outline" },
 };
 
 export function ImportStatusBadge({ status }: { status: MatchStatus }) {
