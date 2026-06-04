@@ -545,6 +545,15 @@ export default function OrderTrackingPage() {
     [conversationState.conversation],
   );
 
+  const visibleMessageIdsCustomer = useMemo(
+    () => allMessages.map((m: any) => m.id as string),
+    [allMessages],
+  );
+  const { readsByMessage: customerReads } = useCustomerConversationReads({
+    trackingToken: token,
+    visibleMessageIds: visibleMessageIdsCustomer,
+  });
+
   const openRequest = useMemo(
     () => [...allMessages].reverse().find((message) => message.message_type === "request_info" && message.requires_reply && !message.replied_at),
     [allMessages],
