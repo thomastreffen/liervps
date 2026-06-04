@@ -16,8 +16,32 @@ import {
   type GroupedOffer,
 } from "@/lib/tripletex-csv-parser";
 
-export type MatchStatus = "match" | "new" | "needs_review" | "ignored" | "error" | "imported" | "possible_duplicate";
+export type MatchStatus = "match" | "new" | "needs_review" | "ignored" | "error" | "imported" | "possible_duplicate" | "unchanged";
 export type ImportAction = "create" | "update" | "ignore" | "link";
+
+// Stable payload hash for idempotency. Tomme strings normaliseres slik at
+// kjøring nummer to alltid kan oppdage "uendret" når Tripletex-data ikke har endret seg.
+async function computeProjectPayloadHash(input: {
+  tripletex_project_id: string;
+  tripletex_project_number: string | null;
+  title: string | null;
+  customer: string | null;
+  startDate: string | null;
+  endDate: string | null;
+  description: string | null;
+}): Promise<string> {
+  const stable = JSON.stringify({
+    id: input.tripletex_project_id,
+    n: input.tripletex_project_number ?? "",
+    t: (input.title ?? "").trim(),
+    c: (input.customer ?? "").trim(),
+    s: input.startDate ?? "",
+    e: input.endDate ?? "",
+    d: (input.description ?? "").trim(),
+  });
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(stable));
+  return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
 
 export interface ProjectRow {
   idx: number;
@@ -42,6 +66,10 @@ export interface ProjectRow {
   missingCustomer?: boolean;
   /** Resolved local customer id (set during matching) */
   resolvedCustomerId?: string;
+  /** Stable hash of the Tripletex payload — used to detect "unchanged" rows. */
+  payloadHash?: string;
+  /** Mapping row info if a previous import has been recorded for this Tripletex project. */
+  mappingId?: string;
   raw: Record<string, string>;
 }
 
