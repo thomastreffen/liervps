@@ -97,10 +97,11 @@ function CompactTechList({
   );
 }
 
-type CalendarViewType = "timeGridDay" | "timeGridWeek" | "dayGridMonth" | "listWeek";
+type CalendarViewType = "team" | "timeGridDay" | "timeGridWeek" | "dayGridMonth" | "listWeek";
 
 const VIEW_STORAGE_KEY = "resourcePlanView";
 const VIEW_OPTIONS: { value: CalendarViewType; label: string; icon: typeof Calendar }[] = [
+  { value: "team", label: "Team", icon: CalendarDays },
   { value: "timeGridDay", label: "Dag", icon: Calendar },
   { value: "timeGridWeek", label: "Uke", icon: CalendarDays },
   { value: "dayGridMonth", label: "Måned", icon: Calendar },
@@ -112,7 +113,7 @@ function getStoredView(): CalendarViewType {
     const stored = localStorage.getItem(VIEW_STORAGE_KEY);
     if (stored && VIEW_OPTIONS.some((v) => v.value === stored)) return stored as CalendarViewType;
   } catch {}
-  return "timeGridWeek";
+  return "team";
 }
 
 export default function ResourcePlan() {
