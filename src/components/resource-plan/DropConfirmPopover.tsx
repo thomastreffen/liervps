@@ -179,10 +179,30 @@ export function DropConfirmPopover({ payload, onClose, onCreated }: DropConfirmP
       } else {
         // ── Task drop: create schedule blocks for each technician ──
         for (const techId of selectedTechIds) {
+          // Idempotency guard
+          let dupQuery = (supabase as any)
+            .from("schedule_blocks")
+            .select("id")
+            .eq("technician_id", techId)
+            .eq("start_at", startIso)
+            .eq("end_at", endIso)
+            .is("deleted_at", null);
+          dupQuery = payload.taskId
+            ? dupQuery.eq("job_id", payload.taskId)
+            : dupQuery.eq("project_id", payload.projectId || null);
+          const { data: existingTaskBlock } = await dupQuery.maybeSingle();
+          if (existingTaskBlock?.id) {
+            console.warn("[DropConfirm] Skipping duplicate task schedule_block", {
+              existingId: existingTaskBlock.id, techId, taskId: payload.taskId, start: startIso, end: endIso,
+            });
+            continue;
+          }
+
           await (supabase as any).from("schedule_blocks").insert({
             company_id: companyId,
             technician_id: techId,
             project_id: payload.projectId || null,
+            job_id: payload.taskId || null,
             source: "manual",
             start_at: startIso,
             end_at: endIso,
@@ -192,6 +212,7 @@ export function DropConfirmPopover({ payload, onClose, onCreated }: DropConfirmP
             match_reason: payload.type === "task" ? "Oppgave dratt til kalender" : "Prosjekt dratt til kalender",
           });
         }
+
 
         if (payload.taskId) {
           await (supabase as any).from("tasks").update({
