@@ -7,6 +7,46 @@ import type { ScheduleBlock } from "@/hooks/useScheduleBlocks";
 import type { AbsenceBlock } from "@/hooks/useAbsenceBlocks";
 import type { TechDayCapacity } from "@/hooks/useCapacity";
 
+export type TeamStatusKey =
+  | "approved"
+  | "scheduled"
+  | "in_progress"
+  | "rejected"
+  | "requested"
+  | "time_change_proposed"
+  | "absence";
+
+export const TEAM_STATUS_OPTIONS: { key: TeamStatusKey; label: string; swatch: string }[] = [
+  { key: "approved", label: "Godkjent", swatch: "bg-emerald-300 border-emerald-400" },
+  { key: "scheduled", label: "Planlagt", swatch: "bg-sky-300 border-sky-400" },
+  { key: "in_progress", label: "Pågår", swatch: "bg-amber-300 border-amber-400" },
+  { key: "requested", label: "Forespurt", swatch: "bg-violet-300 border-violet-400" },
+  { key: "time_change_proposed", label: "Tidsendring foreslått", swatch: "bg-orange-300 border-orange-400" },
+  { key: "rejected", label: "Avslått", swatch: "bg-rose-300 border-rose-400" },
+  { key: "absence", label: "Ferie/fravær", swatch: "bg-stone-300 border-stone-400" },
+];
+
+export function blockStatusKey(status?: string | null): TeamStatusKey {
+  switch (status) {
+    case "approved":
+    case "completed":
+    case "ready_for_invoicing":
+    case "invoiced":
+      return "approved";
+    case "in_progress":
+      return "in_progress";
+    case "rejected":
+    case "cancelled":
+      return "rejected";
+    case "requested":
+      return "requested";
+    case "time_change_proposed":
+      return "time_change_proposed";
+    default:
+      return "scheduled";
+  }
+}
+
 interface TechMeta {
   name: string;
   color: string | null;
@@ -20,6 +60,7 @@ interface TeamViewProps {
   scheduleBlocks: ScheduleBlock[];
   absenceBlocks: AbsenceBlock[];
   techCapacities?: TechDayCapacity[];
+  visibleStatuses?: Set<TeamStatusKey>;
   onBlockClick?: (block: ScheduleBlock) => void;
   onCellCreate?: (techId: string, day: Date) => void;
 }
@@ -65,6 +106,7 @@ export function TeamView({
   scheduleBlocks,
   absenceBlocks,
   techCapacities,
+  visibleStatuses,
   onBlockClick,
   onCellCreate,
 }: TeamViewProps) {
@@ -75,10 +117,17 @@ export function TeamView({
   );
   const days = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart]);
 
+  const filteredBlocks = useMemo(() => {
+    if (!visibleStatuses) return scheduleBlocks;
+    return scheduleBlocks.filter((b) => visibleStatuses.has(blockStatusKey(b.job_status)));
+  }, [scheduleBlocks, visibleStatuses]);
+
+  const showAbsence = !visibleStatuses || visibleStatuses.has("absence");
+
   // Index blocks by tech+day
   const blocksByTechDay = useMemo(() => {
     const map = new Map<string, ScheduleBlock[]>();
-    for (const b of scheduleBlocks) {
+    for (const b of filteredBlocks) {
       for (const day of days) {
         const dayStart = new Date(day); dayStart.setHours(0, 0, 0, 0);
         const dayEnd = new Date(day); dayEnd.setHours(23, 59, 59, 999);
@@ -92,10 +141,11 @@ export function TeamView({
     }
     for (const arr of map.values()) arr.sort((a, b) => a.start_at.getTime() - b.start_at.getTime());
     return map;
-  }, [scheduleBlocks, days]);
+  }, [filteredBlocks, days]);
 
   const absencesByTechDay = useMemo(() => {
     const map = new Map<string, AbsenceBlock[]>();
+    if (!showAbsence) return map;
     for (const b of absenceBlocks) {
       const key = `${b.technicianId}__${format(b.date, "yyyy-MM-dd")}`;
       const arr = map.get(key) || [];
@@ -103,7 +153,7 @@ export function TeamView({
       map.set(key, arr);
     }
     return map;
-  }, [absenceBlocks]);
+  }, [absenceBlocks, showAbsence]);
 
   const capByTech = useMemo(() => {
     const map = new Map<string, TechDayCapacity>();

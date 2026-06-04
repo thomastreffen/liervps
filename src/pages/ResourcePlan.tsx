@@ -5,7 +5,10 @@ import { nb } from "date-fns/locale";
 import { TechnicianList } from "@/components/TechnicianList";
 import { StatusLegend } from "@/components/StatusLegend";
 import { ResourceCalendar } from "@/components/ResourceCalendar";
-import { TeamView } from "@/components/resource-plan/TeamView";
+import { TeamView, TEAM_STATUS_OPTIONS, type TeamStatusKey } from "@/components/resource-plan/TeamView";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Palette } from "lucide-react";
 import { EventDrawer } from "@/components/EventDrawer";
 import { TaskResourceStrip } from "@/components/tasks/TaskResourceStrip";
 import { Button } from "@/components/ui/button";
@@ -149,6 +152,36 @@ export default function ResourcePlan() {
     try { return localStorage.getItem("resourceplan_focus") === "true"; } catch { return false; }
   });
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  const STATUS_FILTER_KEY = "resourceplan_status_filter_v1";
+  const ALL_STATUS_KEYS = useMemo<TeamStatusKey[]>(
+    () => TEAM_STATUS_OPTIONS.map((o) => o.key),
+    []
+  );
+  const [visibleStatuses, setVisibleStatuses] = useState<Set<TeamStatusKey>>(() => {
+    try {
+      const raw = localStorage.getItem(STATUS_FILTER_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw) as string[];
+        if (Array.isArray(parsed)) return new Set(parsed as TeamStatusKey[]);
+      }
+    } catch {}
+    return new Set(TEAM_STATUS_OPTIONS.map((o) => o.key));
+  });
+  const toggleStatus = useCallback((key: TeamStatusKey) => {
+    setVisibleStatuses((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      try { localStorage.setItem(STATUS_FILTER_KEY, JSON.stringify(Array.from(next))); } catch {}
+      return next;
+    });
+  }, []);
+  const setAllStatuses = useCallback((on: boolean) => {
+    const next = on ? new Set<TeamStatusKey>(ALL_STATUS_KEYS) : new Set<TeamStatusKey>();
+    setVisibleStatuses(next);
+    try { localStorage.setItem(STATUS_FILTER_KEY, JSON.stringify(Array.from(next))); } catch {}
+  }, [ALL_STATUS_KEYS]);
+  const hiddenCount = ALL_STATUS_KEYS.length - visibleStatuses.size;
 
   const toggleFocusMode = useCallback(() => {
     setFocusMode(prev => {
@@ -728,6 +761,50 @@ export default function ResourcePlan() {
               />
             )}
 
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 rounded-lg h-8 text-xs"
+                  title="Filtrer farger / statuser"
+                >
+                  <Palette className="h-3.5 w-3.5" />
+                  Farger
+                  {hiddenCount > 0 && (
+                    <Badge variant="secondary" className="h-4 px-1.5 text-[10px]">{hiddenCount}</Badge>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-64 p-3">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Vis statuser</p>
+                  <button
+                    type="button"
+                    className="text-[11px] text-primary hover:underline"
+                    onClick={() => setAllStatuses(visibleStatuses.size !== ALL_STATUS_KEYS.length)}
+                  >
+                    {visibleStatuses.size === ALL_STATUS_KEYS.length ? "Skjul alle" : "Vis alle"}
+                  </button>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  {TEAM_STATUS_OPTIONS.map((opt) => {
+                    const checked = visibleStatuses.has(opt.key);
+                    return (
+                      <label
+                        key={opt.key}
+                        className="flex items-center gap-2.5 px-2 py-1.5 rounded-md hover:bg-accent cursor-pointer text-sm"
+                      >
+                        <Checkbox checked={checked} onCheckedChange={() => toggleStatus(opt.key)} />
+                        <span className={cn("h-3 w-3 rounded-sm border shrink-0", opt.swatch)} />
+                        <span className="flex-1 truncate">{opt.label}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </PopoverContent>
+            </Popover>
+
             {unplannedCount > 0 && (
               <Button
                 variant="outline"
@@ -772,6 +849,7 @@ export default function ResourcePlan() {
             scheduleBlocks={scheduleBlocks}
             absenceBlocks={absenceBlocks}
             techCapacities={canReadBusy ? techCapacities : undefined}
+            visibleStatuses={visibleStatuses}
             onBlockClick={(block) => {
               const targetId = block.job_id || block.project_id;
               if (!targetId) return;
