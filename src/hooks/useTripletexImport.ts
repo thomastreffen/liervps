@@ -334,6 +334,13 @@ export function useTripletexImport() {
         if (matchStatus !== "error") matchStatus = "needs_review";
       }
 
+      // Sikkerhet: usikre matcher skal ALDRI auto-opprettes/oppdateres.
+      // Bruker må eksplisitt velge "create" eller "link" i preview.
+      if (matchStatus === "possible_duplicate" || matchStatus === "needs_review") {
+        action = "ignore";
+      }
+
+
       return {
         idx,
         projectNumber,
