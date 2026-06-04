@@ -153,6 +153,36 @@ export default function ResourcePlan() {
   });
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
+  const STATUS_FILTER_KEY = "resourceplan_status_filter_v1";
+  const ALL_STATUS_KEYS = useMemo<TeamStatusKey[]>(
+    () => TEAM_STATUS_OPTIONS.map((o) => o.key),
+    []
+  );
+  const [visibleStatuses, setVisibleStatuses] = useState<Set<TeamStatusKey>>(() => {
+    try {
+      const raw = localStorage.getItem(STATUS_FILTER_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw) as string[];
+        if (Array.isArray(parsed)) return new Set(parsed as TeamStatusKey[]);
+      }
+    } catch {}
+    return new Set(TEAM_STATUS_OPTIONS.map((o) => o.key));
+  });
+  const toggleStatus = useCallback((key: TeamStatusKey) => {
+    setVisibleStatuses((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      try { localStorage.setItem(STATUS_FILTER_KEY, JSON.stringify(Array.from(next))); } catch {}
+      return next;
+    });
+  }, []);
+  const setAllStatuses = useCallback((on: boolean) => {
+    const next = on ? new Set<TeamStatusKey>(ALL_STATUS_KEYS) : new Set<TeamStatusKey>();
+    setVisibleStatuses(next);
+    try { localStorage.setItem(STATUS_FILTER_KEY, JSON.stringify(Array.from(next))); } catch {}
+  }, [ALL_STATUS_KEYS]);
+  const hiddenCount = ALL_STATUS_KEYS.length - visibleStatuses.size;
+
   const toggleFocusMode = useCallback(() => {
     setFocusMode(prev => {
       const next = !prev;
