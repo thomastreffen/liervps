@@ -1049,6 +1049,33 @@ export default function ResourcePlan() {
 
         {/* Interactive FullCalendar */}
         <div onTouchStart={isMobile ? handleTouchStart : undefined} onTouchEnd={isMobile ? handleTouchEnd : undefined}>
+        {calendarView === "team" ? (
+          <TeamView
+            referenceDate={referenceDate}
+            technicians={(filteredTechForSidebar
+              ? technicians.filter((t) => filteredTechForSidebar.has(t.id))
+              : technicians) as any}
+            technicianMap={technicianMap}
+            events={calEvents}
+            absenceBlocks={absenceBlocks}
+            techCapacities={canReadBusy ? techCapacities : undefined}
+            onEventClick={(eventId) => {
+              const ev = calEvents.find((e) => e.id === eventId);
+              if (ev) handleEventClick(ev);
+            }}
+            onCellCreate={(techId, day) => {
+              setEditEvent(null);
+              setClickedTechId(techId);
+              const start = new Date(day);
+              start.setHours(8, 0, 0, 0);
+              const end = new Date(day);
+              end.setHours(16, 0, 0, 0);
+              setPreselectedStart(start);
+              setPreselectedEnd(end);
+              setDrawerOpen(true);
+            }}
+          />
+        ) : (
         <ResourceCalendar
           key={refreshKey}
           technicianId={capacityFilter !== "all" && filteredTechForSidebar
