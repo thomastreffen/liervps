@@ -12,11 +12,11 @@ export function EnableNotificationsButton() {
 
   useEffect(() => {
     const support = getPushSupport();
-    if (!support.supported) {
-      setPermission(support.reason === "ios-not-installed" ? "ios-not-installed" : "unsupported");
+    if (support.supported) {
+      setPermission(Notification.permission);
       return;
     }
-    setPermission(Notification.permission);
+    setPermission(support.reason === "ios-not-installed" ? "ios-not-installed" : "unsupported");
   }, []);
 
   if (permission === "unsupported") {
