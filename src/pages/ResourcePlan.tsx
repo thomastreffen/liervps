@@ -672,7 +672,7 @@ export default function ResourcePlan() {
     ? format(referenceDate, "EEEE d. MMMM", { locale: nb })
     : `Uke ${format(weekStart, "w", { locale: nb })}`;
 
-  const periodSub = (calendarView === "timeGridWeek" || calendarView === "listWeek")
+  const periodSub = (calendarView === "team" || calendarView === "timeGridWeek" || calendarView === "listWeek")
     ? `${format(weekStart, "d. MMM", { locale: nb })} – ${format(addWeeks(weekStart, 1), "d. MMM yyyy", { locale: nb })}`
     : null;
 
