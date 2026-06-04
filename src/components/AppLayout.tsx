@@ -138,6 +138,8 @@ export function AppLayout() {
       />
 
       <PreviewModeDialog open={previewDialogOpen} onOpenChange={setPreviewDialogOpen} />
+      <InstallAppDialog open={installOpen} onOpenChange={setInstallOpen} />
+      <PwaStatusDialog open={statusOpen} onOpenChange={setStatusOpen} />
     </SidebarProvider>
   );
 }
