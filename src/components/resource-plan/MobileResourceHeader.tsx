@@ -37,13 +37,8 @@ interface MobileResourceHeaderProps {
   onMinFreeMinutesChange: (v: number | null) => void;
 }
 
-const VIEW_OPTIONS: { value: CalendarViewType; label: string }[] = [
-  { value: "team", label: "Team" },
-  { value: "timeGridDay", label: "Dag" },
-  { value: "timeGridWeek", label: "Uke" },
-  { value: "dayGridMonth", label: "Mnd" },
-  { value: "listWeek", label: "Liste" },
-];
+// View toggle removed — Ressursplan har kun team-matrise.
+
 
 export const MobileResourceHeader = memo(function MobileResourceHeader(props: MobileResourceHeaderProps) {
   const {
