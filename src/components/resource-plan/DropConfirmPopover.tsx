@@ -128,6 +128,28 @@ export function DropConfirmPopover({ payload, onClose, onCreated }: DropConfirmP
             });
           }
 
+          // Idempotency guard: skip insert if an identical active block already exists
+          const { data: existingBlock } = await (supabase as any)
+            .from("schedule_blocks")
+            .select("id")
+            .eq("technician_id", techId)
+            .eq("project_id", payload.taskId)
+            .eq("start_at", startIso)
+            .eq("end_at", endIso)
+            .is("deleted_at", null)
+            .maybeSingle();
+
+          if (existingBlock?.id) {
+            console.warn("[DropConfirm] Skipping duplicate schedule_block insert", {
+              existingId: existingBlock.id,
+              techId,
+              projectId: payload.taskId,
+              start: startIso,
+              end: endIso,
+            });
+            continue;
+          }
+
           // Create schedule block per technician — each drop creates a unique block
           const { data: sbData } = await (supabase as any).from("schedule_blocks").insert({
             company_id: companyId,
@@ -142,6 +164,7 @@ export function DropConfirmPopover({ payload, onClose, onCreated }: DropConfirmP
             match_reason: "Prosjekt dratt til kalender",
           }).select("id").single();
           console.info("[DropConfirm] Created schedule_block", { blockId: sbData?.id, techId, projectId: payload.taskId, start: startIso, end: endIso });
+
         }
 
         // Log activity
