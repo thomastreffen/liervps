@@ -1580,6 +1580,18 @@ export default function OrderFormDetailPage() {
                               Utilstrekkelig
                             </Badge>
                           )}
+                          {!isSystem && (
+                            <MessageReadStatus
+                              messageId={m.id}
+                              senderUserId={m.sender_user_id || null}
+                              senderType={isCustomer ? "customer" : isSystem ? "system" : "internal"}
+                              isSharedWithCustomer={!!m.is_visible_to_customer || isCustomer}
+                              isLastInThread={m.id === latestMessageId}
+                              participants={conversation.participants}
+                              readsForMessage={conversation.readsByMessage.get(m.id)}
+                              className="ml-auto"
+                            />
+                          )}
                         </div>
 
                         {/* Admin review actions: show on request_info that has been replied to but not yet reviewed */}
