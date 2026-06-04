@@ -6,7 +6,7 @@ import { format, addWeeks, startOfWeek } from "date-fns";
 import { nb } from "date-fns/locale";
 import { MobileFilterSheet } from "./MobileFilterSheet";
 
-type CalendarViewType = "timeGridDay" | "timeGridWeek" | "dayGridMonth" | "listWeek";
+type CalendarViewType = "team" | "timeGridDay" | "timeGridWeek" | "dayGridMonth" | "listWeek";
 
 interface Technician {
   id: string;
@@ -38,6 +38,7 @@ interface MobileResourceHeaderProps {
 }
 
 const VIEW_OPTIONS: { value: CalendarViewType; label: string }[] = [
+  { value: "team", label: "Team" },
   { value: "timeGridDay", label: "Dag" },
   { value: "timeGridWeek", label: "Uke" },
   { value: "dayGridMonth", label: "Mnd" },

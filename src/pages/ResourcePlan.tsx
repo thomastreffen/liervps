@@ -5,6 +5,7 @@ import { nb } from "date-fns/locale";
 import { TechnicianList } from "@/components/TechnicianList";
 import { StatusLegend } from "@/components/StatusLegend";
 import { ResourceCalendar } from "@/components/ResourceCalendar";
+import { TeamView } from "@/components/resource-plan/TeamView";
 import { EventDrawer } from "@/components/EventDrawer";
 import { TaskResourceStrip } from "@/components/tasks/TaskResourceStrip";
 import { Button } from "@/components/ui/button";
@@ -97,10 +98,11 @@ function CompactTechList({
   );
 }
 
-type CalendarViewType = "timeGridDay" | "timeGridWeek" | "dayGridMonth" | "listWeek";
+type CalendarViewType = "team" | "timeGridDay" | "timeGridWeek" | "dayGridMonth" | "listWeek";
 
 const VIEW_STORAGE_KEY = "resourcePlanView";
 const VIEW_OPTIONS: { value: CalendarViewType; label: string; icon: typeof Calendar }[] = [
+  { value: "team", label: "Team", icon: CalendarDays },
   { value: "timeGridDay", label: "Dag", icon: Calendar },
   { value: "timeGridWeek", label: "Uke", icon: CalendarDays },
   { value: "dayGridMonth", label: "Måned", icon: Calendar },
@@ -112,7 +114,7 @@ function getStoredView(): CalendarViewType {
     const stored = localStorage.getItem(VIEW_STORAGE_KEY);
     if (stored && VIEW_OPTIONS.some((v) => v.value === stored)) return stored as CalendarViewType;
   } catch {}
-  return "timeGridWeek";
+  return "team";
 }
 
 export default function ResourcePlan() {
@@ -1048,6 +1050,33 @@ export default function ResourcePlan() {
 
         {/* Interactive FullCalendar */}
         <div onTouchStart={isMobile ? handleTouchStart : undefined} onTouchEnd={isMobile ? handleTouchEnd : undefined}>
+        {calendarView === "team" ? (
+          <TeamView
+            referenceDate={referenceDate}
+            technicians={(filteredTechForSidebar
+              ? technicians.filter((t) => filteredTechForSidebar.has(t.id))
+              : technicians) as any}
+            technicianMap={technicianMap}
+            events={calEvents}
+            absenceBlocks={absenceBlocks}
+            techCapacities={canReadBusy ? techCapacities : undefined}
+            onEventClick={(eventId) => {
+              const ev = calEvents.find((e) => e.id === eventId);
+              if (ev) handleEventClick(ev);
+            }}
+            onCellCreate={(techId, day) => {
+              setEditEvent(null);
+              setClickedTechId(techId);
+              const start = new Date(day);
+              start.setHours(8, 0, 0, 0);
+              const end = new Date(day);
+              end.setHours(16, 0, 0, 0);
+              setPreselectedStart(start);
+              setPreselectedEnd(end);
+              setDrawerOpen(true);
+            }}
+          />
+        ) : (
         <ResourceCalendar
           key={refreshKey}
           technicianId={capacityFilter !== "all" && filteredTechForSidebar
@@ -1164,6 +1193,7 @@ export default function ResourcePlan() {
             setCalendarView("timeGridDay");
           }}
         />
+        )}
         </div>
       </div>
 
