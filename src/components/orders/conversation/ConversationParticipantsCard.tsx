@@ -174,7 +174,7 @@ export function ConversationParticipantsCard({ submissionId, companyId, latestMe
 
   const addExternal = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from("order_form_participants").insert({
+      const { error } = await (supabase.from("order_form_participants") as any).insert({
         submission_id: submissionId,
         participant_type: "external_email",
         name: extName,
