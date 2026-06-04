@@ -8644,6 +8644,64 @@ export type Database = {
           },
         ]
       }
+      order_form_message_reads: {
+        Row: {
+          id: string
+          message_id: string
+          participant_id: string
+          read_at: string
+          reader_type: string
+          submission_id: string
+          tracking_token_hash: string | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          id?: string
+          message_id: string
+          participant_id: string
+          read_at?: string
+          reader_type: string
+          submission_id: string
+          tracking_token_hash?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          id?: string
+          message_id?: string
+          participant_id?: string
+          read_at?: string
+          reader_type?: string
+          submission_id?: string
+          tracking_token_hash?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_form_message_reads_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "order_form_messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_form_message_reads_participant_id_fkey"
+            columns: ["participant_id"]
+            isOneToOne: false
+            referencedRelation: "order_form_participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_form_message_reads_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "order_form_submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       order_form_messages: {
         Row: {
           addressed_to_participant_id: string | null
@@ -8740,49 +8798,76 @@ export type Database = {
       }
       order_form_participants: {
         Row: {
+          added_at: string
+          added_by: string | null
           can_reply: boolean
           created_at: string
           created_by: string | null
+          display_name: string | null
           email: string | null
           id: string
           inbound_token: string | null
+          is_active: boolean
           is_visible_to_customer: boolean
+          last_seen_at: string | null
+          last_seen_message_id: string | null
           name: string
           participant_type: string
+          phone: string | null
           receives_notifications: boolean
           role_label: string | null
           submission_id: string
+          technician_id: string | null
           user_id: string | null
+          visibility: string
         }
         Insert: {
+          added_at?: string
+          added_by?: string | null
           can_reply?: boolean
           created_at?: string
           created_by?: string | null
+          display_name?: string | null
           email?: string | null
           id?: string
           inbound_token?: string | null
+          is_active?: boolean
           is_visible_to_customer?: boolean
+          last_seen_at?: string | null
+          last_seen_message_id?: string | null
           name: string
           participant_type?: string
+          phone?: string | null
           receives_notifications?: boolean
           role_label?: string | null
           submission_id: string
+          technician_id?: string | null
           user_id?: string | null
+          visibility?: string
         }
         Update: {
+          added_at?: string
+          added_by?: string | null
           can_reply?: boolean
           created_at?: string
           created_by?: string | null
+          display_name?: string | null
           email?: string | null
           id?: string
           inbound_token?: string | null
+          is_active?: boolean
           is_visible_to_customer?: boolean
+          last_seen_at?: string | null
+          last_seen_message_id?: string | null
           name?: string
           participant_type?: string
+          phone?: string | null
           receives_notifications?: boolean
           role_label?: string | null
           submission_id?: string
+          technician_id?: string | null
           user_id?: string | null
+          visibility?: string
         }
         Relationships: [
           {
@@ -12042,6 +12127,10 @@ export type Database = {
         Args: { _submission_id: string }
         Returns: Json
       }
+      deactivate_conversation_participant: {
+        Args: { _participant_id: string }
+        Returns: undefined
+      }
       dry_run_duplicate_schedule_blocks: {
         Args: never
         Returns: {
@@ -12101,6 +12190,14 @@ export type Database = {
           start_time: string
           status: string
           title: string
+        }[]
+      }
+      get_message_reads_by_token: {
+        Args: { _tracking_token: string }
+        Returns: {
+          internal_first_read_at: string
+          internal_read_count: number
+          message_id: string
         }[]
       }
       get_order_company_id: {
@@ -12399,6 +12496,18 @@ export type Database = {
         Returns: boolean
       }
       is_super_admin: { Args: { _auth_user_id: string }; Returns: boolean }
+      mark_messages_read_by_token: {
+        Args: {
+          _message_ids: string[]
+          _tracking_token: string
+          _user_agent?: string
+        }
+        Returns: Json
+      }
+      mark_messages_read_internal: {
+        Args: { _message_ids: string[]; _submission_id: string }
+        Returns: Json
+      }
       order_submission_allows_public_child_insert: {
         Args: { _submission_id: string }
         Returns: boolean
@@ -12478,6 +12587,19 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      upsert_internal_conversation_participant: {
+        Args: {
+          _display_name?: string
+          _email?: string
+          _phone?: string
+          _role_label?: string
+          _submission_id: string
+          _technician_id?: string
+          _user_id?: string
+          _visibility?: string
+        }
+        Returns: string
       }
       user_has_company_access: {
         Args: { _auth_user_id: string; _company_id: string }

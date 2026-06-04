@@ -25,6 +25,8 @@ import { CustomerFieldRequests } from "@/components/orders/CustomerFieldRequests
 import { getSubmissionDisplayTitle, getSubmissionAddressLine } from "@/lib/order-display";
 import { getMessageSenderLabel, resolveSenderKind } from "@/lib/order-message-sender";
 import { useAuth } from "@/hooks/useAuth";
+import { useCustomerConversationReads } from "@/hooks/useCustomerConversationReads";
+import { CustomerMessageReadIndicator } from "@/components/orders/conversation/CustomerMessageReadIndicator";
 import { sanitizeStorageFileName } from "@/lib/storage-path";
 
 import mascotReceived from "@/assets/mascot/received.png";
@@ -542,6 +544,15 @@ export default function OrderTrackingPage() {
     () => conversationState.conversation.filter((message) => message.is_visible_to_customer),
     [conversationState.conversation],
   );
+
+  const visibleMessageIdsCustomer = useMemo(
+    () => allMessages.map((m: any) => m.id as string),
+    [allMessages],
+  );
+  const { readsByMessage: customerReads } = useCustomerConversationReads({
+    trackingToken: token,
+    visibleMessageIds: visibleMessageIdsCustomer,
+  });
 
   const openRequest = useMemo(
     () => [...allMessages].reverse().find((message) => message.message_type === "request_info" && message.requires_reply && !message.replied_at),
@@ -1083,6 +1094,18 @@ export default function OrderTrackingPage() {
                               )}
                             </div>
                           )}
+                          {isCustomer && (() => {
+                            const summary = customerReads.get(msg.id);
+                            const readByInternal = !!summary && summary.internal_read_count > 0;
+                            return (
+                              <div className="mt-1.5 flex justify-end text-primary-foreground/80">
+                                <CustomerMessageReadIndicator
+                                  readByInternal={readByInternal}
+                                  readAt={summary?.internal_first_read_at || null}
+                                />
+                              </div>
+                            );
+                          })()}
                         </div>
                         {isCustomer && (
                           <div className="h-8 w-8 rounded-full bg-primary/15 text-primary flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">

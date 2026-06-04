@@ -58,6 +58,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { LinkedTaskSection } from "@/components/orders/LinkedTaskSection";
 import { deriveOrderConversationState } from "@/lib/order-request-state";
 import { OrderParticipantsPanel } from "@/components/orders/OrderParticipantsPanel";
+import { ConversationParticipantsCard } from "@/components/orders/conversation/ConversationParticipantsCard";
+import { MessageReadStatus } from "@/components/orders/conversation/MessageReadStatus";
+import { useConversationReads } from "@/hooks/useConversationReads";
 import { EditFieldsDialog } from "@/components/orders/EditFieldsDialog";
 import { RequestFieldsDialog } from "@/components/orders/RequestFieldsDialog";
 import { LinkExistingTaskDialog } from "@/components/orders/LinkExistingTaskDialog";
@@ -155,6 +158,18 @@ export default function OrderFormDetailPage() {
       return data || [];
     },
   });
+
+  // Conversation reads (internal/admin flow)
+  const visibleMessageIdsAdmin = useMemo(
+    () => (orderMessages as any[]).map((m) => m.id as string),
+    [orderMessages],
+  );
+  const conversation = useConversationReads({
+    submissionId: id,
+    visibleMessageIds: visibleMessageIdsAdmin,
+    enableInternalMarkRead: true,
+  });
+  const latestMessageId = visibleMessageIdsAdmin[visibleMessageIdsAdmin.length - 1] || null;
 
   // Fetch participants for this order
   const { data: participants = [] } = useQuery({
@@ -1445,9 +1460,10 @@ export default function OrderFormDetailPage() {
           </Card>
 
           {/* Participants panel */}
-          <OrderParticipantsPanel
+          <ConversationParticipantsCard
             submissionId={id!}
             companyId={submission.company_id}
+            latestMessageId={latestMessageId}
           />
 
           {/* Messages - unified view */}
@@ -1563,6 +1579,18 @@ export default function OrderFormDetailPage() {
                             <Badge variant="outline" className="text-[8px] bg-red-50 text-red-600 border-red-200">
                               Utilstrekkelig
                             </Badge>
+                          )}
+                          {!isSystem && (
+                            <MessageReadStatus
+                              messageId={m.id}
+                              senderUserId={m.sender_user_id || null}
+                              senderType={isCustomer ? "customer" : isSystem ? "system" : "internal"}
+                              isSharedWithCustomer={!!m.is_visible_to_customer || isCustomer}
+                              isLastInThread={m.id === latestMessageId}
+                              participants={conversation.participants}
+                              readsForMessage={conversation.readsByMessage.get(m.id)}
+                              className="ml-auto"
+                            />
                           )}
                         </div>
 

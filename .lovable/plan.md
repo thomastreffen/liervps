@@ -1,97 +1,87 @@
-# Runde B: HMS & HR-modul
+# Lesestatus og deltakeroversikt (Bestilling / Sporingsside)
 
-Runde B er omfattende (≈40+ filer, 3 edge-funksjoner, ~10 nye/utvidede tabeller) og må leveres i flere etapper for å holde kvalitet, gjøre testing mulig og holde hvert sprang innenfor en gjennomgåelig endring.
+Bygger iMessage/Teams-light opplevelse for meldingstråden i bestillingsmodulen — både admin og kundens sporingsside.
 
-Forslag til 5 etapper. Hver etappe avsluttes med fungerende UI og er klar til godkjenning før neste starter.
+## 1. Datamodell (migrering)
 
----
+**Ny tabell `order_form_conversation_participants`**
+- `id`, `submission_id`, `participant_type` ('customer' | 'internal_user' | 'technician')
+- `user_id`, `technician_id`, `display_name`, `email`, `phone`, `role_label`
+- `visibility` ('internal' | 'shared_with_customer'), `added_by`, `added_at`
+- `last_seen_at`, `last_seen_message_id`, `is_active`
+- Unique partial: (submission_id, user_id) where user_id not null; (submission_id, technician_id) where technician_id not null; (submission_id, participant_type='customer')
 
-## B1 — Malmotor (datamodell + admin-CRUD)
+**Ny tabell `order_form_message_reads`**
+- `id`, `message_id`, `submission_id`, `participant_id`, `read_at`
+- `reader_type`, `user_id`, `tracking_token_hash`, `user_agent`
+- Unique (message_id, participant_id)
 
-Admin-visning under `/hms/templates` som dekker punkt 1 i bestillingen, og seeding av standardmalene fra punkt 2.
+**RLS**
+- Participants: les/skriv for interne med tilgang til submission (eksisterende `user_has_company_access` / cross-company grant). Kunde-tilgang via SECURITY DEFINER RPC med tracking_token.
+- Reads: samme mønster — interne via auth, kunde via RPC.
 
-- Datamodellutvidelser
-  - `hms_templates`: legg til `kind` ('sja' | 'checklist'), `mcs_work_types[]`, `is_active`, `version`, `requires_signature`
-  - `hms_template_sections`: rekkefølge og tittel
-  - `hms_template_items`: utvid `field_type`-enum til {`yes_no_na`, `text`, `long_text`, `attachment`, `risk`, `mitigation`, `signature`, `responsible`, `due_date`}, `is_required`, `help_text`, `default_value`
-- UI
-  - Liste `/hms/templates` med filter på kind + område + arbeidstype
-  - Editor `/hms/templates/:id` med drag-and-drop seksjoner og punkter
-  - Tag-velger for `hms_areas` koblet mot `hms_area_catalog`
-- Seed
-  - 7 SJA-maler + 5 sjekklister (MCS-tilpassede, generiske punkter, ingen kopiert tekst)
-  - Tagget med `mcs_work_types` + `hms_areas` så `suggest_hms_areas` kan rangere dem
-- RLS
-  - Lese: alle med `hms.view` i samme `company_id`
-  - Endre: `hms.manage`
+**RPC-funksjoner (SECURITY DEFINER)**
+- `mark_messages_read_internal(submission_id, message_ids[])` — bruker `auth.uid()`, finner/oppretter participant, upserter reads, oppdaterer `last_seen_*`.
+- `mark_messages_read_by_token(tracking_token, message_ids[])` — kunde-flow, ingen auth nødvendig, validerer token.
+- `get_conversation_participants(submission_id)` / `get_conversation_participants_by_token(token)` — returnerer aktive deltakere med last_seen status.
+- `upsert_conversation_participant(...)` — admin legger til intern bruker/montør.
 
-## B2 — Mobil utfylling + innsendinger
+**Backfill**
+- Opprett customer participant for alle eksisterende submissions basert på `customer_name` / `customer_email`.
+- Opprett internal_user participants fra historiske `order_form_messages.sender_user_id` (distinct).
+- Realtime: legg til de to nye tabellene i `supabase_realtime` publication.
 
-Punkt 3 og 4. Operativ for montør i felt.
+## 2. Admin-UI (bestillingsmodul)
 
-- Datamodell
-  - `hms_submissions` får `event_id`, `submitted_by_user_account_id`, `submitted_at`, `lat/lng`
-  - `hms_submission_answers`: ett rad per template_item, JSONB-verdi
-  - `hms_submission_signatures`: PNG i `hms-attachments`
-  - `hms_submission_attachments`: bilde/vedlegg per svar
-- Mobilside `/hms/mobile`
-  - "Mine HMS i dag": foreslåtte SJA + obligatoriske sjekklister fra dagens jobber
-  - Stepper-flyt: jobb → mal → punkter → bilder → ekstra risikopunkt → signatur → fullfør
-  - Kameraknapp og tegne-signatur (canvas)
-  - RUH/avvik-knapp som lager `hms_incidents` med foto + GPS
-- Liste over egne innsendinger med status
+**Ny komponent `ConversationParticipantsCard`** (høyre panel i submission-detalj)
+- Liste over aktive deltakere med avatar/initialer, navn, role_label-badge
+- Type-badge: Kunde (blå), Intern (grå), Montør (grønn)
+- Lesestatus per deltaker: "Lest nå", "Lest 12:25", "Ikke lest siste melding", "Aldri åpnet"
+- Knapp: "Legg til deltaker" (intern bruker eller montør, søk + valg av visibility)
 
-## B3 — Tripletex-import + AML-motor V1
+**Endring i meldingsliste (`OrderMessageThread` / tilsvarende)**
+- Under hver melding: kompakt `MessageReadStatus` (tekst + popover med full liste)
+  - "Lest av Stian, Thomas" / "Ikke lest av Andre" / "Lest av 3 av 5"
+  - Avsender telles ikke
+- Spesiell rendering for siste synlige melding: "Lest av alle" / "Ikke lest av: …" / "Kunde har åpnet"
+- Ved mount + ved ny melding: kall `mark_messages_read_internal` for synlige meldinger
 
-Punkt 5 og 6, satt sammen fordi importen mater motoren.
+**Realtime-hook `useConversationReads(submissionId)`**
+- Subscribe til `order_form_message_reads` og `order_form_conversation_participants` for submission
+- Oppdater UI uten refresh
 
-- Importside `/hms/import`
-  - Excel/CSV-opplasting (klient-parser med `xlsx`)
-  - Auto-foreslått kolonnemapping (header-matching)
-  - Forhåndsvisning + bekreft
-  - Idempotens: `source_external_id` foretrukket, ellers `source_hash` av (employee_id|date|start|end|ord|ot|project|type)
-  - Rapport: lest, ny, oppdatert, ignorert dublett, usikker, AML-varsler
-- Edge-funksjon `worktime-aml-evaluate`
-  - Triggeres av importen og kan kjøres manuelt
-  - Regler: 13t/dag, 48t/uke, 10t OT/7d, 25t OT/4u, 200t OT/52u, <11t hvile, OT uten godkjenning
-  - Skriver `worktime_alerts` med `why`, `consequence`, `suggested_action`, `severity`
+## 3. Sporingsside (kunde)
 
-## B4 — Ansattvisning + Dashboard-oppdateringer
+**`CustomerConversationView`**
+- Vis kun meldinger med `visibility='shared_with_customer'` (eller eksisterende `is_visible_to_customer`)
+- Egne sendte meldinger viser status: "Sendt" / "Lest av MCS" (basert på om noen intern participant har read row)
+- Ikke vis intern leseliste (ingen navn på interne)
+- Ved mount: kall `mark_messages_read_by_token(token, visibleIds)`
+- Realtime via samme kanaler men filtrert via RLS/RPC
 
-Punkt 7 og 8.
+## 4. Regler (implementert i RPC + UI-helpers)
 
-- `/hms/employees` liste + `/hms/employees/:id` detalj
-  - Arbeidstidsprofil + hvilende rull-tall (uke/måned/7d/4u/52u)
-  - Åpne AML-varsler med "akkrediter / lukk"
-  - Håndbok-status, SJA-deltakelse, åpne tiltak
-- `/hms` (dashboard): kortene henter ekte data, ny "Krever handling"-stripe over kortene
+- Lest = read row finnes ELLER `last_seen_message_id` ≥ meldingens ordering
+- Avsender ekskluderes fra "mangler lest"-listen
+- Kun `is_active=true` deltakere telles
+- Kunde får aldri se interne meldinger
+- Interne meldinger telles kun mot interne deltakere; delte meldinger telles mot alle
 
-## B5 — Sikkerhet + design-finpuss
+## Teknisk
 
-Punkt 9 og 10.
+- Migrering i én SQL-fil (tabeller + GRANTs + RLS + policies + RPCs + publication)
+- TypeScript types regenereres etter migrering
+- Nye komponenter under `src/components/order-module/conversation/`
+- Hook `useConversationReads` under `src/hooks/`
+- Lett popover for full leseliste (shadcn `Popover`)
+- Ingen tekniske IDer i UI — kun display_name og role_label
+- Beholder eksisterende `order_form_participants` (rolle-deltakere for bestillingsskjema) — den nye tabellen er separat for dialog-lesestatus
 
-- RLS gjennomgang per tabell
-  - `hms_submissions`: montør ser kun egne; PL ser eget prosjekts; HMS-leder ser hele selskapet
-  - `worktime_entries` og `worktime_alerts`: ansatt ser egne, leder ser sine direkterapporter via `employee_work_profiles.manager_user_account_id`
-- MCS Signal teal som HMS-primærfarge (egen token), erstatte midlertidig grønt
-- Mobil polering, A11y-kontroll, touch targets ≥44px
+## Akseptanse
 
----
-
-## Tekniske notater
-
-- Edge-funksjon for AML kjører som chained self-invocation per ansatt for å holde latency lav
-- `hms-attachments`-bucket finnes (privat) fra runde A — gjenbrukes for signaturer og bilder
-- All UI bruker eksisterende design tokens; teal-token introduseres i B5
-- Idempotens på SJA-innsending via `client_request_id` (mønster fra prosjekter)
-
----
-
-## Spørsmål før jeg starter
-
-1. **Rekkefølge**: Foreslår B1 → B2 → B3 → B4 → B5. OK?
-2. **Standardmaler i B1**: Vil du godkjenne tekstutkast per mal før seed, eller kan jeg seede direkte med generiske MCS-tilpassede punkter du kan redigere etterpå?
-3. **AML-grenser i B3**: Bruker MCS standardgrenser fra runde A (13t/dag, 48t/uke), eller har dere egne tariff-/avtalegrenser jeg skal kode inn?
-4. **Signatur i B2**: Canvas-tegning er nok, eller trenger vi BankID-signatur (krever ekstern integrasjon, betydelig ekstra arbeid)?
-
-Si fra hvilken etappe jeg skal starte med, så går jeg rett på datamodell + UI for den.
+- Admin ser deltakerliste med lesestatus per person
+- Hver melding viser kompakt lesestatus, popover med full liste
+- Siste melding: tydelig samlet status
+- Kunde ser kun delte meldinger og enkel "Lest av MCS" på egne
+- Realtime oppdateringer uten refresh
+- Kunde-leseflow fungerer uten innlogging via tracking token
