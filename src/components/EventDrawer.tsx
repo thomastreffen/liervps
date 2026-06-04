@@ -989,33 +989,68 @@ export function EventDrawer({
            changeSet: detectedChanges,
          });
       } else if (mode === "existing" && selectedJobId) {
-        // Plan a NEW activity on an existing project (project = context only).
-        // Per produktregel skal eksisterende prosjekt ikke arve gammel
-        // ressursplan-state — vi bruker kun de feltene brukeren har fylt ut nå.
-        const { startISO, endISO } = date
-          ? normalizeOvernightDates(date, startTime, endDate, endTime)
-          : { startISO: null, endISO: null };
-
-        if (assignmentNotes.trim()) {
-          await (supabase as any).from("events")
-            .update({ assignment_notes: assignmentNotes.trim() })
-            .eq("id", selectedJobId);
+        // Plan a NEW work-visit activity (child event) on an existing parent project.
+        // The parent project is context only — we do NOT inherit its old technicians/state.
+        if (!date) {
+          toast.error("Velg dato for arbeidsbesøket");
+          setSaving(false);
+          return;
         }
+        const { startISO, endISO } = normalizeOvernightDates(date, startTime, endDate, endTime);
 
-        // Get company_id from the existing event
-        const { data: evtData } = await supabase.from("events")
-          .select("company_id")
+        // 1) Load parent project
+        const { data: parent, error: parentErr } = await supabase
+          .from("events")
+          .select("company_id, title, customer, address, postal_code, city, location_details, site_contact_name, site_contact_phone, access_notes, map_link, description, customer_practical_info, source_order_form_id, project_number, internal_number")
           .eq("id", selectedJobId)
           .single();
-        const evtCompanyId = (evtData as any)?.company_id;
+        if (parentErr || !parent) {
+          toast.error("Kunne ikke hente prosjekt", { description: parentErr?.message });
+          setSaving(false);
+          return;
+        }
 
-        const { data: existing } = await supabase
-          .from("event_technicians").select("technician_id").eq("event_id", selectedJobId);
-        const existingIds = new Set((existing || []).map((e) => e.technician_id));
-        const newTechs = techIds.filter((id) => !existingIds.has(id));
+        // 2) Create the new child activity event
+        const { data: createdActivity, error: createErr } = await (supabase as any)
+          .from("events")
+          .insert({
+            parent_project_id: selectedJobId,
+            project_type: "task",
+            title: title.trim() || parent.title,
+            customer: customer || parent.customer,
+            address: address || parent.address,
+            postal_code: postalCode || parent.postal_code,
+            city: city || parent.city,
+            location_details: locationDetails || parent.location_details,
+            site_contact_name: siteContactName || parent.site_contact_name,
+            site_contact_phone: siteContactPhone || parent.site_contact_phone,
+            access_notes: accessNotes || parent.access_notes,
+            map_link: mapLink || parent.map_link,
+            description: description || parent.description,
+            assignment_notes: assignmentNotes || null,
+            customer_practical_info: customerPracticalInfo || parent.customer_practical_info,
+            start_time: startISO,
+            end_time: endISO,
+            technician_id: techIds[0] || userId,
+            status: "requested",
+            created_by: userId,
+            client_request_id: clientRequestId,
+            company_id: parent.company_id,
+            source_order_form_id: parent.source_order_form_id,
+          })
+          .select("id")
+          .single();
 
-        // Compute all planning dates for THIS new activity (base + copy-to-dates).
-        const allDates: string[] = date ? [date] : [];
+        if (createErr || !createdActivity) {
+          toast.error("Kunne ikke opprette arbeidsbesøk", { description: createErr?.message });
+          setSaving(false);
+          return;
+        }
+
+        const createdActivityId = createdActivity.id as string;
+
+        // Compute all planning dates (base + copy-to-dates)
+        const allDates: string[] = [date];
         if (repeatEnabled && repeatDates.length > 0) {
           for (const d of repeatDates) {
             const ds = format(d, "yyyy-MM-dd");
@@ -1023,25 +1058,11 @@ export function EventDrawer({
           }
         }
 
-        console.info("[resource-plan:create-activity:existing-project]", {
-          projectId: selectedJobId,
-          installerIds: techIds,
-          baseDate: date,
-          copyToDates: repeatEnabled ? repeatDates.map((d) => format(d, "yyyy-MM-dd")) : [],
-          allDates,
-          expectedBlockRows: techIds.length * allDates.length,
-        });
-
-        const assignmentLogEntries: any[] = [];
-        const assignmentSummary = startISO && endISO
-          ? `${format(new Date(startISO), "d. MMM yyyy 'kl.' HH:mm", { locale: nb })}–${format(new Date(endISO), "HH:mm", { locale: nb })}${allDates.length > 1 ? ` (+${allDates.length - 1} ekstra dager)` : ""}`
-          : null;
-
-        // 1) Ensure event_technicians rows exist (UNIQUE event_id+technician_id)
-        if (newTechs.length > 0) {
+        // 3) event_technicians on the NEW activity
+        if (techIds.length > 0) {
           const { error: etErr } = await supabase.from("event_technicians").insert(
-            newTechs.map((tid) => ({
-              event_id: selectedJobId,
+            techIds.map((tid) => ({
+              event_id: createdActivityId,
               technician_id: tid,
               ...(startISO ? { start_at: startISO } : {}),
               ...(endISO ? { end_at: endISO } : {}),
@@ -1055,8 +1076,8 @@ export function EventDrawer({
           }
         }
 
-        // 2) Build per-(technician × date) schedule blocks for this new activity
-        if (allDates.length > 0 && evtCompanyId && techIds.length > 0) {
+        // 4) schedule_blocks — project_id = parent, job_id = new activity
+        if (allDates.length > 0 && parent.company_id && techIds.length > 0) {
           const blockRows: any[] = [];
           for (const tid of techIds) {
             for (const ds of allDates) {
@@ -1064,30 +1085,26 @@ export function EventDrawer({
                 ds, startTime, ds, endTime,
               );
               blockRows.push({
-                company_id: evtCompanyId,
+                company_id: parent.company_id,
                 technician_id: tid,
                 project_id: selectedJobId,
+                job_id: createdActivityId,
                 source: "manual",
                 start_at: dStart,
                 end_at: dEnd,
-                title: title || "Prosjektarbeid",
+                title: title || parent.title || "Arbeidsbesøk",
                 match_state: "manual",
                 match_confidence: 100,
                 match_reason: allDates.length > 1
-                  ? "Planlagt over flere dager via planlegger"
-                  : (newTechs.length > 0 ? "Montør tildelt via planlegger" : "Ekstra dag lagt til via planlegger"),
+                  ? "Arbeidsbesøk planlagt over flere dager"
+                  : "Arbeidsbesøk planlagt via planlegger",
               });
             }
           }
 
-          const { data: insertedBlocks, error: sbErr } = await (supabase as any)
+          const { error: sbErr } = await (supabase as any)
             .from("schedule_blocks")
-            .insert(blockRows)
-            .select("id");
-          console.info("[resource-plan:create-activity:existing:result]", {
-            insertedCount: insertedBlocks?.length ?? 0,
-            error: sbErr?.message,
-          });
+            .insert(blockRows);
           if (sbErr) {
             toast.error("Kunne ikke opprette planblokker", { description: sbErr.message });
             setSaving(false);
@@ -1095,56 +1112,39 @@ export function EventDrawer({
           }
         }
 
-        // 3) Approvals + activity log
-        if (newTechs.length > 0) {
-          const addedNames = newTechs.map((id) => techNameMap.get(id) || "Montør");
-          assignmentLogEntries.push({
-            event_id: selectedJobId,
+        // 5) Approvals + activity log
+        if (techIds.length > 0) {
+          const addedNames = techIds.map((id) => techNameMap.get(id) || "Montør");
+          await supabase.from("event_logs").insert({
+            event_id: createdActivityId,
             action_type: "technician_assigned",
             performed_by: userId,
             performer_name: userName,
-            change_summary: assignmentSummary
-              ? `planla ${addedNames.join(", ")} på ${assignmentSummary}`
-              : `tildelte ${addedNames.join(", ")} til oppdraget`,
+            change_summary: `planla ${addedNames.join(", ")} på nytt arbeidsbesøk`,
             metadata: { added_names: addedNames },
-          });
+          } as any);
 
           await supabase.functions.invoke("create-approval", {
             body: {
-              job_id: selectedJobId,
+              job_id: createdActivityId,
+              technician_ids: techIds,
               reminder_profile: reminderConfig.profile,
               reminder_config: reminderConfig.profile === "custom" ? reminderConfig.custom : null,
               response_required: reminderConfig.responseRequired,
             },
           });
-        } else if (allDates.length > 0) {
-          const assignedNames = techIds.map((id) => techNameMap.get(id) || "Montør");
-          assignmentLogEntries.push({
-            event_id: selectedJobId,
-            action_type: "technician_assigned",
-            performed_by: userId,
-            performer_name: userName,
-            change_summary: assignmentSummary
-              ? `la til planlagt dag for ${assignedNames.join(", ")} på ${assignmentSummary}`
-              : `la til ny planlagt dag for ${assignedNames.join(", ")}`,
-            metadata: { added_names: assignedNames },
-          });
         }
 
-        if (assignmentLogEntries.length > 0) {
-          await supabase.from("event_logs").insert(assignmentLogEntries);
-        }
-
-        // Upload attachments for existing job
+        // 6) Attachments on the NEW activity
         if (files.length > 0) {
-          const { data: evtRow } = await supabase.from("events").select("attachments").eq("id", selectedJobId).single();
-          const prevAtts = (evtRow?.attachments && Array.isArray(evtRow.attachments) ? evtRow.attachments : []) as unknown as Attachment[];
-          const newUploads = await uploadFiles(selectedJobId, files);
-          await supabase.from("events").update({ attachments: [...prevAtts, ...newUploads] as any }).eq("id", selectedJobId);
+          const newUploads = await uploadFiles(createdActivityId, files);
+          await supabase.from("events").update({ attachments: newUploads as any }).eq("id", createdActivityId);
         }
 
-        toast.success("Montør(er) tildelt");
-        onSaved?.(selectedJobId);
+        toast.success("Arbeidsbesøk opprettet", {
+          description: "Planlagt på eksisterende prosjekt uten å arve gamle montører.",
+        });
+        onSaved?.(createdActivityId);
       } else {
         const isTask = eventType === "task";
         // Resolve company_id: explicit selection > active company (non-global) > block
