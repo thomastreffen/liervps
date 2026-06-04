@@ -98,24 +98,16 @@ function CompactTechList({
   );
 }
 
+// Legacy view types retained for compatibility with ResourceCalendar (not exposed in UI).
 type CalendarViewType = "team" | "timeGridDay" | "timeGridWeek" | "dayGridMonth" | "listWeek";
 
 const VIEW_STORAGE_KEY = "resourcePlanView";
-const VIEW_OPTIONS: { value: CalendarViewType; label: string; icon: typeof Calendar }[] = [
-  { value: "team", label: "Team", icon: CalendarDays },
-  { value: "timeGridDay", label: "Dag", icon: Calendar },
-  { value: "timeGridWeek", label: "Uke", icon: CalendarDays },
-  { value: "dayGridMonth", label: "Måned", icon: Calendar },
-  { value: "listWeek", label: "Liste", icon: List },
-];
 
 function getStoredView(): CalendarViewType {
-  try {
-    const stored = localStorage.getItem(VIEW_STORAGE_KEY);
-    if (stored && VIEW_OPTIONS.some((v) => v.value === stored)) return stored as CalendarViewType;
-  } catch {}
+  // Ressursplan har kun én visning nå: team-matrise. Ignorer gamle lagrede verdier.
   return "team";
 }
+
 
 export default function ResourcePlan() {
   const isMobile = useIsMobile();
