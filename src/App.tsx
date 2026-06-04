@@ -14,6 +14,7 @@ function RedirectContractToProject() {
   return <Navigate to={`/projects/contracts/${id}`} replace />;
 }
 import { AuthProvider } from "@/hooks/useAuth";
+import { PwaInstallPrompt } from "@/components/pwa/PwaInstallPrompt";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppLayout } from "@/components/AppLayout";
 import OverviewPage from "./pages/OverviewPage";
@@ -164,6 +165,7 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
+      <PwaInstallPrompt />
       <BrowserRouter>
         <AuthProvider>
           <CompanyProvider>

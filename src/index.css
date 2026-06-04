@@ -432,3 +432,13 @@
 .focus-mode .fc-wrapper .fc .fc-col-header-cell {
   padding: 2px 0;
 }
+/* PWA standalone safe-area handling */
+.pwa-standalone body,
+body.pwa-standalone {
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+@supports (padding: env(safe-area-inset-top)) {
+  .pwa-safe-top { padding-top: env(safe-area-inset-top); }
+  .pwa-safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+}
