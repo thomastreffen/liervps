@@ -99,6 +99,20 @@ function utilColor(p: number) {
   return "text-muted-foreground/60";
 }
 
+/**
+ * RESSURSPLAN — DATA-SOURCE-OF-TRUTH-KONTRAKT
+ * ───────────────────────────────────────────
+ * • schedule_blocks.start_at  → bestemmer DAG-KOLONNE (kun denne!)
+ * • schedule_blocks.end_at    → bestemmer sluttid
+ * • schedule_blocks.technician_id → bestemmer RAD
+ * • schedule_blocks.job_id    → peker på aktivitet (events m/ project_type="task")
+ * • schedule_blocks.project_id → peker på hovedprosjekt (events m/ project_type="project")
+ *
+ * events.start_time / end_time MÅ ALDRI brukes til plassering i matrisen.
+ * Parent-prosjektets dato/tid skal heller ALDRI påvirke kolonneplassering.
+ * events brukes kun for tittel/status/kunde/jobnummer/drawer-åpning.
+ * event_technicians eies av aktiviteten (job_id), ikke parent-prosjektet.
+ */
 export function TeamView({
   referenceDate,
   technicians,
@@ -115,19 +129,25 @@ export function TeamView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [referenceDate.toDateString()]
   );
+  const weekEndExclusive = useMemo(() => addDays(weekStart, 7), [weekStart]);
   const days = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart]);
 
+  // Hard week-window filter: schedule_blocks.start_at must be inside [weekStart, weekEndExclusive).
+  // This guards against stale blocks lekke inn fra parent-prosjektets start_time eller andre uker.
   const filteredBlocks = useMemo(() => {
-    if (!visibleStatuses) return scheduleBlocks;
-    return scheduleBlocks.filter((b) => visibleStatuses.has(blockStatusKey(b.job_status)));
-  }, [scheduleBlocks, visibleStatuses]);
+    const inWindow = scheduleBlocks.filter(
+      (b) => b.start_at >= weekStart && b.start_at < weekEndExclusive,
+    );
+    if (!visibleStatuses) return inWindow;
+    return inWindow.filter((b) => visibleStatuses.has(blockStatusKey(b.job_status)));
+  }, [scheduleBlocks, visibleStatuses, weekStart, weekEndExclusive]);
 
   const showAbsence = !visibleStatuses || visibleStatuses.has("absence");
 
-  // Index blocks by tech+day, using the block's own start_at as the source of truth.
-  // We intentionally do NOT use overlap matching here — overnight blocks (e.g. 16:00–06:00)
-  // would otherwise render in both the start day and the next-morning column, causing
-  // duplicate cards. schedule_blocks.start_at decides which day column the card belongs to.
+  // schedule_blocks.start_at is the source of truth for matrix placement.
+  // We intentionally do NOT use overlap matching — overnight blocks (e.g. 16:00–06:00)
+  // would otherwise render in both the start day and the next-morning column.
+  // events.start_time must not be used for TeamView placement.
   const blocksByTechDay = useMemo(() => {
     const map = new Map<string, ScheduleBlock[]>();
     for (const b of filteredBlocks) {
@@ -140,6 +160,30 @@ export function TeamView({
     for (const arr of map.values()) arr.sort((a, b) => a.start_at.getTime() - b.start_at.getTime());
     return map;
   }, [filteredBlocks]);
+
+  // Dev-only audit: verifies that rendered placement comes from schedule_blocks alone.
+  if (import.meta.env.DEV) {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    useMemo(() => {
+      console.info("[resource-plan:data-source-audit]", {
+        weekStart: format(weekStart, "yyyy-MM-dd"),
+        weekEndExclusive: format(weekEndExclusive, "yyyy-MM-dd"),
+        blockCount: filteredBlocks.length,
+        blocks: filteredBlocks.map((b) => ({
+          id: b.id,
+          technician_id: b.technician_id,
+          start_at: b.start_at.toISOString(),
+          end_at: b.end_at.toISOString(),
+          job_id: b.job_id,
+          project_id: b.project_id,
+          renderedDateKey: format(b.start_at, "yyyy-MM-dd"),
+          // These must NOT influence placement — logged for verification only:
+          jobStartTime: (b as any).job?.start_time ?? null,
+          projectStartTime: (b as any).project?.start_time ?? null,
+        })),
+      });
+    }, [filteredBlocks, weekStart, weekEndExclusive]);
+  }
 
 
   const absencesByTechDay = useMemo(() => {
