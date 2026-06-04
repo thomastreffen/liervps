@@ -159,8 +159,8 @@ export function useTripletexImport() {
   };
 
   const matchProjects = async (parsed: ParsedCSV) => {
-    // Fetch existing projects and customers for matching
-    const [{ data: existing }, { data: customers }] = await Promise.all([
+    // Fetch existing projects, customers, AND tripletex mappings (idempotency layer)
+    const [{ data: existing }, { data: customers }, { data: mappingRows }] = await Promise.all([
       supabase
         .from("events")
         .select("id, title, project_number, external_tripletex_id, external_system, external_project_id, customer, project_type, normalized_name")
@@ -168,7 +168,23 @@ export function useTripletexImport() {
       supabase
         .from("customers")
         .select("id, name, org_number, external_tripletex_id"),
+      companyId
+        ? supabase
+            .from("tripletex_project_mappings")
+            .select("id, tripletex_project_id, tripletex_project_number, mcs_project_id, last_payload_hash")
+            .eq("company_id", companyId)
+        : Promise.resolve({ data: [] as Array<{ id: string; tripletex_project_id: string; tripletex_project_number: string | null; mcs_project_id: string; last_payload_hash: string | null }> }),
     ]);
+
+    // Mapping lookup (by Tripletex project id OR project number)
+    const mappingByTtId = new Map<string, { id: string; mcs_project_id: string; hash: string | null }>();
+    const mappingByTtNum = new Map<string, { id: string; mcs_project_id: string; hash: string | null }>();
+    for (const m of (mappingRows as Array<{ id: string; tripletex_project_id: string; tripletex_project_number: string | null; mcs_project_id: string; last_payload_hash: string | null }> | null) ?? []) {
+      mappingByTtId.set(String(m.tripletex_project_id).toLowerCase(), { id: m.id, mcs_project_id: m.mcs_project_id, hash: m.last_payload_hash });
+      if (m.tripletex_project_number) {
+        mappingByTtNum.set(String(m.tripletex_project_number).toLowerCase(), { id: m.id, mcs_project_id: m.mcs_project_id, hash: m.last_payload_hash });
+      }
+    }
 
     const allProjects = (existing || []);
     const allCustomers = (customers || []);
