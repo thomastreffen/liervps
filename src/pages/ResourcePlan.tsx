@@ -718,11 +718,50 @@ export default function ResourcePlan() {
           focusMode && "sticky top-0 z-20 bg-background/95 backdrop-blur-sm py-1.5 -mx-2 px-2 border-b border-border/20"
         )}>
           {/* Tittel */}
-          <div className="flex items-center gap-2 min-w-0">
+          <div className="flex items-center gap-3 min-w-0">
             <h1 className="text-lg font-bold tracking-tight flex items-center gap-2 shrink-0">
               <CalendarDays className="h-5 w-5 text-primary" />
               Ressursplan
             </h1>
+
+            {/* View-toggle (Uke aktiv, Måned/Dag kommer) */}
+            <TooltipProvider delayDuration={200}>
+              <div className="hidden sm:flex items-center rounded-lg border border-border bg-muted/30 p-0.5 text-xs">
+                <button
+                  type="button"
+                  className="px-2.5 py-1 rounded-md font-medium bg-card shadow-sm text-foreground"
+                  aria-pressed="true"
+                >
+                  Uke
+                </button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      disabled
+                      className="px-2.5 py-1 rounded-md font-medium text-muted-foreground/60 cursor-not-allowed"
+                      aria-pressed="false"
+                    >
+                      Måned
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="text-xs">Kommer</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      disabled
+                      className="px-2.5 py-1 rounded-md font-medium text-muted-foreground/60 cursor-not-allowed"
+                      aria-pressed="false"
+                    >
+                      Dag
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="text-xs">Kommer</TooltipContent>
+                </Tooltip>
+              </div>
+            </TooltipProvider>
           </div>
 
           {/* Ukenavigasjon */}
