@@ -10,10 +10,21 @@ import { useAuth } from "@/hooks/useAuth";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { usePreviewMode } from "@/hooks/usePreviewMode";
 import { Button } from "@/components/ui/button";
-import { Bell, LogOut, Eye } from "lucide-react";
+import { Bell, LogOut, Eye, Smartphone, Download, Info } from "lucide-react";
 import { CompanySelector } from "@/components/CompanySelector";
 import { PreviewModeDialog } from "@/components/admin/PreviewModeDialog";
 import { PreviewModeBanner } from "@/components/admin/PreviewModeBanner";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { InstallAppDialog } from "@/components/pwa/InstallAppDialog";
+import { PwaStatusDialog } from "@/components/pwa/PwaStatusDialog";
+import { EnableNotificationsButton } from "@/components/pwa/EnableNotificationsButton";
 
 export function AppLayout() {
   const isMobile = useIsMobile();
@@ -21,6 +32,8 @@ export function AppLayout() {
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
+  const [installOpen, setInstallOpen] = useState(false);
+  const [statusOpen, setStatusOpen] = useState(false);
   const { active: previewActive, realIsSuperAdmin } = usePreviewMode();
 
   // Show preview trigger only for real superadmins (not in preview mode context)
@@ -78,6 +91,27 @@ export function AppLayout() {
                 </span>
               )}
 
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="gap-1.5 h-8 text-xs text-muted-foreground">
+                    <Smartphone className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline">App</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56 bg-popover z-50">
+                  <DropdownMenuLabel>MCS app</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onSelect={() => setInstallOpen(true)}>
+                    <Download className="h-4 w-4 mr-2" />
+                    Installer app
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => setStatusOpen(true)}>
+                    <Info className="h-4 w-4 mr-2" />
+                    App-status
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
               <Button variant="ghost" size="sm" onClick={signOut} className="gap-1.5 h-8 text-xs text-muted-foreground">
                 <LogOut className="h-3.5 w-3.5" />
                 <span className="hidden sm:inline">Logg ut</span>
@@ -104,6 +138,8 @@ export function AppLayout() {
       />
 
       <PreviewModeDialog open={previewDialogOpen} onOpenChange={setPreviewDialogOpen} />
+      <InstallAppDialog open={installOpen} onOpenChange={setInstallOpen} />
+      <PwaStatusDialog open={statusOpen} onOpenChange={setStatusOpen} />
     </SidebarProvider>
   );
 }
