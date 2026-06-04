@@ -10,10 +10,21 @@ import { useAuth } from "@/hooks/useAuth";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { usePreviewMode } from "@/hooks/usePreviewMode";
 import { Button } from "@/components/ui/button";
-import { Bell, LogOut, Eye } from "lucide-react";
+import { Bell, LogOut, Eye, Smartphone, Download, Info } from "lucide-react";
 import { CompanySelector } from "@/components/CompanySelector";
 import { PreviewModeDialog } from "@/components/admin/PreviewModeDialog";
 import { PreviewModeBanner } from "@/components/admin/PreviewModeBanner";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { InstallAppDialog } from "@/components/pwa/InstallAppDialog";
+import { PwaStatusDialog } from "@/components/pwa/PwaStatusDialog";
+import { EnableNotificationsButton } from "@/components/pwa/EnableNotificationsButton";
 
 export function AppLayout() {
   const isMobile = useIsMobile();
