@@ -806,10 +806,10 @@ export default function ResourcePlan() {
                   variant="outline"
                   size="sm"
                   className="gap-1.5 rounded-lg h-8 text-xs"
-                  title="Filtrer farger / statuser"
+                  title="Vis/skjul statuser i matrisen"
                 >
                   <Palette className="h-3.5 w-3.5" />
-                  Farger
+                  Statuser
                   {hiddenCount > 0 && (
                     <Badge variant="secondary" className="h-4 px-1.5 text-[10px]">{hiddenCount}</Badge>
                   )}
