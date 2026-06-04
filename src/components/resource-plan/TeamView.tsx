@@ -1,7 +1,7 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { addDays, startOfWeek, format, isSameDay } from "date-fns";
 import { nb } from "date-fns/locale";
-import { Palmtree } from "lucide-react";
+import { Palmtree, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ScheduleBlock } from "@/hooks/useScheduleBlocks";
 import type { AbsenceBlock } from "@/hooks/useAbsenceBlocks";
@@ -17,13 +17,13 @@ export type TeamStatusKey =
   | "absence";
 
 export const TEAM_STATUS_OPTIONS: { key: TeamStatusKey; label: string; swatch: string }[] = [
-  { key: "approved", label: "Godkjent", swatch: "bg-emerald-300 border-emerald-400" },
-  { key: "scheduled", label: "Planlagt", swatch: "bg-sky-300 border-sky-400" },
-  { key: "in_progress", label: "Pågår", swatch: "bg-amber-300 border-amber-400" },
-  { key: "requested", label: "Forespurt", swatch: "bg-violet-300 border-violet-400" },
-  { key: "time_change_proposed", label: "Tidsendring foreslått", swatch: "bg-orange-300 border-orange-400" },
-  { key: "rejected", label: "Avslått", swatch: "bg-rose-300 border-rose-400" },
-  { key: "absence", label: "Ferie/fravær", swatch: "bg-stone-300 border-stone-400" },
+  { key: "approved", label: "Godkjent", swatch: "bg-emerald-400 border-emerald-500" },
+  { key: "scheduled", label: "Planlagt", swatch: "bg-sky-400 border-sky-500" },
+  { key: "in_progress", label: "Pågår", swatch: "bg-amber-400 border-amber-500" },
+  { key: "requested", label: "Forespurt", swatch: "bg-violet-400 border-violet-500" },
+  { key: "time_change_proposed", label: "Tidsendring foreslått", swatch: "bg-orange-400 border-orange-500" },
+  { key: "rejected", label: "Avslått", swatch: "bg-rose-400 border-rose-500" },
+  { key: "absence", label: "Ferie/fravær", swatch: "bg-stone-300 border-stone-400 border-dashed" },
 ];
 
 export function blockStatusKey(status?: string | null): TeamStatusKey {
@@ -73,30 +73,60 @@ function fmtHour(d: Date) {
   return format(d, "H");
 }
 
-/** Soft pastel chip tones — calm, modern */
+/**
+ * Status tones — stronger contrast for at-a-glance status read.
+ * Left border accent + tinted bg + matching text color.
+ */
 function statusTone(status?: string | null) {
   switch (status) {
     case "approved":
     case "completed":
     case "ready_for_invoicing":
     case "invoiced":
-      return "bg-emerald-50 border-emerald-200 text-emerald-900 dark:bg-emerald-950/40 dark:border-emerald-900 dark:text-emerald-100";
+      return "bg-emerald-50 border-emerald-300 border-l-[3px] border-l-emerald-500 text-emerald-950 dark:bg-emerald-950/40 dark:border-emerald-800 dark:border-l-emerald-400 dark:text-emerald-50";
     case "in_progress":
-      return "bg-amber-50 border-amber-200 text-amber-900 dark:bg-amber-950/40 dark:border-amber-900 dark:text-amber-100";
+      return "bg-amber-50 border-amber-300 border-l-[3px] border-l-amber-500 text-amber-950 dark:bg-amber-950/40 dark:border-amber-800 dark:border-l-amber-400 dark:text-amber-50";
     case "rejected":
     case "cancelled":
-      return "bg-rose-50 border-rose-200 text-rose-900 dark:bg-rose-950/40 dark:border-rose-900 dark:text-rose-100";
+      return "bg-rose-50 border-rose-300 border-l-[3px] border-l-rose-500 text-rose-950 dark:bg-rose-950/40 dark:border-rose-800 dark:border-l-rose-400 dark:text-rose-50";
+    case "requested":
+      return "bg-violet-50 border-violet-300 border-l-[3px] border-l-violet-500 text-violet-950 dark:bg-violet-950/40 dark:border-violet-800 dark:border-l-violet-400 dark:text-violet-50";
+    case "time_change_proposed":
+      return "bg-orange-50 border-orange-300 border-l-[3px] border-l-orange-500 text-orange-950 dark:bg-orange-950/40 dark:border-orange-800 dark:border-l-orange-400 dark:text-orange-50";
     default:
       // planlagt
-      return "bg-sky-50 border-sky-200 text-sky-900 dark:bg-sky-950/40 dark:border-sky-900 dark:text-sky-100";
+      return "bg-sky-50 border-sky-300 border-l-[3px] border-l-sky-500 text-sky-950 dark:bg-sky-950/40 dark:border-sky-800 dark:border-l-sky-400 dark:text-sky-50";
   }
 }
 
+function statusDot(status?: string | null) {
+  switch (status) {
+    case "approved":
+    case "completed":
+    case "ready_for_invoicing":
+    case "invoiced":
+      return "bg-emerald-500";
+    case "in_progress":
+      return "bg-amber-500";
+    case "rejected":
+    case "cancelled":
+      return "bg-rose-500";
+    case "requested":
+      return "bg-violet-500";
+    case "time_change_proposed":
+      return "bg-orange-500";
+    default:
+      return "bg-sky-500";
+  }
+}
+
+/** Capacity utilisation color: green=normal, amber=high, red=overbooked */
 function utilColor(p: number) {
-  if (p > 100) return "text-rose-600";
-  if (p >= 80) return "text-emerald-600";
-  if (p > 0) return "text-muted-foreground";
-  return "text-muted-foreground/60";
+  if (p > 100) return "text-rose-600 font-semibold";
+  if (p >= 85) return "text-amber-600 font-semibold";
+  if (p >= 40) return "text-emerald-600 font-medium";
+  if (p > 0) return "text-emerald-700/70";
+  return "text-muted-foreground/50";
 }
 
 /**
@@ -206,6 +236,7 @@ export function TeamView({
 
   // Today highlight
   const today = new Date();
+  const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
 
   return (
     <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
@@ -238,23 +269,27 @@ export function TeamView({
                 <div
                   key={d.toISOString()}
                   className={cn(
-                    "px-2 py-3 text-center border-r border-border last:border-r-0",
-                    isWeekend && "bg-muted/30",
+                    "px-2 py-3 text-center border-r border-border last:border-r-0 transition-colors",
+                    isWeekend && "bg-muted/40",
+                    isToday && !isWeekend && "bg-primary/10 border-b-2 border-b-primary",
                   )}
                 >
                   <div className={cn(
-                    "text-[10px] font-semibold uppercase tracking-wider",
-                    isToday ? "text-primary" : "text-muted-foreground"
+                    "text-[10px] font-bold uppercase tracking-wider",
+                    isToday ? "text-primary" : "text-foreground/70"
                   )}>
                     {format(d, "EEE", { locale: nb })}
                   </div>
                   <div className={cn(
-                    "text-base font-semibold leading-tight mt-0.5",
+                    "text-lg font-bold leading-tight mt-0.5 tabular-nums",
                     isToday ? "text-primary" : "text-foreground",
                   )}>
                     {format(d, "d")}
                   </div>
-                  <div className={cn("text-[10px] tabular-nums mt-0.5", isWeekend ? "text-muted-foreground/60" : utilColor(pct))}>
+                  <div className={cn(
+                    "text-[10px] tabular-nums mt-0.5",
+                    isWeekend ? "text-muted-foreground/50" : utilColor(pct),
+                  )}>
                     {isWeekend ? "—" : (pct > 0 ? `${pct} %` : "—")}
                   </div>
                 </div>
@@ -272,21 +307,21 @@ export function TeamView({
               <div
                 key={t.id}
                 className={cn(
-                  "grid border-b border-border last:border-b-0 group/row",
-                  rowIdx % 2 === 1 && "bg-muted/10",
+                  "grid border-b border-border last:border-b-0 group/row transition-colors hover:bg-accent/20",
+                  rowIdx % 2 === 1 && "bg-muted/[0.04]",
                 )}
                 style={{ gridTemplateColumns: "200px repeat(7, minmax(0,1fr))" }}
               >
                 {/* Sticky tech cell */}
-                <div className="sticky left-0 z-10 bg-card px-3 py-3 flex items-center gap-3 border-r border-border">
+                <div className="sticky left-0 z-10 bg-card group-hover/row:bg-accent/20 px-3 py-3 flex items-center gap-3 border-r border-border transition-colors">
                   <div
-                    className="h-9 w-9 rounded-full flex items-center justify-center text-[11px] font-semibold text-white shrink-0 ring-2 ring-background"
+                    className="h-9 w-9 rounded-full flex items-center justify-center text-[11px] font-bold text-white shrink-0 ring-2 ring-background shadow-sm"
                     style={{ backgroundColor: color }}
                   >
                     {initials(t.name)}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className="text-[13px] font-medium leading-tight truncate text-foreground">{t.name}</div>
+                    <div className="text-[13px] font-semibold leading-tight truncate text-foreground">{t.name}</div>
                     <div className="text-[11px] text-muted-foreground mt-0.5 tabular-nums">
                       {tc ? (
                         tc.weekPlannedHours > 0
@@ -305,6 +340,7 @@ export function TeamView({
                   const key = `${t.id}__${format(day, "yyyy-MM-dd")}`;
                   const cellBlocks = blocksByTechDay.get(key) || [];
                   const cellAbsences = absencesByTechDay.get(key) || [];
+                  const isEmpty = cellBlocks.length === 0 && cellAbsences.length === 0;
 
                   return (
                     <button
@@ -317,16 +353,25 @@ export function TeamView({
                         onCellCreate?.(t.id, day);
                       }}
                       className={cn(
-                        "relative min-h-[76px] border-r border-border last:border-r-0 px-1.5 py-1.5 flex flex-col gap-1 text-left transition-colors",
-                        isWeekend ? "bg-muted/30 cursor-default" : "hover:bg-accent/40 cursor-pointer",
-                        isToday && !isWeekend && "bg-primary/5",
+                        "relative min-h-[78px] border-r border-border last:border-r-0 px-1.5 py-1.5 flex flex-col gap-1 text-left transition-colors group/cell",
+                        isWeekend ? "bg-muted/40 cursor-default" : "hover:bg-primary/[0.04] cursor-pointer",
+                        isToday && !isWeekend && "bg-primary/[0.04]",
                       )}
                     >
+                      {/* Empty-cell + indicator (visible on hover) */}
+                      {isEmpty && !isWeekend && (
+                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/cell:opacity-100 transition-opacity pointer-events-none">
+                          <div className="h-6 w-6 rounded-full border border-dashed border-primary/40 flex items-center justify-center bg-background/80">
+                            <Plus className="h-3 w-3 text-primary/60" />
+                          </div>
+                        </div>
+                      )}
+
                       {cellAbsences.map((a) => (
                         <div
                           key={a.id}
                           data-chip
-                          className="rounded-md border border-stone-200 bg-stone-50 dark:border-stone-800 dark:bg-stone-900/40 px-2 py-1 text-[11px] text-stone-600 dark:text-stone-300 flex items-center gap-1.5"
+                          className="rounded-md border border-dashed border-stone-300 bg-stone-100/70 dark:border-stone-700 dark:bg-stone-900/40 px-2 py-1 text-[11px] text-stone-700 dark:text-stone-300 flex items-center gap-1.5"
                           title={a.label}
                         >
                           <Palmtree className="h-3 w-3 shrink-0 opacity-70" />
@@ -336,6 +381,8 @@ export function TeamView({
 
                       {cellBlocks.map((b) => {
                         const tone = statusTone(b.job_status);
+                        const dotCls = statusDot(b.job_status);
+                        const isSelected = selectedBlockId === b.id;
                         // Primary: human-readable title (job → block → parent project)
                         const primaryTitle = b.job_title
                           || b.title
@@ -356,22 +403,32 @@ export function TeamView({
                             tabIndex={0}
                             onClick={(e) => {
                               e.stopPropagation();
+                              setSelectedBlockId(b.id);
                               onBlockClick?.(b);
                             }}
                             onKeyDown={(e) => {
                               if (e.key === "Enter" || e.key === " ") {
                                 e.preventDefault();
+                                setSelectedBlockId(b.id);
                                 onBlockClick?.(b);
                               }
                             }}
                             className={cn(
-                              "rounded-md border px-2 py-1 text-[11px] leading-tight cursor-pointer transition-all hover:shadow-sm hover:-translate-y-px",
+                              "rounded-md border px-2 py-1 text-[11px] leading-tight cursor-pointer transition-all",
+                              "hover:shadow-md hover:-translate-y-px hover:border-foreground/30",
+                              "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
                               tone,
+                              isSelected && "ring-2 ring-primary ring-offset-1 shadow-md",
                             )}
                             title={refId ? `${primaryTitle} (${refId}) · ${timeStr}` : `${primaryTitle} · ${timeStr}`}
                           >
-                            <div className="font-medium line-clamp-2 break-words">{primaryTitle}</div>
-                            <div className="text-[10px] opacity-75 tabular-nums truncate">{secondary}</div>
+                            <div className="flex items-start gap-1.5">
+                              <span className={cn("mt-1 h-1.5 w-1.5 rounded-full shrink-0", dotCls)} aria-hidden />
+                              <div className="min-w-0 flex-1">
+                                <div className="font-semibold line-clamp-2 break-words">{primaryTitle}</div>
+                                <div className="text-[10px] opacity-70 tabular-nums truncate font-normal mt-0.5">{secondary}</div>
+                              </div>
+                            </div>
                           </div>
                         );
                       })}
