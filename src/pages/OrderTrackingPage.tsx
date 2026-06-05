@@ -28,6 +28,10 @@ import { useAuth } from "@/hooks/useAuth";
 import { useCustomerConversationReads } from "@/hooks/useCustomerConversationReads";
 import { CustomerMessageReadIndicator } from "@/components/orders/conversation/CustomerMessageReadIndicator";
 import { sanitizeStorageFileName } from "@/lib/storage-path";
+import { ChatMediaGrid } from "@/components/chat/ChatMediaGrid";
+import { SelectedFilesPreview } from "@/components/chat/SelectedFilesPreview";
+import { AttachmentPreviewDrawer } from "@/components/orders/AttachmentPreviewDrawer";
+import type { ChatAttachment } from "@/components/chat/chat-attachments-util";
 
 import mascotReceived from "@/assets/mascot/received.png";
 import mascotProcessing from "@/assets/mascot/processing.png";
@@ -450,6 +454,8 @@ export default function OrderTrackingPage() {
   const isInternalViewer = !!user && user.role !== "customer_user";
   const [replyText, setReplyText] = useState("");
   const [replyFiles, setReplyFiles] = useState<File[]>([]);
+  const [lightboxAtts, setLightboxAtts] = useState<ChatAttachment[]>([]);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
   const replyInputRef = useRef<HTMLTextAreaElement>(null);
   const messagesSectionRef = useRef<HTMLDivElement>(null);
 
@@ -598,6 +604,8 @@ export default function OrderTrackingPage() {
         throw new Error((sendResult as any).error);
       }
 
+      const newMessageId: string | null = (sendResult as any)?.message?.id || null;
+
       for (const file of replyFiles) {
         const safeName = sanitizeStorageFileName(file.name);
         const path = `${sub.company_id}/${submission.id}/reply_${Date.now()}_${safeName}`;
@@ -619,6 +627,7 @@ export default function OrderTrackingPage() {
           file_path: path,
           mime_type: file.type,
           file_size: file.size,
+          message_id: newMessageId,
         } as any);
         if (insErr) {
           console.error("[OrderTracking] attachment insert failed", { path, error: insErr });
@@ -753,6 +762,23 @@ export default function OrderTrackingPage() {
   const visibleSummary = summaryFields.filter((f) => valuesMap[f.key]);
   const hasMessages = allMessages.length > 0;
   const isClosed = externalStatus === "completed" || externalStatus === "closed";
+
+  // Group attachments by message_id for in-bubble rendering
+  const attachmentsByMessage = useMemo(() => {
+    const map = new Map<string, ChatAttachment[]>();
+    (attachments as any[]).forEach((a) => {
+      if (!a.message_id) return;
+      const list = map.get(a.message_id) || [];
+      list.push(a as ChatAttachment);
+      map.set(a.message_id, list);
+    });
+    return map;
+  }, [attachments]);
+
+  const openLightbox = (att: ChatAttachment, idx: number, list: ChatAttachment[]) => {
+    setLightboxAtts(list);
+    setLightboxIndex(idx);
+  };
 
   // === New hero identity: site/address is primary, customer/template secondary ===
   const pickStr = (...vals: any[]) =>
@@ -1078,7 +1104,18 @@ export default function OrderTrackingPage() {
                               {format(new Date(msg.created_at), "d. MMM HH:mm", { locale: nb })}
                             </span>
                           </div>
-                          <p className="text-sm whitespace-pre-wrap leading-relaxed">{msg.body}</p>
+                          {msg.body && <p className="text-sm whitespace-pre-wrap leading-relaxed">{msg.body}</p>}
+                          {(() => {
+                            const msgAtts = attachmentsByMessage.get(msg.id);
+                            if (!msgAtts || msgAtts.length === 0) return null;
+                            return (
+                              <ChatMediaGrid
+                                attachments={msgAtts}
+                                bucket="order-form-attachments"
+                                onPreview={openLightbox}
+                              />
+                            );
+                          })()}
                           {isRequestInfo && msg.requires_reply && (
                             <div className="mt-2 pt-2 border-t border-amber-200/70 dark:border-amber-800/70">
                               {msg.replied_at ? (
@@ -1146,13 +1183,14 @@ export default function OrderTrackingPage() {
                     className="text-sm resize-none rounded-xl"
                   />
 
-                  <div>
+                  <div className="space-y-2">
                     <label className="inline-flex items-center gap-2 cursor-pointer text-sm text-muted-foreground hover:text-foreground transition-colors">
                       <Upload className="h-4 w-4" />
-                      <span>Legg ved filer</span>
+                      <span>Legg ved bilder eller filer</span>
                       <input
                         type="file"
                         multiple
+                        accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
                         className="hidden"
                         onChange={(e) => {
                           const files = Array.from(e.target.files || []);
@@ -1161,19 +1199,10 @@ export default function OrderTrackingPage() {
                         }}
                       />
                     </label>
-                    {replyFiles.length > 0 && (
-                      <div className="mt-2 space-y-1">
-                        {replyFiles.map((f, i) => (
-                          <div key={i} className="flex items-center gap-2 text-xs bg-muted/40 rounded-lg px-2.5 py-1.5">
-                            <Paperclip className="h-3 w-3 text-muted-foreground" />
-                            <span className="truncate flex-1">{f.name}</span>
-                            <button onClick={() => setReplyFiles((prev) => prev.filter((_, j) => j !== i))}>
-                              <X className="h-3 w-3 text-muted-foreground hover:text-destructive" />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
+                    <SelectedFilesPreview
+                      files={replyFiles}
+                      onRemove={(i) => setReplyFiles((prev) => prev.filter((_, j) => j !== i))}
+                    />
                   </div>
 
                   <Button
@@ -1252,6 +1281,12 @@ export default function OrderTrackingPage() {
           </p>
         </div>
       </div>
+      <AttachmentPreviewDrawer
+        open={lightboxAtts.length > 0}
+        onClose={() => setLightboxAtts([])}
+        attachments={lightboxAtts as any}
+        initialIndex={lightboxIndex}
+      />
     </div>
   );
 }

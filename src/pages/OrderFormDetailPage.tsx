@@ -64,8 +64,11 @@ import { useConversationReads } from "@/hooks/useConversationReads";
 import { EditFieldsDialog } from "@/components/orders/EditFieldsDialog";
 import { RequestFieldsDialog } from "@/components/orders/RequestFieldsDialog";
 import { LinkExistingTaskDialog } from "@/components/orders/LinkExistingTaskDialog";
-import { FileUpload } from "@/components/FileUpload";
+// FileUpload removed in favor of SelectedFilesPreview chat composer
 import { sanitizeStorageFileName } from "@/lib/storage-path";
+import { ChatMediaGrid } from "@/components/chat/ChatMediaGrid";
+import { SelectedFilesPreview } from "@/components/chat/SelectedFilesPreview";
+import type { ChatAttachment } from "@/components/chat/chat-attachments-util";
 
 export default function OrderFormDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -506,6 +509,7 @@ export default function OrderFormDetailPage() {
           mime_type: file.type,
           file_size: file.size,
           uploaded_by: user?.id,
+          message_id: insertedMsg?.id || null,
         } as any);
         if (insErr) {
           console.error("[admin-message attachment insert] failed", { path, error: insErr });
@@ -768,6 +772,20 @@ export default function OrderFormDetailPage() {
     if (!attByCategory[cat]) attByCategory[cat] = [];
     attByCategory[cat].push(a);
   });
+
+  // Index attachments by message_id for in-bubble chat rendering
+  const attachmentsByMessage = new Map<string, ChatAttachment[]>();
+  (attachments as any[]).forEach((a) => {
+    if (!a.message_id) return;
+    const list = attachmentsByMessage.get(a.message_id) || [];
+    list.push(a as ChatAttachment);
+    attachmentsByMessage.set(a.message_id, list);
+  });
+
+  const openChatLightbox = (att: ChatAttachment) => {
+    const idx = (attachments as any[]).findIndex((a) => a.id === att.id);
+    if (idx >= 0) setPreviewAttIdx(idx);
+  };
 
   const hasNotification = !!sub.notification_sent_at;
   const hasConfirmation = !!sub.confirmation_sent_at;
@@ -1533,7 +1551,18 @@ export default function OrderFormDetailPage() {
                             Intern
                           </Badge>
                         )}
-                        <p className="whitespace-pre-wrap">{m.body}</p>
+                        {m.body && <p className="whitespace-pre-wrap">{m.body}</p>}
+                        {(() => {
+                          const msgAtts = attachmentsByMessage.get(m.id);
+                          if (!msgAtts || msgAtts.length === 0) return null;
+                          return (
+                            <ChatMediaGrid
+                              attachments={msgAtts}
+                              bucket="order-form-attachments"
+                              onPreview={(att) => openChatLightbox(att)}
+                            />
+                          );
+                        })()}
                         <div className="flex items-center gap-2 mt-1 flex-wrap">
                           <span className="text-[10px] text-muted-foreground">
                             {displaySender} · {format(new Date(m.created_at), "d. MMM HH:mm", { locale: nb })}
@@ -1723,7 +1752,27 @@ export default function OrderFormDetailPage() {
                   className="min-h-[60px] text-sm"
                 />
 
-                <FileUpload files={commentFiles} onChange={setCommentFiles} />
+                <div className="space-y-2">
+                  <label className="inline-flex items-center gap-2 cursor-pointer text-xs text-muted-foreground hover:text-foreground transition-colors">
+                    <Paperclip className="h-3.5 w-3.5" />
+                    <span>Legg ved bilder eller filer</span>
+                    <input
+                      type="file"
+                      multiple
+                      accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
+                      className="hidden"
+                      onChange={(e) => {
+                        const files = Array.from(e.target.files || []);
+                        setCommentFiles((prev) => [...prev, ...files]);
+                        e.target.value = "";
+                      }}
+                    />
+                  </label>
+                  <SelectedFilesPreview
+                    files={commentFiles}
+                    onRemove={(i) => setCommentFiles((prev) => prev.filter((_, j) => j !== i))}
+                  />
+                </div>
 
 
 

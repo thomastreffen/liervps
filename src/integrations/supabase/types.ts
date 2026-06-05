@@ -8887,6 +8887,7 @@ export type Database = {
           file_path: string
           file_size: number | null
           id: string
+          message_id: string | null
           mime_type: string | null
           submission_id: string
           uploaded_at: string
@@ -8899,6 +8900,7 @@ export type Database = {
           file_path: string
           file_size?: number | null
           id?: string
+          message_id?: string | null
           mime_type?: string | null
           submission_id: string
           uploaded_at?: string
@@ -8911,6 +8913,7 @@ export type Database = {
           file_path?: string
           file_size?: number | null
           id?: string
+          message_id?: string | null
           mime_type?: string | null
           submission_id?: string
           uploaded_at?: string
@@ -12377,6 +12380,7 @@ export type Database = {
           file_path: string
           file_size: number | null
           id: string
+          message_id: string | null
           mime_type: string | null
           submission_id: string
           uploaded_at: string
