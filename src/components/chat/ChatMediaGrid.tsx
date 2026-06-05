@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { FileText, Download, ImageOff } from "lucide-react";
+import { FileText, Download, ImageOff, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   type ChatAttachment,
   isImageAttachment,
   formatBytes,
 } from "./chat-attachments-util";
+
+export type AttachmentUrlResolver = (att: ChatAttachment) => Promise<string | null>;
 
 interface ChatMediaGridProps {
   attachments: ChatAttachment[];
@@ -15,6 +17,12 @@ interface ChatMediaGridProps {
   onPreview?: (att: ChatAttachment, indexInImages: number, images: ChatAttachment[]) => void;
   /** Constrain bubble width; defaults to true. */
   compact?: boolean;
+  /** Override how signed URLs are obtained (e.g. tracking-token edge function). */
+  urlResolver?: AttachmentUrlResolver;
+  /** Show a remove (X) affordance on each attachment. */
+  canDelete?: boolean;
+  /** Called when the user confirms removing an attachment. */
+  onDelete?: (att: ChatAttachment) => void;
 }
 
 /**
@@ -22,7 +30,15 @@ interface ChatMediaGridProps {
  *  - Images as thumbnail grid (1 large / 2-4 grid / 4+ with +N overlay)
  *  - Non-images as compact file chips with download
  */
-export function ChatMediaGrid({ attachments, bucket, onPreview, compact = true }: ChatMediaGridProps) {
+export function ChatMediaGrid({
+  attachments,
+  bucket,
+  onPreview,
+  compact = true,
+  urlResolver,
+  canDelete,
+  onDelete,
+}: ChatMediaGridProps) {
   if (!attachments || attachments.length === 0) return null;
 
   const images = attachments.filter(isImageAttachment);
@@ -36,12 +52,22 @@ export function ChatMediaGrid({ attachments, bucket, onPreview, compact = true }
           bucket={bucket}
           onPreview={onPreview}
           compact={compact}
+          urlResolver={urlResolver}
+          canDelete={canDelete}
+          onDelete={onDelete}
         />
       )}
       {files.length > 0 && (
         <div className="space-y-1.5">
           {files.map((f) => (
-            <FileChip key={f.id} attachment={f} bucket={bucket} />
+            <FileChip
+              key={f.id}
+              attachment={f}
+              bucket={bucket}
+              urlResolver={urlResolver}
+              canDelete={canDelete}
+              onDelete={onDelete}
+            />
           ))}
         </div>
       )}
@@ -54,11 +80,17 @@ function ImageGrid({
   bucket,
   onPreview,
   compact,
+  urlResolver,
+  canDelete,
+  onDelete,
 }: {
   images: ChatAttachment[];
   bucket: string;
   onPreview?: ChatMediaGridProps["onPreview"];
   compact: boolean;
+  urlResolver?: AttachmentUrlResolver;
+  canDelete?: boolean;
+  onDelete?: (att: ChatAttachment) => void;
 }) {
   const visible = images.slice(0, 4);
   const overflow = images.length - visible.length;
@@ -81,22 +113,44 @@ function ImageGrid({
       )}
     >
       {visible.map((img, idx) => (
-        <button
+        <div
           key={img.id}
-          type="button"
-          onClick={() => onPreview?.(img, idx, images)}
           className={cn(
-            "relative overflow-hidden rounded-xl bg-muted/60 border border-border/40 cursor-pointer group",
+            "relative overflow-hidden rounded-xl bg-muted/60 border border-border/40 group",
             visible.length === 1 ? "aspect-[4/3]" : "aspect-square"
           )}
         >
-          <SignedImage path={img.file_path} bucket={bucket} alt={img.file_name} />
-          {idx === visible.length - 1 && overflow > 0 && (
-            <div className="absolute inset-0 bg-black/50 flex items-center justify-center text-white text-lg font-bold">
-              +{overflow}
-            </div>
+          <button
+            type="button"
+            onClick={() => onPreview?.(img, idx, images)}
+            className="w-full h-full cursor-pointer"
+          >
+            <SignedImage
+              attachment={img}
+              bucket={bucket}
+              alt={img.file_name}
+              urlResolver={urlResolver}
+            />
+            {idx === visible.length - 1 && overflow > 0 && (
+              <div className="absolute inset-0 bg-black/50 flex items-center justify-center text-white text-lg font-bold">
+                +{overflow}
+              </div>
+            )}
+          </button>
+          {canDelete && onDelete && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete(img);
+              }}
+              aria-label={`Fjern ${img.file_name}`}
+              className="absolute top-1 right-1 h-6 w-6 rounded-full bg-black/70 hover:bg-destructive text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
           )}
-        </button>
+        </div>
       ))}
     </div>
   );
@@ -120,15 +174,44 @@ export async function getSignedUrl(bucket: string, path: string, expiresIn = 360
   return data.signedUrl;
 }
 
-function SignedImage({ path, bucket, alt }: { path: string; bucket: string; alt: string }) {
+async function resolveAttachmentUrl(
+  att: ChatAttachment,
+  bucket: string,
+  resolver?: AttachmentUrlResolver,
+): Promise<string | null> {
+  if (resolver) {
+    // Use a per-attachment cache to avoid hammering the edge function on re-renders
+    const key = `resolver::${att.id}`;
+    const cached = signedUrlCache.get(key);
+    const now = Date.now();
+    if (cached && cached.expiresAt > now + 60_000) return cached.url;
+    const url = await resolver(att);
+    if (url) signedUrlCache.set(key, { url, expiresAt: now + 9 * 60_000 });
+    return url;
+  }
+  return getSignedUrl(bucket, att.file_path);
+}
+
+function SignedImage({
+  attachment,
+  bucket,
+  alt,
+  urlResolver,
+}: {
+  attachment: ChatAttachment;
+  bucket: string;
+  alt: string;
+  urlResolver?: AttachmentUrlResolver;
+}) {
   const [url, setUrl] = useState<string | null>(null);
   const [err, setErr] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
-    if (!path) return;
+    if (!attachment.file_path && !urlResolver) return;
     setErr(false);
-    getSignedUrl(bucket, path)
+    setUrl(null);
+    resolveAttachmentUrl(attachment, bucket, urlResolver)
       .then((u) => {
         if (cancelled) return;
         if (!u) setErr(true);
@@ -140,7 +223,7 @@ function SignedImage({ path, bucket, alt }: { path: string; bucket: string; alt:
     return () => {
       cancelled = true;
     };
-  }, [path, bucket]);
+  }, [attachment, bucket, urlResolver]);
 
   if (err) {
     return (
@@ -165,35 +248,61 @@ function SignedImage({ path, bucket, alt }: { path: string; bucket: string; alt:
   );
 }
 
-function FileChip({ attachment, bucket }: { attachment: ChatAttachment; bucket: string }) {
+function FileChip({
+  attachment,
+  bucket,
+  urlResolver,
+  canDelete,
+  onDelete,
+}: {
+  attachment: ChatAttachment;
+  bucket: string;
+  urlResolver?: AttachmentUrlResolver;
+  canDelete?: boolean;
+  onDelete?: (att: ChatAttachment) => void;
+}) {
   const [downloading, setDownloading] = useState(false);
   const handleDownload = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setDownloading(true);
-    const url = await getSignedUrl(bucket, attachment.file_path, 600);
+    const url = await resolveAttachmentUrl(attachment, bucket, urlResolver);
     setDownloading(false);
     if (url) window.open(url, "_blank", "noopener,noreferrer");
   };
 
   return (
-    <button
-      type="button"
-      onClick={handleDownload}
-      disabled={downloading}
-      className="flex items-center gap-2 rounded-xl bg-background/70 hover:bg-background border border-border/60 px-2.5 py-2 text-left w-full max-w-[280px] transition-colors cursor-pointer"
-    >
-      <div className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
-        <FileText className="h-4 w-4 text-muted-foreground" />
-      </div>
-      <div className="min-w-0 flex-1">
-        <p className="text-xs font-semibold truncate text-foreground">{attachment.file_name}</p>
-        {attachment.file_size != null && (
-          <p className="text-[10px] text-muted-foreground">{formatBytes(attachment.file_size)}</p>
-        )}
-      </div>
-      <Download className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-    </button>
+    <div className="relative group max-w-[280px]">
+      <button
+        type="button"
+        onClick={handleDownload}
+        disabled={downloading}
+        className="flex items-center gap-2 rounded-xl bg-background/70 hover:bg-background border border-border/60 px-2.5 py-2 text-left w-full transition-colors cursor-pointer"
+      >
+        <div className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
+          <FileText className="h-4 w-4 text-muted-foreground" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-xs font-semibold truncate text-foreground">{attachment.file_name}</p>
+          {attachment.file_size != null && (
+            <p className="text-[10px] text-muted-foreground">{formatBytes(attachment.file_size)}</p>
+          )}
+        </div>
+        <Download className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+      </button>
+      {canDelete && onDelete && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete(attachment);
+          }}
+          aria-label={`Fjern ${attachment.file_name}`}
+          className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-background border border-border text-muted-foreground hover:text-destructive hover:border-destructive flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer shadow-sm"
+        >
+          <X className="h-3 w-3" />
+        </button>
+      )}
+    </div>
   );
 }
-

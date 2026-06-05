@@ -130,7 +130,8 @@ export default function OrderFormDetailPage() {
       const { data } = await supabase
         .from("order_form_submission_attachments")
         .select("*")
-        .eq("submission_id", id!);
+        .eq("submission_id", id!)
+        .is("deleted_at", null);
       return data || [];
     },
   });
@@ -730,6 +731,33 @@ export default function OrderFormDetailPage() {
     },
   });
 
+  const removeAttachment = useMutation({
+    mutationFn: async (attId: string) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      const { error } = await supabase
+        .from("order_form_submission_attachments")
+        .update({
+          deleted_at: new Date().toISOString(),
+          deleted_by: user?.id ?? null,
+        } as any)
+        .eq("id", attId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["order-form-attachments", id] });
+      toast.success("Vedlegg fjernet");
+    },
+    onError: (err: any) => {
+      toast.error("Kunne ikke fjerne vedlegg", { description: err?.message });
+    },
+  });
+
+  const confirmRemoveAttachment = (att: { id: string; file_name: string }) => {
+    if (window.confirm(`Fjerne "${att.file_name}" fra bestillingen? Kunden vil ikke lenger se vedlegget.`)) {
+      removeAttachment.mutate(att.id);
+    }
+  };
+
   if (!submission) return <div className="p-6 text-center text-muted-foreground">Ikke funnet</div>;
 
   const effectiveStatus = conversationState.effectiveInternalStatus;
@@ -1168,6 +1196,7 @@ export default function OrderFormDetailPage() {
                               key={att.id}
                               attachment={att}
                               onPreview={() => setPreviewAttIdx(globalIdx)}
+                              onRemove={() => confirmRemoveAttachment(att)}
                             />
                           );
                         })}
@@ -1560,6 +1589,8 @@ export default function OrderFormDetailPage() {
                               attachments={msgAtts}
                               bucket="order-form-attachments"
                               onPreview={(att) => openChatLightbox(att)}
+                              canDelete
+                              onDelete={(att) => confirmRemoveAttachment(att as any)}
                             />
                           );
                         })()}
@@ -1993,20 +2024,44 @@ export default function OrderFormDetailPage() {
   );
 }
 
-function AttachmentRow({ attachment, onPreview }: { attachment: any; onPreview?: () => void }) {
+function AttachmentRow({
+  attachment,
+  onPreview,
+  onRemove,
+}: {
+  attachment: any;
+  onPreview?: () => void;
+  onRemove?: () => void;
+}) {
   return (
-    <button
-      type="button"
-      onClick={() => onPreview?.()}
-      className="flex items-center gap-2 text-sm p-2 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors w-full text-left cursor-pointer"
-    >
-      <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-      <span className="truncate flex-1 font-medium">{attachment.file_name}</span>
-      <span className="text-[10px] text-muted-foreground">
-        {attachment.file_size ? (attachment.file_size < 1024 * 1024 ? `${Math.round(attachment.file_size / 1024)} KB` : `${(attachment.file_size / 1024 / 1024).toFixed(1)} MB`) : ""}
-      </span>
-      <Download className="h-3.5 w-3.5 text-primary shrink-0" />
-    </button>
+    <div className="group relative">
+      <button
+        type="button"
+        onClick={() => onPreview?.()}
+        className="flex items-center gap-2 text-sm p-2 pr-9 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors w-full text-left cursor-pointer"
+      >
+        <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+        <span className="truncate flex-1 font-medium">{attachment.file_name}</span>
+        <span className="text-[10px] text-muted-foreground">
+          {attachment.file_size ? (attachment.file_size < 1024 * 1024 ? `${Math.round(attachment.file_size / 1024)} KB` : `${(attachment.file_size / 1024 / 1024).toFixed(1)} MB`) : ""}
+        </span>
+        <Download className="h-3.5 w-3.5 text-primary shrink-0" />
+      </button>
+      {onRemove && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onRemove();
+          }}
+          aria-label={`Fjern ${attachment.file_name}`}
+          title="Fjern vedlegg"
+          className="absolute top-1/2 -translate-y-1/2 right-1.5 h-6 w-6 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+        >
+          <X className="h-3.5 w-3.5" />
+        </button>
+      )}
+    </div>
   );
 }
 

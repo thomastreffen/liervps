@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -775,6 +775,25 @@ export default function OrderTrackingPage() {
     return map;
   }, [attachments]);
 
+  // Public, token-scoped URL resolver (anonymous customer has no Supabase session,
+  // and the storage bucket is private). Goes through an edge function that
+  // validates the tracking token + per-attachment visibility.
+  const trackingUrlResolver = useCallback(
+    async (att: { id: string }) => {
+      if (!token) return null;
+      const { data, error } = await supabase.functions.invoke(
+        "order-attachment-public-fetch",
+        { body: { tracking_token: token, attachment_id: att.id } },
+      );
+      if (error || !(data as any)?.signed_url) {
+        console.warn("[OrderTracking] resolver failed", error || data);
+        return null;
+      }
+      return (data as any).signed_url as string;
+    },
+    [token],
+  );
+
   const openLightbox = (att: ChatAttachment, idx: number, list: ChatAttachment[]) => {
     setLightboxAtts(list);
     setLightboxIndex(idx);
@@ -1113,6 +1132,7 @@ export default function OrderTrackingPage() {
                                 attachments={msgAtts}
                                 bucket="order-form-attachments"
                                 onPreview={openLightbox}
+                                urlResolver={trackingUrlResolver}
                               />
                             );
                           })()}
@@ -1234,35 +1254,24 @@ export default function OrderTrackingPage() {
                 Vedlegg ({attachments.length})
               </h3>
               <div className="space-y-2.5">
-                {attachments.map((att: any) => (
-                  <div
+                {(attachments as any[]).map((att: any) => (
+                  <TrackingAttachmentRow
                     key={att.id}
-                    className="flex items-center gap-3 p-3.5 rounded-2xl border border-border/50 bg-muted/20 hover:bg-muted/40 transition-colors group"
-                  >
-                    <div className="h-10 w-10 rounded-xl bg-background border border-border/60 flex items-center justify-center shrink-0">
-                      <FileText className="h-4 w-4 text-muted-foreground" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-semibold text-foreground truncate">{att.file_name}</p>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        {att.file_size && (
-                          <span className="text-[11px] text-muted-foreground">
-                            {(att.file_size / 1024).toFixed(0)} KB
-                          </span>
-                        )}
-                        {att.field_key === "customer_reply" && (
-                          <Badge variant="outline" className="text-[9px]">Ettersendt</Badge>
-                        )}
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      className="h-9 w-9 rounded-xl bg-background border border-border/60 text-muted-foreground hover:text-primary hover:border-primary/40 flex items-center justify-center shrink-0 transition-colors"
-                      aria-label="Last ned"
-                    >
-                      <Download className="h-4 w-4" />
-                    </button>
-                  </div>
+                    att={att}
+                    resolver={trackingUrlResolver}
+                    onPreview={() => {
+                      // Build image-only list for lightbox navigation,
+                      // and locate the clicked item within it.
+                      const imgs = (attachments as any[]).filter(
+                        (a) => (a.mime_type || "").startsWith("image/") ||
+                          /\.(jpe?g|png|gif|webp|heic|heif|bmp|avif|svg)$/i.test(a.file_name || ""),
+                      ) as ChatAttachment[];
+                      if (imgs.length === 0) return;
+                      const idx = Math.max(0, imgs.findIndex((a) => a.id === att.id));
+                      setLightboxAtts(imgs);
+                      setLightboxIndex(idx);
+                    }}
+                  />
                 ))}
               </div>
             </CardContent>
@@ -1286,7 +1295,83 @@ export default function OrderTrackingPage() {
         onClose={() => setLightboxAtts([])}
         attachments={lightboxAtts as any}
         initialIndex={lightboxIndex}
+        urlResolver={trackingUrlResolver}
       />
+    </div>
+  );
+}
+
+/* ── Tracking attachment row: image thumbnail or file chip, both with preview/download ── */
+function TrackingAttachmentRow({
+  att,
+  resolver,
+  onPreview,
+}: {
+  att: any;
+  resolver: (a: { id: string }) => Promise<string | null>;
+  onPreview: () => void;
+}) {
+  const isImage = (att.mime_type || "").startsWith("image/") ||
+    /\.(jpe?g|png|gif|webp|heic|heif|bmp|avif|svg)$/i.test(att.file_name || "");
+
+  const [thumbUrl, setThumbUrl] = useState<string | null>(null);
+  const [downloading, setDownloading] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!isImage) return;
+    resolver(att).then((u) => {
+      if (!cancelled) setThumbUrl(u);
+    });
+    return () => { cancelled = true; };
+  }, [att, isImage, resolver]);
+
+  const handleDownload = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setDownloading(true);
+    const url = await resolver(att);
+    setDownloading(false);
+    if (url) window.open(url, "_blank", "noopener,noreferrer");
+  };
+
+  return (
+    <div
+      className="flex items-center gap-3 p-3 rounded-2xl border border-border/50 bg-muted/20 hover:bg-muted/40 transition-colors group cursor-pointer"
+      onClick={isImage ? onPreview : handleDownload}
+    >
+      <div className="h-12 w-12 rounded-xl bg-background border border-border/60 flex items-center justify-center shrink-0 overflow-hidden">
+        {isImage && thumbUrl ? (
+          <img src={thumbUrl} alt={att.file_name} className="w-full h-full object-cover" loading="lazy" />
+        ) : isImage ? (
+          <div className="w-full h-full bg-muted animate-pulse" />
+        ) : (
+          <FileText className="h-4 w-4 text-muted-foreground" />
+        )}
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-semibold text-foreground truncate">{att.file_name}</p>
+        <div className="flex items-center gap-2 mt-0.5">
+          {att.file_size && (
+            <span className="text-[11px] text-muted-foreground">
+              {att.file_size < 1024 * 1024
+                ? `${Math.round(att.file_size / 1024)} KB`
+                : `${(att.file_size / 1024 / 1024).toFixed(1)} MB`}
+            </span>
+          )}
+          {att.field_key === "customer_reply" && (
+            <Badge variant="outline" className="text-[9px]">Ettersendt</Badge>
+          )}
+        </div>
+      </div>
+      <button
+        type="button"
+        onClick={handleDownload}
+        disabled={downloading}
+        className="h-9 w-9 rounded-xl bg-background border border-border/60 text-muted-foreground hover:text-primary hover:border-primary/40 flex items-center justify-center shrink-0 transition-colors"
+        aria-label="Last ned"
+      >
+        <Download className="h-4 w-4" />
+      </button>
     </div>
   );
 }

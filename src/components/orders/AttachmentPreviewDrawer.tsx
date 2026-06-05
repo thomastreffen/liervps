@@ -17,10 +17,12 @@ interface AttachmentPreviewDrawerProps {
   onClose: () => void;
   attachments: Attachment[];
   initialIndex: number;
+  /** Optional resolver used instead of supabase.storage.createSignedUrl. */
+  urlResolver?: (att: Attachment) => Promise<string | null>;
 }
 
 export function AttachmentPreviewDrawer({
-  open, onClose, attachments, initialIndex,
+  open, onClose, attachments, initialIndex, urlResolver,
 }: AttachmentPreviewDrawerProps) {
   const [index, setIndex] = useState(initialIndex);
   const [signedUrl, setSignedUrl] = useState<string | null>(null);
@@ -29,7 +31,7 @@ export function AttachmentPreviewDrawer({
 
   const current = attachments[index];
   const isImage = current?.mime_type?.startsWith("image/") || 
-    /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(current?.file_name || "");
+    /\.(jpg|jpeg|png|gif|webp|svg|heic|heif|avif|bmp)$/i.test(current?.file_name || "");
   const isPdf = current?.mime_type === "application/pdf" || 
     /\.pdf$/i.test(current?.file_name || "");
 
@@ -37,25 +39,32 @@ export function AttachmentPreviewDrawer({
     if (!current) return;
     setLoading(true);
     setError(null);
+    setSignedUrl(null);
     try {
-      const { data, error: err } = await supabase.storage
-        .from("order-form-attachments")
-        .createSignedUrl(current.file_path, 600);
-      if (err || !data?.signedUrl) {
-        console.error("[AttachmentPreview] signed URL failed", {
-          bucket: "order-form-attachments",
-          path: current.file_path,
-          error: err,
-        });
-        throw new Error(err?.message || "Filen finnes ikke i lageret");
+      if (urlResolver) {
+        const url = await urlResolver(current);
+        if (!url) throw new Error("Kunne ikke hente filen");
+        setSignedUrl(url);
+      } else {
+        const { data, error: err } = await supabase.storage
+          .from("order-form-attachments")
+          .createSignedUrl(current.file_path, 600);
+        if (err || !data?.signedUrl) {
+          console.error("[AttachmentPreview] signed URL failed", {
+            bucket: "order-form-attachments",
+            path: current.file_path,
+            error: err,
+          });
+          throw new Error(err?.message || "Filen finnes ikke i lageret");
+        }
+        setSignedUrl(data.signedUrl);
       }
-      setSignedUrl(data.signedUrl);
     } catch (e: any) {
       setError(e.message || "Feil ved henting av fil");
     } finally {
       setLoading(false);
     }
-  }, [current]);
+  }, [current, urlResolver]);
 
   useEffect(() => {
     if (open && current) loadUrl();
