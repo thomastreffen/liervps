@@ -108,8 +108,13 @@ export function AttachmentPreviewDrawer({
           <div className="flex items-center gap-3 min-w-0">
             <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
             <div className="min-w-0">
-              <p className="text-sm font-medium truncate">{current.file_name}</p>
-              <p className="text-[10px] text-muted-foreground">
+              <p className="text-sm font-medium truncate" title={current.file_name}>
+                {attachmentLabel(current)}
+              </p>
+              <p className="text-[10px] text-muted-foreground truncate">
+                {current.display_name && current.file_name && current.display_name !== current.file_name && (
+                  <span className="mr-2">Originalfil: {current.original_filename || current.file_name}</span>
+                )}
                 {current.category && <span className="mr-2">{current.category}</span>}
                 {current.file_size && (
                   current.file_size < 1024 * 1024
@@ -121,10 +126,21 @@ export function AttachmentPreviewDrawer({
             </div>
           </div>
           <div className="flex items-center gap-1 shrink-0">
+            {onRename && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => onRename(current)}
+                title="Endre visningsnavn"
+              >
+                <Pencil className="h-4 w-4" />
+              </Button>
+            )}
             {signedUrl && (
               <>
                 <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
-                  <a href={signedUrl} download={current.file_name} title="Last ned">
+                  <a href={signedUrl} download={downloadFilename(current)} title="Last ned">
                     <Download className="h-4 w-4" />
                   </a>
                 </Button>
