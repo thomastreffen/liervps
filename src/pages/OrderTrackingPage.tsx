@@ -1254,35 +1254,24 @@ export default function OrderTrackingPage() {
                 Vedlegg ({attachments.length})
               </h3>
               <div className="space-y-2.5">
-                {attachments.map((att: any) => (
-                  <div
+                {(attachments as any[]).map((att: any) => (
+                  <TrackingAttachmentRow
                     key={att.id}
-                    className="flex items-center gap-3 p-3.5 rounded-2xl border border-border/50 bg-muted/20 hover:bg-muted/40 transition-colors group"
-                  >
-                    <div className="h-10 w-10 rounded-xl bg-background border border-border/60 flex items-center justify-center shrink-0">
-                      <FileText className="h-4 w-4 text-muted-foreground" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-semibold text-foreground truncate">{att.file_name}</p>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        {att.file_size && (
-                          <span className="text-[11px] text-muted-foreground">
-                            {(att.file_size / 1024).toFixed(0)} KB
-                          </span>
-                        )}
-                        {att.field_key === "customer_reply" && (
-                          <Badge variant="outline" className="text-[9px]">Ettersendt</Badge>
-                        )}
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      className="h-9 w-9 rounded-xl bg-background border border-border/60 text-muted-foreground hover:text-primary hover:border-primary/40 flex items-center justify-center shrink-0 transition-colors"
-                      aria-label="Last ned"
-                    >
-                      <Download className="h-4 w-4" />
-                    </button>
-                  </div>
+                    att={att}
+                    resolver={trackingUrlResolver}
+                    onPreview={() => {
+                      // Build image-only list for lightbox navigation,
+                      // and locate the clicked item within it.
+                      const imgs = (attachments as any[]).filter(
+                        (a) => (a.mime_type || "").startsWith("image/") ||
+                          /\.(jpe?g|png|gif|webp|heic|heif|bmp|avif|svg)$/i.test(a.file_name || ""),
+                      ) as ChatAttachment[];
+                      if (imgs.length === 0) return;
+                      const idx = Math.max(0, imgs.findIndex((a) => a.id === att.id));
+                      setLightboxAtts(imgs);
+                      setLightboxIndex(idx);
+                    }}
+                  />
                 ))}
               </div>
             </CardContent>
