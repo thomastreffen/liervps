@@ -255,9 +255,10 @@ export function AttachmentPreviewDrawer({
                     : "bg-muted/50 text-muted-foreground hover:bg-muted"
                 }`}
               >
-                {att.file_name.length > 25
-                  ? att.file_name.substring(0, 22) + "..."
-                  : att.file_name}
+                {(() => {
+                  const lbl = attachmentLabel(att);
+                  return lbl.length > 25 ? lbl.substring(0, 22) + "..." : lbl;
+                })()}
               </button>
             ))}
           </div>
