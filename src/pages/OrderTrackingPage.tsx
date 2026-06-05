@@ -775,6 +775,25 @@ export default function OrderTrackingPage() {
     return map;
   }, [attachments]);
 
+  // Public, token-scoped URL resolver (anonymous customer has no Supabase session,
+  // and the storage bucket is private). Goes through an edge function that
+  // validates the tracking token + per-attachment visibility.
+  const trackingUrlResolver = useCallback(
+    async (att: { id: string }) => {
+      if (!token) return null;
+      const { data, error } = await supabase.functions.invoke(
+        "order-attachment-public-fetch",
+        { body: { tracking_token: token, attachment_id: att.id } },
+      );
+      if (error || !(data as any)?.signed_url) {
+        console.warn("[OrderTracking] resolver failed", error || data);
+        return null;
+      }
+      return (data as any).signed_url as string;
+    },
+    [token],
+  );
+
   const openLightbox = (att: ChatAttachment, idx: number, list: ChatAttachment[]) => {
     setLightboxAtts(list);
     setLightboxIndex(idx);
