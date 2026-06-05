@@ -725,6 +725,76 @@ export default function OrderTrackingPage() {
     : (STATUS_HUMAN_COPY[externalStatus] || STATUS_HUMAN_COPY.received);
   const mascot = STATUS_MASCOT[externalStatus] || mascotReceived;
 
+  const visibleAttachments = useMemo(
+    () => (attachments as any[]).filter((a) => !a.deleted_at),
+    [attachments],
+  );
+
+  // Group attachments by message_id for in-bubble rendering
+  const attachmentsByMessage = useMemo(() => {
+    const map = new Map<string, ChatAttachment[]>();
+    visibleAttachments.forEach((a) => {
+      if (!a.message_id) return;
+      const list = map.get(a.message_id) || [];
+      list.push(a as ChatAttachment);
+      map.set(a.message_id, list);
+    });
+    return map;
+  }, [visibleAttachments]);
+
+  // Public, token-scoped URL resolver (anonymous customer has no Supabase session,
+  // and the storage bucket is private). Goes through an edge function that
+  // validates the tracking token + per-attachment visibility.
+  const trackingUrlResolver = useCallback(
+    async (att: { id: string }) => {
+      if (!token) return null;
+      const { data, error } = await supabase.functions.invoke(
+        "order-attachment-public-fetch",
+        { body: { tracking_token: token, attachment_id: att.id } },
+      );
+      if (error || !(data as any)?.signed_url) {
+        console.warn("[OrderTracking] resolver failed", error || data);
+        return null;
+      }
+      return (data as any).signed_url as string;
+    },
+    [token],
+  );
+
+  // Debug: surface what tracking page sees for media rendering.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    // eslint-disable-next-line no-console
+    console.info("[tracking-attachments-render-debug]", visibleAttachments.map((a) => ({
+      id: a.id,
+      name: a.name,
+      file_name: a.file_name,
+      mime_type: a.mime_type,
+      type: a.type,
+      message_id: a.message_id,
+      visibility: a.visibility,
+      deleted_at: a.deleted_at,
+      isImage: isImageAttachment(a),
+      hasResolver: true,
+    })));
+    console.info("[tracking-media-debug]", {
+      messages: (allMessages as any[]).map((m) => ({
+        id: m.id,
+        visible: m.is_visible_to_customer,
+        attachmentCount: attachmentsByMessage.get(m.id)?.length ?? 0,
+      })),
+      visibleAttachments: visibleAttachments.map((a) => ({
+        id: a.id,
+        name: a.file_name,
+        message_id: a.message_id,
+        mime_type: a.mime_type,
+        field_key: a.field_key,
+        deleted_at: a.deleted_at,
+        isImage: isImageAttachment(a),
+      })),
+    });
+  }, [allMessages, visibleAttachments, attachmentsByMessage]);
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-background to-muted/30">
@@ -762,59 +832,6 @@ export default function OrderTrackingPage() {
   const visibleSummary = summaryFields.filter((f) => valuesMap[f.key]);
   const hasMessages = allMessages.length > 0;
   const isClosed = externalStatus === "completed" || externalStatus === "closed";
-
-  // Group attachments by message_id for in-bubble rendering
-  const attachmentsByMessage = useMemo(() => {
-    const map = new Map<string, ChatAttachment[]>();
-    (attachments as any[]).forEach((a) => {
-      if (!a.message_id) return;
-      const list = map.get(a.message_id) || [];
-      list.push(a as ChatAttachment);
-      map.set(a.message_id, list);
-    });
-    return map;
-  }, [attachments]);
-
-  // Public, token-scoped URL resolver (anonymous customer has no Supabase session,
-  // and the storage bucket is private). Goes through an edge function that
-  // validates the tracking token + per-attachment visibility.
-  const trackingUrlResolver = useCallback(
-    async (att: { id: string }) => {
-      if (!token) return null;
-      const { data, error } = await supabase.functions.invoke(
-        "order-attachment-public-fetch",
-        { body: { tracking_token: token, attachment_id: att.id } },
-      );
-      if (error || !(data as any)?.signed_url) {
-        console.warn("[OrderTracking] resolver failed", error || data);
-        return null;
-      }
-      return (data as any).signed_url as string;
-    },
-    [token],
-  );
-
-  // Debug: surface what tracking page sees for media rendering.
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    // eslint-disable-next-line no-console
-    console.info("[tracking-media-debug]", {
-      messages: (allMessages as any[]).map((m) => ({
-        id: m.id,
-        visible: m.is_visible_to_customer,
-        attachmentCount: attachmentsByMessage.get(m.id)?.length ?? 0,
-      })),
-      visibleAttachments: (attachments as any[]).map((a) => ({
-        id: a.id,
-        name: a.file_name,
-        message_id: a.message_id,
-        mime_type: a.mime_type,
-        field_key: a.field_key,
-        deleted_at: a.deleted_at,
-        isImage: isImageAttachment(a),
-      })),
-    });
-  }, [allMessages, attachments, attachmentsByMessage]);
 
   const openLightbox = (att: ChatAttachment, idx: number, list: ChatAttachment[]) => {
     setLightboxAtts(list);
@@ -1060,9 +1077,9 @@ export default function OrderTrackingPage() {
         </div>
 
         {/* Messages + Attachments side-by-side on desktop */}
-        <div className={cn("grid gap-5", attachments.length > 0 ? "lg:grid-cols-3" : "grid-cols-1")}>
+        <div className={cn("grid gap-5", visibleAttachments.length > 0 ? "lg:grid-cols-3" : "grid-cols-1")}>
         {/* Messages - the primary conversation section */}
-        <div ref={messagesSectionRef} className={attachments.length > 0 ? "lg:col-span-2" : ""}>
+        <div ref={messagesSectionRef} className={visibleAttachments.length > 0 ? "lg:col-span-2" : ""}>
           <Card className="border-0 shadow-[0_4px_16px_-6px_rgba(0,0,0,0.08)] rounded-3xl">
             <CardContent className="pt-7 pb-6 px-6 sm:px-8">
               <div className="flex items-center justify-between mb-5">
@@ -1266,17 +1283,17 @@ export default function OrderTrackingPage() {
         </div>
 
         {/* Attachments */}
-        {attachments.length > 0 && (
+        {visibleAttachments.length > 0 && (
           <Card className="border-0 shadow-[0_4px_16px_-6px_rgba(0,0,0,0.08)] rounded-3xl">
             <CardContent className="pt-7 pb-6 px-6 sm:px-8">
               <h3 className="text-base font-bold text-foreground mb-5 flex items-center gap-2.5">
                 <span className="h-9 w-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
                   <Paperclip className="h-4 w-4" />
                 </span>
-                Vedlegg ({attachments.length})
+                Vedlegg ({visibleAttachments.length})
               </h3>
               <div className="space-y-2.5">
-                {(attachments as any[]).map((att: any) => (
+                {visibleAttachments.map((att: any) => (
                   <TrackingAttachmentRow
                     key={att.id}
                     att={att}
@@ -1284,10 +1301,7 @@ export default function OrderTrackingPage() {
                     onPreview={() => {
                       // Build image-only list for lightbox navigation,
                       // and locate the clicked item within it.
-                      const imgs = (attachments as any[]).filter(
-                        (a) => (a.mime_type || "").startsWith("image/") ||
-                          /\.(jpe?g|png|gif|webp|heic|heif|bmp|avif|svg)$/i.test(a.file_name || ""),
-                      ) as ChatAttachment[];
+                      const imgs = visibleAttachments.filter(isImageAttachment) as ChatAttachment[];
                       if (imgs.length === 0) return;
                       const idx = Math.max(0, imgs.findIndex((a) => a.id === att.id));
                       setLightboxAtts(imgs);
@@ -1333,8 +1347,7 @@ function TrackingAttachmentRow({
   resolver: (a: { id: string }) => Promise<string | null>;
   onPreview: () => void;
 }) {
-  const isImage = (att.mime_type || "").startsWith("image/") ||
-    /\.(jpe?g|png|gif|webp|heic|heif|bmp|avif|svg)$/i.test(att.file_name || "");
+  const isImage = isImageAttachment(att);
 
   const [thumbUrl, setThumbUrl] = useState<string | null>(null);
   const [thumbFailed, setThumbFailed] = useState(false);

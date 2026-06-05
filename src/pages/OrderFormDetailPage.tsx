@@ -68,7 +68,7 @@ import { LinkExistingTaskDialog } from "@/components/orders/LinkExistingTaskDial
 import { sanitizeStorageFileName } from "@/lib/storage-path";
 import { ChatMediaGrid } from "@/components/chat/ChatMediaGrid";
 import { SelectedFilesPreview } from "@/components/chat/SelectedFilesPreview";
-import type { ChatAttachment } from "@/components/chat/chat-attachments-util";
+import { type ChatAttachment, isImageAttachment, formatBytes } from "@/components/chat/chat-attachments-util";
 
 export default function OrderFormDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -739,6 +739,7 @@ export default function OrderFormDetailPage() {
         .update({
           deleted_at: new Date().toISOString(),
           deleted_by: user?.id ?? null,
+          deleted_reason: "removed_by_admin",
         } as any)
         .eq("id", attId);
       if (error) throw error;
@@ -792,10 +793,25 @@ export default function OrderFormDetailPage() {
     ? `${window.location.origin}/bestilling/status/${sub.public_tracking_token}`
     : null;
 
+  const activeAttachments = (attachments as any[]).filter((a) => !a.deleted_at);
 
+  console.info("[admin-attachments-render-debug]", activeAttachments.map((a: any) => ({
+    id: a.id,
+    name: a.name,
+    file_name: a.file_name,
+    mime_type: a.mime_type,
+    type: a.type,
+    url: !!a.url,
+    storage_path: a.storage_path || a.file_path,
+    message_id: a.message_id,
+    visibility: a.visibility,
+    category: a.category,
+    deleted_at: a.deleted_at,
+    isImage: isImageAttachment(a),
+  })));
 
   const attByCategory: Record<string, any[]> = {};
-  attachments.forEach((a: any) => {
+  activeAttachments.forEach((a: any) => {
     const cat = a.category || "Annet";
     if (!attByCategory[cat]) attByCategory[cat] = [];
     attByCategory[cat].push(a);
@@ -803,7 +819,7 @@ export default function OrderFormDetailPage() {
 
   // Index attachments by message_id for in-bubble chat rendering
   const attachmentsByMessage = new Map<string, ChatAttachment[]>();
-  (attachments as any[]).forEach((a) => {
+  activeAttachments.forEach((a) => {
     if (!a.message_id) return;
     const list = attachmentsByMessage.get(a.message_id) || [];
     list.push(a as ChatAttachment);
@@ -811,7 +827,7 @@ export default function OrderFormDetailPage() {
   });
 
   const openChatLightbox = (att: ChatAttachment) => {
-    const idx = (attachments as any[]).findIndex((a) => a.id === att.id);
+    const idx = activeAttachments.findIndex((a) => a.id === att.id);
     if (idx >= 0) setPreviewAttIdx(idx);
   };
 
@@ -1175,12 +1191,12 @@ export default function OrderFormDetailPage() {
           })}
 
           {/* Attachments */}
-          {attachments.length > 0 && (
+          {activeAttachments.length > 0 && (
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm flex items-center gap-2">
                   <Paperclip className="h-4 w-4" />
-                  Vedlegg ({attachments.length})
+                  Vedlegg ({activeAttachments.length})
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -1190,7 +1206,7 @@ export default function OrderFormDetailPage() {
                       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">{cat}</p>
                       <div className="space-y-1.5">
                         {files.map((att: any) => {
-                          const globalIdx = attachments.findIndex((a: any) => a.id === att.id);
+                          const globalIdx = activeAttachments.findIndex((a: any) => a.id === att.id);
                           return (
                             <AttachmentRow
                               key={att.id}
@@ -2017,11 +2033,45 @@ export default function OrderFormDetailPage() {
       <AttachmentPreviewDrawer
         open={previewAttIdx !== null}
         onClose={() => setPreviewAttIdx(null)}
-        attachments={attachments as any[]}
+        attachments={activeAttachments as any[]}
         initialIndex={previewAttIdx ?? 0}
+        urlResolver={(att) => resolveOrderAttachmentSignedUrl(att as any)}
       />
     </div>
   );
+}
+
+const IMAGE_EXT_FOR_STORAGE = /\.(jpe?g|png|gif|webp|heic|heif|bmp|avif)$/i;
+
+function imageStemForStorage(name: string) {
+  return name
+    .replace(/\.[^.]+$/i, "")
+    .replace(/\[[^\]]*\]/g, "")
+    .replace(/[^a-z0-9]+/gi, "_")
+    .replace(/^_+|_+$/g, "")
+    .toLowerCase();
+}
+
+async function resolveOrderAttachmentSignedUrl(attachment: any): Promise<string | null> {
+  const path = attachment.file_path || attachment.storage_path;
+  if (!path) return null;
+  const first = await supabase.storage.from("order-form-attachments").createSignedUrl(path, 600);
+  if (!first.error && first.data?.signedUrl) return first.data.signedUrl;
+
+  if (!isImageAttachment(attachment)) return null;
+  const slash = path.lastIndexOf("/");
+  const folder = slash > 0 ? path.slice(0, slash) : "";
+  if (!folder) return null;
+  const wanted = imageStemForStorage(attachment.file_name || "");
+  const { data, error } = await supabase.storage.from("order-form-attachments").list(folder, {
+    limit: 100,
+    sortBy: { column: "name", order: "desc" },
+  });
+  if (error || !data) return null;
+  const match = data.find((obj) => IMAGE_EXT_FOR_STORAGE.test(obj.name) && imageStemForStorage(obj.name).includes(wanted));
+  if (!match) return null;
+  const fallback = await supabase.storage.from("order-form-attachments").createSignedUrl(`${folder}/${match.name}`, 600);
+  return fallback.data?.signedUrl || null;
 }
 
 function AttachmentRow({
@@ -2033,19 +2083,77 @@ function AttachmentRow({
   onPreview?: () => void;
   onRemove?: () => void;
 }) {
+  const isImage = isImageAttachment(attachment);
+  const [url, setUrl] = useState<string | null>(null);
+  const [loadingUrl, setLoadingUrl] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    const path = attachment.file_path || attachment.storage_path;
+    if (!path || !isImage) return;
+    setLoadingUrl(true);
+    resolveOrderAttachmentSignedUrl(attachment)
+      .then((signedUrl) => {
+        if (cancelled) return;
+        if (!signedUrl) {
+          console.warn("[admin-attachments-render-debug] thumbnail failed", {
+            id: attachment.id,
+            file_name: attachment.file_name,
+          });
+          setUrl(null);
+        } else {
+          setUrl(signedUrl);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingUrl(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [attachment.id, attachment.file_path, attachment.storage_path, attachment.file_name, isImage]);
+
+  const handleDownload = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const signedUrl = await resolveOrderAttachmentSignedUrl(attachment);
+    if (!signedUrl) {
+      toast.error("Kunne ikke åpne vedlegget");
+      return;
+    }
+    window.open(signedUrl, "_blank", "noopener,noreferrer");
+  };
+
   return (
-    <div className="group relative">
+    <div className="group relative rounded-xl border border-border/50 bg-muted/20 hover:bg-muted/40 transition-colors">
       <button
         type="button"
         onClick={() => onPreview?.()}
-        className="flex items-center gap-2 text-sm p-2 pr-9 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors w-full text-left cursor-pointer"
+        className="flex items-center gap-3 text-sm p-2.5 pr-20 sm:pr-16 w-full text-left cursor-pointer"
       >
-        <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-        <span className="truncate flex-1 font-medium">{attachment.file_name}</span>
-        <span className="text-[10px] text-muted-foreground">
-          {attachment.file_size ? (attachment.file_size < 1024 * 1024 ? `${Math.round(attachment.file_size / 1024)} KB` : `${(attachment.file_size / 1024 / 1024).toFixed(1)} MB`) : ""}
-        </span>
-        <Download className="h-3.5 w-3.5 text-primary shrink-0" />
+        <div className="h-14 w-14 rounded-lg border border-border/60 bg-background overflow-hidden flex items-center justify-center shrink-0">
+          {isImage && url ? (
+            <img src={url} alt={attachment.file_name} className="h-full w-full object-cover" loading="lazy" />
+          ) : isImage && loadingUrl ? (
+            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+          ) : (
+            <FileText className="h-4 w-4 text-muted-foreground" />
+          )}
+        </div>
+        <div className="min-w-0 flex-1">
+          <span className="block truncate font-medium">{attachment.file_name}</span>
+          <span className="block text-[10px] text-muted-foreground">
+            {isImage ? "Bilde" : "Fil"}{attachment.file_size ? ` · ${formatBytes(attachment.file_size)}` : ""}
+          </span>
+        </div>
+      </button>
+      <button
+        type="button"
+        onClick={handleDownload}
+        aria-label={`Last ned ${attachment.file_name}`}
+        title="Last ned"
+        className="absolute top-1/2 -translate-y-1/2 right-10 sm:right-9 h-8 w-8 rounded-lg text-muted-foreground hover:text-primary hover:bg-background border border-transparent hover:border-border flex items-center justify-center cursor-pointer"
+      >
+        <Download className="h-3.5 w-3.5" />
       </button>
       {onRemove && (
         <button
@@ -2056,9 +2164,10 @@ function AttachmentRow({
           }}
           aria-label={`Fjern ${attachment.file_name}`}
           title="Fjern vedlegg"
-          className="absolute top-1/2 -translate-y-1/2 right-1.5 h-6 w-6 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+          className="absolute top-1/2 -translate-y-1/2 right-1.5 h-8 min-w-8 px-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 flex items-center justify-center opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity cursor-pointer"
         >
           <X className="h-3.5 w-3.5" />
+          <span className="ml-1 text-xs sm:hidden">Fjern</span>
         </button>
       )}
     </div>
