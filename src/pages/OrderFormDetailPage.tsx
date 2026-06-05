@@ -2022,20 +2022,44 @@ export default function OrderFormDetailPage() {
   );
 }
 
-function AttachmentRow({ attachment, onPreview }: { attachment: any; onPreview?: () => void }) {
+function AttachmentRow({
+  attachment,
+  onPreview,
+  onRemove,
+}: {
+  attachment: any;
+  onPreview?: () => void;
+  onRemove?: () => void;
+}) {
   return (
-    <button
-      type="button"
-      onClick={() => onPreview?.()}
-      className="flex items-center gap-2 text-sm p-2 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors w-full text-left cursor-pointer"
-    >
-      <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-      <span className="truncate flex-1 font-medium">{attachment.file_name}</span>
-      <span className="text-[10px] text-muted-foreground">
-        {attachment.file_size ? (attachment.file_size < 1024 * 1024 ? `${Math.round(attachment.file_size / 1024)} KB` : `${(attachment.file_size / 1024 / 1024).toFixed(1)} MB`) : ""}
-      </span>
-      <Download className="h-3.5 w-3.5 text-primary shrink-0" />
-    </button>
+    <div className="group relative">
+      <button
+        type="button"
+        onClick={() => onPreview?.()}
+        className="flex items-center gap-2 text-sm p-2 pr-9 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors w-full text-left cursor-pointer"
+      >
+        <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+        <span className="truncate flex-1 font-medium">{attachment.file_name}</span>
+        <span className="text-[10px] text-muted-foreground">
+          {attachment.file_size ? (attachment.file_size < 1024 * 1024 ? `${Math.round(attachment.file_size / 1024)} KB` : `${(attachment.file_size / 1024 / 1024).toFixed(1)} MB`) : ""}
+        </span>
+        <Download className="h-3.5 w-3.5 text-primary shrink-0" />
+      </button>
+      {onRemove && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onRemove();
+          }}
+          aria-label={`Fjern ${attachment.file_name}`}
+          title="Fjern vedlegg"
+          className="absolute top-1/2 -translate-y-1/2 right-1.5 h-6 w-6 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+        >
+          <X className="h-3.5 w-3.5" />
+        </button>
+      )}
+    </div>
   );
 }
 
