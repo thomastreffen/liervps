@@ -39,7 +39,13 @@ export default defineConfig(({ mode }) => ({
       workbox: {
         maximumFileSizeToCacheInBytes: 10 * 1024 * 1024,
         navigateFallback: "/index.html",
-        navigateFallbackDenylist: [/^\/~oauth/, /^\/api\//, /^\/functions\//, /^\/auth\/callback/],
+        navigateFallbackDenylist: [
+          /^\/bestilling\/status\//,
+          /^\/~oauth/,
+          /^\/api\//,
+          /^\/functions\//,
+          /^\/auth\/callback/,
+        ],
         globPatterns: ["**/*.{js,css,html,svg,png,ico,woff2}"],
         cleanupOutdatedCaches: true,
         // skipWaiting/clientsClaim are driven by updateSW(true) from the
