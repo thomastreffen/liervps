@@ -454,6 +454,7 @@ export default function OrderTrackingPage() {
   const isInternalViewer = !!user && user.role !== "customer_user";
   const [replyText, setReplyText] = useState("");
   const [replyFiles, setReplyFiles] = useState<File[]>([]);
+  const [replyFileNames, setReplyFileNames] = useState<Record<number, string>>({});
   const [lightboxAtts, setLightboxAtts] = useState<ChatAttachment[]>([]);
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const replyInputRef = useRef<HTMLTextAreaElement>(null);
