@@ -37,8 +37,14 @@ export function CustomerFieldRequests({ token, submitterName }: Props) {
   useEffect(() => {
     setDrafts(prev => {
       const next = { ...prev };
-      for (const r of open) if (!(r.id in next)) next[r.id] = "";
-      return next;
+      let changed = false;
+      for (const r of open) {
+        if (!(r.id in next)) {
+          next[r.id] = "";
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
     });
   }, [open]);
 

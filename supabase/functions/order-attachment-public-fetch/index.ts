@@ -21,6 +21,38 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const BUCKET = "order-form-attachments";
 
+const IMAGE_EXT = /\.(jpe?g|png|gif|webp|heic|heif|bmp|avif)$/i;
+
+function folderOf(path: string) {
+  const idx = path.lastIndexOf("/");
+  return idx > 0 ? path.slice(0, idx) : "";
+}
+
+function imageStem(name: string) {
+  return name
+    .replace(/\.[^.]+$/i, "")
+    .replace(/\[[^\]]*\]/g, "")
+    .replace(/[^a-z0-9]+/gi, "_")
+    .replace(/^_+|_+$/g, "")
+    .toLowerCase();
+}
+
+async function findLegacyImagePath(admin: ReturnType<typeof createClient>, filePath: string, fileName: string) {
+  const folder = folderOf(filePath);
+  if (!folder) return null;
+  const wanted = imageStem(fileName);
+  if (!wanted) return null;
+
+  const { data, error } = await admin.storage.from(BUCKET).list(folder, { limit: 100, sortBy: { column: "name", order: "desc" } });
+  if (error || !data) {
+    console.error("legacy image list failed", error);
+    return null;
+  }
+
+  const match = data.find((obj) => IMAGE_EXT.test(obj.name) && imageStem(obj.name).includes(wanted));
+  return match ? `${folder}/${match.name}` : null;
+}
+
 function json(status: number, payload: unknown) {
   return new Response(JSON.stringify(payload), {
     status,
@@ -66,9 +98,20 @@ Deno.serve(async (req) => {
     return json(404, { error: "Vedlegget finnes ikke eller er ikke tilgjengelig" });
   }
 
-  const { data: signed, error: signErr } = await admin.storage
+  let pathToSign = att.file_path;
+  let { data: signed, error: signErr } = await admin.storage
     .from(BUCKET)
-    .createSignedUrl(att.file_path, expiresIn);
+    .createSignedUrl(pathToSign, expiresIn);
+
+  if (signErr || !signed?.signedUrl) {
+    const fallbackPath = await findLegacyImagePath(admin, att.file_path, att.file_name || "");
+    if (fallbackPath && fallbackPath !== pathToSign) {
+      pathToSign = fallbackPath;
+      const fallback = await admin.storage.from(BUCKET).createSignedUrl(pathToSign, expiresIn);
+      signed = fallback.data;
+      signErr = fallback.error;
+    }
+  }
 
   if (signErr || !signed?.signedUrl) {
     console.error("signed url failed", signErr);
@@ -81,6 +124,7 @@ Deno.serve(async (req) => {
     file_name: att.file_name,
     mime_type: att.mime_type,
     file_size: att.file_size,
+    resolved_path: pathToSign,
     expires_in: expiresIn,
   });
 });
