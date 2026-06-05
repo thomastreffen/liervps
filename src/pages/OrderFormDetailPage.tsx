@@ -490,7 +490,8 @@ export default function OrderFormDetailPage() {
       // Upload attachments (if any) to storage + register in DB
       const companyId = (submission as any)?.company_id;
       const uploadFailures: string[] = [];
-      for (const file of commentFiles) {
+      for (let i = 0; i < commentFiles.length; i++) {
+        const file = commentFiles[i];
         const safeName = sanitizeStorageFileName(file.name);
         const path = `${companyId}/${id}/admin_${Date.now()}_${safeName}`;
         const { error: upErr } = await supabase.storage
@@ -504,11 +505,14 @@ export default function OrderFormDetailPage() {
           uploadFailures.push(`${file.name}: ${upErr.message}`);
           continue;
         }
+        const customName = (commentFileNames[i] || "").trim();
         const { error: insErr } = await supabase.from("order_form_submission_attachments").insert({
           submission_id: id!,
           field_key: "admin_message",
           category: isShared ? "Sendt til kunde" : "Intern",
           file_name: file.name,
+          original_filename: file.name,
+          display_name: customName || null,
           file_path: path,
           mime_type: file.type,
           file_size: file.size,
