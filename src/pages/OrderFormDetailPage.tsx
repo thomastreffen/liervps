@@ -558,6 +558,7 @@ export default function OrderFormDetailPage() {
     onSuccess: () => {
       setComment("");
       setCommentFiles([]);
+      setCommentFileNames({});
       setAddressedTo(null);
       setSendEmailNotification(false);
       qc.invalidateQueries({ queryKey: ["order-form-comments", id] });
