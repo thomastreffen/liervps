@@ -8885,6 +8885,8 @@ export type Database = {
           deleted_at: string | null
           deleted_by: string | null
           deleted_reason: string | null
+          description: string | null
+          display_name: string | null
           field_key: string | null
           file_name: string
           file_path: string
@@ -8892,6 +8894,9 @@ export type Database = {
           id: string
           message_id: string | null
           mime_type: string | null
+          original_filename: string | null
+          renamed_at: string | null
+          renamed_by: string | null
           submission_id: string
           uploaded_at: string
           uploaded_by: string | null
@@ -8901,6 +8906,8 @@ export type Database = {
           deleted_at?: string | null
           deleted_by?: string | null
           deleted_reason?: string | null
+          description?: string | null
+          display_name?: string | null
           field_key?: string | null
           file_name: string
           file_path: string
@@ -8908,6 +8915,9 @@ export type Database = {
           id?: string
           message_id?: string | null
           mime_type?: string | null
+          original_filename?: string | null
+          renamed_at?: string | null
+          renamed_by?: string | null
           submission_id: string
           uploaded_at?: string
           uploaded_by?: string | null
@@ -8917,6 +8927,8 @@ export type Database = {
           deleted_at?: string | null
           deleted_by?: string | null
           deleted_reason?: string | null
+          description?: string | null
+          display_name?: string | null
           field_key?: string | null
           file_name?: string
           file_path?: string
@@ -8924,6 +8936,9 @@ export type Database = {
           id?: string
           message_id?: string | null
           mime_type?: string | null
+          original_filename?: string | null
+          renamed_at?: string | null
+          renamed_by?: string | null
           submission_id?: string
           uploaded_at?: string
           uploaded_by?: string | null
@@ -12271,6 +12286,8 @@ export type Database = {
           deleted_at: string | null
           deleted_by: string | null
           deleted_reason: string | null
+          description: string | null
+          display_name: string | null
           field_key: string | null
           file_name: string
           file_path: string
@@ -12278,6 +12295,9 @@ export type Database = {
           id: string
           message_id: string | null
           mime_type: string | null
+          original_filename: string | null
+          renamed_at: string | null
+          renamed_by: string | null
           submission_id: string
           uploaded_at: string
           uploaded_by: string | null
@@ -12412,6 +12432,8 @@ export type Database = {
           deleted_at: string | null
           deleted_by: string | null
           deleted_reason: string | null
+          description: string | null
+          display_name: string | null
           field_key: string | null
           file_name: string
           file_path: string
@@ -12419,6 +12441,9 @@ export type Database = {
           id: string
           message_id: string | null
           mime_type: string | null
+          original_filename: string | null
+          renamed_at: string | null
+          renamed_by: string | null
           submission_id: string
           uploaded_at: string
           uploaded_by: string | null
@@ -12650,6 +12675,40 @@ export type Database = {
       order_submission_allows_public_child_insert: {
         Args: { _submission_id: string }
         Returns: boolean
+      }
+      rename_submission_attachment: {
+        Args: {
+          _attachment_id: string
+          _description?: string
+          _display_name: string
+        }
+        Returns: {
+          category: string | null
+          deleted_at: string | null
+          deleted_by: string | null
+          deleted_reason: string | null
+          description: string | null
+          display_name: string | null
+          field_key: string | null
+          file_name: string
+          file_path: string
+          file_size: number | null
+          id: string
+          message_id: string | null
+          mime_type: string | null
+          original_filename: string | null
+          renamed_at: string | null
+          renamed_by: string | null
+          submission_id: string
+          uploaded_at: string
+          uploaded_by: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "order_form_submission_attachments"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
