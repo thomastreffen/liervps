@@ -1132,6 +1132,7 @@ export default function OrderTrackingPage() {
                                 attachments={msgAtts}
                                 bucket="order-form-attachments"
                                 onPreview={openLightbox}
+                                urlResolver={trackingUrlResolver}
                               />
                             );
                           })()}
