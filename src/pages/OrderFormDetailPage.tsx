@@ -2082,6 +2082,21 @@ export default function OrderFormDetailPage() {
         attachments={activeAttachments as any[]}
         initialIndex={previewAttIdx ?? 0}
         urlResolver={(att) => resolveOrderAttachmentSignedUrl(att as any)}
+        onRename={(att) => setRenameTarget(att as any)}
+      />
+      <AttachmentRenameDialog
+        open={renameTarget !== null}
+        onOpenChange={(o) => !o && setRenameTarget(null)}
+        attachment={renameTarget}
+        saving={renameAttachment.isPending}
+        onSubmit={async ({ displayName, description }) => {
+          if (!renameTarget) return;
+          await renameAttachment.mutateAsync({
+            id: renameTarget.id,
+            displayName,
+            description,
+          });
+        }}
       />
     </div>
   );
