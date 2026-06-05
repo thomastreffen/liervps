@@ -90,7 +90,7 @@ function ImageGrid({
             visible.length === 1 ? "aspect-[4/3]" : "aspect-square"
           )}
         >
-          <SignedImage path={img.path || img.file_path} bucket={bucket} alt={img.file_name} />
+          <SignedImage path={img.file_path} bucket={bucket} alt={img.file_name} />
           {idx === visible.length - 1 && overflow > 0 && (
             <div className="absolute inset-0 bg-black/50 flex items-center justify-center text-white text-lg font-bold">
               +{overflow}
