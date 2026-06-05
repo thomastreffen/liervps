@@ -15,6 +15,7 @@ function RedirectContractToProject() {
 }
 import { AuthProvider } from "@/hooks/useAuth";
 import { PwaInstallPrompt } from "@/components/pwa/PwaInstallPrompt";
+import { PwaUpdateNotifier } from "@/components/pwa/PwaUpdateNotifier";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppLayout } from "@/components/AppLayout";
 import OverviewPage from "./pages/OverviewPage";
@@ -166,6 +167,7 @@ const App = () => (
       <Toaster />
       <Sonner />
       <PwaInstallPrompt />
+      <PwaUpdateNotifier />
       <BrowserRouter>
         <AuthProvider>
           <CompanyProvider>
