@@ -28,7 +28,7 @@ interface AttachmentPreviewDrawerProps {
 }
 
 export function AttachmentPreviewDrawer({
-  open, onClose, attachments, initialIndex, urlResolver,
+  open, onClose, attachments, initialIndex, urlResolver, onRename,
 }: AttachmentPreviewDrawerProps) {
   const [index, setIndex] = useState(initialIndex);
   const [signedUrl, setSignedUrl] = useState<string | null>(null);
