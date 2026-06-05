@@ -8,7 +8,6 @@
 
 import { registerSW as viteRegisterSW } from "virtual:pwa-register";
 import {
-  clearAppCachesAndUnregister,
   getAppServiceWorkerRegistrations,
   handleFreshResetIfRequested,
   unregisterAppServiceWorkers,
