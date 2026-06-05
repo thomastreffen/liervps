@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Check, X as XIcon } from "lucide-react";
+import { Check, X as XIcon, Loader2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -7,9 +7,19 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 import { isStandalone } from "@/pwa/registerSW";
+import {
+  checkForUpdate,
+  clearAppCachesAndUnregister,
+  onUpdateState,
+  applyUpdateAndReload,
+} from "@/pwa/registerSW";
+import { APP_VERSION, APP_BUILD_TIME } from "@/pwa/buildVersion";
 import { getInstallPrompt, onInstallPromptChange, detectPlatform } from "@/pwa/installPrompt";
 import { EnableNotificationsButton } from "./EnableNotificationsButton";
+import { useAuth } from "@/hooks/useAuth";
 
 interface Props {
   open: boolean;
@@ -32,7 +42,7 @@ function Row({ label, value }: { label: string; value: string | boolean }) {
           </span>
         )
       ) : (
-        <span className="font-medium text-foreground">{value}</span>
+        <span className="font-medium text-foreground break-all text-right">{value}</span>
       )}
     </div>
   );
@@ -40,12 +50,18 @@ function Row({ label, value }: { label: string; value: string | boolean }) {
 
 export function PwaStatusDialog({ open, onOpenChange }: Props) {
   const [tick, setTick] = useState(0);
+  const [checking, setChecking] = useState(false);
+  const [clearing, setClearing] = useState(false);
+  const [updateAvailable, setUpdateAvailable] = useState(false);
+  const { isSuperAdmin } = useAuth();
 
   useEffect(() => {
     if (!open) return;
-    const unsub = onInstallPromptChange(() => setTick((t) => t + 1));
+    const unsubInstall = onInstallPromptChange(() => setTick((t) => t + 1));
+    const unsubUpdate = onUpdateState(({ needRefresh }) => setUpdateAvailable(needRefresh));
     return () => {
-      unsub();
+      unsubInstall();
+      unsubUpdate();
     };
   }, [open]);
 
@@ -67,6 +83,46 @@ export function PwaStatusDialog({ open, onOpenChange }: Props) {
   const platform = detectPlatform();
   void tick;
 
+  const buildTimeLabel = APP_BUILD_TIME
+    ? new Date(APP_BUILD_TIME).toLocaleString("nb-NO")
+    : "ukjent";
+
+  const handleCheck = async () => {
+    setChecking(true);
+    try {
+      const ok = await checkForUpdate();
+      if (!ok) {
+        toast.info("Fant ingen aktiv service worker å sjekke mot.");
+      } else {
+        // Give the SW a moment to discover an update.
+        setTimeout(() => {
+          if (!updateAvailable) {
+            toast.success("Du kjører allerede siste versjon.");
+          }
+        }, 1500);
+      }
+    } finally {
+      setChecking(false);
+    }
+  };
+
+  const handleClear = async () => {
+    if (
+      !window.confirm(
+        "Dette tømmer app-cache, avregistrerer service worker og laster siden på nytt. Fortsette?",
+      )
+    ) {
+      return;
+    }
+    setClearing(true);
+    try {
+      await clearAppCachesAndUnregister();
+      window.location.reload();
+    } finally {
+      setClearing(false);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
@@ -76,6 +132,9 @@ export function PwaStatusDialog({ open, onOpenChange }: Props) {
         </DialogHeader>
 
         <div className="rounded-md border border-border bg-card px-3">
+          <Row label="App-versjon" value={APP_VERSION} />
+          <Row label="Bygget" value={buildTimeLabel} />
+          <Row label="Ny versjon tilgjengelig" value={updateAvailable} />
           <Row label="Standalone" value={standalone} />
           <Row label="Service worker aktiv" value={swActive} />
           <Row label="Manifest funnet" value={manifestFound} />
@@ -83,6 +142,43 @@ export function PwaStatusDialog({ open, onOpenChange }: Props) {
           <Row label="Varseltillatelse" value={permission} />
           <Row label="Installprompt tilgjengelig" value={bipAvailable} />
           <Row label="Plattform" value={platform} />
+        </div>
+
+        <div className="space-y-2 rounded-md border border-border bg-muted/30 p-3">
+          <p className="text-sm font-medium">Oppdatering</p>
+          {updateAvailable && (
+            <Button
+              size="sm"
+              className="w-full"
+              onClick={() => {
+                void applyUpdateAndReload();
+              }}
+            >
+              Oppdater nå til ny versjon
+            </Button>
+          )}
+          <Button
+            size="sm"
+            variant="outline"
+            className="w-full"
+            onClick={handleCheck}
+            disabled={checking}
+          >
+            {checking ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+            Se etter oppdatering
+          </Button>
+          {isSuperAdmin && (
+            <Button
+              size="sm"
+              variant="destructive"
+              className="w-full"
+              onClick={handleClear}
+              disabled={clearing}
+            >
+              {clearing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+              Tøm app-cache og last på nytt
+            </Button>
+          )}
         </div>
 
         <div className="space-y-2 rounded-md border border-border bg-muted/30 p-3">

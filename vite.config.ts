@@ -4,8 +4,19 @@ import path from "path";
 import { componentTagger } from "lovable-tagger";
 import { VitePWA } from "vite-plugin-pwa";
 
+const APP_BUILD_TIME = new Date().toISOString();
+const APP_VERSION =
+  process.env.VITE_APP_VERSION ||
+  process.env.LOVABLE_BUILD_ID ||
+  process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ||
+  APP_BUILD_TIME;
+
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
+  define: {
+    __APP_VERSION__: JSON.stringify(APP_VERSION),
+    __APP_BUILD_TIME__: JSON.stringify(APP_BUILD_TIME),
+  },
   server: {
     host: "::",
     port: 8080,
@@ -17,7 +28,9 @@ export default defineConfig(({ mode }) => ({
     react(),
     mode === "development" && componentTagger(),
     VitePWA({
-      registerType: "autoUpdate",
+      // "prompt" so onNeedRefresh fires and we can show the user a
+      // controlled "New version available — Update now" toast.
+      registerType: "prompt",
       injectRegister: null,
       filename: "sw.js",
       strategies: "generateSW",
@@ -29,8 +42,10 @@ export default defineConfig(({ mode }) => ({
         navigateFallbackDenylist: [/^\/~oauth/, /^\/api\//, /^\/functions\//, /^\/auth\/callback/],
         globPatterns: ["**/*.{js,css,html,svg,png,ico,woff2}"],
         cleanupOutdatedCaches: true,
-        clientsClaim: true,
-        skipWaiting: true,
+        // skipWaiting/clientsClaim are driven by updateSW(true) from the
+        // notifier instead — this avoids surprise reloads mid-typing.
+        clientsClaim: false,
+        skipWaiting: false,
         runtimeCaching: [
           {
             urlPattern: ({ request, url }) =>
