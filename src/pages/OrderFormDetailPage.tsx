@@ -68,7 +68,8 @@ import { LinkExistingTaskDialog } from "@/components/orders/LinkExistingTaskDial
 import { sanitizeStorageFileName } from "@/lib/storage-path";
 import { ChatMediaGrid } from "@/components/chat/ChatMediaGrid";
 import { SelectedFilesPreview } from "@/components/chat/SelectedFilesPreview";
-import { type ChatAttachment, isImageAttachment, formatBytes } from "@/components/chat/chat-attachments-util";
+import { AttachmentRenameDialog, type RenameTarget } from "@/components/chat/AttachmentRenameDialog";
+import { type ChatAttachment, isImageAttachment, formatBytes, attachmentLabel } from "@/components/chat/chat-attachments-util";
 
 export default function OrderFormDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -78,6 +79,8 @@ export default function OrderFormDetailPage() {
   const { activeCompanyId } = useCompanyContext();
   const [comment, setComment] = useState("");
   const [commentFiles, setCommentFiles] = useState<File[]>([]);
+  const [commentFileNames, setCommentFileNames] = useState<Record<number, string>>({});
+  const [renameTarget, setRenameTarget] = useState<RenameTarget | null>(null);
   const [commentVisibility, setCommentVisibility] = useState<"internal" | "shared">("internal");
   const [sendEmailNotification, setSendEmailNotification] = useState(false);
   const [requestInfoOpen, setRequestInfoOpen] = useState(false);
@@ -487,7 +490,8 @@ export default function OrderFormDetailPage() {
       // Upload attachments (if any) to storage + register in DB
       const companyId = (submission as any)?.company_id;
       const uploadFailures: string[] = [];
-      for (const file of commentFiles) {
+      for (let i = 0; i < commentFiles.length; i++) {
+        const file = commentFiles[i];
         const safeName = sanitizeStorageFileName(file.name);
         const path = `${companyId}/${id}/admin_${Date.now()}_${safeName}`;
         const { error: upErr } = await supabase.storage
@@ -501,11 +505,14 @@ export default function OrderFormDetailPage() {
           uploadFailures.push(`${file.name}: ${upErr.message}`);
           continue;
         }
+        const customName = (commentFileNames[i] || "").trim();
         const { error: insErr } = await supabase.from("order_form_submission_attachments").insert({
           submission_id: id!,
           field_key: "admin_message",
           category: isShared ? "Sendt til kunde" : "Intern",
           file_name: file.name,
+          original_filename: file.name,
+          display_name: customName || null,
           file_path: path,
           mime_type: file.type,
           file_size: file.size,
@@ -551,6 +558,7 @@ export default function OrderFormDetailPage() {
     onSuccess: () => {
       setComment("");
       setCommentFiles([]);
+      setCommentFileNames({});
       setAddressedTo(null);
       setSendEmailNotification(false);
       qc.invalidateQueries({ queryKey: ["order-form-comments", id] });
@@ -753,8 +761,28 @@ export default function OrderFormDetailPage() {
     },
   });
 
-  const confirmRemoveAttachment = (att: { id: string; file_name: string }) => {
-    if (window.confirm(`Fjerne "${att.file_name}" fra bestillingen? Kunden vil ikke lenger se vedlegget.`)) {
+  const renameAttachment = useMutation({
+    mutationFn: async (input: { id: string; displayName: string; description: string }) => {
+      const { error } = await supabase.rpc("rename_submission_attachment" as any, {
+        _attachment_id: input.id,
+        _display_name: input.displayName,
+        _description: input.description,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["order-form-attachments", id] });
+      toast.success("Visningsnavn oppdatert");
+      setRenameTarget(null);
+    },
+    onError: (err: any) => {
+      toast.error("Kunne ikke endre navn", { description: err?.message });
+    },
+  });
+
+  const confirmRemoveAttachment = (att: { id: string; file_name: string; display_name?: string | null }) => {
+    const label = att.display_name?.trim() || att.file_name;
+    if (window.confirm(`Fjerne "${label}" fra bestillingen? Kunden vil ikke lenger se vedlegget.`)) {
       removeAttachment.mutate(att.id);
     }
   };
@@ -1213,6 +1241,7 @@ export default function OrderFormDetailPage() {
                               attachment={att}
                               onPreview={() => setPreviewAttIdx(globalIdx)}
                               onRemove={() => confirmRemoveAttachment(att)}
+                              onRename={() => setRenameTarget(att as any)}
                             />
                           );
                         })}
@@ -1607,6 +1636,8 @@ export default function OrderFormDetailPage() {
                               onPreview={(att) => openChatLightbox(att)}
                               canDelete
                               onDelete={(att) => confirmRemoveAttachment(att as any)}
+                              canRename
+                              onRename={(att) => setRenameTarget(att as any)}
                             />
                           );
                         })()}
@@ -1817,7 +1848,22 @@ export default function OrderFormDetailPage() {
                   </label>
                   <SelectedFilesPreview
                     files={commentFiles}
-                    onRemove={(i) => setCommentFiles((prev) => prev.filter((_, j) => j !== i))}
+                    onRemove={(i) => {
+                      setCommentFiles((prev) => prev.filter((_, j) => j !== i));
+                      setCommentFileNames((prev) => {
+                        const next: Record<number, string> = {};
+                        Object.entries(prev).forEach(([k, v]) => {
+                          const idx = Number(k);
+                          if (idx < i) next[idx] = v;
+                          else if (idx > i) next[idx - 1] = v;
+                        });
+                        return next;
+                      });
+                    }}
+                    displayNames={commentFileNames}
+                    onDisplayNameChange={(i, v) =>
+                      setCommentFileNames((prev) => ({ ...prev, [i]: v }))
+                    }
                   />
                 </div>
 
@@ -2036,6 +2082,21 @@ export default function OrderFormDetailPage() {
         attachments={activeAttachments as any[]}
         initialIndex={previewAttIdx ?? 0}
         urlResolver={(att) => resolveOrderAttachmentSignedUrl(att as any)}
+        onRename={(att) => setRenameTarget(att as any)}
+      />
+      <AttachmentRenameDialog
+        open={renameTarget !== null}
+        onOpenChange={(o) => !o && setRenameTarget(null)}
+        attachment={renameTarget}
+        saving={renameAttachment.isPending}
+        onSubmit={async ({ displayName, description }) => {
+          if (!renameTarget) return;
+          await renameAttachment.mutateAsync({
+            id: renameTarget.id,
+            displayName,
+            description,
+          });
+        }}
       />
     </div>
   );
@@ -2078,14 +2139,19 @@ function AttachmentRow({
   attachment,
   onPreview,
   onRemove,
+  onRename,
 }: {
   attachment: any;
   onPreview?: () => void;
   onRemove?: () => void;
+  onRename?: () => void;
 }) {
   const isImage = isImageAttachment(attachment);
   const [url, setUrl] = useState<string | null>(null);
   const [loadingUrl, setLoadingUrl] = useState(false);
+  const label = attachmentLabel(attachment);
+  const originalName = attachment.original_filename || attachment.file_name;
+  const showOriginal = !!attachment.display_name && originalName && originalName !== label;
 
   useEffect(() => {
     let cancelled = false;
@@ -2140,21 +2206,36 @@ function AttachmentRow({
           )}
         </div>
         <div className="min-w-0 flex-1">
-          <span className="block truncate font-medium">{attachment.file_name}</span>
-          <span className="block text-[10px] text-muted-foreground">
-            {isImage ? "Bilde" : "Fil"}{attachment.file_size ? ` · ${formatBytes(attachment.file_size)}` : ""}
+          <span className="block truncate font-medium" title={showOriginal ? `Originalfil: ${originalName}` : label}>{label}</span>
+          <span className="block text-[10px] text-muted-foreground truncate">
+            {showOriginal ? `${originalName}` : (isImage ? "Bilde" : "Fil")}
+            {attachment.file_size ? ` · ${formatBytes(attachment.file_size)}` : ""}
           </span>
         </div>
       </button>
       <button
         type="button"
         onClick={handleDownload}
-        aria-label={`Last ned ${attachment.file_name}`}
+        aria-label={`Last ned ${label}`}
         title="Last ned"
-        className="absolute top-1/2 -translate-y-1/2 right-10 sm:right-9 h-8 w-8 rounded-lg text-muted-foreground hover:text-primary hover:bg-background border border-transparent hover:border-border flex items-center justify-center cursor-pointer"
+        className="absolute top-1/2 -translate-y-1/2 right-[4.75rem] sm:right-[4.25rem] h-8 w-8 rounded-lg text-muted-foreground hover:text-primary hover:bg-background border border-transparent hover:border-border flex items-center justify-center cursor-pointer"
       >
         <Download className="h-3.5 w-3.5" />
       </button>
+      {onRename && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onRename();
+          }}
+          aria-label={`Endre navn på ${label}`}
+          title="Endre visningsnavn"
+          className="absolute top-1/2 -translate-y-1/2 right-10 sm:right-9 h-8 w-8 rounded-lg text-muted-foreground hover:text-primary hover:bg-background border border-transparent hover:border-border flex items-center justify-center cursor-pointer"
+        >
+          <Pencil className="h-3.5 w-3.5" />
+        </button>
+      )}
       {onRemove && (
         <button
           type="button"
@@ -2162,7 +2243,7 @@ function AttachmentRow({
             e.stopPropagation();
             onRemove();
           }}
-          aria-label={`Fjern ${attachment.file_name}`}
+          aria-label={`Fjern ${label}`}
           title="Fjern vedlegg"
           className="absolute top-1/2 -translate-y-1/2 right-1.5 h-8 min-w-8 px-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 flex items-center justify-center opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity cursor-pointer"
         >

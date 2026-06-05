@@ -31,7 +31,7 @@ import { sanitizeStorageFileName } from "@/lib/storage-path";
 import { ChatMediaGrid } from "@/components/chat/ChatMediaGrid";
 import { SelectedFilesPreview } from "@/components/chat/SelectedFilesPreview";
 import { AttachmentPreviewDrawer } from "@/components/orders/AttachmentPreviewDrawer";
-import { type ChatAttachment, isImageAttachment } from "@/components/chat/chat-attachments-util";
+import { type ChatAttachment, isImageAttachment, attachmentLabel } from "@/components/chat/chat-attachments-util";
 
 import mascotReceived from "@/assets/mascot/received.png";
 import mascotProcessing from "@/assets/mascot/processing.png";
@@ -454,6 +454,7 @@ export default function OrderTrackingPage() {
   const isInternalViewer = !!user && user.role !== "customer_user";
   const [replyText, setReplyText] = useState("");
   const [replyFiles, setReplyFiles] = useState<File[]>([]);
+  const [replyFileNames, setReplyFileNames] = useState<Record<number, string>>({});
   const [lightboxAtts, setLightboxAtts] = useState<ChatAttachment[]>([]);
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const replyInputRef = useRef<HTMLTextAreaElement>(null);
@@ -606,7 +607,8 @@ export default function OrderTrackingPage() {
 
       const newMessageId: string | null = (sendResult as any)?.message?.id || null;
 
-      for (const file of replyFiles) {
+      for (let i = 0; i < replyFiles.length; i++) {
+        const file = replyFiles[i];
         const safeName = sanitizeStorageFileName(file.name);
         const path = `${sub.company_id}/${submission.id}/reply_${Date.now()}_${safeName}`;
         const { error: upErr } = await supabase.storage
@@ -620,10 +622,13 @@ export default function OrderTrackingPage() {
           toast.error(`Kunne ikke laste opp ${file.name}: ${upErr.message}`);
           continue;
         }
+        const customName = (replyFileNames[i] || "").trim();
         const { error: insErr } = await supabase.from("order_form_submission_attachments").insert({
           submission_id: submission.id,
           field_key: "customer_reply",
           file_name: file.name,
+          original_filename: file.name,
+          display_name: customName || null,
           file_path: path,
           mime_type: file.type,
           file_size: file.size,
@@ -694,6 +699,7 @@ export default function OrderTrackingPage() {
     onSuccess: () => {
       setReplyText("");
       setReplyFiles([]);
+      setReplyFileNames({});
       qc.invalidateQueries({ queryKey: ["tracking-messages", token] });
       qc.invalidateQueries({ queryKey: ["tracking-comments-legacy", token] });
       qc.invalidateQueries({ queryKey: ["tracking-attachments", token] });
@@ -1260,7 +1266,22 @@ export default function OrderTrackingPage() {
                     </label>
                     <SelectedFilesPreview
                       files={replyFiles}
-                      onRemove={(i) => setReplyFiles((prev) => prev.filter((_, j) => j !== i))}
+                      onRemove={(i) => {
+                        setReplyFiles((prev) => prev.filter((_, j) => j !== i));
+                        setReplyFileNames((prev) => {
+                          const next: Record<number, string> = {};
+                          Object.entries(prev).forEach(([k, v]) => {
+                            const idx = Number(k);
+                            if (idx < i) next[idx] = v;
+                            else if (idx > i) next[idx - 1] = v;
+                          });
+                          return next;
+                        });
+                      }}
+                      displayNames={replyFileNames}
+                      onDisplayNameChange={(i, v) =>
+                        setReplyFileNames((prev) => ({ ...prev, [i]: v }))
+                      }
                     />
                   </div>
 
@@ -1393,7 +1414,7 @@ function TrackingAttachmentRow({
         {isImage && thumbUrl ? (
           <img
             src={thumbUrl}
-            alt={att.file_name}
+            alt={attachmentLabel(att)}
             className="w-full h-full object-cover"
             loading="lazy"
             onError={() => setThumbFailed(true)}
@@ -1405,7 +1426,12 @@ function TrackingAttachmentRow({
         )}
       </div>
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-semibold text-foreground truncate">{att.file_name}</p>
+        <p
+          className="text-sm font-semibold text-foreground truncate"
+          title={att.display_name && att.file_name && att.display_name !== att.file_name ? `Originalfil: ${att.original_filename || att.file_name}` : undefined}
+        >
+          {attachmentLabel(att)}
+        </p>
         <div className="flex items-center gap-2 mt-0.5">
           {att.file_size && (
             <span className="text-[11px] text-muted-foreground">

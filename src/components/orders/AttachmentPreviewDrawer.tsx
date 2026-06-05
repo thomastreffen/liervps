@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { X, ChevronLeft, ChevronRight, ExternalLink, Download, Loader2, FileText } from "lucide-react";
+import { X, ChevronLeft, ChevronRight, ExternalLink, Download, Loader2, FileText, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { attachmentLabel, downloadFilename } from "@/components/chat/chat-attachments-util";
 
 interface Attachment {
   id: string;
@@ -10,6 +11,9 @@ interface Attachment {
   file_size?: number | null;
   mime_type?: string | null;
   category?: string | null;
+  display_name?: string | null;
+  original_filename?: string | null;
+  description?: string | null;
 }
 
 interface AttachmentPreviewDrawerProps {
@@ -19,10 +23,12 @@ interface AttachmentPreviewDrawerProps {
   initialIndex: number;
   /** Optional resolver used instead of supabase.storage.createSignedUrl. */
   urlResolver?: (att: Attachment) => Promise<string | null>;
+  /** When provided, viser blyantknapp i header som åpner rename-dialog. */
+  onRename?: (att: Attachment) => void;
 }
 
 export function AttachmentPreviewDrawer({
-  open, onClose, attachments, initialIndex, urlResolver,
+  open, onClose, attachments, initialIndex, urlResolver, onRename,
 }: AttachmentPreviewDrawerProps) {
   const [index, setIndex] = useState(initialIndex);
   const [signedUrl, setSignedUrl] = useState<string | null>(null);
@@ -102,8 +108,13 @@ export function AttachmentPreviewDrawer({
           <div className="flex items-center gap-3 min-w-0">
             <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
             <div className="min-w-0">
-              <p className="text-sm font-medium truncate">{current.file_name}</p>
-              <p className="text-[10px] text-muted-foreground">
+              <p className="text-sm font-medium truncate" title={current.file_name}>
+                {attachmentLabel(current)}
+              </p>
+              <p className="text-[10px] text-muted-foreground truncate">
+                {current.display_name && current.file_name && current.display_name !== current.file_name && (
+                  <span className="mr-2">Originalfil: {current.original_filename || current.file_name}</span>
+                )}
                 {current.category && <span className="mr-2">{current.category}</span>}
                 {current.file_size && (
                   current.file_size < 1024 * 1024
@@ -115,10 +126,21 @@ export function AttachmentPreviewDrawer({
             </div>
           </div>
           <div className="flex items-center gap-1 shrink-0">
+            {onRename && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => onRename(current)}
+                title="Endre visningsnavn"
+              >
+                <Pencil className="h-4 w-4" />
+              </Button>
+            )}
             {signedUrl && (
               <>
                 <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
-                  <a href={signedUrl} download={current.file_name} title="Last ned">
+                  <a href={signedUrl} download={downloadFilename(current)} title="Last ned">
                     <Download className="h-4 w-4" />
                   </a>
                 </Button>
@@ -164,7 +186,7 @@ export function AttachmentPreviewDrawer({
               {isImage && (
                 <img
                   src={signedUrl}
-                  alt={current.file_name}
+                  alt={attachmentLabel(current)}
                   className="max-w-full max-h-full object-contain p-4"
                 />
               )}
@@ -172,17 +194,17 @@ export function AttachmentPreviewDrawer({
                 <iframe
                   src={signedUrl}
                   className="w-full h-full border-0"
-                  title={current.file_name}
+                  title={attachmentLabel(current)}
                 />
               )}
               {!canPreview && (
                 <div className="flex flex-col items-center gap-3 text-muted-foreground p-6 text-center">
                   <FileText className="h-12 w-12" />
-                  <p className="text-sm font-medium">{current.file_name}</p>
+                  <p className="text-sm font-medium">{attachmentLabel(current)}</p>
                   <p className="text-xs">Forhåndsvisning er ikke tilgjengelig for denne filtypen</p>
                   <div className="flex gap-2 mt-2">
                     <Button size="sm" variant="outline" asChild>
-                      <a href={signedUrl} download={current.file_name}>
+                      <a href={signedUrl} download={downloadFilename(current)}>
                         <Download className="h-3.5 w-3.5 mr-1" /> Last ned
                       </a>
                     </Button>
@@ -233,9 +255,10 @@ export function AttachmentPreviewDrawer({
                     : "bg-muted/50 text-muted-foreground hover:bg-muted"
                 }`}
               >
-                {att.file_name.length > 25
-                  ? att.file_name.substring(0, 22) + "..."
-                  : att.file_name}
+                {(() => {
+                  const lbl = attachmentLabel(att);
+                  return lbl.length > 25 ? lbl.substring(0, 22) + "..." : lbl;
+                })()}
               </button>
             ))}
           </div>

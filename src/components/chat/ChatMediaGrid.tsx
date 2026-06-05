@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { FileText, Download, ImageOff, X } from "lucide-react";
+import { FileText, Download, ImageOff, X, Pencil } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   type ChatAttachment,
   isImageAttachment,
   formatBytes,
+  attachmentLabel,
 } from "./chat-attachments-util";
 
 export type AttachmentUrlResolver = (att: ChatAttachment) => Promise<string | null>;
@@ -23,6 +24,10 @@ interface ChatMediaGridProps {
   canDelete?: boolean;
   /** Called when the user confirms removing an attachment. */
   onDelete?: (att: ChatAttachment) => void;
+  /** Show a rename (pencil) affordance on each attachment. */
+  canRename?: boolean;
+  /** Called when the user clicks the rename affordance. */
+  onRename?: (att: ChatAttachment) => void;
 }
 
 /**
@@ -38,6 +43,8 @@ export function ChatMediaGrid({
   urlResolver,
   canDelete,
   onDelete,
+  canRename,
+  onRename,
 }: ChatMediaGridProps) {
   if (!attachments || attachments.length === 0) return null;
 
@@ -55,6 +62,8 @@ export function ChatMediaGrid({
           urlResolver={urlResolver}
           canDelete={canDelete}
           onDelete={onDelete}
+          canRename={canRename}
+          onRename={onRename}
         />
       )}
       {files.length > 0 && (
@@ -67,6 +76,8 @@ export function ChatMediaGrid({
               urlResolver={urlResolver}
               canDelete={canDelete}
               onDelete={onDelete}
+              canRename={canRename}
+              onRename={onRename}
             />
           ))}
         </div>
@@ -83,6 +94,8 @@ function ImageGrid({
   urlResolver,
   canDelete,
   onDelete,
+  canRename,
+  onRename,
 }: {
   images: ChatAttachment[];
   bucket: string;
@@ -91,6 +104,8 @@ function ImageGrid({
   urlResolver?: AttachmentUrlResolver;
   canDelete?: boolean;
   onDelete?: (att: ChatAttachment) => void;
+  canRename?: boolean;
+  onRename?: (att: ChatAttachment) => void;
 }) {
   const visible = images.slice(0, 4);
   const overflow = images.length - visible.length;
@@ -112,46 +127,73 @@ function ImageGrid({
         compact && (visible.length === 1 ? "max-w-[280px]" : "max-w-[320px]")
       )}
     >
-      {visible.map((img, idx) => (
-        <div
-          key={img.id}
-          className={cn(
-            "relative overflow-hidden rounded-xl bg-muted/60 border border-border/40 group",
-            visible.length === 1 ? "aspect-[4/3]" : "aspect-square"
-          )}
-        >
-          <button
-            type="button"
-            onClick={() => onPreview?.(img, idx, images)}
-            className="w-full h-full cursor-pointer"
-          >
-            <SignedImage
-              attachment={img}
-              bucket={bucket}
-              alt={img.file_name}
-              urlResolver={urlResolver}
-            />
-            {idx === visible.length - 1 && overflow > 0 && (
-              <div className="absolute inset-0 bg-black/50 flex items-center justify-center text-white text-lg font-bold">
-                +{overflow}
-              </div>
+      {visible.map((img, idx) => {
+        const label = attachmentLabel(img);
+        const originalName = img.original_filename || img.file_name;
+        const showOriginal = !!img.display_name && originalName && originalName !== label;
+        const tooltip = showOriginal ? `${label}\nOriginalfil: ${originalName}` : label;
+        return (
+          <div
+            key={img.id}
+            className={cn(
+              "relative overflow-hidden rounded-xl bg-muted/60 border border-border/40 group",
+              visible.length === 1 ? "aspect-[4/3]" : "aspect-square"
             )}
-          </button>
-          {canDelete && onDelete && (
+          >
             <button
               type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete(img);
-              }}
-              aria-label={`Fjern ${img.file_name}`}
-              className="absolute top-1 right-1 h-6 w-6 rounded-full bg-black/70 hover:bg-destructive text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+              onClick={() => onPreview?.(img, idx, images)}
+              className="w-full h-full cursor-pointer block"
+              title={tooltip}
             >
-              <X className="h-3.5 w-3.5" />
+              <SignedImage
+                attachment={img}
+                bucket={bucket}
+                alt={label}
+                urlResolver={urlResolver}
+              />
+              {idx === visible.length - 1 && overflow > 0 && (
+                <div className="absolute inset-0 bg-black/50 flex items-center justify-center text-white text-lg font-bold">
+                  +{overflow}
+                </div>
+              )}
             </button>
-          )}
-        </div>
-      ))}
+            {/* Caption with display name */}
+            <div className="absolute bottom-0 inset-x-0 px-2 py-1 text-[10px] text-white bg-gradient-to-t from-black/70 to-transparent truncate pointer-events-none">
+              {label}
+            </div>
+            <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              {canRename && onRename && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onRename(img);
+                  }}
+                  aria-label={`Endre navn på ${label}`}
+                  className="h-6 w-6 rounded-full bg-black/70 hover:bg-primary text-white flex items-center justify-center cursor-pointer"
+                  title="Endre navn"
+                >
+                  <Pencil className="h-3 w-3" />
+                </button>
+              )}
+              {canDelete && onDelete && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDelete(img);
+                  }}
+                  aria-label={`Fjern ${label}`}
+                  className="h-6 w-6 rounded-full bg-black/70 hover:bg-destructive text-white flex items-center justify-center cursor-pointer"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -180,7 +222,6 @@ async function resolveAttachmentUrl(
   resolver?: AttachmentUrlResolver,
 ): Promise<string | null> {
   if (resolver) {
-    // Use a per-attachment cache to avoid hammering the edge function on re-renders
     const key = `resolver::${att.id}`;
     const cached = signedUrlCache.get(key);
     const now = Date.now();
@@ -254,14 +295,22 @@ function FileChip({
   urlResolver,
   canDelete,
   onDelete,
+  canRename,
+  onRename,
 }: {
   attachment: ChatAttachment;
   bucket: string;
   urlResolver?: AttachmentUrlResolver;
   canDelete?: boolean;
   onDelete?: (att: ChatAttachment) => void;
+  canRename?: boolean;
+  onRename?: (att: ChatAttachment) => void;
 }) {
   const [downloading, setDownloading] = useState(false);
+  const label = attachmentLabel(attachment);
+  const originalName = attachment.original_filename || attachment.file_name;
+  const showOriginal = !!attachment.display_name && originalName && originalName !== label;
+
   const handleDownload = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -278,31 +327,50 @@ function FileChip({
         onClick={handleDownload}
         disabled={downloading}
         className="flex items-center gap-2 rounded-xl bg-background/70 hover:bg-background border border-border/60 px-2.5 py-2 text-left w-full transition-colors cursor-pointer"
+        title={showOriginal ? `Originalfil: ${originalName}` : label}
       >
         <div className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
           <FileText className="h-4 w-4 text-muted-foreground" />
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-xs font-semibold truncate text-foreground">{attachment.file_name}</p>
-          {attachment.file_size != null && (
-            <p className="text-[10px] text-muted-foreground">{formatBytes(attachment.file_size)}</p>
-          )}
+          <p className="text-xs font-semibold truncate text-foreground">{label}</p>
+          <p className="text-[10px] text-muted-foreground truncate">
+            {showOriginal ? originalName : null}
+            {showOriginal && attachment.file_size != null ? " · " : null}
+            {attachment.file_size != null ? formatBytes(attachment.file_size) : null}
+          </p>
         </div>
         <Download className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
       </button>
-      {canDelete && onDelete && (
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onDelete(attachment);
-          }}
-          aria-label={`Fjern ${attachment.file_name}`}
-          className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-background border border-border text-muted-foreground hover:text-destructive hover:border-destructive flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer shadow-sm"
-        >
-          <X className="h-3 w-3" />
-        </button>
-      )}
+      <div className="absolute -top-1.5 -right-1.5 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        {canRename && onRename && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onRename(attachment);
+            }}
+            aria-label={`Endre navn på ${label}`}
+            className="h-5 w-5 rounded-full bg-background border border-border text-muted-foreground hover:text-primary hover:border-primary flex items-center justify-center cursor-pointer shadow-sm"
+            title="Endre navn"
+          >
+            <Pencil className="h-3 w-3" />
+          </button>
+        )}
+        {canDelete && onDelete && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(attachment);
+            }}
+            aria-label={`Fjern ${label}`}
+            className="h-5 w-5 rounded-full bg-background border border-border text-muted-foreground hover:text-destructive hover:border-destructive flex items-center justify-center cursor-pointer shadow-sm"
+          >
+            <X className="h-3 w-3" />
+          </button>
+        )}
+      </div>
     </div>
   );
 }
