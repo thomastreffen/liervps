@@ -2124,14 +2124,19 @@ function AttachmentRow({
   attachment,
   onPreview,
   onRemove,
+  onRename,
 }: {
   attachment: any;
   onPreview?: () => void;
   onRemove?: () => void;
+  onRename?: () => void;
 }) {
   const isImage = isImageAttachment(attachment);
   const [url, setUrl] = useState<string | null>(null);
   const [loadingUrl, setLoadingUrl] = useState(false);
+  const label = attachmentLabel(attachment);
+  const originalName = attachment.original_filename || attachment.file_name;
+  const showOriginal = !!attachment.display_name && originalName && originalName !== label;
 
   useEffect(() => {
     let cancelled = false;
