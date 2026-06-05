@@ -68,7 +68,8 @@ import { LinkExistingTaskDialog } from "@/components/orders/LinkExistingTaskDial
 import { sanitizeStorageFileName } from "@/lib/storage-path";
 import { ChatMediaGrid } from "@/components/chat/ChatMediaGrid";
 import { SelectedFilesPreview } from "@/components/chat/SelectedFilesPreview";
-import { type ChatAttachment, isImageAttachment, formatBytes } from "@/components/chat/chat-attachments-util";
+import { AttachmentRenameDialog, type RenameTarget } from "@/components/chat/AttachmentRenameDialog";
+import { type ChatAttachment, isImageAttachment, formatBytes, attachmentLabel, downloadFilename } from "@/components/chat/chat-attachments-util";
 
 export default function OrderFormDetailPage() {
   const { id } = useParams<{ id: string }>();
