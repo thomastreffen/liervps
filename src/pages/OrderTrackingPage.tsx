@@ -794,6 +794,28 @@ export default function OrderTrackingPage() {
     [token],
   );
 
+  // Debug: surface what tracking page sees for media rendering.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    // eslint-disable-next-line no-console
+    console.info("[tracking-media-debug]", {
+      messages: (allMessages as any[]).map((m) => ({
+        id: m.id,
+        visible: m.is_visible_to_customer,
+        attachmentCount: attachmentsByMessage.get(m.id)?.length ?? 0,
+      })),
+      visibleAttachments: (attachments as any[]).map((a) => ({
+        id: a.id,
+        name: a.file_name,
+        message_id: a.message_id,
+        mime_type: a.mime_type,
+        field_key: a.field_key,
+        deleted_at: a.deleted_at,
+        isImage: isImageAttachment(a),
+      })),
+    });
+  }, [allMessages, attachments, attachmentsByMessage]);
+
   const openLightbox = (att: ChatAttachment, idx: number, list: ChatAttachment[]) => {
     setLightboxAtts(list);
     setLightboxIndex(idx);
