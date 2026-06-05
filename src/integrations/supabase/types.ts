@@ -8882,6 +8882,9 @@ export type Database = {
       order_form_submission_attachments: {
         Row: {
           category: string | null
+          deleted_at: string | null
+          deleted_by: string | null
+          deleted_reason: string | null
           field_key: string | null
           file_name: string
           file_path: string
@@ -8895,6 +8898,9 @@ export type Database = {
         }
         Insert: {
           category?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          deleted_reason?: string | null
           field_key?: string | null
           file_name: string
           file_path: string
@@ -8908,6 +8914,9 @@ export type Database = {
         }
         Update: {
           category?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          deleted_reason?: string | null
           field_key?: string | null
           file_name?: string
           file_path?: string
@@ -12255,6 +12264,31 @@ export type Database = {
         Args: { _source_id: string; _source_kind: string }
         Returns: string
       }
+      get_attachment_by_token: {
+        Args: { _attachment_id: string; _token: string }
+        Returns: {
+          category: string | null
+          deleted_at: string | null
+          deleted_by: string | null
+          deleted_reason: string | null
+          field_key: string | null
+          file_name: string
+          file_path: string
+          file_size: number | null
+          id: string
+          message_id: string | null
+          mime_type: string | null
+          submission_id: string
+          uploaded_at: string
+          uploaded_by: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "order_form_submission_attachments"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       get_field_requests_by_token: {
         Args: { _token: string }
         Returns: {
@@ -12375,6 +12409,9 @@ export type Database = {
         Args: { _token: string }
         Returns: {
           category: string | null
+          deleted_at: string | null
+          deleted_by: string | null
+          deleted_reason: string | null
           field_key: string | null
           file_name: string
           file_path: string
