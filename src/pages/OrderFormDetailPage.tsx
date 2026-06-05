@@ -1635,6 +1635,8 @@ export default function OrderFormDetailPage() {
                               onPreview={(att) => openChatLightbox(att)}
                               canDelete
                               onDelete={(att) => confirmRemoveAttachment(att as any)}
+                              canRename
+                              onRename={(att) => setRenameTarget(att as any)}
                             />
                           );
                         })()}
