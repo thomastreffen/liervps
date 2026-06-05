@@ -79,6 +79,8 @@ export default function OrderFormDetailPage() {
   const { activeCompanyId } = useCompanyContext();
   const [comment, setComment] = useState("");
   const [commentFiles, setCommentFiles] = useState<File[]>([]);
+  const [commentFileNames, setCommentFileNames] = useState<Record<number, string>>({});
+  const [renameTarget, setRenameTarget] = useState<RenameTarget | null>(null);
   const [commentVisibility, setCommentVisibility] = useState<"internal" | "shared">("internal");
   const [sendEmailNotification, setSendEmailNotification] = useState(false);
   const [requestInfoOpen, setRequestInfoOpen] = useState(false);
