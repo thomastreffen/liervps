@@ -1381,6 +1381,17 @@ function TrackingAttachmentRow({
   const [downloading, setDownloading] = useState(false);
 
   useEffect(() => {
+    // eslint-disable-next-line no-console
+    console.info("[tracking-attachment-row-active]", {
+      buildVersion: APP_VERSION,
+      attachmentId: att.id,
+      name: att.display_name || att.file_name || att.name,
+      isImage,
+      hasResolver: !!resolver,
+    });
+  }, [att.id, att.display_name, att.file_name, att.name, isImage, resolver]);
+
+  useEffect(() => {
     let cancelled = false;
     if (!isImage) return;
     setThumbFailed(false);
