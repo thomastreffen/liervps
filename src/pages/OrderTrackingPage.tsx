@@ -1295,7 +1295,83 @@ export default function OrderTrackingPage() {
         onClose={() => setLightboxAtts([])}
         attachments={lightboxAtts as any}
         initialIndex={lightboxIndex}
+        urlResolver={trackingUrlResolver}
       />
+    </div>
+  );
+}
+
+/* ── Tracking attachment row: image thumbnail or file chip, both with preview/download ── */
+function TrackingAttachmentRow({
+  att,
+  resolver,
+  onPreview,
+}: {
+  att: any;
+  resolver: (a: { id: string }) => Promise<string | null>;
+  onPreview: () => void;
+}) {
+  const isImage = (att.mime_type || "").startsWith("image/") ||
+    /\.(jpe?g|png|gif|webp|heic|heif|bmp|avif|svg)$/i.test(att.file_name || "");
+
+  const [thumbUrl, setThumbUrl] = useState<string | null>(null);
+  const [downloading, setDownloading] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!isImage) return;
+    resolver(att).then((u) => {
+      if (!cancelled) setThumbUrl(u);
+    });
+    return () => { cancelled = true; };
+  }, [att, isImage, resolver]);
+
+  const handleDownload = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setDownloading(true);
+    const url = await resolver(att);
+    setDownloading(false);
+    if (url) window.open(url, "_blank", "noopener,noreferrer");
+  };
+
+  return (
+    <div
+      className="flex items-center gap-3 p-3 rounded-2xl border border-border/50 bg-muted/20 hover:bg-muted/40 transition-colors group cursor-pointer"
+      onClick={isImage ? onPreview : handleDownload}
+    >
+      <div className="h-12 w-12 rounded-xl bg-background border border-border/60 flex items-center justify-center shrink-0 overflow-hidden">
+        {isImage && thumbUrl ? (
+          <img src={thumbUrl} alt={att.file_name} className="w-full h-full object-cover" loading="lazy" />
+        ) : isImage ? (
+          <div className="w-full h-full bg-muted animate-pulse" />
+        ) : (
+          <FileText className="h-4 w-4 text-muted-foreground" />
+        )}
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-semibold text-foreground truncate">{att.file_name}</p>
+        <div className="flex items-center gap-2 mt-0.5">
+          {att.file_size && (
+            <span className="text-[11px] text-muted-foreground">
+              {att.file_size < 1024 * 1024
+                ? `${Math.round(att.file_size / 1024)} KB`
+                : `${(att.file_size / 1024 / 1024).toFixed(1)} MB`}
+            </span>
+          )}
+          {att.field_key === "customer_reply" && (
+            <Badge variant="outline" className="text-[9px]">Ettersendt</Badge>
+          )}
+        </div>
+      </div>
+      <button
+        type="button"
+        onClick={handleDownload}
+        disabled={downloading}
+        className="h-9 w-9 rounded-xl bg-background border border-border/60 text-muted-foreground hover:text-primary hover:border-primary/40 flex items-center justify-center shrink-0 transition-colors"
+        aria-label="Last ned"
+      >
+        <Download className="h-4 w-4" />
+      </button>
     </div>
   );
 }
