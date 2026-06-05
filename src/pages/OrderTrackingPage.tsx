@@ -604,6 +604,8 @@ export default function OrderTrackingPage() {
         throw new Error((sendResult as any).error);
       }
 
+      const newMessageId: string | null = (sendResult as any)?.message?.id || null;
+
       for (const file of replyFiles) {
         const safeName = sanitizeStorageFileName(file.name);
         const path = `${sub.company_id}/${submission.id}/reply_${Date.now()}_${safeName}`;
@@ -625,6 +627,7 @@ export default function OrderTrackingPage() {
           file_path: path,
           mime_type: file.type,
           file_size: file.size,
+          message_id: newMessageId,
         } as any);
         if (insErr) {
           console.error("[OrderTracking] attachment insert failed", { path, error: insErr });
