@@ -1266,7 +1266,22 @@ export default function OrderTrackingPage() {
                     </label>
                     <SelectedFilesPreview
                       files={replyFiles}
-                      onRemove={(i) => setReplyFiles((prev) => prev.filter((_, j) => j !== i))}
+                      onRemove={(i) => {
+                        setReplyFiles((prev) => prev.filter((_, j) => j !== i));
+                        setReplyFileNames((prev) => {
+                          const next: Record<number, string> = {};
+                          Object.entries(prev).forEach(([k, v]) => {
+                            const idx = Number(k);
+                            if (idx < i) next[idx] = v;
+                            else if (idx > i) next[idx - 1] = v;
+                          });
+                          return next;
+                        });
+                      }}
+                      displayNames={replyFileNames}
+                      onDisplayNameChange={(i, v) =>
+                        setReplyFileNames((prev) => ({ ...prev, [i]: v }))
+                      }
                     />
                   </div>
 
