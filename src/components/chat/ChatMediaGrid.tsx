@@ -197,10 +197,3 @@ function FileChip({ attachment, bucket }: { attachment: ChatAttachment; bucket: 
   );
 }
 
-// Allow attachments to carry either `file_path` or `path` so the component is
-// resilient to slightly different shapes.
-declare module "./chat-attachments-util" {
-  interface ChatAttachment {
-    path?: string;
-  }
-}
