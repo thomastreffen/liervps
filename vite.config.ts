@@ -28,7 +28,9 @@ export default defineConfig(({ mode }) => ({
     react(),
     mode === "development" && componentTagger(),
     VitePWA({
-      registerType: "autoUpdate",
+      // "prompt" so onNeedRefresh fires and we can show the user a
+      // controlled "New version available — Update now" toast.
+      registerType: "prompt",
       injectRegister: null,
       filename: "sw.js",
       strategies: "generateSW",
@@ -40,8 +42,10 @@ export default defineConfig(({ mode }) => ({
         navigateFallbackDenylist: [/^\/~oauth/, /^\/api\//, /^\/functions\//, /^\/auth\/callback/],
         globPatterns: ["**/*.{js,css,html,svg,png,ico,woff2}"],
         cleanupOutdatedCaches: true,
-        clientsClaim: true,
-        skipWaiting: true,
+        // skipWaiting/clientsClaim are driven by updateSW(true) from the
+        // notifier instead — this avoids surprise reloads mid-typing.
+        clientsClaim: false,
+        skipWaiting: false,
         runtimeCaching: [
           {
             urlPattern: ({ request, url }) =>
