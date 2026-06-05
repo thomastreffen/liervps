@@ -761,8 +761,28 @@ export default function OrderFormDetailPage() {
     },
   });
 
-  const confirmRemoveAttachment = (att: { id: string; file_name: string }) => {
-    if (window.confirm(`Fjerne "${att.file_name}" fra bestillingen? Kunden vil ikke lenger se vedlegget.`)) {
+  const renameAttachment = useMutation({
+    mutationFn: async (input: { id: string; displayName: string; description: string }) => {
+      const { error } = await supabase.rpc("rename_submission_attachment" as any, {
+        _attachment_id: input.id,
+        _display_name: input.displayName,
+        _description: input.description,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["order-form-attachments", id] });
+      toast.success("Visningsnavn oppdatert");
+      setRenameTarget(null);
+    },
+    onError: (err: any) => {
+      toast.error("Kunne ikke endre navn", { description: err?.message });
+    },
+  });
+
+  const confirmRemoveAttachment = (att: { id: string; file_name: string; display_name?: string | null }) => {
+    const label = att.display_name?.trim() || att.file_name;
+    if (window.confirm(`Fjerne "${label}" fra bestillingen? Kunden vil ikke lenger se vedlegget.`)) {
       removeAttachment.mutate(att.id);
     }
   };
