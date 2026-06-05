@@ -2191,21 +2191,36 @@ function AttachmentRow({
           )}
         </div>
         <div className="min-w-0 flex-1">
-          <span className="block truncate font-medium">{attachment.file_name}</span>
-          <span className="block text-[10px] text-muted-foreground">
-            {isImage ? "Bilde" : "Fil"}{attachment.file_size ? ` · ${formatBytes(attachment.file_size)}` : ""}
+          <span className="block truncate font-medium" title={showOriginal ? `Originalfil: ${originalName}` : label}>{label}</span>
+          <span className="block text-[10px] text-muted-foreground truncate">
+            {showOriginal ? `${originalName}` : (isImage ? "Bilde" : "Fil")}
+            {attachment.file_size ? ` · ${formatBytes(attachment.file_size)}` : ""}
           </span>
         </div>
       </button>
       <button
         type="button"
         onClick={handleDownload}
-        aria-label={`Last ned ${attachment.file_name}`}
+        aria-label={`Last ned ${label}`}
         title="Last ned"
-        className="absolute top-1/2 -translate-y-1/2 right-10 sm:right-9 h-8 w-8 rounded-lg text-muted-foreground hover:text-primary hover:bg-background border border-transparent hover:border-border flex items-center justify-center cursor-pointer"
+        className="absolute top-1/2 -translate-y-1/2 right-[4.75rem] sm:right-[4.25rem] h-8 w-8 rounded-lg text-muted-foreground hover:text-primary hover:bg-background border border-transparent hover:border-border flex items-center justify-center cursor-pointer"
       >
         <Download className="h-3.5 w-3.5" />
       </button>
+      {onRename && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onRename();
+          }}
+          aria-label={`Endre navn på ${label}`}
+          title="Endre visningsnavn"
+          className="absolute top-1/2 -translate-y-1/2 right-10 sm:right-9 h-8 w-8 rounded-lg text-muted-foreground hover:text-primary hover:bg-background border border-transparent hover:border-border flex items-center justify-center cursor-pointer"
+        >
+          <Pencil className="h-3.5 w-3.5" />
+        </button>
+      )}
       {onRemove && (
         <button
           type="button"
@@ -2213,7 +2228,7 @@ function AttachmentRow({
             e.stopPropagation();
             onRemove();
           }}
-          aria-label={`Fjern ${attachment.file_name}`}
+          aria-label={`Fjern ${label}`}
           title="Fjern vedlegg"
           className="absolute top-1/2 -translate-y-1/2 right-1.5 h-8 min-w-8 px-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 flex items-center justify-center opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity cursor-pointer"
         >
