@@ -1414,7 +1414,7 @@ function TrackingAttachmentRow({
         {isImage && thumbUrl ? (
           <img
             src={thumbUrl}
-            alt={att.file_name}
+            alt={attachmentLabel(att)}
             className="w-full h-full object-cover"
             loading="lazy"
             onError={() => setThumbFailed(true)}
@@ -1426,7 +1426,12 @@ function TrackingAttachmentRow({
         )}
       </div>
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-semibold text-foreground truncate">{att.file_name}</p>
+        <p
+          className="text-sm font-semibold text-foreground truncate"
+          title={att.display_name && att.file_name && att.display_name !== att.file_name ? `Originalfil: ${att.original_filename || att.file_name}` : undefined}
+        >
+          {attachmentLabel(att)}
+        </p>
         <div className="flex items-center gap-2 mt-0.5">
           {att.file_size && (
             <span className="text-[11px] text-muted-foreground">
