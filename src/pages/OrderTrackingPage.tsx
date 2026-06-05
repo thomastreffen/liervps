@@ -607,7 +607,8 @@ export default function OrderTrackingPage() {
 
       const newMessageId: string | null = (sendResult as any)?.message?.id || null;
 
-      for (const file of replyFiles) {
+      for (let i = 0; i < replyFiles.length; i++) {
+        const file = replyFiles[i];
         const safeName = sanitizeStorageFileName(file.name);
         const path = `${sub.company_id}/${submission.id}/reply_${Date.now()}_${safeName}`;
         const { error: upErr } = await supabase.storage
@@ -621,10 +622,13 @@ export default function OrderTrackingPage() {
           toast.error(`Kunne ikke laste opp ${file.name}: ${upErr.message}`);
           continue;
         }
+        const customName = (replyFileNames[i] || "").trim();
         const { error: insErr } = await supabase.from("order_form_submission_attachments").insert({
           submission_id: submission.id,
           field_key: "customer_reply",
           file_name: file.name,
+          original_filename: file.name,
+          display_name: customName || null,
           file_path: path,
           mime_type: file.type,
           file_size: file.size,
