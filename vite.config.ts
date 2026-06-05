@@ -48,6 +48,16 @@ export default defineConfig(({ mode }) => ({
         skipWaiting: false,
         runtimeCaching: [
           {
+            // Tracking pages must never be pinned to an old app-shell for a customer.
+            // If online, always go to the network; if offline, show the browser/offline error.
+            urlPattern: ({ request, url }) =>
+              request.mode === "navigate" && url.pathname.startsWith("/bestilling/status/"),
+            handler: "NetworkOnly",
+            options: {
+              cacheName: "tracking-navigations-network-only",
+            },
+          },
+          {
             urlPattern: ({ request, url }) =>
               request.mode === "navigate" && !url.pathname.startsWith("/~oauth"),
             handler: "NetworkFirst",
