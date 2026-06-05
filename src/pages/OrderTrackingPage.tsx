@@ -28,6 +28,10 @@ import { useAuth } from "@/hooks/useAuth";
 import { useCustomerConversationReads } from "@/hooks/useCustomerConversationReads";
 import { CustomerMessageReadIndicator } from "@/components/orders/conversation/CustomerMessageReadIndicator";
 import { sanitizeStorageFileName } from "@/lib/storage-path";
+import { ChatMediaGrid } from "@/components/chat/ChatMediaGrid";
+import { SelectedFilesPreview } from "@/components/chat/SelectedFilesPreview";
+import { AttachmentPreviewDrawer } from "@/components/orders/AttachmentPreviewDrawer";
+import type { ChatAttachment } from "@/components/chat/chat-attachments-util";
 
 import mascotReceived from "@/assets/mascot/received.png";
 import mascotProcessing from "@/assets/mascot/processing.png";
