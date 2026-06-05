@@ -509,6 +509,7 @@ export default function OrderFormDetailPage() {
           mime_type: file.type,
           file_size: file.size,
           uploaded_by: user?.id,
+          message_id: insertedMsg?.id || null,
         } as any);
         if (insErr) {
           console.error("[admin-message attachment insert] failed", { path, error: insErr });
