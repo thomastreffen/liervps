@@ -1845,7 +1845,22 @@ export default function OrderFormDetailPage() {
                   </label>
                   <SelectedFilesPreview
                     files={commentFiles}
-                    onRemove={(i) => setCommentFiles((prev) => prev.filter((_, j) => j !== i))}
+                    onRemove={(i) => {
+                      setCommentFiles((prev) => prev.filter((_, j) => j !== i));
+                      setCommentFileNames((prev) => {
+                        const next: Record<number, string> = {};
+                        Object.entries(prev).forEach(([k, v]) => {
+                          const idx = Number(k);
+                          if (idx < i) next[idx] = v;
+                          else if (idx > i) next[idx - 1] = v;
+                        });
+                        return next;
+                      });
+                    }}
+                    displayNames={commentFileNames}
+                    onDisplayNameChange={(i, v) =>
+                      setCommentFileNames((prev) => ({ ...prev, [i]: v }))
+                    }
                   />
                 </div>
 
