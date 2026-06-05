@@ -66,6 +66,9 @@ import { RequestFieldsDialog } from "@/components/orders/RequestFieldsDialog";
 import { LinkExistingTaskDialog } from "@/components/orders/LinkExistingTaskDialog";
 import { FileUpload } from "@/components/FileUpload";
 import { sanitizeStorageFileName } from "@/lib/storage-path";
+import { ChatMediaGrid } from "@/components/chat/ChatMediaGrid";
+import { SelectedFilesPreview } from "@/components/chat/SelectedFilesPreview";
+import type { ChatAttachment } from "@/components/chat/chat-attachments-util";
 
 export default function OrderFormDetailPage() {
   const { id } = useParams<{ id: string }>();
