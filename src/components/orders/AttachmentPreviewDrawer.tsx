@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { X, ChevronLeft, ChevronRight, ExternalLink, Download, Loader2, FileText } from "lucide-react";
+import { X, ChevronLeft, ChevronRight, ExternalLink, Download, Loader2, FileText, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { attachmentLabel, downloadFilename } from "@/components/chat/chat-attachments-util";
 
 interface Attachment {
   id: string;
@@ -10,6 +11,9 @@ interface Attachment {
   file_size?: number | null;
   mime_type?: string | null;
   category?: string | null;
+  display_name?: string | null;
+  original_filename?: string | null;
+  description?: string | null;
 }
 
 interface AttachmentPreviewDrawerProps {
@@ -19,6 +23,8 @@ interface AttachmentPreviewDrawerProps {
   initialIndex: number;
   /** Optional resolver used instead of supabase.storage.createSignedUrl. */
   urlResolver?: (att: Attachment) => Promise<string | null>;
+  /** When provided, viser blyantknapp i header som åpner rename-dialog. */
+  onRename?: (att: Attachment) => void;
 }
 
 export function AttachmentPreviewDrawer({
