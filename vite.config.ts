@@ -53,9 +53,6 @@ export default defineConfig(({ mode }) => ({
             urlPattern: ({ request, url }) =>
               request.mode === "navigate" && url.pathname.startsWith("/bestilling/status/"),
             handler: "NetworkOnly",
-            options: {
-              cacheName: "tracking-navigations-network-only",
-            },
           },
           {
             urlPattern: ({ request, url }) =>
@@ -63,7 +60,6 @@ export default defineConfig(({ mode }) => ({
             handler: "NetworkFirst",
             options: {
               cacheName: "html-navigations",
-              networkTimeoutSeconds: 4,
               precacheFallback: { fallbackURL: "/offline.html" },
             },
           },
