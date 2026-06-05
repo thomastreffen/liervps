@@ -763,6 +763,23 @@ export default function OrderTrackingPage() {
   const hasMessages = allMessages.length > 0;
   const isClosed = externalStatus === "completed" || externalStatus === "closed";
 
+  // Group attachments by message_id for in-bubble rendering
+  const attachmentsByMessage = useMemo(() => {
+    const map = new Map<string, ChatAttachment[]>();
+    (attachments as any[]).forEach((a) => {
+      if (!a.message_id) return;
+      const list = map.get(a.message_id) || [];
+      list.push(a as ChatAttachment);
+      map.set(a.message_id, list);
+    });
+    return map;
+  }, [attachments]);
+
+  const openLightbox = (att: ChatAttachment, idx: number, list: ChatAttachment[]) => {
+    setLightboxAtts(list);
+    setLightboxIndex(idx);
+  };
+
   // === New hero identity: site/address is primary, customer/template secondary ===
   const pickStr = (...vals: any[]) =>
     vals.map((v) => (typeof v === "string" ? v.trim() : "")).find((v) => v) || "";
