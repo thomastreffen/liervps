@@ -31,7 +31,7 @@ import { sanitizeStorageFileName } from "@/lib/storage-path";
 import { ChatMediaGrid } from "@/components/chat/ChatMediaGrid";
 import { SelectedFilesPreview } from "@/components/chat/SelectedFilesPreview";
 import { AttachmentPreviewDrawer } from "@/components/orders/AttachmentPreviewDrawer";
-import type { ChatAttachment } from "@/components/chat/chat-attachments-util";
+import { type ChatAttachment, isImageAttachment } from "@/components/chat/chat-attachments-util";
 
 import mascotReceived from "@/assets/mascot/received.png";
 import mascotProcessing from "@/assets/mascot/processing.png";
