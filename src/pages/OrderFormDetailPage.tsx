@@ -773,6 +773,20 @@ export default function OrderFormDetailPage() {
     attByCategory[cat].push(a);
   });
 
+  // Index attachments by message_id for in-bubble chat rendering
+  const attachmentsByMessage = new Map<string, ChatAttachment[]>();
+  (attachments as any[]).forEach((a) => {
+    if (!a.message_id) return;
+    const list = attachmentsByMessage.get(a.message_id) || [];
+    list.push(a as ChatAttachment);
+    attachmentsByMessage.set(a.message_id, list);
+  });
+
+  const openChatLightbox = (att: ChatAttachment) => {
+    const idx = (attachments as any[]).findIndex((a) => a.id === att.id);
+    if (idx >= 0) setPreviewAttIdx(idx);
+  };
+
   const hasNotification = !!sub.notification_sent_at;
   const hasConfirmation = !!sub.confirmation_sent_at;
   const hasError = !!sub.notification_error;
