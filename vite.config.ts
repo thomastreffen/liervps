@@ -39,7 +39,13 @@ export default defineConfig(({ mode }) => ({
       workbox: {
         maximumFileSizeToCacheInBytes: 10 * 1024 * 1024,
         navigateFallback: "/index.html",
-        navigateFallbackDenylist: [/^\/~oauth/, /^\/api\//, /^\/functions\//, /^\/auth\/callback/],
+        navigateFallbackDenylist: [
+          /^\/bestilling\/status\//,
+          /^\/~oauth/,
+          /^\/api\//,
+          /^\/functions\//,
+          /^\/auth\/callback/,
+        ],
         globPatterns: ["**/*.{js,css,html,svg,png,ico,woff2}"],
         cleanupOutdatedCaches: true,
         // skipWaiting/clientsClaim are driven by updateSW(true) from the
@@ -48,12 +54,18 @@ export default defineConfig(({ mode }) => ({
         skipWaiting: false,
         runtimeCaching: [
           {
+            // Tracking pages must never be pinned to an old app-shell for a customer.
+            // If online, always go to the network; if offline, show the browser/offline error.
+            urlPattern: ({ request, url }) =>
+              request.mode === "navigate" && url.pathname.startsWith("/bestilling/status/"),
+            handler: "NetworkOnly",
+          },
+          {
             urlPattern: ({ request, url }) =>
               request.mode === "navigate" && !url.pathname.startsWith("/~oauth"),
             handler: "NetworkFirst",
             options: {
               cacheName: "html-navigations",
-              networkTimeoutSeconds: 4,
               precacheFallback: { fallbackURL: "/offline.html" },
             },
           },

@@ -32,6 +32,7 @@ import { ChatMediaGrid } from "@/components/chat/ChatMediaGrid";
 import { SelectedFilesPreview } from "@/components/chat/SelectedFilesPreview";
 import { AttachmentPreviewDrawer } from "@/components/orders/AttachmentPreviewDrawer";
 import { type ChatAttachment, isImageAttachment, attachmentLabel } from "@/components/chat/chat-attachments-util";
+import { APP_VERSION } from "@/pwa/buildVersion";
 
 import mascotReceived from "@/assets/mascot/received.png";
 import mascotProcessing from "@/assets/mascot/processing.png";
@@ -463,6 +464,10 @@ export default function OrderTrackingPage() {
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
   }, [token]);
+
+  useEffect(() => {
+    console.info("[mcs-build-version]", APP_VERSION, window.location.pathname);
+  }, []);
 
   const { data: submission, isLoading, error } = useQuery({
     queryKey: ["tracking", token],
@@ -1373,6 +1378,16 @@ function TrackingAttachmentRow({
   const [thumbUrl, setThumbUrl] = useState<string | null>(null);
   const [thumbFailed, setThumbFailed] = useState(false);
   const [downloading, setDownloading] = useState(false);
+
+  useEffect(() => {
+    console.info("[tracking-attachment-row-active]", {
+      buildVersion: APP_VERSION,
+      attachmentId: att.id,
+      name: att.display_name || att.file_name || att.name,
+      isImage,
+      hasResolver: !!resolver,
+    });
+  }, [att.id, att.display_name, att.file_name, att.name, isImage, resolver]);
 
   useEffect(() => {
     let cancelled = false;

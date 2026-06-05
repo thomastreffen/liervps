@@ -7,8 +7,12 @@
 //   - one-shot stale-chunk reload (handled in chunkErrorRecovery)
 
 import { registerSW as viteRegisterSW } from "virtual:pwa-register";
-
-const APP_SW_PATHS = ["/sw.js", "/service-worker.js"];
+import {
+  getAppServiceWorkerRegistrations,
+  handleFreshResetIfRequested,
+  unregisterAppServiceWorkers,
+} from "./freshReset";
+export { clearAppCachesAndUnregister } from "./freshReset";
 
 type UpdateListener = (state: { needRefresh: boolean; offlineReady: boolean }) => void;
 let needRefresh = false;
@@ -67,58 +71,8 @@ function shouldRefuse(): boolean {
   return false;
 }
 
-async function getAppRegistrations(): Promise<ServiceWorkerRegistration[]> {
-  if (!("serviceWorker" in navigator)) return [];
-  try {
-    const regs = await navigator.serviceWorker.getRegistrations();
-    return regs.filter((r) => {
-      const url = r.active?.scriptURL || r.installing?.scriptURL || r.waiting?.scriptURL || "";
-      return APP_SW_PATHS.some((p) => url.endsWith(p));
-    });
-  } catch {
-    return [];
-  }
-}
-
-async function unregisterAppSW() {
-  const regs = await getAppRegistrations();
-  await Promise.all(regs.map((r) => r.unregister().catch(() => false)));
-}
-
-async function deleteAppCaches() {
-  if (typeof caches === "undefined") return;
-  try {
-    const names = await caches.keys();
-    // workbox/vite-plugin-pwa cache buckets for this scope
-    const targets = names.filter(
-      (n) =>
-        /precache-v\d+/.test(n) ||
-        /-runtime/.test(n) ||
-        n.startsWith("html-navigations") ||
-        n.startsWith("static-assets") ||
-        n.startsWith("workbox-"),
-    );
-    await Promise.all(targets.map((n) => caches.delete(n).catch(() => false)));
-  } catch {
-    /* noop */
-  }
-}
-
-export async function clearAppCachesAndUnregister() {
-  await unregisterAppSW();
-  await deleteAppCaches();
-}
-
 async function handleFreshQuery(): Promise<boolean> {
-  const params = new URLSearchParams(window.location.search);
-  if (params.get("fresh") !== "1") return false;
-  await clearAppCachesAndUnregister();
-  params.delete("fresh");
-  const search = params.toString();
-  const newUrl =
-    window.location.pathname + (search ? `?${search}` : "") + window.location.hash;
-  window.location.replace(newUrl);
-  return true;
+  return handleFreshResetIfRequested();
 }
 
 export function registerServiceWorker() {
@@ -130,7 +84,7 @@ export function registerServiceWorker() {
     if (handled) return;
 
     if (shouldRefuse()) {
-      void unregisterAppSW();
+      void unregisterAppServiceWorkers();
       return;
     }
 
@@ -140,7 +94,6 @@ export function registerServiceWorker() {
         onNeedRefresh() {
           needRefresh = true;
           emit();
-          // eslint-disable-next-line no-console
           console.info("[pwa] update available");
         },
         onOfflineReady() {
@@ -160,12 +113,10 @@ export function registerServiceWorker() {
           }
         },
         onRegisterError(err) {
-          // eslint-disable-next-line no-console
           console.warn("[pwa] register error", err);
         },
       });
     } catch (err) {
-      // eslint-disable-next-line no-console
       console.warn("[pwa] register failed", err);
     }
   });
@@ -173,7 +124,7 @@ export function registerServiceWorker() {
 
 export async function checkForUpdate(): Promise<boolean> {
   if (!currentRegistration) {
-    const regs = await getAppRegistrations();
+    const regs = await getAppServiceWorkerRegistrations();
     currentRegistration = regs[0];
   }
   if (!currentRegistration) return false;

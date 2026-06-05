@@ -132,7 +132,7 @@ export function PwaStatusDialog({ open, onOpenChange }: Props) {
         </DialogHeader>
 
         <div className="rounded-md border border-border bg-card px-3">
-          <Row label="App-versjon" value={APP_VERSION} />
+          <Row label="Build-versjon" value={APP_VERSION} />
           <Row label="Bygget" value={buildTimeLabel} />
           <Row label="Ny versjon tilgjengelig" value={updateAvailable} />
           <Row label="Standalone" value={standalone} />

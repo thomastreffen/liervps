@@ -70,6 +70,7 @@ import { ChatMediaGrid } from "@/components/chat/ChatMediaGrid";
 import { SelectedFilesPreview } from "@/components/chat/SelectedFilesPreview";
 import { AttachmentRenameDialog, type RenameTarget } from "@/components/chat/AttachmentRenameDialog";
 import { type ChatAttachment, isImageAttachment, formatBytes, attachmentLabel } from "@/components/chat/chat-attachments-util";
+import { APP_VERSION } from "@/pwa/buildVersion";
 
 export default function OrderFormDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -99,6 +100,10 @@ export default function OrderFormDetailPage() {
   const [editFieldsOpen, setEditFieldsOpen] = useState(false);
   const [requestFieldsOpen, setRequestFieldsOpen] = useState(false);
   const [linkTaskOpen, setLinkTaskOpen] = useState(false);
+
+  useEffect(() => {
+    console.info("[mcs-build-version]", APP_VERSION, window.location.pathname);
+  }, []);
 
   const { data: submission, isLoading } = useQuery({
     queryKey: ["order-form-submission", id],
