@@ -32,6 +32,7 @@ import { ChatMediaGrid } from "@/components/chat/ChatMediaGrid";
 import { SelectedFilesPreview } from "@/components/chat/SelectedFilesPreview";
 import { AttachmentPreviewDrawer } from "@/components/orders/AttachmentPreviewDrawer";
 import { type ChatAttachment, isImageAttachment, attachmentLabel } from "@/components/chat/chat-attachments-util";
+import { APP_VERSION } from "@/pwa/buildVersion";
 
 import mascotReceived from "@/assets/mascot/received.png";
 import mascotProcessing from "@/assets/mascot/processing.png";
@@ -463,6 +464,11 @@ export default function OrderTrackingPage() {
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
   }, [token]);
+
+  useEffect(() => {
+    // eslint-disable-next-line no-console
+    console.info("[mcs-build-version]", APP_VERSION, window.location.pathname);
+  }, []);
 
   const { data: submission, isLoading, error } = useQuery({
     queryKey: ["tracking", token],
