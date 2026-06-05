@@ -1752,7 +1752,27 @@ export default function OrderFormDetailPage() {
                   className="min-h-[60px] text-sm"
                 />
 
-                <FileUpload files={commentFiles} onChange={setCommentFiles} />
+                <div className="space-y-2">
+                  <label className="inline-flex items-center gap-2 cursor-pointer text-xs text-muted-foreground hover:text-foreground transition-colors">
+                    <Paperclip className="h-3.5 w-3.5" />
+                    <span>Legg ved bilder eller filer</span>
+                    <input
+                      type="file"
+                      multiple
+                      accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
+                      className="hidden"
+                      onChange={(e) => {
+                        const files = Array.from(e.target.files || []);
+                        setCommentFiles((prev) => [...prev, ...files]);
+                        e.target.value = "";
+                      }}
+                    />
+                  </label>
+                  <SelectedFilesPreview
+                    files={commentFiles}
+                    onRemove={(i) => setCommentFiles((prev) => prev.filter((_, j) => j !== i))}
+                  />
+                </div>
 
 
 
