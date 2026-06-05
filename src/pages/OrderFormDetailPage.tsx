@@ -130,7 +130,8 @@ export default function OrderFormDetailPage() {
       const { data } = await supabase
         .from("order_form_submission_attachments")
         .select("*")
-        .eq("submission_id", id!);
+        .eq("submission_id", id!)
+        .is("deleted_at", null);
       return data || [];
     },
   });
