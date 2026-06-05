@@ -1315,14 +1315,29 @@ function TrackingAttachmentRow({
     /\.(jpe?g|png|gif|webp|heic|heif|bmp|avif|svg)$/i.test(att.file_name || "");
 
   const [thumbUrl, setThumbUrl] = useState<string | null>(null);
+  const [thumbFailed, setThumbFailed] = useState(false);
   const [downloading, setDownloading] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     if (!isImage) return;
-    resolver(att).then((u) => {
-      if (!cancelled) setThumbUrl(u);
-    });
+    setThumbFailed(false);
+    setThumbUrl(null);
+    resolver(att)
+      .then((u) => {
+        if (cancelled) return;
+        if (!u) {
+          console.warn("[tracking-media-debug] resolver returned null for", att.id, att.file_name);
+          setThumbFailed(true);
+        } else {
+          setThumbUrl(u);
+        }
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        console.warn("[tracking-media-debug] resolver threw for", att.id, err);
+        setThumbFailed(true);
+      });
     return () => { cancelled = true; };
   }, [att, isImage, resolver]);
 
@@ -1341,8 +1356,14 @@ function TrackingAttachmentRow({
     >
       <div className="h-12 w-12 rounded-xl bg-background border border-border/60 flex items-center justify-center shrink-0 overflow-hidden">
         {isImage && thumbUrl ? (
-          <img src={thumbUrl} alt={att.file_name} className="w-full h-full object-cover" loading="lazy" />
-        ) : isImage ? (
+          <img
+            src={thumbUrl}
+            alt={att.file_name}
+            className="w-full h-full object-cover"
+            loading="lazy"
+            onError={() => setThumbFailed(true)}
+          />
+        ) : isImage && !thumbFailed ? (
           <div className="w-full h-full bg-muted animate-pulse" />
         ) : (
           <FileText className="h-4 w-4 text-muted-foreground" />
