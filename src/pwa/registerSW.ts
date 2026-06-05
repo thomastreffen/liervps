@@ -94,7 +94,6 @@ export function registerServiceWorker() {
         onNeedRefresh() {
           needRefresh = true;
           emit();
-          // eslint-disable-next-line no-console
           console.info("[pwa] update available");
         },
         onOfflineReady() {
@@ -114,12 +113,10 @@ export function registerServiceWorker() {
           }
         },
         onRegisterError(err) {
-          // eslint-disable-next-line no-console
           console.warn("[pwa] register error", err);
         },
       });
     } catch (err) {
-      // eslint-disable-next-line no-console
       console.warn("[pwa] register failed", err);
     }
   });
