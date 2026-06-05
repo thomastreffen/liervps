@@ -102,7 +102,6 @@ export default function OrderFormDetailPage() {
   const [linkTaskOpen, setLinkTaskOpen] = useState(false);
 
   useEffect(() => {
-    // eslint-disable-next-line no-console
     console.info("[mcs-build-version]", APP_VERSION, window.location.pathname);
   }, []);
 

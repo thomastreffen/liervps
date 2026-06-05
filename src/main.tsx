@@ -15,7 +15,6 @@ async function bootstrap() {
     import("./pwa/buildVersion"),
   ]);
 
-  // eslint-disable-next-line no-console
   console.info("[app-version]", APP_VERSION, APP_BUILD_TIME);
 
   if (isStandalone()) {

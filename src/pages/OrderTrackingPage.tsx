@@ -466,7 +466,6 @@ export default function OrderTrackingPage() {
   }, [token]);
 
   useEffect(() => {
-    // eslint-disable-next-line no-console
     console.info("[mcs-build-version]", APP_VERSION, window.location.pathname);
   }, []);
 
@@ -1381,7 +1380,6 @@ function TrackingAttachmentRow({
   const [downloading, setDownloading] = useState(false);
 
   useEffect(() => {
-    // eslint-disable-next-line no-console
     console.info("[tracking-attachment-row-active]", {
       buildVersion: APP_VERSION,
       attachmentId: att.id,
