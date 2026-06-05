@@ -1104,7 +1104,18 @@ export default function OrderTrackingPage() {
                               {format(new Date(msg.created_at), "d. MMM HH:mm", { locale: nb })}
                             </span>
                           </div>
-                          <p className="text-sm whitespace-pre-wrap leading-relaxed">{msg.body}</p>
+                          {msg.body && <p className="text-sm whitespace-pre-wrap leading-relaxed">{msg.body}</p>}
+                          {(() => {
+                            const msgAtts = attachmentsByMessage.get(msg.id);
+                            if (!msgAtts || msgAtts.length === 0) return null;
+                            return (
+                              <ChatMediaGrid
+                                attachments={msgAtts}
+                                bucket="order-form-attachments"
+                                onPreview={openLightbox}
+                              />
+                            );
+                          })()}
                           {isRequestInfo && msg.requires_reply && (
                             <div className="mt-2 pt-2 border-t border-amber-200/70 dark:border-amber-800/70">
                               {msg.replied_at ? (
