@@ -1196,6 +1196,7 @@ export default function OrderFormDetailPage() {
                               key={att.id}
                               attachment={att}
                               onPreview={() => setPreviewAttIdx(globalIdx)}
+                              onRemove={() => confirmRemoveAttachment(att)}
                             />
                           );
                         })}
