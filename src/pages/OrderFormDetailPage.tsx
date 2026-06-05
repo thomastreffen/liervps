@@ -64,7 +64,7 @@ import { useConversationReads } from "@/hooks/useConversationReads";
 import { EditFieldsDialog } from "@/components/orders/EditFieldsDialog";
 import { RequestFieldsDialog } from "@/components/orders/RequestFieldsDialog";
 import { LinkExistingTaskDialog } from "@/components/orders/LinkExistingTaskDialog";
-import { FileUpload } from "@/components/FileUpload";
+// FileUpload removed in favor of SelectedFilesPreview chat composer
 import { sanitizeStorageFileName } from "@/lib/storage-path";
 import { ChatMediaGrid } from "@/components/chat/ChatMediaGrid";
 import { SelectedFilesPreview } from "@/components/chat/SelectedFilesPreview";
