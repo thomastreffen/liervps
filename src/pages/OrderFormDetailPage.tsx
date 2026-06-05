@@ -731,6 +731,33 @@ export default function OrderFormDetailPage() {
     },
   });
 
+  const removeAttachment = useMutation({
+    mutationFn: async (attId: string) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      const { error } = await supabase
+        .from("order_form_submission_attachments")
+        .update({
+          deleted_at: new Date().toISOString(),
+          deleted_by: user?.id ?? null,
+        } as any)
+        .eq("id", attId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["order-form-attachments", id] });
+      toast.success("Vedlegg fjernet");
+    },
+    onError: (err: any) => {
+      toast.error("Kunne ikke fjerne vedlegg", { description: err?.message });
+    },
+  });
+
+  const confirmRemoveAttachment = (att: { id: string; file_name: string }) => {
+    if (window.confirm(`Fjerne "${att.file_name}" fra bestillingen? Kunden vil ikke lenger se vedlegget.`)) {
+      removeAttachment.mutate(att.id);
+    }
+  };
+
   if (!submission) return <div className="p-6 text-center text-muted-foreground">Ikke funnet</div>;
 
   const effectiveStatus = conversationState.effectiveInternalStatus;
