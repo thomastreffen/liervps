@@ -1281,6 +1281,12 @@ export default function OrderTrackingPage() {
           </p>
         </div>
       </div>
+      <AttachmentPreviewDrawer
+        open={lightboxAtts.length > 0}
+        onClose={() => setLightboxAtts([])}
+        attachments={lightboxAtts as any}
+        initialIndex={lightboxIndex}
+      />
     </div>
   );
 }
