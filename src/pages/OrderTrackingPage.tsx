@@ -1183,13 +1183,14 @@ export default function OrderTrackingPage() {
                     className="text-sm resize-none rounded-xl"
                   />
 
-                  <div>
+                  <div className="space-y-2">
                     <label className="inline-flex items-center gap-2 cursor-pointer text-sm text-muted-foreground hover:text-foreground transition-colors">
                       <Upload className="h-4 w-4" />
-                      <span>Legg ved filer</span>
+                      <span>Legg ved bilder eller filer</span>
                       <input
                         type="file"
                         multiple
+                        accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
                         className="hidden"
                         onChange={(e) => {
                           const files = Array.from(e.target.files || []);
@@ -1198,19 +1199,10 @@ export default function OrderTrackingPage() {
                         }}
                       />
                     </label>
-                    {replyFiles.length > 0 && (
-                      <div className="mt-2 space-y-1">
-                        {replyFiles.map((f, i) => (
-                          <div key={i} className="flex items-center gap-2 text-xs bg-muted/40 rounded-lg px-2.5 py-1.5">
-                            <Paperclip className="h-3 w-3 text-muted-foreground" />
-                            <span className="truncate flex-1">{f.name}</span>
-                            <button onClick={() => setReplyFiles((prev) => prev.filter((_, j) => j !== i))}>
-                              <X className="h-3 w-3 text-muted-foreground hover:text-destructive" />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
+                    <SelectedFilesPreview
+                      files={replyFiles}
+                      onRemove={(i) => setReplyFiles((prev) => prev.filter((_, j) => j !== i))}
+                    />
                   </div>
 
                   <Button
