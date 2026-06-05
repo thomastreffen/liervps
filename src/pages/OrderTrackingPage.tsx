@@ -699,6 +699,7 @@ export default function OrderTrackingPage() {
     onSuccess: () => {
       setReplyText("");
       setReplyFiles([]);
+      setReplyFileNames({});
       qc.invalidateQueries({ queryKey: ["tracking-messages", token] });
       qc.invalidateQueries({ queryKey: ["tracking-comments-legacy", token] });
       qc.invalidateQueries({ queryKey: ["tracking-attachments", token] });
