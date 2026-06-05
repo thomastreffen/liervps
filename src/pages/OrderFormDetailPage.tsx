@@ -1551,7 +1551,18 @@ export default function OrderFormDetailPage() {
                             Intern
                           </Badge>
                         )}
-                        <p className="whitespace-pre-wrap">{m.body}</p>
+                        {m.body && <p className="whitespace-pre-wrap">{m.body}</p>}
+                        {(() => {
+                          const msgAtts = attachmentsByMessage.get(m.id);
+                          if (!msgAtts || msgAtts.length === 0) return null;
+                          return (
+                            <ChatMediaGrid
+                              attachments={msgAtts}
+                              bucket="order-form-attachments"
+                              onPreview={(att) => openChatLightbox(att)}
+                            />
+                          );
+                        })()}
                         <div className="flex items-center gap-2 mt-1 flex-wrap">
                           <span className="text-[10px] text-muted-foreground">
                             {displaySender} · {format(new Date(m.created_at), "d. MMM HH:mm", { locale: nb })}
