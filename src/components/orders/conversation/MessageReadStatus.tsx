@@ -1,6 +1,6 @@
 import { format, formatDistanceToNowStrict } from "date-fns";
 import { nb } from "date-fns/locale";
-import { Check, CheckCheck, Eye } from "lucide-react";
+import { Check, CheckCheck, Eye, User } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import type { ConversationParticipant, MessageRead } from "@/hooks/useConversationReads";
@@ -39,55 +39,121 @@ export function MessageReadStatus({
   readsForMessage,
   className,
 }: Props) {
-  // Expected readers: active participants minus the sender.
-  // Internal messages: only internal_user + technician should read.
-  // Shared messages: include customer too.
-  const expected = participants.filter((p) => {
-    if (!p.is_active) return false;
+  // Split expected readers into internal vs customer.
+  // - Internal messages: only internal_user / technician participants are expected readers.
+  // - Shared messages: customer participant is also expected.
+  // - Always exclude the sender from "missing" calculation.
+  const activeParticipants = participants.filter((p) => p.is_active);
+
+  const internalExpected = activeParticipants.filter((p) => {
+    if (p.participant_type === "customer") return false;
     if (senderType === "internal" && senderUserId && p.user_id === senderUserId) return false;
-    if (!isSharedWithCustomer && p.participant_type === "customer") return false;
-    // never count system "senders"
-    if (senderType === "customer" && p.participant_type === "customer") return false;
     return true;
   });
 
-  if (expected.length === 0) return null;
+  const customerParticipant = isSharedWithCustomer
+    ? activeParticipants.find((p) => p.participant_type === "customer" && (senderType !== "customer"))
+    : undefined;
 
   const reads = readsForMessage || [];
   const readSet = new Map<string, MessageRead>();
   for (const r of reads) readSet.set(r.participant_id, r);
 
-  const readers: ConversationParticipant[] = [];
-  const missing: ConversationParticipant[] = [];
-  for (const p of expected) {
-    if (readSet.has(p.id)) readers.push(p);
-    else missing.push(p);
-  }
+  const internalReaders = internalExpected.filter((p) => readSet.has(p.id));
+  const internalMissing = internalExpected.filter((p) => !readSet.has(p.id));
+  const customerRead = customerParticipant ? readSet.get(customerParticipant.id) : undefined;
+  const customerHasRead = !!customerRead;
 
-  const allRead = missing.length === 0;
-  const noneRead = readers.length === 0;
+  // Nothing to show
+  if (internalExpected.length === 0 && !customerParticipant) return null;
 
-  // Compact label
+  // Build compact label.
   let label: string;
-  let Icon = Check;
+  let Icon: typeof Check = Check;
   let tone: "muted" | "ok" = "muted";
 
-  if (noneRead) {
-    label = isLastInThread ? "Ikke lest ennå" : "Ikke lest";
-    Icon = Check;
-    tone = "muted";
-  } else if (allRead) {
-    label = isLastInThread ? "Lest av alle" : `Lest av ${readers.length}`;
-    Icon = CheckCheck;
-    tone = "ok";
-  } else if (readers.length <= 2) {
-    label = `Lest av ${readers.map((p) => p.display_name || p.name).join(", ")}`;
-    Icon = CheckCheck;
-    tone = "ok";
+  const allInternalRead = internalExpected.length > 0 && internalMissing.length === 0;
+  const someInternalRead = internalReaders.length > 0;
+
+  if (senderType === "customer") {
+    // Customer's own message — only internal readers matter.
+    if (internalExpected.length === 0) {
+      label = "Sendt";
+      Icon = Check;
+      tone = "muted";
+    } else if (!someInternalRead) {
+      label = "Ikke lest av MCS";
+      Icon = Check;
+      tone = "muted";
+    } else if (allInternalRead) {
+      label = internalReaders.length === 1
+        ? `Lest av ${internalReaders[0].display_name || internalReaders[0].name}`
+        : "Lest av MCS";
+      Icon = CheckCheck;
+      tone = "ok";
+    } else if (internalReaders.length <= 2) {
+      label = `Lest av ${internalReaders.map((p) => p.display_name || p.name).join(", ")}`;
+      Icon = CheckCheck;
+      tone = "ok";
+    } else {
+      label = `Lest av ${internalReaders.length} av ${internalExpected.length} interne`;
+      Icon = CheckCheck;
+      tone = "ok";
+    }
   } else {
-    label = `Lest av ${readers.length} av ${expected.length}`;
-    Icon = CheckCheck;
-    tone = "ok";
+    // Internal sender
+    const internalPart = !someInternalRead
+      ? (internalExpected.length === 0 ? null : "Ikke lest internt")
+      : allInternalRead
+        ? "Lest av alle interne"
+        : internalReaders.length <= 2
+          ? `Lest av ${internalReaders.map((p) => p.display_name || p.name).join(", ")}`
+          : `Lest av ${internalReaders.length}/${internalExpected.length} interne`;
+
+    const customerPart = customerParticipant
+      ? (customerHasRead ? "Kunde har lest" : "Kunde ikke lest")
+      : null;
+
+    if (internalPart && customerPart) {
+      // Combine — prefer compact form when both fully read.
+      if (allInternalRead && customerHasRead) {
+        label = "Lest av kunde og alle interne";
+        Icon = CheckCheck;
+        tone = "ok";
+      } else {
+        label = `${internalPart} · ${customerPart}`;
+        Icon = customerHasRead || someInternalRead ? CheckCheck : Check;
+        tone = customerHasRead || someInternalRead ? "ok" : "muted";
+      }
+    } else if (customerPart) {
+      label = customerPart;
+      Icon = customerHasRead ? CheckCheck : Check;
+      tone = customerHasRead ? "ok" : "muted";
+    } else if (internalPart) {
+      label = internalPart;
+      Icon = someInternalRead ? CheckCheck : Check;
+      tone = someInternalRead ? "ok" : "muted";
+    } else {
+      return null;
+    }
+  }
+
+  if (typeof window !== "undefined") {
+    // eslint-disable-next-line no-console
+    console.info("[message-read-status-debug]", {
+      messageId,
+      senderType,
+      isSharedWithCustomer,
+      participants: participants.map((p) => ({
+        id: p.id,
+        type: p.participant_type,
+        display_name: p.display_name,
+        is_active: p.is_active,
+        last_seen_message_id: p.last_seen_message_id,
+      })),
+      reads: reads.map((r) => ({ participant_id: r.participant_id, read_at: r.read_at })),
+      computedLabel: label,
+    });
   }
 
   return (
@@ -106,42 +172,59 @@ export function MessageReadStatus({
           <span>{label}</span>
         </button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-64 p-3 space-y-2 text-xs">
-        <div>
-          <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">
-            Lest av ({readers.length}/{expected.length})
-          </p>
-          {readers.length === 0 ? (
-            <p className="text-muted-foreground italic">Ingen ennå</p>
-          ) : (
-            <ul className="space-y-1">
-              {readers.map((p) => {
-                const r = readSet.get(p.id)!;
-                return (
-                  <li key={p.id} className="flex items-center gap-2">
-                    <CheckCheck className="h-3 w-3 text-primary shrink-0" />
-                    <span className="flex-1 truncate">{p.display_name || p.name}</span>
-                    <span className="text-[10px] text-muted-foreground shrink-0">{relativeTime(r.read_at)}</span>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </div>
+      <PopoverContent align="end" className="w-72 p-3 space-y-2 text-xs">
+        {customerParticipant && (
+          <div className="pb-2 border-b">
+            <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">Kunde</p>
+            <div className="flex items-center gap-2">
+              {customerHasRead ? (
+                <CheckCheck className="h-3 w-3 text-primary shrink-0" />
+              ) : (
+                <User className="h-3 w-3 text-muted-foreground shrink-0" />
+              )}
+              <span className="flex-1 truncate">
+                {customerParticipant.display_name || customerParticipant.name}
+              </span>
+              <span className="text-[10px] text-muted-foreground shrink-0">
+                {customerHasRead && customerRead ? relativeTime(customerRead.read_at) : "Ikke lest"}
+              </span>
+            </div>
+          </div>
+        )}
 
-        {missing.length > 0 && (
-          <div className="border-t pt-2">
+        {internalExpected.length > 0 && (
+          <div>
             <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">
-              Mangler ({missing.length})
+              Interne ({internalReaders.length}/{internalExpected.length})
             </p>
-            <ul className="space-y-1">
-              {missing.map((p) => (
-                <li key={p.id} className="flex items-center gap-2 text-muted-foreground">
-                  <Eye className="h-3 w-3 shrink-0" />
-                  <span className="flex-1 truncate">{p.display_name || p.name}</span>
-                </li>
-              ))}
-            </ul>
+            {internalReaders.length === 0 ? (
+              <p className="text-muted-foreground italic">Ingen ennå</p>
+            ) : (
+              <ul className="space-y-1">
+                {internalReaders.map((p) => {
+                  const r = readSet.get(p.id)!;
+                  return (
+                    <li key={p.id} className="flex items-center gap-2">
+                      <CheckCheck className="h-3 w-3 text-primary shrink-0" />
+                      <span className="flex-1 truncate">{p.display_name || p.name}</span>
+                      <span className="text-[10px] text-muted-foreground shrink-0">{relativeTime(r.read_at)}</span>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+
+            {internalMissing.length > 0 && (
+              <ul className="space-y-1 mt-2 pt-2 border-t">
+                {internalMissing.map((p) => (
+                  <li key={p.id} className="flex items-center gap-2 text-muted-foreground">
+                    <Eye className="h-3 w-3 shrink-0" />
+                    <span className="flex-1 truncate">{p.display_name || p.name}</span>
+                    <span className="text-[10px] shrink-0">Ikke lest</span>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         )}
       </PopoverContent>
