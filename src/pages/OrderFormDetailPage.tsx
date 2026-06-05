@@ -1589,6 +1589,8 @@ export default function OrderFormDetailPage() {
                               attachments={msgAtts}
                               bucket="order-form-attachments"
                               onPreview={(att) => openChatLightbox(att)}
+                              canDelete
+                              onDelete={(att) => confirmRemoveAttachment(att as any)}
                             />
                           );
                         })()}
