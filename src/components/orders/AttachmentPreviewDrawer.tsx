@@ -186,7 +186,7 @@ export function AttachmentPreviewDrawer({
               {isImage && (
                 <img
                   src={signedUrl}
-                  alt={current.file_name}
+                  alt={attachmentLabel(current)}
                   className="max-w-full max-h-full object-contain p-4"
                 />
               )}
@@ -194,17 +194,17 @@ export function AttachmentPreviewDrawer({
                 <iframe
                   src={signedUrl}
                   className="w-full h-full border-0"
-                  title={current.file_name}
+                  title={attachmentLabel(current)}
                 />
               )}
               {!canPreview && (
                 <div className="flex flex-col items-center gap-3 text-muted-foreground p-6 text-center">
                   <FileText className="h-12 w-12" />
-                  <p className="text-sm font-medium">{current.file_name}</p>
+                  <p className="text-sm font-medium">{attachmentLabel(current)}</p>
                   <p className="text-xs">Forhåndsvisning er ikke tilgjengelig for denne filtypen</p>
                   <div className="flex gap-2 mt-2">
                     <Button size="sm" variant="outline" asChild>
-                      <a href={signedUrl} download={current.file_name}>
+                      <a href={signedUrl} download={downloadFilename(current)}>
                         <Download className="h-3.5 w-3.5 mr-1" /> Last ned
                       </a>
                     </Button>
