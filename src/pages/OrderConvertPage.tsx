@@ -146,6 +146,20 @@ export default function OrderConvertPage() {
     },
   });
 
+  const sourceLeadId = (submission as any)?.source_lead_id as string | null | undefined;
+  const { data: sourceLead } = useQuery({
+    queryKey: ["order-convert-source-lead", sourceLeadId],
+    enabled: !!sourceLeadId,
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from("leads")
+        .select("id, company_name, contact_name, email, phone, notes")
+        .eq("id", sourceLeadId!)
+        .maybeSingle();
+      return data;
+    },
+  });
+
   const { data: values = [], isFetched: valuesFetched } = useQuery({
     queryKey: ["order-form-values", id],
     enabled: !!id,
@@ -287,10 +301,14 @@ export default function OrderConvertPage() {
   
   useEffect(() => {
     if (!initialized && submission && valuesFetched) {
+      // Fall back to source lead data when order fields are empty.
+      // Never overwrite values the user has manually edited after init.
+      const leadCustomer = (sourceLead as any)?.company_name as string | undefined;
+      const leadNotes = (sourceLead as any)?.notes as string | undefined;
       setTitle(derivedTitle);
-      setDescription(derivedDescription);
+      setDescription(derivedDescription || leadNotes || "");
       setAddress(derivedAddress);
-      setCustomer(derivedCustomer);
+      setCustomer(derivedCustomer || leadCustomer || "");
       setInitialized(true);
     }
   }, [
@@ -301,6 +319,7 @@ export default function OrderConvertPage() {
     derivedDescription,
     derivedAddress,
     derivedCustomer,
+    sourceLead,
   ]);
 
   const priorityMap: Record<string, string> = {
@@ -327,9 +346,15 @@ export default function OrderConvertPage() {
     sub?.notification_recipient_phone ||
     resolveValue("bestiller_telefon", "telefon_kunde", "telefon", "kontakt_telefon") ||
     "–";
-  const kontaktperson = resolveValue("kontaktperson_navn", "kontaktperson_kunde", "kontaktperson") || "–";
+  const leadAny = sourceLead as any;
+  const kontaktperson =
+    resolveValue("kontaktperson_navn", "kontaktperson_kunde", "kontaktperson") ||
+    leadAny?.contact_name ||
+    "–";
   const kontaktTelefon =
-    resolveValue("kontaktperson_telefon", "telefon_kunde", "telefon", "kontakt_telefon") || "–";
+    resolveValue("kontaktperson_telefon", "telefon_kunde", "telefon", "kontakt_telefon") ||
+    leadAny?.phone ||
+    "–";
   const referanse =
     resolveValue("referanse_po", "fakturamerking", "midlertidig_referanse", "po", "referanse") ||
     "–";
@@ -406,6 +431,7 @@ export default function OrderConvertPage() {
             project_type: "service",
             created_by: user?.id,
             source_order_form_id: id,
+            source_lead_id: (submission as any)?.source_lead_id || null,
             site_contact_name: kontaktperson !== "–" ? kontaktperson : null,
             site_contact_phone: kontaktTelefon !== "–" ? kontaktTelefon : null,
             attachments: eventAttachments.length > 0 ? (eventAttachments as any) : undefined,
@@ -424,6 +450,30 @@ export default function OrderConvertPage() {
           converted_to_id: createdId,
         })
         .eq("id", id!);
+
+      // If this order was created from a lead, log to lead history too.
+      const leadId = (submission as any)?.source_lead_id as string | null;
+      if (leadId && createdId) {
+        try {
+          await (supabase as any).from("lead_history").insert({
+            lead_id: leadId,
+            action: "order_converted",
+            description:
+              target === "case"
+                ? "Bestilling konvertert til sak"
+                : "Bestilling konvertert til oppdrag",
+            performed_by: user?.id,
+            metadata: {
+              order_form_submission_id: id,
+              event_id: target === "order" ? createdId : null,
+              case_id: target === "case" ? createdId : null,
+              target_type: target,
+            },
+          });
+        } catch (e) {
+          console.warn("[OrderConvert] lead_history insert failed", e);
+        }
+      }
 
       await supabase.from("order_form_activity_log").insert({
         submission_id: id!,
@@ -501,6 +551,22 @@ export default function OrderConvertPage() {
         </div>
         <Badge variant="outline" className="text-xs">{hastegrad}</Badge>
       </div>
+
+      {sourceLead && (
+        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/5 px-3 py-2 text-xs">
+          <User className="h-3.5 w-3.5 text-emerald-600" />
+          <span className="text-muted-foreground">Opprettet fra lead:</span>
+          <span className="font-medium">{(sourceLead as any).company_name}</span>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-6 ml-auto gap-1 text-xs"
+            onClick={() => navigate(`/sales/leads/${(sourceLead as any).id}`)}
+          >
+            Åpne lead <ArrowRight className="h-3 w-3" />
+          </Button>
+        </div>
+      )}
 
       {/* Two-column layout */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

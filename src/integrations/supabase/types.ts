@@ -4415,6 +4415,7 @@ export type Database = {
           sharepoint_site_id: string | null
           site_contact_name: string | null
           site_contact_phone: string | null
+          source_lead_id: string | null
           source_order_form_id: string | null
           start_time: string
           status: Database["public"]["Enums"]["job_status"]
@@ -4500,6 +4501,7 @@ export type Database = {
           sharepoint_site_id?: string | null
           site_contact_name?: string | null
           site_contact_phone?: string | null
+          source_lead_id?: string | null
           source_order_form_id?: string | null
           start_time: string
           status?: Database["public"]["Enums"]["job_status"]
@@ -4585,6 +4587,7 @@ export type Database = {
           sharepoint_site_id?: string | null
           site_contact_name?: string | null
           site_contact_phone?: string | null
+          source_lead_id?: string | null
           source_order_form_id?: string | null
           start_time?: string
           status?: Database["public"]["Enums"]["job_status"]
@@ -4646,6 +4649,13 @@ export type Database = {
             columns: ["parent_project_id"]
             isOneToOne: false
             referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "events_source_lead_id_fkey"
+            columns: ["source_lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
             referencedColumns: ["id"]
           },
           {

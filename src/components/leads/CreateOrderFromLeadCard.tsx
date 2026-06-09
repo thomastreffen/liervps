@@ -49,6 +49,8 @@ interface LinkedSubmission {
   submission_no: string;
   status: string;
   created_at: string;
+  converted_to_id: string | null;
+  converted_to_type: string | null;
 }
 
 export function CreateOrderFromLeadCard({ lead, logActivity }: Props) {
@@ -68,7 +70,7 @@ export function CreateOrderFromLeadCard({ lead, logActivity }: Props) {
       const [linkedRes, tplRes] = await Promise.all([
         (supabase as any)
           .from("order_form_submissions")
-          .select("id, submission_no, status, created_at")
+          .select("id, submission_no, status, created_at, converted_to_id, converted_to_type")
           .eq("source_lead_id", lead.id)
           .is("deleted_at", null)
           .order("created_at", { ascending: false }),
@@ -189,35 +191,65 @@ export function CreateOrderFromLeadCard({ lead, logActivity }: Props) {
         <CardContent className="space-y-3">
           {linked.length > 0 ? (
             <>
-              {linked.map((s) => (
-                <div
-                  key={s.id}
-                  className="flex items-center justify-between gap-3 rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-3 py-2"
-                >
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium truncate">
-                      Koblet til bestilling {s.submission_no}
-                    </p>
-                    <p className="text-xs text-muted-foreground capitalize">{s.status}</p>
-                  </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="gap-1.5 rounded-xl"
-                    onClick={() => navigate(`/orders/${s.id}`)}
+              {linked.map((s) => {
+                const isConverted = !!s.converted_to_id;
+                const isOrder = s.converted_to_type === "work_order";
+                return (
+                  <div
+                    key={s.id}
+                    className="flex flex-col gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-3 py-2"
                   >
-                    <ExternalLink className="h-3.5 w-3.5" /> Åpne
-                  </Button>
-                </div>
-              ))}
-              <Button
-                size="sm"
-                variant="ghost"
-                className="w-full text-xs text-muted-foreground"
-                onClick={() => setDialogOpen(true)}
-              >
-                Opprett ny bestilling likevel
-              </Button>
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium truncate">
+                          Koblet til bestilling {s.submission_no}
+                        </p>
+                        <p className="text-xs text-muted-foreground capitalize">{s.status}</p>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="gap-1.5 rounded-xl"
+                        onClick={() => navigate(`/orders/${s.id}`)}
+                      >
+                        <ExternalLink className="h-3.5 w-3.5" /> Åpne
+                      </Button>
+                    </div>
+                    {isConverted && (
+                      <div className="flex items-center justify-between gap-3 pt-2 border-t border-emerald-500/20">
+                        <p className="text-xs font-medium text-emerald-700 dark:text-emerald-400">
+                          {isOrder ? "Bestilling konvertert til oppdrag" : "Bestilling konvertert til sak"}
+                        </p>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="gap-1.5 rounded-xl h-7 text-xs"
+                          onClick={() =>
+                            navigate(
+                              isOrder
+                                ? `/projects/plan?openTask=${s.converted_to_id}`
+                                : `/cases/${s.converted_to_id}`,
+                            )
+                          }
+                        >
+                          {isOrder ? "Åpne oppdrag" : "Åpne sak"}
+                          <ExternalLink className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+              {!linked.every((s) => !!s.converted_to_id) && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="w-full text-xs text-muted-foreground"
+                  onClick={() => setDialogOpen(true)}
+                >
+                  Opprett ny bestilling likevel
+                </Button>
+              )}
             </>
           ) : (
             <div className="space-y-2">

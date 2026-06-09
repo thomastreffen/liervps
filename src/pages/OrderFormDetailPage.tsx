@@ -119,6 +119,21 @@ export default function OrderFormDetailPage() {
     },
   });
 
+  // Fetch source lead if order was created from a lead
+  const sourceLeadId = (submission as any)?.source_lead_id as string | null | undefined;
+  const { data: sourceLead } = useQuery({
+    queryKey: ["order-form-source-lead", sourceLeadId],
+    enabled: !!sourceLeadId,
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from("leads")
+        .select("id, company_name, contact_name, email, phone, notes, status")
+        .eq("id", sourceLeadId!)
+        .maybeSingle();
+      return data;
+    },
+  });
+
   const { data: values = [] } = useQuery({
     queryKey: ["order-form-values", id],
     enabled: !!id,
@@ -1147,6 +1162,18 @@ export default function OrderFormDetailPage() {
 
       {/* Linked entities + notification status */}
       <div className="flex flex-wrap gap-2">
+        {sourceLead && (
+          <Badge
+            variant="outline"
+            className="text-[10px] gap-1 cursor-pointer hover:bg-muted border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300"
+            onClick={() => navigate(`/sales/leads/${sourceLead.id}`)}
+            title={`Lead: ${sourceLead.company_name}${sourceLead.contact_name ? ` · ${sourceLead.contact_name}` : ""}${sourceLead.email ? ` · ${sourceLead.email}` : ""}${sourceLead.phone ? ` · ${sourceLead.phone}` : ""}`}
+          >
+            <User className="h-2.5 w-2.5" />
+            Opprettet fra lead: {sourceLead.company_name}
+            <ExternalLink className="h-2.5 w-2.5" />
+          </Badge>
+        )}
         {sub.linked_case_id && (
           <Badge variant="outline" className="text-[10px] gap-1 cursor-pointer hover:bg-muted border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300" onClick={() => {
             navigate(`/inbox`);
