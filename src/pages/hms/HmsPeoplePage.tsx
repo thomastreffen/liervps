@@ -278,14 +278,28 @@ export default function HmsPeoplePage() {
                   </TableCell>
                   <TableCell className="text-sm">
                     {r.hms_card_number ? (
-                      <div>
+                      <div className="space-y-0.5">
                         <div className="font-mono text-xs">{r.hms_card_number}</div>
-                        {r.hms_card_expires_at && (
-                          <div className="text-[11px] text-muted-foreground">→ {r.hms_card_expires_at}</div>
-                        )}
+                        {(() => {
+                          const s = hmsCardStatus(r.hms_card_expires_at);
+                          const cls =
+                            s.tone === "ok"
+                              ? "border-emerald-300 text-emerald-700 dark:text-emerald-300"
+                              : s.tone === "warn"
+                              ? "border-amber-300 text-amber-700 dark:text-amber-300"
+                              : s.tone === "bad"
+                              ? "border-destructive/40 text-destructive"
+                              : "text-muted-foreground";
+                          return (
+                            <Badge variant="outline" className={`text-[11px] ${cls}`}>
+                              {s.label}
+                              {r.hms_card_expires_at && s.tone !== "muted" ? ` · ${r.hms_card_expires_at}` : ""}
+                            </Badge>
+                          );
+                        })()}
                       </div>
                     ) : (
-                      <span className="text-xs text-muted-foreground">-</span>
+                      <span className="text-xs text-muted-foreground">Ikke registrert</span>
                     )}
                   </TableCell>
                   {canViewSecurity && (
