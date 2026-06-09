@@ -346,9 +346,15 @@ export default function OrderConvertPage() {
     sub?.notification_recipient_phone ||
     resolveValue("bestiller_telefon", "telefon_kunde", "telefon", "kontakt_telefon") ||
     "–";
-  const kontaktperson = resolveValue("kontaktperson_navn", "kontaktperson_kunde", "kontaktperson") || "–";
+  const leadAny = sourceLead as any;
+  const kontaktperson =
+    resolveValue("kontaktperson_navn", "kontaktperson_kunde", "kontaktperson") ||
+    leadAny?.contact_name ||
+    "–";
   const kontaktTelefon =
-    resolveValue("kontaktperson_telefon", "telefon_kunde", "telefon", "kontakt_telefon") || "–";
+    resolveValue("kontaktperson_telefon", "telefon_kunde", "telefon", "kontakt_telefon") ||
+    leadAny?.phone ||
+    "–";
   const referanse =
     resolveValue("referanse_po", "fakturamerking", "midlertidig_referanse", "po", "referanse") ||
     "–";
