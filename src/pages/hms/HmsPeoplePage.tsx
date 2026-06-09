@@ -88,6 +88,7 @@ export default function HmsPeoplePage() {
   const navigate = useNavigate();
   const { hasPermission } = usePermissions();
   const { isSuperAdmin, isAdmin } = useAuth();
+  const { activeCompanyId, allowedCompanyIds } = useCompanyContext();
   const canViewSecurity = isSuperAdmin || isAdmin || hasPermission("security.view") || hasPermission("security.manage");
 
   const [loading, setLoading] = useState(true);
