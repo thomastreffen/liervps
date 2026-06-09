@@ -159,6 +159,20 @@ export default function HmsPersonDetailPage() {
     );
   }
 
+  if (notInActiveCompany) {
+    return (
+      <div className="p-6 max-w-2xl">
+        <Button variant="ghost" size="sm" onClick={() => navigate("/hms/people")} className="mb-4 gap-1">
+          <ArrowLeft className="h-4 w-4" /> Tilbake til ansatte
+        </Button>
+        <div className="rounded-lg border p-6 text-sm">
+          <p className="font-medium">Denne personen tilhører ikke aktivt selskap.</p>
+          <p className="text-muted-foreground mt-1">Bytt aktivt selskap i toppmenyen for å se denne ansatte.</p>
+        </div>
+      </div>
+    );
+  }
+
   if (error || !person) {
     return (
       <div className="p-6 max-w-2xl">
