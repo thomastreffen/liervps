@@ -36,14 +36,19 @@ interface PersonStatus {
 async function writeAudit(action: string, targetId: string, metadata?: any) {
   try {
     const { data: sess } = await supabase.auth.getSession();
-    await (supabase as any).from("security_audit_log").insert({
+    const { error } = await (supabase as any).from("security_audit_log").insert({
       actor_user_id: sess?.session?.user?.id ?? null,
       action,
       target_type: "project_security_requirement",
       target_id: targetId,
       metadata: metadata ?? null,
     });
-  } catch {}
+    if (error && import.meta.env.DEV) {
+      console.warn("[security audit] insert failed (non-blocking):", error.message);
+    }
+  } catch (err) {
+    if (import.meta.env.DEV) console.warn("[security audit] exception (non-blocking):", err);
+  }
 }
 
 interface Props {
@@ -57,6 +62,7 @@ export function ProjectSecurityPanel({ projectId, selectedPersonIds }: Props) {
   const canManage = isSuperAdmin || hasPermission("security.manage");
 
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [req, setReq] = useState<Requirements>({
     project_id: projectId,
@@ -71,76 +77,85 @@ export function ProjectSecurityPanel({ projectId, selectedPersonIds }: Props) {
   const [people, setPeople] = useState<PersonStatus[]>([]);
 
   const loadAll = useCallback(async () => {
+    if (!projectId) return;
     setLoading(true);
+    setLoadError(null);
+    try {
+      const { data: rData, error: rErr } = await (supabase as any)
+        .from("project_security_requirements")
+        .select("*")
+        .eq("project_id", projectId)
+        .maybeSingle();
+      if (rErr) throw rErr;
 
-    const { data: rData } = await (supabase as any)
-      .from("project_security_requirements")
-      .select("*")
-      .eq("project_id", projectId)
-      .maybeSingle();
+      if (rData) setReq(rData as Requirements);
 
-    if (rData) setReq(rData as Requirements);
+      const customer = (rData as any)?.customer_name as string | null;
+      const ids = Array.isArray(selectedPersonIds) ? selectedPersonIds.filter(Boolean) : [];
 
-    const customer = (rData as any)?.customer_name as string | null;
+      if (ids.length > 0) {
+        const { data: techs, error: tErr } = await supabase
+          .from("technicians")
+          .select("id, name, user_id")
+          .in("id", ids);
+        if (tErr) throw tErr;
 
-    if (selectedPersonIds.length > 0) {
-      // selectedPersonIds = technician ids. Map: technicians.user_id -> user_accounts.auth_user_id -> person_id.
-      const { data: techs } = await supabase
-        .from("technicians")
-        .select("id, name, user_id")
-        .in("id", selectedPersonIds);
+        const authIds = (techs ?? []).map((t: any) => t.user_id).filter(Boolean);
+        const personByAuth: Record<string, string> = {};
+        if (authIds.length) {
+          const { data: accs } = await supabase
+            .from("user_accounts")
+            .select("auth_user_id, person_id")
+            .in("auth_user_id", authIds);
+          for (const a of accs ?? []) personByAuth[(a as any).auth_user_id] = (a as any).person_id;
+        }
 
-      const authIds = (techs ?? []).map((t: any) => t.user_id).filter(Boolean);
-      let personByAuth: Record<string, string> = {};
-      if (authIds.length) {
-        const { data: accs } = await supabase
-          .from("user_accounts")
-          .select("auth_user_id, person_id")
-          .in("auth_user_id", authIds);
-        for (const a of accs ?? []) personByAuth[(a as any).auth_user_id] = (a as any).person_id;
+        const personIds = (techs ?? [])
+          .map((t: any) => personByAuth[t.user_id])
+          .filter(Boolean) as string[];
+
+        const [profilesRes, authsRes, peopleRes] = await Promise.all([
+          personIds.length
+            ? (supabase as any).from("person_security_profiles").select("*").in("person_id", personIds)
+            : Promise.resolve({ data: [] }),
+          personIds.length && customer
+            ? (supabase as any)
+                .from("person_customer_authorizations")
+                .select("*")
+                .in("person_id", personIds)
+                .eq("customer_name", customer)
+            : Promise.resolve({ data: [] }),
+          personIds.length
+            ? supabase.from("people").select("id, full_name").in("id", personIds)
+            : Promise.resolve({ data: [] }),
+        ]);
+
+        const profByPerson: Record<string, any> = {};
+        for (const p of (profilesRes as any).data ?? []) profByPerson[p.person_id] = p;
+        const authByPerson: Record<string, any> = {};
+        for (const a of (authsRes as any).data ?? []) authByPerson[a.person_id] = a;
+        const nameByPerson: Record<string, string> = {};
+        for (const p of (peopleRes as any).data ?? []) nameByPerson[p.id] = p.full_name;
+
+        const rows: PersonStatus[] = personIds.map((pid: string) => ({
+          person_id: pid,
+          full_name: nameByPerson[pid] ?? "Ukjent",
+          clearance_status: profByPerson[pid]?.clearance_status ?? "unknown",
+          pob_status: profByPerson[pid]?.pob_status ?? "not_required",
+          nda_status: profByPerson[pid]?.nda_status ?? "not_required",
+          customer_authorization_status: customer ? authByPerson[pid]?.authorization_status ?? null : null,
+        }));
+        setPeople(rows);
+      } else {
+        setPeople([]);
       }
-
-      const personIds = (techs ?? [])
-        .map((t: any) => personByAuth[t.user_id])
-        .filter(Boolean) as string[];
-
-      const [profilesRes, authsRes, peopleRes] = await Promise.all([
-        personIds.length
-          ? (supabase as any).from("person_security_profiles").select("*").in("person_id", personIds)
-          : Promise.resolve({ data: [] }),
-        personIds.length && customer
-          ? (supabase as any)
-              .from("person_customer_authorizations")
-              .select("*")
-              .in("person_id", personIds)
-              .eq("customer_name", customer)
-          : Promise.resolve({ data: [] }),
-        personIds.length
-          ? supabase.from("people").select("id, full_name").in("id", personIds)
-          : Promise.resolve({ data: [] }),
-      ]);
-
-      const profByPerson: Record<string, any> = {};
-      for (const p of (profilesRes as any).data ?? []) profByPerson[p.person_id] = p;
-      const authByPerson: Record<string, any> = {};
-      for (const a of (authsRes as any).data ?? []) authByPerson[a.person_id] = a;
-      const nameByPerson: Record<string, string> = {};
-      for (const p of (peopleRes as any).data ?? []) nameByPerson[p.id] = p.full_name;
-
-      const rows: PersonStatus[] = personIds.map((pid: string) => ({
-        person_id: pid,
-        full_name: nameByPerson[pid] ?? "Ukjent",
-        clearance_status: profByPerson[pid]?.clearance_status ?? "unknown",
-        pob_status: profByPerson[pid]?.pob_status ?? "not_required",
-        nda_status: profByPerson[pid]?.nda_status ?? "not_required",
-        customer_authorization_status: customer ? authByPerson[pid]?.authorization_status ?? null : null,
-      }));
-      setPeople(rows);
-    } else {
+    } catch (err: any) {
+      if (import.meta.env.DEV) console.warn("[ProjectSecurityPanel] load error:", err);
+      setLoadError(err?.message ?? "Kunne ikke laste sikkerhetsdata");
       setPeople([]);
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   }, [projectId, selectedPersonIds]);
 
   useEffect(() => {
@@ -215,6 +230,17 @@ export function ProjectSecurityPanel({ projectId, selectedPersonIds }: Props) {
       </div>
     );
   }
+
+  if (loadError) {
+    return (
+      <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-4">
+        <p className="text-sm font-medium text-destructive">Kunne ikke laste sikkerhetskrav</p>
+        <p className="text-xs text-muted-foreground mt-1">{loadError}</p>
+        <Button variant="outline" size="sm" className="mt-3" onClick={loadAll}>Prøv igjen</Button>
+      </div>
+    );
+  }
+
 
   return (
     <div className="rounded-lg border p-4 sm:p-6 space-y-5">

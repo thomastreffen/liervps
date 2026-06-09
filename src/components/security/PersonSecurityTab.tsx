@@ -43,15 +43,18 @@ const AUTH_STATUSES = ["not_started", "pending_customer", "needs_check", "approv
 async function writeAudit(action: string, targetType: string, targetId: string, metadata?: any) {
   try {
     const { data: sess } = await supabase.auth.getSession();
-    await (supabase as any).from("security_audit_log").insert({
+    const { error } = await (supabase as any).from("security_audit_log").insert({
       actor_user_id: sess?.session?.user?.id ?? null,
       action,
       target_type: targetType,
       target_id: targetId,
       metadata: metadata ?? null,
     });
-  } catch {
-    /* noop */
+    if (error && import.meta.env.DEV) {
+      console.warn("[security audit] insert failed (non-blocking):", error.message);
+    }
+  } catch (err) {
+    if (import.meta.env.DEV) console.warn("[security audit] exception (non-blocking):", err);
   }
 }
 
@@ -63,9 +66,11 @@ export function PersonSecurityTab({ personId }: Props) {
   const { hasPermission } = usePermissions();
   const { isSuperAdmin } = useAuth();
   const canManage = isSuperAdmin || hasPermission("security.manage");
+  const canView = canManage || hasPermission("security.view");
   const canViewSensitive = isSuperAdmin || hasPermission("security.sensitive.view") || hasPermission("security.manage");
 
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [auths, setAuths] = useState<Authorization[]>([]);
   const [saving, setSaving] = useState(false);
@@ -78,18 +83,29 @@ export function PersonSecurityTab({ personId }: Props) {
   const [newNotes, setNewNotes] = useState("");
 
   const load = useCallback(async () => {
+    if (!personId) return;
     setLoading(true);
-    const [p, a] = await Promise.all([
-      (supabase as any).from("person_security_profiles").select("*").eq("person_id", personId).maybeSingle(),
-      (supabase as any)
-        .from("person_customer_authorizations")
-        .select("*")
-        .eq("person_id", personId)
-        .order("created_at", { ascending: false }),
-    ]);
-    setProfile((p?.data as Profile) ?? null);
-    setAuths((a?.data as Authorization[]) ?? []);
-    setLoading(false);
+    setLoadError(null);
+    try {
+      const [p, a] = await Promise.all([
+        (supabase as any).from("person_security_profiles").select("*").eq("person_id", personId).maybeSingle(),
+        (supabase as any)
+          .from("person_customer_authorizations")
+          .select("*")
+          .eq("person_id", personId)
+          .order("created_at", { ascending: false }),
+      ]);
+      if (p?.error) throw p.error;
+      if (a?.error) throw a.error;
+      setProfile((p?.data as Profile) ?? null);
+      setAuths(((a?.data as Authorization[]) ?? []).filter(Boolean));
+    } catch (err: any) {
+      setLoadError(err?.message ?? "Kunne ikke laste sikkerhetsdata");
+      setProfile(null);
+      setAuths([]);
+    } finally {
+      setLoading(false);
+    }
   }, [personId]);
 
   useEffect(() => {
@@ -182,10 +198,28 @@ export function PersonSecurityTab({ personId }: Props) {
     toast.success("Slettet");
   };
 
+  if (!canView) {
+    return (
+      <div className="rounded-lg border p-6 max-w-2xl text-sm text-muted-foreground">
+        Du har ikke tilgang til å se sikkerhetsdata for denne personen.
+      </div>
+    );
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center p-10">
         <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-4 max-w-2xl">
+        <p className="text-sm font-medium text-destructive">Kunne ikke laste sikkerhetsdata</p>
+        <p className="text-xs text-muted-foreground mt-1">{loadError}</p>
+        <Button variant="outline" size="sm" className="mt-3" onClick={load}>Prøv igjen</Button>
       </div>
     );
   }
@@ -198,12 +232,14 @@ export function PersonSecurityTab({ personId }: Props) {
           <div className="flex-1">
             <h3 className="font-medium">Ingen sikkerhetsprofil</h3>
             <p className="text-sm text-muted-foreground mt-1">
-              Opprett en sikkerhetsprofil for å registrere klarering, POB og NDA-status.
+              {canManage
+                ? "Opprett en sikkerhetsprofil for å registrere klarering, POB og NDA-status."
+                : "Det er ikke registrert en sikkerhetsprofil enda."}
             </p>
             {canManage && (
               <Button onClick={createProfile} disabled={saving} className="mt-4 gap-2">
                 <Plus className="h-4 w-4" />
-                Opprett sikkerhetsprofil
+                {saving ? "Oppretter..." : "Opprett sikkerhetsprofil"}
               </Button>
             )}
           </div>
@@ -211,6 +247,7 @@ export function PersonSecurityTab({ personId }: Props) {
       </div>
     );
   }
+
 
   return (
     <div className="space-y-6 max-w-3xl">
