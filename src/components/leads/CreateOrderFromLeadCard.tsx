@@ -49,6 +49,8 @@ interface LinkedSubmission {
   submission_no: string;
   status: string;
   created_at: string;
+  converted_to_id: string | null;
+  converted_to_type: string | null;
 }
 
 export function CreateOrderFromLeadCard({ lead, logActivity }: Props) {
@@ -68,7 +70,7 @@ export function CreateOrderFromLeadCard({ lead, logActivity }: Props) {
       const [linkedRes, tplRes] = await Promise.all([
         (supabase as any)
           .from("order_form_submissions")
-          .select("id, submission_no, status, created_at")
+          .select("id, submission_no, status, created_at, converted_to_id, converted_to_type")
           .eq("source_lead_id", lead.id)
           .is("deleted_at", null)
           .order("created_at", { ascending: false }),
