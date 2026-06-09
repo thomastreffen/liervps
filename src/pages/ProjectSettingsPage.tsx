@@ -10,6 +10,9 @@ import { TechnicianMultiSelect } from "@/components/TechnicianMultiSelect";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ArrowLeft, AlertTriangle, Bell, BellOff, Loader2, Save } from "lucide-react";
+import { ProjectSecurityPanel } from "@/components/security/ProjectSecurityPanel";
+import { usePermissions } from "@/hooks/usePermissions";
+import { useAuth } from "@/hooks/useAuth";
 
 interface ConflictInfo {
   technicianName: string;
