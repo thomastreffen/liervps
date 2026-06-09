@@ -637,6 +637,16 @@ const App = () => (
                   <HmsPage><HmsIncidentDetailPage /></HmsPage>
                 </ProtectedRoute>
               } />
+              <Route path="/hms/people" element={
+                <ProtectedRoute requiredPermission="hms.view">
+                  <HmsPage><HmsPeoplePage /></HmsPage>
+                </ProtectedRoute>
+              } />
+              <Route path="/hms/people/:id" element={
+                <ProtectedRoute requiredPermission="hms.view">
+                  <HmsPage><HmsPersonDetailPage /></HmsPage>
+                </ProtectedRoute>
+              } />
             </Route>
 
             <Route path="*" element={<NotFound />} />
