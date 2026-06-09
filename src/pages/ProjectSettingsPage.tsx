@@ -10,6 +10,9 @@ import { TechnicianMultiSelect } from "@/components/TechnicianMultiSelect";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ArrowLeft, AlertTriangle, Bell, BellOff, Loader2, Save } from "lucide-react";
+import { ProjectSecurityPanel } from "@/components/security/ProjectSecurityPanel";
+import { usePermissions } from "@/hooks/usePermissions";
+import { useAuth } from "@/hooks/useAuth";
 
 interface ConflictInfo {
   technicianName: string;
@@ -21,6 +24,9 @@ interface ConflictInfo {
 export default function ProjectSettingsPage() {
   const { id: jobId } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { isSuperAdmin } = useAuth();
+  const { hasPermission } = usePermissions();
+  const canViewSecurity = isSuperAdmin || hasPermission("security.view") || hasPermission("security.manage");
 
   const [title, setTitle] = useState("");
   const [customer, setCustomer] = useState("");
@@ -321,6 +327,11 @@ export default function ProjectSettingsPage() {
             <Label>Beskrivelse</Label>
             <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={4} className="mt-1.5" />
           </div>
+
+          {/* Security panel (own save) */}
+          {canViewSecurity && jobId && (
+            <ProjectSecurityPanel projectId={jobId} selectedPersonIds={techIds} />
+          )}
 
           {/* Notify toggle */}
           <div className="flex items-center justify-between rounded-lg border border-border/60 bg-card p-4">

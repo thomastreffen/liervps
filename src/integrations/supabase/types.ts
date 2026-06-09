@@ -9600,6 +9600,121 @@ export type Database = {
         }
         Relationships: []
       }
+      person_customer_authorizations: {
+        Row: {
+          authorization_status: string
+          created_at: string
+          customer_name: string
+          id: string
+          interview_date: string | null
+          notes: string | null
+          person_id: string
+          project_id: string | null
+          updated_at: string
+          valid_until: string | null
+        }
+        Insert: {
+          authorization_status?: string
+          created_at?: string
+          customer_name: string
+          id?: string
+          interview_date?: string | null
+          notes?: string | null
+          person_id: string
+          project_id?: string | null
+          updated_at?: string
+          valid_until?: string | null
+        }
+        Update: {
+          authorization_status?: string
+          created_at?: string
+          customer_name?: string
+          id?: string
+          interview_date?: string | null
+          notes?: string | null
+          person_id?: string
+          project_id?: string | null
+          updated_at?: string
+          valid_until?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "person_customer_authorizations_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "person_customer_authorizations_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "technicians_v"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "person_customer_authorizations_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      person_security_profiles: {
+        Row: {
+          clearance_level: string | null
+          clearance_status: string
+          clearance_valid_until: string | null
+          created_at: string
+          id: string
+          nda_status: string
+          person_id: string
+          pob_status: string
+          sensitive_note: string | null
+          updated_at: string
+        }
+        Insert: {
+          clearance_level?: string | null
+          clearance_status?: string
+          clearance_valid_until?: string | null
+          created_at?: string
+          id?: string
+          nda_status?: string
+          person_id: string
+          pob_status?: string
+          sensitive_note?: string | null
+          updated_at?: string
+        }
+        Update: {
+          clearance_level?: string | null
+          clearance_status?: string
+          clearance_valid_until?: string | null
+          created_at?: string
+          id?: string
+          nda_status?: string
+          person_id?: string
+          pob_status?: string
+          sensitive_note?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "person_security_profiles_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: true
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "person_security_profiles_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: true
+            referencedRelation: "technicians_v"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       portal_notification_preferences: {
         Row: {
           channel_email: boolean
@@ -9800,6 +9915,56 @@ export type Database = {
             columns: ["user_account_id"]
             isOneToOne: false
             referencedRelation: "user_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_security_requirements: {
+        Row: {
+          created_at: string
+          customer_name: string | null
+          deadline: string | null
+          id: string
+          notes: string | null
+          project_id: string
+          requires_clearance: boolean
+          requires_customer_authorization: boolean
+          requires_nda: boolean
+          requires_pob: boolean
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          customer_name?: string | null
+          deadline?: string | null
+          id?: string
+          notes?: string | null
+          project_id: string
+          requires_clearance?: boolean
+          requires_customer_authorization?: boolean
+          requires_nda?: boolean
+          requires_pob?: boolean
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          customer_name?: string | null
+          deadline?: string | null
+          id?: string
+          notes?: string | null
+          project_id?: string
+          requires_clearance?: boolean
+          requires_customer_authorization?: boolean
+          requires_nda?: boolean
+          requires_pob?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_security_requirements_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: true
+            referencedRelation: "events"
             referencedColumns: ["id"]
           },
         ]
@@ -10260,6 +10425,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      security_audit_log: {
+        Row: {
+          action: string
+          actor_user_id: string | null
+          created_at: string
+          id: string
+          metadata: Json | null
+          target_id: string
+          target_type: string
+        }
+        Insert: {
+          action: string
+          actor_user_id?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          target_id: string
+          target_type: string
+        }
+        Update: {
+          action?: string
+          actor_user_id?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          target_id?: string
+          target_type?: string
+        }
+        Relationships: []
       }
       service_jobs: {
         Row: {

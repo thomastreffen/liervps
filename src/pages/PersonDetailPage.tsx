@@ -20,8 +20,10 @@ import { toast } from "sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { PermissionsPanel } from "@/components/permissions/PermissionsPanel";
 import { HardDeleteDialog } from "@/components/person/HardDeleteDialog";
-import { ResetOnboardingDialog } from "@/components/person/ResetOnboardingDialog";
 import { useAuth } from "@/hooks/useAuth";
+import { usePermissions } from "@/hooks/usePermissions";
+import { PersonSecurityTab } from "@/components/security/PersonSecurityTab";
+import { ResetOnboardingDialog } from "@/components/person/ResetOnboardingDialog";
 
 interface PersonData {
   id: string;
@@ -84,6 +86,8 @@ export default function PersonDetailPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { isSuperAdmin } = useAuth();
+  const { hasPermission } = usePermissions();
+  const canViewSecurity = isSuperAdmin || hasPermission("security.view") || hasPermission("security.manage");
   const defaultTab = searchParams.get("tab") || "profile";
   const [person, setPerson] = useState<PersonData | null>(null);
   const [employment, setEmployment] = useState<EmploymentData | null>(null);
@@ -478,6 +482,7 @@ export default function PersonDetailPage() {
             <TabsTrigger value="profile"><User className="h-4 w-4 mr-1.5" />Profil</TabsTrigger>
             <TabsTrigger value="org"><Building className="h-4 w-4 mr-1.5" />Organisasjon</TabsTrigger>
             {account && <TabsTrigger value="permissions"><Shield className="h-4 w-4 mr-1.5" />Rettigheter</TabsTrigger>}
+            {canViewSecurity && <TabsTrigger value="security"><Shield className="h-4 w-4 mr-1.5" />Sikkerhet</TabsTrigger>}
             <TabsTrigger value="audit"><Activity className="h-4 w-4 mr-1.5" />Aktivitet</TabsTrigger>
           </TabsList>
 
@@ -779,6 +784,13 @@ export default function PersonDetailPage() {
                 onSelectedCompanyRoleChange={handleSelectedCompanyRoleChange}
                 effectiveRoleName={effectiveRoleName}
               />
+            </TabsContent>
+          )}
+
+          {/* Audit Tab */}
+          {canViewSecurity && person && (
+            <TabsContent value="security">
+              <PersonSecurityTab personId={person.id} />
             </TabsContent>
           )}
 
