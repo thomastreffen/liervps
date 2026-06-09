@@ -36,14 +36,19 @@ interface PersonStatus {
 async function writeAudit(action: string, targetId: string, metadata?: any) {
   try {
     const { data: sess } = await supabase.auth.getSession();
-    await (supabase as any).from("security_audit_log").insert({
+    const { error } = await (supabase as any).from("security_audit_log").insert({
       actor_user_id: sess?.session?.user?.id ?? null,
       action,
       target_type: "project_security_requirement",
       target_id: targetId,
       metadata: metadata ?? null,
     });
-  } catch {}
+    if (error && import.meta.env.DEV) {
+      console.warn("[security audit] insert failed (non-blocking):", error.message);
+    }
+  } catch (err) {
+    if (import.meta.env.DEV) console.warn("[security audit] exception (non-blocking):", err);
+  }
 }
 
 interface Props {
