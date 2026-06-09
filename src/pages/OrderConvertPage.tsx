@@ -146,6 +146,20 @@ export default function OrderConvertPage() {
     },
   });
 
+  const sourceLeadId = (submission as any)?.source_lead_id as string | null | undefined;
+  const { data: sourceLead } = useQuery({
+    queryKey: ["order-convert-source-lead", sourceLeadId],
+    enabled: !!sourceLeadId,
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from("leads")
+        .select("id, company_name, contact_name, email, phone, notes")
+        .eq("id", sourceLeadId!)
+        .maybeSingle();
+      return data;
+    },
+  });
+
   const { data: values = [], isFetched: valuesFetched } = useQuery({
     queryKey: ["order-form-values", id],
     enabled: !!id,
