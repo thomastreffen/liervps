@@ -44,6 +44,7 @@ export default function HmsPersonDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notInActiveCompany, setNotInActiveCompany] = useState(false);
+  const [notInHmsScope, setNotInHmsScope] = useState(false);
   const [person, setPerson] = useState<PersonRow | null>(null);
   const [emp, setEmp] = useState<EmploymentRow | null>(null);
   const [companyName, setCompanyName] = useState<string | null>(null);
