@@ -301,10 +301,14 @@ export default function OrderConvertPage() {
   
   useEffect(() => {
     if (!initialized && submission && valuesFetched) {
+      // Fall back to source lead data when order fields are empty.
+      // Never overwrite values the user has manually edited after init.
+      const leadCustomer = (sourceLead as any)?.company_name as string | undefined;
+      const leadNotes = (sourceLead as any)?.notes as string | undefined;
       setTitle(derivedTitle);
-      setDescription(derivedDescription);
+      setDescription(derivedDescription || leadNotes || "");
       setAddress(derivedAddress);
-      setCustomer(derivedCustomer);
+      setCustomer(derivedCustomer || leadCustomer || "");
       setInitialized(true);
     }
   }, [
@@ -315,6 +319,7 @@ export default function OrderConvertPage() {
     derivedDescription,
     derivedAddress,
     derivedCustomer,
+    sourceLead,
   ]);
 
   const priorityMap: Record<string, string> = {
