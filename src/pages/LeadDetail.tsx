@@ -19,6 +19,7 @@ import { LeadActionPanel, type ActionPanelTab } from "@/components/activity/Lead
 import { LeadStickyBar } from "@/components/activity/LeadStickyBar";
 import { NextStepCard } from "@/components/activity/NextStepCard";
 import { LeadConvertPanel } from "@/components/activity/LeadConvertPanel";
+import { CreateOrderFromLeadCard } from "@/components/leads/CreateOrderFromLeadCard";
 import { ContractListSection } from "@/components/contracts/ContractListSection";
 import { LEAD_STATUS_CONFIG, ALL_LEAD_STATUSES, NEXT_ACTION_TYPES, type LeadStatus } from "@/lib/lead-status";
 import {
