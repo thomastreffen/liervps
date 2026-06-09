@@ -71,6 +71,8 @@ import { SelectedFilesPreview } from "@/components/chat/SelectedFilesPreview";
 import { AttachmentRenameDialog, type RenameTarget } from "@/components/chat/AttachmentRenameDialog";
 import { type ChatAttachment, isImageAttachment, formatBytes, attachmentLabel } from "@/components/chat/chat-attachments-util";
 import { APP_VERSION } from "@/pwa/buildVersion";
+import { FlowTrail } from "@/components/flow/FlowTrail";
+import { useFlowChain } from "@/components/flow/useFlowChain";
 
 export default function OrderFormDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -2306,8 +2308,6 @@ function renderFieldValue(val: any, type: string): string {
 }
 
 // ─── Inline flow-trail wrapper for a bestilling ───
-import { FlowTrail } from "@/components/flow/FlowTrail";
-import { useFlowChain } from "@/components/flow/useFlowChain";
 function OrderFlowTrail({
   submissionId,
   submissionNo,
