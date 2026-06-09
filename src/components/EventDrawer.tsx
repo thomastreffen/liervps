@@ -1014,44 +1014,65 @@ export function EventDrawer({
           return;
         }
 
-        // 2) Create the new child activity event
-        const { data: createdActivity, error: createErr } = await (supabase as any)
+        // 2) Idempotent create of child activity (reuse if same client_request_id exists)
+        let createdActivityId: string;
+        const { data: existingActivity } = await supabase
           .from("events")
-          .insert({
-            parent_project_id: selectedJobId,
-            project_type: "task",
-            title: title.trim() || parent.title,
-            customer: customer || parent.customer,
-            address: address || parent.address,
-            postal_code: postalCode || parent.postal_code,
-            city: city || parent.city,
-            location_details: locationDetails || parent.location_details,
-            site_contact_name: siteContactName || parent.site_contact_name,
-            site_contact_phone: siteContactPhone || parent.site_contact_phone,
-            access_notes: accessNotes || parent.access_notes,
-            map_link: mapLink || parent.map_link,
-            description: description || parent.description,
-            assignment_notes: assignmentNotes || null,
-            customer_practical_info: customerPracticalInfo || parent.customer_practical_info,
-            start_time: startISO,
-            end_time: endISO,
-            technician_id: techIds[0] || userId,
-            status: "requested",
-            created_by: userId,
-            client_request_id: clientRequestId,
-            company_id: parent.company_id,
-            source_order_form_id: parent.source_order_form_id,
-          })
           .select("id")
-          .single();
+          .eq("client_request_id", clientRequestId)
+          .maybeSingle();
 
-        if (createErr || !createdActivity) {
-          toast.error("Kunne ikke opprette arbeidsbesøk", { description: createErr?.message });
-          setSaving(false);
-          return;
+        if (existingActivity) {
+          createdActivityId = existingActivity.id as string;
+        } else {
+          const { data: createdActivity, error: createErr } = await (supabase as any)
+            .from("events")
+            .insert({
+              parent_project_id: selectedJobId,
+              project_type: "task",
+              title: title.trim() || parent.title,
+              customer: customer || parent.customer,
+              address: address || parent.address,
+              postal_code: postalCode || parent.postal_code,
+              city: city || parent.city,
+              location_details: locationDetails || parent.location_details,
+              site_contact_name: siteContactName || parent.site_contact_name,
+              site_contact_phone: siteContactPhone || parent.site_contact_phone,
+              access_notes: accessNotes || parent.access_notes,
+              map_link: mapLink || parent.map_link,
+              description: description || parent.description,
+              assignment_notes: assignmentNotes || null,
+              customer_practical_info: customerPracticalInfo || parent.customer_practical_info,
+              start_time: startISO,
+              end_time: endISO,
+              technician_id: techIds[0] || userId,
+              status: "requested",
+              created_by: userId,
+              client_request_id: clientRequestId,
+              company_id: parent.company_id,
+              source_order_form_id: parent.source_order_form_id,
+            })
+            .select("id")
+            .single();
+
+          if (createErr || !createdActivity) {
+            // Race: another concurrent submit may have inserted with same client_request_id
+            const { data: raced } = await supabase
+              .from("events")
+              .select("id")
+              .eq("client_request_id", clientRequestId)
+              .maybeSingle();
+            if (raced) {
+              createdActivityId = raced.id as string;
+            } else {
+              toast.error("Kunne ikke opprette arbeidsbesøk", { description: createErr?.message });
+              setSaving(false);
+              return;
+            }
+          } else {
+            createdActivityId = createdActivity.id as string;
+          }
         }
-
-        const createdActivityId = createdActivity.id as string;
 
         // Compute all planning dates (base + copy-to-dates), deduplicated by ISO date
         const dateSet = new Set<string>([date]);
@@ -1062,18 +1083,21 @@ export function EventDrawer({
         }
         const allDates: string[] = Array.from(dateSet);
 
-        // 3) event_technicians on the NEW activity
+        // 3) event_technicians on the NEW activity (upsert to avoid duplicates on retry)
         if (techIds.length > 0) {
-          const { error: etErr } = await supabase.from("event_technicians").insert(
-            techIds.map((tid) => ({
-              event_id: createdActivityId,
-              technician_id: tid,
-              ...(startISO ? { start_at: startISO } : {}),
-              ...(endISO ? { end_at: endISO } : {}),
-            } as any))
-          );
+          const { error: etErr } = await (supabase as any)
+            .from("event_technicians")
+            .upsert(
+              techIds.map((tid) => ({
+                event_id: createdActivityId,
+                technician_id: tid,
+                ...(startISO ? { start_at: startISO } : {}),
+                ...(endISO ? { end_at: endISO } : {}),
+              })),
+              { onConflict: "event_id,technician_id", ignoreDuplicates: false }
+            );
           if (etErr) {
-            console.error("[resource-plan:create-activity:existing] event_technicians insert failed", etErr);
+            console.error("[resource-plan:create-activity:existing] event_technicians upsert failed", etErr);
             toast.error("Kunne ikke tildele montører", { description: etErr.message });
             setSaving(false);
             return;
@@ -1082,13 +1106,16 @@ export function EventDrawer({
 
         // 4) schedule_blocks — project_id = parent, job_id = new activity
         if (allDates.length > 0 && parent.company_id && techIds.length > 0) {
-          const blockRows: any[] = [];
+          // Dedup within batch (same tech+date) defensively
+          const blockMap = new Map<string, any>();
           for (const tid of techIds) {
             for (const ds of allDates) {
               const { startISO: dStart, endISO: dEnd } = normalizeOvernightDates(
                 ds, startTime, ds, endTime,
               );
-              blockRows.push({
+              const key = `${tid}|${dStart}|${dEnd}`;
+              if (blockMap.has(key)) continue;
+              blockMap.set(key, {
                 company_id: parent.company_id,
                 technician_id: tid,
                 project_id: selectedJobId,
@@ -1105,27 +1132,51 @@ export function EventDrawer({
               });
             }
           }
+          const blockRowsBeforeDedup = Array.from(blockMap.values());
 
-          console.info("[resource-plan:multi-date-debug]", {
-            baseDate: date,
-            repeatEnabled,
-            repeatDates: repeatDates.map((d) => format(d, "yyyy-MM-dd")),
+          // Pre-check existing active blocks with the same logical key
+          const { data: existingBlocks } = await supabase
+            .from("schedule_blocks")
+            .select("technician_id,start_at,end_at,source,project_id,job_id")
+            .is("deleted_at", null)
+            .eq("job_id", createdActivityId)
+            .eq("project_id", selectedJobId)
+            .eq("source", "manual")
+            .in("technician_id", techIds);
+
+          const existingSet = new Set(
+            (existingBlocks ?? []).map(
+              (b: any) => `${b.technician_id}|${new Date(b.start_at).toISOString()}|${new Date(b.end_at).toISOString()}`
+            )
+          );
+
+          const blockRowsInsert = blockRowsBeforeDedup.filter(
+            (b) => !existingSet.has(`${b.technician_id}|${b.start_at}|${b.end_at}`)
+          );
+
+          console.info("[resource-plan:create-existing-idempotency]", {
+            clientRequestId,
+            selectedJobId,
+            createdActivityId,
             allDates,
-            blockRows: blockRows.map((b) => ({
-              technician_id: b.technician_id,
-              start_at: b.start_at,
-              end_at: b.end_at,
-              title: b.title,
-            })),
+            techIds,
+            blockRowsBeforeDedup: blockRowsBeforeDedup.length,
+            existingBlockMatches: existingSet.size,
+            blockRowsInserted: blockRowsInsert.length,
           });
 
-          const { error: sbErr } = await (supabase as any)
-            .from("schedule_blocks")
-            .insert(blockRows);
-          if (sbErr) {
-            toast.error("Kunne ikke opprette planblokker", { description: sbErr.message });
-            setSaving(false);
-            return;
+          if (blockRowsInsert.length > 0) {
+            const { error: sbErr } = await (supabase as any)
+              .from("schedule_blocks")
+              .upsert(blockRowsInsert, {
+                onConflict: "job_id,project_id,technician_id,start_at,end_at,source",
+                ignoreDuplicates: true,
+              });
+            if (sbErr) {
+              toast.error("Kunne ikke opprette planblokker", { description: sbErr.message });
+              setSaving(false);
+              return;
+            }
           }
         }
 
@@ -1260,11 +1311,11 @@ export function EventDrawer({
               expectedBlockRows: techIds.length * allDates.length,
             });
 
-            const { error: etErr } = await supabase
+            const { error: etErr } = await (supabase as any)
               .from("event_technicians")
-              .insert(etRows);
+              .upsert(etRows, { onConflict: "event_id,technician_id", ignoreDuplicates: false });
             if (etErr) {
-              console.error("[resource-plan:create-activity] event_technicians insert failed", etErr, etRows);
+              console.error("[resource-plan:create-activity] event_technicians upsert failed", etErr, etRows);
               toast.error("Kunne ikke tildele montører", { description: etErr.message });
               setSaving(false);
               return;
@@ -1272,13 +1323,15 @@ export function EventDrawer({
 
             // Build one schedule_block per (technician, date) combination so that
             // multi-day + multi-tech expands to N×M planned occurrences.
-            const blockRows: any[] = [];
+            const blockMap = new Map<string, any>();
             for (const tid of techIds) {
               for (const ds of allDates) {
                 const { startISO: dStart, endISO: dEnd } = normalizeOvernightDates(
                   ds, startTime, ds, endTime,
                 );
-                blockRows.push({
+                const key = `${tid}|${dStart}|${dEnd}`;
+                if (blockMap.has(key)) continue;
+                blockMap.set(key, {
                   company_id: resolvedCompanyId,
                   technician_id: tid,
                   project_id: createdId,
@@ -1294,39 +1347,30 @@ export function EventDrawer({
                 });
               }
             }
+            const blockRows = Array.from(blockMap.values());
 
             console.info("[resource-plan:multi-date-debug]", {
               baseDate: date,
               repeatEnabled,
               repeatDates: repeatDates.map((d) => format(d, "yyyy-MM-dd")),
               allDates,
-              blockRows: blockRows.map((b) => ({
-                technician_id: b.technician_id,
-                start_at: b.start_at,
-                end_at: b.end_at,
-                title: b.title,
-              })),
+              blockRowsCount: blockRows.length,
             });
 
-            const { data: insertedBlocks, error: sbErr } = await (supabase as any)
+            const { error: sbErr } = await (supabase as any)
               .from("schedule_blocks")
-              .insert(blockRows)
-              .select("id");
+              .upsert(blockRows, {
+                onConflict: "job_id,project_id,technician_id,start_at,end_at,source",
+                ignoreDuplicates: true,
+              });
 
             console.info("[resource-plan:create-activity:result]", {
-              insertedCount: insertedBlocks?.length ?? 0,
               expected: blockRows.length,
               error: sbErr,
             });
             if (sbErr) {
-              console.error("[resource-plan:create-activity] schedule_blocks insert failed", sbErr, blockRows);
+              console.error("[resource-plan:create-activity] schedule_blocks upsert failed", sbErr, blockRows);
               toast.error("Kunne ikke planlegge dager", { description: sbErr.message });
-              setSaving(false);
-              return;
-            }
-            if (!insertedBlocks || insertedBlocks.length === 0) {
-              console.error("[resource-plan:create-activity] no rows inserted", blockRows);
-              toast.error("Ingen planlagte dager ble opprettet");
               setSaving(false);
               return;
             }
@@ -1366,7 +1410,9 @@ export function EventDrawer({
           await supabase.from("events").update({ attachments: newUploads as any }).eq("id", createdId);
         }
 
-        const totalDays = 1 + (repeatEnabled ? repeatDates.length : 0);
+        const totalDaysSet = new Set<string>([date]);
+        if (repeatEnabled) for (const d of repeatDates) totalDaysSet.add(format(d, "yyyy-MM-dd"));
+        const totalDays = totalDaysSet.size;
         toast.success(isTask ? "Oppgave opprettet" : "Hendelse opprettet og planlagt", {
           description: isTask
             ? `${title} er lagt til som oppgave.`
