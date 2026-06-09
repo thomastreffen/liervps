@@ -27,7 +27,18 @@ interface Row {
 }
 
 type ActiveFilter = "all" | "active" | "archived";
-type SecFilter = "all" | "ok" | "missing" | "check";
+type SecFilter = "all" | "ok" | "missing" | "check" | "unknown";
+
+function hmsCardStatus(expires: string | null): { label: string; tone: "ok" | "warn" | "bad" | "muted" } {
+  if (!expires) return { label: "Ikke registrert", tone: "muted" };
+  const exp = new Date(expires).getTime();
+  if (Number.isNaN(exp)) return { label: "Ikke registrert", tone: "muted" };
+  const now = Date.now();
+  const days = (exp - now) / (1000 * 60 * 60 * 24);
+  if (days < 0) return { label: "Utløpt", tone: "bad" };
+  if (days <= 60) return { label: "Utløper snart", tone: "warn" };
+  return { label: "OK", tone: "ok" };
+}
 
 function securityBucket(r: Row): "ok" | "missing" | "check" | "unknown" {
   if (!r.clearance_status && !r.pob_status && !r.nda_status) return "unknown";
