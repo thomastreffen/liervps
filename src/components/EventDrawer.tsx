@@ -1311,11 +1311,11 @@ export function EventDrawer({
               expectedBlockRows: techIds.length * allDates.length,
             });
 
-            const { error: etErr } = await supabase
+            const { error: etErr } = await (supabase as any)
               .from("event_technicians")
-              .insert(etRows);
+              .upsert(etRows, { onConflict: "event_id,technician_id", ignoreDuplicates: false });
             if (etErr) {
-              console.error("[resource-plan:create-activity] event_technicians insert failed", etErr, etRows);
+              console.error("[resource-plan:create-activity] event_technicians upsert failed", etErr, etRows);
               toast.error("Kunne ikke tildele montører", { description: etErr.message });
               setSaving(false);
               return;
@@ -1323,13 +1323,15 @@ export function EventDrawer({
 
             // Build one schedule_block per (technician, date) combination so that
             // multi-day + multi-tech expands to N×M planned occurrences.
-            const blockRows: any[] = [];
+            const blockMap = new Map<string, any>();
             for (const tid of techIds) {
               for (const ds of allDates) {
                 const { startISO: dStart, endISO: dEnd } = normalizeOvernightDates(
                   ds, startTime, ds, endTime,
                 );
-                blockRows.push({
+                const key = `${tid}|${dStart}|${dEnd}`;
+                if (blockMap.has(key)) continue;
+                blockMap.set(key, {
                   company_id: resolvedCompanyId,
                   technician_id: tid,
                   project_id: createdId,
@@ -1345,39 +1347,30 @@ export function EventDrawer({
                 });
               }
             }
+            const blockRows = Array.from(blockMap.values());
 
             console.info("[resource-plan:multi-date-debug]", {
               baseDate: date,
               repeatEnabled,
               repeatDates: repeatDates.map((d) => format(d, "yyyy-MM-dd")),
               allDates,
-              blockRows: blockRows.map((b) => ({
-                technician_id: b.technician_id,
-                start_at: b.start_at,
-                end_at: b.end_at,
-                title: b.title,
-              })),
+              blockRowsCount: blockRows.length,
             });
 
-            const { data: insertedBlocks, error: sbErr } = await (supabase as any)
+            const { error: sbErr } = await (supabase as any)
               .from("schedule_blocks")
-              .insert(blockRows)
-              .select("id");
+              .upsert(blockRows, {
+                onConflict: "job_id,project_id,technician_id,start_at,end_at,source",
+                ignoreDuplicates: true,
+              });
 
             console.info("[resource-plan:create-activity:result]", {
-              insertedCount: insertedBlocks?.length ?? 0,
               expected: blockRows.length,
               error: sbErr,
             });
             if (sbErr) {
-              console.error("[resource-plan:create-activity] schedule_blocks insert failed", sbErr, blockRows);
+              console.error("[resource-plan:create-activity] schedule_blocks upsert failed", sbErr, blockRows);
               toast.error("Kunne ikke planlegge dager", { description: sbErr.message });
-              setSaving(false);
-              return;
-            }
-            if (!insertedBlocks || insertedBlocks.length === 0) {
-              console.error("[resource-plan:create-activity] no rows inserted", blockRows);
-              toast.error("Ingen planlagte dager ble opprettet");
               setSaving(false);
               return;
             }
