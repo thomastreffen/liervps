@@ -2306,8 +2306,6 @@ function renderFieldValue(val: any, type: string): string {
 }
 
 // ─── Inline flow-trail wrapper for a bestilling ───
-import { FlowTrail } from "@/components/flow/FlowTrail";
-import { useFlowChain } from "@/components/flow/useFlowChain";
 function OrderFlowTrail({
   submissionId,
   submissionNo,
