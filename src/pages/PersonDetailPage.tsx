@@ -569,28 +569,72 @@ export default function PersonDetailPage() {
                 ) : (
                   <div className="space-y-2">
                     {allEmployments.map((ep) => (
-                      <div key={ep.id} className="flex items-center justify-between rounded-md border border-border p-3">
-                        <div>
-                          <p className="text-sm font-medium">{ep.company_name}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {ep.department_name || "Ingen avdeling"}
-                            {ep.is_plannable_resource && " · Planleggbar"}
-                            {ep.archived_at && " · Arkivert"}
-                          </p>
+                      <div key={ep.id} className="rounded-md border border-border p-3 space-y-2">
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <p className="text-sm font-medium">{ep.company_name}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {ep.department_name || "Ingen avdeling"}
+                              {ep.is_plannable_resource && " · Planleggbar"}
+                              {ep.archived_at && " · Arkivert"}
+                            </p>
+                          </div>
+                          {(isSuperAdmin || isAdmin) && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                              onClick={async () => {
+                                if (!confirm("Fjerne dette selskapsmedlemskapet?")) return;
+                                await supabase.from("employment_profiles").delete().eq("id", ep.id);
+                                toast.success("Medlemskap fjernet");
+                                fetchData();
+                              }}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                          onClick={async () => {
-                            if (!confirm("Fjerne dette selskapsmedlemskapet?")) return;
-                            await supabase.from("employment_profiles").delete().eq("id", ep.id);
-                            toast.success("Medlemskap fjernet");
-                            fetchData();
-                          }}
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
+                        {(isSuperAdmin || isAdmin) && (
+                          <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-3 pt-1">
+                            <div>
+                              <Label className="text-[11px] uppercase tracking-wide text-muted-foreground">Tilknytningstype</Label>
+                              <Select
+                                value={ep.relationship_type}
+                                onValueChange={async (v) => {
+                                  setAllEmployments((prev) => prev.map((x) => x.id === ep.id ? { ...x, relationship_type: v } : x));
+                                  const { error } = await supabase
+                                    .from("employment_profiles")
+                                    .update({ relationship_type: v } as any)
+                                    .eq("id", ep.id);
+                                  if (error) toast.error("Kunne ikke oppdatere tilknytningstype", { description: error.message });
+                                }}
+                              >
+                                <SelectTrigger className="h-8 mt-1"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                  {RELATIONSHIP_TYPES.map((t) => (
+                                    <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="flex items-end gap-2 pb-1">
+                              <Switch
+                                id={`hms-${ep.id}`}
+                                checked={ep.include_in_hms_people}
+                                onCheckedChange={async (checked) => {
+                                  setAllEmployments((prev) => prev.map((x) => x.id === ep.id ? { ...x, include_in_hms_people: checked } : x));
+                                  const { error } = await supabase
+                                    .from("employment_profiles")
+                                    .update({ include_in_hms_people: checked } as any)
+                                    .eq("id", ep.id);
+                                  if (error) toast.error("Kunne ikke oppdatere HMS-synlighet", { description: error.message });
+                                }}
+                              />
+                              <Label htmlFor={`hms-${ep.id}`} className="text-xs cursor-pointer">Vis i HMS-ansattliste</Label>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
