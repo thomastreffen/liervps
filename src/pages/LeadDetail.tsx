@@ -816,6 +816,13 @@ function LeadDetailInner() {
   );
 }
 
+// ─── Inline flow-trail wrapper for a lead ───
+function LeadFlowTrail({ leadId, leadName }: { leadId: string; leadName: string }) {
+  const { steps } = useFlowChain({ leadId, leadName });
+  if (steps.length <= 1) return null;
+  return <FlowTrail steps={steps} />;
+}
+
 // ─── Export with Error Boundary ───
 export default function LeadDetail() {
   return (
