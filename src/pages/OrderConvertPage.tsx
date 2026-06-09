@@ -431,6 +431,7 @@ export default function OrderConvertPage() {
             project_type: "service",
             created_by: user?.id,
             source_order_form_id: id,
+            source_lead_id: (submission as any)?.source_lead_id || null,
             site_contact_name: kontaktperson !== "–" ? kontaktperson : null,
             site_contact_phone: kontaktTelefon !== "–" ? kontaktTelefon : null,
             attachments: eventAttachments.length > 0 ? (eventAttachments as any) : undefined,
@@ -449,6 +450,30 @@ export default function OrderConvertPage() {
           converted_to_id: createdId,
         })
         .eq("id", id!);
+
+      // If this order was created from a lead, log to lead history too.
+      const leadId = (submission as any)?.source_lead_id as string | null;
+      if (leadId && createdId) {
+        try {
+          await (supabase as any).from("lead_history").insert({
+            lead_id: leadId,
+            action: "order_converted",
+            description:
+              target === "case"
+                ? "Bestilling konvertert til sak"
+                : "Bestilling konvertert til oppdrag",
+            performed_by: user?.id,
+            metadata: {
+              order_form_submission_id: id,
+              event_id: target === "order" ? createdId : null,
+              case_id: target === "case" ? createdId : null,
+              target_type: target,
+            },
+          });
+        } catch (e) {
+          console.warn("[OrderConvert] lead_history insert failed", e);
+        }
+      }
 
       await supabase.from("order_form_activity_log").insert({
         submission_id: id!,
