@@ -178,8 +178,12 @@ export default function HmsPersonDetailPage() {
           <ArrowLeft className="h-4 w-4" /> Tilbake til ansatte
         </Button>
         <div className="rounded-lg border p-6 text-sm">
-          <p className="font-medium">Denne personen tilhører ikke aktivt selskap.</p>
-          <p className="text-muted-foreground mt-1">Bytt aktivt selskap i toppmenyen for å se denne ansatte.</p>
+          <p className="font-medium">{msg}</p>
+          <p className="text-muted-foreground mt-1">
+            {notInHmsScope
+              ? "Tilknytningen kan endres under Admin → Personer → Organisasjon."
+              : "Bytt aktivt selskap i toppmenyen for å se denne ansatte."}
+          </p>
         </div>
       </div>
     );
