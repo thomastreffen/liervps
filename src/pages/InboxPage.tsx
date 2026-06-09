@@ -1132,6 +1132,14 @@ function CaseDetail({
             serviceJobId={caseData.service_job_id}
             leadId={caseData.lead_id}
           />
+          {caseData.linked_lead_id && (
+            <CaseFlowTrail
+              caseId={caseData.id}
+              caseNumber={caseData.case_number}
+              leadId={caseData.linked_lead_id}
+              orderSubmissionId={caseData.linked_order_submission_id}
+            />
+          )}
           <AutoLinkBanner items={items} />
         </div>
 
