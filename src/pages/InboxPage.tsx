@@ -504,30 +504,71 @@ export default function InboxPage() {
 
   const convertToLead = async (c: Case) => {
     try {
-      const firstItem = items.find((i) => i.case_id === c.id && i.type === "email");
+      // Use first email in the case as the source
+      const caseEmails = items
+        .filter((i) => i.case_id === c.id && i.type === "email")
+        .sort((a, b) => {
+          const ta = new Date(a.received_at || a.sent_at || a.created_at).getTime();
+          const tb = new Date(b.received_at || b.sent_at || b.created_at).getTime();
+          return ta - tb;
+        });
+      const firstItem = caseEmails[0];
+
+      const fromEmail = (firstItem?.from_email || "").trim();
+      const fromName = (firstItem?.from_name || "").trim();
+      const emailDomain = fromEmail.includes("@") ? fromEmail.split("@")[1] : "";
+      const domainAsName = emailDomain
+        ? emailDomain.replace(/\.(no|com|net|org|io|co\.\w+)$/i, "").replace(/\./g, " ")
+        : "";
+      const companyNameGuess =
+        fromName ||
+        (domainAsName ? domainAsName.charAt(0).toUpperCase() + domainAsName.slice(1) : "") ||
+        "Ukjent avsender";
+
+      const bodyPreview = (firstItem?.body_preview || firstItem?.body_text || "")
+        .replace(/\s+/g, " ")
+        .trim()
+        .slice(0, 280);
+
+      const notesLines = [
+        `Sak: ${c.case_number} — ${c.title}`,
+        firstItem?.subject ? `E-postemne: ${firstItem.subject}` : null,
+        fromEmail ? `Fra: ${fromName ? `${fromName} <${fromEmail}>` : fromEmail}` : null,
+        bodyPreview ? `\nUtdrag:\n${bodyPreview}` : null,
+      ].filter(Boolean);
+
       const { data, error } = await supabase
         .from("leads")
         .insert({
-          company_name: firstItem?.from_email || "Ukjent",
-          contact_name: firstItem?.from_email,
-          email: firstItem?.from_email,
-          source: "henvendelse",
-          notes: `Fra henvendelse: ${c.title}`,
+          company_id: c.company_id,
+          company_name: companyNameGuess,
+          contact_name: fromName || null,
+          email: fromEmail || null,
+          source: "postkontor",
+          notes: notesLines.join("\n"),
           status: "new",
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
+          owner_id: user?.id || null,
+          assigned_owner_user_id: user?.id || null,
         } as any)
         .select("id")
         .single();
       if (error) throw error;
+
       await doUpdateCaseField(c, {
         status: "converted" as CaseStatus,
         resolution_type: "converted_to_lead",
         linked_lead_id: data.id,
         lead_id: data.id,
       } as any);
-      await logSystemItem(c, "Konvertert til lead", `Henvendelse konvertert til lead. Lead ID: ${data.id}`);
-      toast.success("Lead opprettet!");
+      await logSystemItem(
+        c,
+        "Konvertert til lead",
+        `Henvendelse konvertert til lead «${companyNameGuess}». Lead ID: ${data.id}`,
+      );
+      toast.success("Lead opprettet uten koblet kunde", {
+        description: "Du kan koble kunde/selskap manuelt på leadet senere.",
+        action: { label: "Åpne lead", onClick: () => navigate(`/sales/leads/${data.id}`) },
+      });
       navigate(`/sales/leads/${data.id}`);
     } catch (err: any) {
       toast.error("Kunne ikke opprette lead: " + (err.message || ""));
