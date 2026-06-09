@@ -24,6 +24,9 @@ interface ConflictInfo {
 export default function ProjectSettingsPage() {
   const { id: jobId } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { isSuperAdmin } = useAuth();
+  const { hasPermission } = usePermissions();
+  const canViewSecurity = isSuperAdmin || hasPermission("security.view") || hasPermission("security.manage");
 
   const [title, setTitle] = useState("");
   const [customer, setCustomer] = useState("");
