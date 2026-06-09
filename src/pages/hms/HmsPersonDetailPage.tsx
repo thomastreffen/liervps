@@ -44,6 +44,7 @@ export default function HmsPersonDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notInActiveCompany, setNotInActiveCompany] = useState(false);
+  const [notInHmsScope, setNotInHmsScope] = useState(false);
   const [person, setPerson] = useState<PersonRow | null>(null);
   const [emp, setEmp] = useState<EmploymentRow | null>(null);
   const [companyName, setCompanyName] = useState<string | null>(null);
@@ -59,6 +60,7 @@ export default function HmsPersonDetailPage() {
       setLoading(true);
       setError(null);
       setNotInActiveCompany(false);
+      setNotInHmsScope(false);
       try {
         if (!activeCompanyId) {
           if (!cancelled) {
@@ -86,6 +88,13 @@ export default function HmsPersonDetailPage() {
         if (!e) {
           if (!cancelled) {
             setNotInActiveCompany(true);
+            setLoading(false);
+          }
+          return;
+        }
+        if (e.include_in_hms_people === false) {
+          if (!cancelled) {
+            setNotInHmsScope(true);
             setLoading(false);
           }
           return;
@@ -159,15 +168,22 @@ export default function HmsPersonDetailPage() {
     );
   }
 
-  if (notInActiveCompany) {
+  if (notInActiveCompany || notInHmsScope) {
+    const msg = notInHmsScope
+      ? "Denne personen har tilgang/tilknytning til aktivt selskap, men er ikke registrert som HMS-personell i dette selskapet."
+      : "Denne personen tilhører ikke aktivt selskap.";
     return (
       <div className="p-6 max-w-2xl">
         <Button variant="ghost" size="sm" onClick={() => navigate("/hms/people")} className="mb-4 gap-1">
           <ArrowLeft className="h-4 w-4" /> Tilbake til ansatte
         </Button>
         <div className="rounded-lg border p-6 text-sm">
-          <p className="font-medium">Denne personen tilhører ikke aktivt selskap.</p>
-          <p className="text-muted-foreground mt-1">Bytt aktivt selskap i toppmenyen for å se denne ansatte.</p>
+          <p className="font-medium">{msg}</p>
+          <p className="text-muted-foreground mt-1">
+            {notInHmsScope
+              ? "Tilknytningen kan endres under Admin → Personer → Organisasjon."
+              : "Bytt aktivt selskap i toppmenyen for å se denne ansatte."}
+          </p>
         </div>
       </div>
     );

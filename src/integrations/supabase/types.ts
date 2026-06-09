@@ -4186,9 +4186,11 @@ export type Database = {
           hms_card_expires_at: string | null
           hms_card_number: string | null
           id: string
+          include_in_hms_people: boolean
           is_plannable_resource: boolean
           notes: string | null
           person_id: string
+          relationship_type: string
           trade_certificate_type: string | null
         }
         Insert: {
@@ -4203,9 +4205,11 @@ export type Database = {
           hms_card_expires_at?: string | null
           hms_card_number?: string | null
           id?: string
+          include_in_hms_people?: boolean
           is_plannable_resource?: boolean
           notes?: string | null
           person_id: string
+          relationship_type?: string
           trade_certificate_type?: string | null
         }
         Update: {
@@ -4220,9 +4224,11 @@ export type Database = {
           hms_card_expires_at?: string | null
           hms_card_number?: string | null
           id?: string
+          include_in_hms_people?: boolean
           is_plannable_resource?: boolean
           notes?: string | null
           person_id?: string
+          relationship_type?: string
           trade_certificate_type?: string | null
         }
         Relationships: [
