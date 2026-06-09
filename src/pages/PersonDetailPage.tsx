@@ -174,6 +174,8 @@ export default function PersonDetailPage() {
       department_name: ep.department_id ? deptNameMap.get(ep.department_id) || null : null,
       is_plannable_resource: ep.is_plannable_resource,
       archived_at: ep.archived_at,
+      relationship_type: ep.relationship_type ?? "employee",
+      include_in_hms_people: ep.include_in_hms_people ?? true,
     })));
 
     if (uaData) {
