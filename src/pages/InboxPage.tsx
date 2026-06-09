@@ -1389,3 +1389,27 @@ function CaseDetail({
     </ScrollArea>
   );
 }
+
+// ─── Inline flow-trail wrapper for postkontor-case ───
+import { FlowTrail as _FlowTrail } from "@/components/flow/FlowTrail";
+import { useFlowChain as _useFlowChain } from "@/components/flow/useFlowChain";
+function CaseFlowTrail({
+  caseId,
+  caseNumber,
+  leadId,
+  orderSubmissionId,
+}: {
+  caseId: string;
+  caseNumber: string | null;
+  leadId: string | null;
+  orderSubmissionId: string | null;
+}) {
+  const { steps } = _useFlowChain({
+    caseId,
+    caseNumber,
+    leadId,
+    orderSubmissionId,
+  });
+  if (steps.length <= 1) return null;
+  return <_FlowTrail steps={steps} />;
+}
