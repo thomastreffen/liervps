@@ -168,7 +168,10 @@ export default function HmsPersonDetailPage() {
     );
   }
 
-  if (notInActiveCompany) {
+  if (notInActiveCompany || notInHmsScope) {
+    const msg = notInHmsScope
+      ? "Denne personen har tilgang/tilknytning til aktivt selskap, men er ikke registrert som HMS-personell i dette selskapet."
+      : "Denne personen tilhører ikke aktivt selskap.";
     return (
       <div className="p-6 max-w-2xl">
         <Button variant="ghost" size="sm" onClick={() => navigate("/hms/people")} className="mb-4 gap-1">
