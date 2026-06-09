@@ -1417,7 +1417,9 @@ export function EventDrawer({
           await supabase.from("events").update({ attachments: newUploads as any }).eq("id", createdId);
         }
 
-        const totalDays = 1 + (repeatEnabled ? repeatDates.length : 0);
+        const totalDaysSet = new Set<string>([date]);
+        if (repeatEnabled) for (const d of repeatDates) totalDaysSet.add(format(d, "yyyy-MM-dd"));
+        const totalDays = totalDaysSet.size;
         toast.success(isTask ? "Oppgave opprettet" : "Hendelse opprettet og planlagt", {
           description: isTask
             ? `${title} er lagt til som oppgave.`
