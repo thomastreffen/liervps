@@ -2304,3 +2304,31 @@ function renderFieldValue(val: any, type: string): string {
   if (typeof val === "object") return JSON.stringify(val);
   return String(val);
 }
+
+// ─── Inline flow-trail wrapper for a bestilling ───
+import { FlowTrail } from "@/components/flow/FlowTrail";
+import { useFlowChain } from "@/components/flow/useFlowChain";
+function OrderFlowTrail({
+  submissionId,
+  submissionNo,
+  sourceLeadId,
+  convertedToId,
+  convertedToType,
+}: {
+  submissionId: string;
+  submissionNo: string | null;
+  sourceLeadId: string | null;
+  convertedToId: string | null;
+  convertedToType: string | null;
+}) {
+  const { steps } = useFlowChain({
+    leadId: sourceLeadId,
+    orderSubmissionId: submissionId,
+    orderSubmissionNo: submissionNo,
+    orderConvertedToId: convertedToId,
+    orderConvertedToType: convertedToType,
+  });
+  if (!sourceLeadId && !convertedToId) return null;
+  if (steps.length <= 1) return null;
+  return <FlowTrail steps={steps} />;
+}
