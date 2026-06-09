@@ -84,26 +84,25 @@ export function ProjectSecurityPanel({ projectId, selectedPersonIds }: Props) {
     const customer = (rData as any)?.customer_name as string | null;
 
     if (selectedPersonIds.length > 0) {
-      // Person ids here are technician ids; map to people via technicians if needed.
-      // Simpler approach: fetch people directly (assuming caller passes people.id).
-      // To be safe, query technicians table and join people.
+      // selectedPersonIds = technician ids. Map: technicians.user_id -> user_accounts.auth_user_id -> person_id.
       const { data: techs } = await supabase
         .from("technicians")
-        .select("id, name, user_id, employment_profile_id")
+        .select("id, name, user_id")
         .in("id", selectedPersonIds);
 
-      // Resolve to people.id via employment_profiles -> person_id
-      const empIds = (techs ?? []).map((t: any) => t.employment_profile_id).filter(Boolean);
-      let empMap: Record<string, string> = {};
-      if (empIds.length) {
-        const { data: emps } = await (supabase as any)
-          .from("employment_profiles")
-          .select("id, person_id")
-          .in("id", empIds);
-        for (const e of emps ?? []) empMap[e.id] = e.person_id;
+      const authIds = (techs ?? []).map((t: any) => t.user_id).filter(Boolean);
+      let personByAuth: Record<string, string> = {};
+      if (authIds.length) {
+        const { data: accs } = await supabase
+          .from("user_accounts")
+          .select("auth_user_id, person_id")
+          .in("auth_user_id", authIds);
+        for (const a of accs ?? []) personByAuth[(a as any).auth_user_id] = (a as any).person_id;
       }
 
-      const personIds = (techs ?? []).map((t: any) => empMap[t.employment_profile_id]).filter(Boolean);
+      const personIds = (techs ?? [])
+        .map((t: any) => personByAuth[t.user_id])
+        .filter(Boolean) as string[];
 
       const [profilesRes, authsRes, peopleRes] = await Promise.all([
         personIds.length
