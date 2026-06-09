@@ -27,7 +27,18 @@ interface Row {
 }
 
 type ActiveFilter = "all" | "active" | "archived";
-type SecFilter = "all" | "ok" | "missing" | "check";
+type SecFilter = "all" | "ok" | "missing" | "check" | "unknown";
+
+function hmsCardStatus(expires: string | null): { label: string; tone: "ok" | "warn" | "bad" | "muted" } {
+  if (!expires) return { label: "Ikke registrert", tone: "muted" };
+  const exp = new Date(expires).getTime();
+  if (Number.isNaN(exp)) return { label: "Ikke registrert", tone: "muted" };
+  const now = Date.now();
+  const days = (exp - now) / (1000 * 60 * 60 * 24);
+  if (days < 0) return { label: "Utløpt", tone: "bad" };
+  if (days <= 60) return { label: "Utløper snart", tone: "warn" };
+  return { label: "OK", tone: "ok" };
+}
 
 function securityBucket(r: Row): "ok" | "missing" | "check" | "unknown" {
   if (!r.clearance_status && !r.pob_status && !r.nda_status) return "unknown";
@@ -165,6 +176,7 @@ export default function HmsPeoplePage() {
         if (secFilter === "ok" && b !== "ok") return false;
         if (secFilter === "missing" && b !== "missing") return false;
         if (secFilter === "check" && b !== "check") return false;
+        if (secFilter === "unknown" && b !== "unknown") return false;
       }
       if (!term) return true;
       return (
@@ -209,6 +221,7 @@ export default function HmsPeoplePage() {
               <SelectItem value="ok">OK</SelectItem>
               <SelectItem value="missing">Mangler</SelectItem>
               <SelectItem value="check">Må sjekkes</SelectItem>
+              <SelectItem value="unknown">Ikke vurdert</SelectItem>
             </SelectContent>
           </Select>
         )}
@@ -265,14 +278,28 @@ export default function HmsPeoplePage() {
                   </TableCell>
                   <TableCell className="text-sm">
                     {r.hms_card_number ? (
-                      <div>
+                      <div className="space-y-0.5">
                         <div className="font-mono text-xs">{r.hms_card_number}</div>
-                        {r.hms_card_expires_at && (
-                          <div className="text-[11px] text-muted-foreground">→ {r.hms_card_expires_at}</div>
-                        )}
+                        {(() => {
+                          const s = hmsCardStatus(r.hms_card_expires_at);
+                          const cls =
+                            s.tone === "ok"
+                              ? "border-emerald-300 text-emerald-700 dark:text-emerald-300"
+                              : s.tone === "warn"
+                              ? "border-amber-300 text-amber-700 dark:text-amber-300"
+                              : s.tone === "bad"
+                              ? "border-destructive/40 text-destructive"
+                              : "text-muted-foreground";
+                          return (
+                            <Badge variant="outline" className={`text-[11px] ${cls}`}>
+                              {s.label}
+                              {r.hms_card_expires_at && s.tone !== "muted" ? ` · ${r.hms_card_expires_at}` : ""}
+                            </Badge>
+                          );
+                        })()}
                       </div>
                     ) : (
-                      <span className="text-xs text-muted-foreground">-</span>
+                      <span className="text-xs text-muted-foreground">Ikke registrert</span>
                     )}
                   </TableCell>
                   {canViewSecurity && (
