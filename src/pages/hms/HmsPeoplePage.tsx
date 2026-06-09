@@ -176,6 +176,7 @@ export default function HmsPeoplePage() {
         if (secFilter === "ok" && b !== "ok") return false;
         if (secFilter === "missing" && b !== "missing") return false;
         if (secFilter === "check" && b !== "check") return false;
+        if (secFilter === "unknown" && b !== "unknown") return false;
       }
       if (!term) return true;
       return (
