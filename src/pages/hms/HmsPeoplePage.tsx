@@ -124,9 +124,10 @@ export default function HmsPeoplePage() {
         const { data: empData, error: eErr } = await (supabase as any)
           .from("employment_profiles")
           .select(
-            "person_id, company_id, department_id, is_plannable_resource, hms_card_number, hms_card_expires_at, archived_at"
+            "person_id, company_id, department_id, is_plannable_resource, hms_card_number, hms_card_expires_at, archived_at, relationship_type, include_in_hms_people"
           )
-          .eq("company_id", activeCompanyId);
+          .eq("company_id", activeCompanyId)
+          .eq("include_in_hms_people", true);
         if (eErr) throw eErr;
 
         const empByPerson = new Map<string, any>();
