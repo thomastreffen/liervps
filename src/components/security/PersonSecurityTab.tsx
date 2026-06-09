@@ -198,10 +198,28 @@ export function PersonSecurityTab({ personId }: Props) {
     toast.success("Slettet");
   };
 
+  if (!canView) {
+    return (
+      <div className="rounded-lg border p-6 max-w-2xl text-sm text-muted-foreground">
+        Du har ikke tilgang til å se sikkerhetsdata for denne personen.
+      </div>
+    );
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center p-10">
         <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-4 max-w-2xl">
+        <p className="text-sm font-medium text-destructive">Kunne ikke laste sikkerhetsdata</p>
+        <p className="text-xs text-muted-foreground mt-1">{loadError}</p>
+        <Button variant="outline" size="sm" className="mt-3" onClick={load}>Prøv igjen</Button>
       </div>
     );
   }
@@ -214,12 +232,14 @@ export function PersonSecurityTab({ personId }: Props) {
           <div className="flex-1">
             <h3 className="font-medium">Ingen sikkerhetsprofil</h3>
             <p className="text-sm text-muted-foreground mt-1">
-              Opprett en sikkerhetsprofil for å registrere klarering, POB og NDA-status.
+              {canManage
+                ? "Opprett en sikkerhetsprofil for å registrere klarering, POB og NDA-status."
+                : "Det er ikke registrert en sikkerhetsprofil enda."}
             </p>
             {canManage && (
               <Button onClick={createProfile} disabled={saving} className="mt-4 gap-2">
                 <Plus className="h-4 w-4" />
-                Opprett sikkerhetsprofil
+                {saving ? "Oppretter..." : "Opprett sikkerhetsprofil"}
               </Button>
             )}
           </div>
@@ -227,6 +247,7 @@ export function PersonSecurityTab({ personId }: Props) {
       </div>
     );
   }
+
 
   return (
     <div className="space-y-6 max-w-3xl">
