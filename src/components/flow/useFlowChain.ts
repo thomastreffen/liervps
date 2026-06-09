@@ -36,17 +36,24 @@ interface ChainData {
 export function useFlowChain(seed: Seed): { steps: FlowStep[]; loading: boolean } {
   const navigate = useNavigate();
 
-  // Lead from case
+  // Case lookup: either by id, or by linked_lead_id when starting from a lead.
   const { data: caseData, isLoading: l1 } = useQuery({
-    queryKey: ["flow-case", seed.caseId],
-    enabled: !!seed.caseId && (!seed.leadId || !seed.orderSubmissionId),
+    queryKey: ["flow-case", seed.caseId, seed.leadId],
+    enabled: !!seed.caseId || !!seed.leadId,
     queryFn: async () => {
-      const { data } = await (supabase as any)
+      let q = (supabase as any)
         .from("cases")
-        .select("id, case_number, linked_lead_id, linked_order_submission_id")
-        .eq("id", seed.caseId!)
-        .maybeSingle();
-      return data as
+        .select("id, case_number, linked_lead_id, linked_order_submission_id, created_at")
+        .is("deleted_at", null);
+      if (seed.caseId) {
+        q = q.eq("id", seed.caseId);
+      } else {
+        q = q.eq("linked_lead_id", seed.leadId!);
+      }
+      q = q.order("created_at", { ascending: false }).limit(1);
+      const { data } = await q;
+      const row = ((data as any[]) || [])[0] || null;
+      return row as
         | { id: string; case_number: string | null; linked_lead_id: string | null; linked_order_submission_id: string | null }
         | null;
     },
