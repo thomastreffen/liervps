@@ -221,6 +221,7 @@ export default function HmsPeoplePage() {
               <SelectItem value="ok">OK</SelectItem>
               <SelectItem value="missing">Mangler</SelectItem>
               <SelectItem value="check">Må sjekkes</SelectItem>
+              <SelectItem value="unknown">Ikke vurdert</SelectItem>
             </SelectContent>
           </Select>
         )}
