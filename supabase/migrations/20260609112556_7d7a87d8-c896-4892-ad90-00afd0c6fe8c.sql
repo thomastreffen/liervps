@@ -1,0 +1,2 @@
+ALTER TABLE public.events ADD COLUMN IF NOT EXISTS source_lead_id uuid REFERENCES public.leads(id) ON DELETE SET NULL;
+CREATE INDEX IF NOT EXISTS idx_events_source_lead_id ON public.events(source_lead_id) WHERE source_lead_id IS NOT NULL;
