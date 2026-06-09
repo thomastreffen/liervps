@@ -482,6 +482,7 @@ export default function PersonDetailPage() {
             <TabsTrigger value="profile"><User className="h-4 w-4 mr-1.5" />Profil</TabsTrigger>
             <TabsTrigger value="org"><Building className="h-4 w-4 mr-1.5" />Organisasjon</TabsTrigger>
             {account && <TabsTrigger value="permissions"><Shield className="h-4 w-4 mr-1.5" />Rettigheter</TabsTrigger>}
+            {canViewSecurity && <TabsTrigger value="security"><Shield className="h-4 w-4 mr-1.5" />Sikkerhet</TabsTrigger>}
             <TabsTrigger value="audit"><Activity className="h-4 w-4 mr-1.5" />Aktivitet</TabsTrigger>
           </TabsList>
 
