@@ -20,8 +20,10 @@ import { toast } from "sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { PermissionsPanel } from "@/components/permissions/PermissionsPanel";
 import { HardDeleteDialog } from "@/components/person/HardDeleteDialog";
-import { ResetOnboardingDialog } from "@/components/person/ResetOnboardingDialog";
 import { useAuth } from "@/hooks/useAuth";
+import { usePermissions } from "@/hooks/usePermissions";
+import { PersonSecurityTab } from "@/components/security/PersonSecurityTab";
+import { ResetOnboardingDialog } from "@/components/person/ResetOnboardingDialog";
 
 interface PersonData {
   id: string;
