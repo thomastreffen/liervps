@@ -341,6 +341,7 @@ export function AppSidebar() {
                      <CollapsibleContent>
                        <SidebarMenu className="ml-5 mt-1 space-y-0.5 border-l border-sidebar-border/40 pl-2">
                          <NavItem item={{ title: "Oversikt", url: "/hms", icon: Gauge }} isActive={(url) => location.pathname === "/hms"} collapsed={collapsed} />
+                         <NavItem item={{ title: "Ansatte", url: "/hms/people", icon: Users }} isActive={isActive} collapsed={collapsed} />
                          <NavItem item={{ title: "Håndbøker", url: "/hms/handbooks", icon: BookOpen }} isActive={isActive} collapsed={collapsed} />
                          <NavItem item={{ title: "Avvik / RUH", url: "/hms/incidents", icon: ShieldAlert }} isActive={isActive} collapsed={collapsed} />
                          <NavItem item={{ title: "AML-status", url: "/hms/aml", icon: AlertTriangle }} isActive={isActive} collapsed={collapsed} />

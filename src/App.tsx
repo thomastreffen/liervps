@@ -127,6 +127,8 @@ import HmsReportsPage from "./pages/hms/HmsReportsPage";
 import HmsIncidentReportPage from "./pages/hms/HmsIncidentReportPage";
 import HmsIncidentsListPage from "./pages/hms/HmsIncidentsListPage";
 import HmsIncidentDetailPage from "./pages/hms/HmsIncidentDetailPage";
+import HmsPeoplePage from "./pages/hms/HmsPeoplePage";
+import HmsPersonDetailPage from "./pages/hms/HmsPersonDetailPage";
 import { HmsContextGate } from "@/components/hms/HmsContextGate";
 import { CompanyProvider, useCompanyContext } from "@/hooks/useCompanyContext";
 import { ActiveCompanyForPermissions } from "@/hooks/usePermissions";
@@ -633,6 +635,16 @@ const App = () => (
               <Route path="/hms/incidents/:id" element={
                 <ProtectedRoute requiredPermission="hms.view">
                   <HmsPage><HmsIncidentDetailPage /></HmsPage>
+                </ProtectedRoute>
+              } />
+              <Route path="/hms/people" element={
+                <ProtectedRoute requiredPermission="hms.view">
+                  <HmsPage><HmsPeoplePage /></HmsPage>
+                </ProtectedRoute>
+              } />
+              <Route path="/hms/people/:id" element={
+                <ProtectedRoute requiredPermission="hms.view">
+                  <HmsPage><HmsPersonDetailPage /></HmsPage>
                 </ProtectedRoute>
               } />
             </Route>
