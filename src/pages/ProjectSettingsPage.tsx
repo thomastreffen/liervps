@@ -328,6 +328,11 @@ export default function ProjectSettingsPage() {
             <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={4} className="mt-1.5" />
           </div>
 
+          {/* Security panel (own save) */}
+          {canViewSecurity && jobId && (
+            <ProjectSecurityPanel projectId={jobId} selectedPersonIds={techIds} />
+          )}
+
           {/* Notify toggle */}
           <div className="flex items-center justify-between rounded-lg border border-border/60 bg-card p-4">
             <div className="flex items-center gap-2.5">
