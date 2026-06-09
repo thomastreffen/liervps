@@ -119,6 +119,21 @@ export default function OrderFormDetailPage() {
     },
   });
 
+  // Fetch source lead if order was created from a lead
+  const sourceLeadId = (submission as any)?.source_lead_id as string | null | undefined;
+  const { data: sourceLead } = useQuery({
+    queryKey: ["order-form-source-lead", sourceLeadId],
+    enabled: !!sourceLeadId,
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from("leads")
+        .select("id, company_name, contact_name, email, phone, notes, status")
+        .eq("id", sourceLeadId!)
+        .maybeSingle();
+      return data;
+    },
+  });
+
   const { data: values = [] } = useQuery({
     queryKey: ["order-form-values", id],
     enabled: !!id,
