@@ -128,7 +128,11 @@ export function useFlowChain(seed: Seed): { steps: FlowStep[]; loading: boolean 
   });
 
   const chain: ChainData = {
-    caseRow: seed.caseId ? { id: seed.caseId, case_number: seed.caseNumber || caseData?.case_number || null } : null,
+    caseRow: caseData
+      ? { id: caseData.id, case_number: seed.caseNumber || caseData.case_number || null }
+      : seed.caseId
+        ? { id: seed.caseId, case_number: seed.caseNumber || null }
+        : null,
     leadRow: resolvedLeadId
       ? { id: resolvedLeadId, company_name: seed.leadName || leadData?.company_name || "Lead" }
       : null,
