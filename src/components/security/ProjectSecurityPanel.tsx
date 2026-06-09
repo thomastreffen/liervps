@@ -231,6 +231,17 @@ export function ProjectSecurityPanel({ projectId, selectedPersonIds }: Props) {
     );
   }
 
+  if (loadError) {
+    return (
+      <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-4">
+        <p className="text-sm font-medium text-destructive">Kunne ikke laste sikkerhetskrav</p>
+        <p className="text-xs text-muted-foreground mt-1">{loadError}</p>
+        <Button variant="outline" size="sm" className="mt-3" onClick={loadAll}>Prøv igjen</Button>
+      </div>
+    );
+  }
+
+
   return (
     <div className="rounded-lg border p-4 sm:p-6 space-y-5">
       <div className="flex items-center gap-2">
