@@ -66,9 +66,11 @@ export function PersonSecurityTab({ personId }: Props) {
   const { hasPermission } = usePermissions();
   const { isSuperAdmin } = useAuth();
   const canManage = isSuperAdmin || hasPermission("security.manage");
+  const canView = canManage || hasPermission("security.view");
   const canViewSensitive = isSuperAdmin || hasPermission("security.sensitive.view") || hasPermission("security.manage");
 
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [auths, setAuths] = useState<Authorization[]>([]);
   const [saving, setSaving] = useState(false);
@@ -81,18 +83,29 @@ export function PersonSecurityTab({ personId }: Props) {
   const [newNotes, setNewNotes] = useState("");
 
   const load = useCallback(async () => {
+    if (!personId) return;
     setLoading(true);
-    const [p, a] = await Promise.all([
-      (supabase as any).from("person_security_profiles").select("*").eq("person_id", personId).maybeSingle(),
-      (supabase as any)
-        .from("person_customer_authorizations")
-        .select("*")
-        .eq("person_id", personId)
-        .order("created_at", { ascending: false }),
-    ]);
-    setProfile((p?.data as Profile) ?? null);
-    setAuths((a?.data as Authorization[]) ?? []);
-    setLoading(false);
+    setLoadError(null);
+    try {
+      const [p, a] = await Promise.all([
+        (supabase as any).from("person_security_profiles").select("*").eq("person_id", personId).maybeSingle(),
+        (supabase as any)
+          .from("person_customer_authorizations")
+          .select("*")
+          .eq("person_id", personId)
+          .order("created_at", { ascending: false }),
+      ]);
+      if (p?.error) throw p.error;
+      if (a?.error) throw a.error;
+      setProfile((p?.data as Profile) ?? null);
+      setAuths(((a?.data as Authorization[]) ?? []).filter(Boolean));
+    } catch (err: any) {
+      setLoadError(err?.message ?? "Kunne ikke laste sikkerhetsdata");
+      setProfile(null);
+      setAuths([]);
+    } finally {
+      setLoading(false);
+    }
   }, [personId]);
 
   useEffect(() => {
