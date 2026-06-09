@@ -54,6 +54,8 @@ import { CaseEmailViewer } from "@/components/cases/CaseEmailViewer";
 import { CaseToOrderDialog } from "@/components/cases/CaseToOrderDialog";
 import { format, formatDistanceToNow, isPast, differenceInHours } from "date-fns";
 import { nb } from "date-fns/locale";
+import { FlowTrail as _FlowTrail } from "@/components/flow/FlowTrail";
+import { useFlowChain as _useFlowChain } from "@/components/flow/useFlowChain";
 import {
   CASE_STATUS_LABELS,
   CASE_STATUS_COLOR,
