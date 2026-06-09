@@ -92,6 +92,13 @@ export default function HmsPersonDetailPage() {
           }
           return;
         }
+        if (e.include_in_hms_people === false) {
+          if (!cancelled) {
+            setNotInHmsScope(true);
+            setLoading(false);
+          }
+          return;
+        }
 
         const { data: p, error: pErr } = await supabase
           .from("people")
