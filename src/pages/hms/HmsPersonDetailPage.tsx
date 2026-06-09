@@ -35,6 +35,7 @@ export default function HmsPersonDetailPage() {
   const navigate = useNavigate();
   const { hasPermission } = usePermissions();
   const { isSuperAdmin, isAdmin } = useAuth();
+  const { activeCompanyId, allowedCompanyIds } = useCompanyContext();
 
   const canViewSecurity = isSuperAdmin || isAdmin || hasPermission("security.view") || hasPermission("security.manage");
   const canViewAudit = isSuperAdmin || hasPermission("security.audit.view");
@@ -42,6 +43,7 @@ export default function HmsPersonDetailPage() {
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [notInActiveCompany, setNotInActiveCompany] = useState(false);
   const [person, setPerson] = useState<PersonRow | null>(null);
   const [emp, setEmp] = useState<EmploymentRow | null>(null);
   const [companyName, setCompanyName] = useState<string | null>(null);
