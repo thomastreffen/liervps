@@ -1132,6 +1132,14 @@ function CaseDetail({
             serviceJobId={caseData.service_job_id}
             leadId={caseData.lead_id}
           />
+          {caseData.linked_lead_id && (
+            <CaseFlowTrail
+              caseId={caseData.id}
+              caseNumber={caseData.case_number}
+              leadId={caseData.linked_lead_id}
+              orderSubmissionId={caseData.linked_order_submission_id}
+            />
+          )}
           <AutoLinkBanner items={items} />
         </div>
 
@@ -1380,4 +1388,28 @@ function CaseDetail({
       </div>
     </ScrollArea>
   );
+}
+
+// ─── Inline flow-trail wrapper for postkontor-case ───
+import { FlowTrail as _FlowTrail } from "@/components/flow/FlowTrail";
+import { useFlowChain as _useFlowChain } from "@/components/flow/useFlowChain";
+function CaseFlowTrail({
+  caseId,
+  caseNumber,
+  leadId,
+  orderSubmissionId,
+}: {
+  caseId: string;
+  caseNumber: string | null;
+  leadId: string | null;
+  orderSubmissionId: string | null;
+}) {
+  const { steps } = _useFlowChain({
+    caseId,
+    caseNumber,
+    leadId,
+    orderSubmissionId,
+  });
+  if (steps.length <= 1) return null;
+  return <_FlowTrail steps={steps} />;
 }

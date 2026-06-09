@@ -20,6 +20,8 @@ import { LeadStickyBar } from "@/components/activity/LeadStickyBar";
 import { NextStepCard } from "@/components/activity/NextStepCard";
 import { LeadConvertPanel } from "@/components/activity/LeadConvertPanel";
 import { CreateOrderFromLeadCard } from "@/components/leads/CreateOrderFromLeadCard";
+import { FlowTrail } from "@/components/flow/FlowTrail";
+import { useFlowChain } from "@/components/flow/useFlowChain";
 import { ContractListSection } from "@/components/contracts/ContractListSection";
 import { LEAD_STATUS_CONFIG, ALL_LEAD_STATUSES, NEXT_ACTION_TYPES, type LeadStatus } from "@/lib/lead-status";
 import {
@@ -455,6 +457,9 @@ function LeadDetailInner() {
           </div>
         </div>
 
+        {/* ── Flyt-kjede (Postkontor → Lead → Bestilling → Oppdrag) ── */}
+        <LeadFlowTrail leadId={lead.id} leadName={lead.company_name} />
+
         {/* ── Pipeline bar ── */}
         <Card className="rounded-2xl shadow-sm">
           <CardContent className="py-4">
@@ -809,6 +814,13 @@ function LeadDetailInner() {
       </Dialog>
     </>
   );
+}
+
+// ─── Inline flow-trail wrapper for a lead ───
+function LeadFlowTrail({ leadId, leadName }: { leadId: string; leadName: string }) {
+  const { steps } = useFlowChain({ leadId, leadName });
+  if (steps.length <= 1) return null;
+  return <FlowTrail steps={steps} />;
 }
 
 // ─── Export with Error Boundary ───
