@@ -1393,8 +1393,6 @@ function CaseDetail({
 }
 
 // ─── Inline flow-trail wrapper for postkontor-case ───
-import { FlowTrail as _FlowTrail } from "@/components/flow/FlowTrail";
-import { useFlowChain as _useFlowChain } from "@/components/flow/useFlowChain";
 function CaseFlowTrail({
   caseId,
   caseNumber,
