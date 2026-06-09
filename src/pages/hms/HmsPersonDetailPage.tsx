@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowLeft, Activity, Shield, User, Loader2, ExternalLink, ClipboardCheck } from "lucide-react";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useAuth } from "@/hooks/useAuth";
+import { useCompanyContext } from "@/hooks/useCompanyContext";
 import { PersonSecurityTab } from "@/components/security/PersonSecurityTab";
 
 interface PersonRow {
@@ -34,6 +35,7 @@ export default function HmsPersonDetailPage() {
   const navigate = useNavigate();
   const { hasPermission } = usePermissions();
   const { isSuperAdmin, isAdmin } = useAuth();
+  const { activeCompanyId, allowedCompanyIds } = useCompanyContext();
 
   const canViewSecurity = isSuperAdmin || isAdmin || hasPermission("security.view") || hasPermission("security.manage");
   const canViewAudit = isSuperAdmin || hasPermission("security.audit.view");
@@ -41,6 +43,7 @@ export default function HmsPersonDetailPage() {
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [notInActiveCompany, setNotInActiveCompany] = useState(false);
   const [person, setPerson] = useState<PersonRow | null>(null);
   const [emp, setEmp] = useState<EmploymentRow | null>(null);
   const [companyName, setCompanyName] = useState<string | null>(null);
@@ -55,7 +58,39 @@ export default function HmsPersonDetailPage() {
     (async () => {
       setLoading(true);
       setError(null);
+      setNotInActiveCompany(false);
       try {
+        if (!activeCompanyId) {
+          if (!cancelled) {
+            setLoading(false);
+            setNotInActiveCompany(true);
+          }
+          return;
+        }
+        if (allowedCompanyIds?.length && !allowedCompanyIds.includes(activeCompanyId)) {
+          if (!cancelled) {
+            setLoading(false);
+            setNotInActiveCompany(true);
+          }
+          return;
+        }
+
+        // Enforce company firewall: require employment_profile for activeCompanyId.
+        const { data: e, error: eErr } = await (supabase as any)
+          .from("employment_profiles")
+          .select("*")
+          .eq("person_id", id)
+          .eq("company_id", activeCompanyId)
+          .maybeSingle();
+        if (eErr) throw eErr;
+        if (!e) {
+          if (!cancelled) {
+            setNotInActiveCompany(true);
+            setLoading(false);
+          }
+          return;
+        }
+
         const { data: p, error: pErr } = await supabase
           .from("people")
           .select("id, full_name, email, phone, is_active")
@@ -63,12 +98,6 @@ export default function HmsPersonDetailPage() {
           .maybeSingle();
         if (pErr) throw pErr;
         if (!p) throw new Error("Fant ikke personen");
-
-        const { data: e } = await (supabase as any)
-          .from("employment_profiles")
-          .select("*")
-          .eq("person_id", id)
-          .maybeSingle();
 
         let cName: string | null = null;
         let dName: string | null = null;
@@ -104,7 +133,7 @@ export default function HmsPersonDetailPage() {
     return () => {
       cancelled = true;
     };
-  }, [id]);
+  }, [id, activeCompanyId, allowedCompanyIds]);
 
   const loadAudit = async () => {
     if (!id || !canViewAudit) return;
@@ -126,6 +155,20 @@ export default function HmsPersonDetailPage() {
     return (
       <div className="flex items-center justify-center p-10">
         <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (notInActiveCompany) {
+    return (
+      <div className="p-6 max-w-2xl">
+        <Button variant="ghost" size="sm" onClick={() => navigate("/hms/people")} className="mb-4 gap-1">
+          <ArrowLeft className="h-4 w-4" /> Tilbake til ansatte
+        </Button>
+        <div className="rounded-lg border p-6 text-sm">
+          <p className="font-medium">Denne personen tilhører ikke aktivt selskap.</p>
+          <p className="text-muted-foreground mt-1">Bytt aktivt selskap i toppmenyen for å se denne ansatte.</p>
+        </div>
       </div>
     );
   }
