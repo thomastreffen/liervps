@@ -58,7 +58,39 @@ export default function HmsPersonDetailPage() {
     (async () => {
       setLoading(true);
       setError(null);
+      setNotInActiveCompany(false);
       try {
+        if (!activeCompanyId) {
+          if (!cancelled) {
+            setLoading(false);
+            setNotInActiveCompany(true);
+          }
+          return;
+        }
+        if (allowedCompanyIds?.length && !allowedCompanyIds.includes(activeCompanyId)) {
+          if (!cancelled) {
+            setLoading(false);
+            setNotInActiveCompany(true);
+          }
+          return;
+        }
+
+        // Enforce company firewall: require employment_profile for activeCompanyId.
+        const { data: e, error: eErr } = await (supabase as any)
+          .from("employment_profiles")
+          .select("*")
+          .eq("person_id", id)
+          .eq("company_id", activeCompanyId)
+          .maybeSingle();
+        if (eErr) throw eErr;
+        if (!e) {
+          if (!cancelled) {
+            setNotInActiveCompany(true);
+            setLoading(false);
+          }
+          return;
+        }
+
         const { data: p, error: pErr } = await supabase
           .from("people")
           .select("id, full_name, email, phone, is_active")
@@ -66,12 +98,6 @@ export default function HmsPersonDetailPage() {
           .maybeSingle();
         if (pErr) throw pErr;
         if (!p) throw new Error("Fant ikke personen");
-
-        const { data: e } = await (supabase as any)
-          .from("employment_profiles")
-          .select("*")
-          .eq("person_id", id)
-          .maybeSingle();
 
         let cName: string | null = null;
         let dName: string | null = null;
@@ -107,7 +133,7 @@ export default function HmsPersonDetailPage() {
     return () => {
       cancelled = true;
     };
-  }, [id]);
+  }, [id, activeCompanyId, allowedCompanyIds]);
 
   const loadAudit = async () => {
     if (!id || !canViewAudit) return;
