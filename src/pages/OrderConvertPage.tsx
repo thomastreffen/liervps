@@ -552,6 +552,22 @@ export default function OrderConvertPage() {
         <Badge variant="outline" className="text-xs">{hastegrad}</Badge>
       </div>
 
+      {sourceLead && (
+        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/5 px-3 py-2 text-xs">
+          <User className="h-3.5 w-3.5 text-emerald-600" />
+          <span className="text-muted-foreground">Opprettet fra lead:</span>
+          <span className="font-medium">{(sourceLead as any).company_name}</span>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-6 ml-auto gap-1 text-xs"
+            onClick={() => navigate(`/sales/leads/${(sourceLead as any).id}`)}
+          >
+            Åpne lead <ArrowRight className="h-3 w-3" />
+          </Button>
+        </div>
+      )}
+
       {/* Two-column layout */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* LEFT: Source data */}
