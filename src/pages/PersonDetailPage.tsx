@@ -86,6 +86,8 @@ export default function PersonDetailPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { isSuperAdmin } = useAuth();
+  const { hasPermission } = usePermissions();
+  const canViewSecurity = isSuperAdmin || hasPermission("security.view") || hasPermission("security.manage");
   const defaultTab = searchParams.get("tab") || "profile";
   const [person, setPerson] = useState<PersonData | null>(null);
   const [employment, setEmployment] = useState<EmploymentData | null>(null);
