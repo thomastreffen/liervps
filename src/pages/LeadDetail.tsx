@@ -455,6 +455,9 @@ function LeadDetailInner() {
           </div>
         </div>
 
+        {/* ── Flyt-kjede (Postkontor → Lead → Bestilling → Oppdrag) ── */}
+        <LeadFlowTrail leadId={lead.id} leadName={lead.company_name} />
+
         {/* ── Pipeline bar ── */}
         <Card className="rounded-2xl shadow-sm">
           <CardContent className="py-4">
