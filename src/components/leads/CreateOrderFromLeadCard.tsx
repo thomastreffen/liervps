@@ -66,14 +66,14 @@ export function CreateOrderFromLeadCard({ lead, logActivity }: Props) {
     (async () => {
       setLoading(true);
       const [linkedRes, tplRes] = await Promise.all([
-        supabase
+        (supabase as any)
           .from("order_form_submissions")
           .select("id, submission_no, status, created_at")
-          .eq("source_lead_id" as any, lead.id)
+          .eq("source_lead_id", lead.id)
           .is("deleted_at", null)
           .order("created_at", { ascending: false }),
         lead.company_id
-          ? supabase
+          ? (supabase as any)
               .from("order_form_templates")
               .select("id, name, audience_type")
               .eq("company_id", lead.company_id)
