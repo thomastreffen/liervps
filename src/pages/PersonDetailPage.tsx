@@ -788,6 +788,13 @@ export default function PersonDetailPage() {
           )}
 
           {/* Audit Tab */}
+          {canViewSecurity && person && (
+            <TabsContent value="security">
+              <PersonSecurityTab personId={person.id} />
+            </TabsContent>
+          )}
+
+          {/* Audit Tab */}
           <TabsContent value="audit">
             <div className="rounded-lg border p-4 sm:p-6 max-w-2xl">
               {auditEntries.length === 0 ? (
