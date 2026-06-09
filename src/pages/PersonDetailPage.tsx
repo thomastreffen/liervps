@@ -79,7 +79,18 @@ interface EmploymentProfileRow {
   department_name: string | null;
   is_plannable_resource: boolean;
   archived_at: string | null;
+  relationship_type: string;
+  include_in_hms_people: boolean;
 }
+
+const RELATIONSHIP_TYPES: { value: string; label: string }[] = [
+  { value: "employee", label: "Ansatt" },
+  { value: "contractor", label: "Innleid" },
+  { value: "board", label: "Styre" },
+  { value: "external_access", label: "Ekstern tilgang" },
+  { value: "system_access", label: "Kun systemtilgang" },
+  { value: "other", label: "Annet" },
+];
 
 export default function PersonDetailPage() {
   const { id } = useParams<{ id: string }>();
