@@ -60,6 +60,7 @@ export default function HmsPersonDetailPage() {
       setLoading(true);
       setError(null);
       setNotInActiveCompany(false);
+      setNotInHmsScope(false);
       try {
         if (!activeCompanyId) {
           if (!cancelled) {
