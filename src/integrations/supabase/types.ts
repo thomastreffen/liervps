@@ -9027,6 +9027,7 @@ export type Database = {
           quality_score: string | null
           requester_type: string
           source: string
+          source_lead_id: string | null
           status: string
           submission_no: string
           submitted_at: string
@@ -9079,6 +9080,7 @@ export type Database = {
           quality_score?: string | null
           requester_type?: string
           source?: string
+          source_lead_id?: string | null
           status?: string
           submission_no?: string
           submitted_at?: string
@@ -9131,6 +9133,7 @@ export type Database = {
           quality_score?: string | null
           requester_type?: string
           source?: string
+          source_lead_id?: string | null
           status?: string
           submission_no?: string
           submitted_at?: string
@@ -9176,6 +9179,13 @@ export type Database = {
             columns: ["open_request_message_id"]
             isOneToOne: false
             referencedRelation: "order_form_messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_form_submissions_source_lead_id_fkey"
+            columns: ["source_lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
             referencedColumns: ["id"]
           },
           {
@@ -12498,6 +12508,7 @@ export type Database = {
           quality_score: string | null
           requester_type: string
           source: string
+          source_lead_id: string | null
           status: string
           submission_no: string
           submitted_at: string

@@ -19,6 +19,7 @@ import { LeadActionPanel, type ActionPanelTab } from "@/components/activity/Lead
 import { LeadStickyBar } from "@/components/activity/LeadStickyBar";
 import { NextStepCard } from "@/components/activity/NextStepCard";
 import { LeadConvertPanel } from "@/components/activity/LeadConvertPanel";
+import { CreateOrderFromLeadCard } from "@/components/leads/CreateOrderFromLeadCard";
 import { ContractListSection } from "@/components/contracts/ContractListSection";
 import { LEAD_STATUS_CONFIG, ALL_LEAD_STATUSES, NEXT_ACTION_TYPES, type LeadStatus } from "@/lib/lead-status";
 import {
@@ -676,6 +677,21 @@ function LeadDetailInner() {
                 )}
               </CardContent>
             </Card>
+
+            {/* Bestilling fra lead */}
+            <CreateOrderFromLeadCard
+              lead={{
+                id: lead.id,
+                company_id: lead.company_id,
+                company_name: lead.company_name,
+                contact_name: lead.contact_name,
+                email: lead.email,
+                phone: lead.phone,
+                notes: lead.notes,
+              }}
+              logActivity={logActivity}
+            />
+
 
             {/* Befaringer & møter — action-driven */}
             <Card className="rounded-2xl shadow-sm">
