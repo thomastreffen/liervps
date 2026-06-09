@@ -678,6 +678,21 @@ function LeadDetailInner() {
               </CardContent>
             </Card>
 
+            {/* Bestilling fra lead */}
+            <CreateOrderFromLeadCard
+              lead={{
+                id: lead.id,
+                company_id: lead.company_id,
+                company_name: lead.company_name,
+                contact_name: lead.contact_name,
+                email: lead.email,
+                phone: lead.phone,
+                notes: lead.notes,
+              }}
+              logActivity={logActivity}
+            />
+
+
             {/* Befaringer & møter — action-driven */}
             <Card className="rounded-2xl shadow-sm">
               <CardHeader className="pb-3">
