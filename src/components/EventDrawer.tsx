@@ -1230,14 +1230,14 @@ export function EventDrawer({
           });
 
           if (techIds.length > 0) {
-            // Compute all planned dates: primary date + repeat dates (if enabled)
-            const allDates: string[] = [date];
+            // Compute all planned dates: primary date + repeat dates (deduplicated by ISO)
+            const dateSet = new Set<string>([date]);
             if (repeatEnabled && repeatDates.length > 0) {
               for (const d of repeatDates) {
-                const ds = format(d, "yyyy-MM-dd");
-                if (!allDates.includes(ds)) allDates.push(ds);
+                dateSet.add(format(d, "yyyy-MM-dd"));
               }
             }
+            const allDates: string[] = Array.from(dateSet);
 
             // event_technicians has UNIQUE (event_id, technician_id) → one row per tech.
             // For the assignment row itself we attach the primary-day window so the
