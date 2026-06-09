@@ -1120,6 +1120,16 @@ export default function OrderFormDetailPage() {
         </DropdownMenu>
       </div>
 
+      {/* Flyt-kjede (Lead → Bestilling → Oppdrag) */}
+      <OrderFlowTrail
+        submissionId={id!}
+        submissionNo={sub.submission_no}
+        sourceLeadId={(sub as any).source_lead_id || null}
+        convertedToId={sub.converted_to_id || null}
+        convertedToType={sub.converted_to_type || null}
+      />
+
+
       {/* Ticket info bar */}
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 p-3 rounded-lg bg-muted/30 border">
         {[
