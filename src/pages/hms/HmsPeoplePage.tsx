@@ -104,30 +104,60 @@ export default function HmsPeoplePage() {
       setLoading(true);
       setError(null);
       try {
-        const { data: people, error: pErr } = await supabase
-          .from("people")
-          .select("id, full_name, email, phone, is_active")
-          .order("full_name", { ascending: true });
-        if (pErr) throw pErr;
-        const ids = (people ?? []).map((p: any) => p.id);
+        if (!activeCompanyId) {
+          if (!cancelled) {
+            setRows([]);
+            setLoading(false);
+          }
+          return;
+        }
+        // Enforce company firewall: only employment_profiles for activeCompanyId
+        // (and within allowedCompanyIds for safety).
+        if (allowedCompanyIds?.length && !allowedCompanyIds.includes(activeCompanyId)) {
+          if (!cancelled) {
+            setRows([]);
+            setLoading(false);
+          }
+          return;
+        }
 
-        const [emps, comps, depts, profilesRes] = await Promise.all([
-          ids.length
-            ? (supabase as any).from("employment_profiles").select(
-                "person_id, company_id, department_id, is_plannable_resource, hms_card_number, hms_card_expires_at, archived_at"
-              ).in("person_id", ids)
-            : Promise.resolve({ data: [] }),
-          supabase.from("internal_companies").select("id, name"),
+        const { data: empData, error: eErr } = await (supabase as any)
+          .from("employment_profiles")
+          .select(
+            "person_id, company_id, department_id, is_plannable_resource, hms_card_number, hms_card_expires_at, archived_at"
+          )
+          .eq("company_id", activeCompanyId);
+        if (eErr) throw eErr;
+
+        const empByPerson = new Map<string, any>();
+        for (const e of (empData as any[]) ?? []) {
+          if (e?.person_id) empByPerson.set(e.person_id, e);
+        }
+        const personIds = Array.from(empByPerson.keys());
+
+        if (personIds.length === 0) {
+          if (!cancelled) setRows([]);
+          return;
+        }
+
+        const [peopleRes, comps, depts, profilesRes] = await Promise.all([
+          supabase
+            .from("people")
+            .select("id, full_name, email, phone, is_active")
+            .in("id", personIds)
+            .order("full_name", { ascending: true }),
+          supabase.from("internal_companies").select("id, name").eq("id", activeCompanyId),
           supabase.from("departments").select("id, name"),
-          ids.length && canViewSecurity
-            ? (supabase as any).from("person_security_profiles").select(
-                "person_id, clearance_status, pob_status, nda_status"
-              ).in("person_id", ids)
+          canViewSecurity
+            ? (supabase as any)
+                .from("person_security_profiles")
+                .select("person_id, clearance_status, pob_status, nda_status")
+                .in("person_id", personIds)
             : Promise.resolve({ data: [] }),
         ]);
 
-        const empByPerson = new Map<string, any>();
-        for (const e of (emps as any).data ?? []) empByPerson.set(e.person_id, e);
+        if ((peopleRes as any).error) throw (peopleRes as any).error;
+
         const compById = new Map<string, string>();
         for (const c of (comps as any).data ?? []) compById.set(c.id, c.name);
         const deptById = new Map<string, string>();
@@ -135,7 +165,7 @@ export default function HmsPeoplePage() {
         const profByPerson = new Map<string, any>();
         for (const p of (profilesRes as any).data ?? []) profByPerson.set(p.person_id, p);
 
-        const merged: Row[] = (people ?? []).map((p: any) => {
+        const merged: Row[] = ((peopleRes as any).data ?? []).map((p: any) => {
           const e = empByPerson.get(p.id);
           const prof = profByPerson.get(p.id);
           return {
@@ -166,7 +196,7 @@ export default function HmsPeoplePage() {
     return () => {
       cancelled = true;
     };
-  }, [canViewSecurity]);
+  }, [canViewSecurity, activeCompanyId, allowedCompanyIds]);
 
   const filtered = useMemo(() => {
     const term = q.trim().toLowerCase();
