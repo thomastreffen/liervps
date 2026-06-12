@@ -75,6 +75,8 @@ export function UnplannedDrawer({
         )
         .is("deleted_at", null)
         .is("archived_at", null)
+        .is("parent_project_id", null)
+        .or("project_type.is.null,project_type.neq.task")
         .in("status", ["requested", "approved"])
         .order("created_at", { ascending: false })
         .limit(100);

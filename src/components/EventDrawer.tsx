@@ -384,7 +384,7 @@ export function EventDrawer({
         .select("id, title, customer, start_time, end_time, status, internal_number, parent_project_id, project_type")
         .is("deleted_at", null)
         .is("parent_project_id", null)
-        .neq("project_type", "task")
+        .or("project_type.is.null,project_type.neq.task")
         .or(`title.ilike.%${searchQuery}%,customer.ilike.%${searchQuery}%,internal_number.ilike.%${searchQuery}%`)
         .order("start_time", { ascending: false })
         .limit(10);
@@ -1166,13 +1166,21 @@ export function EventDrawer({
           });
 
           if (blockRowsInsert.length > 0) {
+            // Plain insert — schedule_blocks has no unique constraint matching an
+            // onConflict spec. Dedup happens via blockMap + the existing-block
+            // pre-check above, so insert is safe and idempotent per click.
             const { error: sbErr } = await (supabase as any)
               .from("schedule_blocks")
-              .upsert(blockRowsInsert, {
-                onConflict: "job_id,project_id,technician_id,start_at,end_at,source",
-                ignoreDuplicates: true,
-              });
+              .insert(blockRowsInsert);
             if (sbErr) {
+              console.error("[resource-plan:create-activity:existing] schedule_blocks insert failed", {
+                error: sbErr,
+                selectedJobId,
+                createdActivityId,
+                techIds,
+                allDates,
+                blockRowsInsert,
+              });
               toast.error("Kunne ikke opprette planblokker", { description: sbErr.message });
               setSaving(false);
               return;
@@ -1220,7 +1228,9 @@ export function EventDrawer({
         toast.success("Arbeidsbesøk opprettet", {
           description: "Planlagt på eksisterende prosjekt uten å arve gamle montører.",
         });
+        setSubmitted(true);
         onSaved?.(createdActivityId);
+        onOpenChange(false);
       } else {
         const isTask = eventType === "task";
         // Resolve company_id: explicit selection > active company (non-global) > block
@@ -1357,19 +1367,42 @@ export function EventDrawer({
               blockRowsCount: blockRows.length,
             });
 
-            const { error: sbErr } = await (supabase as any)
+            // Idempotency without onConflict: pre-check active blocks for this
+            // event and only insert the missing ones (no matching unique
+            // constraint exists on schedule_blocks for an upsert).
+            const { data: existingNewBlocks } = await supabase
               .from("schedule_blocks")
-              .upsert(blockRows, {
-                onConflict: "job_id,project_id,technician_id,start_at,end_at,source",
-                ignoreDuplicates: true,
-              });
+              .select("technician_id,start_at,end_at")
+              .is("deleted_at", null)
+              .eq("project_id", createdId)
+              .eq("source", "manual")
+              .in("technician_id", techIds);
+
+            const existingNewSet = new Set(
+              (existingNewBlocks ?? []).map(
+                (b: any) => `${b.technician_id}|${new Date(b.start_at).toISOString()}|${new Date(b.end_at).toISOString()}`
+              )
+            );
+            const blockRowsToInsert = blockRows.filter(
+              (b) => !existingNewSet.has(`${b.technician_id}|${b.start_at}|${b.end_at}`)
+            );
+
+            let sbErr: any = null;
+            if (blockRowsToInsert.length > 0) {
+              const res = await (supabase as any)
+                .from("schedule_blocks")
+                .insert(blockRowsToInsert);
+              sbErr = res.error;
+            }
 
             console.info("[resource-plan:create-activity:result]", {
               expected: blockRows.length,
+              inserted: blockRowsToInsert.length,
+              skippedExisting: blockRows.length - blockRowsToInsert.length,
               error: sbErr,
             });
             if (sbErr) {
-              console.error("[resource-plan:create-activity] schedule_blocks upsert failed", sbErr, blockRows);
+              console.error("[resource-plan:create-activity] schedule_blocks insert failed", sbErr, blockRowsToInsert);
               toast.error("Kunne ikke planlegge dager", { description: sbErr.message });
               setSaving(false);
               return;

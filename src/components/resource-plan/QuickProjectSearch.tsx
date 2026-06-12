@@ -76,6 +76,8 @@ export function QuickProjectSearch({ onPlanProject }: QuickProjectSearchProps) {
           event_technicians ( technician_id, technicians ( id, name ) )
         `)
         .is("deleted_at", null)
+        .is("parent_project_id", null)
+        .or("project_type.is.null,project_type.neq.task")
         .or(
           `title.ilike.%${q}%,customer.ilike.%${q}%,internal_number.ilike.%${q}%,job_number.ilike.%${q}%,address.ilike.%${q}%,project_number.ilike.%${q}%,external_tripletex_id.ilike.%${q}%,description.ilike.%${q}%`
         )
