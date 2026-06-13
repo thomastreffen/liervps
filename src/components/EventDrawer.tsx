@@ -1014,66 +1014,6 @@ export function EventDrawer({
           return;
         }
 
-        // 2) Idempotent create of child activity (reuse if same client_request_id exists)
-        let createdActivityId: string;
-        const { data: existingActivity } = await supabase
-          .from("events")
-          .select("id")
-          .eq("client_request_id", clientRequestId)
-          .maybeSingle();
-
-        if (existingActivity) {
-          createdActivityId = existingActivity.id as string;
-        } else {
-          const { data: createdActivity, error: createErr } = await (supabase as any)
-            .from("events")
-            .insert({
-              parent_project_id: selectedJobId,
-              project_type: "task",
-              title: title.trim() || parent.title,
-              customer: customer || parent.customer,
-              address: address || parent.address,
-              postal_code: postalCode || parent.postal_code,
-              city: city || parent.city,
-              location_details: locationDetails || parent.location_details,
-              site_contact_name: siteContactName || parent.site_contact_name,
-              site_contact_phone: siteContactPhone || parent.site_contact_phone,
-              access_notes: accessNotes || parent.access_notes,
-              map_link: mapLink || parent.map_link,
-              description: description || parent.description,
-              assignment_notes: assignmentNotes || null,
-              customer_practical_info: customerPracticalInfo || parent.customer_practical_info,
-              start_time: startISO,
-              end_time: endISO,
-              technician_id: techIds[0] || userId,
-              status: "requested",
-              created_by: userId,
-              client_request_id: clientRequestId,
-              company_id: parent.company_id,
-              source_order_form_id: parent.source_order_form_id,
-            })
-            .select("id")
-            .single();
-
-          if (createErr || !createdActivity) {
-            // Race: another concurrent submit may have inserted with same client_request_id
-            const { data: raced } = await supabase
-              .from("events")
-              .select("id")
-              .eq("client_request_id", clientRequestId)
-              .maybeSingle();
-            if (raced) {
-              createdActivityId = raced.id as string;
-            } else {
-              toast.error("Kunne ikke opprette arbeidsbesøk", { description: createErr?.message });
-              setSaving(false);
-              return;
-            }
-          } else {
-            createdActivityId = createdActivity.id as string;
-          }
-        }
-
         // Compute all planning dates (base + copy-to-dates), deduplicated by ISO date
         const dateSet = new Set<string>([date]);
         if (repeatEnabled && repeatDates.length > 0) {
@@ -1083,42 +1023,72 @@ export function EventDrawer({
         }
         const allDates: string[] = Array.from(dateSet);
 
-        // 3) event_technicians on the NEW activity (upsert to avoid duplicates on retry)
+        // Duplicate pre-check: same tech + same date + same start_time on an existing
+        // active task under same parent project → ask user to confirm.
         if (techIds.length > 0) {
-          const { error: etErr } = await (supabase as any)
-            .from("event_technicians")
-            .upsert(
-              techIds.map((tid) => ({
-                event_id: createdActivityId,
-                technician_id: tid,
-                ...(startISO ? { start_at: startISO } : {}),
-                ...(endISO ? { end_at: endISO } : {}),
-              })),
-              { onConflict: "event_id,technician_id", ignoreDuplicates: false }
-            );
-          if (etErr) {
-            console.error("[resource-plan:create-activity:existing] event_technicians upsert failed", etErr);
-            toast.error("Kunne ikke tildele montører", { description: etErr.message });
-            setSaving(false);
-            return;
+          const { data: dupCandidates } = await supabase
+            .from("events")
+            .select("id, internal_number, title, start_time, end_time")
+            .eq("parent_project_id", selectedJobId)
+            .eq("project_type", "task")
+            .is("deleted_at", null)
+            .gte("start_time", `${date}T00:00:00`)
+            .lt("start_time", `${date}T23:59:59`);
+          if (dupCandidates && dupCandidates.length > 0) {
+            const sameTime = dupCandidates.find((c: any) => {
+              const t = new Date(c.start_time);
+              return t.toTimeString().slice(0, 5) === startTime;
+            });
+            if (sameTime) {
+              const proceed = window.confirm(
+                `Det finnes allerede et arbeidsbesøk (${sameTime.internal_number || ""} ${sameTime.title || ""}) på samme dato og tid. Opprette nytt likevel?`
+              );
+              if (!proceed) {
+                setSaving(false);
+                return;
+              }
+            }
           }
         }
 
-        // 4) schedule_blocks — project_id = parent, job_id = new activity
-        if (allDates.length > 0 && parent.company_id && techIds.length > 0) {
-          // Dedup within batch (same tech+date) defensively
-          const blockMap = new Map<string, any>();
+        // 2) Transactional create via RPC (idempotent on client_request_id + parent normalization)
+        const { startISO: primStart, endISO: primEnd } = normalizeOvernightDates(
+          date, startTime, date, endTime,
+        );
+        const { data: rpcRaw, error: rpcErr } = await (supabase as any).rpc(
+          "create_work_visit_on_project",
+          {
+            p_parent_id: selectedJobId,
+            p_client_request_id: clientRequestId,
+            p_title: title.trim() || null,
+            p_start: primStart,
+            p_end: primEnd,
+            p_technician_ids: techIds,
+            p_extra: {},
+          },
+        );
+        if (rpcErr || !rpcRaw) {
+          console.error("[resource-plan:create-activity:rpc] failed", rpcErr);
+          toast.error("Kunne ikke opprette arbeidsbesøk", { description: rpcErr?.message });
+          setSaving(false);
+          return;
+        }
+        const rpc = rpcRaw as { event_id: string; root_project_id: string; status: string; inserted_blocks: number };
+        const createdActivityId: string = rpc.event_id;
+
+        // Backfill extra repeat-day blocks (RPC handles primary day only)
+        if (allDates.length > 1 && parent.company_id && techIds.length > 0) {
+          const extraDates = allDates.filter((d) => d !== date);
+          const extraRows: any[] = [];
           for (const tid of techIds) {
-            for (const ds of allDates) {
+            for (const ds of extraDates) {
               const { startISO: dStart, endISO: dEnd } = normalizeOvernightDates(
                 ds, startTime, ds, endTime,
               );
-              const key = `${tid}|${dStart}|${dEnd}`;
-              if (blockMap.has(key)) continue;
-              blockMap.set(key, {
+              extraRows.push({
                 company_id: parent.company_id,
                 technician_id: tid,
-                project_id: selectedJobId,
+                project_id: rpc.root_project_id,
                 job_id: createdActivityId,
                 source: "manual",
                 start_at: dStart,
@@ -1126,66 +1096,30 @@ export function EventDrawer({
                 title: title || parent.title || "Arbeidsbesøk",
                 match_state: "manual",
                 match_confidence: 100,
-                match_reason: allDates.length > 1
-                  ? "Arbeidsbesøk planlagt over flere dager"
-                  : "Arbeidsbesøk planlagt via planlegger",
+                match_reason: "Arbeidsbesøk planlagt over flere dager",
               });
             }
           }
-          const blockRowsBeforeDedup = Array.from(blockMap.values());
-
-          // Pre-check existing active blocks with the same logical key
-          const { data: existingBlocks } = await supabase
-            .from("schedule_blocks")
-            .select("technician_id,start_at,end_at,source,project_id,job_id")
-            .is("deleted_at", null)
-            .eq("job_id", createdActivityId)
-            .eq("project_id", selectedJobId)
-            .eq("source", "manual")
-            .in("technician_id", techIds);
-
-          const existingSet = new Set(
-            (existingBlocks ?? []).map(
-              (b: any) => `${b.technician_id}|${new Date(b.start_at).toISOString()}|${new Date(b.end_at).toISOString()}`
-            )
-          );
-
-          const blockRowsInsert = blockRowsBeforeDedup.filter(
-            (b) => !existingSet.has(`${b.technician_id}|${b.start_at}|${b.end_at}`)
-          );
-
-          console.info("[resource-plan:create-existing-idempotency]", {
-            clientRequestId,
-            selectedJobId,
-            createdActivityId,
-            allDates,
-            techIds,
-            blockRowsBeforeDedup: blockRowsBeforeDedup.length,
-            existingBlockMatches: existingSet.size,
-            blockRowsInserted: blockRowsInsert.length,
-          });
-
-          if (blockRowsInsert.length > 0) {
-            // Plain insert — schedule_blocks has no unique constraint matching an
-            // onConflict spec. Dedup happens via blockMap + the existing-block
-            // pre-check above, so insert is safe and idempotent per click.
-            const { error: sbErr } = await (supabase as any)
+          if (extraRows.length > 0) {
+            const { data: existingExtra } = await supabase
               .from("schedule_blocks")
-              .insert(blockRowsInsert);
-            if (sbErr) {
-              console.error("[resource-plan:create-activity:existing] schedule_blocks insert failed", {
-                error: sbErr,
-                selectedJobId,
-                createdActivityId,
-                techIds,
-                allDates,
-                blockRowsInsert,
-              });
-              toast.error("Kunne ikke opprette planblokker", { description: sbErr.message });
-              setSaving(false);
-              return;
+              .select("technician_id,start_at,end_at")
+              .is("deleted_at", null)
+              .eq("job_id", createdActivityId);
+            const seen = new Set(
+              (existingExtra ?? []).map((b: any) => `${b.technician_id}|${new Date(b.start_at).toISOString()}|${new Date(b.end_at).toISOString()}`),
+            );
+            const toInsert = extraRows.filter((r) => !seen.has(`${r.technician_id}|${r.start_at}|${r.end_at}`));
+            if (toInsert.length > 0) {
+              await (supabase as any).from("schedule_blocks").insert(toInsert);
             }
           }
+        }
+
+        if (rpc.status === "existing") {
+          toast.info("Arbeidsbesøk fantes fra før", { description: "Eksisterende ble brukt – ingenting nytt opprettet." });
+        } else if (rpc.status === "repaired") {
+          toast.success("Arbeidsbesøk fullført", { description: "Manglende planblokker ble fylt ut." });
         }
 
 
