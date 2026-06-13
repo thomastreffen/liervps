@@ -12473,6 +12473,18 @@ export type Database = {
         Args: { _submission_id: string }
         Returns: Json
       }
+      create_work_visit_on_project: {
+        Args: {
+          p_client_request_id: string
+          p_end: string
+          p_extra?: Json
+          p_parent_id: string
+          p_start: string
+          p_technician_ids: string[]
+          p_title: string
+        }
+        Returns: Json
+      }
       deactivate_conversation_participant: {
         Args: { _participant_id: string }
         Returns: undefined
