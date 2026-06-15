@@ -1051,119 +1051,114 @@ export function EventDrawer({
           }
         }
 
-        // 2) Transactional create via RPC (idempotent on client_request_id + parent normalization)
-        const { startISO: primStart, endISO: primEnd } = normalizeOvernightDates(
-          date, startTime, date, endTime,
-        );
+        // 2) Transactional batch create via RPC — one event per date
+        const dateEntries = allDates.map((d) => {
+          const { startISO: dStart, endISO: dEnd } = normalizeOvernightDates(
+            d, startTime, d, endTime,
+          );
+          return { date: d, start: dStart, end: dEnd };
+        });
+
         const { data: rpcRaw, error: rpcErr } = await (supabase as any).rpc(
-          "create_work_visit_on_project",
+          "create_work_visits_on_project_batch",
           {
             p_parent_id: selectedJobId,
             p_client_request_id: clientRequestId,
             p_title: title.trim() || null,
-            p_start: primStart,
-            p_end: primEnd,
             p_technician_ids: techIds,
+            p_dates: dateEntries,
             p_extra: {},
           },
         );
         if (rpcErr || !rpcRaw) {
-          console.error("[resource-plan:create-activity:rpc] failed", rpcErr);
+          console.error("[resource-plan:create-activity:rpc-batch] failed", rpcErr);
           toast.error("Kunne ikke opprette arbeidsbesøk", { description: rpcErr?.message });
           setSaving(false);
           return;
         }
-        const rpc = rpcRaw as { event_id: string; root_project_id: string; status: string; inserted_blocks: number };
-        const createdActivityId: string = rpc.event_id;
+        const rpcBatch = rpcRaw as {
+          root_project_id: string;
+          results: Array<{ date: string; event_id?: string; status: string; inserted_blocks?: number; error?: string }>;
+        };
+        const results = rpcBatch.results || [];
+        const createdResults = results.filter((r) => r.status === "created" && r.event_id);
+        const repairedResults = results.filter((r) => r.status === "repaired" && r.event_id);
+        const existingResults = results.filter((r) => r.status === "existing" && r.event_id);
+        const failedResults = results.filter((r) => r.status === "failed");
+        const successResults = [...createdResults, ...repairedResults, ...existingResults];
+        const primaryEventId = (successResults.find((r) => r.date === date) ?? successResults[0])?.event_id;
 
-        // Backfill extra repeat-day blocks (RPC handles primary day only)
-        if (allDates.length > 1 && parent.company_id && techIds.length > 0) {
-          const extraDates = allDates.filter((d) => d !== date);
-          const extraRows: any[] = [];
-          for (const tid of techIds) {
-            for (const ds of extraDates) {
-              const { startISO: dStart, endISO: dEnd } = normalizeOvernightDates(
-                ds, startTime, ds, endTime,
-              );
-              extraRows.push({
-                company_id: parent.company_id,
-                technician_id: tid,
-                project_id: rpc.root_project_id,
-                job_id: createdActivityId,
-                source: "manual",
-                start_at: dStart,
-                end_at: dEnd,
-                title: title || parent.title || "Arbeidsbesøk",
-                match_state: "manual",
-                match_confidence: 100,
-                match_reason: "Arbeidsbesøk planlagt over flere dager",
+        // 5) Approvals + activity log per newly created/repaired event
+        if (techIds.length > 0) {
+          const addedNames = techIds.map((id) => techNameMap.get(id) || "Montør");
+          for (const r of [...createdResults, ...repairedResults]) {
+            if (!r.event_id) continue;
+            await supabase.from("event_logs").insert({
+              event_id: r.event_id,
+              action_type: "technician_assigned",
+              performed_by: userId,
+              performer_name: userName,
+              change_summary: `planla ${addedNames.join(", ")} på nytt arbeidsbesøk (${r.date})`,
+              metadata: { added_names: addedNames, date: r.date },
+            } as any);
+
+            const { error: approvalErr } = await supabase.functions.invoke("create-approval", {
+              body: {
+                job_id: r.event_id,
+                technician_ids: techIds,
+                reminder_profile: reminderConfig.profile,
+                reminder_config: reminderConfig.profile === "custom" ? reminderConfig.custom : null,
+                response_required: reminderConfig.responseRequired,
+              },
+            });
+            if (approvalErr) {
+              console.error("[resource-plan:create-activity:batch] create-approval failed", r.date, approvalErr);
+              toast.warning(`Arbeidsbesøk opprettet (${r.date}), men forespørsel ble ikke sendt`, {
+                description: approvalErr.message,
               });
             }
           }
-          if (extraRows.length > 0) {
-            const { data: existingExtra } = await supabase
-              .from("schedule_blocks")
-              .select("technician_id,start_at,end_at")
-              .is("deleted_at", null)
-              .eq("job_id", createdActivityId);
-            const seen = new Set(
-              (existingExtra ?? []).map((b: any) => `${b.technician_id}|${new Date(b.start_at).toISOString()}|${new Date(b.end_at).toISOString()}`),
-            );
-            const toInsert = extraRows.filter((r) => !seen.has(`${r.technician_id}|${r.start_at}|${r.end_at}`));
-            if (toInsert.length > 0) {
-              await (supabase as any).from("schedule_blocks").insert(toInsert);
-            }
-          }
         }
 
-        if (rpc.status === "existing") {
-          toast.info("Arbeidsbesøk fantes fra før", { description: "Eksisterende ble brukt – ingenting nytt opprettet." });
-        } else if (rpc.status === "repaired") {
-          toast.success("Arbeidsbesøk fullført", { description: "Manglende planblokker ble fylt ut." });
+        // 6) Attachments on the primary new activity (if any)
+        if (files.length > 0 && primaryEventId) {
+          const newUploads = await uploadFiles(primaryEventId, files);
+          await supabase.from("events").update({ attachments: newUploads as any }).eq("id", primaryEventId);
         }
 
-
-        // 5) Approvals + activity log
-        if (techIds.length > 0) {
-          const addedNames = techIds.map((id) => techNameMap.get(id) || "Montør");
-          await supabase.from("event_logs").insert({
-            event_id: createdActivityId,
-            action_type: "technician_assigned",
-            performed_by: userId,
-            performer_name: userName,
-            change_summary: `planla ${addedNames.join(", ")} på nytt arbeidsbesøk`,
-            metadata: { added_names: addedNames },
-          } as any);
-
-          const { error: approvalErr } = await supabase.functions.invoke("create-approval", {
-            body: {
-              job_id: createdActivityId,
-              technician_ids: techIds,
-              reminder_profile: reminderConfig.profile,
-              reminder_config: reminderConfig.profile === "custom" ? reminderConfig.custom : null,
-              response_required: reminderConfig.responseRequired,
-            },
+        // Summary
+        if (failedResults.length > 0 && successResults.length === 0) {
+          toast.error("Kunne ikke opprette arbeidsbesøk", {
+            description: failedResults.map((r) => `${r.date}: ${r.error || "ukjent feil"}`).join("\n"),
           });
-
-          if (approvalErr) {
-            console.error("[resource-plan:create-activity:existing] create-approval failed", approvalErr);
-            toast.warning("Arbeidsbesøk opprettet, men forespørsel ble ikke sendt", {
-              description: approvalErr.message,
-            });
-          }
+          setSaving(false);
+          return;
+        }
+        if (failedResults.length > 0) {
+          toast.warning(`Delvis fullført – ${failedResults.length} dato(er) feilet`, {
+            description: failedResults.map((r) => `${r.date}: ${r.error || "ukjent feil"}`).join("\n"),
+          });
+        }
+        const createdCount = createdResults.length;
+        const repairedCount = repairedResults.length;
+        const existingCount = existingResults.length;
+        if (createdCount > 0) {
+          toast.success(
+            createdCount === 1 ? "Arbeidsbesøk opprettet" : `${createdCount} arbeidsbesøk opprettet`,
+            {
+              description: repairedCount + existingCount > 0
+                ? `${repairedCount > 0 ? `${repairedCount} reparert. ` : ""}${existingCount > 0 ? `${existingCount} fantes fra før.` : ""}`.trim()
+                : undefined,
+            },
+          );
+        } else if (repairedCount > 0) {
+          toast.success("Arbeidsbesøk fullført", { description: `${repairedCount} dato(er) fikk reparert planblokker.` });
+        } else if (existingCount > 0 && failedResults.length === 0) {
+          toast.info("Arbeidsbesøk fantes fra før", { description: "Ingenting nytt opprettet." });
         }
 
-        // 6) Attachments on the NEW activity
-        if (files.length > 0) {
-          const newUploads = await uploadFiles(createdActivityId, files);
-          await supabase.from("events").update({ attachments: newUploads as any }).eq("id", createdActivityId);
-        }
-
-        toast.success("Arbeidsbesøk opprettet", {
-          description: "Planlagt på eksisterende prosjekt uten å arve gamle montører.",
-        });
         setSubmitted(true);
-        onSaved?.(createdActivityId);
+        if (primaryEventId) onSaved?.(primaryEventId);
         onOpenChange(false);
       } else {
         const isTask = eventType === "task";
