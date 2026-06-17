@@ -3,6 +3,7 @@ import { Clock, Users, ShieldCheck, Zap, Wrench, Cpu, BatteryCharging, Siren, Ch
 import { PublicLayout } from "@/components/public/PublicLayout";
 import { PublicSeo, SITE_URL } from "@/components/public/PublicSeo";
 import { PortalHero } from "@/components/public/PortalHero";
+import { useAuth } from "@/hooks/useAuth";
 import heroImg from "@/assets/mcs/hero.jpg";
 import teamImg from "@/assets/mcs/team.jpg";
 
