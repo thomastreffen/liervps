@@ -154,17 +154,16 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Customer logos */}
-      <section className="bg-white py-14 border-y border-[hsl(var(--mcs-border))]">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <p className="text-center text-sm text-[hsl(var(--mcs-muted))] mb-7">Noen av våre kunder og samarbeidspartnere</p>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-6 items-center">
-            {CUSTOMER_LOGOS.map((n) => (
-              <div key={n} className="text-center text-[hsl(var(--mcs-muted))] font-semibold tracking-wide text-lg opacity-70 hover:opacity-100 transition-opacity">
-                {n}
-              </div>
-            ))}
-          </div>
+      {/* Reference strip — no fabricated customer names */}
+      <section className="bg-white py-12 border-y border-[hsl(var(--mcs-border))]">
+        <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 text-center">
+          <p className="text-sm uppercase tracking-wider text-[hsl(var(--mcs-orange))] font-semibold mb-3">Referanser</p>
+          <p className="text-lg lg:text-xl text-[hsl(var(--mcs-charcoal))] leading-relaxed">
+            Vi leverer service og installasjon for ledende aktører innen næring, industri, offentlig sektor og eiendom.
+          </p>
+          <Link to="/referanser" className="inline-flex items-center gap-1.5 mt-4 text-sm font-medium text-[hsl(var(--mcs-navy))] hover:text-[hsl(var(--mcs-orange))]">
+            Se utvalgte prosjekter <ArrowRight className="h-4 w-4" />
+          </Link>
         </div>
       </section>
 
