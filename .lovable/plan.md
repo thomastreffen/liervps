@@ -1,87 +1,76 @@
-# Lesestatus og deltakeroversikt (Bestilling / Sporingsside)
+## Mål
+Bygge ny offentlig MCS Service-nettside (erstatter mcsservice.no) inne i eksisterende Lovable-prosjekt, med personlig portalinngang for innloggede Microsoft-brukere. SEO-first, mørk industriell premium-stil etter vedlagt mockup.
 
-Bygger iMessage/Teams-light opplevelse for meldingstråden i bestillingsmodulen — både admin og kundens sporingsside.
+## Arkitektur og ruting
 
-## 1. Datamodell (migrering)
+Eksisterende app bruker `/` som dashboard og `/login` som innlogging. Vi må ikke ødelegge dette. Plan:
 
-**Ny tabell `order_form_conversation_participants`**
-- `id`, `submission_id`, `participant_type` ('customer' | 'internal_user' | 'technician')
-- `user_id`, `technician_id`, `display_name`, `email`, `phone`, `role_label`
-- `visibility` ('internal' | 'shared_with_customer'), `added_by`, `added_at`
-- `last_seen_at`, `last_seen_message_id`, `is_active`
-- Unique partial: (submission_id, user_id) where user_id not null; (submission_id, technician_id) where technician_id not null; (submission_id, participant_type='customer')
+- Flytt nåværende interne dashboard fra `/` til `/app` (eller behold via redirect for innloggede).
+- Ny offentlig forside ligger på `/` og er åpen for alle.
+- Ny `PublicLayout` (header + footer) og `PublicHome` brukes på alle nye offentlige sider.
+- Hvis bruker er innlogget med MCS-konto → forsiden viser i tillegg en personlig "portal-hero" øverst med "Åpne dashboard"-CTA (lenker til `/app`). Offentlig SEO-innhold vises fortsatt under – ikke gjemt.
+- Hvis ikke innlogget → "Logg inn"-knapp i header lenker til `/login`.
 
-**Ny tabell `order_form_message_reads`**
-- `id`, `message_id`, `submission_id`, `participant_id`, `read_at`
-- `reader_type`, `user_id`, `tracking_token_hash`, `user_agent`
-- Unique (message_id, participant_id)
+## Sider som lages
+- `/` Forside (hero, tillitsrad, tjenestekort, trygghet-seksjon, kundelogoer, kontakt-CTA, footer)
+- `/tjenester/service-og-feilsoking`
+- `/tjenester/elektrotavler`
+- `/tjenester/stromskinner`
+- `/tjenester/hasteoppdrag`
+- `/om-mcs`
+- `/referanser`
+- `/kontakt`
+- `/bestill-service`
 
-**RLS**
-- Participants: les/skriv for interne med tilgang til submission (eksisterende `user_has_company_access` / cross-company grant). Kunde-tilgang via SECURITY DEFINER RPC med tracking_token.
-- Reads: samme mønster — interne via auth, kunde via RPC.
+Alle bruker felles `PublicLayout`, `ServicePageTemplate` (breadcrumb, hero, ingress, bilde, leveranser, fordelsrad, CTA, internlenker), `ContactForm`, `PortalShortcuts`.
 
-**RPC-funksjoner (SECURITY DEFINER)**
-- `mark_messages_read_internal(submission_id, message_ids[])` — bruker `auth.uid()`, finner/oppretter participant, upserter reads, oppdaterer `last_seen_*`.
-- `mark_messages_read_by_token(tracking_token, message_ids[])` — kunde-flow, ingen auth nødvendig, validerer token.
-- `get_conversation_participants(submission_id)` / `get_conversation_participants_by_token(token)` — returnerer aktive deltakere med last_seen status.
-- `upsert_conversation_participant(...)` — admin legger til intern bruker/montør.
+## Design-system
+- Tokens i `index.css`: navy `#081320`, charcoal `#142433`, light `#F5F7FA`, steel `#EFB7EB` (rettes til mockup `#EFB7EB`→faktisk steel grå), orange `#FF6400`.
+- Font: Inter (allerede tilgjengelig via fonts.googleapis).
+- Komponenter: `Header` (sticky, logo venstre, nav, "Logg inn" + oransje "Bestill service"), `Footer`, `Hero`, `TrustRow`, `ServiceCard`, `Breadcrumb`, `LogoCloud`, `PortalHeroLoggedIn`.
+- Bruker MCS-logo fra `user-uploads://logo_Service2_med_ernstrom.png` lagret via lovable-assets.
 
-**Backfill**
-- Opprett customer participant for alle eksisterende submissions basert på `customer_name` / `customer_email`.
-- Opprett internal_user participants fra historiske `order_form_messages.sender_user_id` (distinct).
-- Realtime: legg til de to nye tabellene i `supabase_realtime` publication.
+## Innhold
+- Henter ekte tekster/bilder fra mcsservice.no (fetch_website) for tjenestebeskrivelser. Hvis bilder ikke kan hentes lovlig/teknisk, bruker vi profesjonelle placeholder fra eksisterende prosjektassets eller genererer dempede industrifoto.
+- Kontaktinfo hardkodes: Orkidèhøgda 2A, 3050 Mjøndalen / post@mcsservice.no / +47 45 70 70 73.
 
-## 2. Admin-UI (bestillingsmodul)
+## SEO
+- `react-helmet-async` legges til, `HelmetProvider` i `main.tsx`.
+- Hver offentlig side får unik `<title>`, meta description, canonical, og og:tags.
+- `index.html` oppdateres med sitewide Organization + LocalBusiness JSON-LD.
+- Hver tjenesteside: `Service` schema + `BreadcrumbList`.
+- `public/sitemap.xml` generert via `scripts/generate-sitemap.ts` med predev/prebuild hook.
+- `public/robots.txt` med Allow: / og Sitemap-direktiv.
+- Semantisk HTML: `<header><nav><main><section><article><footer>`.
 
-**Ny komponent `ConversationParticipantsCard`** (høyre panel i submission-detalj)
-- Liste over aktive deltakere med avatar/initialer, navn, role_label-badge
-- Type-badge: Kunde (blå), Intern (grå), Montør (grønn)
-- Lesestatus per deltaker: "Lest nå", "Lest 12:25", "Ikke lest siste melding", "Aldri åpnet"
-- Knapp: "Legg til deltaker" (intern bruker eller montør, søk + valg av visibility)
+## Portalvisning (innlogget)
+- `PortalHero` komponent vises på `/` når `useAuth().user` finnes:
+  - "Hei, {fornavn}!"
+  - Tilknytning hentes fra `useCompanyContext().activeCompany?.name`
+  - Primær CTA: "Åpne dashboard" → `/app`
+  - Snarveiskort: Ny bestilling, Mine saker, Aktive oppdrag, Dokumentasjon, Avvik, Last opp underlag, Kontakt, Innstillinger
+  - Rollebasert filter via `isAdmin` for å skille interne vs eksterne snarveier.
 
-**Endring i meldingsliste (`OrderMessageThread` / tilsvarende)**
-- Under hver melding: kompakt `MessageReadStatus` (tekst + popover med full liste)
-  - "Lest av Stian, Thomas" / "Ikke lest av Andre" / "Lest av 3 av 5"
-  - Avsender telles ikke
-- Spesiell rendering for siste synlige melding: "Lest av alle" / "Ikke lest av: …" / "Kunde har åpnet"
-- Ved mount + ved ny melding: kall `mark_messages_read_internal` for synlige meldinger
+## App-ruting
+- `src/App.tsx`: legg til offentlige routes UTENFOR `AuthGuard`. Flytt eksisterende beskyttede ruter under `/app/*`. Legacy `/` for innlogget interne brukere kan redirecte til `/app` automatisk hvis de ønsker, men vi viser PortalHero på `/` i stedet (enklere og matcher kravet).
 
-**Realtime-hook `useConversationReads(submissionId)`**
-- Subscribe til `order_form_message_reads` og `order_form_conversation_participants` for submission
-- Oppdater UI uten refresh
+## Ikke-mål
+- Ingen CMS, ingen redigering i UI.
+- Ingen endring i eksisterende backend/RLS.
+- Ingen ny auth-flow – bruker eksisterende Microsoft-login.
 
-## 3. Sporingsside (kunde)
+## Filer som opprettes/endres
+- `src/layouts/PublicLayout.tsx`, `src/components/public/Header.tsx`, `Footer.tsx`, `Hero.tsx`, `TrustRow.tsx`, `ServiceCard.tsx`, `Breadcrumb.tsx`, `LogoCloud.tsx`, `ContactForm.tsx`, `PortalHero.tsx`, `ServicePageTemplate.tsx`.
+- `src/pages/public/Home.tsx`, `ServiceFeilsoking.tsx`, `Elektrotavler.tsx`, `Stromskinner.tsx`, `Hasteoppdrag.tsx`, `OmMcs.tsx`, `Referanser.tsx`, `Kontakt.tsx`, `BestillService.tsx`.
+- `src/App.tsx` (ruting), `src/index.css` (tokens), `index.html` (sitewide head + JSON-LD).
+- `public/robots.txt`, `public/sitemap.xml`, `scripts/generate-sitemap.ts`, `package.json` (predev/prebuild + react-helmet-async).
+- Lovable-asset for logo.
 
-**`CustomerConversationView`**
-- Vis kun meldinger med `visibility='shared_with_customer'` (eller eksisterende `is_visible_to_customer`)
-- Egne sendte meldinger viser status: "Sendt" / "Lest av MCS" (basert på om noen intern participant har read row)
-- Ikke vis intern leseliste (ingen navn på interne)
-- Ved mount: kall `mark_messages_read_by_token(token, visibleIds)`
-- Realtime via samme kanaler men filtrert via RLS/RPC
+## Etter implementasjon
+- Kjør full SEO review.
+- Mobil/desktop sjekk via Playwright screenshot.
 
-## 4. Regler (implementert i RPC + UI-helpers)
-
-- Lest = read row finnes ELLER `last_seen_message_id` ≥ meldingens ordering
-- Avsender ekskluderes fra "mangler lest"-listen
-- Kun `is_active=true` deltakere telles
-- Kunde får aldri se interne meldinger
-- Interne meldinger telles kun mot interne deltakere; delte meldinger telles mot alle
-
-## Teknisk
-
-- Migrering i én SQL-fil (tabeller + GRANTs + RLS + policies + RPCs + publication)
-- TypeScript types regenereres etter migrering
-- Nye komponenter under `src/components/order-module/conversation/`
-- Hook `useConversationReads` under `src/hooks/`
-- Lett popover for full leseliste (shadcn `Popover`)
-- Ingen tekniske IDer i UI — kun display_name og role_label
-- Beholder eksisterende `order_form_participants` (rolle-deltakere for bestillingsskjema) — den nye tabellen er separat for dialog-lesestatus
-
-## Akseptanse
-
-- Admin ser deltakerliste med lesestatus per person
-- Hver melding viser kompakt lesestatus, popover med full liste
-- Siste melding: tydelig samlet status
-- Kunde ser kun delte meldinger og enkel "Lest av MCS" på egne
-- Realtime oppdateringer uten refresh
-- Kunde-leseflow fungerer uten innlogging via tracking token
+## Spørsmål før jeg starter
+1. **Ruting**: Er det greit at jeg flytter det interne dashboardet fra `/` til `/app/*` (alle eksisterende beskyttede ruter får `/app`-prefix)? Eller vil du heller at `/` viser portalvisning for innloggede og marketing for ikke-innloggede, og at `/dashboard`, `/jobs` osv. forblir på sine eksisterende URLer? Jeg anbefaler det siste – mindre risiko for å brekke deep-links.
+2. **Bilder fra mcsservice.no**: Skal jeg forsøke å hente eksisterende bilder fra mcsservice.no direkte (referere CDN-URLer), eller generere nye profesjonelle industribilder med imagegen i samme stil som mockupen?
+3. **Bestill-service-skjema**: Skal innsendinger lagres i databasen (ny `service_orders`-tabell + e-postvarsel via edge function), eller er det nok å sende e-post til post@mcsservice.no via en enkel edge function uten lagring?

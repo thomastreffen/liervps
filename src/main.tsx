@@ -7,12 +7,13 @@ async function bootstrap() {
   // cannot mount an old app shell or hydrate stale route chunks.
   if (await handleFreshResetIfRequested()) return;
 
-  const [{ default: App }, { ErrorBoundary }, { isStandalone, registerServiceWorker }, { installChunkErrorRecovery }, { APP_VERSION, APP_BUILD_TIME }] = await Promise.all([
+  const [{ default: App }, { ErrorBoundary }, { isStandalone, registerServiceWorker }, { installChunkErrorRecovery }, { APP_VERSION, APP_BUILD_TIME }, { HelmetProvider }] = await Promise.all([
     import("./App.tsx"),
     import("./components/ErrorBoundary.tsx"),
     import("./pwa/registerSW"),
     import("./pwa/chunkErrorRecovery"),
     import("./pwa/buildVersion"),
+    import("react-helmet-async"),
   ]);
 
   console.info("[app-version]", APP_VERSION, APP_BUILD_TIME);
@@ -25,7 +26,9 @@ async function bootstrap() {
 
   createRoot(document.getElementById("root")!).render(
     <ErrorBoundary>
-      <App />
+      <HelmetProvider>
+        <App />
+      </HelmetProvider>
     </ErrorBoundary>,
   );
 }

@@ -146,6 +146,9 @@ import PortalTeam from "./pages/portal/PortalTeam";
 import PortalNotificationSettings from "./pages/portal/PortalNotificationSettings";
 import PortalNotificationsPage from "./pages/portal/PortalNotificationsPage";
 import { PortalProvider } from "@/hooks/usePortal";
+import PublicHome from "./pages/public/Home";
+import { ServiceFeilsoking, Elektrotavler, Stromskinner, Hasteoppdrag } from "./pages/public/ServicePages";
+import { Kontakt, BestillService, OmMcs, Referanser } from "./pages/public/InfoPages";
 
 const queryClient = new QueryClient();
 
@@ -176,6 +179,17 @@ const App = () => (
           <PermissionCompanyBridge>
           <PreviewModeProvider>
           <Routes>
+            {/* Public marketing site */}
+            <Route path="/" element={<PublicHome />} />
+            <Route path="/tjenester/service-og-feilsoking" element={<ServiceFeilsoking />} />
+            <Route path="/tjenester/elektrotavler" element={<Elektrotavler />} />
+            <Route path="/tjenester/stromskinner" element={<Stromskinner />} />
+            <Route path="/tjenester/hasteoppdrag" element={<Hasteoppdrag />} />
+            <Route path="/om-mcs" element={<OmMcs />} />
+            <Route path="/referanser" element={<Referanser />} />
+            <Route path="/kontakt" element={<Kontakt />} />
+            <Route path="/bestill-service" element={<BestillService />} />
+
             <Route path="/login" element={<Login />} />
             <Route path="/auth/callback" element={<AuthCallback />} />
             <Route path="/approval/:token" element={<ApprovalPage />} />
@@ -186,6 +200,7 @@ const App = () => (
             <Route path="/bestilling" element={<OrderFormsCatalogPage />} />
             <Route path="/bestilling/:slug" element={<OrderFormPublicPage />} />
             <Route path="/bestilling/status/:token" element={<OrderTrackingPage />} />
+
 
             {/* Customer Portal */}
             <Route path="/portal/login" element={<PortalLogin />} />
@@ -209,7 +224,8 @@ const App = () => (
                 </ProtectedRoute>
               }
             >
-              <Route path="/" element={<Navigate to="/overview" replace />} />
+              {/* Authenticated app root → dashboard (public marketing owns "/") */}
+              <Route path="/app" element={<Navigate to="/overview" replace />} />
               <Route path="/overview" element={<OverviewPage />} />
               <Route path="/my-day" element={<MyDayPage />} />
               <Route path="/inbox" element={
