@@ -54,25 +54,29 @@ export default function Home() {
 
       <PortalHero />
 
-      {/* Hero */}
+      {/* Hero — full-size for public, compact band for logged-in users */}
       <section className="relative bg-[hsl(var(--mcs-navy))] text-white overflow-hidden">
         <div className="absolute inset-0 z-0">
           <img src={heroImg} alt="MCS Service-elektrikere arbeider i et tavlerom" className="w-full h-full object-cover opacity-30" width={1920} height={1080} />
           <div className="absolute inset-0 bg-gradient-to-r from-[hsl(var(--mcs-navy))] via-[hsl(var(--mcs-navy))]/85 to-transparent" />
         </div>
-        <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-20 lg:py-32">
+        <div className={`relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 ${user ? "py-10 lg:py-14" : "py-20 lg:py-32"}`}>
           <div className="max-w-2xl">
-            <p className="text-[hsl(var(--mcs-orange))] text-sm font-semibold tracking-widest uppercase mb-4">Spesialister på eksisterende anlegg</p>
-            <h1 className="text-4xl lg:text-6xl font-bold leading-[1.05] mb-6">
+            <p className="text-[hsl(var(--mcs-orange))] text-sm font-semibold tracking-widest uppercase mb-3">
+              {user ? "Om MCS Service" : "Spesialister på eksisterende anlegg"}
+            </p>
+            <h2 className={`font-bold leading-[1.05] mb-5 ${user ? "text-2xl lg:text-3xl" : "text-4xl lg:text-6xl"}`}>
               Service og installasjon av elektriske tavler og strømskinnesystemer
-            </h1>
-            <p className="text-lg lg:text-xl text-white/80 mb-8 leading-relaxed">
+            </h2>
+            <p className={`text-white/80 mb-6 leading-relaxed ${user ? "text-base" : "text-lg lg:text-xl mb-8"}`}>
               Vi er spesialister på arbeid i eksisterende anlegg. Når strøm ikke kan stå stille.
             </p>
-            <div className="flex flex-col sm:flex-row gap-3">
-              <Link to="/bestill-service" className="bg-[hsl(var(--mcs-orange))] hover:bg-[hsl(var(--mcs-orange-hover))] text-white font-semibold px-7 py-3.5 rounded-md text-center">Bestill service</Link>
-              <Link to="/tjenester/service-og-feilsoking" className="border border-white/30 hover:border-white text-white font-medium px-7 py-3.5 rounded-md text-center">Se våre tjenester</Link>
-            </div>
+            {!user && (
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Link to="/bestill-service" className="bg-[hsl(var(--mcs-orange))] hover:bg-[hsl(var(--mcs-orange-hover))] text-white font-semibold px-7 py-3.5 rounded-md text-center">Bestill service</Link>
+                <Link to="/tjenester/service-og-feilsoking" className="border border-white/30 hover:border-white text-white font-medium px-7 py-3.5 rounded-md text-center">Se våre tjenester</Link>
+              </div>
+            )}
           </div>
         </div>
       </section>
