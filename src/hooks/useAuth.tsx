@@ -133,8 +133,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     Object.keys(localStorage).forEach((key) => {
       if (key.startsWith("sb-")) localStorage.removeItem(key);
     });
-    // Redirect to Microsoft logout to clear SSO session
-    const postLogoutRedirect = encodeURIComponent(`${window.location.origin}/login`);
+    // Redirect to Microsoft logout to clear SSO session, then land on the public marketing site
+    const postLogoutRedirect = encodeURIComponent(`${window.location.origin}/`);
     window.location.href = `https://login.microsoftonline.com/${AZURE_TENANT_ID}/oauth2/v2.0/logout?post_logout_redirect_uri=${postLogoutRedirect}`;
   }, []);
 
