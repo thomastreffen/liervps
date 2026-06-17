@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { Phone, Mail, MapPin, Linkedin } from "lucide-react";
-import logoAsset from "@/assets/mcs/logo.asset.json";
+import logoLight from "@/assets/mcs/logo-light.asset.json";
 
 export function Footer() {
   return (
