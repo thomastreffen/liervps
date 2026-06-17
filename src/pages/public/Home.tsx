@@ -21,9 +21,8 @@ const TRUST = [
   { icon: Zap, title: "Tilgjengelig hele året", desc: "Service 24/7 — vi er beredskapsklar når behovet oppstår." },
 ];
 
-const CUSTOMER_LOGOS = ["Equinor", "Statkraft", "Bane NOR", "Posten", "Ahlsell", "Skanska"];
-
 export default function Home() {
+  const { user } = useAuth();
   const localBusinessSchema = {
     "@context": "https://schema.org",
     "@type": "LocalBusiness",
