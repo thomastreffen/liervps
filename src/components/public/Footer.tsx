@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { Phone, Mail, MapPin, Linkedin } from "lucide-react";
-import logoAsset from "@/assets/mcs/logo.asset.json";
+import logoLight from "@/assets/mcs/logo-light.asset.json";
 
 export function Footer() {
   return (
@@ -8,7 +8,7 @@ export function Footer() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-14">
         <div className="grid gap-10 md:grid-cols-4">
           <div>
-            <img src={logoAsset.url} alt="MCS Service" className="h-10 bg-white rounded px-2 py-1 mb-4 w-auto inline-block" />
+            <img src={logoLight.url} alt="MCS Service" className="h-12 w-auto mb-4" />
             <p className="text-sm leading-relaxed">
               Service og installasjon av elektriske tavler og strømskinnesystemer. Spesialister på arbeid i eksisterende anlegg.
             </p>
