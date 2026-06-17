@@ -93,6 +93,16 @@
     --sidebar-accent-foreground: 220 16% 14%;
     --sidebar-border: 40 12% 89%;
     --sidebar-ring: 173 80% 26%;
+
+    /* MCS Service public marketing site tokens */
+    --mcs-navy: 213 64% 9%;            /* #081320 */
+    --mcs-charcoal: 220 38% 14%;       /* #142433 */
+    --mcs-light: 220 25% 97%;          /* #F5F7FA */
+    --mcs-steel: 220 17% 92%;          /* #EFB7EB-ish steel */
+    --mcs-border: 220 16% 88%;
+    --mcs-muted: 220 12% 42%;
+    --mcs-orange: 22 100% 50%;         /* #FF6400 */
+    --mcs-orange-hover: 22 100% 44%;
   }
 
   .dark {
