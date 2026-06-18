@@ -118,19 +118,26 @@ export function InlineMaterialEditor({ items, companyId, procurements = [], onUp
             <th className="p-2 text-right w-20">Antall</th>
             <th className="p-2 text-left w-16">Enhet</th>
             <th className="p-2 text-right w-24">Sum</th>
+            <th className="p-2 text-right w-20">Mottatt</th>
             <th className="p-2 text-right w-20">Plukket</th>
             <th className="p-2 text-right w-20">Brukt</th>
-            <th className="p-2 text-right w-20">Retur</th>
-            <th className="p-2 text-left w-32">Leverandør</th>
+            <th className="p-2 text-left w-36">Leveres av</th>
+            <th className="p-2 text-left w-40">Bestilling</th>
             <th className="p-2 text-left w-40">Kommentar</th>
             <th className="p-2 w-8" />
           </tr>
         </thead>
         <tbody>
           {items.map((it) => (
-            <ExistingRow key={it.id} item={it} onUpdate={onUpdate} onDelete={onDelete} />
+            <ExistingRow
+              key={it.id}
+              item={it}
+              procurements={procurements}
+              onUpdate={onUpdate}
+              onDelete={onDelete}
+            />
           ))}
-          <NewRow companyId={companyId} onAdd={onAdd} />
+          <NewRow companyId={companyId} procurements={procurements} onAdd={onAdd} />
         </tbody>
         {anyPrice && (
           <tfoot className="bg-muted/30 text-sm font-medium">
@@ -144,7 +151,7 @@ export function InlineMaterialEditor({ items, companyId, procurements = [], onUp
               <td className="p-2 text-right tabular-nums">
                 {totalSum.toLocaleString("nb-NO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </td>
-              <td colSpan={6} />
+              <td colSpan={7} />
             </tr>
           </tfoot>
         )}
