@@ -664,18 +664,20 @@ const ProductAutocomplete = React.forwardRef<HTMLInputElement, AutocompleteProps
 function MobileEditor({
   items,
   companyId,
+  procurements,
   onUpdate,
   onDelete,
   onAdd,
   anyPrice,
   totalSum,
 }: Props & { anyPrice: boolean; totalQty: number; totalSum: number }) {
+  const procs = procurements ?? [];
   return (
     <div className="divide-y divide-border/40">
       {items.map((it) => (
         <MobileCard key={it.id} item={it} onUpdate={onUpdate} onDelete={onDelete} />
       ))}
-      <MobileNewRow companyId={companyId} procurements={procurements ?? []} onAdd={onAdd} />
+      <MobileNewRow companyId={companyId} procurements={procs} onAdd={onAdd} />
       {anyPrice && (
         <div className="p-3 flex items-center justify-between text-sm font-medium bg-muted/20">
           <span className="text-muted-foreground">Sum materiell</span>
