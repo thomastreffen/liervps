@@ -237,6 +237,16 @@ export function useMaterialList({ jobId, orderId, companyId }: UseMaterialListOp
     if (error) throw error;
   }, []);
 
+  const updateList = useCallback(
+    async (patch: Partial<MaterialListRow>) => {
+      if (!list?.id) return;
+      const { error } = await supabase.from("material_lists").update(patch).eq("id", list.id);
+      if (error) throw error;
+      await fetchAll();
+    },
+    [list?.id, fetchAll],
+  );
+
   const updateStatus = useCallback(
     async (status: MaterialListStatus) => {
       if (!list?.id) return;
@@ -264,6 +274,7 @@ export function useMaterialList({ jobId, orderId, companyId }: UseMaterialListOp
     addItemsBulk,
     updateItem,
     deleteItem,
+    updateList,
     updateStatus,
   };
 }
