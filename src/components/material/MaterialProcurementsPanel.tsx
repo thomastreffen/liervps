@@ -25,6 +25,7 @@ import {
 } from "@/lib/material-status";
 import { useMaterialProcurements } from "@/hooks/useMaterialProcurements";
 import type { MaterialProcurementRow } from "@/hooks/useMaterialList";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Props {
   materialListId: string;
