@@ -1,11 +1,11 @@
 import { useMemo, useCallback, memo } from "react";
 import { addDays, format, startOfWeek, isSameDay, isToday as isDateToday, differenceInMinutes } from "date-fns";
 import { nb } from "date-fns/locale";
-import { useCalendarEvents, type CalendarEvent } from "@/hooks/useCalendarEvents";
+import { useCalendarEvents, type CalendarEvent, type CalendarDaySegment } from "@/hooks/useCalendarEvents";
 import { JOB_STATUS_CONFIG, type JobStatus } from "@/lib/job-status";
 import { cn } from "@/lib/utils";
 import { JobStatusBadge } from "./JobStatusBadge";
-import { AlertTriangle, Lock, MapPin, Moon, Star } from "lucide-react";
+import { AlertTriangle, ArrowRight, CornerDownRight, Lock, MapPin, Moon, Star } from "lucide-react";
 import { getHolidayName } from "@/lib/norwegian-holidays";
 import { useIsMobile } from "@/hooks/use-mobile";
 import type { ExternalBusySlot } from "@/hooks/useExternalBusy";
@@ -32,19 +32,30 @@ function formatHours(minutes: number): string {
 }
 
 const CalendarCard = memo(function CalendarCard({
-  job,
+  segment,
   technicianId,
   onClick,
 }: {
-  job: CalendarEvent;
+  segment: CalendarDaySegment;
   technicianId: string | null;
   onClick?: (job: CalendarEvent) => void;
 }) {
+  const job = segment.source;
   const statusConfig = JOB_STATUS_CONFIG[job.status];
   const isTimeChange = job.status === "time_change_proposed";
-  const isOvernight = job.start.toDateString() !== job.end.toDateString();
+  const isOvernight = segment.totalDays > 1;
   const primaryTech = job.technicians?.[0];
   const techColor = primaryTech?.color || "#6366f1";
+
+  // Display time uses the FULL underlying range on the first segment,
+  // and a "continued" marker on later segments.
+  const fullStart = job.start;
+  const fullEnd = job.end;
+  const overnightSuffix = isOvernight
+    ? segment.totalDays === 2
+      ? " (+1 dag)"
+      : ` (+${segment.totalDays - 1} dager)`
+    : "";
 
   return (
     <button
@@ -52,18 +63,23 @@ const CalendarCard = memo(function CalendarCard({
       className={cn(
         "w-full rounded-lg border-l-[4px] p-2.5 text-left transition-all group",
         "shadow-sm hover:shadow-md hover:scale-[1.01]",
-        isTimeChange
-          ? "ring-1 ring-status-time-change-proposed/40"
-          : ""
+        isTimeChange ? "ring-1 ring-status-time-change-proposed/40" : "",
+        segment.continuedFromPrevDay && "opacity-90 border-dashed",
       )}
       style={{
         borderLeftColor: techColor,
         backgroundColor: `${techColor}08`,
       }}
+      aria-label={
+        isOvernight
+          ? `${job.title} – går over ${segment.totalDays} dager`
+          : job.title
+      }
     >
       <div className="flex items-center gap-1.5">
-        {isOvernight && (
-          <Moon className="h-3 w-3 shrink-0 text-primary" />
+        {isOvernight && <Moon className="h-3 w-3 shrink-0 text-primary" />}
+        {segment.continuedFromPrevDay && (
+          <CornerDownRight className="h-3 w-3 shrink-0 text-muted-foreground" />
         )}
         {isTimeChange && (
           <AlertTriangle className="h-3 w-3 shrink-0 text-status-time-change-proposed" />
@@ -74,13 +90,29 @@ const CalendarCard = memo(function CalendarCard({
       </div>
 
       {job.customer && (
-        <p className="mt-0.5 text-[10px] text-muted-foreground truncate">
-          {job.customer}
-        </p>
+        <p className="mt-0.5 text-[10px] text-muted-foreground truncate">{job.customer}</p>
       )}
 
-      <p className="mt-1 text-[11px] font-medium text-foreground/70">
-        {format(job.start, "HH:mm")} – {format(job.end, "HH:mm")}
+      <p className="mt-1 text-[11px] font-medium text-foreground/70 flex items-center gap-1">
+        {segment.continuedFromPrevDay ? (
+          <>
+            <span className="text-muted-foreground">forts.</span>
+            <ArrowRight className="h-3 w-3" />
+            <span>{format(fullEnd, "HH:mm")}</span>
+            {!segment.isLastSegment && segment.continuesNextDay && (
+              <span className="text-muted-foreground"> →</span>
+            )}
+          </>
+        ) : (
+          <>
+            <span>{format(fullStart, "HH:mm")}</span>
+            <ArrowRight className="h-3 w-3" />
+            <span>
+              {format(fullEnd, "HH:mm")}
+              {overnightSuffix}
+            </span>
+          </>
+        )}
       </p>
 
       {!technicianId && job.technicians.length > 0 && (
@@ -150,7 +182,7 @@ export function WeekCalendar({
   getExternalBusyMinutesForDay,
   technicianMap,
 }: WeekCalendarProps) {
-  const { getJobsForDay, getBookedMinutesForDay, loading } = useCalendarEvents(technicianId, referenceDate);
+  const { getSegmentsForDay, getBookedMinutesForDay, loading } = useCalendarEvents(technicianId, referenceDate);
   const isMobile = useIsMobile();
 
   const weekStart = useMemo(
@@ -184,7 +216,7 @@ export function WeekCalendar({
       isMobile ? "grid-cols-1" : "grid-cols-7"
     )}>
       {days.map((day) => {
-        const dayJobs = getJobsForDay(day);
+        const daySegments = getSegmentsForDay(day);
         const isToday = isDateToday(day);
         const isWeekend = day.getDay() === 0 || day.getDay() === 6;
         const holidayName = getHolidayName(day);
@@ -290,15 +322,15 @@ export function WeekCalendar({
               {dayBusySlots.map((slot, i) => (
                 <BusyBlock key={`busy-${i}`} slot={slot} tech={technicianMap?.get(slot.technicianId)} />
               ))}
-              {dayJobs.map((job) => (
+              {daySegments.map((segment) => (
                 <CalendarCard
-                  key={job.id}
-                  job={job}
+                  key={`${segment.source.id}-${segment.segmentIndex}`}
+                  segment={segment}
                   technicianId={technicianId}
                   onClick={onJobClick}
                 />
               ))}
-              {dayJobs.length === 0 && dayBusySlots.length === 0 && onDayClick && !isWeekend && (
+              {daySegments.length === 0 && dayBusySlots.length === 0 && onDayClick && !isWeekend && (
                 <div className="flex items-center justify-center h-full min-h-[50px] opacity-0 hover:opacity-50 transition-opacity">
                   <span className="text-[11px] text-muted-foreground font-medium">+ Legg til</span>
                 </div>
