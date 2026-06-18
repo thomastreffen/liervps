@@ -7685,6 +7685,7 @@ export type Database = {
           supplier: string | null
           supplier_sku: string | null
           unit: string
+          unit_price: number | null
           updated_at: string
         }
         Insert: {
@@ -7706,6 +7707,7 @@ export type Database = {
           supplier?: string | null
           supplier_sku?: string | null
           unit?: string
+          unit_price?: number | null
           updated_at?: string
         }
         Update: {
@@ -7727,6 +7729,7 @@ export type Database = {
           supplier?: string | null
           supplier_sku?: string | null
           unit?: string
+          unit_price?: number | null
           updated_at?: string
         }
         Relationships: [
@@ -7831,6 +7834,7 @@ export type Database = {
           supplier: string | null
           supplier_sku: string | null
           unit: string
+          unit_price: number | null
           updated_at: string
         }
         Insert: {
@@ -7845,6 +7849,7 @@ export type Database = {
           supplier?: string | null
           supplier_sku?: string | null
           unit?: string
+          unit_price?: number | null
           updated_at?: string
         }
         Update: {
@@ -7859,6 +7864,7 @@ export type Database = {
           supplier?: string | null
           supplier_sku?: string | null
           unit?: string
+          unit_price?: number | null
           updated_at?: string
         }
         Relationships: [

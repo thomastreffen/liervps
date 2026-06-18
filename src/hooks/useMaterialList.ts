@@ -38,6 +38,7 @@ export interface MaterialItemRow {
   ai_confidence: string | null;
   ai_reason: string | null;
   comment: string | null;
+  unit_price: number | null;
   sort_order: number;
   created_at: string;
   updated_at: string;
@@ -142,6 +143,7 @@ export function useMaterialList({ jobId, orderId, companyId }: UseMaterialListOp
         ai_confidence: patch.ai_confidence ?? null,
         ai_reason: patch.ai_reason ?? null,
         comment: patch.comment ?? null,
+        unit_price: patch.unit_price ?? null,
         sort_order: patch.sort_order ?? items.length,
       };
       const { error } = await supabase.from("material_list_items").insert(insert);
@@ -169,6 +171,7 @@ export function useMaterialList({ jobId, orderId, companyId }: UseMaterialListOp
         ai_confidence: r.ai_confidence ?? null,
         ai_reason: r.ai_reason ?? null,
         comment: r.comment ?? null,
+        unit_price: r.unit_price ?? null,
         sort_order: base + idx,
       }));
       const { error } = await supabase.from("material_list_items").insert(payload);

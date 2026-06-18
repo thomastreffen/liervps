@@ -16,9 +16,26 @@ export interface CsvJobMeta {
 }
 
 export function buildMaterialCsv(meta: CsvJobMeta, items: MaterialItemRow[]): string {
-  const headers = ["Jobbnummer", "Kunde", "Adresse", "Elnr", "Beskrivelse", "Antall", "Enhet", "Leverandør", "Kommentar"];
+  const headers = [
+    "Jobbnummer",
+    "Kunde",
+    "Adresse",
+    "Elnr",
+    "Beskrivelse",
+    "Antall",
+    "Enhet",
+    "Pris",
+    "Sum",
+    "Plukket",
+    "Brukt",
+    "Retur",
+    "Leverandør",
+    "Kommentar",
+  ];
   const lines = [headers.join(",")];
   for (const it of items) {
+    const price = it.unit_price ?? null;
+    const sum = price != null ? price * (it.quantity_ordered ?? 0) : null;
     lines.push(
       [
         escape(meta.jobNumber),
@@ -28,6 +45,11 @@ export function buildMaterialCsv(meta: CsvJobMeta, items: MaterialItemRow[]): st
         escape(it.description),
         escape(it.quantity_ordered),
         escape(it.unit),
+        escape(price ?? ""),
+        escape(sum ?? ""),
+        escape(it.quantity_picked),
+        escape(it.quantity_used),
+        escape(it.quantity_returned),
         escape(it.supplier ?? ""),
         escape(it.comment ?? ""),
       ].join(","),
