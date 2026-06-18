@@ -169,6 +169,7 @@ export function MaterialProcurementsPanel({ materialListId, currentListStatus, o
 
 function ProcurementRow({
   row,
+  busy,
   editing,
   onEdit,
   onUpdate,
@@ -176,6 +177,7 @@ function ProcurementRow({
   onRemove,
 }: {
   row: MaterialProcurementRow;
+  busy: boolean;
   editing: boolean;
   onEdit: () => void;
   onUpdate: (patch: Partial<MaterialProcurementRow>) => Promise<void>;
@@ -186,9 +188,13 @@ function ProcurementRow({
   const value = { ...row, ...local };
 
   const save = async () => {
-    await onUpdate(local);
-    setLocal({});
-    onEdit();
+    try {
+      await onUpdate(local);
+      setLocal({});
+      onEdit();
+    } catch {
+      /* feil håndtert i onUpdate */
+    }
   };
 
   return (
@@ -213,14 +219,14 @@ function ProcurementRow({
         )}
         <div className="ml-auto flex gap-1">
           {row.status !== "received" && row.status !== "cancelled" && (
-            <Button size="sm" variant="outline" onClick={onReceive}>
-              <CheckCircle2 className="h-3.5 w-3.5" /> Registrer mottak
+            <Button size="sm" variant="outline" onClick={onReceive} disabled={busy}>
+              <CheckCircle2 className="h-3.5 w-3.5" /> {busy ? "Lagrer…" : "Registrer mottak"}
             </Button>
           )}
-          <Button size="sm" variant="ghost" onClick={onEdit}>
+          <Button size="sm" variant="ghost" onClick={onEdit} disabled={busy}>
             {editing ? "Lukk" : "Rediger"}
           </Button>
-          <Button size="sm" variant="ghost" onClick={onRemove}>
+          <Button size="sm" variant="ghost" onClick={onRemove} disabled={busy}>
             <Trash2 className="h-3.5 w-3.5 text-destructive" />
           </Button>
         </div>
