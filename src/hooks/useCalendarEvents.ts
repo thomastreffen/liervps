@@ -279,18 +279,27 @@ export function useCalendarEvents(
 
   const getJobsForDay = useCallback(
     (date: Date): CalendarEvent[] =>
-      events.filter((j) => j.start.toDateString() === date.toDateString()),
+      events.filter((j) => segmentForDay(j, date) !== null),
+    [events]
+  );
+
+  const getSegmentsForDay = useCallback(
+    (date: Date): CalendarDaySegment[] => {
+      const segments: CalendarDaySegment[] = [];
+      for (const job of events) {
+        const seg = segmentForDay(job, date);
+        if (seg) segments.push(seg);
+      }
+      return segments;
+    },
     [events]
   );
 
   const getBookedMinutesForDay = useCallback(
     (date: Date): number =>
-      getJobsForDay(date).reduce(
-        (sum, job) => sum + differenceInMinutes(job.end, job.start),
-        0
-      ),
-    [getJobsForDay]
+      events.reduce((sum, job) => sum + minutesOnDay(job, date), 0),
+    [events]
   );
 
-  return { events, loading, refetch: fetchEvents, getJobsForDay, getBookedMinutesForDay };
+  return { events, loading, refetch: fetchEvents, getJobsForDay, getSegmentsForDay, getBookedMinutesForDay };
 }
