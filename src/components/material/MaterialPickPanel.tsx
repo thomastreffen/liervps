@@ -149,7 +149,8 @@ export function MaterialPickPanel({ list, onUpdateList, onLog }: Props) {
             value={list.picked_at}
             buttonLabel="Bekreft plukket"
             onConfirm={confirmPicked}
-            disabled={savingCrate}
+            disabled={savingCrate || busy !== null}
+            loading={busy === "pick"}
           />
           <StatusStep
             icon={<Truck className="h-4 w-4" />}
@@ -157,8 +158,9 @@ export function MaterialPickPanel({ list, onUpdateList, onLog }: Props) {
             value={list.dispatched_at}
             buttonLabel="Bekreft med montør"
             onConfirm={confirmDispatched}
-            disabled={!list.picked_at}
+            disabled={!list.picked_at || busy !== null}
             disabledHint="Bekreft plukket først"
+            loading={busy === "dispatch"}
           />
           <StatusStep
             icon={<MapPin className="h-4 w-4" />}
@@ -166,8 +168,9 @@ export function MaterialPickPanel({ list, onUpdateList, onLog }: Props) {
             value={list.delivered_to_job_at}
             buttonLabel="Bekreft levert"
             onConfirm={confirmDelivered}
-            disabled={!list.dispatched_at}
+            disabled={!list.dispatched_at || busy !== null}
             disabledHint="Bekreft med montør først"
+            loading={busy === "deliver"}
           />
         </div>
       </CardContent>
