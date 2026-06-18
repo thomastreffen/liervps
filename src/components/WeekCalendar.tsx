@@ -322,15 +322,15 @@ export function WeekCalendar({
               {dayBusySlots.map((slot, i) => (
                 <BusyBlock key={`busy-${i}`} slot={slot} tech={technicianMap?.get(slot.technicianId)} />
               ))}
-              {dayJobs.map((job) => (
+              {daySegments.map((segment) => (
                 <CalendarCard
-                  key={job.id}
-                  job={job}
+                  key={`${segment.source.id}-${segment.segmentIndex}`}
+                  segment={segment}
                   technicianId={technicianId}
                   onClick={onJobClick}
                 />
               ))}
-              {dayJobs.length === 0 && dayBusySlots.length === 0 && onDayClick && !isWeekend && (
+              {daySegments.length === 0 && dayBusySlots.length === 0 && onDayClick && !isWeekend && (
                 <div className="flex items-center justify-center h-full min-h-[50px] opacity-0 hover:opacity-50 transition-opacity">
                   <span className="text-[11px] text-muted-foreground font-medium">+ Legg til</span>
                 </div>
