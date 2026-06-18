@@ -116,7 +116,7 @@ export function OrderMaterialSection({ orderId, linkedEventId }: Props) {
 
         {!loading && !list && (
           <p className="text-xs text-muted-foreground mt-3">
-            Ingen materialliste er opprettet for denne bestillingen ennå.
+            Ingen materialliste opprettet ennå.
             {!hasJob && (
               <>
                 {" "}
