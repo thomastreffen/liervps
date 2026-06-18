@@ -182,7 +182,7 @@ export function WeekCalendar({
   getExternalBusyMinutesForDay,
   technicianMap,
 }: WeekCalendarProps) {
-  const { getJobsForDay, getBookedMinutesForDay, loading } = useCalendarEvents(technicianId, referenceDate);
+  const { getSegmentsForDay, getBookedMinutesForDay, loading } = useCalendarEvents(technicianId, referenceDate);
   const isMobile = useIsMobile();
 
   const weekStart = useMemo(
