@@ -1,11 +1,11 @@
 import { useMemo, useCallback, memo } from "react";
 import { addDays, format, startOfWeek, isSameDay, isToday as isDateToday, differenceInMinutes } from "date-fns";
 import { nb } from "date-fns/locale";
-import { useCalendarEvents, type CalendarEvent } from "@/hooks/useCalendarEvents";
+import { useCalendarEvents, type CalendarEvent, type CalendarDaySegment } from "@/hooks/useCalendarEvents";
 import { JOB_STATUS_CONFIG, type JobStatus } from "@/lib/job-status";
 import { cn } from "@/lib/utils";
 import { JobStatusBadge } from "./JobStatusBadge";
-import { AlertTriangle, Lock, MapPin, Moon, Star } from "lucide-react";
+import { AlertTriangle, ArrowRight, CornerDownRight, Lock, MapPin, Moon, Star } from "lucide-react";
 import { getHolidayName } from "@/lib/norwegian-holidays";
 import { useIsMobile } from "@/hooks/use-mobile";
 import type { ExternalBusySlot } from "@/hooks/useExternalBusy";
