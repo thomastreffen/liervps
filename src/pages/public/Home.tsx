@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import { Clock, Users, ShieldCheck, Zap, Wrench, Cpu, BatteryCharging, Siren, Check, ArrowRight } from "lucide-react";
 import { PublicLayout } from "@/components/public/PublicLayout";
 import { PublicSeo, SITE_URL } from "@/components/public/PublicSeo";
-import { PortalHero } from "@/components/public/PortalHero";
+import { InternalWorkspace } from "@/components/public/InternalWorkspace";
 import { useAuth } from "@/hooks/useAuth";
 import heroImg from "@/assets/mcs/hero.jpg";
 import teamImg from "@/assets/mcs/team.jpg";
@@ -52,23 +52,23 @@ export default function Home() {
         jsonLd={localBusinessSchema}
       />
 
-      <PortalHero />
+      <InternalWorkspace />
 
-      {/* Hero — full-size for public, compact band for logged-in users */}
-      <section className="relative bg-[hsl(var(--mcs-navy))] text-white overflow-hidden">
+      {/* Hero — full-size for public, low-key intro band for logged-in users */}
+      <section className="relative bg-[hsl(var(--mcs-navy))] text-white overflow-hidden border-t border-white/5">
         <div className="absolute inset-0 z-0">
           <img src={heroImg} alt="MCS Service-elektrikere arbeider i et tavlerom" className="w-full h-full object-cover opacity-30" width={1920} height={1080} />
           <div className="absolute inset-0 bg-gradient-to-r from-[hsl(var(--mcs-navy))] via-[hsl(var(--mcs-navy))]/85 to-transparent" />
         </div>
-        <div className={`relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 ${user ? "py-10 lg:py-14" : "py-20 lg:py-32"}`}>
+        <div className={`relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 ${user ? "py-8 lg:py-10" : "py-20 lg:py-32"}`}>
           <div className="max-w-2xl">
             <p className="text-[hsl(var(--mcs-orange))] text-sm font-semibold tracking-widest uppercase mb-3">
               {user ? "Om MCS Service" : "Spesialister på eksisterende anlegg"}
             </p>
-            <h2 className={`font-bold leading-[1.05] mb-5 ${user ? "text-2xl lg:text-3xl" : "text-4xl lg:text-6xl"}`}>
+            <h2 className={`font-bold leading-[1.05] mb-4 ${user ? "text-xl lg:text-2xl" : "text-4xl lg:text-6xl mb-5"}`}>
               Service og installasjon av elektriske tavler og strømskinnesystemer
             </h2>
-            <p className={`text-white/80 mb-6 leading-relaxed ${user ? "text-base" : "text-lg lg:text-xl mb-8"}`}>
+            <p className={`text-white/80 leading-relaxed ${user ? "text-sm mb-0" : "text-lg lg:text-xl mb-8"}`}>
               Vi er spesialister på arbeid i eksisterende anlegg. Når strøm ikke kan stå stille.
             </p>
             {!user && (
