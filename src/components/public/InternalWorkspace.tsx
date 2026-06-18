@@ -2,18 +2,14 @@ import { Link } from "react-router-dom";
 import {
   LayoutDashboard, Calendar, Briefcase, FileText, FolderOpen, AlertTriangle,
   Upload, Phone, ArrowRight, ClipboardList, Clock, CheckCircle2, HelpCircle,
-  Lock, ShoppingBag, Bell,
+  Lock, ShoppingBag, ChevronRight,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useCompanyContext } from "@/hooks/useCompanyContext";
 import { useActionCounts } from "@/hooks/useActionCounts";
-
-const STATUS_CARDS = [
-  { key: "active",   label: "Aktive jobber",        icon: Briefcase,     accent: "text-[hsl(var(--mcs-orange))]" },
-  { key: "pending",  label: "Venter på avklaring",  icon: HelpCircle,    accent: "text-amber-600" },
-  { key: "planned",  label: "Planlagt / tildelt",    icon: Clock,         accent: "text-blue-600" },
-  { key: "done",     label: "Ferdig / dokumentert", icon: CheckCircle2,  accent: "text-emerald-600" },
-];
+import { useMyWorkItems } from "@/hooks/useMyWorkItems";
+import { formatDistanceToNow, format } from "date-fns";
+import { nb } from "date-fns/locale";
 
 const DOC_SHORTCUTS = [
   { to: "/portal/deliveries", icon: Upload,         label: "Last opp underlag" },
@@ -22,16 +18,46 @@ const DOC_SHORTCUTS = [
   { to: "/kontakt",           icon: Phone,          label: "Kontakt MCS Service" },
 ];
 
+function StatCard({
+  to, label, value, icon: Icon, accent, loading, highlight,
+}: {
+  to: string; label: string; value: number; icon: any; accent: string; loading: boolean; highlight?: boolean;
+}) {
+  return (
+    <Link
+      to={to}
+      data-status-key={label}
+      className={`rounded-md px-4 py-3 shadow-sm hover:shadow transition-shadow flex items-center justify-between gap-3 ${
+        highlight
+          ? "bg-[hsl(var(--mcs-orange))] text-white"
+          : "bg-white text-[hsl(var(--mcs-charcoal))]"
+      }`}
+    >
+      <div className="min-w-0">
+        <div className={`text-[11px] font-medium ${highlight ? "text-white/90" : "text-[hsl(var(--mcs-muted))]"}`}>
+          {label}
+        </div>
+        <div className="mt-1 text-2xl font-bold tabular-nums leading-none">
+          {loading ? <span className="opacity-50">…</span> : value}
+        </div>
+      </div>
+      <Icon className={`h-5 w-5 shrink-0 ${highlight ? "text-white" : accent}`} />
+    </Link>
+  );
+}
+
 export function InternalWorkspace() {
   const { user, isAdmin } = useAuth();
   const { activeCompany } = useCompanyContext();
-  const { newOrders, pendingOrders, unreadAllApproved } = useActionCounts();
+  const counts = useActionCounts();
+  const { items, loading: itemsLoading } = useMyWorkItems(6);
+
   if (!user) return null;
 
   const firstName = user.name?.split(" ")[0] || "der";
   const isInternal = isAdmin || user.role === "montør";
   const myJobsLink = isInternal ? "/projects" : "/portal/projects";
-  const hasAction = newOrders + pendingOrders + unreadAllApproved > 0;
+  const ordersLink = isInternal ? "/orders" : "/portal/projects";
 
   return (
     <section className="bg-[hsl(var(--mcs-navy))] text-white">
@@ -41,9 +67,7 @@ export function InternalWorkspace() {
           <p className="text-[hsl(var(--mcs-orange))] text-[11px] font-semibold tracking-wider uppercase mb-1">
             Din arbeidsflate
           </p>
-          <h1 className="text-2xl lg:text-3xl font-bold leading-tight">
-            Hei, {firstName}
-          </h1>
+          <h1 className="text-2xl lg:text-3xl font-bold leading-tight">Hei, {firstName}</h1>
           <p className="text-white/70 text-sm lg:text-base mt-1">
             {activeCompany ? <>Tilknyttet <span className="text-white/95 font-medium">{activeCompany.name}</span>. </> : null}
             Her finner du dine servicejobber, bestillinger og snarveier inn i MCS Kontrollsenter.
@@ -60,7 +84,7 @@ export function InternalWorkspace() {
             Bestill servicejobb
           </Link>
           <Link
-            to={myJobsLink}
+            to={ordersLink}
             className="bg-white text-[hsl(var(--mcs-navy))] hover:bg-white/90 font-semibold px-4 py-3 rounded-md inline-flex items-center justify-center gap-2 text-sm"
           >
             <ClipboardList className="h-4 w-4" />
@@ -93,82 +117,61 @@ export function InternalWorkspace() {
           )}
         </div>
 
-        {/* Krever handling */}
-        {isInternal && hasAction && (
-          <div className="mb-6">
-            <h2 className="text-[11px] font-semibold tracking-wider uppercase text-[hsl(var(--mcs-orange))] mb-2">
-              Krever handling
-            </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-              <Link
-                to="/orders?status=new"
-                className="bg-white text-[hsl(var(--mcs-charcoal))] rounded-md px-4 py-3 shadow-sm hover:shadow flex items-center justify-between gap-3"
-              >
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="h-9 w-9 rounded-md bg-[hsl(var(--mcs-orange))]/10 flex items-center justify-center text-[hsl(var(--mcs-orange))]">
-                    <ShoppingBag className="h-4 w-4" />
-                  </div>
-                  <div className="min-w-0">
-                    <div className="text-xs text-[hsl(var(--mcs-muted))]">Nye bestillinger</div>
-                    <div className="text-xl font-bold tabular-nums leading-none mt-0.5">{newOrders}</div>
-                  </div>
-                </div>
-                <ArrowRight className="h-4 w-4 text-[hsl(var(--mcs-muted))] shrink-0" />
-              </Link>
-              <Link
-                to="/orders?status=in_review"
-                className="bg-white text-[hsl(var(--mcs-charcoal))] rounded-md px-4 py-3 shadow-sm hover:shadow flex items-center justify-between gap-3"
-              >
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="h-9 w-9 rounded-md bg-amber-100 flex items-center justify-center text-amber-700">
-                    <HelpCircle className="h-4 w-4" />
-                  </div>
-                  <div className="min-w-0">
-                    <div className="text-xs text-[hsl(var(--mcs-muted))]">Til vurdering</div>
-                    <div className="text-xl font-bold tabular-nums leading-none mt-0.5">{pendingOrders}</div>
-                  </div>
-                </div>
-                <ArrowRight className="h-4 w-4 text-[hsl(var(--mcs-muted))] shrink-0" />
-              </Link>
-              <Link
-                to="/notifications?type=all_approved"
-                className="bg-white text-[hsl(var(--mcs-charcoal))] rounded-md px-4 py-3 shadow-sm hover:shadow flex items-center justify-between gap-3"
-              >
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="h-9 w-9 rounded-md bg-emerald-100 flex items-center justify-center text-emerald-700">
-                    <CheckCircle2 className="h-4 w-4" />
-                  </div>
-                  <div className="min-w-0">
-                    <div className="text-xs text-[hsl(var(--mcs-muted))]">Jobber godkjent av alle</div>
-                    <div className="text-xl font-bold tabular-nums leading-none mt-0.5">{unreadAllApproved}</div>
-                  </div>
-                </div>
-                <ArrowRight className="h-4 w-4 text-[hsl(var(--mcs-muted))] shrink-0" />
-              </Link>
-            </div>
-          </div>
-        )}
-
-
-
-        {/* Status overview */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 mb-8">
-          {STATUS_CARDS.map((s) => (
-            <div
-              key={s.key}
-              className="bg-white text-[hsl(var(--mcs-charcoal))] rounded-md px-4 py-3 border border-white/0 shadow-sm"
-              data-status-key={s.key}
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-medium text-[hsl(var(--mcs-muted))]">{s.label}</span>
-                <s.icon className={`h-4 w-4 ${s.accent}`} />
-              </div>
-              <div className="mt-1 text-2xl font-bold tabular-nums">—</div>
-            </div>
-          ))}
+        {/* Status overview — real data */}
+        <div className="grid grid-cols-2 lg:grid-cols-6 gap-2.5 mb-8">
+          <StatCard
+            to={ordersLink + "?status=new"}
+            label="Nye bestillinger"
+            value={counts.newOrders}
+            icon={ShoppingBag}
+            accent="text-[hsl(var(--mcs-orange))]"
+            loading={counts.loading}
+            highlight={counts.newOrders > 0}
+          />
+          <StatCard
+            to="/projects?status=active"
+            label="Aktive jobber"
+            value={counts.activeJobs}
+            icon={Briefcase}
+            accent="text-[hsl(var(--mcs-orange))]"
+            loading={counts.loading}
+          />
+          <StatCard
+            to="/projects?status=requested"
+            label="Venter på avklaring"
+            value={counts.awaitingClarification}
+            icon={HelpCircle}
+            accent="text-amber-600"
+            loading={counts.loading}
+          />
+          <StatCard
+            to="/projects?status=scheduled"
+            label="Planlagt / tildelt"
+            value={counts.plannedJobs}
+            icon={Clock}
+            accent="text-blue-600"
+            loading={counts.loading}
+          />
+          <StatCard
+            to="/projects?status=completed"
+            label="Ferdig / dokumentert"
+            value={counts.doneJobs}
+            icon={CheckCircle2}
+            accent="text-emerald-600"
+            loading={counts.loading}
+          />
+          <StatCard
+            to={ordersLink + "?status=under_review"}
+            label="Til vurdering"
+            value={counts.pendingOrders}
+            icon={AlertTriangle}
+            accent="text-amber-600"
+            loading={counts.loading}
+            highlight={counts.pendingOrders > 0}
+          />
         </div>
 
-        {/* My jobs + Resource plan */}
+        {/* My orders & jobs */}
         <div className="grid lg:grid-cols-3 gap-4 mb-7">
           <div className="lg:col-span-2 bg-white text-[hsl(var(--mcs-charcoal))] rounded-lg p-5 border border-white/0 shadow-sm">
             <div className="flex items-center justify-between mb-3">
@@ -177,19 +180,64 @@ export function InternalWorkspace() {
                 Se alle <ArrowRight className="h-3.5 w-3.5" />
               </Link>
             </div>
-            {/* Empty state — wired up to real data later */}
-            <div className="border border-dashed border-[hsl(var(--mcs-border))] rounded-md py-8 px-4 text-center">
-              <p className="text-sm text-[hsl(var(--mcs-muted))] mb-3">
-                Du har ingen aktive servicejobber akkurat nå.
-              </p>
-              <Link
-                to="/bestilling"
-                className="inline-flex items-center gap-2 bg-[hsl(var(--mcs-orange))] hover:bg-[hsl(var(--mcs-orange-hover))] text-white font-semibold px-4 py-2 rounded-md text-sm"
-              >
-                <FileText className="h-4 w-4" />
-                Bestill servicejobb
-              </Link>
-            </div>
+
+            {itemsLoading ? (
+              <div className="space-y-2">
+                {[0,1,2].map(i => <div key={i} className="h-14 rounded-md bg-[hsl(var(--mcs-border))]/40 animate-pulse" />)}
+              </div>
+            ) : items.length === 0 ? (
+              <div className="border border-dashed border-[hsl(var(--mcs-border))] rounded-md py-8 px-4 text-center">
+                <p className="text-sm text-[hsl(var(--mcs-muted))] mb-3">
+                  Du har ingen aktive bestillinger eller servicejobber akkurat nå.
+                </p>
+                <Link
+                  to="/bestilling"
+                  className="inline-flex items-center gap-2 bg-[hsl(var(--mcs-orange))] hover:bg-[hsl(var(--mcs-orange-hover))] text-white font-semibold px-4 py-2 rounded-md text-sm"
+                >
+                  <FileText className="h-4 w-4" />
+                  Bestill servicejobb
+                </Link>
+              </div>
+            ) : (
+              <ul className="divide-y divide-[hsl(var(--mcs-border))]">
+                {items.map((it) => (
+                  <li key={`${it.kind}-${it.id}`}>
+                    <Link
+                      to={it.href}
+                      className="flex items-center gap-3 py-2.5 hover:bg-[hsl(var(--mcs-border))]/20 -mx-2 px-2 rounded-md"
+                    >
+                      <div className={`h-9 w-9 rounded-md flex items-center justify-center shrink-0 ${
+                        it.kind === "order"
+                          ? "bg-[hsl(var(--mcs-orange))]/10 text-[hsl(var(--mcs-orange))]"
+                          : "bg-blue-50 text-blue-700"
+                      }`}>
+                        {it.kind === "order" ? <ShoppingBag className="h-4 w-4" /> : <Briefcase className="h-4 w-4" />}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 text-xs text-[hsl(var(--mcs-muted))]">
+                          <span className="font-mono font-medium text-[hsl(var(--mcs-charcoal))]">{it.number}</span>
+                          <span>·</span>
+                          <span className="truncate">{it.statusLabel}</span>
+                          {it.date && (
+                            <>
+                              <span>·</span>
+                              <span title={format(new Date(it.date), "PPP", { locale: nb })}>
+                                {formatDistanceToNow(new Date(it.date), { addSuffix: true, locale: nb })}
+                              </span>
+                            </>
+                          )}
+                        </div>
+                        <div className="text-sm font-medium text-[hsl(var(--mcs-charcoal))] truncate">
+                          {it.title}
+                          {it.customer && <span className="text-[hsl(var(--mcs-muted))] font-normal"> · {it.customer}</span>}
+                        </div>
+                      </div>
+                      <ChevronRight className="h-4 w-4 text-[hsl(var(--mcs-muted))] shrink-0" />
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
 
           {isInternal && (
