@@ -91,11 +91,24 @@ export function Header() {
         </div>
         {open && (
           <div className="lg:hidden border-t border-white/10 py-4 space-y-2">
-            {NAV.map((n) => (
-              <Link key={n.to} to={n.to} onClick={() => setOpen(false)} className="block text-white/80 hover:text-white py-2">
-                {n.label}
-              </Link>
-            ))}
+            {NAV.map((n: any) => {
+              const showBadge = n.badgeKey === "orders" && newOrders > 0;
+              return (
+                <Link
+                  key={n.to}
+                  to={n.to}
+                  onClick={() => setOpen(false)}
+                  className="flex items-center justify-between text-white/80 hover:text-white py-2"
+                >
+                  <span>{n.label}</span>
+                  {showBadge && (
+                    <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-[hsl(var(--mcs-orange))] text-white text-[10px] font-bold tabular-nums">
+                      {newOrders > 9 ? "9+" : newOrders}
+                    </span>
+                  )}
+                </Link>
+              );
+            })}
             <div className="pt-3 mt-3 border-t border-white/10 space-y-2">
               {user ? (
                 <Link to="/overview" onClick={() => setOpen(false)} className="block bg-white/10 border border-white/20 text-white text-center font-semibold py-3 rounded-md">
