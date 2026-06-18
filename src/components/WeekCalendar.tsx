@@ -216,7 +216,7 @@ export function WeekCalendar({
       isMobile ? "grid-cols-1" : "grid-cols-7"
     )}>
       {days.map((day) => {
-        const dayJobs = getJobsForDay(day);
+        const daySegments = getSegmentsForDay(day);
         const isToday = isDateToday(day);
         const isWeekend = day.getDay() === 0 || day.getDay() === 6;
         const holidayName = getHolidayName(day);
