@@ -675,7 +675,7 @@ function MobileEditor({
       {items.map((it) => (
         <MobileCard key={it.id} item={it} onUpdate={onUpdate} onDelete={onDelete} />
       ))}
-      <MobileNewRow companyId={companyId} onAdd={onAdd} />
+      <MobileNewRow companyId={companyId} procurements={procurements ?? []} onAdd={onAdd} />
       {anyPrice && (
         <div className="p-3 flex items-center justify-between text-sm font-medium bg-muted/20">
           <span className="text-muted-foreground">Sum materiell</span>
@@ -727,10 +727,14 @@ function MobileCard({
         </div>
         <NumBox label="Plukket" value={item.quantity_picked} onSave={(v) => onUpdate(item.id, { quantity_picked: v ?? 0 })} />
         <NumBox label="Brukt" value={item.quantity_used} onSave={(v) => onUpdate(item.id, { quantity_used: v ?? 0 })} />
-        <div>
-          <div className="text-[10px] uppercase text-muted-foreground">Retur</div>
-          <div className="h-8 flex items-center px-2 tabular-nums">{item.quantity_returned}</div>
-        </div>
+        <NumBox label="Mottatt" value={item.quantity_received} onSave={(v) => onUpdate(item.id, { quantity_received: v ?? 0 })} />
+      </div>
+      <div>
+        <div className="text-[10px] uppercase text-muted-foreground">Leveres av</div>
+        <ProvidedBySelect
+          value={item.provided_by}
+          onChange={(v) => onUpdate(item.id, { provided_by: v })}
+        />
       </div>
     </div>
   );
