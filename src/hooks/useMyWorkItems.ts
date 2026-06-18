@@ -91,12 +91,29 @@ export function useMyWorkItems(limit = 6) {
         href: `/orders/${o.id}`,
       }));
 
+      const normalizeCustomer = (c: any): string | null => {
+        if (!c) return null;
+        if (typeof c === "string") return c;
+        if (typeof c === "object") {
+          return (
+            c.firmanavn ||
+            c.kontaktperson_kunde ||
+            c.bestiller_navn ||
+            c.name ||
+            c.oppdragssted ||
+            c.adresse ||
+            null
+          );
+        }
+        return String(c);
+      };
+
       const jobItems: WorkItem[] = ((jobsRes as any).data || []).map((e: any) => ({
         kind: "job",
         id: e.id,
         number: e.job_number || e.internal_number || e.project_number || "Jobb",
         title: e.title || "Servicejobb",
-        customer: e.customer,
+        customer: normalizeCustomer(e.customer),
         status: e.status,
         statusLabel: JOB_STATUS_LABEL[e.status] || e.status,
         date: e.start_time,
