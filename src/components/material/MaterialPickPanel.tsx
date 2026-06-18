@@ -186,6 +186,7 @@ function StatusStep({
   onConfirm,
   disabled,
   disabledHint,
+  loading,
 }: {
   icon: React.ReactNode;
   label: string;
@@ -194,6 +195,7 @@ function StatusStep({
   onConfirm: () => Promise<void> | void;
   disabled?: boolean;
   disabledHint?: string;
+  loading?: boolean;
 }) {
   return (
     <div className="rounded-lg border bg-card p-3 space-y-2">
@@ -211,11 +213,11 @@ function StatusStep({
         size="sm"
         variant={value ? "outline" : "default"}
         onClick={onConfirm}
-        disabled={disabled}
-        title={disabled ? disabledHint : undefined}
+        disabled={disabled || loading}
+        title={disabled && !loading ? disabledHint : undefined}
         className="w-full"
       >
-        {value ? "Bekreft på nytt" : buttonLabel}
+        {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : value ? "Bekreft på nytt" : buttonLabel}
       </Button>
     </div>
   );
