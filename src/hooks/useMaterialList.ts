@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import type { MaterialListStatus, MaterialItemSource } from "@/lib/material-status";
+import type {
+  MaterialListStatus,
+  MaterialItemSource,
+  MaterialProvidedBy,
+  ProcurementStatus,
+} from "@/lib/material-status";
 
 export interface MaterialListRow {
   id: string;
@@ -14,9 +19,17 @@ export interface MaterialListRow {
   ordered_at: string | null;
   received_at: string | null;
   picked_at: string | null;
+  picked_by: string | null;
+  crate_location: string | null;
+  picked_comment: string | null;
   sent_with_installer_at: string | null;
+  dispatched_at: string | null;
+  dispatched_by: string | null;
+  delivered_to_job_at: string | null;
+  delivered_to_job_by: string | null;
   consumption_registered_at: string | null;
   completed_at: string | null;
+  share_token: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -31,9 +44,12 @@ export interface MaterialItemRow {
   quantity_picked: number;
   quantity_used: number;
   quantity_returned: number;
+  quantity_received: number;
   return_overridden: boolean;
   unit: string;
   supplier: string | null;
+  provided_by: MaterialProvidedBy | null;
+  procurement_id: string | null;
   source: MaterialItemSource;
   ai_confidence: string | null;
   ai_reason: string | null;
@@ -42,6 +58,36 @@ export interface MaterialItemRow {
   sort_order: number;
   created_at: string;
   updated_at: string;
+}
+
+export interface MaterialProcurementRow {
+  id: string;
+  material_list_id: string;
+  supplier: string | null;
+  supplier_order_number: string | null;
+  ordered_at: string | null;
+  ordered_by: string | null;
+  expected_delivery_at: string | null;
+  delivery_method: string | null;
+  delivery_location: string | null;
+  received_at: string | null;
+  received_by: string | null;
+  status: ProcurementStatus;
+  comment: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MaterialActivityRow {
+  id: string;
+  material_list_id: string;
+  actor_id: string | null;
+  actor_name: string | null;
+  actor_type: string;
+  event_type: string;
+  message: string;
+  metadata: Record<string, unknown> | null;
+  created_at: string;
 }
 
 interface UseMaterialListOpts {
@@ -191,6 +237,16 @@ export function useMaterialList({ jobId, orderId, companyId }: UseMaterialListOp
     if (error) throw error;
   }, []);
 
+  const updateList = useCallback(
+    async (patch: Partial<MaterialListRow>) => {
+      if (!list?.id) return;
+      const { error } = await supabase.from("material_lists").update(patch).eq("id", list.id);
+      if (error) throw error;
+      await fetchAll();
+    },
+    [list?.id, fetchAll],
+  );
+
   const updateStatus = useCallback(
     async (status: MaterialListStatus) => {
       if (!list?.id) return;
@@ -218,6 +274,7 @@ export function useMaterialList({ jobId, orderId, companyId }: UseMaterialListOp
     addItemsBulk,
     updateItem,
     deleteItem,
+    updateList,
     updateStatus,
   };
 }

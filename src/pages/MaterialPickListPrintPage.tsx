@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { useParams, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2 } from "lucide-react";
+import { Loader2, Printer, ArrowLeft } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { MATERIAL_STATUS_LABELS, type MaterialListStatus } from "@/lib/material-status";
 import type { MaterialItemRow, MaterialListRow } from "@/hooks/useMaterialList";
 
 interface JobInfo {
@@ -75,7 +77,6 @@ export default function MaterialPickListPrintPage() {
         }
       }
       setLoading(false);
-      setTimeout(() => window.print(), 400);
     })();
   }, [id, isOrderRoute]);
 
@@ -95,7 +96,21 @@ export default function MaterialPickListPrintPage() {
   const link = `${window.location.origin}${isOrderRoute ? `/orders/${id}` : `/projects/${id}`}`;
 
   return (
-    <div className="bg-white text-black min-h-screen">
+    <div className="bg-muted/30 min-h-screen print:bg-white">
+      {/* Toolbar — kun synlig på skjerm */}
+      <div className="no-print sticky top-0 z-10 border-b bg-card">
+        <div className="max-w-4xl mx-auto flex items-center justify-between px-4 py-2">
+          <Button variant="ghost" size="sm" onClick={() => window.close()}>
+            <ArrowLeft className="h-4 w-4" /> Lukk
+          </Button>
+          <div className="text-sm text-muted-foreground">
+            Status: <strong className="text-foreground">{MATERIAL_STATUS_LABELS[list.status as MaterialListStatus] ?? list.status}</strong>
+          </div>
+          <Button onClick={() => window.print()} size="sm">
+            <Printer className="h-4 w-4" /> Skriv ut
+          </Button>
+        </div>
+      </div>
       <style>{`
         @page { size: A4; margin: 14mm; }
         @media print {
@@ -128,8 +143,8 @@ export default function MaterialPickListPrintPage() {
           <div><span className="label">Kunde</span><br />{job.customer ?? "—"}</div>
           <div><span className="label">Montør</span><br />{technicianNames.join(", ") || "—"}</div>
           <div style={{ gridColumn: "1 / span 2" }}><span className="label">Anleggsadresse</span><br />{job.address ?? "—"}</div>
-          <div><span className="label">Kasse / hylleplass</span><br />______________________</div>
-          <div><span className="label">Telefon</span><br />______________________</div>
+          <div><span className="label">Kasse / hylleplass</span><br />{list.crate_location ?? "______________________"}</div>
+          <div><span className="label">Plukket av / dato</span><br />{list.picked_at ? new Date(list.picked_at).toLocaleDateString("nb-NO") : "______________________"}</div>
         </div>
 
         <table>

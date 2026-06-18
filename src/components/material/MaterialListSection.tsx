@@ -25,6 +25,10 @@ import { InlineAiSuggestPanel } from "./InlineAiSuggestPanel";
 import { AddTemplateDialog } from "./AddTemplateDialog";
 import { CopyFromJobDialog } from "./CopyFromJobDialog";
 import { MaterialConsumptionSheet } from "./MaterialConsumptionSheet";
+import { MaterialProcurementsPanel } from "./MaterialProcurementsPanel";
+import { MaterialPickPanel } from "./MaterialPickPanel";
+import { MaterialActivityPanel } from "./MaterialActivityPanel";
+import { useMaterialActivityLog } from "@/hooks/useMaterialProcurements";
 import { buildMaterialCsv, downloadCsv } from "@/lib/material-csv";
 import {
   Select,
@@ -62,8 +66,9 @@ export function MaterialListSection({
   showCopyFromJob = true,
   variant = "card",
 }: Props) {
-  const { list, items, loading, create, addItem, addItemsBulk, updateItem, deleteItem, updateStatus, refresh } =
+  const { list, items, loading, create, addItem, addItemsBulk, updateItem, deleteItem, updateList, updateStatus, refresh } =
     useMaterialList({ jobId: jobId ?? null, orderId: orderId ?? null, companyId });
+  const { log } = useMaterialActivityLog(list?.id ?? null);
 
   const [creating, setCreating] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
@@ -231,6 +236,7 @@ export function MaterialListSection({
                   await deleteItem(id);
                   toast.success("Linje slettet");
                   await refresh();
+                  log("item_deleted", "Slettet linje fra materialliste");
                 } catch (e) {
                   console.error(e);
                   toast.error("Kunne ikke slette");
@@ -238,10 +244,31 @@ export function MaterialListSection({
               }}
               onAdd={async (row) => {
                 await addItem(row as Partial<MaterialItemRow> & { description: string });
+                log("item_added", `La til linje: ${row.description ?? row.elnr ?? ""}`.trim());
               }}
             />
           </div>
         )}
+
+        {/* Bestilling og mottak */}
+        {list && (
+          <MaterialProcurementsPanel
+            materialListId={list.id}
+            onLog={(e, m, md) => log(e, m, md)}
+          />
+        )}
+
+        {/* Plukk og levering */}
+        {list && (
+          <MaterialPickPanel
+            list={list}
+            onUpdateList={updateList}
+            onLog={(e, m, md) => log(e, m, md)}
+          />
+        )}
+
+        {/* Aktivitetslogg */}
+        {list && <MaterialActivityPanel materialListId={list.id} />}
       </div>
 
       {/* Dialogs som beholdes (drawer/sekundære flyter) */}
