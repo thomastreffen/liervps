@@ -380,12 +380,16 @@ function CellNumber({
 /* ============== New (bottom) row with autocomplete ============== */
 function NewRow({
   companyId,
+  procurements,
   onAdd,
 }: {
   companyId: string | null;
+  procurements: ProcurementOption[];
   onAdd: (row: Partial<MaterialItemRow> & { description: string }) => Promise<void>;
 }) {
   const [draft, setDraft] = useState<NewRowDraft>(EMPTY_DRAFT);
+  const [providedBy, setProvidedBy] = useState<MaterialProvidedBy | null>(null);
+  const [procurementId, setProcurementId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const elnrRef = useRef<HTMLInputElement>(null);
 
@@ -408,9 +412,13 @@ function NewRow({
         supplier: draft.supplier.trim() || null,
         comment: draft.comment.trim() || null,
         unit_price: price,
+        provided_by: providedBy,
+        procurement_id: procurementId,
         source: "manual",
       });
       setDraft(EMPTY_DRAFT);
+      setProvidedBy(null);
+      setProcurementId(null);
       setTimeout(() => elnrRef.current?.focus(), 30);
     } catch (e) {
       console.error("add row failed", e);
@@ -495,13 +503,10 @@ function NewRow({
       <td className="p-1" />
       <td className="p-1" />
       <td className="p-1 align-top">
-        <Input
-          value={draft.supplier}
-          onChange={(e) => setDraft({ ...draft, supplier: e.target.value })}
-          onKeyDown={onKey}
-          placeholder="Leverandør"
-          className="h-8 text-sm"
-        />
+        <ProvidedBySelect value={providedBy} onChange={(v) => setProvidedBy(v)} />
+      </td>
+      <td className="p-1 align-top">
+        <ProcurementSelect value={procurementId} options={procurements} onChange={(v) => setProcurementId(v)} />
       </td>
       <td className="p-1 align-top">
         <Input
