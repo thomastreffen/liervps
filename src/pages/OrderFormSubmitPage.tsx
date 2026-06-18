@@ -24,6 +24,7 @@ import type { OrderFormField, ConditionalLogic } from "@/types/order-forms";
 import { sanitizeStorageFileName } from "@/lib/storage-path";
 import { computeQualityScore } from "@/lib/order-quality";
 import { QualityIssuesPanel } from "@/components/orders/QualityIssuesPanel";
+import { normalizeJsonValue, hasSubmissionValue } from "@/lib/json-value";
 
 export default function OrderFormSubmitPage() {
   const { slug } = useParams<{ slug: string }>();
@@ -221,20 +222,27 @@ export default function OrderFormSubmitPage() {
       } as any);
       if (subErr) throw subErr;
 
-      // Insert field values
+      // Insert field values — normalize to JSON-safe values per row
       const valueRows = Object.entries(formData)
-        .filter(([, v]) => v != null && v !== "")
+        .filter(([, v]) => hasSubmissionValue(v))
         .map(([key, val]) => ({
           submission_id: submissionId,
           field_key: key,
-          value: val,
+          value: normalizeJsonValue(val),
         }));
 
       if (valueRows.length > 0) {
         const { error: valErr } = await supabase
           .from("order_form_submission_values")
-          .insert(valueRows);
-        if (valErr) throw valErr;
+          .insert(valueRows as any);
+        if (valErr) {
+          console.error("[OrderFormSubmit] submission_values insert failed", {
+            error: valErr,
+            field_keys: valueRows.map((r) => r.field_key),
+            sample: valueRows.slice(0, 3),
+          });
+          throw new Error(`Kunne ikke lagre skjemafelt: ${valErr.message}`);
+        }
       }
 
       // Upload attachments

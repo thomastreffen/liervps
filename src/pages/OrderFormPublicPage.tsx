@@ -16,6 +16,7 @@ import { Check, AlertCircle, Upload, Info, Loader2, FileText as FileIcon, X } fr
 import { ModernDatePicker, ModernTimePicker } from "@/components/ui/modern-date-time-picker";
 import type { ConditionalLogic } from "@/types/order-forms";
 import { sanitizeStorageFileName } from "@/lib/storage-path";
+import { normalizeJsonValue, hasSubmissionValue } from "@/lib/json-value";
 
 export default function OrderFormPublicPage() {
   const { slug } = useParams<{ slug: string }>();
@@ -225,23 +226,23 @@ export default function OrderFormPublicPage() {
       // Normalize values to JSON-safe form and insert with explicit error handling.
       // If this fails, we MUST NOT show the user a "submission received" success.
       const valueRows = Object.entries(formData)
-        .filter(([, v]) => v != null && v !== "" && !(Array.isArray(v) && v.length === 0))
-        .map(([key, val]) => {
-          // Ensure value is JSON-safe (handles nested objects/arrays from address/checkbox_list/etc)
-          let safeVal: any;
-          try {
-            safeVal = JSON.parse(JSON.stringify(val));
-          } catch {
-            safeVal = String(val);
-          }
-          return { submission_id: submissionId, field_key: key, value: safeVal };
-        });
+        .filter(([, v]) => hasSubmissionValue(v))
+        .map(([key, val]) => ({
+          submission_id: submissionId,
+          field_key: key,
+          value: normalizeJsonValue(val),
+        }));
 
       if (valueRows.length > 0) {
         const { error: valuesErr } = await supabase
           .from("order_form_submission_values")
-          .insert(valueRows);
+          .insert(valueRows as any);
         if (valuesErr) {
+          console.error("[OrderFormPublic] submission_values insert failed", {
+            error: valuesErr,
+            field_keys: valueRows.map((r) => r.field_key),
+            sample: valueRows.slice(0, 3),
+          });
           // Log the failure to activity log so admins can see what happened
           await supabase.from("order_form_activity_log").insert({
             submission_id: submissionId,
