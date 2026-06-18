@@ -12418,6 +12418,7 @@ export type Database = {
       }
     }
     Functions: {
+      _notif_admin_user_ids: { Args: never; Returns: string[] }
       answer_field_request_by_token: {
         Args: {
           _request_id: string

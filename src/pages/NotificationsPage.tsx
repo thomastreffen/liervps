@@ -8,14 +8,17 @@ import { cn } from "@/lib/utils";
 import {
   Bell, CheckCheck, Clock, AlertTriangle, XCircle, CalendarCheck,
   Plug, AtSign, MessageSquare, Mail, UserPlus, FileWarning,
-  FilePlus, Receipt, CalendarX,
+  FilePlus, Receipt, CalendarX, ShoppingBag, CheckCircle2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const TYPE_ICONS: Record<string, React.ElementType> = {
   time_change_proposed: Clock,
   approval_pending: CalendarCheck,
+  approved: CheckCircle2,
+  all_approved: CheckCircle2,
   rejected: XCircle,
+  new_order: ShoppingBag,
   conflict: AlertTriangle,
   ms_connect_request: Plug,
   mention: AtSign,

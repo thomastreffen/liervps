@@ -2,6 +2,7 @@ import { Link, NavLink } from "react-router-dom";
 import { useState } from "react";
 import { Menu, X, LayoutDashboard, LogOut } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { useActionCounts } from "@/hooks/useActionCounts";
 import logoLight from "@/assets/mcs/logo-light.asset.json";
 
 const PUBLIC_NAV = [
@@ -11,9 +12,9 @@ const PUBLIC_NAV = [
   { to: "/kontakt", label: "Kontakt" },
 ];
 
-const INTERNAL_NAV = [
+const INTERNAL_NAV: { to: string; label: string; badgeKey?: "orders" }[] = [
   { to: "/projects", label: "Mine jobber" },
-  { to: "/bestilling", label: "Bestill servicejobb" },
+  { to: "/orders", label: "Bestillinger", badgeKey: "orders" },
   { to: "/projects/plan", label: "Ressursplan" },
   { to: "/portal/deliveries", label: "Dokumentasjon" },
 ];
@@ -21,6 +22,7 @@ const INTERNAL_NAV = [
 export function Header() {
   const [open, setOpen] = useState(false);
   const { user, signOut } = useAuth();
+  const { newOrders } = useActionCounts();
   const NAV = user ? INTERNAL_NAV : PUBLIC_NAV;
   return (
     <header className="sticky top-0 z-40 bg-[hsl(var(--mcs-navy))]/95 backdrop-blur border-b border-white/5">
@@ -36,17 +38,25 @@ export function Header() {
             />
           </Link>
           <nav className="hidden lg:flex items-center gap-8" aria-label="Hovedmeny">
-            {NAV.map((n) => (
-              <NavLink
-                key={n.to}
-                to={n.to}
-                className={({ isActive }) =>
-                  `text-sm font-medium transition-colors ${isActive ? "text-white" : "text-white/70 hover:text-white"}`
-                }
-              >
-                {n.label}
-              </NavLink>
-            ))}
+            {NAV.map((n: any) => {
+              const showBadge = n.badgeKey === "orders" && newOrders > 0;
+              return (
+                <NavLink
+                  key={n.to}
+                  to={n.to}
+                  className={({ isActive }) =>
+                    `text-sm font-medium transition-colors inline-flex items-center gap-1.5 ${isActive ? "text-white" : "text-white/70 hover:text-white"}`
+                  }
+                >
+                  {n.label}
+                  {showBadge && (
+                    <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-[hsl(var(--mcs-orange))] text-white text-[10px] font-bold tabular-nums">
+                      {newOrders > 9 ? "9+" : newOrders}
+                    </span>
+                  )}
+                </NavLink>
+              );
+            })}
           </nav>
           <div className="hidden lg:flex items-center gap-2">
             {user ? (
@@ -81,11 +91,24 @@ export function Header() {
         </div>
         {open && (
           <div className="lg:hidden border-t border-white/10 py-4 space-y-2">
-            {NAV.map((n) => (
-              <Link key={n.to} to={n.to} onClick={() => setOpen(false)} className="block text-white/80 hover:text-white py-2">
-                {n.label}
-              </Link>
-            ))}
+            {NAV.map((n: any) => {
+              const showBadge = n.badgeKey === "orders" && newOrders > 0;
+              return (
+                <Link
+                  key={n.to}
+                  to={n.to}
+                  onClick={() => setOpen(false)}
+                  className="flex items-center justify-between text-white/80 hover:text-white py-2"
+                >
+                  <span>{n.label}</span>
+                  {showBadge && (
+                    <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-[hsl(var(--mcs-orange))] text-white text-[10px] font-bold tabular-nums">
+                      {newOrders > 9 ? "9+" : newOrders}
+                    </span>
+                  )}
+                </Link>
+              );
+            })}
             <div className="pt-3 mt-3 border-t border-white/10 space-y-2">
               {user ? (
                 <Link to="/overview" onClick={() => setOpen(false)} className="block bg-white/10 border border-white/20 text-white text-center font-semibold py-3 rounded-md">

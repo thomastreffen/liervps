@@ -2,10 +2,11 @@ import { Link } from "react-router-dom";
 import {
   LayoutDashboard, Calendar, Briefcase, FileText, FolderOpen, AlertTriangle,
   Upload, Phone, ArrowRight, ClipboardList, Clock, CheckCircle2, HelpCircle,
-  Lock,
+  Lock, ShoppingBag, Bell,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useCompanyContext } from "@/hooks/useCompanyContext";
+import { useActionCounts } from "@/hooks/useActionCounts";
 
 const STATUS_CARDS = [
   { key: "active",   label: "Aktive jobber",        icon: Briefcase,     accent: "text-[hsl(var(--mcs-orange))]" },
@@ -24,11 +25,13 @@ const DOC_SHORTCUTS = [
 export function InternalWorkspace() {
   const { user, isAdmin } = useAuth();
   const { activeCompany } = useCompanyContext();
+  const { newOrders, pendingOrders, unreadAllApproved } = useActionCounts();
   if (!user) return null;
 
   const firstName = user.name?.split(" ")[0] || "der";
   const isInternal = isAdmin || user.role === "montør";
   const myJobsLink = isInternal ? "/projects" : "/portal/projects";
+  const hasAction = newOrders + pendingOrders + unreadAllApproved > 0;
 
   return (
     <section className="bg-[hsl(var(--mcs-navy))] text-white">
@@ -89,6 +92,64 @@ export function InternalWorkspace() {
             </span>
           )}
         </div>
+
+        {/* Krever handling */}
+        {isInternal && hasAction && (
+          <div className="mb-6">
+            <h2 className="text-[11px] font-semibold tracking-wider uppercase text-[hsl(var(--mcs-orange))] mb-2">
+              Krever handling
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+              <Link
+                to="/orders?status=new"
+                className="bg-white text-[hsl(var(--mcs-charcoal))] rounded-md px-4 py-3 shadow-sm hover:shadow flex items-center justify-between gap-3"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="h-9 w-9 rounded-md bg-[hsl(var(--mcs-orange))]/10 flex items-center justify-center text-[hsl(var(--mcs-orange))]">
+                    <ShoppingBag className="h-4 w-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-xs text-[hsl(var(--mcs-muted))]">Nye bestillinger</div>
+                    <div className="text-xl font-bold tabular-nums leading-none mt-0.5">{newOrders}</div>
+                  </div>
+                </div>
+                <ArrowRight className="h-4 w-4 text-[hsl(var(--mcs-muted))] shrink-0" />
+              </Link>
+              <Link
+                to="/orders?status=in_review"
+                className="bg-white text-[hsl(var(--mcs-charcoal))] rounded-md px-4 py-3 shadow-sm hover:shadow flex items-center justify-between gap-3"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="h-9 w-9 rounded-md bg-amber-100 flex items-center justify-center text-amber-700">
+                    <HelpCircle className="h-4 w-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-xs text-[hsl(var(--mcs-muted))]">Til vurdering</div>
+                    <div className="text-xl font-bold tabular-nums leading-none mt-0.5">{pendingOrders}</div>
+                  </div>
+                </div>
+                <ArrowRight className="h-4 w-4 text-[hsl(var(--mcs-muted))] shrink-0" />
+              </Link>
+              <Link
+                to="/notifications?type=all_approved"
+                className="bg-white text-[hsl(var(--mcs-charcoal))] rounded-md px-4 py-3 shadow-sm hover:shadow flex items-center justify-between gap-3"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="h-9 w-9 rounded-md bg-emerald-100 flex items-center justify-center text-emerald-700">
+                    <CheckCircle2 className="h-4 w-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-xs text-[hsl(var(--mcs-muted))]">Jobber godkjent av alle</div>
+                    <div className="text-xl font-bold tabular-nums leading-none mt-0.5">{unreadAllApproved}</div>
+                  </div>
+                </div>
+                <ArrowRight className="h-4 w-4 text-[hsl(var(--mcs-muted))] shrink-0" />
+              </Link>
+            </div>
+          </div>
+        )}
+
+
 
         {/* Status overview */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 mb-8">
