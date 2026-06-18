@@ -16,6 +16,7 @@ import { Check, AlertCircle, Upload, Info, Loader2, FileText as FileIcon, X } fr
 import { ModernDatePicker, ModernTimePicker } from "@/components/ui/modern-date-time-picker";
 import type { ConditionalLogic } from "@/types/order-forms";
 import { sanitizeStorageFileName } from "@/lib/storage-path";
+import { normalizeJsonValue, hasSubmissionValue } from "@/lib/json-value";
 
 export default function OrderFormPublicPage() {
   const { slug } = useParams<{ slug: string }>();
