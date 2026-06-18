@@ -11,6 +11,7 @@ import { ProjectFormsTab } from "@/components/forms/ProjectFormsTab";
 import { ServiceJournal } from "@/components/project/ServiceJournal";
 import { JobRiskPanel } from "@/components/risk/JobRiskPanel";
 import { JobEmailTab } from "@/components/project/JobEmailTab";
+import { MaterialTab } from "@/components/material/MaterialTab";
 import { ProjectScheduleSheet } from "@/components/project/ProjectScheduleSheet";
 import { SourceMetadataSection } from "@/components/SourceMetadataBadge";
 import { Button } from "@/components/ui/button";
