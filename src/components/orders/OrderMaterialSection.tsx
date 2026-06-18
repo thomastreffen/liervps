@@ -61,17 +61,17 @@ export function OrderMaterialSection({ orderId, linkedEventId }: Props) {
   const totalQty = items.reduce((sum, it) => sum + (it.quantity_ordered ?? 0), 0);
 
   return (
-    <Card id="order-material-section" className="rounded-2xl border-border/60">
+    <Card id="order-material-section" className="rounded-2xl border-2 border-primary/30 bg-primary/5 scroll-mt-24 transition-shadow">
       <CardContent className="p-4 sm:p-5">
         <div className="flex items-start gap-3 flex-wrap">
           <div className="flex items-center gap-2 shrink-0">
-            <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center">
+            <div className="h-9 w-9 rounded-lg bg-primary/15 flex items-center justify-center">
               <Package className="h-4 w-4 text-primary" />
             </div>
             <div>
-              <h3 className="text-sm font-semibold">Materiell / Plukkliste</h3>
+              <h3 className="text-sm font-semibold">Materiell</h3>
               <p className="text-xs text-muted-foreground">
-                {hasJob ? "Knyttet til jobb" : "Knyttet til denne bestillingen"}
+                {hasJob ? "Materialliste / plukkliste · knyttet til jobb" : "Materialliste / plukkliste · knyttet til denne bestillingen"}
               </p>
             </div>
           </div>
