@@ -71,6 +71,7 @@ export function MaterialListSection({
   const { list, items, loading, create, addItem, addItemsBulk, updateItem, deleteItem, updateList, updateStatus, refresh } =
     useMaterialList({ jobId: jobId ?? null, orderId: orderId ?? null, companyId });
   const { log } = useMaterialActivityLog(list?.id ?? null);
+  const { rows: procurements } = useMaterialProcurements(list?.id ?? null);
 
   const [creating, setCreating] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
@@ -224,6 +225,10 @@ export function MaterialListSection({
             <InlineMaterialEditor
               items={items}
               companyId={companyId}
+              procurements={procurements.map((p) => ({
+                id: p.id,
+                label: `${p.supplier ?? "Leverandør"}${p.supplier_order_number ? ` #${p.supplier_order_number}` : ""}`,
+              }))}
               onUpdate={async (id, patch) => {
                 try {
                   await updateItem(id, patch);
@@ -275,6 +280,26 @@ export function MaterialListSection({
           <MaterialPickPanel
             list={list}
             onUpdateList={updateList}
+            onLog={(e, m, md) => log(e, m, md)}
+          />
+        )}
+
+        {/* Deling med bestiller */}
+        {list && (
+          <MaterialSharePanel
+            list={list}
+            onUpdateList={updateList}
+            onLog={(e, m) => log(e, m)}
+          />
+        )}
+
+        {/* Forslag fra bestiller */}
+        {list && (
+          <MaterialSuggestionsPanel
+            materialListId={list.id}
+            onApprove={async (row) => {
+              await addItem(row);
+            }}
             onLog={(e, m, md) => log(e, m, md)}
           />
         )}
