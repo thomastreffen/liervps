@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2 } from "lucide-react";
 import type { MaterialItemRow, MaterialListRow } from "@/hooks/useMaterialList";
@@ -15,6 +15,8 @@ interface JobInfo {
 
 export default function MaterialPickListPrintPage() {
   const { id } = useParams<{ id: string }>();
+  const location = useLocation();
+  const isOrderRoute = location.pathname.startsWith("/orders/");
   const [list, setList] = useState<MaterialListRow | null>(null);
   const [items, setItems] = useState<MaterialItemRow[]>([]);
   const [job, setJob] = useState<JobInfo | null>(null);
@@ -24,27 +26,58 @@ export default function MaterialPickListPrintPage() {
   useEffect(() => {
     if (!id) return;
     (async () => {
-      const [{ data: ev }, { data: lists }, { data: techs }] = await Promise.all([
-        supabase.from("events").select("job_number, title, customer, address, start_time, description").eq("id", id).maybeSingle(),
-        supabase.from("material_lists").select("*").eq("job_id", id).limit(1),
-        supabase.from("event_technicians").select("technicians(name)").eq("event_id", id),
-      ]);
-      setJob(ev as JobInfo | null);
-      setTechnicianNames(((techs ?? []) as Array<{ technicians: { name: string } | null }>).map((t) => t.technicians?.name).filter(Boolean) as string[]);
-      const l = (lists ?? [])[0] as MaterialListRow | undefined;
-      if (l) {
-        setList(l);
-        const { data: rows } = await supabase
-          .from("material_list_items")
-          .select("*")
-          .eq("material_list_id", l.id)
-          .order("sort_order");
-        setItems((rows ?? []) as MaterialItemRow[]);
+      if (isOrderRoute) {
+        const [{ data: lists }, { data: sub }] = await Promise.all([
+          supabase.from("material_lists").select("*").eq("order_id", id).limit(1),
+          supabase
+            .from("order_form_submissions")
+            .select("submission_no, summary, submitter_name, created_at")
+            .eq("id", id)
+            .maybeSingle(),
+        ]);
+        const summary = (sub?.summary as Record<string, unknown> | null) ?? {};
+        setJob({
+          job_number: sub?.submission_no ?? null,
+          title: (summary.oppdragstittel as string) || "Bestilling",
+          customer: (summary.kundenavn as string) || (summary.firmanavn as string) || null,
+          address: (summary.oppdragssted as string) || (summary.adresse as string) || null,
+          start_time: sub?.created_at ?? null,
+          description: (summary.beskrivelse as string) || null,
+        });
+        setTechnicianNames(sub?.submitter_name ? [sub.submitter_name as string] : []);
+        const l = (lists ?? [])[0] as MaterialListRow | undefined;
+        if (l) {
+          setList(l);
+          const { data: rows } = await supabase
+            .from("material_list_items")
+            .select("*")
+            .eq("material_list_id", l.id)
+            .order("sort_order");
+          setItems((rows ?? []) as MaterialItemRow[]);
+        }
+      } else {
+        const [{ data: ev }, { data: lists }, { data: techs }] = await Promise.all([
+          supabase.from("events").select("job_number, title, customer, address, start_time, description").eq("id", id).maybeSingle(),
+          supabase.from("material_lists").select("*").eq("job_id", id).limit(1),
+          supabase.from("event_technicians").select("technicians(name)").eq("event_id", id),
+        ]);
+        setJob(ev as JobInfo | null);
+        setTechnicianNames(((techs ?? []) as Array<{ technicians: { name: string } | null }>).map((t) => t.technicians?.name).filter(Boolean) as string[]);
+        const l = (lists ?? [])[0] as MaterialListRow | undefined;
+        if (l) {
+          setList(l);
+          const { data: rows } = await supabase
+            .from("material_list_items")
+            .select("*")
+            .eq("material_list_id", l.id)
+            .order("sort_order");
+          setItems((rows ?? []) as MaterialItemRow[]);
+        }
       }
       setLoading(false);
       setTimeout(() => window.print(), 400);
     })();
-  }, [id]);
+  }, [id, isOrderRoute]);
 
   if (loading) {
     return (
@@ -55,11 +88,11 @@ export default function MaterialPickListPrintPage() {
   }
 
   if (!list || !job) {
-    return <div className="p-8 text-center">Ingen materialliste funnet for denne jobben.</div>;
+    return <div className="p-8 text-center">Ingen materialliste funnet.</div>;
   }
 
   const planned = job.start_time ? new Date(job.start_time).toLocaleString("nb-NO", { dateStyle: "short", timeStyle: "short" }) : "—";
-  const link = `${window.location.origin}/projects/${id}`;
+  const link = `${window.location.origin}${isOrderRoute ? `/orders/${id}` : `/projects/${id}`}`;
 
   return (
     <div className="bg-white text-black min-h-screen">
