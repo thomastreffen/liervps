@@ -7665,6 +7665,50 @@ export type Database = {
         }
         Relationships: []
       }
+      material_activity_log: {
+        Row: {
+          actor_id: string | null
+          actor_name: string | null
+          actor_type: string
+          created_at: string
+          event_type: string
+          id: string
+          material_list_id: string
+          message: string
+          metadata: Json | null
+        }
+        Insert: {
+          actor_id?: string | null
+          actor_name?: string | null
+          actor_type?: string
+          created_at?: string
+          event_type: string
+          id?: string
+          material_list_id: string
+          message: string
+          metadata?: Json | null
+        }
+        Update: {
+          actor_id?: string | null
+          actor_name?: string | null
+          actor_type?: string
+          created_at?: string
+          event_type?: string
+          id?: string
+          material_list_id?: string
+          message?: string
+          metadata?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "material_activity_log_material_list_id_fkey"
+            columns: ["material_list_id"]
+            isOneToOne: false
+            referencedRelation: "material_lists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       material_list_items: {
         Row: {
           ai_confidence: string | null
@@ -7675,8 +7719,11 @@ export type Database = {
           elnr: string | null
           id: string
           material_list_id: string
+          procurement_id: string | null
+          provided_by: string | null
           quantity_ordered: number
           quantity_picked: number
+          quantity_received: number
           quantity_returned: number
           quantity_used: number
           return_overridden: boolean
@@ -7697,8 +7744,11 @@ export type Database = {
           elnr?: string | null
           id?: string
           material_list_id: string
+          procurement_id?: string | null
+          provided_by?: string | null
           quantity_ordered?: number
           quantity_picked?: number
+          quantity_received?: number
           quantity_returned?: number
           quantity_used?: number
           return_overridden?: boolean
@@ -7719,8 +7769,11 @@ export type Database = {
           elnr?: string | null
           id?: string
           material_list_id?: string
+          procurement_id?: string | null
+          provided_by?: string | null
           quantity_ordered?: number
           quantity_picked?: number
+          quantity_received?: number
           quantity_returned?: number
           quantity_used?: number
           return_overridden?: boolean
@@ -7748,16 +7801,24 @@ export type Database = {
           company_id: string
           completed_at: string | null
           consumption_registered_at: string | null
+          crate_location: string | null
           created_at: string
           created_by: string | null
+          delivered_to_job_at: string | null
+          delivered_to_job_by: string | null
+          dispatched_at: string | null
+          dispatched_by: string | null
           id: string
           job_id: string | null
           notes: string | null
           order_id: string | null
           ordered_at: string | null
           picked_at: string | null
+          picked_by: string | null
+          picked_comment: string | null
           received_at: string | null
           sent_with_installer_at: string | null
+          share_token: string | null
           status: string
           updated_at: string
         }
@@ -7766,16 +7827,24 @@ export type Database = {
           company_id: string
           completed_at?: string | null
           consumption_registered_at?: string | null
+          crate_location?: string | null
           created_at?: string
           created_by?: string | null
+          delivered_to_job_at?: string | null
+          delivered_to_job_by?: string | null
+          dispatched_at?: string | null
+          dispatched_by?: string | null
           id?: string
           job_id?: string | null
           notes?: string | null
           order_id?: string | null
           ordered_at?: string | null
           picked_at?: string | null
+          picked_by?: string | null
+          picked_comment?: string | null
           received_at?: string | null
           sent_with_installer_at?: string | null
+          share_token?: string | null
           status?: string
           updated_at?: string
         }
@@ -7784,16 +7853,24 @@ export type Database = {
           company_id?: string
           completed_at?: string | null
           consumption_registered_at?: string | null
+          crate_location?: string | null
           created_at?: string
           created_by?: string | null
+          delivered_to_job_at?: string | null
+          delivered_to_job_by?: string | null
+          dispatched_at?: string | null
+          dispatched_by?: string | null
           id?: string
           job_id?: string | null
           notes?: string | null
           order_id?: string | null
           ordered_at?: string | null
           picked_at?: string | null
+          picked_by?: string | null
+          picked_comment?: string | null
           received_at?: string | null
           sent_with_installer_at?: string | null
+          share_token?: string | null
           status?: string
           updated_at?: string
         }
@@ -7817,6 +7894,68 @@ export type Database = {
             columns: ["order_id"]
             isOneToOne: false
             referencedRelation: "order_form_submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      material_procurements: {
+        Row: {
+          comment: string | null
+          created_at: string
+          delivery_location: string | null
+          delivery_method: string | null
+          expected_delivery_at: string | null
+          id: string
+          material_list_id: string
+          ordered_at: string | null
+          ordered_by: string | null
+          received_at: string | null
+          received_by: string | null
+          status: string
+          supplier: string | null
+          supplier_order_number: string | null
+          updated_at: string
+        }
+        Insert: {
+          comment?: string | null
+          created_at?: string
+          delivery_location?: string | null
+          delivery_method?: string | null
+          expected_delivery_at?: string | null
+          id?: string
+          material_list_id: string
+          ordered_at?: string | null
+          ordered_by?: string | null
+          received_at?: string | null
+          received_by?: string | null
+          status?: string
+          supplier?: string | null
+          supplier_order_number?: string | null
+          updated_at?: string
+        }
+        Update: {
+          comment?: string | null
+          created_at?: string
+          delivery_location?: string | null
+          delivery_method?: string | null
+          expected_delivery_at?: string | null
+          id?: string
+          material_list_id?: string
+          ordered_at?: string | null
+          ordered_by?: string | null
+          received_at?: string | null
+          received_by?: string | null
+          status?: string
+          supplier?: string | null
+          supplier_order_number?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "material_procurements_material_list_id_fkey"
+            columns: ["material_list_id"]
+            isOneToOne: false
+            referencedRelation: "material_lists"
             referencedColumns: ["id"]
           },
         ]
