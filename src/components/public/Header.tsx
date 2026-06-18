@@ -4,16 +4,24 @@ import { Menu, X, LayoutDashboard, LogOut } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import logoLight from "@/assets/mcs/logo-light.asset.json";
 
-const NAV = [
+const PUBLIC_NAV = [
   { to: "/tjenester/service-og-feilsoking", label: "Tjenester" },
   { to: "/om-mcs", label: "Om oss" },
   { to: "/referanser", label: "Referanser" },
   { to: "/kontakt", label: "Kontakt" },
 ];
 
+const INTERNAL_NAV = [
+  { to: "/projects", label: "Mine jobber" },
+  { to: "/bestilling", label: "Bestill servicejobb" },
+  { to: "/projects/plan", label: "Ressursplan" },
+  { to: "/portal/deliveries", label: "Dokumentasjon" },
+];
+
 export function Header() {
   const [open, setOpen] = useState(false);
   const { user, signOut } = useAuth();
+  const NAV = user ? INTERNAL_NAV : PUBLIC_NAV;
   return (
     <header className="sticky top-0 z-40 bg-[hsl(var(--mcs-navy))]/95 backdrop-blur border-b border-white/5">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
