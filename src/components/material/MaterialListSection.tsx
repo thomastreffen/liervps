@@ -254,6 +254,16 @@ export function MaterialListSection({
         {list && (
           <MaterialProcurementsPanel
             materialListId={list.id}
+            currentListStatus={list.status}
+            onListStatusChange={async (next) => {
+              if (list.status !== next) {
+                try {
+                  await updateStatus(next);
+                } catch (e) {
+                  console.error(e);
+                }
+              }
+            }}
             onLog={(e, m, md) => log(e, m, md)}
           />
         )}
