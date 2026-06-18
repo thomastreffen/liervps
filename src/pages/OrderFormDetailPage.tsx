@@ -6,7 +6,7 @@ import {
   ArrowLeft, MessageSquare, Clock, Paperclip, AlertTriangle,
   ArrowRight, FileText, Download, Mail, MailCheck, MailX, ExternalLink, UserPlus,
   Tag, User, LinkIcon, X, MoreHorizontal, Eye, Send, Globe, UserCheck, Bell, BellRing, Inbox,
-  CalendarDays, LockKeyhole, Loader2, Pencil, FormInput,
+  CalendarDays, LockKeyhole, Loader2, Pencil, FormInput, Package,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -1078,6 +1078,23 @@ export default function OrderFormDetailPage() {
         <Button variant="outline" size="sm" onClick={() => setLinkTaskOpen(true)}>
           <LinkIcon className="h-3.5 w-3.5 mr-1.5" />
           Koble til oppgave
+        </Button>
+
+        {/* Primary: Materiell / Plukkliste */}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            const el = document.getElementById("order-material-section");
+            if (el) {
+              el.scrollIntoView({ behavior: "smooth", block: "start" });
+              el.classList.add("ring-2", "ring-primary");
+              setTimeout(() => el.classList.remove("ring-2", "ring-primary"), 1600);
+            }
+          }}
+        >
+          <Package className="h-3.5 w-3.5 mr-1.5" />
+          Materiell
         </Button>
 
         {/* Secondary: overflow menu */}
