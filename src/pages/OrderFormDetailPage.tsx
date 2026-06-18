@@ -73,6 +73,7 @@ import { type ChatAttachment, isImageAttachment, formatBytes, attachmentLabel } 
 import { APP_VERSION } from "@/pwa/buildVersion";
 import { FlowTrail } from "@/components/flow/FlowTrail";
 import { useFlowChain } from "@/components/flow/useFlowChain";
+import { OrderMaterialSection } from "@/components/orders/OrderMaterialSection";
 
 export default function OrderFormDetailPage() {
   const { id } = useParams<{ id: string }>();
