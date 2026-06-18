@@ -7709,6 +7709,74 @@ export type Database = {
           },
         ]
       }
+      material_external_suggestions: {
+        Row: {
+          comment: string | null
+          created_at: string
+          description: string | null
+          elnr: string | null
+          id: string
+          material_list_id: string
+          provided_by: string | null
+          quantity: number
+          review_comment: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          share_token: string | null
+          status: string
+          suggested_by_email: string | null
+          suggested_by_name: string | null
+          unit: string
+          updated_at: string
+        }
+        Insert: {
+          comment?: string | null
+          created_at?: string
+          description?: string | null
+          elnr?: string | null
+          id?: string
+          material_list_id: string
+          provided_by?: string | null
+          quantity?: number
+          review_comment?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          share_token?: string | null
+          status?: string
+          suggested_by_email?: string | null
+          suggested_by_name?: string | null
+          unit?: string
+          updated_at?: string
+        }
+        Update: {
+          comment?: string | null
+          created_at?: string
+          description?: string | null
+          elnr?: string | null
+          id?: string
+          material_list_id?: string
+          provided_by?: string | null
+          quantity?: number
+          review_comment?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          share_token?: string | null
+          status?: string
+          suggested_by_email?: string | null
+          suggested_by_name?: string | null
+          unit?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "material_external_suggestions_material_list_id_fkey"
+            columns: ["material_list_id"]
+            isOneToOne: false
+            referencedRelation: "material_lists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       material_list_items: {
         Row: {
           ai_confidence: string | null
@@ -12913,6 +12981,20 @@ export type Database = {
         Args: { _submission_id: string }
         Returns: Json
       }
+      create_material_suggestion: {
+        Args: {
+          p_comment: string
+          p_description: string
+          p_elnr: string
+          p_email: string
+          p_name: string
+          p_provided_by: string
+          p_quantity: number
+          p_token: string
+          p_unit: string
+        }
+        Returns: string
+      }
       create_work_visit_on_project: {
         Args: {
           p_client_request_id: string
@@ -13092,6 +13174,7 @@ export type Database = {
         Args: { _auth_user_id: string; _project_id: string }
         Returns: string
       }
+      get_shared_material_list: { Args: { p_token: string }; Returns: Json }
       get_submission_activity_by_token: {
         Args: { _token: string }
         Returns: {

@@ -5,7 +5,20 @@ import { Trash2, Loader2, Check, Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useIsMobile } from "@/hooks/use-mobile";
 import type { MaterialItemRow } from "@/hooks/useMaterialList";
+import { MATERIAL_PROVIDED_BY_LABELS, type MaterialProvidedBy } from "@/lib/material-status";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+
+export interface ProcurementOption {
+  id: string;
+  label: string;
+}
 
 /**
  * Parse number tolerant of Norwegian decimal comma.
@@ -56,6 +69,7 @@ const EMPTY_DRAFT: NewRowDraft = {
 interface Props {
   items: MaterialItemRow[];
   companyId: string | null;
+  procurements?: ProcurementOption[];
   onUpdate: (id: string, patch: Partial<MaterialItemRow>) => Promise<void>;
   onDelete: (id: string) => Promise<void> | void;
   onAdd: (row: Partial<MaterialItemRow> & { description: string }) => Promise<void>;
@@ -67,7 +81,7 @@ interface Props {
  * - Nederst er det alltid en tom "ny linje" — Enter lagrer og fokuserer ny linje.
  * - Inline produktoppslag på elnr og beskrivelse.
  */
-export function InlineMaterialEditor({ items, companyId, onUpdate, onDelete, onAdd }: Props) {
+export function InlineMaterialEditor({ items, companyId, procurements = [], onUpdate, onDelete, onAdd }: Props) {
   const isMobile = useIsMobile();
 
   const totalQty = items.reduce((s, it) => s + (it.quantity_ordered || 0), 0);
@@ -82,6 +96,7 @@ export function InlineMaterialEditor({ items, companyId, onUpdate, onDelete, onA
       <MobileEditor
         items={items}
         companyId={companyId}
+        procurements={procurements}
         onUpdate={onUpdate}
         onDelete={onDelete}
         onAdd={onAdd}
@@ -103,19 +118,26 @@ export function InlineMaterialEditor({ items, companyId, onUpdate, onDelete, onA
             <th className="p-2 text-right w-20">Antall</th>
             <th className="p-2 text-left w-16">Enhet</th>
             <th className="p-2 text-right w-24">Sum</th>
+            <th className="p-2 text-right w-20">Mottatt</th>
             <th className="p-2 text-right w-20">Plukket</th>
             <th className="p-2 text-right w-20">Brukt</th>
-            <th className="p-2 text-right w-20">Retur</th>
-            <th className="p-2 text-left w-32">Leverandør</th>
+            <th className="p-2 text-left w-36">Leveres av</th>
+            <th className="p-2 text-left w-40">Bestilling</th>
             <th className="p-2 text-left w-40">Kommentar</th>
             <th className="p-2 w-8" />
           </tr>
         </thead>
         <tbody>
           {items.map((it) => (
-            <ExistingRow key={it.id} item={it} onUpdate={onUpdate} onDelete={onDelete} />
+            <ExistingRow
+              key={it.id}
+              item={it}
+              procurements={procurements}
+              onUpdate={onUpdate}
+              onDelete={onDelete}
+            />
           ))}
-          <NewRow companyId={companyId} onAdd={onAdd} />
+          <NewRow companyId={companyId} procurements={procurements} onAdd={onAdd} />
         </tbody>
         {anyPrice && (
           <tfoot className="bg-muted/30 text-sm font-medium">
@@ -129,7 +151,7 @@ export function InlineMaterialEditor({ items, companyId, onUpdate, onDelete, onA
               <td className="p-2 text-right tabular-nums">
                 {totalSum.toLocaleString("nb-NO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </td>
-              <td colSpan={6} />
+              <td colSpan={7} />
             </tr>
           </tfoot>
         )}
@@ -143,10 +165,12 @@ type SaveState = "idle" | "saving" | "saved" | "error";
 
 function ExistingRow({
   item,
+  procurements,
   onUpdate,
   onDelete,
 }: {
   item: MaterialItemRow;
+  procurements: ProcurementOption[];
   onUpdate: (id: string, patch: Partial<MaterialItemRow>) => Promise<void>;
   onDelete: (id: string) => Promise<void> | void;
 }) {
@@ -194,14 +218,26 @@ function ExistingRow({
         {sum != null ? sum.toLocaleString("nb-NO", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "—"}
       </td>
       <td className="p-1">
+        <CellNumber value={item.quantity_received} onSave={(v) => save({ quantity_received: v ?? 0 })} />
+      </td>
+      <td className="p-1">
         <CellNumber value={item.quantity_picked} onSave={(v) => save({ quantity_picked: v ?? 0 })} />
       </td>
       <td className="p-1">
         <CellNumber value={item.quantity_used} onSave={(v) => save({ quantity_used: v ?? 0 })} />
       </td>
-      <td className="p-1 text-right tabular-nums text-muted-foreground">{item.quantity_returned}</td>
       <td className="p-1">
-        <CellText value={item.supplier ?? ""} onSave={(v) => save({ supplier: v || null })} />
+        <ProvidedBySelect
+          value={item.provided_by}
+          onChange={(v) => save({ provided_by: v })}
+        />
+      </td>
+      <td className="p-1">
+        <ProcurementSelect
+          value={item.procurement_id}
+          options={procurements}
+          onChange={(v) => save({ procurement_id: v })}
+        />
       </td>
       <td className="p-1">
         <CellText value={item.comment ?? ""} onSave={(v) => save({ comment: v || null })} />
@@ -224,6 +260,58 @@ function ExistingRow({
         </div>
       </td>
     </tr>
+  );
+}
+
+function ProvidedBySelect({
+  value,
+  onChange,
+}: {
+  value: MaterialProvidedBy | null;
+  onChange: (v: MaterialProvidedBy | null) => void;
+}) {
+  return (
+    <Select
+      value={value ?? "_none"}
+      onValueChange={(v) => onChange(v === "_none" ? null : (v as MaterialProvidedBy))}
+    >
+      <SelectTrigger className="h-8 text-xs border-transparent hover:border-input bg-transparent">
+        <SelectValue placeholder="—" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="_none">—</SelectItem>
+        {(Object.keys(MATERIAL_PROVIDED_BY_LABELS) as MaterialProvidedBy[]).map((k) => (
+          <SelectItem key={k} value={k}>{MATERIAL_PROVIDED_BY_LABELS[k]}</SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
+function ProcurementSelect({
+  value,
+  options,
+  onChange,
+}: {
+  value: string | null;
+  options: ProcurementOption[];
+  onChange: (v: string | null) => void;
+}) {
+  if (options.length === 0) {
+    return <span className="text-[11px] text-muted-foreground italic px-2">Ingen bestillinger</span>;
+  }
+  return (
+    <Select value={value ?? "_none"} onValueChange={(v) => onChange(v === "_none" ? null : v)}>
+      <SelectTrigger className="h-8 text-xs border-transparent hover:border-input bg-transparent">
+        <SelectValue placeholder="—" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="_none">—</SelectItem>
+        {options.map((o) => (
+          <SelectItem key={o.id} value={o.id}>{o.label}</SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }
 
@@ -292,12 +380,16 @@ function CellNumber({
 /* ============== New (bottom) row with autocomplete ============== */
 function NewRow({
   companyId,
+  procurements,
   onAdd,
 }: {
   companyId: string | null;
+  procurements: ProcurementOption[];
   onAdd: (row: Partial<MaterialItemRow> & { description: string }) => Promise<void>;
 }) {
   const [draft, setDraft] = useState<NewRowDraft>(EMPTY_DRAFT);
+  const [providedBy, setProvidedBy] = useState<MaterialProvidedBy | null>(null);
+  const [procurementId, setProcurementId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const elnrRef = useRef<HTMLInputElement>(null);
 
@@ -320,9 +412,13 @@ function NewRow({
         supplier: draft.supplier.trim() || null,
         comment: draft.comment.trim() || null,
         unit_price: price,
+        provided_by: providedBy,
+        procurement_id: procurementId,
         source: "manual",
       });
       setDraft(EMPTY_DRAFT);
+      setProvidedBy(null);
+      setProcurementId(null);
       setTimeout(() => elnrRef.current?.focus(), 30);
     } catch (e) {
       console.error("add row failed", e);
@@ -407,13 +503,10 @@ function NewRow({
       <td className="p-1" />
       <td className="p-1" />
       <td className="p-1 align-top">
-        <Input
-          value={draft.supplier}
-          onChange={(e) => setDraft({ ...draft, supplier: e.target.value })}
-          onKeyDown={onKey}
-          placeholder="Leverandør"
-          className="h-8 text-sm"
-        />
+        <ProvidedBySelect value={providedBy} onChange={(v) => setProvidedBy(v)} />
+      </td>
+      <td className="p-1 align-top">
+        <ProcurementSelect value={procurementId} options={procurements} onChange={(v) => setProcurementId(v)} />
       </td>
       <td className="p-1 align-top">
         <Input
@@ -571,18 +664,20 @@ const ProductAutocomplete = React.forwardRef<HTMLInputElement, AutocompleteProps
 function MobileEditor({
   items,
   companyId,
+  procurements,
   onUpdate,
   onDelete,
   onAdd,
   anyPrice,
   totalSum,
 }: Props & { anyPrice: boolean; totalQty: number; totalSum: number }) {
+  const procs = procurements ?? [];
   return (
     <div className="divide-y divide-border/40">
       {items.map((it) => (
         <MobileCard key={it.id} item={it} onUpdate={onUpdate} onDelete={onDelete} />
       ))}
-      <MobileNewRow companyId={companyId} onAdd={onAdd} />
+      <MobileNewRow companyId={companyId} procurements={procs} onAdd={onAdd} />
       {anyPrice && (
         <div className="p-3 flex items-center justify-between text-sm font-medium bg-muted/20">
           <span className="text-muted-foreground">Sum materiell</span>
@@ -634,10 +729,14 @@ function MobileCard({
         </div>
         <NumBox label="Plukket" value={item.quantity_picked} onSave={(v) => onUpdate(item.id, { quantity_picked: v ?? 0 })} />
         <NumBox label="Brukt" value={item.quantity_used} onSave={(v) => onUpdate(item.id, { quantity_used: v ?? 0 })} />
-        <div>
-          <div className="text-[10px] uppercase text-muted-foreground">Retur</div>
-          <div className="h-8 flex items-center px-2 tabular-nums">{item.quantity_returned}</div>
-        </div>
+        <NumBox label="Mottatt" value={item.quantity_received} onSave={(v) => onUpdate(item.id, { quantity_received: v ?? 0 })} />
+      </div>
+      <div>
+        <div className="text-[10px] uppercase text-muted-foreground">Leveres av</div>
+        <ProvidedBySelect
+          value={item.provided_by}
+          onChange={(v) => onUpdate(item.id, { provided_by: v })}
+        />
       </div>
     </div>
   );
@@ -664,12 +763,16 @@ function NumBox({
 
 function MobileNewRow({
   companyId,
+  procurements,
   onAdd,
 }: {
   companyId: string | null;
+  procurements: ProcurementOption[];
   onAdd: (row: Partial<MaterialItemRow> & { description: string }) => Promise<void>;
 }) {
   const [draft, setDraft] = useState<NewRowDraft>(EMPTY_DRAFT);
+  const [providedBy, setProvidedBy] = useState<MaterialProvidedBy | null>(null);
+  const [procurementId, setProcurementId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   const isValid =
@@ -689,9 +792,13 @@ function MobileNewRow({
         supplier: draft.supplier.trim() || null,
         comment: draft.comment.trim() || null,
         unit_price: price,
+        provided_by: providedBy,
+        procurement_id: procurementId,
         source: "manual",
       });
       setDraft(EMPTY_DRAFT);
+      setProvidedBy(null);
+      setProcurementId(null);
     } finally {
       setSaving(false);
     }
@@ -752,6 +859,18 @@ function MobileNewRow({
           value={draft.unit}
           onChange={(e) => setDraft({ ...draft, unit: e.target.value })}
         />
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <div className="text-[10px] uppercase text-muted-foreground">Leveres av</div>
+          <ProvidedBySelect value={providedBy} onChange={(v) => setProvidedBy(v)} />
+        </div>
+        {procurements.length > 0 && (
+          <div>
+            <div className="text-[10px] uppercase text-muted-foreground">Bestilling</div>
+            <ProcurementSelect value={procurementId} options={procurements} onChange={(v) => setProcurementId(v)} />
+          </div>
+        )}
       </div>
       <Button onClick={commit} disabled={!isValid || saving} className="w-full">
         {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}

@@ -3,7 +3,7 @@ import { useParams, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, Printer, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { MATERIAL_STATUS_LABELS, type MaterialListStatus } from "@/lib/material-status";
+import { MATERIAL_STATUS_LABELS, type MaterialListStatus, MATERIAL_PROVIDED_BY_LABELS, type MaterialProvidedBy } from "@/lib/material-status";
 import type { MaterialItemRow, MaterialListRow } from "@/hooks/useMaterialList";
 
 interface JobInfo {
@@ -155,6 +155,7 @@ export default function MaterialPickListPrintPage() {
               <th>Beskrivelse</th>
               <th style={{ width: "50px", textAlign: "right" }}>Antall</th>
               <th style={{ width: "40px" }}>Enhet</th>
+              <th style={{ width: "110px" }}>Leveres av</th>
               <th>Kommentar</th>
               <th style={{ width: "50px", textAlign: "right" }}>Retur</th>
             </tr>
@@ -167,12 +168,13 @@ export default function MaterialPickListPrintPage() {
                 <td>{it.description}</td>
                 <td style={{ textAlign: "right" }}>{it.quantity_ordered}</td>
                 <td>{it.unit}</td>
+                <td>{it.provided_by ? (MATERIAL_PROVIDED_BY_LABELS[it.provided_by as MaterialProvidedBy] ?? it.provided_by) : ""}</td>
                 <td>{it.comment ?? ""}</td>
                 <td style={{ textAlign: "right" }}>____</td>
               </tr>
             ))}
             {items.length === 0 && (
-              <tr><td colSpan={7} style={{ textAlign: "center", color: "#888" }}>Ingen linjer</td></tr>
+              <tr><td colSpan={8} style={{ textAlign: "center", color: "#888" }}>Ingen linjer</td></tr>
             )}
           </tbody>
         </table>
