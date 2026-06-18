@@ -8,6 +8,7 @@ import {
   DollarSign,
   Mail,
   Hammer,
+  Package,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -17,6 +18,7 @@ const TABS = [
   { key: "epost", label: "Meldinger", icon: Mail },
   { key: "dokumenter", label: "Dokumenter", icon: FileText },
   { key: "skjemaer", label: "Skjemaer", icon: ClipboardList },
+  { key: "materiell", label: "Materiell", icon: Package },
   { key: "servicearbeid", label: "Service", icon: Hammer },
   { key: "risiko", label: "Risiko", icon: AlertTriangle },
   { key: "okonomi", label: "Økonomi", icon: DollarSign },

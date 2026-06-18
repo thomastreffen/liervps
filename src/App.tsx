@@ -23,6 +23,7 @@ import KpiDashboard from "./pages/KpiDashboard";
 import JobsPage from "./pages/JobsPage";
 import ResourcePlan from "./pages/ResourcePlan";
 import JobDetail from "./pages/JobDetail";
+import MaterialPickListPrintPage from "./pages/MaterialPickListPrintPage";
 import AdminUsers from "./pages/AdminUsers";
 import OrganisationPage from "./pages/OrganisationPage";
 import PeoplePage from "./pages/PeoplePage";
@@ -195,6 +196,8 @@ const App = () => (
             <Route path="/approval/:token" element={<ApprovalPage />} />
             <Route path="/offer/accept/:token" element={<OfferAcceptPage />} />
             <Route path="/approve-change-order" element={<ApproveChangeOrderPage />} />
+            <Route path="/jobs/:id/pickliste" element={<MaterialPickListPrintPage />} />
+            <Route path="/projects/:id/pickliste" element={<MaterialPickListPrintPage />} />
             <Route path="/invite/thread/:token" element={<ThreadInviteAcceptPage />} />
             <Route path="/activate" element={<ActivatePage />} />
             <Route path="/bestilling" element={<OrderFormsCatalogPage />} />

@@ -11,6 +11,7 @@ import { ProjectFormsTab } from "@/components/forms/ProjectFormsTab";
 import { ServiceJournal } from "@/components/project/ServiceJournal";
 import { JobRiskPanel } from "@/components/risk/JobRiskPanel";
 import { JobEmailTab } from "@/components/project/JobEmailTab";
+import { MaterialTab } from "@/components/material/MaterialTab";
 import { ProjectScheduleSheet } from "@/components/project/ProjectScheduleSheet";
 import { SourceMetadataSection } from "@/components/SourceMetadataBadge";
 import { Button } from "@/components/ui/button";
@@ -230,6 +231,18 @@ export default function JobDetail() {
 
           {activeTab === "skjemaer" && (
             <ProjectFormsTab projectId={id!} isAdmin={canEditPlan} />
+          )}
+
+          {activeTab === "materiell" && (
+            <MaterialTab
+              jobId={id!}
+              jobNumber={job.jobNumber ?? job.projectNumber ?? job.internalNumber}
+              customer={job.customer}
+              address={job.address}
+              plannedAt={job.start}
+              technicianNames={technicianNames}
+              description={job.description}
+            />
           )}
 
           {activeTab === "servicearbeid" && (
