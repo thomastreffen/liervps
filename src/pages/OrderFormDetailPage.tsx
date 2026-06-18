@@ -73,6 +73,7 @@ import { type ChatAttachment, isImageAttachment, formatBytes, attachmentLabel } 
 import { APP_VERSION } from "@/pwa/buildVersion";
 import { FlowTrail } from "@/components/flow/FlowTrail";
 import { useFlowChain } from "@/components/flow/useFlowChain";
+import { OrderMaterialSection } from "@/components/orders/OrderMaterialSection";
 
 export default function OrderFormDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -1170,6 +1171,12 @@ export default function OrderFormDetailPage() {
         convertedToType={sub.converted_to_type}
         linkedEventId={(sub as any).linked_event_id}
         onManageLink={() => setLinkTaskOpen(true)}
+      />
+
+      {/* Materiell / Plukkliste */}
+      <OrderMaterialSection
+        orderId={id!}
+        linkedEventId={(sub as any).linked_event_id || null}
       />
 
       {/* Linked entities + notification status */}
