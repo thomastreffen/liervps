@@ -22,6 +22,7 @@ const INTERNAL_NAV: { to: string; label: string; badgeKey?: "orders" }[] = [
 export function Header() {
   const [open, setOpen] = useState(false);
   const { user, signOut } = useAuth();
+  const { newOrders } = useActionCounts();
   const NAV = user ? INTERNAL_NAV : PUBLIC_NAV;
   return (
     <header className="sticky top-0 z-40 bg-[hsl(var(--mcs-navy))]/95 backdrop-blur border-b border-white/5">
