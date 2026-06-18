@@ -5,7 +5,20 @@ import { Trash2, Loader2, Check, Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useIsMobile } from "@/hooks/use-mobile";
 import type { MaterialItemRow } from "@/hooks/useMaterialList";
+import { MATERIAL_PROVIDED_BY_LABELS, type MaterialProvidedBy } from "@/lib/material-status";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+
+export interface ProcurementOption {
+  id: string;
+  label: string;
+}
 
 /**
  * Parse number tolerant of Norwegian decimal comma.
@@ -56,6 +69,7 @@ const EMPTY_DRAFT: NewRowDraft = {
 interface Props {
   items: MaterialItemRow[];
   companyId: string | null;
+  procurements?: ProcurementOption[];
   onUpdate: (id: string, patch: Partial<MaterialItemRow>) => Promise<void>;
   onDelete: (id: string) => Promise<void> | void;
   onAdd: (row: Partial<MaterialItemRow> & { description: string }) => Promise<void>;
@@ -67,7 +81,7 @@ interface Props {
  * - Nederst er det alltid en tom "ny linje" — Enter lagrer og fokuserer ny linje.
  * - Inline produktoppslag på elnr og beskrivelse.
  */
-export function InlineMaterialEditor({ items, companyId, onUpdate, onDelete, onAdd }: Props) {
+export function InlineMaterialEditor({ items, companyId, procurements = [], onUpdate, onDelete, onAdd }: Props) {
   const isMobile = useIsMobile();
 
   const totalQty = items.reduce((s, it) => s + (it.quantity_ordered || 0), 0);
@@ -82,6 +96,7 @@ export function InlineMaterialEditor({ items, companyId, onUpdate, onDelete, onA
       <MobileEditor
         items={items}
         companyId={companyId}
+        procurements={procurements}
         onUpdate={onUpdate}
         onDelete={onDelete}
         onAdd={onAdd}
