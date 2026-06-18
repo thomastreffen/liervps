@@ -1,0 +1,153 @@
+import { useEffect, useState } from "react";
+import { useParams } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { Loader2 } from "lucide-react";
+import type { MaterialItemRow, MaterialListRow } from "@/hooks/useMaterialList";
+
+interface JobInfo {
+  job_number: string | null;
+  title: string;
+  customer: string | null;
+  address: string | null;
+  start_time: string | null;
+  description: string | null;
+}
+
+export default function MaterialPickListPrintPage() {
+  const { id } = useParams<{ id: string }>();
+  const [list, setList] = useState<MaterialListRow | null>(null);
+  const [items, setItems] = useState<MaterialItemRow[]>([]);
+  const [job, setJob] = useState<JobInfo | null>(null);
+  const [technicianNames, setTechnicianNames] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!id) return;
+    (async () => {
+      const [{ data: ev }, { data: lists }, { data: techs }] = await Promise.all([
+        supabase.from("events").select("job_number, title, customer, address, start_time, description").eq("id", id).maybeSingle(),
+        supabase.from("material_lists").select("*").eq("job_id", id).limit(1),
+        supabase.from("event_technicians").select("technicians(name)").eq("event_id", id),
+      ]);
+      setJob(ev as JobInfo | null);
+      setTechnicianNames(((techs ?? []) as Array<{ technicians: { name: string } | null }>).map((t) => t.technicians?.name).filter(Boolean) as string[]);
+      const l = (lists ?? [])[0] as MaterialListRow | undefined;
+      if (l) {
+        setList(l);
+        const { data: rows } = await supabase
+          .from("material_list_items")
+          .select("*")
+          .eq("material_list_id", l.id)
+          .order("sort_order");
+        setItems((rows ?? []) as MaterialItemRow[]);
+      }
+      setLoading(false);
+      setTimeout(() => window.print(), 400);
+    })();
+  }, [id]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (!list || !job) {
+    return <div className="p-8 text-center">Ingen materialliste funnet for denne jobben.</div>;
+  }
+
+  const planned = job.start_time ? new Date(job.start_time).toLocaleString("nb-NO", { dateStyle: "short", timeStyle: "short" }) : "—";
+  const link = `${window.location.origin}/projects/${id}`;
+
+  return (
+    <div className="bg-white text-black min-h-screen">
+      <style>{`
+        @page { size: A4; margin: 14mm; }
+        @media print {
+          body { background: white !important; }
+          .no-print { display: none !important; }
+        }
+        .picklist { font-family: Arial, sans-serif; padding: 24px; max-width: 800px; margin: 0 auto; }
+        .picklist table { width: 100%; border-collapse: collapse; }
+        .picklist th, .picklist td { border: 1px solid #444; padding: 6px 8px; font-size: 12px; text-align: left; }
+        .picklist th { background: #eee; }
+        .picklist h1 { font-size: 20px; margin: 0 0 4px 0; }
+        .picklist h2 { font-size: 14px; margin: 0 0 12px 0; color: #555; font-weight: normal; }
+        .picklist .meta { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 16px; font-size: 12px; margin: 12px 0; }
+        .picklist .meta div { padding: 2px 0; }
+        .picklist .label { color: #666; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .picklist .footer { margin-top: 24px; }
+        .picklist .sig { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 32px; }
+        .picklist .sig div { border-top: 1px solid #444; padding-top: 4px; font-size: 11px; }
+        .picklist .qr { float: right; width: 80px; height: 80px; border: 1px dashed #999; display: flex; align-items: center; justify-content: center; font-size: 9px; text-align: center; color: #666; }
+      `}</style>
+
+      <div className="picklist">
+        <div className="qr">QR / lenke<br />{link.replace(/^https?:\/\//, "")}</div>
+        <h1>MCS Service — Plukkliste materiell</h1>
+        <h2>{job.title}</h2>
+
+        <div className="meta">
+          <div><span className="label">Jobbnummer</span><br /><strong>{job.job_number ?? "—"}</strong></div>
+          <div><span className="label">Planlagt</span><br />{planned}</div>
+          <div><span className="label">Kunde</span><br />{job.customer ?? "—"}</div>
+          <div><span className="label">Montør</span><br />{technicianNames.join(", ") || "—"}</div>
+          <div style={{ gridColumn: "1 / span 2" }}><span className="label">Anleggsadresse</span><br />{job.address ?? "—"}</div>
+          <div><span className="label">Kasse / hylleplass</span><br />______________________</div>
+          <div><span className="label">Telefon</span><br />______________________</div>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th style={{ width: "24px" }}>✓</th>
+              <th style={{ width: "70px" }}>Elnr</th>
+              <th>Beskrivelse</th>
+              <th style={{ width: "50px", textAlign: "right" }}>Antall</th>
+              <th style={{ width: "40px" }}>Enhet</th>
+              <th>Kommentar</th>
+              <th style={{ width: "50px", textAlign: "right" }}>Retur</th>
+            </tr>
+          </thead>
+          <tbody>
+            {items.map((it) => (
+              <tr key={it.id}>
+                <td style={{ textAlign: "center" }}>☐</td>
+                <td>{it.elnr ?? ""}</td>
+                <td>{it.description}</td>
+                <td style={{ textAlign: "right" }}>{it.quantity_ordered}</td>
+                <td>{it.unit}</td>
+                <td>{it.comment ?? ""}</td>
+                <td style={{ textAlign: "right" }}>____</td>
+              </tr>
+            ))}
+            {items.length === 0 && (
+              <tr><td colSpan={7} style={{ textAlign: "center", color: "#888" }}>Ingen linjer</td></tr>
+            )}
+          </tbody>
+        </table>
+
+        <div className="footer">
+          <div className="sig">
+            <div>Signatur lager / dato</div>
+            <div>Signatur montør / dato</div>
+          </div>
+          <p style={{ marginTop: 24, fontSize: 11, color: "#555" }}>
+            Kommentar / mangler:<br />
+            ___________________________________________________<br /><br />
+            ___________________________________________________
+          </p>
+          <p style={{ marginTop: 16, fontSize: 11, fontStyle: "italic", color: "#666" }}>
+            Etter utført jobb: registrer brukt mengde og retur i MCS Kontrollsenter.
+          </p>
+        </div>
+
+        <div className="no-print" style={{ marginTop: 24, textAlign: "center" }}>
+          <button onClick={() => window.print()} style={{ padding: "8px 16px" }}>Skriv ut</button>
+        </div>
+      </div>
+    </div>
+  );
+}
