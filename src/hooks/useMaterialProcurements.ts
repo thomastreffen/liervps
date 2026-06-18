@@ -139,14 +139,15 @@ export function useMaterialActivityLog(materialListId: string | null | undefined
     ) => {
       if (!materialListId) return;
       const { data: userRes } = await supabase.auth.getUser();
+      const userMeta = userRes.user?.user_metadata as { full_name?: string } | undefined;
       await supabase.from("material_activity_log").insert({
         material_list_id: materialListId,
         actor_id: userRes.user?.id ?? null,
-        actor_name: userRes.user?.user_metadata?.full_name ?? userRes.user?.email ?? null,
+        actor_name: userMeta?.full_name ?? userRes.user?.email ?? null,
         actor_type: "internal",
         event_type: eventType,
         message,
-        metadata,
+        metadata: (metadata ?? null) as never,
       });
     },
     [materialListId],
