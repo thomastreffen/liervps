@@ -95,31 +95,33 @@ export function useMyWorkItems(limit = 6) {
             .in("status", ["requested", "approved", "scheduled", "in_progress", "time_change_proposed"])
             .order("start_time", { ascending: true, nullsFirst: false })
             .limit(limit)
-        : Promise.resolve({ data: [] as any[] });
+        : Promise.resolve({ data: [] as Record<string, unknown>[] });
 
       const [ordersRes, jobsRes] = await Promise.all([ordersQ, jobsQ]);
       if (cancelled) return;
 
-      const orderItems: WorkItem[] = (ordersRes.data || []).map((o: any) => ({
+      const orderRows = (ordersRes.data || []) as Record<string, unknown>[];
+      const orderItems: WorkItem[] = orderRows.map((o) => ({
         kind: "order",
         id: String(o.id),
         number: o.submission_no ? `BST-${normalizeText(o.submission_no, "")}` : "Bestilling",
         title: normalizeText(o.summary, "Servicebestilling") || "Servicebestilling",
         customer: normalizeText(o.submitter_name),
         status: normalizeText(o.status, "") || "",
-        statusLabel: ORDER_STATUS_LABEL[o.status] || normalizeText(o.status, "Ukjent status") || "Ukjent status",
+        statusLabel: ORDER_STATUS_LABEL[normalizeText(o.status, "") || ""] || normalizeText(o.status, "Ukjent status") || "Ukjent status",
         date: o.created_at,
         href: `/orders/${o.id}`,
       }));
 
-      const jobItems: WorkItem[] = ((jobsRes as any).data || []).map((e: any) => ({
+      const jobRows = ((jobsRes as { data?: unknown[] }).data || []) as Record<string, unknown>[];
+      const jobItems: WorkItem[] = jobRows.map((e) => ({
         kind: "job",
         id: String(e.id),
         number: normalizeText(e.job_number || e.internal_number || e.project_number, "Jobb") || "Jobb",
         title: normalizeText(e.title, "Servicejobb") || "Servicejobb",
         customer: normalizeText(e.customer),
         status: normalizeText(e.status, "") || "",
-        statusLabel: JOB_STATUS_LABEL[e.status] || normalizeText(e.status, "Ukjent status") || "Ukjent status",
+        statusLabel: JOB_STATUS_LABEL[normalizeText(e.status, "") || ""] || normalizeText(e.status, "Ukjent status") || "Ukjent status",
         date: e.start_time,
         href: `/projects/${e.id}`,
       }));
@@ -138,6 +140,9 @@ export function useMyWorkItems(limit = 6) {
     }
 
     load();
+    return () => {
+      cancelled = true;
+    };
   }, [user, isAdmin, limit]);
 
   return { items, loading };
