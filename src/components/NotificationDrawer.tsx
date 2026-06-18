@@ -14,7 +14,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Bell, CheckCheck, Clock, AlertTriangle, XCircle, CalendarCheck,
   Plug, AtSign, MessageSquare, Mail, UserPlus, FileWarning,
-  FilePlus, Receipt, CalendarX, Filter,
+  FilePlus, Receipt, CalendarX, Filter, ShoppingBag, CheckCircle2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Notification, NotificationPriority } from "@/hooks/useNotifications";
@@ -30,7 +30,10 @@ interface NotificationDrawerProps {
 const TYPE_ICONS: Record<string, React.ElementType> = {
   time_change_proposed: Clock,
   approval_pending: CalendarCheck,
+  approved: CheckCircle2,
+  all_approved: CheckCircle2,
   rejected: XCircle,
+  new_order: ShoppingBag,
   conflict: AlertTriangle,
   ms_connect_request: Plug,
   mention: AtSign,
