@@ -7665,6 +7665,300 @@ export type Database = {
         }
         Relationships: []
       }
+      material_list_items: {
+        Row: {
+          ai_confidence: string | null
+          ai_reason: string | null
+          comment: string | null
+          created_at: string
+          description: string
+          elnr: string | null
+          id: string
+          material_list_id: string
+          quantity_ordered: number
+          quantity_picked: number
+          quantity_returned: number
+          quantity_used: number
+          return_overridden: boolean
+          sort_order: number
+          source: string
+          supplier: string | null
+          supplier_sku: string | null
+          unit: string
+          updated_at: string
+        }
+        Insert: {
+          ai_confidence?: string | null
+          ai_reason?: string | null
+          comment?: string | null
+          created_at?: string
+          description: string
+          elnr?: string | null
+          id?: string
+          material_list_id: string
+          quantity_ordered?: number
+          quantity_picked?: number
+          quantity_returned?: number
+          quantity_used?: number
+          return_overridden?: boolean
+          sort_order?: number
+          source?: string
+          supplier?: string | null
+          supplier_sku?: string | null
+          unit?: string
+          updated_at?: string
+        }
+        Update: {
+          ai_confidence?: string | null
+          ai_reason?: string | null
+          comment?: string | null
+          created_at?: string
+          description?: string
+          elnr?: string | null
+          id?: string
+          material_list_id?: string
+          quantity_ordered?: number
+          quantity_picked?: number
+          quantity_returned?: number
+          quantity_used?: number
+          return_overridden?: boolean
+          sort_order?: number
+          source?: string
+          supplier?: string | null
+          supplier_sku?: string | null
+          unit?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "material_list_items_material_list_id_fkey"
+            columns: ["material_list_id"]
+            isOneToOne: false
+            referencedRelation: "material_lists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      material_lists: {
+        Row: {
+          approved_by: string | null
+          company_id: string
+          completed_at: string | null
+          consumption_registered_at: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          job_id: string | null
+          notes: string | null
+          order_id: string | null
+          ordered_at: string | null
+          picked_at: string | null
+          received_at: string | null
+          sent_with_installer_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          approved_by?: string | null
+          company_id: string
+          completed_at?: string | null
+          consumption_registered_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          job_id?: string | null
+          notes?: string | null
+          order_id?: string | null
+          ordered_at?: string | null
+          picked_at?: string | null
+          received_at?: string | null
+          sent_with_installer_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          approved_by?: string | null
+          company_id?: string
+          completed_at?: string | null
+          consumption_registered_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          job_id?: string | null
+          notes?: string | null
+          order_id?: string | null
+          ordered_at?: string | null
+          picked_at?: string | null
+          received_at?: string | null
+          sent_with_installer_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "material_lists_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "internal_companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "material_lists_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "material_lists_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "order_form_submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      material_products: {
+        Row: {
+          active: boolean
+          category: string | null
+          comment: string | null
+          company_id: string
+          created_at: string
+          description: string
+          elnr: string | null
+          id: string
+          supplier: string | null
+          supplier_sku: string | null
+          unit: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          category?: string | null
+          comment?: string | null
+          company_id: string
+          created_at?: string
+          description: string
+          elnr?: string | null
+          id?: string
+          supplier?: string | null
+          supplier_sku?: string | null
+          unit?: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          category?: string | null
+          comment?: string | null
+          company_id?: string
+          created_at?: string
+          description?: string
+          elnr?: string | null
+          id?: string
+          supplier?: string | null
+          supplier_sku?: string | null
+          unit?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "material_products_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "internal_companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      material_template_items: {
+        Row: {
+          comment: string | null
+          created_at: string
+          description: string
+          elnr: string | null
+          id: string
+          quantity: number
+          sort_order: number
+          supplier: string | null
+          template_id: string
+          unit: string
+        }
+        Insert: {
+          comment?: string | null
+          created_at?: string
+          description: string
+          elnr?: string | null
+          id?: string
+          quantity?: number
+          sort_order?: number
+          supplier?: string | null
+          template_id: string
+          unit?: string
+        }
+        Update: {
+          comment?: string | null
+          created_at?: string
+          description?: string
+          elnr?: string | null
+          id?: string
+          quantity?: number
+          sort_order?: number
+          supplier?: string | null
+          template_id?: string
+          unit?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "material_template_items_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "material_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      material_templates: {
+        Row: {
+          active: boolean
+          category: string | null
+          company_id: string
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          category?: string | null
+          company_id: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          category?: string | null
+          company_id?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "material_templates_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "internal_companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       media_annotations: {
         Row: {
           annotated_file_id: string | null
