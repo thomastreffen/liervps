@@ -32,19 +32,30 @@ function formatHours(minutes: number): string {
 }
 
 const CalendarCard = memo(function CalendarCard({
-  job,
+  segment,
   technicianId,
   onClick,
 }: {
-  job: CalendarEvent;
+  segment: CalendarDaySegment;
   technicianId: string | null;
   onClick?: (job: CalendarEvent) => void;
 }) {
+  const job = segment.source;
   const statusConfig = JOB_STATUS_CONFIG[job.status];
   const isTimeChange = job.status === "time_change_proposed";
-  const isOvernight = job.start.toDateString() !== job.end.toDateString();
+  const isOvernight = segment.totalDays > 1;
   const primaryTech = job.technicians?.[0];
   const techColor = primaryTech?.color || "#6366f1";
+
+  // Display time uses the FULL underlying range on the first segment,
+  // and a "continued" marker on later segments.
+  const fullStart = job.start;
+  const fullEnd = job.end;
+  const overnightSuffix = isOvernight
+    ? segment.totalDays === 2
+      ? " (+1 dag)"
+      : ` (+${segment.totalDays - 1} dager)`
+    : "";
 
   return (
     <button
@@ -52,18 +63,23 @@ const CalendarCard = memo(function CalendarCard({
       className={cn(
         "w-full rounded-lg border-l-[4px] p-2.5 text-left transition-all group",
         "shadow-sm hover:shadow-md hover:scale-[1.01]",
-        isTimeChange
-          ? "ring-1 ring-status-time-change-proposed/40"
-          : ""
+        isTimeChange ? "ring-1 ring-status-time-change-proposed/40" : "",
+        segment.continuedFromPrevDay && "opacity-90 border-dashed",
       )}
       style={{
         borderLeftColor: techColor,
         backgroundColor: `${techColor}08`,
       }}
+      aria-label={
+        isOvernight
+          ? `${job.title} – går over ${segment.totalDays} dager`
+          : job.title
+      }
     >
       <div className="flex items-center gap-1.5">
-        {isOvernight && (
-          <Moon className="h-3 w-3 shrink-0 text-primary" />
+        {isOvernight && <Moon className="h-3 w-3 shrink-0 text-primary" />}
+        {segment.continuedFromPrevDay && (
+          <CornerDownRight className="h-3 w-3 shrink-0 text-muted-foreground" />
         )}
         {isTimeChange && (
           <AlertTriangle className="h-3 w-3 shrink-0 text-status-time-change-proposed" />
@@ -74,13 +90,29 @@ const CalendarCard = memo(function CalendarCard({
       </div>
 
       {job.customer && (
-        <p className="mt-0.5 text-[10px] text-muted-foreground truncate">
-          {job.customer}
-        </p>
+        <p className="mt-0.5 text-[10px] text-muted-foreground truncate">{job.customer}</p>
       )}
 
-      <p className="mt-1 text-[11px] font-medium text-foreground/70">
-        {format(job.start, "HH:mm")} – {format(job.end, "HH:mm")}
+      <p className="mt-1 text-[11px] font-medium text-foreground/70 flex items-center gap-1">
+        {segment.continuedFromPrevDay ? (
+          <>
+            <span className="text-muted-foreground">forts.</span>
+            <ArrowRight className="h-3 w-3" />
+            <span>{format(fullEnd, "HH:mm")}</span>
+            {!segment.isLastSegment && segment.continuesNextDay && (
+              <span className="text-muted-foreground"> →</span>
+            )}
+          </>
+        ) : (
+          <>
+            <span>{format(fullStart, "HH:mm")}</span>
+            <ArrowRight className="h-3 w-3" />
+            <span>
+              {format(fullEnd, "HH:mm")}
+              {overnightSuffix}
+            </span>
+          </>
+        )}
       </p>
 
       {!technicianId && job.technicians.length > 0 && (
