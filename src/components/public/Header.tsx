@@ -2,6 +2,7 @@ import { Link, NavLink } from "react-router-dom";
 import { useState } from "react";
 import { Menu, X, LayoutDashboard, LogOut } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { useActionCounts } from "@/hooks/useActionCounts";
 import logoLight from "@/assets/mcs/logo-light.asset.json";
 
 const PUBLIC_NAV = [
@@ -11,9 +12,9 @@ const PUBLIC_NAV = [
   { to: "/kontakt", label: "Kontakt" },
 ];
 
-const INTERNAL_NAV = [
+const INTERNAL_NAV: { to: string; label: string; badgeKey?: "orders" }[] = [
   { to: "/projects", label: "Mine jobber" },
-  { to: "/bestilling", label: "Bestill servicejobb" },
+  { to: "/orders", label: "Bestillinger", badgeKey: "orders" },
   { to: "/projects/plan", label: "Ressursplan" },
   { to: "/portal/deliveries", label: "Dokumentasjon" },
 ];
