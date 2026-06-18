@@ -761,12 +761,16 @@ function NumBox({
 
 function MobileNewRow({
   companyId,
+  procurements,
   onAdd,
 }: {
   companyId: string | null;
+  procurements: ProcurementOption[];
   onAdd: (row: Partial<MaterialItemRow> & { description: string }) => Promise<void>;
 }) {
   const [draft, setDraft] = useState<NewRowDraft>(EMPTY_DRAFT);
+  const [providedBy, setProvidedBy] = useState<MaterialProvidedBy | null>(null);
+  const [procurementId, setProcurementId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   const isValid =
@@ -786,9 +790,13 @@ function MobileNewRow({
         supplier: draft.supplier.trim() || null,
         comment: draft.comment.trim() || null,
         unit_price: price,
+        provided_by: providedBy,
+        procurement_id: procurementId,
         source: "manual",
       });
       setDraft(EMPTY_DRAFT);
+      setProvidedBy(null);
+      setProcurementId(null);
     } finally {
       setSaving(false);
     }
@@ -849,6 +857,18 @@ function MobileNewRow({
           value={draft.unit}
           onChange={(e) => setDraft({ ...draft, unit: e.target.value })}
         />
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <div className="text-[10px] uppercase text-muted-foreground">Leveres av</div>
+          <ProvidedBySelect value={providedBy} onChange={(v) => setProvidedBy(v)} />
+        </div>
+        {procurements.length > 0 && (
+          <div>
+            <div className="text-[10px] uppercase text-muted-foreground">Bestilling</div>
+            <ProcurementSelect value={procurementId} options={procurements} onChange={(v) => setProcurementId(v)} />
+          </div>
+        )}
       </div>
       <Button onClick={commit} disabled={!isValid || saving} className="w-full">
         {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
