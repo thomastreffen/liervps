@@ -25,18 +25,39 @@ import {
 } from "@/lib/material-status";
 import { useMaterialProcurements } from "@/hooks/useMaterialProcurements";
 import type { MaterialProcurementRow } from "@/hooks/useMaterialList";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Props {
   materialListId: string;
+  currentListStatus?: string | null;
+  onListStatusChange?: (status: "bestilt" | "delvis_mottatt" | "mottatt") => Promise<void> | void;
   onLog?: (event: string, message: string, metadata?: Record<string, unknown>) => void;
 }
 
-export function MaterialProcurementsPanel({ materialListId, onLog }: Props) {
+export function MaterialProcurementsPanel({ materialListId, currentListStatus, onListStatusChange, onLog }: Props) {
   const { rows, loading, create, update, remove } = useMaterialProcurements(materialListId);
   const [adding, setAdding] = useState(false);
+  const [busyId, setBusyId] = useState<string | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
 
+  // Auto-sync overordnet status basert på bestillinger
+  const syncListStatus = async (next: MaterialProcurementRow[]) => {
+    if (!onListStatusChange || next.length === 0) return;
+    const allReceived = next.every((p) => p.status === "received" || p.status === "cancelled");
+    const anyReceived = next.some((p) => p.status === "received" || p.status === "partially_received");
+    const anyOrdered = next.some(
+      (p) => p.status === "ordered" || p.status === "partially_received" || p.status === "received",
+    );
+    const blockedStatuses = ["plukket", "med_montor", "levert_jobb", "forbruk_registrert", "ferdig"];
+    if (currentListStatus && blockedStatuses.includes(currentListStatus)) return;
+
+    if (allReceived && anyReceived) await onListStatusChange("mottatt");
+    else if (anyReceived) await onListStatusChange("delvis_mottatt");
+    else if (anyOrdered) await onListStatusChange("bestilt");
+  };
+
   const handleAdd = async () => {
+    if (adding) return;
     setAdding(true);
     try {
       const r = await create({ supplier: "Onninen", status: "planned" });
@@ -80,24 +101,64 @@ export function MaterialProcurementsPanel({ materialListId, onLog }: Props) {
             <ProcurementRow
               key={p.id}
               row={p}
+              busy={busyId === p.id}
               editing={editing === p.id}
               onEdit={() => setEditing(editing === p.id ? null : p.id)}
               onUpdate={async (patch) => {
-                await update(p.id, patch);
-                onLog?.("procurement_updated", `Oppdaterte bestilling (${patch.supplier ?? p.supplier ?? "leverandør"})`, patch);
+                if (busyId) return;
+                setBusyId(p.id);
+                try {
+                  await update(p.id, patch);
+                  onLog?.(
+                    "procurement_updated",
+                    `Oppdaterte bestilling (${patch.supplier ?? p.supplier ?? "leverandør"})`,
+                    patch,
+                  );
+                  const next = rows.map((r) => (r.id === p.id ? { ...r, ...patch } : r));
+                  await syncListStatus(next);
+                } catch (e) {
+                  console.error(e);
+                  toast.error("Kunne ikke lagre");
+                  throw e;
+                } finally {
+                  setBusyId(null);
+                }
               }}
               onReceive={async () => {
-                await update(p.id, {
-                  status: "received",
-                  received_at: new Date().toISOString(),
-                });
-                toast.success("Mottak registrert");
-                onLog?.("procurement_received", `Mottak registrert (${p.supplier ?? "leverandør"})`);
+                if (busyId) return;
+                setBusyId(p.id);
+                try {
+                  const { data: userRes } = await supabase.auth.getUser();
+                  const patch: Partial<MaterialProcurementRow> = {
+                    status: "received",
+                    received_at: new Date().toISOString(),
+                    received_by: userRes.user?.id ?? null,
+                  };
+                  await update(p.id, patch);
+                  toast.success("Mottak registrert");
+                  onLog?.("procurement_received", `Mottak registrert (${p.supplier ?? "leverandør"})`);
+                  const next = rows.map((r) => (r.id === p.id ? { ...r, ...patch } : r));
+                  await syncListStatus(next);
+                } catch (e) {
+                  console.error(e);
+                  toast.error("Kunne ikke registrere mottak");
+                } finally {
+                  setBusyId(null);
+                }
               }}
               onRemove={async () => {
+                if (busyId) return;
                 if (!confirm("Slette denne bestillingen?")) return;
-                await remove(p.id);
-                onLog?.("procurement_deleted", `Slettet bestilling (${p.supplier ?? "leverandør"})`);
+                setBusyId(p.id);
+                try {
+                  await remove(p.id);
+                  onLog?.("procurement_deleted", `Slettet bestilling (${p.supplier ?? "leverandør"})`);
+                } catch (e) {
+                  console.error(e);
+                  toast.error("Kunne ikke slette");
+                } finally {
+                  setBusyId(null);
+                }
               }}
             />
           ))}
@@ -109,6 +170,7 @@ export function MaterialProcurementsPanel({ materialListId, onLog }: Props) {
 
 function ProcurementRow({
   row,
+  busy,
   editing,
   onEdit,
   onUpdate,
@@ -116,6 +178,7 @@ function ProcurementRow({
   onRemove,
 }: {
   row: MaterialProcurementRow;
+  busy: boolean;
   editing: boolean;
   onEdit: () => void;
   onUpdate: (patch: Partial<MaterialProcurementRow>) => Promise<void>;
@@ -126,9 +189,13 @@ function ProcurementRow({
   const value = { ...row, ...local };
 
   const save = async () => {
-    await onUpdate(local);
-    setLocal({});
-    onEdit();
+    try {
+      await onUpdate(local);
+      setLocal({});
+      onEdit();
+    } catch {
+      /* feil håndtert i onUpdate */
+    }
   };
 
   return (
@@ -153,14 +220,14 @@ function ProcurementRow({
         )}
         <div className="ml-auto flex gap-1">
           {row.status !== "received" && row.status !== "cancelled" && (
-            <Button size="sm" variant="outline" onClick={onReceive}>
-              <CheckCircle2 className="h-3.5 w-3.5" /> Registrer mottak
+            <Button size="sm" variant="outline" onClick={onReceive} disabled={busy}>
+              <CheckCircle2 className="h-3.5 w-3.5" /> {busy ? "Lagrer…" : "Registrer mottak"}
             </Button>
           )}
-          <Button size="sm" variant="ghost" onClick={onEdit}>
+          <Button size="sm" variant="ghost" onClick={onEdit} disabled={busy}>
             {editing ? "Lukk" : "Rediger"}
           </Button>
-          <Button size="sm" variant="ghost" onClick={onRemove}>
+          <Button size="sm" variant="ghost" onClick={onRemove} disabled={busy}>
             <Trash2 className="h-3.5 w-3.5 text-destructive" />
           </Button>
         </div>

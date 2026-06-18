@@ -250,18 +250,21 @@ export function useMaterialList({ jobId, orderId, companyId }: UseMaterialListOp
   const updateStatus = useCallback(
     async (status: MaterialListStatus) => {
       if (!list?.id) return;
-      const stamp: Record<string, string> = { status };
+      const stamp: Record<string, string | null> = { status };
       const now = new Date().toISOString();
-      if (status === "bestilt") stamp.ordered_at = now;
-      if (status === "mottatt") stamp.received_at = now;
-      if (status === "plukket") stamp.picked_at = now;
-      if (status === "med_montor") stamp.sent_with_installer_at = now;
-      if (status === "forbruk_registrert") stamp.consumption_registered_at = now;
-      if (status === "ferdig") stamp.completed_at = now;
+      // Bare sett tidsstempler hvis ikke allerede satt — ikke overskriv historikk
+      if (status === "bestilt" && !list.ordered_at) stamp.ordered_at = now;
+      if ((status === "mottatt" || status === "delvis_mottatt") && !list.received_at) stamp.received_at = now;
+      if (status === "plukket" && !list.picked_at) stamp.picked_at = now;
+      if (status === "med_montor" && !list.dispatched_at) stamp.dispatched_at = now;
+      if (status === "levert_jobb" && !list.delivered_to_job_at) stamp.delivered_to_job_at = now;
+      if (status === "forbruk_registrert" && !list.consumption_registered_at) stamp.consumption_registered_at = now;
+      if (status === "ferdig" && !list.completed_at) stamp.completed_at = now;
       const { error } = await supabase.from("material_lists").update(stamp).eq("id", list.id);
       if (error) throw error;
+      await fetchAll();
     },
-    [list?.id],
+    [list, fetchAll],
   );
 
   return {
