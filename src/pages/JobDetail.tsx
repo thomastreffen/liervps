@@ -233,6 +233,18 @@ export default function JobDetail() {
             <ProjectFormsTab projectId={id!} isAdmin={canEditPlan} />
           )}
 
+          {activeTab === "materiell" && (
+            <MaterialTab
+              jobId={id!}
+              jobNumber={job.jobNumber ?? job.projectNumber ?? job.internalNumber}
+              customer={job.customer}
+              address={job.address}
+              plannedAt={job.start}
+              technicianNames={technicianNames}
+              description={job.description}
+            />
+          )}
+
           {activeTab === "servicearbeid" && (
             <ServiceJournal
               projectId={id!}
