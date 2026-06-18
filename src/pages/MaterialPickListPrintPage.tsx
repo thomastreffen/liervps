@@ -75,7 +75,6 @@ export default function MaterialPickListPrintPage() {
         }
       }
       setLoading(false);
-      setTimeout(() => window.print(), 400);
     })();
   }, [id, isOrderRoute]);
 
