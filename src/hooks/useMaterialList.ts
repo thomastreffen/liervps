@@ -38,6 +38,7 @@ export interface MaterialItemRow {
   ai_confidence: string | null;
   ai_reason: string | null;
   comment: string | null;
+  unit_price: number | null;
   sort_order: number;
   created_at: string;
   updated_at: string;
