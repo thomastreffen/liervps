@@ -1,4 +1,5 @@
 import type { MaterialItemRow } from "@/hooks/useMaterialList";
+import { MATERIAL_PROVIDED_BY_LABELS, type MaterialProvidedBy } from "@/lib/material-status";
 
 function escape(v: unknown): string {
   if (v === null || v === undefined) return "";
@@ -26,9 +27,11 @@ export function buildMaterialCsv(meta: CsvJobMeta, items: MaterialItemRow[]): st
     "Enhet",
     "Pris",
     "Sum",
+    "Mottatt",
     "Plukket",
     "Brukt",
     "Retur",
+    "Leveres av",
     "Leverandør",
     "Kommentar",
   ];
@@ -36,6 +39,9 @@ export function buildMaterialCsv(meta: CsvJobMeta, items: MaterialItemRow[]): st
   for (const it of items) {
     const price = it.unit_price ?? null;
     const sum = price != null ? price * (it.quantity_ordered ?? 0) : null;
+    const providedBy = it.provided_by
+      ? MATERIAL_PROVIDED_BY_LABELS[it.provided_by as MaterialProvidedBy] ?? it.provided_by
+      : "";
     lines.push(
       [
         escape(meta.jobNumber),
@@ -47,9 +53,11 @@ export function buildMaterialCsv(meta: CsvJobMeta, items: MaterialItemRow[]): st
         escape(it.unit),
         escape(price ?? ""),
         escape(sum ?? ""),
+        escape(it.quantity_received),
         escape(it.quantity_picked),
         escape(it.quantity_used),
         escape(it.quantity_returned),
+        escape(providedBy),
         escape(it.supplier ?? ""),
         escape(it.comment ?? ""),
       ].join(","),

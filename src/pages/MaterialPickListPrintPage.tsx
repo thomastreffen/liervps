@@ -3,7 +3,7 @@ import { useParams, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, Printer, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { MATERIAL_STATUS_LABELS, type MaterialListStatus } from "@/lib/material-status";
+import { MATERIAL_STATUS_LABELS, type MaterialListStatus, MATERIAL_PROVIDED_BY_LABELS, type MaterialProvidedBy } from "@/lib/material-status";
 import type { MaterialItemRow, MaterialListRow } from "@/hooks/useMaterialList";
 
 interface JobInfo {
