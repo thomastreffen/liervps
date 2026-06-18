@@ -143,6 +143,7 @@ export function useMaterialList({ jobId, orderId, companyId }: UseMaterialListOp
         ai_confidence: patch.ai_confidence ?? null,
         ai_reason: patch.ai_reason ?? null,
         comment: patch.comment ?? null,
+        unit_price: patch.unit_price ?? null,
         sort_order: patch.sort_order ?? items.length,
       };
       const { error } = await supabase.from("material_list_items").insert(insert);
