@@ -28,7 +28,9 @@ import { MaterialConsumptionSheet } from "./MaterialConsumptionSheet";
 import { MaterialProcurementsPanel } from "./MaterialProcurementsPanel";
 import { MaterialPickPanel } from "./MaterialPickPanel";
 import { MaterialActivityPanel } from "./MaterialActivityPanel";
-import { useMaterialActivityLog } from "@/hooks/useMaterialProcurements";
+import { MaterialSharePanel } from "./MaterialSharePanel";
+import { MaterialSuggestionsPanel } from "./MaterialSuggestionsPanel";
+import { useMaterialActivityLog, useMaterialProcurements } from "@/hooks/useMaterialProcurements";
 import { buildMaterialCsv, downloadCsv } from "@/lib/material-csv";
 import {
   Select,
