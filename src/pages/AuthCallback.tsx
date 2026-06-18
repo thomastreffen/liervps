@@ -41,6 +41,29 @@ export default function AuthCallback() {
     if (processingRef.current) return;
     processingRef.current = true;
 
+    // Cross-remount dedup: StrictMode (and any accidental remount) must not
+    // redeem the same OAuth code twice — Microsoft rejects the second call
+    // with AADSTS54005 "Authorization code was already redeemed".
+    const dedupKey = `ms-oauth-code:${code}`;
+    if (sessionStorage.getItem(dedupKey)) {
+      console.log("[AuthCallback] Code already processed in this tab, waiting for session...");
+      // The first invocation will set the session; just wait briefly then route home.
+      const waitForSession = async () => {
+        for (let i = 0; i < 20; i++) {
+          const { data } = await supabase.auth.getSession();
+          if (data.session) {
+            navigate("/", { replace: true });
+            return;
+          }
+          await new Promise((r) => setTimeout(r, 150));
+        }
+        navigate("/login", { replace: true });
+      };
+      waitForSession();
+      return;
+    }
+    sessionStorage.setItem(dedupKey, "1");
+
     const redirectUri = `${window.location.origin}/auth/callback`;
 
     supabase.functions
