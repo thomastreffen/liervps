@@ -36,6 +36,27 @@ const JOB_STATUS_LABEL: Record<string, string> = {
   invoiced: "Fakturert",
 };
 
+const normalizeText = (value: unknown, fallback: string | null = null): string | null => {
+  if (value === null || value === undefined) return fallback;
+  if (typeof value === "string") return value || fallback;
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  if (typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    const preferred =
+      record.firmanavn ??
+      record.kontaktperson_kunde ??
+      record.bestiller_navn ??
+      record.submitter_name ??
+      record.name ??
+      record.title ??
+      record.summary ??
+      record.oppdragssted ??
+      record.adresse;
+    return normalizeText(preferred, fallback);
+  }
+  return fallback;
+};
+
 export function useMyWorkItems(limit = 6) {
   const { user, isAdmin } = useAuth();
   const [items, setItems] = useState<WorkItem[]>([]);
@@ -81,41 +102,24 @@ export function useMyWorkItems(limit = 6) {
 
       const orderItems: WorkItem[] = (ordersRes.data || []).map((o: any) => ({
         kind: "order",
-        id: o.id,
-        number: o.submission_no ? `BST-${o.submission_no}` : "Bestilling",
-        title: o.summary || "Servicebestilling",
-        customer: o.submitter_name,
-        status: o.status,
-        statusLabel: ORDER_STATUS_LABEL[o.status] || o.status,
+        id: String(o.id),
+        number: o.submission_no ? `BST-${normalizeText(o.submission_no, "")}` : "Bestilling",
+        title: normalizeText(o.summary, "Servicebestilling") || "Servicebestilling",
+        customer: normalizeText(o.submitter_name),
+        status: normalizeText(o.status, "") || "",
+        statusLabel: ORDER_STATUS_LABEL[o.status] || normalizeText(o.status, "Ukjent status") || "Ukjent status",
         date: o.created_at,
         href: `/orders/${o.id}`,
       }));
 
-      const normalizeCustomer = (c: any): string | null => {
-        if (!c) return null;
-        if (typeof c === "string") return c;
-        if (typeof c === "object") {
-          return (
-            c.firmanavn ||
-            c.kontaktperson_kunde ||
-            c.bestiller_navn ||
-            c.name ||
-            c.oppdragssted ||
-            c.adresse ||
-            null
-          );
-        }
-        return String(c);
-      };
-
       const jobItems: WorkItem[] = ((jobsRes as any).data || []).map((e: any) => ({
         kind: "job",
-        id: e.id,
-        number: e.job_number || e.internal_number || e.project_number || "Jobb",
-        title: e.title || "Servicejobb",
-        customer: normalizeCustomer(e.customer),
-        status: e.status,
-        statusLabel: JOB_STATUS_LABEL[e.status] || e.status,
+        id: String(e.id),
+        number: normalizeText(e.job_number || e.internal_number || e.project_number, "Jobb") || "Jobb",
+        title: normalizeText(e.title, "Servicejobb") || "Servicejobb",
+        customer: normalizeText(e.customer),
+        status: normalizeText(e.status, "") || "",
+        statusLabel: JOB_STATUS_LABEL[e.status] || normalizeText(e.status, "Ukjent status") || "Ukjent status",
         date: e.start_time,
         href: `/projects/${e.id}`,
       }));
