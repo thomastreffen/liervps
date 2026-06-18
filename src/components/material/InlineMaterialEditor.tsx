@@ -165,10 +165,12 @@ type SaveState = "idle" | "saving" | "saved" | "error";
 
 function ExistingRow({
   item,
+  procurements,
   onUpdate,
   onDelete,
 }: {
   item: MaterialItemRow;
+  procurements: ProcurementOption[];
   onUpdate: (id: string, patch: Partial<MaterialItemRow>) => Promise<void>;
   onDelete: (id: string) => Promise<void> | void;
 }) {
@@ -216,14 +218,26 @@ function ExistingRow({
         {sum != null ? sum.toLocaleString("nb-NO", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "—"}
       </td>
       <td className="p-1">
+        <CellNumber value={item.quantity_received} onSave={(v) => save({ quantity_received: v ?? 0 })} />
+      </td>
+      <td className="p-1">
         <CellNumber value={item.quantity_picked} onSave={(v) => save({ quantity_picked: v ?? 0 })} />
       </td>
       <td className="p-1">
         <CellNumber value={item.quantity_used} onSave={(v) => save({ quantity_used: v ?? 0 })} />
       </td>
-      <td className="p-1 text-right tabular-nums text-muted-foreground">{item.quantity_returned}</td>
       <td className="p-1">
-        <CellText value={item.supplier ?? ""} onSave={(v) => save({ supplier: v || null })} />
+        <ProvidedBySelect
+          value={item.provided_by}
+          onChange={(v) => save({ provided_by: v })}
+        />
+      </td>
+      <td className="p-1">
+        <ProcurementSelect
+          value={item.procurement_id}
+          options={procurements}
+          onChange={(v) => save({ procurement_id: v })}
+        />
       </td>
       <td className="p-1">
         <CellText value={item.comment ?? ""} onSave={(v) => save({ comment: v || null })} />
@@ -246,6 +260,58 @@ function ExistingRow({
         </div>
       </td>
     </tr>
+  );
+}
+
+function ProvidedBySelect({
+  value,
+  onChange,
+}: {
+  value: MaterialProvidedBy | null;
+  onChange: (v: MaterialProvidedBy | null) => void;
+}) {
+  return (
+    <Select
+      value={value ?? "_none"}
+      onValueChange={(v) => onChange(v === "_none" ? null : (v as MaterialProvidedBy))}
+    >
+      <SelectTrigger className="h-8 text-xs border-transparent hover:border-input bg-transparent">
+        <SelectValue placeholder="—" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="_none">—</SelectItem>
+        {(Object.keys(MATERIAL_PROVIDED_BY_LABELS) as MaterialProvidedBy[]).map((k) => (
+          <SelectItem key={k} value={k}>{MATERIAL_PROVIDED_BY_LABELS[k]}</SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
+function ProcurementSelect({
+  value,
+  options,
+  onChange,
+}: {
+  value: string | null;
+  options: ProcurementOption[];
+  onChange: (v: string | null) => void;
+}) {
+  if (options.length === 0) {
+    return <span className="text-[11px] text-muted-foreground italic px-2">Ingen bestillinger</span>;
+  }
+  return (
+    <Select value={value ?? "_none"} onValueChange={(v) => onChange(v === "_none" ? null : v)}>
+      <SelectTrigger className="h-8 text-xs border-transparent hover:border-input bg-transparent">
+        <SelectValue placeholder="—" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="_none">—</SelectItem>
+        {options.map((o) => (
+          <SelectItem key={o.id} value={o.id}>{o.label}</SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }
 
