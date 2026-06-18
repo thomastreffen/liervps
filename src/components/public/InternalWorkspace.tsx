@@ -2,10 +2,11 @@ import { Link } from "react-router-dom";
 import {
   LayoutDashboard, Calendar, Briefcase, FileText, FolderOpen, AlertTriangle,
   Upload, Phone, ArrowRight, ClipboardList, Clock, CheckCircle2, HelpCircle,
-  Lock,
+  Lock, ShoppingBag, Bell,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useCompanyContext } from "@/hooks/useCompanyContext";
+import { useActionCounts } from "@/hooks/useActionCounts";
 
 const STATUS_CARDS = [
   { key: "active",   label: "Aktive jobber",        icon: Briefcase,     accent: "text-[hsl(var(--mcs-orange))]" },
