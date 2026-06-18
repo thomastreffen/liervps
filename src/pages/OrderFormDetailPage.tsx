@@ -1173,6 +1173,12 @@ export default function OrderFormDetailPage() {
         onManageLink={() => setLinkTaskOpen(true)}
       />
 
+      {/* Materiell / Plukkliste */}
+      <OrderMaterialSection
+        orderId={id!}
+        linkedEventId={(sub as any).linked_event_id || null}
+      />
+
       {/* Linked entities + notification status */}
       <div className="flex flex-wrap gap-2">
         {sourceLead && (
