@@ -234,7 +234,7 @@ export default function OrderFormSubmitPage() {
       if (valueRows.length > 0) {
         const { error: valErr } = await supabase
           .from("order_form_submission_values")
-          .insert(valueRows);
+          .insert(valueRows as any);
         if (valErr) {
           console.error("[OrderFormSubmit] submission_values insert failed", {
             error: valErr,
