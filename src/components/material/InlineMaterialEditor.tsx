@@ -451,11 +451,8 @@ interface AutocompleteProps {
   onEnter?: () => void;
 }
 
-const ProductAutocomplete = ((): React.ForwardRefExoticComponent<
-  AutocompleteProps & React.RefAttributes<HTMLInputElement>
-> => {
-  // forwardRef inline
-  const Comp = (props: AutocompleteProps, ref: React.Ref<HTMLInputElement>) => {
+const ProductAutocomplete = React.forwardRef<HTMLInputElement, AutocompleteProps>(
+  function ProductAutocomplete(props, ref) {
     const { companyId, value, field, placeholder, onChange, onSelect, onEnter } = props;
     const [open, setOpen] = useState(false);
     const [results, setResults] = useState<ProductSuggestion[]>([]);
@@ -514,16 +511,12 @@ const ProductAutocomplete = ((): React.ForwardRefExoticComponent<
               }
               if (e.key === "Tab" || e.key === "Enter") {
                 const pick = results[highlight];
-                if (pick && (e.key === "Tab" || value.trim().length > 0)) {
-                  if (e.key === "Enter" && !pick) {
-                    // fall through to commit
-                  } else {
-                    e.preventDefault();
-                    onSelect(pick);
-                    setOpen(false);
-                    if (e.key === "Enter") onEnter?.();
-                    return;
-                  }
+                if (pick) {
+                  e.preventDefault();
+                  onSelect(pick);
+                  setOpen(false);
+                  if (e.key === "Enter") onEnter?.();
+                  return;
                 }
               }
               if (e.key === "Escape") {
@@ -571,10 +564,8 @@ const ProductAutocomplete = ((): React.ForwardRefExoticComponent<
         )}
       </div>
     );
-  };
-  // @ts-expect-error – React.forwardRef inline
-  return (require("react") as typeof import("react")).forwardRef(Comp);
-})();
+  },
+);
 
 /* ============== Mobile editor (cards) ============== */
 function MobileEditor({
