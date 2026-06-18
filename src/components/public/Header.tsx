@@ -38,17 +38,25 @@ export function Header() {
             />
           </Link>
           <nav className="hidden lg:flex items-center gap-8" aria-label="Hovedmeny">
-            {NAV.map((n) => (
-              <NavLink
-                key={n.to}
-                to={n.to}
-                className={({ isActive }) =>
-                  `text-sm font-medium transition-colors ${isActive ? "text-white" : "text-white/70 hover:text-white"}`
-                }
-              >
-                {n.label}
-              </NavLink>
-            ))}
+            {NAV.map((n: any) => {
+              const showBadge = n.badgeKey === "orders" && newOrders > 0;
+              return (
+                <NavLink
+                  key={n.to}
+                  to={n.to}
+                  className={({ isActive }) =>
+                    `text-sm font-medium transition-colors inline-flex items-center gap-1.5 ${isActive ? "text-white" : "text-white/70 hover:text-white"}`
+                  }
+                >
+                  {n.label}
+                  {showBadge && (
+                    <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-[hsl(var(--mcs-orange))] text-white text-[10px] font-bold tabular-nums">
+                      {newOrders > 9 ? "9+" : newOrders}
+                    </span>
+                  )}
+                </NavLink>
+              );
+            })}
           </nav>
           <div className="hidden lg:flex items-center gap-2">
             {user ? (
