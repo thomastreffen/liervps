@@ -236,6 +236,7 @@ export function MaterialListSection({
                   await deleteItem(id);
                   toast.success("Linje slettet");
                   await refresh();
+                  log("item_deleted", "Slettet linje fra materialliste");
                 } catch (e) {
                   console.error(e);
                   toast.error("Kunne ikke slette");
@@ -243,10 +244,31 @@ export function MaterialListSection({
               }}
               onAdd={async (row) => {
                 await addItem(row as Partial<MaterialItemRow> & { description: string });
+                log("item_added", `La til linje: ${row.description ?? row.elnr ?? ""}`.trim());
               }}
             />
           </div>
         )}
+
+        {/* Bestilling og mottak */}
+        {list && (
+          <MaterialProcurementsPanel
+            materialListId={list.id}
+            onLog={(e, m, md) => log(e, m, md)}
+          />
+        )}
+
+        {/* Plukk og levering */}
+        {list && (
+          <MaterialPickPanel
+            list={list}
+            onUpdateList={updateList}
+            onLog={(e, m, md) => log(e, m, md)}
+          />
+        )}
+
+        {/* Aktivitetslogg */}
+        {list && <MaterialActivityPanel materialListId={list.id} />}
       </div>
 
       {/* Dialogs som beholdes (drawer/sekundære flyter) */}
