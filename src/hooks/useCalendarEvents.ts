@@ -4,6 +4,9 @@ import { startOfWeek, endOfWeek, differenceInMinutes } from "date-fns";
 import type { JobStatus } from "@/lib/job-status";
 import type { Job } from "@/lib/mock-data";
 import { parseUtc } from "@/lib/parse-utc";
+import { segmentForDay, minutesOnDay, type DaySegment } from "@/lib/calendar-segments";
+
+export type CalendarDaySegment = DaySegment<CalendarEvent>;
 
 export interface TechnicianInfo {
   id: string;
