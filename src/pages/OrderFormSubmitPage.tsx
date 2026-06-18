@@ -24,6 +24,7 @@ import type { OrderFormField, ConditionalLogic } from "@/types/order-forms";
 import { sanitizeStorageFileName } from "@/lib/storage-path";
 import { computeQualityScore } from "@/lib/order-quality";
 import { QualityIssuesPanel } from "@/components/orders/QualityIssuesPanel";
+import { normalizeJsonValue, hasSubmissionValue } from "@/lib/json-value";
 
 export default function OrderFormSubmitPage() {
   const { slug } = useParams<{ slug: string }>();
