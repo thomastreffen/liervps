@@ -1080,6 +1080,23 @@ export default function OrderFormDetailPage() {
           Koble til oppgave
         </Button>
 
+        {/* Primary: Materiell / Plukkliste */}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            const el = document.getElementById("order-material-section");
+            if (el) {
+              el.scrollIntoView({ behavior: "smooth", block: "start" });
+              el.classList.add("ring-2", "ring-primary");
+              setTimeout(() => el.classList.remove("ring-2", "ring-primary"), 1600);
+            }
+          }}
+        >
+          <Package className="h-3.5 w-3.5 mr-1.5" />
+          Materiell
+        </Button>
+
         {/* Secondary: overflow menu */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
