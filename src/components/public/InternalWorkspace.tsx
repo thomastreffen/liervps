@@ -25,11 +25,13 @@ const DOC_SHORTCUTS = [
 export function InternalWorkspace() {
   const { user, isAdmin } = useAuth();
   const { activeCompany } = useCompanyContext();
+  const { newOrders, pendingOrders, unreadAllApproved } = useActionCounts();
   if (!user) return null;
 
   const firstName = user.name?.split(" ")[0] || "der";
   const isInternal = isAdmin || user.role === "montør";
   const myJobsLink = isInternal ? "/projects" : "/portal/projects";
+  const hasAction = newOrders + pendingOrders + unreadAllApproved > 0;
 
   return (
     <section className="bg-[hsl(var(--mcs-navy))] text-white">
