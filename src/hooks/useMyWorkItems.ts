@@ -109,7 +109,7 @@ export function useMyWorkItems(limit = 6) {
         customer: normalizeText(o.submitter_name),
         status: normalizeText(o.status, "") || "",
         statusLabel: ORDER_STATUS_LABEL[normalizeText(o.status, "") || ""] || normalizeText(o.status, "Ukjent status") || "Ukjent status",
-        date: o.created_at,
+        date: normalizeText(o.created_at),
         href: `/orders/${o.id}`,
       }));
 
@@ -122,7 +122,7 @@ export function useMyWorkItems(limit = 6) {
         customer: normalizeText(e.customer),
         status: normalizeText(e.status, "") || "",
         statusLabel: JOB_STATUS_LABEL[normalizeText(e.status, "") || ""] || normalizeText(e.status, "Ukjent status") || "Ukjent status",
-        date: e.start_time,
+        date: normalizeText(e.start_time),
         href: `/projects/${e.id}`,
       }));
 
