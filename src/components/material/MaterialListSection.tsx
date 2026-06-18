@@ -25,6 +25,10 @@ import { InlineAiSuggestPanel } from "./InlineAiSuggestPanel";
 import { AddTemplateDialog } from "./AddTemplateDialog";
 import { CopyFromJobDialog } from "./CopyFromJobDialog";
 import { MaterialConsumptionSheet } from "./MaterialConsumptionSheet";
+import { MaterialProcurementsPanel } from "./MaterialProcurementsPanel";
+import { MaterialPickPanel } from "./MaterialPickPanel";
+import { MaterialActivityPanel } from "./MaterialActivityPanel";
+import { useMaterialActivityLog } from "@/hooks/useMaterialProcurements";
 import { buildMaterialCsv, downloadCsv } from "@/lib/material-csv";
 import {
   Select,
@@ -62,8 +66,9 @@ export function MaterialListSection({
   showCopyFromJob = true,
   variant = "card",
 }: Props) {
-  const { list, items, loading, create, addItem, addItemsBulk, updateItem, deleteItem, updateStatus, refresh } =
+  const { list, items, loading, create, addItem, addItemsBulk, updateItem, deleteItem, updateList, updateStatus, refresh } =
     useMaterialList({ jobId: jobId ?? null, orderId: orderId ?? null, companyId });
+  const { log } = useMaterialActivityLog(list?.id ?? null);
 
   const [creating, setCreating] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
