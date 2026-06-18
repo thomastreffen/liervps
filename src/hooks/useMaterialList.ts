@@ -171,6 +171,7 @@ export function useMaterialList({ jobId, orderId, companyId }: UseMaterialListOp
         ai_confidence: r.ai_confidence ?? null,
         ai_reason: r.ai_reason ?? null,
         comment: r.comment ?? null,
+        unit_price: r.unit_price ?? null,
         sort_order: base + idx,
       }));
       const { error } = await supabase.from("material_list_items").insert(payload);
