@@ -7779,13 +7779,19 @@ export type Database = {
       }
       material_list_items: {
         Row: {
+          ai_component_reference: string | null
           ai_confidence: string | null
           ai_reason: string | null
+          ai_source_file: string | null
+          ai_source_label: string | null
+          ai_source_page: string | null
+          ai_source_type: string | null
           comment: string | null
           created_at: string
           description: string
           elnr: string | null
           id: string
+          manufacturer: string | null
           material_list_id: string
           procurement_id: string | null
           provided_by: string | null
@@ -7804,13 +7810,19 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          ai_component_reference?: string | null
           ai_confidence?: string | null
           ai_reason?: string | null
+          ai_source_file?: string | null
+          ai_source_label?: string | null
+          ai_source_page?: string | null
+          ai_source_type?: string | null
           comment?: string | null
           created_at?: string
           description: string
           elnr?: string | null
           id?: string
+          manufacturer?: string | null
           material_list_id: string
           procurement_id?: string | null
           provided_by?: string | null
@@ -7829,13 +7841,19 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          ai_component_reference?: string | null
           ai_confidence?: string | null
           ai_reason?: string | null
+          ai_source_file?: string | null
+          ai_source_label?: string | null
+          ai_source_page?: string | null
+          ai_source_type?: string | null
           comment?: string | null
           created_at?: string
           description?: string
           elnr?: string | null
           id?: string
+          manufacturer?: string | null
           material_list_id?: string
           procurement_id?: string | null
           provided_by?: string | null
