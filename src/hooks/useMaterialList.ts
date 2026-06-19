@@ -53,6 +53,12 @@ export interface MaterialItemRow {
   source: MaterialItemSource;
   ai_confidence: string | null;
   ai_reason: string | null;
+  ai_source_type: string | null;
+  ai_source_file: string | null;
+  ai_source_page: string | null;
+  ai_source_label: string | null;
+  ai_component_reference: string | null;
+  manufacturer: string | null;
   comment: string | null;
   unit_price: number | null;
   sort_order: number;
