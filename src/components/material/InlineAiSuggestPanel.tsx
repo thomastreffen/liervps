@@ -98,6 +98,8 @@ export function InlineAiSuggestPanel({
   const [loading, setLoading] = useState(false);
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [note, setNote] = useState<string | null>(null);
+  const [jobTypeLabel, setJobTypeLabel] = useState<string | null>(null);
+  const [clarifications, setClarifications] = useState<string[]>([]);
   const [applying, setApplying] = useState(false);
 
   const { attachments, loading: loadingAttachments } = useMaterialAiAttachments({ jobId, orderId });
@@ -143,6 +145,8 @@ export function InlineAiSuggestPanel({
   const fetchSuggestions = async () => {
     setLoading(true);
     setNote(null);
+    setJobTypeLabel(null);
+    setClarifications([]);
     try {
       const { data, error } = await supabase.functions.invoke("material-ai-suggest", {
         body: {
@@ -163,6 +167,8 @@ export function InlineAiSuggestPanel({
       }));
       setSuggestions(list);
       setNote(data?.note ?? null);
+      setJobTypeLabel(data?.job_type_label ?? null);
+      setClarifications(Array.isArray(data?.clarifications) ? data.clarifications : []);
       if (list.length === 0 && !data?.note) toast.info("AI fant ingen forslag");
     } catch (e) {
       console.error(e);
@@ -311,6 +317,24 @@ export function InlineAiSuggestPanel({
         </>
       ) : (
         <>
+          {jobTypeLabel && (
+            <div className="rounded-md border border-blue-300/60 bg-blue-50 dark:bg-blue-500/10 px-3 py-2 text-xs">
+              <span className="font-semibold">Jobbtype tolket som:</span> {jobTypeLabel}
+              <div className="text-[11px] text-muted-foreground mt-0.5">
+                Forslag uten verifisert elnr må kontrolleres før bestilling.
+              </div>
+            </div>
+          )}
+          {clarifications.length > 0 && (
+            <div className="rounded-md border border-amber-300/60 bg-amber-50 dark:bg-amber-500/10 px-3 py-2 text-xs">
+              <div className="font-semibold mb-1">AI trenger avklaring:</div>
+              <ul className="list-disc pl-4 space-y-0.5">
+                {clarifications.map((c, i) => (
+                  <li key={i}>{c}</li>
+                ))}
+              </ul>
+            </div>
+          )}
           <div className="text-xs text-muted-foreground">
             AI-forslag må kontrolleres før de legges til. Lav/middels sikkerhet er ikke forhåndsvalgt.
           </div>
