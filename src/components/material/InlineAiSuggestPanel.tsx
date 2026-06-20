@@ -145,6 +145,8 @@ export function InlineAiSuggestPanel({
   const fetchSuggestions = async () => {
     setLoading(true);
     setNote(null);
+    setJobTypeLabel(null);
+    setClarifications([]);
     try {
       const { data, error } = await supabase.functions.invoke("material-ai-suggest", {
         body: {
@@ -165,6 +167,8 @@ export function InlineAiSuggestPanel({
       }));
       setSuggestions(list);
       setNote(data?.note ?? null);
+      setJobTypeLabel(data?.job_type_label ?? null);
+      setClarifications(Array.isArray(data?.clarifications) ? data.clarifications : []);
       if (list.length === 0 && !data?.note) toast.info("AI fant ingen forslag");
     } catch (e) {
       console.error(e);
