@@ -98,6 +98,8 @@ export function InlineAiSuggestPanel({
   const [loading, setLoading] = useState(false);
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [note, setNote] = useState<string | null>(null);
+  const [jobTypeLabel, setJobTypeLabel] = useState<string | null>(null);
+  const [clarifications, setClarifications] = useState<string[]>([]);
   const [applying, setApplying] = useState(false);
 
   const { attachments, loading: loadingAttachments } = useMaterialAiAttachments({ jobId, orderId });
