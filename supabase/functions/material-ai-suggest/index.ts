@@ -1,12 +1,14 @@
-// AI material suggestion engine — context-driven and source-grounded.
+// AI material suggestion engine — job-classified, context-driven, source-grounded.
 //
-// Rules (enforced via system prompt + post-validation):
-//   * Prefer "Materialliste" section inside attached PDFs.
-//   * Never invent elnr — leave null + lav confidence if not in source.
-//   * Never propose generic small parts (PR-kabel, APK, AP9-bokser, Wago,
-//     standard stikk, skruer) unless the user explicitly enabled `small_parts`
-//     or the item literally exists in an attachment.
-//   * Return empty list + note when no concrete grounding exists.
+// Flow:
+//   1. Classify job_type from description + attachments (heuristic + AI).
+//   2. Build suggestions strictly grounded in attachments, description, or
+//      explicit small_parts opt-in.
+//   3. Filter out generic installation small parts unless small_parts=true OR
+//      they are literally present in an attachment.
+//   4. For tavle/høystrøm jobs, an even stricter filter blocks PR-kabel, Wago,
+//      AP9, Letti/APK, stikk/bryter, skruer/plugger, tape — unless explicitly
+//      named in description/attachment.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
@@ -35,6 +37,15 @@ interface ReqBody {
   attachments?: AttachmentRef[];
 }
 
+type JobType =
+  | "tavle_hoystrom"
+  | "tavle_standard"
+  | "service_smajobb"
+  | "installasjon_bygg"
+  | "feilsoking"
+  | "dokumentasjon_fdv"
+  | "ukjent";
+
 interface Suggestion {
   elnr: string | null;
   description: string;
@@ -61,23 +72,91 @@ interface Suggestion {
   component_reference?: string | null;
 }
 
-const GENERIC_BLACKLIST = [
+// Keywords that signal tavle / høystrøm
+const TAVLE_KEYWORDS = [
+  /\btavle\b/i,
+  /hovedtavle/i,
+  /hovedfordeling/i,
+  /samleskinne/i,
+  /\binntak\b/i,
+  /\btrafo\b/i,
+  /utkobling\s+av\s+trafo/i,
+  /\beffektbryter/i,
+  /lastbryter/i,
+  /kompaktbryter/i,
+  /\bns\s?\d{2,4}\b/i, // NS800, NS 250 osv.
+  /schneider/i,
+  /\b\d{3,4}\s?a\b/i, // 250A, 800A osv.
+  /\b\d-?\s?polt\b/i, // 3-polt
+  /tilkoblingsklemmer?/i,
+  /presskabelsko/i,
+];
+
+// Generic small parts: should NOT appear unless small_parts=true or grounded in attachment
+const GENERIC_BLACKLIST: RegExp[] = [
   /\bpr[-\s]?kabel/i,
   /\bapk\b/i,
   /\bletti\b/i,
-  /\bap9\b/i,
+  /\bap\s?9\b/i,
   /veggboks/i,
   /\bwago\b/i,
+  /koblingsklemme(?!.*ns\s?\d{2,4})/i, // generic koblingsklemme, but allow when paired with NSxxx
   /standard\s*stikk/i,
   /standard\s*bryter/i,
+  /\bstikk\b/i,
   /jordingsmuffe/i,
-  /\bskruer\b/i,
-  /strips/i,
+  /\bskruer?\b/i,
+  /\bplugger?\b/i,
+  /\bstrips\b/i,
+  /isolasjonstape/i,
+  /\bph[-\s]?skruer?\b/i,
+  /festemateriell/i,
 ];
+
+// Extra-strict blacklist for tavle jobs (in addition to GENERIC_BLACKLIST)
+const TAVLE_EXTRA_BLACKLIST: RegExp[] = [
+  /\bvanlig\s+kabel/i,
+  /\bdownlight/i,
+  /\bstikkontakt/i,
+];
+
+function classifyJobHeuristic(text: string): JobType {
+  const hits = TAVLE_KEYWORDS.reduce((acc, re) => acc + (re.test(text) ? 1 : 0), 0);
+  if (hits >= 2) return "tavle_hoystrom";
+  if (/\btavle\b/i.test(text)) return "tavle_standard";
+  if (/feilsøk|feilsok/i.test(text)) return "feilsoking";
+  if (/\bfdv\b|dokumentasjon/i.test(text)) return "dokumentasjon_fdv";
+  if (/installasjon|nybygg|leilighet|rehab/i.test(text)) return "installasjon_bygg";
+  if (text.trim().length > 0) return "service_smajobb";
+  return "ukjent";
+}
+
+const JOB_TYPE_LABEL: Record<JobType, string> = {
+  tavle_hoystrom: "Tavlearbeid / høystrøm",
+  tavle_standard: "Tavlearbeid",
+  service_smajobb: "Service / småjobb",
+  installasjon_bygg: "Installasjon / bygg",
+  feilsoking: "Feilsøking",
+  dokumentasjon_fdv: "Dokumentasjon / FDV",
+  ukjent: "Ukjent",
+};
 
 function isGeneric(s: Suggestion): boolean {
   const text = `${s.description ?? ""} ${s.ai_reason ?? ""}`;
   return GENERIC_BLACKLIST.some((re) => re.test(text));
+}
+
+function isTavleBlocked(s: Suggestion): boolean {
+  const text = `${s.description ?? ""} ${s.ai_reason ?? ""}`;
+  return TAVLE_EXTRA_BLACKLIST.some((re) => re.test(text));
+}
+
+function mentionedInText(needle: string, haystack: string): boolean {
+  const n = needle.toLowerCase().trim();
+  if (!n) return false;
+  // Tokenize: first 2-3 words of description
+  const tokens = n.split(/\s+/).slice(0, 3).join(" ");
+  return haystack.toLowerCase().includes(tokens);
 }
 
 async function fetchAttachmentAsBase64(
@@ -104,13 +183,11 @@ async function fetchAttachmentAsBase64(
     }
     if (!bytes) return null;
 
-    // Cap at 8MB to avoid AI gateway limits
     if (bytes.byteLength > 8 * 1024 * 1024) {
       console.warn("attachment too big, skipping", att.name, bytes.byteLength);
       return null;
     }
 
-    // base64
     let bin = "";
     for (let i = 0; i < bytes.byteLength; i++) bin += String.fromCharCode(bytes[i]);
     const b64 = btoa(bin);
@@ -126,10 +203,28 @@ const SUGGEST_TOOL = {
   function: {
     name: "return_material_suggestions",
     description:
-      "Return grounded material suggestions extracted strictly from the provided sources. Return an empty list when no concrete grounding exists.",
+      "Classify the job and return grounded material suggestions strictly from provided sources. Return empty list when no concrete grounding exists.",
     parameters: {
       type: "object",
       properties: {
+        job_type: {
+          type: "string",
+          enum: [
+            "tavle_hoystrom",
+            "tavle_standard",
+            "service_smajobb",
+            "installasjon_bygg",
+            "feilsoking",
+            "dokumentasjon_fdv",
+            "ukjent",
+          ],
+        },
+        job_type_reason: { type: "string" },
+        clarifications: {
+          type: "array",
+          items: { type: "string" },
+          description: "Spørsmål bruker bør avklare før bestilling, hvis AI er usikker.",
+        },
         note: { type: "string" },
         suggestions: {
           type: "array",
@@ -169,7 +264,7 @@ const SUGGEST_TOOL = {
           },
         },
       },
-      required: ["suggestions"],
+      required: ["job_type", "suggestions"],
       additionalProperties: false,
     },
   },
@@ -205,7 +300,11 @@ Deno.serve(async (req) => {
     const useSmallParts = basis.has("small_parts") || basis.has("spare");
     const attachments = useAttachments ? (body.attachments ?? []).filter((a) => a) : [];
 
-    // Fetch PDF attachments (limit 4) and serialize to base64 for multimodal input
+    // Heuristic classification (used as guard + hint to AI)
+    const fullText = [body.description ?? "", body.extraContext ?? ""].join("\n");
+    const heuristicType = classifyJobHeuristic(fullText);
+    const isTavleJob = heuristicType === "tavle_hoystrom" || heuristicType === "tavle_standard";
+
     const pdfAttachments = attachments
       .filter((a) => /\.pdf$/i.test(a.name) || /pdf/i.test(a.mime ?? ""))
       .slice(0, 4);
@@ -216,36 +315,63 @@ Deno.serve(async (req) => {
     }
 
     const systemPrompt = `Du er en kildebasert materialassistent for MCS (elektro/tavle).
-Du foreslår KUN materiell du kan begrunne i ett av disse kildene, i prioritert rekkefølge:
 
-A. "Materialliste"-seksjon i vedlagt PDF (komponentnavn, antall, beskrivelse, varedata, el-nummer, produsent).
-B. Revisjonsskyer/bobler i tegningene hvis bestillingsbeskrivelsen sier at "alt i bobler/revisjonsskyer skal utføres".
-C. Konkrete krav i jobbbeskrivelsen.
-D. Eksisterende materiallinjer (kun for å komplettere f.eks. mangelende elnr).
-E. Småmateriell — KUN hvis brukeren har valgt det (small_parts=${useSmallParts}).
+STEG 1 — KLASSIFISER JOBBEN.
+Bruk beskrivelse + vedlegg til å sette job_type til ett av:
+- tavle_hoystrom: tavlearbeid, hovedtavle, hovedfordeling, samleskinne, inntak, trafo, utkobling av trafo, effektbryter/lastbryter/kompaktbryter, høy ampere (≥ 100A), Schneider NS-serie, ABB Tmax/Emax, 3-polt/4-polt høystrøm
+- tavle_standard: vanlig tavle-arbeid uten høystrøm
+- service_smajobb: små serviceoppdrag
+- installasjon_bygg: kursopplegg/installasjon i bygg
+- feilsoking
+- dokumentasjon_fdv
+- ukjent
 
-Strenge regler:
-1. Ikke finn på el-nummer. Hvis elnr ikke står i kilden: sett elnr=null, confidence="lav" eller "middels", og skriv i ai_reason at elnr må kontrolleres.
-2. Ikke foreslå generelt installasjonsmateriell (PR-kabel, APK/Letti-klammer, AP9/veggbokser, Wago, standard stikk/bryter, jordingsmuffer, skruer, strips) MED MINDRE small_parts=true ELLER varen står konkret i et vedlegg.
-3. For tavlejobber: bare tavlerelevante komponenter (vern, automater, jordfeil, måletrafoer, nettanalysator, rekkeklemmer, merking osv.).
-4. Hver suggestion må ha source_type. Bruk "attachment_material_list" når raden er hentet fra en materialliste-side, og fyll source_file (filnavn), source_page (sidenummer eller "16 Materialliste"), source_label (kort tittel) og component_reference (komponentnavn i tegning, f.eks. "F1.1").
-5. confidence="høy" kun når elnr + antall finnes konkret i kilden.
-6. Hvis du ikke har konkret grunnlag: returner suggestions=[] og fyll note="Jeg fant ikke nok konkret grunnlag til å foreslå materiell.".
-7. Aldri mer enn 40 linjer.
-8. Bruk norsk i alle tekstfelt.`;
+Heuristisk gjettet jobbtype basert på nøkkelord: ${heuristicType} (${JOB_TYPE_LABEL[heuristicType]}).
+${isTavleJob ? "MERK: Dette er sannsynligvis tavle/høystrøm-jobb." : ""}
+
+STEG 2 — FORSLAG.
+Foreslå KUN materiell som er begrunnet i en av disse kildene, i prioritert rekkefølge:
+A. "Materialliste"-seksjon i vedlagt PDF.
+B. Revisjonsskyer/bobler i tegningene hvis beskrivelsen sier alt i bobler/revisjonsskyer skal utføres.
+C. Konkrete krav/produkter nevnt i jobbbeskrivelsen.
+D. Småmateriell — KUN hvis small_parts=${useSmallParts} er aktivert.
+
+STRENGE REGLER:
+
+1. ELNR: Aldri finn på el-nummer. Hvis elnr ikke står i kilden: sett elnr=null, confidence ≤ "middels", og skriv i ai_reason at "Elnr må kontrolleres".
+
+2. TAVLE/HØYSTRØM-JOBBER (${isTavleJob ? "GJELDER NÅ" : "gjelder ikke nå"}):
+   - Foreslå KUN tavlerelaterte komponenter: effektbryter/lastbryter, automater, jordfeil, måletrafo, terminalblokker/tilkoblingsklemmer for konkret bryter, kabelsko/presskabelsko, kobberforbindelser/samleskinne-tilkobling, berøringsvern/avdekking, merking/skilt, montasjeplate/adapter, dokumentasjon.
+   - ABSOLUTT IKKE foreslå: PR-kabel, APK/Letti-klammer, AP9/veggbokser, Wago, standard stikk/bryter, jordingsmuffer, PH-skruer, plugger, strips, isolasjonstape, downlight — MED MINDRE varen STÅR ORDRETT i en materialliste i vedlegg.
+   - For Schneider NS-serie (NS800 osv): foreslå tilkoblingsklemmer/terminalsett for konkret bryter, kabelsko, kobberforbindelse mot samleskinne, berøringsvern. Marker confidence="middels" eller "lav" og forklar at eksakt artikkel må verifiseres.
+
+3. GENERELT SMÅMATERIELL: Foreslå aldri generisk småmateriell (PR-kabel, Wago, stikk, skruer, klammer, tape) MED MINDRE small_parts=${useSmallParts} ER TRUE ELLER varen står konkret i vedlegg.
+
+4. KONFIDENS:
+   - "høy": kun når elnr + antall finnes konkret i kilden (vedlegg materialliste, produktdatabase).
+   - "middels": funksjon/produkt er direkte nevnt i beskrivelse, men elnr ikke verifisert.
+   - "lav": antakelse basert på jobbtype.
+
+5. BEGRUNNELSE (ai_reason): Vær spesifikk. Ikke skriv "standard festemateriell for serviceoppdrag". Skriv heller "Jobbbeskrivelsen nevner Schneider NS800 3P 800A" eller "Jobbbeskrivelsen nevner tilkoblingsklemmer på begge sider".
+
+6. AVKLARINGER: Hvis du ikke har nok info til å velge eksakt vare, returner suggestions med lav konfidens + fyll clarifications[] med konkrete spørsmål brukeren bør avklare (montasjetype, tilkoblingsretning, kabeldimensjon, vern/utløserenhet, tavlesystem osv.).
+
+7. KILDEFELT: source_type alltid satt. Bruk "attachment_material_list" + source_file + source_page når raden er hentet fra materialliste-side. component_reference brukes for komponentnavn fra tegning (f.eks. "F1.1").
+
+8. Maks 30 linjer. Norsk på alle tekstfelt. Hvis ingen konkret grunnlag finnes: suggestions=[] og fyll note.`;
 
     const userText = `Bestillingsinformasjon:
 Kunde: ${body.customer ?? "—"}
 Adresse: ${body.address ?? "—"}
-Beskrivelse: ${body.description ?? "—"}
-Ekstra kontekst: ${body.extraContext ?? "—"}
+Beskrivelse:
+${body.description ?? "—"}
 
+Ekstra kontekst: ${body.extraContext ?? "—"}
 Valgte grunnlag: ${Array.from(basis).join(", ") || "—"}
 Småmateriell aktivert: ${useSmallParts ? "ja" : "nei"}
-
 Vedlagte filer: ${fetched.length > 0 ? fetched.map((f) => f.name).join(", ") : "ingen"}
 
-Trekk ut materialforslag etter reglene. Hvis ingen av kildene gir konkret grunnlag, returner tom liste og fyll "note".`;
+Klassifiser jobben først, så trekk ut materialforslag etter reglene.`;
 
     const userContent: unknown[] = [{ type: "text", text: userText }];
     for (const f of fetched) {
@@ -298,7 +424,13 @@ Trekk ut materialforslag etter reglene. Hvis ingen av kildene gir konkret grunnl
 
     const ai = await aiRes.json();
     const toolCall = ai?.choices?.[0]?.message?.tool_calls?.[0];
-    let parsed: { suggestions?: Suggestion[]; note?: string } = { suggestions: [] };
+    let parsed: {
+      suggestions?: Suggestion[];
+      note?: string;
+      job_type?: JobType;
+      job_type_reason?: string;
+      clarifications?: string[];
+    } = { suggestions: [] };
     if (toolCall?.function?.arguments) {
       try {
         parsed = JSON.parse(toolCall.function.arguments);
@@ -307,20 +439,44 @@ Trekk ut materialforslag etter reglene. Hvis ingen av kildene gir konkret grunnl
       }
     }
 
+    const aiJobType = parsed.job_type ?? heuristicType;
+    const effectiveTavle =
+      aiJobType === "tavle_hoystrom" || aiJobType === "tavle_standard" || isTavleJob;
+
     let suggestions = (parsed.suggestions ?? []) as Suggestion[];
 
-    // Post-filter: drop generic items unless small_parts is on or item has a concrete attachment source
+    // Post-filter
     suggestions = suggestions.filter((s) => {
       if (!s || !s.description || !s.quantity || !s.confidence) return false;
       const grounded =
         s.source_type === "attachment_material_list" ||
         s.source_type === "attachment_revision_cloud" ||
         s.source_type === "attachment_other";
-      if (isGeneric(s) && !useSmallParts && !grounded) return false;
+      const mentionedInDescription = mentionedInText(s.description, fullText);
+
+      // Block generic small parts unless small_parts or grounded in attachment / mentioned in desc
+      if (isGeneric(s) && !useSmallParts && !grounded && !mentionedInDescription) return false;
+
+      // Extra-strict block for tavle jobs
+      if (effectiveTavle && isTavleBlocked(s) && !grounded && !mentionedInDescription) return false;
+
+      // Never allow "høy" confidence without a concrete grounded source
+      if (s.confidence === "høy" && !grounded && s.source_type !== "product_database") {
+        s.confidence = "middels";
+      }
+
+      // Force elnr=null if AI gave one but source isn't grounded/product_database
+      if (s.elnr && !grounded && s.source_type !== "product_database") {
+        // Keep AI-suggested elnr but add warning to reason
+        if (!/kontroller/i.test(s.ai_reason)) {
+          s.ai_reason = `${s.ai_reason} Elnr må kontrolleres.`;
+        }
+      }
+
       return true;
     });
 
-    suggestions = suggestions.slice(0, 40);
+    suggestions = suggestions.slice(0, 30);
 
     const note =
       parsed.note ??
@@ -330,6 +486,10 @@ Trekk ut materialforslag etter reglene. Hvis ingen av kildene gir konkret grunnl
 
     return new Response(
       JSON.stringify({
+        job_type: aiJobType,
+        job_type_label: JOB_TYPE_LABEL[aiJobType] ?? JOB_TYPE_LABEL.ukjent,
+        job_type_reason: parsed.job_type_reason ?? null,
+        clarifications: parsed.clarifications ?? [],
         suggestions,
         note,
         attachments_used: fetched.map((f) => f.name),
