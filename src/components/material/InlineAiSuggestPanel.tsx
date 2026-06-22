@@ -392,12 +392,19 @@ export function InlineAiSuggestPanel({
                         placeholder={s.elnr === null ? "—" : ""}
                       />
                     </td>
-                    <td className="p-1.5">
+                    <td className="p-1.5 min-w-[280px]">
                       <Input
                         value={s.description}
                         onChange={(e) => updateSug(i, { description: e.target.value })}
                         className="h-7 text-sm"
+                        title={s.description}
                       />
+                      <div
+                        className="text-[11px] text-muted-foreground mt-0.5 whitespace-normal break-words"
+                        title={s.description}
+                      >
+                        {s.description}
+                      </div>
                       {s.manufacturer && (
                         <div className="text-[10px] text-muted-foreground mt-0.5">{s.manufacturer}</div>
                       )}
@@ -428,7 +435,11 @@ export function InlineAiSuggestPanel({
                       {s.source_page && <div>Side: {s.source_page}</div>}
                       {s.component_reference && <div>Ref: {s.component_reference}</div>}
                     </td>
-                    <td className="p-1.5 text-xs text-muted-foreground">{s.ai_reason}</td>
+                    <td className="p-1.5 text-xs text-muted-foreground min-w-[220px] max-w-[360px]">
+                      <div className="whitespace-normal break-words" title={s.ai_reason}>
+                        {s.ai_reason}
+                      </div>
+                    </td>
                     <td className="p-1.5 text-center">
                       <span
                         className={cn("px-2 py-0.5 rounded text-[10px] font-semibold", CONF_CLASS[s.confidence])}
