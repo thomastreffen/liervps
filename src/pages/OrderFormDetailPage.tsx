@@ -1231,6 +1231,10 @@ export default function OrderFormDetailPage() {
       <OrderMaterialSection
         orderId={id!}
         linkedEventId={(sub as any).linked_event_id || null}
+        customer={materialContext.customer}
+        address={materialContext.address}
+        description={materialContext.description}
+        orderNumber={(sub as any).submission_no || null}
       />
 
       {/* Linked entities + notification status */}
