@@ -811,48 +811,56 @@ export default function OrderFormDetailPage() {
     }
   };
 
+  // Resolve material AI context from order form values (same source as Oppdragsinformasjon)
+  // MUST be declared before any early-return so hook order stays stable.
+  const materialContext = useMemo(() => {
+    try {
+      const safeValues = Array.isArray(values) ? values : [];
+      const entries = buildEntries(safeValues as any);
+      const subAny = (submission as any) ?? {};
+      const summary = (subAny?.summary as Record<string, unknown> | null) ?? {};
+      const description = findValueIn(
+        entries,
+        summary,
+        "detaljert_arbeidsbeskrivelse",
+        "arbeidsbeskrivelse",
+        "beskrivelse",
+        "problem_beskrivelse",
+        "melding",
+      );
+      const customer = findValueIn(
+        entries,
+        summary,
+        "kundenavn",
+        "firmanavn",
+        "bestiller_firma",
+        "kunde",
+        "company_name",
+      );
+      const address = findValuesIn(
+        entries,
+        summary,
+        "anleggsadresse",
+        "oppdragssted",
+        "adresse",
+      ).join(", ");
+      return {
+        description: description || subAny?.subject || subAny?.title || "",
+        customer: customer || subAny?.submitter_name || "",
+        address: address || "",
+      };
+    } catch (err) {
+      console.error("[OrderFormDetailPage] materialContext resolver failed", err);
+      return { description: "", customer: "", address: "" };
+    }
+  }, [values, submission]);
+
   if (!submission) return <div className="p-6 text-center text-muted-foreground">Ikke funnet</div>;
 
   const effectiveStatus = conversationState.effectiveInternalStatus;
   const statusConfig = ORDER_STATUS_CONFIG[effectiveStatus];
   const priorityConfig = ORDER_PRIORITY_CONFIG[submission.priority];
   const sub = submission as any;
-
-  // Resolve material AI context from order form values (same source as Oppdragsinformasjon)
-  const materialContext = useMemo(() => {
-    const entries = buildEntries(values as any);
-    const summary = (sub?.summary as Record<string, unknown> | null) ?? {};
-    const description = findValueIn(
-      entries,
-      summary,
-      "detaljert_arbeidsbeskrivelse",
-      "arbeidsbeskrivelse",
-      "beskrivelse",
-      "problem_beskrivelse",
-      "melding",
-    );
-    const customer = findValueIn(
-      entries,
-      summary,
-      "kundenavn",
-      "firmanavn",
-      "bestiller_firma",
-      "kunde",
-      "company_name",
-    );
-    const address = findValuesIn(
-      entries,
-      summary,
-      "anleggsadresse",
-      "oppdragssted",
-      "adresse",
-    ).join(", ");
-    return {
-      description: description || sub?.subject || sub?.title || "",
-      customer: customer || sub?.submitter_name || "",
-      address: address || "",
-    };
-  }, [values, sub]);
 
   const externalStatus = conversationState.effectiveExternalStatus;
   const externalConfig = EXTERNAL_STATUS_CONFIG[externalStatus];
