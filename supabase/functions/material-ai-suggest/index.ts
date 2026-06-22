@@ -496,6 +496,8 @@ Klassifiser jobben først, så trekk ut materialforslag etter reglene.`;
       return true;
     });
 
+    suggestions = enforceNs800Rules(suggestions, fullText);
+
     suggestions = suggestions.slice(0, 30);
 
     const note =
