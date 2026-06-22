@@ -74,6 +74,7 @@ import { APP_VERSION } from "@/pwa/buildVersion";
 import { FlowTrail } from "@/components/flow/FlowTrail";
 import { useFlowChain } from "@/components/flow/useFlowChain";
 import { OrderMaterialSection } from "@/components/orders/OrderMaterialSection";
+import { buildEntries, findValueIn, findValuesIn } from "@/lib/order-field-resolver";
 
 export default function OrderFormDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -817,6 +818,42 @@ export default function OrderFormDetailPage() {
   const priorityConfig = ORDER_PRIORITY_CONFIG[submission.priority];
   const sub = submission as any;
 
+  // Resolve material AI context from order form values (same source as Oppdragsinformasjon)
+  const materialContext = useMemo(() => {
+    const entries = buildEntries(values as any);
+    const summary = (sub?.summary as Record<string, unknown> | null) ?? {};
+    const description = findValueIn(
+      entries,
+      summary,
+      "detaljert_arbeidsbeskrivelse",
+      "arbeidsbeskrivelse",
+      "beskrivelse",
+      "problem_beskrivelse",
+      "melding",
+    );
+    const customer = findValueIn(
+      entries,
+      summary,
+      "kundenavn",
+      "firmanavn",
+      "bestiller_firma",
+      "kunde",
+      "company_name",
+    );
+    const address = findValuesIn(
+      entries,
+      summary,
+      "anleggsadresse",
+      "oppdragssted",
+      "adresse",
+    ).join(", ");
+    return {
+      description: description || sub?.subject || sub?.title || "",
+      customer: customer || sub?.submitter_name || "",
+      address: address || "",
+    };
+  }, [values, sub]);
+
   const externalStatus = conversationState.effectiveExternalStatus;
   const externalConfig = EXTERNAL_STATUS_CONFIG[externalStatus];
 
@@ -1194,6 +1231,10 @@ export default function OrderFormDetailPage() {
       <OrderMaterialSection
         orderId={id!}
         linkedEventId={(sub as any).linked_event_id || null}
+        customer={materialContext.customer}
+        address={materialContext.address}
+        description={materialContext.description}
+        orderNumber={(sub as any).submission_no || null}
       />
 
       {/* Linked entities + notification status */}
