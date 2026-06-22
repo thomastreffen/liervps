@@ -148,13 +148,36 @@ export function InlineAiSuggestPanel({
     setJobTypeLabel(null);
     setClarifications([]);
     try {
+      const resolvedDescription = (description ?? "").trim();
+      const wantsJobDescription = basis.has("job_description");
+
+      // Debug-logg før AI-kall
+      console.log("[material-ai] request context", {
+        selectedBasis: Array.from(basis),
+        resolvedJobDescription: resolvedDescription,
+        jobDescriptionLength: resolvedDescription.length,
+        attachmentCount: pickedAttachments.length,
+        extraContext,
+        jobId,
+        orderId,
+      });
+
+      if (wantsJobDescription && !resolvedDescription) {
+        const msg =
+          "Jobbeskrivelse finnes på bestillingen, men ble ikke sendt til AI-kallet. Sjekk at arbeidsbeskrivelsen er resolvert i forelderkomponenten.";
+        console.error("[material-ai]", msg);
+        setNote(msg);
+        toast.error(msg);
+        return;
+      }
+
       const { data, error } = await supabase.functions.invoke("material-ai-suggest", {
         body: {
           jobId: jobId ?? null,
           orderId: orderId ?? null,
           customer,
           address,
-          description,
+          description: resolvedDescription,
           extraContext,
           basis: Array.from(basis),
           attachments: basis.has("attachments") ? pickedAttachments : [],
