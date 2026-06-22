@@ -349,10 +349,21 @@ Når job_type er tavle/høystrøm:
 
 ═══ SPESIALREGEL: SCHNEIDER NS800 ═══
 Hvis teksten inneholder "NS800", "NS 800" eller "Compact NS800":
-- Foreslå 1 stk "Schneider Compact NS800 effektbryter" (hvis MCS skal levere bryteren). Inkluder "3P" hvis teksten nevner 3-polt/3P/3 pol. Inkluder "Micrologic 2.0" hvis nevnt. Inkluder "fast"/"fastmontert"/"fast front" hvis nevnt.
-- Hvis teksten nevner tilkoblingsklemmer/koblingsklemmer/tilkoblingsstykker/klemmer: foreslå "Tilkoblingsklemmer for Schneider Compact NS800".
-- Hvis teksten nevner "begge sider"/"på begge sider"/"oppe og nede"/"topp og bunn": sett antall til 2 (sett). Kommentar: "Tolket som ett sett for topp og ett sett for bunn. Verifiser Schneider-nummer/elnr mot grossist."
+- Foreslå 1 stk effektbryter med full lesbar beskrivelse (ikke forkort): "Schneider Compact NS800N 3P fast effektbryter Micrologic 2.0". Tilpass 3P/4P, N/H, fast/uttrekkbar og Micrologic-variant hvis teksten spesifiserer noe annet. Sett manufacturer="Schneider Electric".
+- Hvis teksten nevner tilkoblingsklemmer / koblingsklemmer / tilkoblingsstykker / klemmer SAMMEN MED NS800:
+  * Lag en EGEN linje (aldri slått sammen med generisk "tilkoblingsmateriell").
+  * Beskrivelse EKSAKT: "Tilkoblingsklemmer 3P for Schneider Compact NS800" (bytt til 4P hvis 4-polt).
+  * Enhet="sett", sikkerhet="middels", source_type="job_description".
+  * Hvis teksten nevner "begge sider" / "på begge sider" / "topp og bunn" / "oppe og nede": antall=2.
+    Ellers antall=1.
+  * ai_reason: "Teksten sier tilkoblingsklemmer på begge sider. Tolket som ett sett for topp og ett sett for bunn. Verifiser eksakt Schneider-nummer/elnr mot grossist." (juster siste del hvis ikke "begge sider").
 - Ikke gjett elnr med mindre produktbase/grossistdata bekrefter det.
+
+═══ SPESIALREGEL: KABELSKO / PRESSKABELSKO (TAVLE/HØYSTRØM) ═══
+Hvis teksten nevner kabeltilkobling, hovedkabel, tilkobling på samleskinne/inntak/trafo og kabeldimensjon, antall kabler per fase eller ledermateriale IKKE er kjent:
+- Lag linje: beskrivelse="Presskabelsko/kabelsko til hovedkabler", antall=1, enhet="sett", sikkerhet="lav", source_type="job_description".
+- ai_reason: "Antall og type avhenger av kabeldimensjon, ledermateriale og antall kabler per fase. Må avklares før bestilling."
+- Ikke sett fast antall eller eksakt type før dette er avklart.
 
 ═══ SIKKERHETSNIVÅ ═══
 - "høy": elnr eller eksakt produkt er i godkjent produktbase/grossistdata, eller står eksplisitt i tekst/vedlegg.
