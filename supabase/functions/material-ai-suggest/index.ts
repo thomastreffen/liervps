@@ -554,6 +554,67 @@ Klassifiser jobben først, så trekk ut materialforslag etter reglene.`;
 
     suggestions = enforceNs800Rules(suggestions, fullText);
 
+    // ─── Produktbase-match (kun for linjer uten elnr) ───
+    try {
+      let companyId: string | null = null;
+      if (body.jobId) {
+        const { data } = await admin.from("events").select("company_id").eq("id", body.jobId).maybeSingle();
+        companyId = (data as { company_id?: string } | null)?.company_id ?? null;
+      }
+      if (!companyId && body.orderId) {
+        const { data } = await admin
+          .from("order_form_submissions")
+          .select("company_id")
+          .eq("id", body.orderId)
+          .maybeSingle();
+        companyId = (data as { company_id?: string } | null)?.company_id ?? null;
+      }
+      if (companyId) {
+        const needsLookup = suggestions.some((s) => !s.elnr);
+        if (needsLookup) {
+          const { data: products } = await admin
+            .from("material_products")
+            .select("elnr, description, supplier, unit")
+            .eq("company_id", companyId)
+            .eq("active", true)
+            .limit(5000);
+          const list = (products ?? []) as Array<{ elnr: string | null; description: string | null; supplier: string | null; unit: string | null }>;
+          if (list.length > 0) {
+            const tokenize = (s: string) =>
+              s
+                .toLowerCase()
+                .replace(/[^a-z0-9æøå\s]/gi, " ")
+                .split(/\s+/)
+                .filter((t) => t.length >= 3);
+            const productTokens = list.map((p) => ({
+              p,
+              tokens: new Set(tokenize(`${p.description ?? ""} ${p.supplier ?? ""}`)),
+            }));
+            for (const s of suggestions) {
+              if (s.elnr) continue;
+              const sugTokens = tokenize(`${s.description} ${s.manufacturer ?? ""}`);
+              if (sugTokens.length === 0) continue;
+              let best: { p: typeof list[number]; score: number } | null = null;
+              for (const { p, tokens } of productTokens) {
+                let score = 0;
+                for (const t of sugTokens) if (tokens.has(t)) score++;
+                if (score >= 2 && (!best || score > best.score)) best = { p, score };
+              }
+              if (best && best.p.elnr) {
+                s.elnr = best.p.elnr;
+                s.source_type = "product_database";
+                s.source_label = "Produktdatabase";
+                s.confidence = s.confidence === "lav" ? "middels" : s.confidence;
+                s.ai_reason = `Matchet mot produktbase: ${best.p.description ?? best.p.elnr}. ${s.ai_reason}`.trim();
+              }
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.warn("product_database match failed", e);
+    }
+
     suggestions = suggestions.slice(0, 30);
 
     const note =
