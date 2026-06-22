@@ -159,6 +159,62 @@ function mentionedInText(needle: string, haystack: string): boolean {
   return haystack.toLowerCase().includes(tokens);
 }
 
+// Deterministic enforcer for the NS800 + tilkoblingsklemmer special rule.
+// Runs after AI to guarantee the rule even if the model normalizes/merges lines.
+function enforceNs800Rules(suggestions: Suggestion[], fullText: string): Suggestion[] {
+  const t = fullText.toLowerCase();
+  const hasNs800 = /\bns\s?800\b|compact\s*ns\s?800/i.test(fullText);
+  if (!hasNs800) return suggestions;
+
+  const mentionsKlemmer = /(tilkoblings|koblings)?klemmer|tilkoblingsstykker/i.test(fullText);
+  const bothSides = /begge\s+sider|p[aå]\s+begge\s+sider|topp\s+og\s+bunn|oppe\s+og\s+nede/i.test(fullText);
+  const is4P = /\b4\s*-?\s*pol(et|t)?\b|\b4P\b/i.test(fullText);
+  const poles = is4P ? "4P" : "3P";
+
+  // 1) Full NS800 breaker description — expand any short variant.
+  for (const s of suggestions) {
+    if (/ns\s?800/i.test(s.description) && /(effektbryter|bryter|compact)/i.test(s.description)) {
+      const hasMicro = /micrologic/i.test(s.description) || /micrologic/i.test(fullText);
+      const isFast = /\bfast\b|fastmontert|fast\s+front/i.test(s.description) || /\bfast\b|fastmontert|fast\s+front/i.test(fullText);
+      s.description = `Schneider Compact NS800N ${poles} ${isFast ? "fast " : ""}effektbryter${hasMicro ? " Micrologic 2.0" : ""}`.replace(/\s+/g, " ").trim();
+      s.manufacturer = s.manufacturer ?? "Schneider Electric";
+    }
+  }
+
+  // 2) Tilkoblingsklemmer — replace generic merged line OR add missing line.
+  if (mentionsKlemmer) {
+    const expectedDesc = `Tilkoblingsklemmer ${poles} for Schneider Compact NS800`;
+    const qty = bothSides ? 2 : 1;
+    const reason = bothSides
+      ? "Teksten sier tilkoblingsklemmer på begge sider. Tolket som ett sett for topp og ett sett for bunn. Verifiser eksakt Schneider-nummer/elnr mot grossist."
+      : "Teksten nevner tilkoblingsklemmer til NS800. Verifiser eksakt Schneider-nummer/elnr mot grossist.";
+
+    // Find any existing line that looks like generic tilkobling/klemmer
+    const idx = suggestions.findIndex((s) =>
+      /tilkobling|klemme/i.test(s.description) && !/^tilkoblingsklemmer\s+\dP\s+for\s+schneider\s+compact\s+ns800$/i.test(s.description),
+    );
+    const enforced: Suggestion = {
+      elnr: null,
+      description: expectedDesc,
+      quantity: qty,
+      unit: "sett",
+      manufacturer: "Schneider Electric",
+      confidence: "middels",
+      ai_reason: reason,
+      source_type: "job_description",
+      source_label: "Jobbbeskrivelse",
+    };
+    if (idx >= 0) {
+      suggestions[idx] = { ...suggestions[idx], ...enforced };
+    } else {
+      suggestions.push(enforced);
+    }
+  }
+
+  return suggestions;
+}
+
+
 async function fetchAttachmentAsBase64(
   admin: ReturnType<typeof createClient>,
   att: AttachmentRef,
