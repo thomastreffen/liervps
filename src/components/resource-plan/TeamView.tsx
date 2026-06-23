@@ -303,17 +303,24 @@ export function TeamView({
               const dow = d.getDay();
               const isWeekend = dow === 0 || dow === 6;
               const isToday = isSameDay(d, today);
-              // Aggregate utilisation across all visible techs for this day
+              // Aggregate utilisation across all visible techs for this day,
+              // using AVAILABLE capacity (workDay − absence) so ferieuker
+              // ikke vises som overbooket.
               let plannedMin = 0;
-              let capMin = 0;
+              let availMin = 0;
+              let absentTechs = 0;
+              let totalTechs = 0;
               for (const tc of techCapacities || []) {
                 const dc = tc.days.find((dd) => isSameDay(dd.date, d));
                 if (dc) {
+                  totalTechs += 1;
                   plannedMin += dc.totalMinutes;
-                  capMin += (tc.weekCapacityMinutes / 5); // approx per workday
+                  availMin += dc.availableMinutes;
+                  if (dc.isAbsence) absentTechs += 1;
                 }
               }
-              const pct = capMin > 0 ? Math.round((plannedMin / capMin) * 100) : 0;
+              const pct = availMin > 0 ? Math.round((plannedMin / availMin) * 100) : 0;
+              const allAbsent = totalTechs > 0 && absentTechs === totalTechs;
               return (
                 <div
                   key={d.toISOString()}
@@ -339,7 +346,7 @@ export function TeamView({
                     "text-[10px] tabular-nums mt-0.5",
                     isWeekend ? "text-muted-foreground/50" : utilColor(pct),
                   )}>
-                    {isWeekend ? "—" : (pct > 0 ? `${pct} %` : "—")}
+                    {isWeekend ? "—" : allAbsent ? "Ferie" : (pct > 0 ? `${pct} %` : "—")}
                   </div>
                 </div>
               );
