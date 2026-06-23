@@ -14,6 +14,12 @@ export interface DayCapacity {
   bookedMinutes: number;
   externalMinutes: number;
   totalMinutes: number;
+  /** Minutes consumed by absence/ferie that day (e.g. full day = workDayMinutes) */
+  absenceMinutes: number;
+  /** Effective capacity for this day after subtracting absence */
+  availableMinutes: number;
+  /** True when person is fully absent (availableMinutes === 0) */
+  isAbsence: boolean;
   percent: number;
   color: string;
   label: string;
@@ -23,19 +29,19 @@ export interface TechDayCapacity {
   techId: string;
   days: DayCapacity[];
   weekPercent: number;
-  /** Total planned minutes this week */
   weekPlannedMinutes: number;
-  /** Weekly capacity in minutes (default 2400 = 40h) */
+  /** Weekly capacity in minutes, already reduced by absence */
   weekCapacityMinutes: number;
-  /** Overtime minutes (max(0, planned - capacity)) */
   overtimeMinutes: number;
-  /** Planned hours this week (convenience) */
+  weekAbsenceMinutes: number;
   weekPlannedHours: number;
-  /** Weekly capacity in hours */
   weekCapacityHours: number;
-  /** Overtime in hours */
   overtimeHours: number;
+  weekAbsenceHours: number;
 }
+
+/** Absence input: per technician → per day-key (yyyy-MM-dd) → minutes absent */
+export type AbsenceMinutesMap = Map<string, Map<string, number>>;
 
 function capacityColor(percent: number): string {
   if (percent > 100) return "#7F1D1D";
