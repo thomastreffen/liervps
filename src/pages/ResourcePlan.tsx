@@ -586,8 +586,28 @@ export default function ResourcePlan() {
     setWorkHours(operatingHours.startHour, operatingHours.endHour === 24 ? 23 : operatingHours.endHour);
   }, [operatingHours.startHour, operatingHours.endHour]);
 
+  const absenceMinutesByTechByDay = useMemo(() => {
+    const map = new Map<string, Map<string, number>>();
+    const workDayMin = operatingHours.workDayMinutes;
+    for (const a of absenceBlocks) {
+      const techId = a.technicianId;
+      if (!techId) continue;
+      const dKey = `${a.date.getFullYear()}-${String(a.date.getMonth() + 1).padStart(2, "0")}-${String(a.date.getDate()).padStart(2, "0")}`;
+      let minutes = workDayMin;
+      if (!a.isFullDay && a.startTime && a.endTime) {
+        const [sh, sm] = a.startTime.split(":").map(Number);
+        const [eh, em] = a.endTime.split(":").map(Number);
+        minutes = Math.max(0, (eh * 60 + (em || 0)) - (sh * 60 + (sm || 0)));
+      }
+      if (!map.has(techId)) map.set(techId, new Map());
+      const dayMap = map.get(techId)!;
+      dayMap.set(dKey, (dayMap.get(dKey) || 0) + minutes);
+    }
+    return map;
+  }, [absenceBlocks, operatingHours.workDayMinutes]);
+
   const { aggregatedDays, techCapacities, availableTechIds, partialTechIds } = useCapacity(
-    calEvents, busySlots, referenceDate, techIds, operatingHours.workDayMinutes
+    calEvents, busySlots, referenceDate, techIds, operatingHours.workDayMinutes, undefined, absenceMinutesByTechByDay
   );
 
   const capacityGapsSummary = useCapacityGaps(calEvents, techCapacities, technicianMap, referenceDate);
