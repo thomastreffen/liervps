@@ -578,10 +578,11 @@ export const ResourceCalendar = memo(function ResourceCalendar({
         start,
         end,
         allDay: false,
-        backgroundColor: hexToRgba(techColor, 0.85),
+        backgroundColor: hexToRgba(techColor, 0.18),
         borderColor: techColor,
-        textColor: "#FFFFFF",
+        textColor: techColor,
         editable: false,
+        classNames: ["fc-event-absence"],
         extendedProps: {
           source: "absence" as const,
           renderKey: ab.id,
@@ -821,8 +822,8 @@ export const ResourceCalendar = memo(function ResourceCalendar({
         headerToolbar={false}
         locale="nb"
         firstDay={1}
-        height={isMonthView ? "auto" : 800}
-        contentHeight={isMonthView ? "auto" : undefined}
+        height="auto"
+        contentHeight="auto"
         scrollTimeReset={false}
         allDaySlot={false}
         slotMinTime={slotMinTime}
@@ -848,8 +849,8 @@ export const ResourceCalendar = memo(function ResourceCalendar({
         slotEventOverlap={true}
         eventOverlap={true}
         eventOrder="start,-duration,allDay,title"
-        eventMaxStack={isMonthView ? 0 : 4}
-        eventMinHeight={32}
+        eventMaxStack={isMonthView ? 0 : 8}
+        eventMinHeight={28}
         eventContent={(arg) => {
           const props = arg.event.extendedProps;
 
@@ -857,25 +858,29 @@ export const ResourceCalendar = memo(function ResourceCalendar({
 
           // Absence block rendering
           if (props.isAbsence) {
+            const accent = props.absenceAccent as string;
             return (
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <div className="px-2 py-1 overflow-hidden h-full cursor-default select-none relative">
+                  <div
+                    className="px-2 py-1 overflow-hidden h-full cursor-default select-none relative rounded-md"
+                    style={{ borderLeft: `4px solid ${accent}`, color: accent }}
+                  >
                     <div className="flex items-center gap-1">
-                      <CalendarOff className="h-2.5 w-2.5 shrink-0 text-white/80" />
-                      <p className="text-[11px] font-bold leading-tight truncate text-white/90">
+                      <CalendarOff className="h-2.5 w-2.5 shrink-0" style={{ color: accent }} />
+                      <p className="text-[11px] font-bold leading-tight truncate" style={{ color: accent }}>
                         {props.techName}
                       </p>
                     </div>
-                    <p className="text-[11px] font-semibold leading-tight truncate text-white">
+                    <p className="text-[11px] font-semibold leading-tight truncate" style={{ color: accent }}>
                       {props.absenceLabel}
                     </p>
-                    <span className="text-[8px] text-white/50 block">{arg.timeText}</span>
+                    <span className="text-[8px] block opacity-70" style={{ color: accent }}>{arg.timeText}</span>
                   </div>
                 </TooltipTrigger>
                 <TooltipContent side="top">
                   <div className="space-y-1 text-xs max-w-[220px]">
-                    <p className="font-semibold" style={{ color: props.absenceAccent }}>{props.absenceLabel}</p>
+                    <p className="font-semibold" style={{ color: accent }}>{props.absenceLabel}</p>
                     <p>{props.techFullName}</p>
                     {props.comment && <p className="text-muted-foreground italic">{props.comment}</p>}
                   </div>

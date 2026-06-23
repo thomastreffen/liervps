@@ -230,28 +230,42 @@ export function TechnicianList({
                 open={colorPickerOpen === tech.id}
                 onOpenChange={(open) => setColorPickerOpen(open ? tech.id : null)}
               >
-                <PopoverTrigger asChild>
-                  <div
-                    className="relative cursor-pointer group"
-                    onClick={(e) => { e.stopPropagation(); setColorPickerOpen(tech.id); }}
-                  >
-                    <TechAvatar
-                      name={tech.name}
-                      avatarId={tech.avatar_id}
-                      color={techColor}
-                      size={32}
-                      className="transition-shadow group-hover:ring-2 group-hover:ring-offset-1"
-                    />
-                    {nowStatus && (
-                      <span
-                        className={cn(
-                          "absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-card",
-                          nowStatus.state === "busy" ? "bg-destructive" : "bg-success"
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <PopoverTrigger asChild>
+                      <div
+                        role="button"
+                        aria-label="Endre ressursfarge"
+                        className="relative cursor-pointer group"
+                        onClick={(e) => { e.stopPropagation(); e.preventDefault(); setColorPickerOpen(tech.id); }}
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onMouseDown={(e) => e.stopPropagation()}
+                      >
+                        <TechAvatar
+                          name={tech.name}
+                          avatarId={tech.avatar_id}
+                          color={techColor}
+                          size={32}
+                          className="transition-shadow group-hover:ring-2 group-hover:ring-offset-1"
+                        />
+                        <span
+                          className="absolute -top-0.5 -left-0.5 h-2 w-2 rounded-full border border-card shadow-sm"
+                          style={{ backgroundColor: techColor }}
+                          aria-hidden
+                        />
+                        {nowStatus && (
+                          <span
+                            className={cn(
+                              "absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-card",
+                              nowStatus.state === "busy" ? "bg-destructive" : "bg-success"
+                            )}
+                          />
                         )}
-                      />
-                    )}
-                  </div>
-                </PopoverTrigger>
+                      </div>
+                    </PopoverTrigger>
+                  </TooltipTrigger>
+                  <TooltipContent side="right" className="text-xs">Endre ressursfarge</TooltipContent>
+                </Tooltip>
                 <PopoverContent className="w-auto p-0" side="right" align="start" onClick={(e) => e.stopPropagation()}>
                   <div className="p-2">
                     <p className="text-xs font-medium text-muted-foreground mb-1.5 px-1">Velg farge for {tech.name.split(" ")[0]}</p>
