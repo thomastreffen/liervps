@@ -263,8 +263,13 @@ export default function ResourcePlan() {
     return map;
   }, [technicians, colorOverrides]);
 
-  const handleTechColorChange = useCallback((techId: string, color: string) => {
+  const handleTechColorChange = useCallback(async (techId: string, color: string) => {
     setColorOverrides((prev) => new Map(prev).set(techId, color));
+    const { error } = await supabase.from("technicians").update({ color }).eq("id", techId);
+    if (error) {
+      console.error("[resource-plan] failed to persist tech color", error);
+      toast.error("Kunne ikke lagre farge");
+    }
   }, []);
 
   const { events: calEvents, refetch: refetchCalendarEvents } = useCalendarEvents(selectedTechId, referenceDate, effectiveCompanyId, scopedCompanyTechIds, allowedCompanyIds);
@@ -581,8 +586,28 @@ export default function ResourcePlan() {
     setWorkHours(operatingHours.startHour, operatingHours.endHour === 24 ? 23 : operatingHours.endHour);
   }, [operatingHours.startHour, operatingHours.endHour]);
 
+  const absenceMinutesByTechByDay = useMemo(() => {
+    const map = new Map<string, Map<string, number>>();
+    const workDayMin = operatingHours.workDayMinutes;
+    for (const a of absenceBlocks) {
+      const techId = a.technicianId;
+      if (!techId) continue;
+      const dKey = `${a.date.getFullYear()}-${String(a.date.getMonth() + 1).padStart(2, "0")}-${String(a.date.getDate()).padStart(2, "0")}`;
+      let minutes = workDayMin;
+      if (!a.isFullDay && a.startTime && a.endTime) {
+        const [sh, sm] = a.startTime.split(":").map(Number);
+        const [eh, em] = a.endTime.split(":").map(Number);
+        minutes = Math.max(0, (eh * 60 + (em || 0)) - (sh * 60 + (sm || 0)));
+      }
+      if (!map.has(techId)) map.set(techId, new Map());
+      const dayMap = map.get(techId)!;
+      dayMap.set(dKey, (dayMap.get(dKey) || 0) + minutes);
+    }
+    return map;
+  }, [absenceBlocks, operatingHours.workDayMinutes]);
+
   const { aggregatedDays, techCapacities, availableTechIds, partialTechIds } = useCapacity(
-    calEvents, busySlots, referenceDate, techIds, operatingHours.workDayMinutes
+    calEvents, busySlots, referenceDate, techIds, operatingHours.workDayMinutes, undefined, absenceMinutesByTechByDay
   );
 
   const capacityGapsSummary = useCapacityGaps(calEvents, techCapacities, technicianMap, referenceDate);
@@ -891,6 +916,7 @@ export default function ResourcePlan() {
             absenceBlocks={absenceBlocks}
             techCapacities={canReadBusy ? techCapacities : undefined}
             visibleStatuses={visibleStatuses}
+            onTechColorChange={handleTechColorChange}
             onBlockClick={(block) => {
               const targetId = block.job_id || block.project_id;
               if (!targetId) return;

@@ -3,9 +3,26 @@ import { addDays, startOfWeek, format, isSameDay } from "date-fns";
 import { nb } from "date-fns/locale";
 import { Palmtree, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { ScheduleBlock } from "@/hooks/useScheduleBlocks";
 import type { AbsenceBlock } from "@/hooks/useAbsenceBlocks";
 import type { TechDayCapacity } from "@/hooks/useCapacity";
+
+const TECH_COLOR_PRESETS = [
+  "#D50000", "#F4511E", "#E67C73", "#F09300",
+  "#F6BF26", "#33B679", "#0B8043", "#7CB342",
+  "#039BE5", "#3F51B5", "#7986CB", "#8E24AA",
+  "#616161", "#795548", "#009688", "#C0CA33",
+];
+
+/** Convert hex (#RRGGBB) to "r, g, b" string for rgba() use */
+function hexToRgb(hex: string): string {
+  const m = hex.replace("#", "").match(/.{2}/g);
+  if (!m || m.length < 3) return "100, 100, 100";
+  const [r, g, b] = m.map((h) => parseInt(h, 16));
+  return `${r}, ${g}, ${b}`;
+}
 
 export type TeamStatusKey =
   | "approved"
@@ -63,6 +80,7 @@ interface TeamViewProps {
   visibleStatuses?: Set<TeamStatusKey>;
   onBlockClick?: (block: ScheduleBlock) => void;
   onCellCreate?: (techId: string, day: Date) => void;
+  onTechColorChange?: (techId: string, color: string) => void;
 }
 
 function initials(name: string) {
@@ -153,7 +171,9 @@ export function TeamView({
   visibleStatuses,
   onBlockClick,
   onCellCreate,
+  onTechColorChange,
 }: TeamViewProps) {
+  const [colorPickerOpenFor, setColorPickerOpenFor] = useState<string | null>(null);
   const weekStart = useMemo(
     () => startOfWeek(referenceDate, { weekStartsOn: 1 }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -283,17 +303,24 @@ export function TeamView({
               const dow = d.getDay();
               const isWeekend = dow === 0 || dow === 6;
               const isToday = isSameDay(d, today);
-              // Aggregate utilisation across all visible techs for this day
+              // Aggregate utilisation across all visible techs for this day,
+              // using AVAILABLE capacity (workDay − absence) so ferieuker
+              // ikke vises som overbooket.
               let plannedMin = 0;
-              let capMin = 0;
+              let availMin = 0;
+              let absentTechs = 0;
+              let totalTechs = 0;
               for (const tc of techCapacities || []) {
                 const dc = tc.days.find((dd) => isSameDay(dd.date, d));
                 if (dc) {
+                  totalTechs += 1;
                   plannedMin += dc.totalMinutes;
-                  capMin += (tc.weekCapacityMinutes / 5); // approx per workday
+                  availMin += dc.availableMinutes;
+                  if (dc.isAbsence) absentTechs += 1;
                 }
               }
-              const pct = capMin > 0 ? Math.round((plannedMin / capMin) * 100) : 0;
+              const pct = availMin > 0 ? Math.round((plannedMin / availMin) * 100) : 0;
+              const allAbsent = totalTechs > 0 && absentTechs === totalTechs;
               return (
                 <div
                   key={d.toISOString()}
@@ -319,7 +346,7 @@ export function TeamView({
                     "text-[10px] tabular-nums mt-0.5",
                     isWeekend ? "text-muted-foreground/50" : utilColor(pct),
                   )}>
-                    {isWeekend ? "—" : (pct > 0 ? `${pct} %` : "—")}
+                    {isWeekend ? "—" : allAbsent ? "Ferie" : (pct > 0 ? `${pct} %` : "—")}
                   </div>
                 </div>
               );
@@ -329,9 +356,12 @@ export function TeamView({
           {/* Rows */}
           {technicians.map((t, rowIdx) => {
             const meta = technicianMap.get(t.id);
-            const color = meta?.color || t.color || "hsl(var(--primary))";
+            const color = meta?.color || t.color || "#039BE5";
+            const colorRgb = hexToRgb(color);
             const tc = capByTech.get(t.id);
             const freeHours = tc ? Math.max(0, tc.weekCapacityHours - tc.weekPlannedHours) : null;
+            const weekAbsenceHours = tc?.weekAbsenceHours ?? 0;
+            const fullyAbsentWeek = tc && tc.weekCapacityHours === 0 && weekAbsenceHours > 0;
             return (
               <div
                 key={t.id}
@@ -343,19 +373,62 @@ export function TeamView({
               >
                 {/* Sticky tech cell */}
                 <div className="sticky left-0 z-10 bg-card group-hover/row:bg-accent/20 px-3 py-3 flex items-center gap-3 border-r border-border transition-colors">
-                  <div
-                    className="h-9 w-9 rounded-full flex items-center justify-center text-[11px] font-bold text-white shrink-0 ring-2 ring-background shadow-sm"
-                    style={{ backgroundColor: color }}
+                  <Popover
+                    open={colorPickerOpenFor === t.id}
+                    onOpenChange={(open) => setColorPickerOpenFor(open ? t.id : null)}
                   >
-                    {initials(t.name)}
-                  </div>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <PopoverTrigger asChild>
+                          <button
+                            type="button"
+                            aria-label="Endre ressursfarge"
+                            className="h-9 w-9 rounded-full flex items-center justify-center text-[11px] font-bold text-white shrink-0 ring-2 ring-background shadow-sm cursor-pointer transition-transform hover:scale-105 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                            style={{ backgroundColor: color }}
+                            onClick={(e) => { e.stopPropagation(); }}
+                          >
+                            {initials(t.name)}
+                          </button>
+                        </PopoverTrigger>
+                      </TooltipTrigger>
+                      <TooltipContent side="right" className="text-xs">Endre ressursfarge</TooltipContent>
+                    </Tooltip>
+                    <PopoverContent className="w-auto p-2 z-[60]" side="right" align="start">
+                      <p className="text-xs font-medium text-muted-foreground mb-1.5 px-1">
+                        Velg farge for {t.name.split(" ")[0]}
+                      </p>
+                      <div className="grid grid-cols-4 gap-1.5">
+                        {TECH_COLOR_PRESETS.map((c) => (
+                          <button
+                            key={c}
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onTechColorChange?.(t.id, c);
+                              setColorPickerOpenFor(null);
+                            }}
+                            className={cn(
+                              "h-6 w-6 rounded-full border-2 transition-transform hover:scale-110",
+                              color.toLowerCase() === c.toLowerCase()
+                                ? "border-foreground scale-110 ring-2 ring-foreground/20"
+                                : "border-transparent"
+                            )}
+                            style={{ backgroundColor: c }}
+                            aria-label={`Velg farge ${c}`}
+                          />
+                        ))}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
                   <div className="min-w-0 flex-1">
                     <div className="text-[13px] font-semibold leading-tight truncate text-foreground">{t.name}</div>
                     <div className="text-[11px] text-muted-foreground mt-0.5 tabular-nums">
                       {tc ? (
-                        tc.weekPlannedHours > 0
-                          ? `${Math.round(tc.weekPlannedHours)}/${Math.round(tc.weekCapacityHours)}t`
-                          : `${Math.round(freeHours ?? 0)}t ledig`
+                        fullyAbsentWeek
+                          ? `Ferie ${Math.round(weekAbsenceHours)}t`
+                          : tc.weekPlannedHours > 0
+                            ? `${Math.round(tc.weekPlannedHours)}/${Math.round(tc.weekCapacityHours)}t${weekAbsenceHours > 0 ? ` · ${Math.round(weekAbsenceHours)}t ferie` : ""}`
+                            : `${Math.round(freeHours ?? 0)}t ledig${weekAbsenceHours > 0 ? ` · ${Math.round(weekAbsenceHours)}t ferie` : ""}`
                       ) : "—"}
                     </div>
                   </div>
@@ -382,7 +455,7 @@ export function TeamView({
                         onCellCreate?.(t.id, day);
                       }}
                       className={cn(
-                        "relative min-h-[78px] border-r border-border last:border-r-0 px-1.5 py-1.5 flex flex-col gap-1 text-left transition-colors group/cell",
+                        "relative min-h-[110px] border-r border-border last:border-r-0 px-1.5 py-1.5 flex flex-col gap-1 text-left transition-colors group/cell",
                         isWeekend ? "bg-muted/40 cursor-default" : "hover:bg-primary/[0.04] cursor-pointer",
                         isToday && !isWeekend && "bg-primary/[0.04]",
                       )}
@@ -400,13 +473,20 @@ export function TeamView({
                         <div
                           key={a.id}
                           data-chip
-                          className="rounded-md border border-dashed border-stone-300 bg-stone-100/70 dark:border-stone-700 dark:bg-stone-900/40 px-2 py-1 text-[11px] text-stone-700 dark:text-stone-300 flex items-center gap-1.5"
+                          className="rounded-md border px-2 py-1 text-[11px] flex items-center gap-1.5"
+                          style={{
+                            backgroundColor: `rgba(${colorRgb}, 0.14)`,
+                            borderColor: `rgba(${colorRgb}, 0.45)`,
+                            borderLeft: `4px solid ${color}`,
+                            color: color,
+                          }}
                           title={a.label}
                         >
-                          <Palmtree className="h-3 w-3 shrink-0 opacity-70" />
-                          <span className="truncate">{a.label}</span>
+                          <Palmtree className="h-3 w-3 shrink-0" style={{ color }} />
+                          <span className="truncate font-medium">{a.label}</span>
                         </div>
                       ))}
+
 
                       {cellBlocks.map((b) => {
                         const tone = statusTone(b.job_status);
