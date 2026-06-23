@@ -117,7 +117,8 @@ export function useCapacity(
   referenceDate: Date,
   technicianIds: string[],
   workDayMinutes: number = DEFAULT_WORK_DAY_MINUTES,
-  weeklyCapacityMinutes: number = DEFAULT_WEEKLY_MINUTES
+  weeklyCapacityMinutes: number = DEFAULT_WEEKLY_MINUTES,
+  absenceMinutesByTechByDay?: AbsenceMinutesMap
 ) {
   return useMemo(() => {
     const weekStart = startOfWeek(referenceDate, { weekStartsOn: 1 });
@@ -165,48 +166,77 @@ export function useCapacity(
       }
     }
 
+    const dayPercent = (planned: number, available: number, isAbsence: boolean) => {
+      if (isAbsence && available === 0) return 0;
+      if (available <= 0) return planned > 0 ? 100 : 0;
+      return (planned / available) * 100;
+    };
+    const dayLabel = (planned: number, available: number, isAbsence: boolean) => {
+      if (isAbsence && available === 0) return "Ferie";
+      return capacityLabel(dayPercent(planned, available, isAbsence));
+    };
+
     // Per-tech capacity with weekly totals
     const techCapacities: TechDayCapacity[] = technicianIds.map((techId) => {
       const days: DayCapacity[] = [];
       let weekPlannedMinutes = 0;
+      let weekAbsenceMinutes = 0;
 
       const internalDayMap = internalByTechByDay.get(techId) || new Map<string, number>();
       const externalDayMap = externalByTechByDay.get(techId) || new Map<string, number>();
+      const absenceDayMap = absenceMinutesByTechByDay?.get(techId) || new Map<string, number>();
 
       for (let i = 0; i < 7; i++) {
         const day = addDays(weekStart, i);
         const dayKey = toDayKey(day);
         const bookedMinutes = internalDayMap.get(dayKey) || 0;
-        const externalMinutes = externalDayMap.get(dayKey) || 0;
+        const rawExternal = externalDayMap.get(dayKey) || 0;
+        const absenceMinutes = Math.min(workDayMinutes, absenceDayMap.get(dayKey) || 0);
+        // Strip external busy that is just the mirrored absence (oof) so it doesn't
+        // double-count as planned load on a ferie day.
+        const externalMinutes = absenceMinutes > 0
+          ? Math.max(0, rawExternal - absenceMinutes)
+          : rawExternal;
+        const availableMinutes = Math.max(0, workDayMinutes - absenceMinutes);
+        const isAbsence = absenceMinutes >= workDayMinutes;
         const totalMinutes = bookedMinutes + externalMinutes;
-        const percent = (totalMinutes / workDayMinutes) * 100;
+        const percent = dayPercent(totalMinutes, availableMinutes, isAbsence);
 
         days.push({
           date: day,
           bookedMinutes,
           externalMinutes,
           totalMinutes,
+          absenceMinutes,
+          availableMinutes,
+          isAbsence,
           percent,
           color: capacityColor(percent),
-          label: capacityLabel(percent),
+          label: dayLabel(totalMinutes, availableMinutes, isAbsence),
         });
 
         weekPlannedMinutes += totalMinutes;
+        weekAbsenceMinutes += absenceMinutes;
       }
 
-      const weekPercent = (weekPlannedMinutes / weeklyCapacityMinutes) * 100;
-      const overtimeMinutes = Math.max(0, weekPlannedMinutes - weeklyCapacityMinutes);
+      const effectiveWeekCapacity = Math.max(0, weeklyCapacityMinutes - weekAbsenceMinutes);
+      const weekPercent = effectiveWeekCapacity > 0
+        ? (weekPlannedMinutes / effectiveWeekCapacity) * 100
+        : (weekPlannedMinutes > 0 ? 100 : 0);
+      const overtimeMinutes = Math.max(0, weekPlannedMinutes - effectiveWeekCapacity);
 
       return {
         techId,
         days,
         weekPercent,
         weekPlannedMinutes,
-        weekCapacityMinutes: weeklyCapacityMinutes,
+        weekCapacityMinutes: effectiveWeekCapacity,
         overtimeMinutes,
+        weekAbsenceMinutes,
         weekPlannedHours: Math.round((weekPlannedMinutes / 60) * 10) / 10,
-        weekCapacityHours: weeklyCapacityMinutes / 60,
+        weekCapacityHours: Math.round((effectiveWeekCapacity / 60) * 10) / 10,
         overtimeHours: Math.round((overtimeMinutes / 60) * 10) / 10,
+        weekAbsenceHours: Math.round((weekAbsenceMinutes / 60) * 10) / 10,
       };
     });
 
@@ -216,18 +246,24 @@ export function useCapacity(
       const day = addDays(weekStart, i);
       let totalBooked = 0;
       let totalExternal = 0;
+      let totalAbsence = 0;
+      let totalAvailable = 0;
       for (const techCap of techCapacities) {
         totalBooked += techCap.days[i].bookedMinutes;
         totalExternal += techCap.days[i].externalMinutes;
+        totalAbsence += techCap.days[i].absenceMinutes;
+        totalAvailable += techCap.days[i].availableMinutes;
       }
       const totalMinutes = totalBooked + totalExternal;
-      const totalCapacity = technicianIds.length * workDayMinutes;
-      const percent = totalCapacity > 0 ? (totalMinutes / totalCapacity) * 100 : 0;
+      const percent = totalAvailable > 0 ? (totalMinutes / totalAvailable) * 100 : 0;
       aggregatedDays.push({
         date: day,
         bookedMinutes: totalBooked,
         externalMinutes: totalExternal,
         totalMinutes,
+        absenceMinutes: totalAbsence,
+        availableMinutes: totalAvailable,
+        isAbsence: totalAvailable === 0 && totalAbsence > 0,
         percent,
         color: capacityColor(percent),
         label: capacityLabel(percent),
@@ -235,10 +271,10 @@ export function useCapacity(
     }
 
     const availableTechIds = (dayIndex: number) =>
-      techCapacities.filter((tc) => tc.days[dayIndex].percent < 50).map((tc) => tc.techId);
+      techCapacities.filter((tc) => !tc.days[dayIndex].isAbsence && tc.days[dayIndex].percent < 50).map((tc) => tc.techId);
     const partialTechIds = (dayIndex: number) =>
-      techCapacities.filter((tc) => tc.days[dayIndex].percent >= 50 && tc.days[dayIndex].percent < 90).map((tc) => tc.techId);
+      techCapacities.filter((tc) => !tc.days[dayIndex].isAbsence && tc.days[dayIndex].percent >= 50 && tc.days[dayIndex].percent < 90).map((tc) => tc.techId);
 
     return { techCapacities, aggregatedDays, availableTechIds, partialTechIds };
-  }, [events, busySlots, referenceDate, technicianIds, workDayMinutes, weeklyCapacityMinutes]);
+  }, [events, busySlots, referenceDate, technicianIds, workDayMinutes, weeklyCapacityMinutes, absenceMinutesByTechByDay]);
 }
