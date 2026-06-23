@@ -80,6 +80,7 @@ interface TeamViewProps {
   visibleStatuses?: Set<TeamStatusKey>;
   onBlockClick?: (block: ScheduleBlock) => void;
   onCellCreate?: (techId: string, day: Date) => void;
+  onTechColorChange?: (techId: string, color: string) => void;
 }
 
 function initials(name: string) {
