@@ -263,8 +263,13 @@ export default function ResourcePlan() {
     return map;
   }, [technicians, colorOverrides]);
 
-  const handleTechColorChange = useCallback((techId: string, color: string) => {
+  const handleTechColorChange = useCallback(async (techId: string, color: string) => {
     setColorOverrides((prev) => new Map(prev).set(techId, color));
+    const { error } = await supabase.from("technicians").update({ color }).eq("id", techId);
+    if (error) {
+      console.error("[resource-plan] failed to persist tech color", error);
+      toast.error("Kunne ikke lagre farge");
+    }
   }, []);
 
   const { events: calEvents, refetch: refetchCalendarEvents } = useCalendarEvents(selectedTechId, referenceDate, effectiveCompanyId, scopedCompanyTechIds, allowedCompanyIds);
