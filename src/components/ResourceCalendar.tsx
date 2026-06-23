@@ -849,8 +849,8 @@ export const ResourceCalendar = memo(function ResourceCalendar({
         slotEventOverlap={true}
         eventOverlap={true}
         eventOrder="start,-duration,allDay,title"
-        eventMaxStack={isMonthView ? 0 : 4}
-        eventMinHeight={32}
+        eventMaxStack={isMonthView ? 0 : 8}
+        eventMinHeight={28}
         eventContent={(arg) => {
           const props = arg.event.extendedProps;
 
