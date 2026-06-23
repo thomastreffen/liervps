@@ -3,9 +3,26 @@ import { addDays, startOfWeek, format, isSameDay } from "date-fns";
 import { nb } from "date-fns/locale";
 import { Palmtree, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { ScheduleBlock } from "@/hooks/useScheduleBlocks";
 import type { AbsenceBlock } from "@/hooks/useAbsenceBlocks";
 import type { TechDayCapacity } from "@/hooks/useCapacity";
+
+const TECH_COLOR_PRESETS = [
+  "#D50000", "#F4511E", "#E67C73", "#F09300",
+  "#F6BF26", "#33B679", "#0B8043", "#7CB342",
+  "#039BE5", "#3F51B5", "#7986CB", "#8E24AA",
+  "#616161", "#795548", "#009688", "#C0CA33",
+];
+
+/** Convert hex (#RRGGBB) to "r, g, b" string for rgba() use */
+function hexToRgb(hex: string): string {
+  const m = hex.replace("#", "").match(/.{2}/g);
+  if (!m || m.length < 3) return "100, 100, 100";
+  const [r, g, b] = m.map((h) => parseInt(h, 16));
+  return `${r}, ${g}, ${b}`;
+}
 
 export type TeamStatusKey =
   | "approved"
