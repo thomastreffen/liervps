@@ -171,7 +171,9 @@ export function TeamView({
   visibleStatuses,
   onBlockClick,
   onCellCreate,
+  onTechColorChange,
 }: TeamViewProps) {
+  const [colorPickerOpenFor, setColorPickerOpenFor] = useState<string | null>(null);
   const weekStart = useMemo(
     () => startOfWeek(referenceDate, { weekStartsOn: 1 }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
