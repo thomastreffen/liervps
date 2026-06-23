@@ -578,10 +578,11 @@ export const ResourceCalendar = memo(function ResourceCalendar({
         start,
         end,
         allDay: false,
-        backgroundColor: hexToRgba(techColor, 0.85),
+        backgroundColor: hexToRgba(techColor, 0.18),
         borderColor: techColor,
-        textColor: "#FFFFFF",
+        textColor: techColor,
         editable: false,
+        classNames: ["fc-event-absence"],
         extendedProps: {
           source: "absence" as const,
           renderKey: ab.id,
