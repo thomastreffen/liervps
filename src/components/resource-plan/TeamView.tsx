@@ -356,9 +356,12 @@ export function TeamView({
           {/* Rows */}
           {technicians.map((t, rowIdx) => {
             const meta = technicianMap.get(t.id);
-            const color = meta?.color || t.color || "hsl(var(--primary))";
+            const color = meta?.color || t.color || "#039BE5";
+            const colorRgb = hexToRgb(color);
             const tc = capByTech.get(t.id);
             const freeHours = tc ? Math.max(0, tc.weekCapacityHours - tc.weekPlannedHours) : null;
+            const weekAbsenceHours = tc?.weekAbsenceHours ?? 0;
+            const fullyAbsentWeek = tc && tc.weekCapacityHours === 0 && weekAbsenceHours > 0;
             return (
               <div
                 key={t.id}
@@ -370,19 +373,62 @@ export function TeamView({
               >
                 {/* Sticky tech cell */}
                 <div className="sticky left-0 z-10 bg-card group-hover/row:bg-accent/20 px-3 py-3 flex items-center gap-3 border-r border-border transition-colors">
-                  <div
-                    className="h-9 w-9 rounded-full flex items-center justify-center text-[11px] font-bold text-white shrink-0 ring-2 ring-background shadow-sm"
-                    style={{ backgroundColor: color }}
+                  <Popover
+                    open={colorPickerOpenFor === t.id}
+                    onOpenChange={(open) => setColorPickerOpenFor(open ? t.id : null)}
                   >
-                    {initials(t.name)}
-                  </div>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <PopoverTrigger asChild>
+                          <button
+                            type="button"
+                            aria-label="Endre ressursfarge"
+                            className="h-9 w-9 rounded-full flex items-center justify-center text-[11px] font-bold text-white shrink-0 ring-2 ring-background shadow-sm cursor-pointer transition-transform hover:scale-105 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                            style={{ backgroundColor: color }}
+                            onClick={(e) => { e.stopPropagation(); }}
+                          >
+                            {initials(t.name)}
+                          </button>
+                        </PopoverTrigger>
+                      </TooltipTrigger>
+                      <TooltipContent side="right" className="text-xs">Endre ressursfarge</TooltipContent>
+                    </Tooltip>
+                    <PopoverContent className="w-auto p-2 z-[60]" side="right" align="start">
+                      <p className="text-xs font-medium text-muted-foreground mb-1.5 px-1">
+                        Velg farge for {t.name.split(" ")[0]}
+                      </p>
+                      <div className="grid grid-cols-4 gap-1.5">
+                        {TECH_COLOR_PRESETS.map((c) => (
+                          <button
+                            key={c}
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onTechColorChange?.(t.id, c);
+                              setColorPickerOpenFor(null);
+                            }}
+                            className={cn(
+                              "h-6 w-6 rounded-full border-2 transition-transform hover:scale-110",
+                              color.toLowerCase() === c.toLowerCase()
+                                ? "border-foreground scale-110 ring-2 ring-foreground/20"
+                                : "border-transparent"
+                            )}
+                            style={{ backgroundColor: c }}
+                            aria-label={`Velg farge ${c}`}
+                          />
+                        ))}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
                   <div className="min-w-0 flex-1">
                     <div className="text-[13px] font-semibold leading-tight truncate text-foreground">{t.name}</div>
                     <div className="text-[11px] text-muted-foreground mt-0.5 tabular-nums">
                       {tc ? (
-                        tc.weekPlannedHours > 0
-                          ? `${Math.round(tc.weekPlannedHours)}/${Math.round(tc.weekCapacityHours)}t`
-                          : `${Math.round(freeHours ?? 0)}t ledig`
+                        fullyAbsentWeek
+                          ? `Ferie ${Math.round(weekAbsenceHours)}t`
+                          : tc.weekPlannedHours > 0
+                            ? `${Math.round(tc.weekPlannedHours)}/${Math.round(tc.weekCapacityHours)}t${weekAbsenceHours > 0 ? ` · ${Math.round(weekAbsenceHours)}t ferie` : ""}`
+                            : `${Math.round(freeHours ?? 0)}t ledig${weekAbsenceHours > 0 ? ` · ${Math.round(weekAbsenceHours)}t ferie` : ""}`
                       ) : "—"}
                     </div>
                   </div>
@@ -409,7 +455,7 @@ export function TeamView({
                         onCellCreate?.(t.id, day);
                       }}
                       className={cn(
-                        "relative min-h-[78px] border-r border-border last:border-r-0 px-1.5 py-1.5 flex flex-col gap-1 text-left transition-colors group/cell",
+                        "relative min-h-[110px] border-r border-border last:border-r-0 px-1.5 py-1.5 flex flex-col gap-1 text-left transition-colors group/cell",
                         isWeekend ? "bg-muted/40 cursor-default" : "hover:bg-primary/[0.04] cursor-pointer",
                         isToday && !isWeekend && "bg-primary/[0.04]",
                       )}
@@ -427,13 +473,20 @@ export function TeamView({
                         <div
                           key={a.id}
                           data-chip
-                          className="rounded-md border border-dashed border-stone-300 bg-stone-100/70 dark:border-stone-700 dark:bg-stone-900/40 px-2 py-1 text-[11px] text-stone-700 dark:text-stone-300 flex items-center gap-1.5"
+                          className="rounded-md border px-2 py-1 text-[11px] flex items-center gap-1.5"
+                          style={{
+                            backgroundColor: `rgba(${colorRgb}, 0.14)`,
+                            borderColor: `rgba(${colorRgb}, 0.45)`,
+                            borderLeft: `4px solid ${color}`,
+                            color: color,
+                          }}
                           title={a.label}
                         >
-                          <Palmtree className="h-3 w-3 shrink-0 opacity-70" />
-                          <span className="truncate">{a.label}</span>
+                          <Palmtree className="h-3 w-3 shrink-0" style={{ color }} />
+                          <span className="truncate font-medium">{a.label}</span>
                         </div>
                       ))}
+
 
                       {cellBlocks.map((b) => {
                         const tone = statusTone(b.job_status);
