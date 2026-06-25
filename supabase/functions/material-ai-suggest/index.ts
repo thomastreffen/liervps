@@ -77,7 +77,12 @@ const TAVLE_KEYWORDS = [
   /\btavle\b/i,
   /hovedtavle/i,
   /hovedfordeling/i,
+  /hovedbryter/i,
+  /\bfelt\b/i,
+  /\bavgang/i,
   /samleskinne/i,
+  /kobberskinne/i,
+  /\bskinne\b/i,
   /\binntak\b/i,
   /\btrafo\b/i,
   /utkobling\s+av\s+trafo/i,
@@ -85,9 +90,19 @@ const TAVLE_KEYWORDS = [
   /lastbryter/i,
   /kompaktbryter/i,
   /\bns\s?\d{2,4}\b/i, // NS800, NS 250 osv.
+  /\bnsx\s?\d{2,4}\b/i,
+  /masterpact/i,
+  /micrologic/i,
+  /\btmax\b/i,
+  /\bemax\b/i,
+  /\bsace\b/i,
   /schneider/i,
+  /\beaton\b/i,
+  /\babb\b/i,
   /\b\d{3,4}\s?a\b/i, // 250A, 800A osv.
-  /\b\d-?\s?polt\b/i, // 3-polt
+  /\b\d-?\s?pol(et|t)?\b/i, // 3-polt / 4-polet
+  /\b230\s?v\s*it\b/i,
+  /\b400\s?v\s*tn/i,
   /tilkoblingsklemmer?/i,
   /presskabelsko/i,
 ];
