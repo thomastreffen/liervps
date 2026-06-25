@@ -734,6 +734,15 @@ Klassifiser jobben først, så trekk ut materialforslag etter reglene.`;
 
     suggestions = enforceNs800Rules(suggestions, fullText);
 
+    // Tavle-fallback: hvis jobben tydelig er tavle/høystrøm men AI ikke ga noen linjer,
+    // bygg en avklaringsbasert tavlepakke deterministisk.
+    let extraClarifications: string[] = [];
+    if (effectiveTavle && suggestions.length === 0) {
+      const fb = buildTavleFallback(fullText);
+      suggestions = fb.suggestions;
+      extraClarifications = fb.clarifications;
+    }
+
     // ─── Produktbase-match (kun for linjer uten elnr) ───
     try {
       let companyId: string | null = null;
