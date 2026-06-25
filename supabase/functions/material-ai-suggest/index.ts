@@ -77,7 +77,12 @@ const TAVLE_KEYWORDS = [
   /\btavle\b/i,
   /hovedtavle/i,
   /hovedfordeling/i,
+  /hovedbryter/i,
+  /\bfelt\b/i,
+  /\bavgang/i,
   /samleskinne/i,
+  /kobberskinne/i,
+  /\bskinne\b/i,
   /\binntak\b/i,
   /\btrafo\b/i,
   /utkobling\s+av\s+trafo/i,
@@ -85,9 +90,19 @@ const TAVLE_KEYWORDS = [
   /lastbryter/i,
   /kompaktbryter/i,
   /\bns\s?\d{2,4}\b/i, // NS800, NS 250 osv.
+  /\bnsx\s?\d{2,4}\b/i,
+  /masterpact/i,
+  /micrologic/i,
+  /\btmax\b/i,
+  /\bemax\b/i,
+  /\bsace\b/i,
   /schneider/i,
+  /\beaton\b/i,
+  /\babb\b/i,
   /\b\d{3,4}\s?a\b/i, // 250A, 800A osv.
-  /\b\d-?\s?polt\b/i, // 3-polt
+  /\b\d-?\s?pol(et|t)?\b/i, // 3-polt / 4-polet
+  /\b230\s?v\s*it\b/i,
+  /\b400\s?v\s*tn/i,
   /tilkoblingsklemmer?/i,
   /presskabelsko/i,
 ];
@@ -212,6 +227,171 @@ function enforceNs800Rules(suggestions: Suggestion[], fullText: string): Suggest
   }
 
   return suggestions;
+}
+
+// Bygg en avklaringsbasert tavlepakke når jobben tydelig er tavle/høystrøm,
+// men AI ikke har klart å produsere konkrete linjer.
+function buildTavleFallback(fullText: string): {
+  suggestions: Suggestion[];
+  clarifications: string[];
+} {
+  const t = fullText;
+  const ampMatches = Array.from(t.matchAll(/\b(\d{3,4})\s?a\b/gi)).map((m) => parseInt(m[1], 10));
+  const mainAmp = ampMatches.length > 0 ? Math.max(...ampMatches) : null;
+  // Avgang: lavere ampèretall enn hovedbryter
+  const avgangAmp = ampMatches.length > 1
+    ? Math.min(...ampMatches.filter((a) => a !== mainAmp))
+    : (/\bavgang/i.test(t) ? ampMatches.find((a) => a !== mainAmp) ?? null : null);
+
+  const is4P = /\b4\s*-?\s*pol(et|t)?\b|\b4P\b/i.test(t);
+  const poles = is4P ? "4P" : "3P";
+
+  let manufacturer: string | null = null;
+  if (/schneider/i.test(t)) manufacturer = "Schneider Electric";
+  else if (/\beaton\b/i.test(t)) manufacturer = "Eaton";
+  else if (/\babb\b/i.test(t)) manufacturer = "ABB";
+
+  const fab = manufacturer ?? "(fabrikat avklares)";
+  const mainLabel = mainAmp ? `${mainAmp}A` : "(ampere avklares)";
+
+  const suggestions: Suggestion[] = [
+    {
+      elnr: null,
+      description: `Hovedbryter / effektbryter ${poles} ${mainLabel}${manufacturer ? ", " + manufacturer : ""} – tavlemontasje`,
+      quantity: 1,
+      unit: "stk",
+      manufacturer,
+      confidence: "middels",
+      ai_reason:
+        "Jobben er klassifisert som tavle/høystrøm. Eksakt type (effektbryter med vern eller lastbryter), bryteevne (Icu/Ics) og Micrologic-/styreenhet må avklares på befaring.",
+      source_type: "job_description",
+      source_label: "Jobbbeskrivelse",
+    },
+    {
+      elnr: null,
+      description: `Tilkoblingsklemmer / koblingsstykker ${poles} for ${mainLabel} hovedbryter`,
+      quantity: 1,
+      unit: "sett",
+      manufacturer,
+      confidence: "lav",
+      ai_reason: "Tilkoblingssett må matche valgt bryter og kabel-/skinnetilkobling. Avklares på befaring.",
+      source_type: "job_description",
+      source_label: "Jobbbeskrivelse",
+    },
+    {
+      elnr: null,
+      description: "Presskabelsko / kabelsko til hovedkabler",
+      quantity: 1,
+      unit: "sett",
+      confidence: "lav",
+      ai_reason:
+        "Antall og type avhenger av kabeldimensjon, ledermateriale (Al/Cu) og antall kabler per fase. Må avklares før bestilling.",
+      source_type: "job_description",
+      source_label: "Jobbbeskrivelse",
+    },
+    {
+      elnr: null,
+      description: "Kobberskinner / skinneforbindelse for tilpasning i eksisterende felt",
+      quantity: 1,
+      unit: "sett",
+      confidence: "lav",
+      ai_reason: "Tilpasning mot eksisterende samleskinne. Dimensjon og lengde må måles på befaring.",
+      source_type: "job_description",
+      source_label: "Jobbbeskrivelse",
+    },
+    {
+      elnr: null,
+      description: "Isolatorer / festemateriell for samleskinne",
+      quantity: 1,
+      unit: "sett",
+      confidence: "lav",
+      ai_reason: "Avhenger av tavlefabrikat og feltoppbygning. Avklares på befaring.",
+      source_type: "job_description",
+      source_label: "Jobbbeskrivelse",
+    },
+    {
+      elnr: null,
+      description: "Berøringsvern / deksler for hovedbryter og tilkobling",
+      quantity: 1,
+      unit: "sett",
+      confidence: "middels",
+      ai_reason: "Påkrevd ved spenningssatt tavle. Må tilpasses valgt bryter og feltgeometri.",
+      source_type: "job_description",
+      source_label: "Jobbbeskrivelse",
+    },
+    {
+      elnr: null,
+      description: "Merking av hovedbryter og kurs (skilt + kursmerking)",
+      quantity: 1,
+      unit: "sett",
+      confidence: "middels",
+      ai_reason: "Standard ved utskifting av hovedkomponent i tavle.",
+      source_type: "job_description",
+      source_label: "Jobbbeskrivelse",
+    },
+    {
+      elnr: null,
+      description: "Dokumentasjon / FDV / oppdatert tavleskjema",
+      quantity: 1,
+      unit: "stk",
+      confidence: "middels",
+      ai_reason: "Tavleendring krever oppdatert dokumentasjon og FDV.",
+      source_type: "job_description",
+      source_label: "Jobbbeskrivelse",
+    },
+  ];
+
+  // Opsjon for avgang
+  if (avgangAmp || /\bavgang/i.test(t)) {
+    const aLabel = avgangAmp ? `${avgangAmp}A` : "(ampere avklares)";
+    suggestions.push(
+      {
+        elnr: null,
+        description: `OPSJON: Effektbryter / vern ${poles} ${aLabel} for ny avgang`,
+        quantity: 1,
+        unit: "stk",
+        manufacturer,
+        confidence: "lav",
+        ai_reason: "Opsjon, ikke bestill før avklart. Avgang er nevnt som mulig tillegg.",
+        source_type: "job_description",
+        source_label: "Jobbbeskrivelse",
+      },
+      {
+        elnr: null,
+        description: `OPSJON: Tilkoblingssett / klemmer ${poles} for ${aLabel} avgang`,
+        quantity: 1,
+        unit: "sett",
+        confidence: "lav",
+        ai_reason: "Opsjon, ikke bestill før avklart.",
+        source_type: "job_description",
+        source_label: "Jobbbeskrivelse",
+      },
+      {
+        elnr: null,
+        description: "OPSJON: Berøringsvern og merking for ny avgang",
+        quantity: 1,
+        unit: "sett",
+        confidence: "lav",
+        ai_reason: "Opsjon, ikke bestill før avklart.",
+        source_type: "job_description",
+        source_label: "Jobbbeskrivelse",
+      },
+    );
+  }
+
+  const clarifications = [
+    "Er ny hovedbryter lastbryter eller effektbryter med vern?",
+    "3P eller 4P?",
+    "Eksisterende tavlefabrikat og felttype?",
+    "Kabel- eller skinnetilkobling? Kabeldimensjon og antall kabler per fase?",
+    "Kortslutningsnivå / krav til Icu/Ics?",
+    `Er ${avgangAmp ? avgangAmp + "A " : ""}avgangen bestemt eller opsjon?`,
+    "Plassforhold i feltet (høyde/dybde for ny bryter)?",
+    "Behov for utkobling / nattarbeid / spenningssatt arbeid?",
+    "Skal MCS levere bryteren eller kun tilkoblingsmateriell?",
+  ];
+
+  return { suggestions, clarifications };
 }
 
 
@@ -554,6 +734,15 @@ Klassifiser jobben først, så trekk ut materialforslag etter reglene.`;
 
     suggestions = enforceNs800Rules(suggestions, fullText);
 
+    // Tavle-fallback: hvis jobben tydelig er tavle/høystrøm men AI ikke ga noen linjer,
+    // bygg en avklaringsbasert tavlepakke deterministisk.
+    let extraClarifications: string[] = [];
+    if (effectiveTavle && suggestions.length === 0) {
+      const fb = buildTavleFallback(fullText);
+      suggestions = fb.suggestions;
+      extraClarifications = fb.clarifications;
+    }
+
     // ─── Produktbase-match (kun for linjer uten elnr) ───
     try {
       let companyId: string | null = null;
@@ -621,14 +810,20 @@ Klassifiser jobben først, så trekk ut materialforslag etter reglene.`;
       parsed.note ??
       (suggestions.length === 0
         ? "Jeg fant ikke nok konkret grunnlag til å foreslå materiell. Velg vedlegg, legg inn mer beskrivelse eller bruk standardpakke."
-        : null);
+        : effectiveTavle
+          ? "Jeg kan ikke låse eksakt elnr uten befaring, men jobben er klassifisert som tavle/høystrøm. Her er anbefalte materialposter og avklaringer."
+          : null);
+
+    const mergedClarifications = Array.from(
+      new Set([...(parsed.clarifications ?? []), ...extraClarifications]),
+    );
 
     return new Response(
       JSON.stringify({
         job_type: aiJobType,
         job_type_label: JOB_TYPE_LABEL[aiJobType] ?? JOB_TYPE_LABEL.ukjent,
         job_type_reason: parsed.job_type_reason ?? null,
-        clarifications: parsed.clarifications ?? [],
+        clarifications: mergedClarifications,
         suggestions,
         note,
         attachments_used: fetched.map((f) => f.name),
