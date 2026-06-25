@@ -810,7 +810,13 @@ Klassifiser jobben først, så trekk ut materialforslag etter reglene.`;
       parsed.note ??
       (suggestions.length === 0
         ? "Jeg fant ikke nok konkret grunnlag til å foreslå materiell. Velg vedlegg, legg inn mer beskrivelse eller bruk standardpakke."
-        : null);
+        : effectiveTavle
+          ? "Jeg kan ikke låse eksakt elnr uten befaring, men jobben er klassifisert som tavle/høystrøm. Her er anbefalte materialposter og avklaringer."
+          : null);
+
+    const mergedClarifications = Array.from(
+      new Set([...(parsed.clarifications ?? []), ...extraClarifications]),
+    );
 
     return new Response(
       JSON.stringify({
