@@ -823,7 +823,7 @@ Klassifiser jobben først, så trekk ut materialforslag etter reglene.`;
         job_type: aiJobType,
         job_type_label: JOB_TYPE_LABEL[aiJobType] ?? JOB_TYPE_LABEL.ukjent,
         job_type_reason: parsed.job_type_reason ?? null,
-        clarifications: parsed.clarifications ?? [],
+        clarifications: mergedClarifications,
         suggestions,
         note,
         attachments_used: fetched.map((f) => f.name),
