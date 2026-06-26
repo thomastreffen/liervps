@@ -990,6 +990,18 @@ export default function OrderFormDetailPage() {
         <QualityBadge score={qualityResult.score} />
       </div>
 
+      {hasUnreadCustomerMessage && (
+        <div className="rounded-lg border-l-4 border-l-green-500 border border-green-200 bg-green-50 px-3 py-2 flex items-start gap-2 text-sm">
+          <MessageSquare className="h-4 w-4 text-green-700 mt-0.5 shrink-0" />
+          <div className="min-w-0 flex-1">
+            <div className="font-semibold text-green-900">Ny melding fra bestiller</div>
+            {unreadCustomerSnippet && (
+              <div className="text-green-900/80 truncate text-xs mt-0.5">{unreadCustomerSnippet}</div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Primary + secondary actions */}
       <div className="flex flex-wrap items-center gap-2">
         {/* Primary: Status with notify toggle */}
