@@ -211,23 +211,23 @@ export default function OrderFormDetailPage() {
         "postgres_changes",
         { event: "*", schema: "public", table: "order_form_messages", filter: `submission_id=eq.${id}` },
         () => {
-          queryClient.invalidateQueries({ queryKey: ["order-form-messages", id] });
-          queryClient.invalidateQueries({ queryKey: ["order-form-submission", id] });
-          queryClient.invalidateQueries({ queryKey: ["order-form-activity", id] });
+          qc.invalidateQueries({ queryKey: ["order-form-messages", id] });
+          qc.invalidateQueries({ queryKey: ["order-form-submission", id] });
+          qc.invalidateQueries({ queryKey: ["order-form-activity", id] });
         },
       )
       .on(
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "order_form_submissions", filter: `id=eq.${id}` },
         () => {
-          queryClient.invalidateQueries({ queryKey: ["order-form-submission", id] });
+          qc.invalidateQueries({ queryKey: ["order-form-submission", id] });
         },
       )
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [id, queryClient]);
+  }, [id, qc]);
 
 
   // Fetch participants for this order
