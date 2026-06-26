@@ -414,9 +414,9 @@ export default function OrderFormsPage() {
                 className={`hover:shadow-md transition-shadow cursor-pointer group ${
                   isDimmed ? "opacity-60" : ""
                 } ${
-                  isNew ? "border-l-4 border-l-blue-500"
+                  unread ? "border-l-4 border-l-green-500 bg-green-50/40"
+                  : isNew ? "border-l-4 border-l-blue-500"
                   : isWaiting ? "border-l-4 border-l-amber-400"
-                  : hasUnreadReply ? "border-l-4 border-l-green-500"
                   : isStale ? "border-l-4 border-l-orange-300"
                   : ""
                 }`}
@@ -428,7 +428,7 @@ export default function OrderFormsPage() {
                       <QualityDot score={qs} />
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-                          <span className="text-sm font-semibold text-foreground truncate">
+                          <span className={`text-sm truncate ${unread ? "font-bold text-foreground" : "font-semibold text-foreground"}`}>
                             {siteTitle}
                           </span>
                           {sub.priority !== "normal" && (
@@ -436,10 +436,10 @@ export default function OrderFormsPage() {
                               {ORDER_PRIORITY_CONFIG[sub.priority]?.label || sub.priority}
                             </Badge>
                           )}
-                          {hasUnreadReply && (
-                            <Badge variant="outline" className="text-[10px] font-semibold border-green-200 text-green-700 bg-green-50">
+                          {unread && (
+                            <Badge variant="outline" className="text-[10px] font-semibold border-green-300 text-green-800 bg-green-100">
                               <MessageSquare className="h-2.5 w-2.5 mr-0.5" />
-                              Svar
+                              Ny melding fra bestiller
                             </Badge>
                           )}
                         </div>
