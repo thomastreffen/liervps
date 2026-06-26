@@ -202,6 +202,34 @@ export default function OrderFormDetailPage() {
   });
   const latestMessageId = visibleMessageIdsAdmin[visibleMessageIdsAdmin.length - 1] || null;
 
+  // Realtime: refresh detail when new messages or submission updates arrive
+  useEffect(() => {
+    if (!id) return;
+    const channel = supabase
+      .channel(`order-detail-rt-${id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "order_form_messages", filter: `submission_id=eq.${id}` },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["order-form-messages", id] });
+          queryClient.invalidateQueries({ queryKey: ["order-form-submission", id] });
+          queryClient.invalidateQueries({ queryKey: ["order-form-activity", id] });
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "order_form_submissions", filter: `id=eq.${id}` },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["order-form-submission", id] });
+        },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [id, queryClient]);
+
+
   // Fetch participants for this order
   const { data: participants = [] } = useQuery({
     queryKey: ["order-participants", id],
