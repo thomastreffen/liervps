@@ -233,7 +233,9 @@ Deno.serve(async (req) => {
   const nowIso = new Date().toISOString();
   // deno-lint-ignore no-explicit-any
   const updates: any = { last_activity_at: nowIso };
-  if (!isInternal) {
+  if (isInternal) {
+    updates.last_admin_message_at = nowIso;
+  } else {
     updates.last_customer_message_at = nowIso;
     updates.customer_last_reply_at = nowIso;
     updates.awaiting_customer_reply = false;
