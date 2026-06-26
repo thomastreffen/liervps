@@ -947,6 +947,15 @@ export default function OrderFormDetailPage() {
     a.payload?.type && a.payload.type !== "new_order"
   );
 
+  const hasUnreadCustomerMessage = !!sub.last_customer_message_at &&
+    (!sub.last_admin_message_at ||
+      new Date(sub.last_customer_message_at) > new Date(sub.last_admin_message_at));
+  const unreadCustomerSnippet = hasUnreadCustomerMessage
+    ? (orderMessages as any[])
+        .filter((m: any) => ["customer", "external", "bestiller"].includes(m.sender_type))
+        .slice(-1)[0]?.body?.slice(0, 200)
+    : null;
+
   return (
     <div className="space-y-5 p-6 max-w-6xl mx-auto">
       {/* Header */}
