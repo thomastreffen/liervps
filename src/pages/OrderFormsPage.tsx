@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Plus, Search, ClipboardList, Trash2, User, Clock, MessageSquare, AlertCircle } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -196,10 +196,36 @@ export default function OrderFormsPage() {
     const lastAct = s.last_activity_at || s.submitted_at;
     return differenceInDays(new Date(), new Date(lastAct)) >= 5;
   }).length;
-  const customerRepliedCount = submissions.filter((s: any) =>
-    s.customer_last_reply_at &&
-    (!s.last_activity_at || new Date(s.customer_last_reply_at) > new Date(s.last_activity_at))
-  ).length;
+  const hasUnreadReply = (sub: any) =>
+    !!sub.last_customer_message_at &&
+    (!sub.last_admin_message_at ||
+      new Date(sub.last_customer_message_at) > new Date(sub.last_admin_message_at));
+  const customerRepliedCount = submissions.filter(hasUnreadReply).length;
+
+  // Realtime: refresh list when any message lands on a submission in this company
+  useEffect(() => {
+    if (!activeCompanyId) return;
+    const channel = supabase
+      .channel(`orders-list-msgs-${activeCompanyId}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "order_form_messages" },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["order-form-submissions"] });
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "order_form_submissions", filter: `company_id=eq.${activeCompanyId}` },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["order-form-submissions"] });
+        },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [activeCompanyId, queryClient]);
 
   return (
     <div className="space-y-4 sm:space-y-5 p-4 sm:p-6 max-w-7xl mx-auto pb-24 sm:pb-6">
@@ -362,9 +388,8 @@ export default function OrderFormsPage() {
             const daysSinceActivity = differenceInDays(new Date(), new Date(lastAct));
             const isStale = daysSinceActivity >= 5 && !["closed", "rejected"].includes(sub.status);
 
-            // Customer replied since last internal activity
-            const hasUnreadReply = sub.customer_last_reply_at &&
-              (!sub.last_activity_at || new Date(sub.customer_last_reply_at) > new Date(sub.last_activity_at));
+            // Customer message awaiting internal response
+            const unread = hasUnreadReply(sub);
 
             // Build display: site title primary, address secondary, BST + template + firma + bestiller meta
             const siteTitle = getSubmissionDisplayTitle(sub);
@@ -389,9 +414,9 @@ export default function OrderFormsPage() {
                 className={`hover:shadow-md transition-shadow cursor-pointer group ${
                   isDimmed ? "opacity-60" : ""
                 } ${
-                  isNew ? "border-l-4 border-l-blue-500"
+                  unread ? "border-l-4 border-l-green-500 bg-green-50/40"
+                  : isNew ? "border-l-4 border-l-blue-500"
                   : isWaiting ? "border-l-4 border-l-amber-400"
-                  : hasUnreadReply ? "border-l-4 border-l-green-500"
                   : isStale ? "border-l-4 border-l-orange-300"
                   : ""
                 }`}
@@ -403,7 +428,7 @@ export default function OrderFormsPage() {
                       <QualityDot score={qs} />
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-                          <span className="text-sm font-semibold text-foreground truncate">
+                          <span className={`text-sm truncate ${unread ? "font-bold text-foreground" : "font-semibold text-foreground"}`}>
                             {siteTitle}
                           </span>
                           {sub.priority !== "normal" && (
@@ -411,10 +436,10 @@ export default function OrderFormsPage() {
                               {ORDER_PRIORITY_CONFIG[sub.priority]?.label || sub.priority}
                             </Badge>
                           )}
-                          {hasUnreadReply && (
-                            <Badge variant="outline" className="text-[10px] font-semibold border-green-200 text-green-700 bg-green-50">
+                          {unread && (
+                            <Badge variant="outline" className="text-[10px] font-semibold border-green-300 text-green-800 bg-green-100">
                               <MessageSquare className="h-2.5 w-2.5 mr-0.5" />
-                              Svar
+                              Ny melding fra bestiller
                             </Badge>
                           )}
                         </div>
