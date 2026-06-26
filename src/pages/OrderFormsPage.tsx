@@ -196,10 +196,36 @@ export default function OrderFormsPage() {
     const lastAct = s.last_activity_at || s.submitted_at;
     return differenceInDays(new Date(), new Date(lastAct)) >= 5;
   }).length;
-  const customerRepliedCount = submissions.filter((s: any) =>
-    s.customer_last_reply_at &&
-    (!s.last_activity_at || new Date(s.customer_last_reply_at) > new Date(s.last_activity_at))
-  ).length;
+  const hasUnreadReply = (sub: any) =>
+    !!sub.last_customer_message_at &&
+    (!sub.last_admin_message_at ||
+      new Date(sub.last_customer_message_at) > new Date(sub.last_admin_message_at));
+  const customerRepliedCount = submissions.filter(hasUnreadReply).length;
+
+  // Realtime: refresh list when any message lands on a submission in this company
+  useEffect(() => {
+    if (!activeCompanyId) return;
+    const channel = supabase
+      .channel(`orders-list-msgs-${activeCompanyId}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "order_form_messages" },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["order-form-submissions"] });
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "order_form_submissions", filter: `company_id=eq.${activeCompanyId}` },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["order-form-submissions"] });
+        },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [activeCompanyId, queryClient]);
 
   return (
     <div className="space-y-4 sm:space-y-5 p-4 sm:p-6 max-w-7xl mx-auto pb-24 sm:pb-6">
