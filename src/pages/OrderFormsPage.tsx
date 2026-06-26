@@ -388,9 +388,8 @@ export default function OrderFormsPage() {
             const daysSinceActivity = differenceInDays(new Date(), new Date(lastAct));
             const isStale = daysSinceActivity >= 5 && !["closed", "rejected"].includes(sub.status);
 
-            // Customer replied since last internal activity
-            const hasUnreadReply = sub.customer_last_reply_at &&
-              (!sub.last_activity_at || new Date(sub.customer_last_reply_at) > new Date(sub.last_activity_at));
+            // Customer message awaiting internal response
+            const unread = hasUnreadReply(sub);
 
             // Build display: site title primary, address secondary, BST + template + firma + bestiller meta
             const siteTitle = getSubmissionDisplayTitle(sub);
