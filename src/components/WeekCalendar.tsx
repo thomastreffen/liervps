@@ -312,11 +312,18 @@ export function WeekCalendar({
             <div
               className={cn(
                 "flex-1 p-2 space-y-1.5",
-                onDayClick && !isWeekend && "cursor-pointer hover:bg-primary/[0.03] transition-colors"
+                onDayClick && "cursor-pointer hover:bg-primary/[0.03] transition-colors"
               )}
               onClick={(e) => {
                 if ((e.target as HTMLElement).closest("button")) return;
-                if (!isWeekend) onDayClick?.(day);
+                if (!onDayClick) return;
+                if (isWeekend) {
+                  const ok = window.confirm(
+                    "Dette er helg/utenfor normal arbeidstid. Vil du planlegge aktivitet her?"
+                  );
+                  if (!ok) return;
+                }
+                onDayClick(day);
               }}
             >
               {dayBusySlots.map((slot, i) => (
@@ -330,12 +337,15 @@ export function WeekCalendar({
                   onClick={onJobClick}
                 />
               ))}
-              {daySegments.length === 0 && dayBusySlots.length === 0 && onDayClick && !isWeekend && (
+              {daySegments.length === 0 && dayBusySlots.length === 0 && onDayClick && (
                 <div className="flex items-center justify-center h-full min-h-[50px] opacity-0 hover:opacity-50 transition-opacity">
-                  <span className="text-[11px] text-muted-foreground font-medium">+ Legg til</span>
+                  <span className="text-[11px] text-muted-foreground font-medium">
+                    {isWeekend ? "+ Helg" : "+ Legg til"}
+                  </span>
                 </div>
               )}
             </div>
+
           </div>
         );
       })}
