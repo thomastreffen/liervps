@@ -8,7 +8,7 @@ import {
   ChevronRight, Clock, Send, ListX, CalendarPlus, Plus,
   ClipboardList, TriangleAlert, CalendarDays, Inbox, ReceiptText,
   FolderKanban, ListChecks, Circle, AlertCircle, MapPin, User,
-  CalendarCheck, Wrench,
+  CalendarCheck, Wrench, MessageSquare,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useCompanyContext } from "@/hooks/useCompanyContext";
