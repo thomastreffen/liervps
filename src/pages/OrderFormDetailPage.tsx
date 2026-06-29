@@ -61,6 +61,7 @@ import { OrderParticipantsPanel } from "@/components/orders/OrderParticipantsPan
 import { ConversationParticipantsCard } from "@/components/orders/conversation/ConversationParticipantsCard";
 import { MessageReadStatus } from "@/components/orders/conversation/MessageReadStatus";
 import { useConversationReads } from "@/hooks/useConversationReads";
+import { useUnreadOrderMessages } from "@/hooks/useUnreadOrderMessages";
 import { EditFieldsDialog } from "@/components/orders/EditFieldsDialog";
 import { RequestFieldsDialog } from "@/components/orders/RequestFieldsDialog";
 import { LinkExistingTaskDialog } from "@/components/orders/LinkExistingTaskDialog";
@@ -228,6 +229,17 @@ export default function OrderFormDetailPage() {
       supabase.removeChannel(channel);
     };
   }, [id, qc]);
+
+  // Mark unread order_message notifications for this submission as read
+  // whenever this detail page is opened (and refresh when new ones arrive).
+  const { markSubmissionRead, unreadMessageCount } = useUnreadOrderMessages();
+  useEffect(() => {
+    if (!id) return;
+    markSubmissionRead(id);
+    // Re-run when new unread arrives while the page is open.
+  }, [id, unreadMessageCount, markSubmissionRead]);
+
+
 
 
   // Fetch participants for this order
