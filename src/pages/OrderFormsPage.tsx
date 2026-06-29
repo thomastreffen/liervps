@@ -178,6 +178,7 @@ export default function OrderFormsPage() {
       if (assigneeFilter === "unassigned" && s.assigned_to) return false;
       if (assigneeFilter === "assigned" && !s.assigned_to) return false;
       if (assigneeFilter === "mine" && s.assigned_to !== user?.id) return false;
+      if (unreadOnly && !unreadSubmissionIds.has(s.id)) return false;
       return true;
     });
 
@@ -197,7 +198,7 @@ export default function OrderFormsPage() {
     }
 
     return result;
-  }, [submissions, search, categoryFilter, priorityFilter, assigneeFilter, sortBy, user?.id]);
+  }, [submissions, search, categoryFilter, priorityFilter, assigneeFilter, sortBy, user?.id, unreadOnly, unreadSubmissionIds]);
 
   const handleSoftDelete = async (e: React.MouseEvent, sub: any) => {
     e.stopPropagation();
