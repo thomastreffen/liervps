@@ -286,7 +286,32 @@ export default function OrderFormsPage() {
       </div>
 
       {/* Quick filters */}
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-2 items-center">
+        {globalUnreadCount > 0 && (
+          <Button
+            variant={unreadOnly ? "default" : "outline"}
+            size="sm"
+            className="text-xs h-8 border-green-300 text-green-700 hover:bg-green-50 data-[state=on]:bg-green-600"
+            onClick={toggleUnreadOnly}
+          >
+            <MessageSquare className="h-3 w-3 mr-1" />
+            Uleste meldinger ({globalUnreadCount})
+          </Button>
+        )}
+        {globalUnreadCount > 0 && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-xs h-8 text-muted-foreground hover:text-foreground"
+            onClick={async () => {
+              await markAllOrderMsgsRead();
+              toast.success("Alle kundemeldinger er markert som lest");
+              queryClient.invalidateQueries({ queryKey: ["order-form-submissions"] });
+            }}
+          >
+            Merk alle meldinger lest
+          </Button>
+        )}
         {myCount > 0 && (
           <Button
             variant={assigneeFilter === "mine" ? "default" : "outline"}
