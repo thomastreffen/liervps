@@ -448,26 +448,36 @@ export function TeamView({
                     <button
                       type="button"
                       key={key}
-                      disabled={isWeekend}
                       onClick={(e) => {
                         if ((e.target as HTMLElement).closest("[data-chip]")) return;
-                        if (isWeekend) return;
+                        if (isWeekend) {
+                          const ok = window.confirm(
+                            "Dette er helg/utenfor normal arbeidstid. Vil du planlegge aktivitet her?"
+                          );
+                          if (!ok) return;
+                        }
                         onCellCreate?.(t.id, day);
                       }}
                       className={cn(
-                        "relative min-h-[110px] border-r border-border last:border-r-0 px-1.5 py-1.5 flex flex-col gap-1 text-left transition-colors group/cell",
-                        isWeekend ? "bg-muted/40 cursor-default" : "hover:bg-primary/[0.04] cursor-pointer",
+                        "relative min-h-[110px] border-r border-border last:border-r-0 px-1.5 py-1.5 flex flex-col gap-1 text-left transition-colors group/cell cursor-pointer",
+                        isWeekend ? "bg-muted/40 hover:bg-muted/60" : "hover:bg-primary/[0.04]",
                         isToday && !isWeekend && "bg-primary/[0.04]",
                       )}
                     >
+                      {isWeekend && isEmpty && (
+                        <div className="absolute top-1 right-1 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground/60 pointer-events-none">
+                          Helg
+                        </div>
+                      )}
                       {/* Empty-cell + indicator (visible on hover) */}
-                      {isEmpty && !isWeekend && (
+                      {isEmpty && (
                         <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/cell:opacity-100 transition-opacity pointer-events-none">
                           <div className="h-6 w-6 rounded-full border border-dashed border-primary/40 flex items-center justify-center bg-background/80">
                             <Plus className="h-3 w-3 text-primary/60" />
                           </div>
                         </div>
                       )}
+
 
                       {cellAbsences.map((a) => (
                         <div
