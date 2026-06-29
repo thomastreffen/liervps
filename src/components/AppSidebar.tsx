@@ -32,6 +32,7 @@ import { usePreviewMode } from "@/hooks/usePreviewMode";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useModuleVisibility } from "@/hooks/useModuleVisibility";
 import { supabase } from "@/integrations/supabase/client";
+import { useUnreadOrderMessages } from "@/hooks/useUnreadOrderMessages";
 import {
   Sidebar,
   SidebarContent,
@@ -166,6 +167,7 @@ export function AppSidebar() {
   const [projectCount, setProjectCount] = useState<number>(0);
   const [inboxCount, setInboxCount] = useState<number>(0);
   const [offerCount, setOfferCount] = useState<number>(0);
+  const { unreadSubmissionCount: orderUnreadCount } = useUnreadOrderMessages();
 
   useEffect(() => {
     if (!user) return;
@@ -239,6 +241,7 @@ export function AppSidebar() {
 
   const getBadge = (url: string): number | undefined => {
     if (url === "/projects") return projectCount > 0 ? projectCount : undefined;
+    if (url === "/orders") return orderUnreadCount > 0 ? orderUnreadCount : undefined;
     return undefined;
   };
 
