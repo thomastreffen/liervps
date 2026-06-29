@@ -1,5 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { toast } from "sonner";
+import { useUnreadOrderMessages } from "@/hooks/useUnreadOrderMessages";
 import { Plus, Search, ClipboardList, Trash2, User, Clock, MessageSquare, AlertCircle } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
@@ -43,6 +45,7 @@ const STATUS_TABS: { key: OrderFormSubmissionStatus | "all"; label: string }[] =
 
 export default function OrderFormsPage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { activeCompanyId } = useCompanyContext();
   const { isAdmin, user } = useAuth();
   const queryClient = useQueryClient();
@@ -53,6 +56,34 @@ export default function OrderFormsPage() {
   const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState<string>("newest");
+  const [unreadOnly, setUnreadOnly] = useState<boolean>(
+    searchParams.get("filter") === "unread_messages",
+  );
+  const {
+    unreadSubmissionCount: globalUnreadCount,
+    submissions: unreadSubmissions,
+    markAllRead: markAllOrderMsgsRead,
+  } = useUnreadOrderMessages();
+
+  // Keep URL ↔ chip state in sync
+  useEffect(() => {
+    const fromUrl = searchParams.get("filter") === "unread_messages";
+    if (fromUrl !== unreadOnly) setUnreadOnly(fromUrl);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+  const toggleUnreadOnly = () => {
+    const next = !unreadOnly;
+    setUnreadOnly(next);
+    const params = new URLSearchParams(searchParams);
+    if (next) params.set("filter", "unread_messages");
+    else params.delete("filter");
+    setSearchParams(params, { replace: true });
+  };
+  const unreadSubmissionIds = useMemo(
+    () => new Set(unreadSubmissions.map((s) => s.submission_id)),
+    [unreadSubmissions],
+  );
+
 
   const { data: submissions = [], isLoading } = useQuery({
     queryKey: ["order-form-submissions", activeCompanyId, statusFilter],
@@ -147,6 +178,7 @@ export default function OrderFormsPage() {
       if (assigneeFilter === "unassigned" && s.assigned_to) return false;
       if (assigneeFilter === "assigned" && !s.assigned_to) return false;
       if (assigneeFilter === "mine" && s.assigned_to !== user?.id) return false;
+      if (unreadOnly && !unreadSubmissionIds.has(s.id)) return false;
       return true;
     });
 
@@ -166,7 +198,7 @@ export default function OrderFormsPage() {
     }
 
     return result;
-  }, [submissions, search, categoryFilter, priorityFilter, assigneeFilter, sortBy, user?.id]);
+  }, [submissions, search, categoryFilter, priorityFilter, assigneeFilter, sortBy, user?.id, unreadOnly, unreadSubmissionIds]);
 
   const handleSoftDelete = async (e: React.MouseEvent, sub: any) => {
     e.stopPropagation();
@@ -254,7 +286,32 @@ export default function OrderFormsPage() {
       </div>
 
       {/* Quick filters */}
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-2 items-center">
+        {globalUnreadCount > 0 && (
+          <Button
+            variant={unreadOnly ? "default" : "outline"}
+            size="sm"
+            className="text-xs h-8 border-green-300 text-green-700 hover:bg-green-50 data-[state=on]:bg-green-600"
+            onClick={toggleUnreadOnly}
+          >
+            <MessageSquare className="h-3 w-3 mr-1" />
+            Uleste meldinger ({globalUnreadCount})
+          </Button>
+        )}
+        {globalUnreadCount > 0 && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-xs h-8 text-muted-foreground hover:text-foreground"
+            onClick={async () => {
+              await markAllOrderMsgsRead();
+              toast.success("Alle kundemeldinger er markert som lest");
+              queryClient.invalidateQueries({ queryKey: ["order-form-submissions"] });
+            }}
+          >
+            Merk alle meldinger lest
+          </Button>
+        )}
         {myCount > 0 && (
           <Button
             variant={assigneeFilter === "mine" ? "default" : "outline"}

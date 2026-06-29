@@ -8,7 +8,7 @@ import {
   ChevronRight, Clock, Send, ListX, CalendarPlus, Plus,
   ClipboardList, TriangleAlert, CalendarDays, Inbox, ReceiptText,
   FolderKanban, ListChecks, Circle, AlertCircle, MapPin, User,
-  CalendarCheck, Wrench,
+  CalendarCheck, Wrench, MessageSquare,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useCompanyContext } from "@/hooks/useCompanyContext";
@@ -16,6 +16,7 @@ import type { JobStatus } from "@/lib/job-status";
 import { Button } from "@/components/ui/button";
 import { EventDrawer } from "@/components/EventDrawer";
 import { fetchActiveLeads } from "@/lib/lead-queries";
+import { useUnreadOrderMessages } from "@/hooks/useUnreadOrderMessages";
 import { cn } from "@/lib/utils";
 
 // ── Types ──
@@ -71,6 +72,7 @@ export default function OverviewPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { activeCompanyId, allowedCompanyIds } = useCompanyContext();
+  const { unreadSubmissionCount: orderMsgUnread } = useUnreadOrderMessages();
   const [loading, setLoading] = useState(true);
   const [showTaskDrawer, setShowTaskDrawer] = useState(false);
 
@@ -408,11 +410,24 @@ export default function OverviewPage() {
       </div>
 
       {/* ─── Priority Section ─── */}
-      {priorities.length > 0 && (
+      {(() => {
+        const displayPriorities: PriorityItem[] = [...priorities];
+        if (orderMsgUnread > 0) {
+          displayPriorities.unshift({
+            icon: <MessageSquare className="h-4 w-4" />,
+            label: "Nye kundemeldinger på bestillinger",
+            count: orderMsgUnread,
+            severity: "critical",
+            route: "/orders?filter=unread_messages",
+            description: "Uleste meldinger fra bestiller/kunde",
+          });
+        }
+        if (displayPriorities.length === 0) return null;
+        return (
         <div className="mb-8">
           <SectionLabel title="Krever handling" />
           <div className="rounded-2xl border border-border/40 bg-card overflow-hidden">
-            {priorities.map((item, i) => (
+            {displayPriorities.map((item, i) => (
               <button
                 key={i}
                 onClick={() => navigate(item.route)}
@@ -451,7 +466,8 @@ export default function OverviewPage() {
             ))}
           </div>
         </div>
-      )}
+        );
+      })()}
 
       {/* ─── My Day + My Tasks ─── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5 mb-8">
