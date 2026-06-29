@@ -16,6 +16,7 @@ import type { JobStatus } from "@/lib/job-status";
 import { Button } from "@/components/ui/button";
 import { EventDrawer } from "@/components/EventDrawer";
 import { fetchActiveLeads } from "@/lib/lead-queries";
+import { useUnreadOrderMessages } from "@/hooks/useUnreadOrderMessages";
 import { cn } from "@/lib/utils";
 
 // ── Types ──
@@ -71,6 +72,7 @@ export default function OverviewPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { activeCompanyId, allowedCompanyIds } = useCompanyContext();
+  const { unreadSubmissionCount: orderMsgUnread } = useUnreadOrderMessages();
   const [loading, setLoading] = useState(true);
   const [showTaskDrawer, setShowTaskDrawer] = useState(false);
 
