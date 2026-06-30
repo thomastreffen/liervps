@@ -989,7 +989,6 @@ export default function OrderFormDetailPage() {
 
   // Per-user unread (notifications-based) — consistent with /orders list, sidebar, home, topbar.
   // Do NOT use last_admin_message_at as proxy for "read".
-  const { submissions: globalUnreadSubs } = useUnreadOrderMessages();
   const hasUnreadCustomerMessage = !!id && globalUnreadSubs.some((s) => s.submission_id === id);
   const unreadCustomerSnippet = hasUnreadCustomerMessage
     ? (orderMessages as any[])
