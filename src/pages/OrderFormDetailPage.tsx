@@ -232,7 +232,7 @@ export default function OrderFormDetailPage() {
 
   // Mark unread order_message notifications for this submission as read
   // whenever this detail page is opened (and refresh when new ones arrive).
-  const { markSubmissionRead, unreadMessageCount } = useUnreadOrderMessages();
+  const { markSubmissionRead, unreadMessageCount, submissions: globalUnreadSubs } = useUnreadOrderMessages();
   useEffect(() => {
     if (!id) return;
     markSubmissionRead(id);
