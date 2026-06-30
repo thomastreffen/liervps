@@ -125,20 +125,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Clear state immediately
     setUser(null);
     setSession(null);
+    // Drop ALL user-scoped React Query cache so stale unread badges/counters
+    // from the previous session cannot leak into the next login.
+    try {
+      queryClient.clear();
+    } catch (err) {
+      console.warn("[Auth] queryClient.clear failed", err);
+    }
     // Global signout revokes server-side session too
     try {
       await supabase.auth.signOut({ scope: "global" });
     } catch (err) {
       console.error("[Auth] signOut error:", err);
     }
-    // Clear any remaining Supabase keys from localStorage as safety net
+    // Clear any remaining Supabase keys + any app-persisted state keys.
     Object.keys(localStorage).forEach((key) => {
-      if (key.startsWith("sb-")) localStorage.removeItem(key);
+      if (
+        key.startsWith("sb-") ||
+        key.startsWith("mcs.") ||
+        key.startsWith("react-query") ||
+        key.startsWith("unread-")
+      ) {
+        localStorage.removeItem(key);
+      }
     });
+    try {
+      sessionStorage.clear();
+    } catch {
+      /* noop */
+    }
     // Redirect to Microsoft logout to clear SSO session, then land on the public marketing site
     const postLogoutRedirect = encodeURIComponent(`${window.location.origin}/`);
     window.location.href = `https://login.microsoftonline.com/${AZURE_TENANT_ID}/oauth2/v2.0/logout?post_logout_redirect_uri=${postLogoutRedirect}`;
-  }, []);
+  }, [queryClient]);
 
   const isAdmin = user?.role === "admin" || user?.role === "super_admin";
   const isSuperAdmin = user?.role === "super_admin";
