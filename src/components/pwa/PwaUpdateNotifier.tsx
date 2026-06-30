@@ -27,12 +27,27 @@ function hasUnsavedWork(): boolean {
 
 export function PwaUpdateNotifier() {
   const shown = useRef(false);
+  const autoApplied = useRef(false);
 
   useEffect(() => {
     const off = onUpdateState(({ needRefresh }) => {
-      if (!needRefresh || shown.current) return;
-      shown.current = true;
+      if (!needRefresh || shown.current || autoApplied.current) return;
 
+      // If the user is not typing/uploading, apply the update silently so the
+      // tab is never stranded on a stale JS bundle (which is what causes
+      // stale "Ny melding fra bestiller" badges that only clear in InPrivate).
+      if (!hasUnsavedWork()) {
+        autoApplied.current = true;
+        toast.loading("Oppdaterer MCS til nyeste versjon…", {
+          id: "pwa-update",
+          duration: 4000,
+        });
+        void applyUpdateAndReload();
+        return;
+      }
+
+      // Otherwise fall back to the explicit prompt so we don't drop typed text.
+      shown.current = true;
       const doUpdate = () => {
         if (hasUnsavedWork()) {
           if (
@@ -54,10 +69,7 @@ export function PwaUpdateNotifier() {
           id: "pwa-update",
           duration: Infinity,
           description: "Trykk Oppdater nå for å laste den nye versjonen.",
-          action: {
-            label: "Oppdater nå",
-            onClick: doUpdate,
-          },
+          action: { label: "Oppdater nå", onClick: doUpdate },
           cancel: {
             label: "Senere",
             onClick: () => {
