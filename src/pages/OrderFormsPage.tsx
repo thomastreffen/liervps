@@ -228,11 +228,11 @@ export default function OrderFormsPage() {
     const lastAct = s.last_activity_at || s.submitted_at;
     return differenceInDays(new Date(), new Date(lastAct)) >= 5;
   }).length;
-  const hasUnreadReply = (sub: any) =>
-    !!sub.last_customer_message_at &&
-    (!sub.last_admin_message_at ||
-      new Date(sub.last_customer_message_at) > new Date(sub.last_admin_message_at));
-  const customerRepliedCount = submissions.filter(hasUnreadReply).length;
+  // Single source of truth: per-user `notifications` (type=order_message, read=false).
+  // Do NOT compare last_customer_message_at vs last_admin_message_at — admin sending
+  // a message does not mean other internal users have read the customer message.
+  const hasUnreadReply = (sub: any) => unreadSubmissionIds.has(sub.id);
+  const customerRepliedCount = unreadSubmissionIds.size;
 
   // Realtime: refresh list when any message lands on a submission in this company
   useEffect(() => {
