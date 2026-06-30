@@ -987,9 +987,10 @@ export default function OrderFormDetailPage() {
     a.payload?.type && a.payload.type !== "new_order"
   );
 
-  const hasUnreadCustomerMessage = !!sub.last_customer_message_at &&
-    (!sub.last_admin_message_at ||
-      new Date(sub.last_customer_message_at) > new Date(sub.last_admin_message_at));
+  // Per-user unread (notifications-based) — consistent with /orders list, sidebar, home, topbar.
+  // Do NOT use last_admin_message_at as proxy for "read".
+  const { submissions: globalUnreadSubs } = useUnreadOrderMessages();
+  const hasUnreadCustomerMessage = !!id && globalUnreadSubs.some((s) => s.submission_id === id);
   const unreadCustomerSnippet = hasUnreadCustomerMessage
     ? (orderMessages as any[])
         .filter((m: any) => ["customer", "external", "bestiller"].includes(m.sender_type))
