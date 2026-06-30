@@ -232,7 +232,7 @@ export default function OrderFormDetailPage() {
 
   // Mark unread order_message notifications for this submission as read
   // whenever this detail page is opened (and refresh when new ones arrive).
-  const { markSubmissionRead, unreadMessageCount } = useUnreadOrderMessages();
+  const { markSubmissionRead, unreadMessageCount, submissions: globalUnreadSubs } = useUnreadOrderMessages();
   useEffect(() => {
     if (!id) return;
     markSubmissionRead(id);
@@ -987,9 +987,9 @@ export default function OrderFormDetailPage() {
     a.payload?.type && a.payload.type !== "new_order"
   );
 
-  const hasUnreadCustomerMessage = !!sub.last_customer_message_at &&
-    (!sub.last_admin_message_at ||
-      new Date(sub.last_customer_message_at) > new Date(sub.last_admin_message_at));
+  // Per-user unread (notifications-based) — consistent with /orders list, sidebar, home, topbar.
+  // Do NOT use last_admin_message_at as proxy for "read".
+  const hasUnreadCustomerMessage = !!id && globalUnreadSubs.some((s) => s.submission_id === id);
   const unreadCustomerSnippet = hasUnreadCustomerMessage
     ? (orderMessages as any[])
         .filter((m: any) => ["customer", "external", "bestiller"].includes(m.sender_type))
