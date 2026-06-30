@@ -70,6 +70,13 @@ export function useUnreadOrderMessages() {
     });
     setRows(mapped);
     setLoading(false);
+    if (import.meta.env.DEV) {
+      console.debug("[useUnreadOrderMessages] fetched", {
+        user_id: user.id,
+        count: mapped.length,
+        submission_ids: mapped.map((m) => m.submission_id).filter(Boolean),
+      });
+    }
   }, [user]);
 
   useEffect(() => {
