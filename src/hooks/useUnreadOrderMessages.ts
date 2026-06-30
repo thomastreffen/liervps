@@ -70,11 +70,35 @@ export function useUnreadOrderMessages() {
     });
     setRows(mapped);
     setLoading(false);
+    if (import.meta.env.DEV) {
+      console.debug("[useUnreadOrderMessages] fetched", {
+        user_id: user.id,
+        count: mapped.length,
+        submission_ids: mapped.map((m) => m.submission_id).filter(Boolean),
+      });
+    }
   }, [user]);
 
   useEffect(() => {
     fetchRows();
   }, [fetchRows]);
+
+  // Re-fetch on window focus and visibility change so the badge can never
+  // sit stale just because the tab was in the background while another tab
+  // (or InPrivate window) marked messages as read.
+  useEffect(() => {
+    if (!user) return;
+    const onFocus = () => fetchRows();
+    const onVisible = () => {
+      if (document.visibilityState === "visible") fetchRows();
+    };
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [user, fetchRows]);
 
   useEffect(() => {
     if (!user) return;
