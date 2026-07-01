@@ -13025,17 +13025,30 @@ export type Database = {
         }
         Returns: Json
       }
-      create_work_visits_on_project_batch: {
-        Args: {
-          p_client_request_id: string
-          p_dates: Json
-          p_extra?: Json
-          p_parent_id: string
-          p_technician_ids: string[]
-          p_title: string
-        }
-        Returns: Json
-      }
+      create_work_visits_on_project_batch:
+        | {
+            Args: {
+              p_client_request_id: string
+              p_dates: Json
+              p_extra?: Json
+              p_parent_id: string
+              p_technician_ids: string[]
+              p_title: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_dates: string[]
+              p_end_time: string
+              p_overnight?: boolean
+              p_root_id: string
+              p_start_time: string
+              p_technician_ids: string[]
+              p_title?: string
+            }
+            Returns: Json
+          }
       deactivate_conversation_participant: {
         Args: { _participant_id: string }
         Returns: undefined
