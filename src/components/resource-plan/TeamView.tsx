@@ -183,47 +183,40 @@ export function TeamView({
   const days = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart]);
 
   // Defensive dedup: same schedule_blocks.id must never render more than once.
-  // Also dedup on logical key (job_id|project_id|technician_id|start|end) — real DB
-  // duplicates do exist (see [team-view:duplicate-audit] warnings); we surface them
-  // in console but only render one block per logical key.
+  // Also dedup on logical key — the same underlying activity can be referenced by
+  // multiple schedule_blocks with different (project_id, job_id) tuples (e.g. one
+  // created via the "new project" path with project_id=event.id, and another via
+  // the "reuse existing project" RPC with project_id=root, job_id=event.id).
+  // Canonical activity id = job_id ?? project_id. If two blocks resolve to the
+  // same (activityId, tech, start, end), keep the richer one (job_id + project_id
+  // linked) so parent-project navigation still works.
   const dedupedBlocks = useMemo(() => {
     const byId = Array.from(
       new Map(scheduleBlocks.map((b) => [b.id, b])).values(),
     );
     const byLogicalKey = new Map<string, ScheduleBlock>();
     const dupGroups: Record<string, string[]> = {};
+    const richness = (b: ScheduleBlock) =>
+      (b.job_id ? 2 : 0) + (b.project_id ? 1 : 0);
     for (const b of byId) {
+      const activityId = b.job_id ?? b.project_id ?? "_";
       const key = [
-        b.job_id ?? "_",
-        b.project_id ?? "_",
+        activityId,
         b.technician_id,
         b.start_at.toISOString(),
         b.end_at.toISOString(),
       ].join("|");
-      if (!byLogicalKey.has(key)) {
+      const existing = byLogicalKey.get(key);
+      if (!existing) {
         byLogicalKey.set(key, b);
         dupGroups[key] = [b.id];
       } else {
         dupGroups[key].push(b.id);
+        if (richness(b) > richness(existing)) byLogicalKey.set(key, b);
       }
     }
     if (import.meta.env.DEV) {
       const duplicates = Object.entries(dupGroups).filter(([, ids]) => ids.length > 1);
-      console.info("[team-view:duplicate-audit]", {
-        rawCount: scheduleBlocks.length,
-        afterIdDedup: byId.length,
-        afterLogicalDedup: byLogicalKey.size,
-        blocks: scheduleBlocks.map((b) => ({
-          id: b.id,
-          job_id: b.job_id,
-          project_id: b.project_id,
-          technician_id: b.technician_id,
-          start_at: b.start_at,
-          end_at: b.end_at,
-          title: b.title,
-        })),
-        duplicateKeys: duplicates,
-      });
       if (duplicates.length > 0) {
         console.warn(
           "[team-view:duplicate-audit] Real DB duplicates detected — only one block per logical key is rendered. Run cleanup migration to resolve.",
