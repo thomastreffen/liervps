@@ -1,106 +1,167 @@
+# Migrering til Google Workspace for Lier VPS
 
-## Utgangspunkt
+## Mål
 
-Denne appen er et fullt utbygd elektro-/tavlesystem (MCS Service) med mange moduler: prosjekter, materialliste, kalkyle, ordreskjema, HMS, forms, Microsoft-integrasjon (Outlook/Teams/SharePoint), tavle-/høystrøms-AI, m.m. En bit-for-bit omskrivning av **hver** referanse til MCS/tavle/Microsoft er et flere-ukers arbeid og vil bryte mange interne flyter.
+Gjøre Google Workspace til aktiv standard-integrasjon for Lier VPS (SSO, Kalender, Gmail, Drive) — samtidig som all eksisterende Microsoft-kode beholdes, deaktiveres og skjules bak en provider-flagg, slik at Microsoft 365 kan re-aktiveres for andre kunder senere.
 
-For å levere Lier VPS raskt uten å knuse eksisterende auth, tenant, RLS og databaseflyt, foreslår jeg en **faseinndelt konvertering**. Fase 1 (denne runden) leverer alt det synlige — hjemmesiden, navigasjon, terminologi i app-shell, dashboard, branding, integrasjonsspråk. Fase 2+ håndterer dyp modulomskriving trinnvis.
-
----
-
-## Fase 1 (nå) — synlig konvertering
-
-### 1. Branding
-- Bytt alle synlige forekomster av "MCS Service", "MCS", firmalogo/tittel/meta til **Lier Varmepumpeservice AS** / **Lier VPS**.
-- Oppdater `index.html` title + meta description + og:tags.
-- Oppdater sidebar-header, topbar, login-side, favicons hvor mulig.
-- Ny fargepalett: varm/kjølig klima-kontrast (dyp teal + varm oransje-aksent, off-white bakgrunn). Ny typografi som ikke er Inter (f.eks. Sora + Manrope eller Outfit + Figtree).
-
-### 2. Offentlig hjemmeside (`/` når ikke innlogget)
-Bygger ny landingsside med seksjoner:
-- Hero (tittel/undertittel + CTA "Bestill befaring" / "Bestill service" / "Se våre tjenester")
-- Tjenester (6 kort: befaring, salg, montering, service, feilsøking, årlig serviceavtale)
-- Hvorfor velge Lier VPS (trust-punkter: lokal, sertifisert, rask respons, garanti)
-- Serviceavtale (verdiforslag + prisløfte)
-- Slik gjør vi det (4-stegs flyt: kontakt → befaring → montering → service)
-- Kundeportal / spor service (CTA til innlogging)
-- Kontakt / booking (skjema + telefon/e-post)
-
-Ingen elektro-/tavle-bilder. Bruker AI-genererte varmepumpe-bilder eller nøytrale ikoner.
-
-### 3. App-navigasjon (sidebar)
-Erstatter dagens elektro-orienterte sidebar med:
-- Dashboard
-- Salg: Leads, Befaringer, Tilbud, Aksepterte tilbud
-- Drift: Kalender, Oppdrag, Uplanlagte jobber, Teknikere
-- Service: Serviceoppdrag, Årskontroller, Feilsøking, Reklamasjoner, Serviceavtaler
-- Kunder: Kunderegister, Anlegg, Varmepumper
-- Dokumentasjon: Bilder, Sjekklister, FDV, Google Drive
-- Økonomi: Fakturagrunnlag, Materiell, Ekstraarbeid
-- Innstillinger: Brukere, Google Workspace, Firmaprofil
-
-Ruter beholdes teknisk der de finnes (f.eks. `/projects` → "Oppdrag"), men **etiketter** endres. Rene tavle-/elektro-ruter (kalkyle-tavle, materialliste AI-tavle) skjules fra sidebar men beholdes i koden slik at intet krasjer.
-
-### 4. Dashboard
-Erstatter KPI-kort med:
-- Nye leads, Befaringer denne uka, Tilbud sendt, Aksepterte tilbud, Planlagte monteringer, Åpne serviceoppdrag, Serviceavtaler, Årskontroller neste 30 dager, Reklamasjoner, Fakturagrunnlag klart.
-
-Kortene bruker eksisterende data-hooks der mulig (leads → leads-tabellen, tilbud → offers, oppdrag → events). Der ingen relevant data finnes, viser vi tomme tilstander med "kommer snart".
-
-### 5. Terminologi (app-shell + hovedsider)
-Global søk-og-erstatt i **synlige strenger** (labels, headers, tomtilstander) — ikke i tabellnavn/kode:
-- MCS Service → Lier VPS
-- Prosjekt → Oppdrag
-- Prosjektrom → Jobbmappe
-- Tavle/switchboard/busbar/breaker → Varmepumpeanlegg (busbar/breaker fjernes uten erstatning)
-- Montør → Tekniker
-- Kontrakt → Serviceavtale (kun der det gir mening)
-- Endringsordre → Ekstraarbeid
-- Outlook → Gmail, Teams → Google Meet, SharePoint → Google Drive, Microsoft 365 → Google Workspace
-
-Databasekolonner, RLS, RPC-navn, funksjonsnavn, filnavn og interne identifikatorer **røres ikke**.
-
-### 6. Integrasjonsspråk
-Alle synlige tekster om Microsoft-integrasjon relabelles til Google Workspace. Selve integrasjonskoden (edge-functions, tokens) beholdes urørt i denne fasen — vi endrer kun **hva brukeren ser**. Instillinger-siden får banner: "Google Workspace-integrasjon kommer. Nåværende sync-motor brukes midlertidig."
-
-### 7. Skjules i denne fasen (uten sletting)
-- Tavle-/kalkyle-AI-spesifikke sider
-- HMS-modul (kan aktiveres senere hvis relevant)
-- Fagstøtte (elektro-spesifikk)
-- Kontraktsmodul (kompleks, erstattes senere av "Serviceavtaler")
-- Postkontor (avhengig av MS-mail)
-
-Skjules via feature-flag i sidebar. Rutene forblir tilgjengelige for admin.
+Ingen destruktive endringer. Ingen sletting av edge functions, tabeller eller hooks.
 
 ---
 
-## Fase 2 (senere, egen runde) — dyp modulkonvertering
+## 1. Kartlegging: eksisterende Microsoft-avhengigheter
 
-- Bygge ekte "Varmepumpeanlegg" og "Varmepumper" registre med dedikerte tabeller.
-- Bygge "Serviceavtaler" som eget datamodell (avløser contracts).
-- Bygge "Årskontroller" som schedulert servicejobb-generator.
-- Bygge Google Workspace edge-functions (Calendar, Gmail, Drive) som erstatter MS-funksjonene.
-- Rydde vekk skjulte tavle-moduler helt.
+**Edge functions (28 stk) — beholdes urørt, kun deaktiveres:**
+- Auth/SSO: `auth-callback`
+- Kalender: `ms-calendar`, `outlook-sync`, `outlook-schedule-sync`, `calendar-write-sync`, `absence-calendar-sync`, `lead-calendar-event`, `sync-task-to-calendar`, `import-outlook-tasks`
+- E-post: `ms-mail`, `conversation-email-send`, `conversation-email-reprocess`, `order-message-email-send`, `task-thread-email-send`, `task-thread-email-inbound`, `create-lead-email-draft`, `inbox-sync`, `inbox-scan`, `inbox-debug`, `suggest-task-from-email`
+- Webhooks/subs: `graph-subscription-manage`, `graph-subscription-renew-cron`, `graph-subscription-sync`, `graph-webhook-inbound`
+- SharePoint: `sharepoint-connect`, `sharepoint-list`, `sharepoint-preview-url`, `sharepoint-upload`
+- Møter: `teams-meeting`
+- Debug: `ms-debug`
+
+**Tabeller — beholdes, ny provider-kolonne legges til:**
+- `microsoft_tokens`, `ms_graph_subscriptions`, `job_calendar_links`, `lead_calendar_links`, `schedule_sync_runs`, `schedule_sync_state`, `job_calendar_audit`
+
+**Frontend (~78 filer med MS-referanser) — skjules bak feature-flag:**
+- Login-flyt (`Login.tsx`, `AuthCallback.tsx`, `useAuth.tsx`)
+- MS-banner (`MsConnectionBanner.tsx`), MicrosoftAdminPage
+- SharePoint-UI (`SharePointExplorer`, `SharePointPicker`, `SharePointCategoryMapper`)
+- Outlook-konflikt (`OutlookConflictDialog`), sync-status i sidebar/topbar
+- Teams-møter, e-post-composers, kalendersync-knapper
 
 ---
 
-## Tekniske detaljer
+## 2. Provider-abstraksjon
 
-- **Ingen destruktive DB-endringer** i fase 1. Ingen migrasjon nødvendig.
-- **Auth, RLS, tenant, protected routes** beholdes 100 %.
-- Ny fil: `src/pages/PublicHome.tsx` erstatter dagens landingsside for uinnloggede.
-- Ny fil: `src/config/navigation.ts` (eller endring av eksisterende sidebar-config) med nye labels + skjul-flagg.
-- Ny fil: `src/pages/Dashboard.tsx` (eller endring av eksisterende) med varmepumpe-KPIer.
-- `index.html`: nye meta-tags.
-- `tailwind.config.ts` + `index.css`: ny fargepalett + fonter (semantiske tokens).
-- Ingen endringer i `src/integrations/supabase/*`.
-- Terminologi-endringer gjøres i UI-strenger, ikke i type-definisjoner eller DB-navn.
+Ny `integration_provider`-arkitektur som styrer hvilken tjeneste som brukes for hver tenant/bruker.
+
+**Ny tabell `integration_providers`** (per company):
+```
+company_id      uuid
+scope           text    -- 'sso' | 'calendar' | 'mail' | 'files'
+provider        text    -- 'google' | 'microsoft'
+is_active       boolean
+```
+Seed for Lier VPS: alle scopes → `google`.
+
+**Ny tabell `user_integration_tokens`** (per bruker + provider):
+```
+user_id         uuid
+provider        text    -- 'google' | 'microsoft'
+scope           text    -- 'calendar' | 'mail' | 'drive'
+access_token    text
+refresh_token   text
+expires_at      timestamptz
+granted_scopes  text[]
+```
+`microsoft_tokens` beholdes urørt for bakoverkompatibilitet; ny kode leser fra `user_integration_tokens`.
+
+**Provider-router (frontend + edge):**
+- `src/lib/integrations/provider-router.ts` — `getActiveProvider(companyId, scope)`
+- Edge: `_shared/provider-router.ts` — samme signatur
+- All ny funksjonalitet ruter gjennom denne. MS-edge-functions kalles fortsatt hvis provider = `microsoft`.
 
 ---
 
-## Åpne spørsmål (svar valgfritt — jeg tar rimelige defaults hvis ikke)
+## 3. Google-integrasjon per bruker (OAuth per user)
 
-1. Skal jeg AI-generere 3–4 varmepumpe-bilder til hero/tjenestekort, eller vil du bruke enkle ikoner/mønster i første runde? (Default: 1 hero-bilde + ikoner.)
-2. Fargevalg: dyp teal (#0F4C5C) + varm oransje aksent (#E36414) + off-white, OK? Eller vil du velge palett?
-3. Kontaktinfo (telefon, e-post, adresse, org.nr) for footer og kontaktseksjon — har du dette klart, eller bruker jeg placeholders?
+Lovable Google-connector connecter *builder-kontoen* og passer ikke for feltteknikere som skal ha egen kalender/inbox. Vi implementerer full per-user OAuth mot Google.
 
-Fase 1 er ca. 15–20 filer og bør leveres i én runde. Godkjenner du planen, starter jeg med branding + hjemmeside + navigasjon.
+**Oppsett (én gang, av admin):**
+1. Google Cloud-prosjekt for Lier VPS
+2. OAuth Consent Screen (Internal / External)
+3. Client ID + Secret → lagres som `GOOGLE_OAUTH_CLIENT_ID` og `GOOGLE_OAUTH_CLIENT_SECRET`
+4. Aktiverte API-er: Calendar, Gmail, Drive, People
+5. Redirect URI: `${APP_URL}/auth/google/callback`
+
+**Scopes forespørres progressivt:**
+- SSO: `openid email profile`
+- Kalender: `.../auth/calendar`
+- Gmail: `.../auth/gmail.modify` + `.../auth/gmail.send`
+- Drive: `.../auth/drive.file`
+
+**Nye edge functions:**
+- `google-auth-callback` — bytter code mot tokens, lagrer i `user_integration_tokens`, oppretter Supabase-sesjon
+- `google-token-refresh` — brukes internt av alle google-* functions
+- `google-calendar-sync` — speil av `outlook-sync` men mot Calendar API
+- `google-mail-send` / `google-mail-inbound` — speil av `ms-mail`
+- `google-drive-upload` / `google-drive-list` — speil av sharepoint-*
+
+Alle nye functions bruker felles `_shared/google-client.ts` med token-refresh.
+
+---
+
+## 4. Trinnvis implementeringsrekkefølge
+
+**Fase A — Fundament (ingen brukersynlig endring)**
+1. Migration: `integration_providers` + `user_integration_tokens` + RLS + GRANTs
+2. Seed Lier VPS → google på alle scopes
+3. `provider-router.ts` (frontend + edge shared)
+4. Feature-flag `useIntegrationProvider(scope)`-hook
+
+**Fase B — Google SSO**
+5. Secrets: `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`
+6. Edge function `google-auth-callback`
+7. Ny side `/auth/google/callback`
+8. Oppdater `Login.tsx`: "Logg inn med Google" som primær-knapp; MS-knapp skjules når provider=google
+9. Behold e-post/passord som fallback
+
+**Fase C — Google Calendar**
+10. Edge functions: `google-calendar-sync`, `google-calendar-write`
+11. Hook `useCalendarSync` ruter til google eller ms
+12. UI (`JobCalendarSync`, `ScheduleBlockDetailPanel`, absence): identisk oppførsel, google i backend
+
+**Fase D — Gmail**
+13. Edge functions: `google-mail-send`, `google-mail-inbound` (via Gmail push)
+14. `conversation-email-send`, `order-message-email-send`, `task-thread-email-send` ruter via provider
+15. Inbox-scan bruker Gmail API
+
+**Fase E — Google Drive**
+16. Edge functions: `google-drive-upload`, `google-drive-list`, `google-drive-preview`
+17. Docs-UI (`DocsFilesRoom`, `SharePointPicker` → `FilePickerRouter`) bruker provider
+18. SharePoint-komponenter renames ikke — pakkes bak `<FilePicker provider="..." />`
+
+**Fase F — Skjul Microsoft for Lier VPS**
+19. Alle "Koble til Microsoft"-CTAer skjules når `getActiveProvider(scope) !== 'microsoft'`
+20. `MsConnectionBanner` returnerer `null` for google-tenants
+21. `MicrosoftAdminPage`-rute lukkes for ikke-super_admin
+22. Cron `graph-subscription-renew-cron` sjekker at company har `provider='microsoft'` før den kjører for en bruker
+23. Kopi/labels: "Koble kalender", ikke "Koble Microsoft"
+
+---
+
+## 5. Hva som skjules/deaktiveres for Lier VPS
+
+| Område | Handling |
+|---|---|
+| MS SSO-knapp i Login | Skjules når SSO-provider=google |
+| MsConnectionBanner | Renderer `null` |
+| /admin/microsoft | 404 for company med provider=google |
+| SharePoint-picker | Erstattes av `FilePickerRouter` → Google Drive UI |
+| Outlook-sync-status i topbar | Bytter etikett til "Google Calendar" |
+| Teams-møter | Skjules (Google Meet-integrasjon i fase G, senere) |
+| MS-relaterte cron jobs | Sjekker provider før arbeid utføres |
+| `MAIL_INGEST_DEBUG` MS-flows | Blir no-op for google-tenants |
+
+Ingenting slettes. Alt aktiveres tilbake ved å sette `integration_providers.provider='microsoft'` for en gitt company/scope.
+
+---
+
+## 6. Første praktiske leveranse etter godkjent plan
+
+1. Migration for `integration_providers` + `user_integration_tokens`
+2. Provider-router
+3. Google SSO (Fase B komplett)
+
+Deretter Kalender → Gmail → Drive i egne runder.
+
+---
+
+## 7. Åpne avklaringer
+
+- **Google Cloud-prosjekt:** har Lier VPS allerede et Google Cloud-prosjekt vi kan bruke, eller skal jeg gi steg-for-steg-guide for å opprette?
+- **Domenerestriksjon (`hd=liervps.no`):** skal SSO låses til `@liervps.no`-domenet?
+- **Gmail push-notifications** krever Pub/Sub — ok å starte med polling som midlertidig løsning?
+- **Historiske Outlook-hendelser** i `job_calendar_links`: la stå (read-only), eller re-syncs mot Google når bruker kobler seg?
+
+Bekreft planen (eventuelt med justeringer), så starter jeg med Fase A + B.
