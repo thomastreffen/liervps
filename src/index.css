@@ -4,105 +4,105 @@
 
 @layer base {
   :root {
-    /* Refined warm palette – premium field-ops tool */
-    --background: 40 18% 97%;
-    --foreground: 220 18% 13%;
+    /* Lier VPS — Red / White / Navy */
+    --background: 210 33% 98%;         /* #F6F8FB */
+    --foreground: 220 39% 11%;         /* #111827 */
 
     --card: 0 0% 100%;
-    --card-foreground: 220 18% 13%;
+    --card-foreground: 220 39% 11%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 220 18% 13%;
+    --popover-foreground: 220 39% 11%;
 
-    /* MCS Signal – masterbrand teal #0F766E */
-    --primary: 173 80% 26%;
+    /* Primary = deep navy foundation */
+    --primary: 217 68% 14%;            /* #0B1F3A */
     --primary-foreground: 0 0% 100%;
-    --primary-hover: 174 68% 22%;       /* #115E59 */
-    --primary-soft: 168 84% 89%;        /* #CCFBF1 */
-    --primary-soft-foreground: 173 80% 18%;
+    --primary-hover: 214 71% 25%;      /* #123B6D */
+    --primary-soft: 214 100% 96%;
+    --primary-soft-foreground: 217 68% 14%;
 
-    --secondary: 40 12% 94%;
-    --secondary-foreground: 220 16% 22%;
+    --secondary: 214 32% 91%;
+    --secondary-foreground: 217 68% 14%;
 
-    --muted: 40 10% 93%;
-    --muted-foreground: 220 10% 46%;
+    --muted: 210 33% 96%;
+    --muted-foreground: 215 16% 47%;   /* #64748B */
 
-    /* MCS Service – orange accent #F97316 (kun for Service-modulen) */
-    --accent: 21 90% 48%;
+    /* Accent = Lier VPS red (primary CTA color) */
+    --accent: 353 71% 50%;             /* #D72638 */
     --accent-foreground: 0 0% 100%;
-    --brand-service: 21 90% 48%;
+    --brand-service: 353 71% 50%;
     --brand-service-foreground: 0 0% 100%;
 
-    /* MCS Elektrotavler – blue accent #2563EB (kun for Tavler-modulen) */
-    --brand-tavler: 221 83% 53%;
+    /* Secondary service blue */
+    --brand-tavler: 221 83% 53%;       /* #2563EB */
     --brand-tavler-foreground: 0 0% 100%;
 
-    --destructive: 0 65% 52%;
+    --destructive: 0 74% 42%;          /* #B91C1C */
     --destructive-foreground: 0 0% 100%;
 
-    /* Grønn reservert til suksess/fullført — ikke primær */
     --success: 152 50% 38%;
     --success-foreground: 0 0% 100%;
 
     --warning: 38 92% 50%;
     --warning-foreground: 0 0% 100%;
 
-    --info: 213 48% 52%;
+    --info: 221 83% 53%;
     --info-foreground: 0 0% 100%;
 
-    --border: 40 12% 89%;
-    --input: 40 12% 86%;
-    --ring: 173 80% 26%;
+    --border: 214 32% 91%;             /* #E2E8F0 */
+    --input: 214 32% 88%;
+    --ring: 353 71% 50%;
 
     --radius: 0.75rem;
 
-    /* Section separator */
-    --section-border: 40 14% 85%;
+    --section-border: 214 32% 88%;
 
-    /* Status colors */
-    --status-requested: 28 76% 50%;
+    /* Status colors — palette-aligned semantics */
+    --status-requested: 221 83% 53%;
     --status-requested-foreground: 0 0% 100%;
     --status-approved: 152 56% 40%;
     --status-approved-foreground: 0 0% 100%;
-    --status-time-change-proposed: 213 56% 48%;
+    --status-time-change-proposed: 217 68% 30%;
     --status-time-change-proposed-foreground: 0 0% 100%;
-    --status-rejected: 0 68% 50%;
+    --status-rejected: 353 71% 50%;
     --status-rejected-foreground: 0 0% 100%;
-    --status-scheduled: 213 50% 52%;
+    --status-scheduled: 217 68% 24%;
     --status-scheduled-foreground: 0 0% 100%;
-    --status-in-progress: 173 80% 26%;
+    --status-in-progress: 221 83% 53%;
     --status-in-progress-foreground: 0 0% 100%;
-    --status-completed: 152 60% 30%;
+    --status-completed: 152 60% 34%;
     --status-completed-foreground: 0 0% 100%;
-    --status-ready-for-invoicing: 28 76% 50%;
+    --status-ready-for-invoicing: 353 71% 50%;
     --status-ready-for-invoicing-foreground: 0 0% 100%;
-    --status-invoiced: 220 12% 62%;
+    --status-invoiced: 215 16% 62%;
     --status-invoiced-foreground: 0 0% 100%;
 
     /* Elevation shadows */
-    --shadow-card: 0 1px 3px 0 hsl(220 20% 20% / 0.04), 0 1px 2px -1px hsl(220 20% 20% / 0.04);
-    --shadow-card-hover: 0 8px 25px -5px hsl(220 20% 20% / 0.08), 0 4px 10px -3px hsl(220 20% 20% / 0.04);
-    --shadow-elevated: 0 4px 12px -2px hsl(220 20% 20% / 0.06), 0 2px 6px -1px hsl(220 20% 20% / 0.04);
+    --shadow-card: 0 1px 3px 0 hsl(217 68% 14% / 0.06), 0 1px 2px -1px hsl(217 68% 14% / 0.04);
+    --shadow-card-hover: 0 8px 25px -5px hsl(217 68% 14% / 0.12), 0 4px 10px -3px hsl(217 68% 14% / 0.06);
+    --shadow-elevated: 0 4px 12px -2px hsl(217 68% 14% / 0.08), 0 2px 6px -1px hsl(217 68% 14% / 0.05);
 
-    /* Sidebar – warm cream */
-    --sidebar-background: 40 16% 96%;
-    --sidebar-foreground: 220 16% 22%;
-    --sidebar-primary: 173 80% 26%;
+    /* Sidebar — deep navy chrome with red active accent */
+    --sidebar-background: 217 68% 14%;     /* #0B1F3A */
+    --sidebar-foreground: 214 32% 88%;
+    --sidebar-primary: 353 71% 50%;        /* red accent */
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 40 12% 91%;
-    --sidebar-accent-foreground: 220 16% 14%;
-    --sidebar-border: 40 12% 89%;
-    --sidebar-ring: 173 80% 26%;
+    --sidebar-accent: 214 71% 20%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 214 71% 22%;
+    --sidebar-ring: 353 71% 50%;
 
-    /* Lier VPS public marketing site tokens (retain --mcs-* names for compat) */
-    --mcs-navy: 192 71% 21%;           /* #0F4C5C deep teal */
-    --mcs-charcoal: 200 40% 14%;       /* #152F38 */
-    --mcs-light: 40 33% 97%;           /* #FBF8F3 warm off-white */
-    --mcs-steel: 200 18% 92%;
-    --mcs-border: 200 16% 88%;
-    --mcs-muted: 200 12% 38%;
-    --mcs-orange: 22 84% 51%;          /* #E36414 warm amber */
-    --mcs-orange-hover: 22 84% 44%;
+    /* Lier VPS marketing tokens (--mcs-* names retained; values retuned) */
+    --mcs-navy: 217 68% 14%;           /* #0B1F3A main navy */
+    --mcs-charcoal: 220 39% 11%;       /* #111827 */
+    --mcs-light: 210 33% 98%;          /* #F6F8FB */
+    --mcs-steel: 214 32% 94%;
+    --mcs-border: 214 32% 91%;         /* #E2E8F0 */
+    --mcs-muted: 215 16% 47%;          /* #64748B */
+    --mcs-orange: 353 71% 50%;         /* now RED accent #D72638 */
+    --mcs-orange-hover: 0 74% 42%;     /* #B91C1C */
+    --mcs-blue: 221 83% 53%;           /* #2563EB service blue */
+    --mcs-blue-deep: 214 71% 25%;      /* #123B6D */
   }
 
   .dark {
