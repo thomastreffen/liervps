@@ -43,14 +43,20 @@ export default function Login() {
     }
   };
 
-  const handleGoogle = () => {
-    if (!isGoogleConfigured()) {
-      toast.error("Google-innlogging ikke konfigurert", {
-        description: "Legg inn GOOGLE_OAUTH_CLIENT_ID i miljøvariabler.",
+  const handleGoogle = async () => {
+    try {
+      if (!(await isGoogleConfigured())) {
+        toast.error("Google-innlogging ikke konfigurert", {
+          description: "GOOGLE_OAUTH_CLIENT_ID mangler i backend.",
+        });
+        return;
+      }
+      await startGoogleLogin({ scopeBundle: "sso" });
+    } catch (err: any) {
+      toast.error("Kunne ikke starte Google-innlogging", {
+        description: err?.message,
       });
-      return;
     }
-    startGoogleLogin({ scopeBundle: "sso" });
   };
 
   if (authLoading) {
