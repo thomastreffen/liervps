@@ -58,7 +58,7 @@ interface SalesData {
   recentOffers: { id: string; offer_number: string; status: OfferStatus; total_inc_vat: number; customer: string }[];
 }
 
-// ── Chart colors – MCS palette: blue primary, orange highlight only ──
+// ── Chart colors – Lier VPS palette: blue primary, orange highlight only ──
 const BLUE = "hsl(213, 60%, 42%)";
 const BLUE_LIGHT = "hsl(213, 55%, 55%)";
 const BLUE_PALE = "hsl(213, 50%, 68%)";
@@ -329,7 +329,7 @@ function OpsDashboard({ data, navigate }: { data: OpsData; navigate: (path: stri
         <KpiCard title="Jobber i dag" value={data.jobsToday} icon={<CalendarDays className="h-4 w-4 sm:h-5 sm:w-5" />} onClick={() => navigate("/projects")} />
         <KpiCard title="Usynkede jobber" value={data.dirtyJobs} icon={<Clock className="h-4 w-4 sm:h-5 sm:w-5" />} variant={data.dirtyJobs > 0 ? "warning" : "default"} onClick={() => navigate("/projects")} />
         <KpiCard title="Feilede synk" value={data.failedLinks} icon={<XCircle className="h-4 w-4 sm:h-5 sm:w-5" />} variant={data.failedLinks > 0 ? "error" : "default"} onClick={() => navigate("/admin/integration-health")} />
-        <KpiCard title="Uten Microsoft" value={data.disconnectedTechs} icon={<Unplug className="h-4 w-4 sm:h-5 sm:w-5" />} variant={data.disconnectedTechs > 0 ? "warning" : "default"} onClick={() => navigate("/admin/integration-health")} />
+        <KpiCard title="Uten Google" value={data.disconnectedTechs} icon={<Unplug className="h-4 w-4 sm:h-5 sm:w-5" />} variant={data.disconnectedTechs > 0 ? "warning" : "default"} onClick={() => navigate("/admin/integration-health")} />
       </div>
 
       {/* Resource load (8/12) + Job status (4/12) */}
@@ -452,8 +452,8 @@ function OpsDashboard({ data, navigate }: { data: OpsData; navigate: (path: stri
             </div>
             <div className="space-y-1">
               <ActionItem label="Jobber uten plan" count={data.actionItems.unplannedJobs} variant="warning" onClick={() => navigate("/projects")} />
-              <ActionItem label="Mangler Microsoft-token" count={data.actionItems.missingToken} variant="warning" onClick={() => navigate("/admin/integration-health")} />
-              <ActionItem label="Outlook-event slettet" count={data.actionItems.itemNotFound} variant="error" onClick={() => navigate("/admin/integration-health")} />
+              <ActionItem label="Mangler Google-token" count={data.actionItems.missingToken} variant="warning" onClick={() => navigate("/admin/integration-health")} />
+              <ActionItem label="Kalenderhendelse slettet" count={data.actionItems.itemNotFound} variant="error" onClick={() => navigate("/admin/integration-health")} />
               <ActionItem label="Jobber uten Teams-møte" count={data.actionItems.jobsWithoutTeams} variant="default" onClick={() => navigate("/projects")} />
             </div>
           </div>

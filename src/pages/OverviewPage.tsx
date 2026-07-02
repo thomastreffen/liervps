@@ -294,7 +294,7 @@ export default function OverviewPage() {
 
     // ── Set Priorities ──
     const pItems: PriorityItem[] = [];
-    if (unplannedCount > 0) pItems.push({ icon: <CalendarX className="h-4 w-4" />, label: "Prosjekter uten plan", count: unplannedCount, severity: "warning", route: "/jobs", description: "Aktive prosjekter uten planlagte kalenderblokker" });
+    if (unplannedCount > 0) pItems.push({ icon: <CalendarX className="h-4 w-4" />, label: "Oppdrag uten plan", count: unplannedCount, severity: "warning", route: "/jobs", description: "Aktive oppdrag uten planlagte kalenderblokker" });
     if (overbookedCount > 0) pItems.push({ icon: <AlertTriangle className="h-4 w-4" />, label: "Overbooking i dag", count: overbookedCount, severity: "critical", route: "/resource-plan", description: "Montører med over 8 timer planlagt" });
     if (deviationCount > 0) pItems.push({ icon: <ShieldAlert className="h-4 w-4" />, label: "Åpne avvik", count: deviationCount, severity: "critical", route: "/jobs", description: "Ubehandlede avvik krever oppfølging" });
     if (ordersWaiting > 0) pItems.push({ icon: <Inbox className="h-4 w-4" />, label: "Bestillinger venter på kundesvar", count: ordersWaiting, severity: "warning", route: "/orders" });
@@ -596,7 +596,7 @@ export default function OverviewPage() {
       {projects.length > 0 && (
         <div className="mb-8">
           <div className="flex items-center justify-between mb-4">
-            <SectionLabel title="Mine prosjekter" count={projects.length} />
+            <SectionLabel title="Mine oppdrag" count={projects.length} />
             <Button
               variant="ghost" size="sm"
               className="text-xs text-muted-foreground hover:text-primary gap-1 -mt-1"
