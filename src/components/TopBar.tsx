@@ -58,7 +58,7 @@ export function TopBar({ onNewJob, onToggleSidebar, showMenuButton }: TopBarProp
             <Wrench className="h-4 w-4" />
           </div>
           <div className="hidden sm:block">
-            <h1 className="text-base font-semibold leading-tight">MCS Service</h1>
+            <h1 className="text-base font-semibold leading-tight">Lier VPS</h1>
             <p className="text-xs text-muted-foreground">Ressursplanlegger</p>
           </div>
         </div>

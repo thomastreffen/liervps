@@ -1,9 +1,8 @@
 import { Link, NavLink } from "react-router-dom";
 import { useState } from "react";
-import { Menu, X, LayoutDashboard, LogOut } from "lucide-react";
+import { Menu, X, LayoutDashboard, LogOut, Flame } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useActionCounts } from "@/hooks/useActionCounts";
-import logoLight from "@/assets/mcs/logo-light.asset.json";
 
 const PUBLIC_NAV = [
   { to: "/tjenester/service-og-feilsoking", label: "Tjenester" },
@@ -13,11 +12,25 @@ const PUBLIC_NAV = [
 ];
 
 const INTERNAL_NAV: { to: string; label: string; badgeKey?: "orders" }[] = [
-  { to: "/projects", label: "Mine jobber" },
+  { to: "/projects", label: "Oppdrag" },
   { to: "/orders", label: "Bestillinger", badgeKey: "orders" },
-  { to: "/projects/plan", label: "Ressursplan" },
+  { to: "/projects/plan", label: "Kalender" },
   { to: "/portal/deliveries", label: "Dokumentasjon" },
 ];
+
+function BrandMark() {
+  return (
+    <div className="flex items-center gap-2.5">
+      <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-[hsl(var(--mcs-orange))] text-white shadow-sm">
+        <Flame className="h-5 w-5" strokeWidth={2.4} />
+      </div>
+      <div className="leading-tight">
+        <div className="text-white font-bold text-[15px] tracking-tight">Lier Varmepumpeservice</div>
+        <div className="text-white/60 text-[11px] font-medium tracking-wider uppercase">Lier VPS</div>
+      </div>
+    </div>
+  );
+}
 
 export function Header() {
   const [open, setOpen] = useState(false);
@@ -28,14 +41,8 @@ export function Header() {
     <header className="sticky top-0 z-40 bg-[hsl(var(--mcs-navy))]/95 backdrop-blur border-b border-white/5">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-20 items-center justify-between gap-4">
-          <Link to="/" className="flex items-center shrink-0" aria-label="MCS Service — Hjem">
-            <img
-              src={logoLight.url}
-              alt="MCS Service"
-              className="h-12 lg:h-14 w-auto"
-              width={1920}
-              height={698}
-            />
+          <Link to="/" className="flex items-center shrink-0" aria-label="Lier Varmepumpeservice — Hjem">
+            <BrandMark />
           </Link>
           <nav className="hidden lg:flex items-center gap-8" aria-label="Hovedmeny">
             {NAV.map((n: any) => {
@@ -65,7 +72,7 @@ export function Header() {
                   to="/overview"
                   className="text-sm font-semibold text-white px-4 py-2 inline-flex items-center gap-2 border border-white/20 hover:border-white/50 rounded-md"
                 >
-                  <LayoutDashboard className="h-4 w-4" /> MCS Kontrollsenter
+                  <LayoutDashboard className="h-4 w-4" /> Kontrollsenter
                 </Link>
                 <button onClick={signOut} className="text-sm text-white/60 hover:text-white px-3 py-2 inline-flex items-center gap-2" aria-label="Logg ut">
                   <LogOut className="h-4 w-4" />
@@ -80,7 +87,7 @@ export function Header() {
                   to="/bestill-service"
                   className="bg-[hsl(var(--mcs-orange))] hover:bg-[hsl(var(--mcs-orange-hover))] text-white text-sm font-semibold px-5 py-2.5 rounded-md transition-colors"
                 >
-                  Bestill service
+                  Bestill befaring
                 </Link>
               </>
             )}
@@ -112,7 +119,7 @@ export function Header() {
             <div className="pt-3 mt-3 border-t border-white/10 space-y-2">
               {user ? (
                 <Link to="/overview" onClick={() => setOpen(false)} className="block bg-white/10 border border-white/20 text-white text-center font-semibold py-3 rounded-md">
-                  MCS Kontrollsenter
+                  Kontrollsenter
                 </Link>
               ) : (
                 <>
@@ -122,7 +129,7 @@ export function Header() {
                     onClick={() => setOpen(false)}
                     className="block bg-[hsl(var(--mcs-orange))] text-white text-center font-semibold py-3 rounded-md"
                   >
-                    Bestill service
+                    Bestill befaring
                   </Link>
                 </>
               )}

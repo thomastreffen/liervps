@@ -1,115 +1,115 @@
 import { PublicLayout } from "@/components/public/PublicLayout";
 import { ServicePageTemplate } from "@/components/public/ServicePageTemplate";
 import { Clock, ShieldCheck, FileCheck, Users } from "lucide-react";
-import switchboard from "@/assets/mcs/switchboard.jpg";
-import busbar from "@/assets/mcs/busbar.jpg";
-import team from "@/assets/mcs/team.jpg";
-import hero from "@/assets/mcs/hero.jpg";
+import hero from "@/assets/lier/hero.jpg";
+import service from "@/assets/lier/service.jpg";
 
 const COMMON_BENEFITS = [
-  { icon: <Users className="h-6 w-6" />, title: "Høy kompetanse", desc: "Våre elektrikere har lang erfaring og fagkompetanse." },
-  { icon: <ShieldCheck className="h-6 w-6" />, title: "Kvalitet og sikkerhet", desc: "Vi følger gjeldende forskrifter og leverer kvalitet i alle ledd." },
-  { icon: <Clock className="h-6 w-6" />, title: "Effektive prosesser", desc: "Moderne prosesser gir forutsigbarhet og god fremdrift." },
-  { icon: <FileCheck className="h-6 w-6" />, title: "Full dokumentasjon", desc: "Du får komplett dokumentasjon og samsvarserklæring." },
+  { icon: <Users className="h-6 w-6" />, title: "Sertifiserte teknikere", desc: "F-gassertifisert personell med lang erfaring." },
+  { icon: <ShieldCheck className="h-6 w-6" />, title: "Trygg garanti", desc: "Full garantioppfølging på montering og produkter." },
+  { icon: <Clock className="h-6 w-6" />, title: "Rask respons", desc: "Vi svarer raskt og planlegger effektivt." },
+  { icon: <FileCheck className="h-6 w-6" />, title: "Full dokumentasjon", desc: "Digital servicehistorikk og FDV." },
 ];
 
 const RELATED_ALL = [
-  { to: "/tjenester/service-og-feilsoking", label: "Service og feilsøking" },
-  { to: "/tjenester/elektrotavler", label: "Elektrotavler" },
-  { to: "/tjenester/stromskinner", label: "Strømskinner" },
-  { to: "/tjenester/hasteoppdrag", label: "Hasteoppdrag" },
+  { to: "/tjenester/befaring", label: "Befaring og rådgivning" },
+  { to: "/tjenester/salg", label: "Salg av varmepumpe" },
+  { to: "/tjenester/montering", label: "Montering" },
+  { to: "/tjenester/service", label: "Service og vedlikehold" },
+  { to: "/tjenester/feilsoking", label: "Feilsøking" },
+  { to: "/tjenester/serviceavtale", label: "Årlig serviceavtale" },
 ];
 
-const related = (exclude: string) => RELATED_ALL.filter((r) => !r.to.endsWith(exclude));
+const related = (exclude: string) => RELATED_ALL.filter((r) => !r.to.endsWith(exclude)).slice(0, 4);
 
-export function ServiceFeilsoking() {
+function Page({ slug, title, intro, description, image, imageAlt, deliveries }: {
+  slug: string; title: string; intro: string; description: string; image: string; imageAlt: string; deliveries: string[];
+}) {
   return (
     <PublicLayout>
       <ServicePageTemplate
-        slug="service-og-feilsoking"
-        title="Service og feilsøking"
-        intro="Vi sikrer driftssikre løsninger fra planlegging til ferdig dokumentasjon — i eksisterende anlegg uten unødvendig nedetid."
-        description="MCS Service utfører feilsøking, vedlikehold og service på elektriske tavler og strømskinnesystemer. Vi jobber i eksisterende anlegg hvor strøm ikke kan stå stille, og leverer raske og trygge løsninger for næring, industri og offentlige aktører."
-        image={hero}
-        imageAlt="Elektrikere fra MCS Service utfører service på elektrisk tavle"
-        deliveries={[
-          "Service, feilsøking og vedlikehold",
-          "Installasjon og oppgradering",
-          "Strømskinner og kraftfordeling",
-          "Dokumentasjon og samsvarserklæring",
-        ]}
+        slug={slug}
+        title={title}
+        intro={intro}
+        description={description}
+        image={image}
+        imageAlt={imageAlt}
+        deliveries={deliveries}
         benefits={COMMON_BENEFITS}
-        related={related("service-og-feilsoking")}
+        related={related(slug)}
       />
     </PublicLayout>
   );
 }
 
-export function Elektrotavler() {
-  return (
-    <PublicLayout>
-      <ServicePageTemplate
-        slug="elektrotavler"
-        title="Elektrotavler"
-        intro="Ferdig levert, oppgradering og vedlikehold av elektriske tavler for fordelingsanlegg i næring og industri."
-        description="Vi leverer elektrotavler tilpasset ditt anlegg — fra prosjektering og produksjonsoppfølging til montasje, idriftsettelse og service. MCS Service har bred erfaring med både nyinstallasjoner og oppgradering av eksisterende fordelinger."
-        image={switchboard}
-        imageAlt="Industriell elektrotavle med rader av sikringer og kobberskinner"
-        deliveries={[
-          "Prosjektering og produksjon",
-          "Montasje og idriftsettelse",
-          "Oppgradering av eksisterende tavler",
-          "FDV-dokumentasjon og merking",
-        ]}
-        benefits={COMMON_BENEFITS}
-        related={related("elektrotavler")}
-      />
-    </PublicLayout>
-  );
+export function Befaring() {
+  return <Page
+    slug="befaring"
+    title="Befaring og rådgivning"
+    intro="Vi kommer hjem til deg, ser på boligen og anbefaler riktig varmepumpe for ditt behov."
+    description="En god befaring er starten på et anlegg som fungerer i mange år. Vi vurderer boligens størrelse, plassering av innedel og utedel, elektrisk kapasitet og forventet varmebehov før vi anbefaler løsning."
+    image={service} imageAlt="Tekniker gjør befaring i bolig"
+    deliveries={["Vurdering av varmebehov", "Plassering av inne- og utedel", "Elektrisk kapasitet", "Uforpliktende tilbud"]}
+  />;
 }
 
-export function Stromskinner() {
-  return (
-    <PublicLayout>
-      <ServicePageTemplate
-        slug="stromskinner"
-        title="Montasje av strømskinner"
-        intro="Prosjektering og montasje av strømskinner for trygg og effektiv kraftfordeling i moderne bygg, industri og datasenter."
-        description="Strømskinnesystemer gir fleksibel kraftfordeling med høy kapasitet og enkel fremtidig utvidelse. MCS Service prosjekterer, monterer og dokumenterer hele leveransen — inkludert oppheng, tilkobling, vinkler og avgreninger."
-        image={busbar}
-        imageAlt="Tekniker monterer strømskinner med oransje koblingsklemmer"
-        deliveries={[
-          "Prosjektering og dimensjonering",
-          "Komplett montasje av strømskinner",
-          "Oppheng, vinkler og avgreninger",
-          "Termografering og kontroll",
-        ]}
-        benefits={COMMON_BENEFITS}
-        related={related("stromskinner")}
-      />
-    </PublicLayout>
-  );
+export function Salg() {
+  return <Page
+    slug="salg"
+    title="Salg av varmepumpe"
+    intro="Kvalitetsmerker og modeller tilpasset norsk klima. Trygge priser uten skjulte kostnader."
+    description="Vi selger varmepumper fra ledende produsenter — luft-til-luft, luft-til-vann og væske-til-vann. Riktig modell for boligen din, med garanti og lokal serviceoppfølging."
+    image={hero} imageAlt="Utendørs varmepumpe"
+    deliveries={["Luft-til-luft", "Luft-til-vann", "Væske-til-vann", "Garanti og serviceavtale"]}
+  />;
 }
 
-export function Hasteoppdrag() {
-  return (
-    <PublicLayout>
-      <ServicePageTemplate
-        slug="hasteoppdrag"
-        title="Hasteoppdrag"
-        intro="Akutt behov? Vi rykker ut 24/7 og løser problemer raskt og effektivt — også utenom åpningstid."
-        description="Når strøm ikke kan stå stille er vår vakttelefon bemannet 24/7. MCS Service har beredskap for hasteoppdrag på tavleanlegg, strømskinner og fordelingsanlegg over hele Østlandet."
-        image={team}
-        imageAlt="MCS Service beredskap og hasteoppdrag"
-        deliveries={[
-          "Vakttelefon 24/7",
-          "Rask responstid",
-          "Akutt feilsøking og reparasjon",
-          "Midlertidige løsninger ved nedetid",
-        ]}
-        benefits={COMMON_BENEFITS}
-        related={related("hasteoppdrag")}
-      />
-    </PublicLayout>
-  );
+export function Montering() {
+  return <Page
+    slug="montering"
+    title="Montering"
+    intro="Fagmessig og ryddig montering av varmepumper — vi rydder etter oss."
+    description="Montering utføres av sertifiserte teknikere. Vi håndterer rørføring, elektrisk tilkobling, veggmontering og idriftsettelse — og gir deg full opplæring i bruk før vi drar."
+    image={service} imageAlt="Montering av innedel"
+    deliveries={["Rør- og elektrikertjenester", "Veggmontering og oppheng", "Idriftsettelse og lekkasjetest", "Opplæring av bruker"]}
+  />;
 }
+
+export function Service() {
+  return <Page
+    slug="service"
+    title="Service og vedlikehold"
+    intro="Regelmessig service holder anlegget effektivt og forlenger levetiden."
+    description="Vi rengjør, kontrollerer og finjusterer varmepumpen slik at den bruker minst mulig strøm og varer lengst mulig. Anbefalt intervall er årlig service."
+    image={service} imageAlt="Service på varmepumpe"
+    deliveries={["Rengjøring av innedel og utedel", "Filterbytte", "Trykk- og tetthetskontroll", "Ytelsesmåling"]}
+  />;
+}
+
+export function Feilsoking() {
+  return <Page
+    slug="feilsoking"
+    title="Feilsøking"
+    intro="Anlegget virker ikke som det skal? Vi finner feilen og retter opp raskt."
+    description="Feilsøking utføres systematisk — vi går gjennom kuldemedie, elektronikk, sensorer og programvare, og gir deg klar tilbakemelding før reparasjon starter."
+    image={service} imageAlt="Feilsøking av varmepumpe"
+    deliveries={["Feilkoder og elektronikk", "Kuldemedie og tetthet", "Sensorer og styring", "Reservedeler og reparasjon"]}
+  />;
+}
+
+export function Serviceavtale() {
+  return <Page
+    slug="serviceavtale"
+    title="Årlig serviceavtale"
+    intro="Fastpris på årskontroll, rask respons ved feil og full oversikt over anlegget ditt."
+    description="Med serviceavtale hos Lier VPS får du årlig fysisk kontroll, prioritert responstid ved feil, rabatt på reservedeler og digital servicehistorikk på ett sted."
+    image={hero} imageAlt="Varmepumpe med serviceavtale"
+    deliveries={["Årlig kontroll og rengjøring", "Prioritert responstid", "Rabatt på reservedeler", "Digital servicehistorikk"]}
+  />;
+}
+
+// Backwards-compat re-exports for existing routes
+export const ServiceFeilsoking = Feilsoking;
+export const Elektrotavler = Salg;
+export const Stromskinner = Montering;
+export const Hasteoppdrag = Service;

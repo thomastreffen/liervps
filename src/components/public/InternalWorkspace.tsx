@@ -15,7 +15,7 @@ const DOC_SHORTCUTS = [
   { to: "/portal/deliveries", icon: Upload,         label: "Last opp underlag" },
   { to: "/portal/deliveries", icon: FolderOpen,     label: "Dokumentasjon / FDV" },
   { to: "/portal/messages",   icon: AlertTriangle,  label: "Avvik / melding" },
-  { to: "/kontakt",           icon: Phone,          label: "Kontakt MCS Service" },
+  { to: "/kontakt",           icon: Phone,          label: "Kontakt Lier VPS" },
 ];
 
 function StatCard({
@@ -70,7 +70,7 @@ export function InternalWorkspace() {
           <h1 className="text-2xl lg:text-3xl font-bold leading-tight">Hei, {firstName}</h1>
           <p className="text-white/70 text-sm lg:text-base mt-1">
             {activeCompany ? <>Tilknyttet <span className="text-white/95 font-medium">{activeCompany.name}</span>. </> : null}
-            Her finner du dine servicejobber, bestillinger og snarveier inn i MCS Kontrollsenter.
+            Her finner du dine servicejobber, bestillinger og snarveier inn i Kontrollsenter.
           </p>
         </div>
 
@@ -95,7 +95,7 @@ export function InternalWorkspace() {
             className="border border-white/25 hover:border-white/60 text-white font-semibold px-4 py-3 rounded-md inline-flex items-center justify-center gap-2 text-sm"
           >
             <LayoutDashboard className="h-4 w-4" />
-            MCS Kontrollsenter
+            Kontrollsenter
           </Link>
           {isInternal ? (
             <Link
