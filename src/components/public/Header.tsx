@@ -2,7 +2,9 @@ import { Link, NavLink } from "react-router-dom";
 import { useState } from "react";
 import { Menu, X, LayoutDashboard, LogOut } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
-import logo from "@/assets/lier/logo.png";
+import logoAsset from "@/assets/lier/logo.png.asset.json";
+const logo = logoAsset.url;
+
 
 const PUBLIC_NAV = [
   { to: "/tjenester/service-og-feilsoking", label: "Tjenester" },
