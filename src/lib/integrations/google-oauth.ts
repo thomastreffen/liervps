@@ -46,6 +46,12 @@ export type GoogleScopeBundle = keyof typeof GOOGLE_SCOPE_BUNDLES;
  */
 let _clientIdCache: { id: string; configured: boolean } | null = null;
 
+function maskGoogleClientId(clientId: string) {
+  if (!clientId) return "<empty>";
+  if (clientId.length <= 18) return `${clientId.slice(0, 4)}…${clientId.slice(-4)}`;
+  return `${clientId.slice(0, 8)}…${clientId.slice(-24)}`;
+}
+
 export async function getGoogleClientId(): Promise<{ id: string; configured: boolean }> {
   if (_clientIdCache) return _clientIdCache;
   try {
@@ -105,5 +111,20 @@ export async function startGoogleLogin(options?: {
   if (options?.hostedDomain) params.set("hd", options.hostedDomain);
   if (options?.loginHint) params.set("login_hint", options.loginHint);
 
-  window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
+  const authorizationUrl = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
+
+  console.info("[Google OAuth] authorize", {
+    client_id: maskGoogleClientId(clientId),
+    redirect_uri: redirectUri,
+    scope: scopes,
+    response_type: "code",
+    access_type: "offline",
+    prompt: params.get("prompt"),
+    authorization_url: authorizationUrl.replace(
+      encodeURIComponent(clientId),
+      encodeURIComponent(maskGoogleClientId(clientId)),
+    ),
+  });
+
+  window.location.href = authorizationUrl;
 }
