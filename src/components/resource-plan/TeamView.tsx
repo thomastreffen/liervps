@@ -498,8 +498,8 @@ export function TeamView({
 
 
                       {cellBlocks.map((b) => {
-                        const tone = statusTone(b.job_status);
-                        const dotCls = statusDot(b.job_status);
+                        const tone = statusTone(b);
+                        const dotCls = statusDot(b);
                         const isSelected = selectedBlockId === b.id;
                         // Primary: human-readable title (job → block → parent project)
                         const primaryTitle = b.job_title
