@@ -28,7 +28,7 @@ export function Header() {
   const NAV = user ? INTERNAL_NAV : PUBLIC_NAV;
   return (
     <header className="sticky top-0 z-40 bg-[hsl(var(--warm-cream))]/95 backdrop-blur border-b border-[hsl(var(--warm-beige))]/70">
-      <div className="mx-auto max-w-[1440px] px-5 sm:px-10 lg:px-14 xl:px-16">
+      <div className="mx-auto max-w-[1536px] px-6 sm:px-12 lg:px-16 xl:px-24">
         <div className="flex h-[88px] lg:h-[104px] items-center justify-between gap-6">
           <Link to="/" className="flex items-center shrink-0" aria-label="Lier Varmepumpeservice — Hjem">
             <img

@@ -7,7 +7,7 @@ const logo = logoAsset.url;
 export function Footer() {
   return (
     <footer className="bg-[hsl(var(--mcs-navy))] text-white/70 border-t border-white/5">
-      <div className="mx-auto max-w-[1440px] px-5 sm:px-10 lg:px-14 xl:px-16 py-14">
+      <div className="mx-auto max-w-[1536px] px-6 sm:px-12 lg:px-16 xl:px-24 py-14">
         <div className="grid gap-10 md:grid-cols-5">
           <div className="md:col-span-2">
             <div className="bg-white/95 rounded-xl inline-block px-6 py-5 mb-5 shadow-sm">
