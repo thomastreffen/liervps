@@ -29,12 +29,12 @@ export function Header() {
   return (
     <header className="sticky top-0 z-40 bg-[hsl(var(--warm-cream))]/95 backdrop-blur border-b border-[hsl(var(--warm-beige))]/70">
       <div className="mx-auto max-w-[1600px] px-6 sm:px-10 lg:px-12 xl:px-16 2xl:px-24">
-        <div className="flex h-[88px] lg:h-[104px] items-center justify-between gap-6">
+        <div className="flex h-[86px] lg:h-[96px] items-center justify-between gap-6">
           <Link to="/" className="flex items-center shrink-0" aria-label="Lier Varmepumpeservice — Hjem">
             <img
               src={logo}
               alt="Lier Varmepumpeservice"
-              className="h-[68px] md:h-[84px] lg:h-[96px] w-auto block"
+              className="h-[64px] md:h-[76px] lg:h-[86px] w-auto block"
               width={1108}
               height={531}
             />
