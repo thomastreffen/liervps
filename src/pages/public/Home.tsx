@@ -159,19 +159,19 @@ export default function Home() {
 
       {/* HERO */}
       <section className="relative bg-[hsl(var(--warm-cream))]">
-        <div className="mx-auto max-w-[1440px] px-0 sm:px-6 lg:px-8 pt-3 sm:pt-4 lg:pt-5 pb-20 lg:pb-24">
+        <div className="mx-auto max-w-[1500px] px-0 sm:px-8 lg:px-12 xl:px-16 pt-4 sm:pt-6 lg:pt-8 pb-20 lg:pb-24">
           <div className="relative sm:rounded-3xl overflow-hidden">
 
             <img
               src={heroImg}
               alt="Varmt Skandinavisk stue-interiør med veggmontert varmepumpe"
-              className="w-full h-[560px] lg:h-[680px] object-cover"
+              className="w-full h-[560px] lg:h-[700px] xl:h-[740px] object-cover"
               width={1920}
               height={1200}
             />
             <div className="absolute inset-0 bg-gradient-to-r from-[hsl(var(--warm-cream))] via-[hsl(var(--warm-cream))]/80 to-transparent" />
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full mx-auto max-w-[1280px] px-6 sm:px-10 lg:px-14">
+              <div className="w-full mx-auto max-w-[1400px] px-6 sm:px-12 lg:px-16">
                 <div className="max-w-2xl">
                   <h1 className={`font-bold leading-[1.05] tracking-tight text-[hsl(var(--mcs-navy))] mb-6 ${user ? "text-3xl" : "text-4xl lg:text-5xl xl:text-6xl"}`}>
                     Varmepumper som gir komfort, kontroll og lavere strømregning
@@ -200,8 +200,9 @@ export default function Home() {
           </div>
 
           {/* Trust strip — overlaps hero bottom */}
-          <div className="relative -mt-10 lg:-mt-12 px-4 sm:px-6 lg:px-10">
-            <div className="mx-auto max-w-5xl bg-white rounded-2xl shadow-xl border border-[hsl(var(--warm-beige))] px-5 sm:px-8 py-4">
+          <div className="relative -mt-10 lg:-mt-12 px-4 sm:px-8 lg:px-12">
+            <div className="mx-auto max-w-6xl bg-white rounded-2xl shadow-xl border border-[hsl(var(--warm-beige))] px-6 sm:px-10 py-5">
+
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-3">
                 {TRUST.map((t) => (
                   <div key={t.title} className="flex items-center gap-3 text-[hsl(var(--mcs-navy))]">
