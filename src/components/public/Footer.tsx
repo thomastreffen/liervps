@@ -8,9 +8,10 @@ export function Footer() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-14">
         <div className="grid gap-10 md:grid-cols-5">
           <div className="md:col-span-2">
-            <div className="bg-white rounded-lg inline-block p-3 mb-4">
-              <img src={logo} alt="Lier Varmepumpeservice" className="h-12 w-auto" width={1152} height={576} />
+            <div className="bg-white rounded-xl inline-block px-5 py-4 mb-5 shadow-sm">
+              <img src={logo} alt="Lier Varmepumpeservice" className="h-16 md:h-[72px] w-auto" width={1152} height={576} />
             </div>
+
             <p className="text-white font-semibold text-sm mb-2">Lier Varmepumpeservice AS</p>
             <p className="text-sm leading-relaxed max-w-sm">
               Lokal fagkompetanse på service og varmepumper til bolig og næring i hele Lier og omegn.
