@@ -165,10 +165,11 @@ export default function Home() {
             <img
               src={heroImg}
               alt="Varmt Skandinavisk stue-interiør med veggmontert varmepumpe"
-              className="w-full h-[560px] lg:h-[700px] xl:h-[760px] object-cover"
+              className="w-full h-[560px] md:h-[600px] lg:h-[660px] xl:h-[700px] object-cover object-[70%_center]"
               width={1920}
               height={1200}
             />
+
             <div className="absolute inset-0 bg-gradient-to-r from-[hsl(var(--warm-cream))] via-[hsl(var(--warm-cream))]/80 to-transparent" />
             <div className="absolute inset-0 flex items-center">
               <div className="w-full mx-auto max-w-[1600px] px-6 sm:px-10 lg:px-12 xl:px-16 2xl:px-24">
