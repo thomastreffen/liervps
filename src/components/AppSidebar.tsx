@@ -63,13 +63,12 @@ import { Skeleton } from "@/components/ui/skeleton";
  */
 
 const mainNav = [
-  { title: "Hjem", url: "/overview", icon: Home, moduleKey: "overview", modulePermission: "module.overview" },
-  { title: "Prosjekter", url: "/projects", icon: FolderKanban, moduleKey: "projects", modulePermission: "module.projects", requiredPermission: "jobs.view" },
-  { title: "Ressursplan", url: "/projects/plan", icon: CalendarDays, moduleKey: "resource_plan", modulePermission: "module.resource_plan", requiredPermission: "resourceplan.view" },
+  { title: "Dashboard", url: "/overview", icon: Home, moduleKey: "overview", modulePermission: "module.overview" },
+  { title: "Oppdrag", url: "/projects", icon: FolderKanban, moduleKey: "projects", modulePermission: "module.projects", requiredPermission: "jobs.view" },
+  { title: "Kalender", url: "/projects/plan", icon: CalendarDays, moduleKey: "resource_plan", modulePermission: "module.resource_plan", requiredPermission: "resourceplan.view" },
   { title: "Fravær", url: "/absence", icon: CalendarOff, moduleKey: "absence", modulePermission: "module.absence" },
   { title: "Fakturagrunnlag", url: "/invoice-basis", icon: Receipt, moduleKey: "invoice_basis", modulePermission: "module.invoice_basis", requiredPermission: "jobs.view_pricing" },
   { title: "Bestillinger", url: "/orders", icon: ClipboardList, moduleKey: "orders", modulePermission: "module.orders" },
-  { title: "Fagstøtte", url: "/fag", icon: BookOpen, moduleKey: "fag", modulePermission: "module.fag", requiredPermission: "regulation.review" },
 ];
 
 const adminItems = [
@@ -85,7 +84,7 @@ const adminItems = [
   { title: "Systemhelse", url: "/admin/system-health", moduleKey: "admin_system_health" },
   { title: "Dataintegritet", url: "/admin/data-integrity", moduleKey: "admin_data_integrity" },
   { title: "Kontraktvarsler", url: "/admin/contract-cron", moduleKey: "admin_contract_cron" },
-  { title: "Microsoft", url: "/admin/microsoft", requireSuperAdmin: true, moduleKey: "admin_microsoft" },
+  { title: "Google Workspace", url: "/admin/microsoft", requireSuperAdmin: true, moduleKey: "admin_microsoft" },
   { title: "Innstillinger", url: "/admin/settings", moduleKey: "admin_settings" },
   { title: "Papirkurv", url: "/admin/trash", moduleKey: "admin_trash" },
   { title: "Tripletex import", url: "/admin/tripletex", moduleKey: "admin_tripletex" },
@@ -252,12 +251,13 @@ export function AppSidebar() {
     <Sidebar collapsible="icon" className="border-r border-sidebar-border">
       <SidebarHeader className="p-4 pb-6">
         <div className="flex items-center gap-3">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground text-sm font-bold">
-            M
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[hsl(var(--mcs-orange))] text-white text-sm font-bold">
+            L
           </div>
           {!collapsed && (
-            <div>
-              <h1 className="text-sm font-semibold leading-tight text-sidebar-foreground tracking-tight">MCS Service</h1>
+            <div className="leading-tight">
+              <h1 className="text-sm font-semibold text-sidebar-foreground tracking-tight">Lier VPS</h1>
+              <p className="text-[10px] uppercase tracking-wider text-sidebar-foreground/50">Varmepumpeservice</p>
             </div>
           )}
         </div>
