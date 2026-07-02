@@ -202,7 +202,7 @@ export default function Home() {
 
           {/* Trust strip — overlaps hero bottom */}
           <div className="relative -mt-10 lg:-mt-12 px-4 sm:px-8 lg:px-12">
-            <div className="mx-auto max-w-6xl bg-white rounded-2xl shadow-xl border border-[hsl(var(--warm-beige))] px-6 sm:px-10 py-5">
+            <div className="mx-auto max-w-[1200px] bg-white rounded-2xl shadow-xl border border-[hsl(var(--warm-beige))] px-6 sm:px-10 py-5">
 
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-3">
                 {TRUST.map((t) => (
