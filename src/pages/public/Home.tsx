@@ -220,7 +220,7 @@ export default function Home() {
 
       {/* FOR BOLIG OG NÆRING */}
       <section className="bg-[hsl(var(--warm-cream))] pb-16">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 grid lg:grid-cols-2 gap-6">
+        <div className="mx-auto max-w-[1440px] px-5 sm:px-10 lg:px-14 xl:px-16 grid lg:grid-cols-2 gap-6">
           {/* Bolig */}
           <div className="bg-white rounded-2xl overflow-hidden border border-[hsl(var(--warm-beige))] shadow-sm grid sm:grid-cols-[220px_1fr]">
             <img src={homeImg} alt="Koselig stue med varmepumpe" loading="lazy" width={1280} height={960} className="h-full w-full object-cover min-h-[280px]" />
@@ -274,7 +274,7 @@ export default function Home() {
 
       {/* EKSEMPLER PÅ BESPARELSE */}
       <section className="bg-[hsl(var(--warm-cream))] pb-16">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-[1440px] px-5 sm:px-10 lg:px-14 xl:px-16">
           <h2 className="text-2xl lg:text-3xl font-bold text-[hsl(var(--mcs-navy))] text-center mb-8">
             Eksempler på besparelse
           </h2>
@@ -304,7 +304,7 @@ export default function Home() {
 
       {/* VARMEPUMPER VI ANBEFALER */}
       <section className="bg-[hsl(var(--warm-cream))] pb-16">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 grid lg:grid-cols-[280px_1fr] gap-8 items-start">
+        <div className="mx-auto max-w-[1440px] px-5 sm:px-10 lg:px-14 xl:px-16 grid lg:grid-cols-[280px_1fr] gap-8 items-start">
           <div>
             <h2 className="text-2xl lg:text-3xl font-bold text-[hsl(var(--mcs-navy))] mb-3 leading-tight">
               Varmepumper vi anbefaler
@@ -346,7 +346,7 @@ export default function Home() {
 
       {/* VÅRE TJENESTER */}
       <section className="bg-[hsl(var(--warm-cream))] pb-16">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 grid lg:grid-cols-[220px_1fr] gap-8 items-start">
+        <div className="mx-auto max-w-[1440px] px-5 sm:px-10 lg:px-14 xl:px-16 grid lg:grid-cols-[220px_1fr] gap-8 items-start">
           <div>
             <h2 className="text-2xl lg:text-3xl font-bold text-[hsl(var(--mcs-navy))] leading-tight">Våre tjenester</h2>
             <div className="h-0.5 w-10 bg-[hsl(var(--mcs-orange))] mt-3" />
@@ -369,7 +369,7 @@ export default function Home() {
 
       {/* DERFOR VELGER KUNDENE OSS */}
       <section className="bg-[hsl(var(--warm-cream))] pb-16">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-[1440px] px-5 sm:px-10 lg:px-14 xl:px-16">
           <div className="bg-[hsl(var(--warm-sand))] rounded-2xl overflow-hidden grid lg:grid-cols-[420px_1fr]">
             <img src={technicianImg} alt="Tekniker fra Lier VPS utfører service på innedel" loading="lazy" width={1280} height={960} className="h-full w-full object-cover min-h-[280px]" />
             <div className="p-7 lg:p-10">
@@ -388,7 +388,7 @@ export default function Home() {
 
       {/* SERVICEAVTALE */}
       <section className="bg-[hsl(var(--warm-cream))] pb-16">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-[1440px] px-5 sm:px-10 lg:px-14 xl:px-16">
           <div className="rounded-2xl bg-[hsl(var(--mcs-navy))] text-white p-7 lg:p-10 grid lg:grid-cols-[auto_1fr_1fr] gap-8 items-center">
             <div className="h-20 w-20 rounded-full border-2 border-[hsl(var(--mcs-orange))]/60 flex items-center justify-center shrink-0 mx-auto lg:mx-0">
               <ShieldCheck className="h-10 w-10 text-[hsl(var(--mcs-orange))]" />
@@ -422,7 +422,7 @@ export default function Home() {
 
       {/* SLIK GJØR VI DET */}
       <section className="bg-[hsl(var(--warm-cream))] pb-16">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 grid lg:grid-cols-[220px_1fr] gap-8 items-start">
+        <div className="mx-auto max-w-[1440px] px-5 sm:px-10 lg:px-14 xl:px-16 grid lg:grid-cols-[220px_1fr] gap-8 items-start">
           <h2 className="text-2xl lg:text-3xl font-bold text-[hsl(var(--mcs-navy))] leading-tight">
             Slik gjør vi det
           </h2>
@@ -447,7 +447,7 @@ export default function Home() {
 
       {/* KUNDEPORTAL + FINAL CTA */}
       <section className="bg-[hsl(var(--warm-cream))] pb-16">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 grid lg:grid-cols-2 gap-5">
+        <div className="mx-auto max-w-[1440px] px-5 sm:px-10 lg:px-14 xl:px-16 grid lg:grid-cols-2 gap-5">
           <div className="bg-white rounded-2xl border border-[hsl(var(--warm-beige))] p-6 lg:p-7 flex flex-col sm:flex-row gap-5 items-start">
             <div className="h-14 w-14 rounded-lg bg-[hsl(var(--mcs-navy))] text-white flex items-center justify-center shrink-0">
               <Monitor className="h-7 w-7" />
