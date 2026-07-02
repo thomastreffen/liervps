@@ -159,8 +159,9 @@ export default function Home() {
 
       {/* HERO */}
       <section className="relative bg-[hsl(var(--warm-cream))]">
-        <div className="mx-auto max-w-[1440px] px-0 sm:px-6 lg:px-8 pt-6 lg:pt-8 pb-24 lg:pb-28">
+        <div className="mx-auto max-w-[1440px] px-0 sm:px-6 lg:px-8 pt-3 sm:pt-4 lg:pt-5 pb-20 lg:pb-24">
           <div className="relative sm:rounded-3xl overflow-hidden">
+
             <img
               src={heroImg}
               alt="Varmt Skandinavisk stue-interiør med veggmontert varmepumpe"
