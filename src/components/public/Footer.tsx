@@ -1,6 +1,8 @@
 import { Link } from "react-router-dom";
 import { Phone, Mail, MapPin } from "lucide-react";
-import logo from "@/assets/lier/logo.png";
+import logoAsset from "@/assets/lier/logo.png.asset.json";
+const logo = logoAsset.url;
+
 
 export function Footer() {
   return (
