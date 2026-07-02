@@ -103,7 +103,15 @@
     --mcs-orange-hover: 0 74% 42%;     /* #B91C1C */
     --mcs-blue: 221 83% 53%;           /* #2563EB service blue */
     --mcs-blue-deep: 214 71% 25%;      /* #123B6D */
+    /* Warm neutrals */
+    --warm-cream: 36 40% 97%;          /* #FBF8F3 */
+    --warm-sand: 34 30% 93%;           /* #F1EAE0 */
+    --warm-beige: 32 25% 85%;          /* #E0D5C4 */
+    --warm-wood: 28 42% 55%;           /* warm oak accent */
+    --savings-green: 145 45% 40%;      /* #388E5C */
+    --savings-green-soft: 140 45% 92%; /* #E1F1E5 */
   }
+
 
   .dark {
     --background: 217 68% 8%;

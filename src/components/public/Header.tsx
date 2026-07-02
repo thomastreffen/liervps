@@ -1,129 +1,128 @@
 import { Link, NavLink } from "react-router-dom";
 import { useState } from "react";
-import { Menu, X, LayoutDashboard, LogOut, Flame } from "lucide-react";
+import { Menu, X, LayoutDashboard, LogOut } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
-import { useActionCounts } from "@/hooks/useActionCounts";
+import logo from "@/assets/lier/logo.png";
 
 const PUBLIC_NAV = [
   { to: "/tjenester/service-og-feilsoking", label: "Tjenester" },
-  { to: "/om-mcs", label: "Om oss" },
-  { to: "/referanser", label: "Referanser" },
+  { to: "/tjenester/salg", label: "Varmepumper" },
+  { to: "/for-bolig", label: "For bolig" },
+  { to: "/for-naering", label: "For næring" },
+  { to: "/tjenester/serviceavtale", label: "Serviceavtale" },
   { to: "/kontakt", label: "Kontakt" },
 ];
 
-const INTERNAL_NAV: { to: string; label: string; badgeKey?: "orders" }[] = [
+const INTERNAL_NAV = [
   { to: "/projects", label: "Oppdrag" },
-  { to: "/orders", label: "Bestillinger", badgeKey: "orders" },
+  { to: "/orders", label: "Bestillinger" },
   { to: "/projects/plan", label: "Kalender" },
   { to: "/portal/deliveries", label: "Dokumentasjon" },
 ];
 
-function BrandMark() {
-  return (
-    <div className="flex items-center gap-2.5">
-      <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-[hsl(var(--mcs-orange))] text-white shadow-sm">
-        <Flame className="h-5 w-5" strokeWidth={2.4} />
-      </div>
-      <div className="leading-tight">
-        <div className="text-white font-bold text-[15px] tracking-tight">Lier Varmepumpeservice</div>
-        <div className="text-white/60 text-[11px] font-medium tracking-wider uppercase">Lier VPS</div>
-      </div>
-    </div>
-  );
-}
-
 export function Header() {
   const [open, setOpen] = useState(false);
   const { user, signOut } = useAuth();
-  const { newOrders } = useActionCounts();
   const NAV = user ? INTERNAL_NAV : PUBLIC_NAV;
   return (
-    <header className="sticky top-0 z-40 bg-[hsl(var(--mcs-navy))]/95 backdrop-blur border-b border-white/5">
+    <header className="sticky top-0 z-40 bg-[hsl(var(--warm-cream))]/95 backdrop-blur border-b border-[hsl(var(--warm-beige))]">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="flex h-20 items-center justify-between gap-4">
+        <div className="flex h-24 items-center justify-between gap-6">
           <Link to="/" className="flex items-center shrink-0" aria-label="Lier Varmepumpeservice — Hjem">
-            <BrandMark />
+            <img
+              src={logo}
+              alt="Lier Varmepumpeservice"
+              className="h-14 w-auto md:h-16"
+              width={1152}
+              height={576}
+            />
           </Link>
-          <nav className="hidden lg:flex items-center gap-8" aria-label="Hovedmeny">
-            {NAV.map((n: any) => {
-              const showBadge = n.badgeKey === "orders" && newOrders > 0;
-              return (
-                <NavLink
-                  key={n.to}
-                  to={n.to}
-                  className={({ isActive }) =>
-                    `text-sm font-medium transition-colors inline-flex items-center gap-1.5 ${isActive ? "text-white" : "text-white/70 hover:text-white"}`
-                  }
-                >
-                  {n.label}
-                  {showBadge && (
-                    <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-[hsl(var(--mcs-orange))] text-white text-[10px] font-bold tabular-nums">
-                      {newOrders > 9 ? "9+" : newOrders}
-                    </span>
-                  )}
-                </NavLink>
-              );
-            })}
+          <nav className="hidden lg:flex items-center gap-7" aria-label="Hovedmeny">
+            {NAV.map((n) => (
+              <NavLink
+                key={n.to}
+                to={n.to}
+                className={({ isActive }) =>
+                  `text-[13px] font-semibold tracking-wide transition-colors ${
+                    isActive
+                      ? "text-[hsl(var(--mcs-navy))]"
+                      : "text-[hsl(var(--mcs-navy))]/70 hover:text-[hsl(var(--mcs-navy))]"
+                  }`
+                }
+              >
+                {n.label}
+              </NavLink>
+            ))}
           </nav>
-          <div className="hidden lg:flex items-center gap-2">
+          <div className="hidden lg:flex items-center gap-3">
             {user ? (
               <>
                 <Link
                   to="/overview"
-                  className="text-sm font-semibold text-white px-4 py-2 inline-flex items-center gap-2 border border-white/20 hover:border-white/50 rounded-md"
+                  className="text-sm font-semibold text-[hsl(var(--mcs-navy))] px-4 py-2 inline-flex items-center gap-2 border border-[hsl(var(--mcs-navy))]/20 hover:border-[hsl(var(--mcs-navy))] rounded-md"
                 >
                   <LayoutDashboard className="h-4 w-4" /> Kontrollsenter
                 </Link>
-                <button onClick={signOut} className="text-sm text-white/60 hover:text-white px-3 py-2 inline-flex items-center gap-2" aria-label="Logg ut">
+                <button
+                  onClick={signOut}
+                  className="text-sm text-[hsl(var(--mcs-navy))]/60 hover:text-[hsl(var(--mcs-navy))] px-3 py-2 inline-flex items-center gap-2"
+                  aria-label="Logg ut"
+                >
                   <LogOut className="h-4 w-4" />
                 </button>
               </>
             ) : (
               <>
-                <Link to="/login" className="text-sm text-white/80 hover:text-white px-3 py-2">
-                  Logg inn
+                <Link
+                  to="/login"
+                  className="text-sm font-medium text-[hsl(var(--mcs-navy))]/80 hover:text-[hsl(var(--mcs-navy))] px-3 py-2 inline-flex items-center gap-1.5"
+                >
+                  <span className="i-user" /> Logg inn
                 </Link>
                 <Link
                   to="/bestill-service"
-                  className="bg-[hsl(var(--mcs-orange))] hover:bg-[hsl(var(--mcs-orange-hover))] text-white text-sm font-semibold px-5 py-2.5 rounded-md transition-colors"
+                  className="bg-[hsl(var(--mcs-orange))] hover:bg-[hsl(var(--mcs-orange-hover))] text-white text-sm font-semibold px-5 py-2.5 rounded-md transition-colors shadow-sm"
                 >
                   Bestill befaring
                 </Link>
               </>
             )}
           </div>
-          <button className="lg:hidden text-white" onClick={() => setOpen(!open)} aria-label="Meny" aria-expanded={open}>
+          <button
+            className="lg:hidden text-[hsl(var(--mcs-navy))]"
+            onClick={() => setOpen(!open)}
+            aria-label="Meny"
+            aria-expanded={open}
+          >
             {open ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
           </button>
         </div>
         {open && (
-          <div className="lg:hidden border-t border-white/10 py-4 space-y-2">
-            {NAV.map((n: any) => {
-              const showBadge = n.badgeKey === "orders" && newOrders > 0;
-              return (
-                <Link
-                  key={n.to}
-                  to={n.to}
-                  onClick={() => setOpen(false)}
-                  className="flex items-center justify-between text-white/80 hover:text-white py-2"
-                >
-                  <span>{n.label}</span>
-                  {showBadge && (
-                    <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-[hsl(var(--mcs-orange))] text-white text-[10px] font-bold tabular-nums">
-                      {newOrders > 9 ? "9+" : newOrders}
-                    </span>
-                  )}
-                </Link>
-              );
-            })}
-            <div className="pt-3 mt-3 border-t border-white/10 space-y-2">
+          <div className="lg:hidden border-t border-[hsl(var(--warm-beige))] py-4 space-y-1">
+            {NAV.map((n) => (
+              <Link
+                key={n.to}
+                to={n.to}
+                onClick={() => setOpen(false)}
+                className="block text-[hsl(var(--mcs-navy))]/80 hover:text-[hsl(var(--mcs-navy))] py-2 font-medium"
+              >
+                {n.label}
+              </Link>
+            ))}
+            <div className="pt-3 mt-3 border-t border-[hsl(var(--warm-beige))] space-y-2">
               {user ? (
-                <Link to="/overview" onClick={() => setOpen(false)} className="block bg-white/10 border border-white/20 text-white text-center font-semibold py-3 rounded-md">
+                <Link
+                  to="/overview"
+                  onClick={() => setOpen(false)}
+                  className="block bg-[hsl(var(--mcs-navy))] text-white text-center font-semibold py-3 rounded-md"
+                >
                   Kontrollsenter
                 </Link>
               ) : (
                 <>
-                  <Link to="/login" onClick={() => setOpen(false)} className="block text-white/80 py-2">Logg inn</Link>
+                  <Link to="/login" onClick={() => setOpen(false)} className="block text-[hsl(var(--mcs-navy))]/80 py-2">
+                    Logg inn
+                  </Link>
                   <Link
                     to="/bestill-service"
                     onClick={() => setOpen(false)}
