@@ -159,60 +159,63 @@ export default function Home() {
 
       {/* HERO */}
       <section className="relative bg-[hsl(var(--warm-cream))]">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pt-8 pb-14 lg:pt-10 lg:pb-20">
-          <div className="relative rounded-3xl overflow-hidden">
+        <div className="mx-auto max-w-[1440px] px-0 sm:px-6 lg:px-8 pt-6 lg:pt-8 pb-24 lg:pb-28">
+          <div className="relative sm:rounded-3xl overflow-hidden">
             <img
               src={heroImg}
               alt="Varmt Skandinavisk stue-interiør med veggmontert varmepumpe"
-              className="w-full h-[520px] lg:h-[600px] object-cover"
+              className="w-full h-[560px] lg:h-[680px] object-cover"
               width={1920}
               height={1200}
             />
-            <div className="absolute inset-0 bg-gradient-to-r from-[hsl(var(--warm-cream))] via-[hsl(var(--warm-cream))]/70 to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-r from-[hsl(var(--warm-cream))] via-[hsl(var(--warm-cream))]/80 to-transparent" />
             <div className="absolute inset-0 flex items-center">
-              <div className="max-w-xl px-6 sm:px-10 lg:px-14">
-                <h1 className={`font-bold leading-[1.05] text-[hsl(var(--mcs-navy))] mb-5 ${user ? "text-3xl" : "text-4xl lg:text-5xl xl:text-6xl"}`}>
-                  Varmepumper som gir komfort, kontroll og lavere strømregning
-                </h1>
-                <p className="text-[hsl(var(--mcs-navy))]/75 text-base lg:text-lg leading-relaxed mb-7">
-                  Lier Varmepumpeservice hjelper både boligeiere og bedrifter med rådgivning,
-                  montering, service og driftssikre løsninger tilpasset norske forhold.
-                </p>
-                <div className="flex flex-col sm:flex-row gap-3">
-                  <Link
-                    to="/bestill-service"
-                    className="bg-[hsl(var(--mcs-orange))] hover:bg-[hsl(var(--mcs-orange-hover))] text-white font-semibold px-7 py-3.5 rounded-lg inline-flex items-center justify-center gap-2 shadow-sm"
-                  >
-                    Bestill befaring <ArrowRight className="h-4 w-4" />
-                  </Link>
-                  <Link
-                    to="/tjenester/salg"
-                    className="bg-white border border-[hsl(var(--mcs-navy))]/20 text-[hsl(var(--mcs-navy))] font-semibold px-7 py-3.5 rounded-lg text-center hover:border-[hsl(var(--mcs-navy))]"
-                  >
-                    Se løsninger
-                  </Link>
+              <div className="w-full mx-auto max-w-[1280px] px-6 sm:px-10 lg:px-14">
+                <div className="max-w-2xl">
+                  <h1 className={`font-bold leading-[1.05] tracking-tight text-[hsl(var(--mcs-navy))] mb-6 ${user ? "text-3xl" : "text-4xl lg:text-5xl xl:text-6xl"}`}>
+                    Varmepumper som gir komfort, kontroll og lavere strømregning
+                  </h1>
+                  <p className="text-[hsl(var(--mcs-navy))]/75 text-base lg:text-lg leading-relaxed mb-8 max-w-xl">
+                    Lier Varmepumpeservice hjelper både boligeiere og bedrifter med rådgivning,
+                    montering, service og driftssikre løsninger tilpasset norske forhold.
+                  </p>
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <Link
+                      to="/bestill-service"
+                      className="bg-[hsl(var(--mcs-orange))] hover:bg-[hsl(var(--mcs-orange-hover))] text-white font-semibold px-7 py-3.5 rounded-lg inline-flex items-center justify-center gap-2 shadow-sm"
+                    >
+                      Bestill befaring <ArrowRight className="h-4 w-4" />
+                    </Link>
+                    <Link
+                      to="/tjenester/salg"
+                      className="bg-white border border-[hsl(var(--mcs-navy))]/20 text-[hsl(var(--mcs-navy))] font-semibold px-7 py-3.5 rounded-lg text-center hover:border-[hsl(var(--mcs-navy))]"
+                    >
+                      Se løsninger
+                    </Link>
+                  </div>
                 </div>
               </div>
             </div>
+          </div>
 
-            {/* Trust strip */}
-            <div className="absolute left-0 right-0 bottom-4 px-4 sm:px-6 lg:px-10">
-              <div className="mx-auto max-w-5xl bg-white/95 backdrop-blur rounded-full shadow-lg border border-[hsl(var(--warm-beige))] px-4 sm:px-6 py-3">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-2">
-                  {TRUST.map((t) => (
-                    <div key={t.title} className="flex items-center gap-2.5 text-[hsl(var(--mcs-navy))]">
-                      <div className="h-8 w-8 rounded-full bg-[hsl(var(--mcs-navy))] text-white flex items-center justify-center shrink-0">
-                        <t.icon className="h-4 w-4" />
-                      </div>
-                      <span className="text-[12.5px] font-semibold leading-tight">{t.title}</span>
+          {/* Trust strip — overlaps hero bottom */}
+          <div className="relative -mt-10 lg:-mt-12 px-4 sm:px-6 lg:px-10">
+            <div className="mx-auto max-w-5xl bg-white rounded-2xl shadow-xl border border-[hsl(var(--warm-beige))] px-5 sm:px-8 py-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-3">
+                {TRUST.map((t) => (
+                  <div key={t.title} className="flex items-center gap-3 text-[hsl(var(--mcs-navy))]">
+                    <div className="h-9 w-9 rounded-full bg-[hsl(var(--mcs-navy))] text-white flex items-center justify-center shrink-0">
+                      <t.icon className="h-4 w-4" />
                     </div>
-                  ))}
-                </div>
+                    <span className="text-[13px] font-semibold leading-tight">{t.title}</span>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
         </div>
       </section>
+
 
       {/* FOR BOLIG OG NÆRING */}
       <section className="bg-[hsl(var(--warm-cream))] pb-16">
