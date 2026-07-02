@@ -25,18 +25,19 @@ export function Header() {
   const { user, signOut } = useAuth();
   const NAV = user ? INTERNAL_NAV : PUBLIC_NAV;
   return (
-    <header className="sticky top-0 z-40 bg-[hsl(var(--warm-cream))]/95 backdrop-blur border-b border-[hsl(var(--warm-beige))] shadow-[0_1px_0_rgba(11,31,58,0.04)]">
-      <div className="mx-auto max-w-[1280px] px-5 sm:px-8 lg:px-10">
-        <div className="flex h-24 lg:h-28 items-center justify-between gap-6">
+    <header className="sticky top-0 z-40 bg-[hsl(var(--warm-cream))]/95 backdrop-blur border-b border-[hsl(var(--warm-beige))]/70">
+      <div className="mx-auto max-w-[1440px] px-5 sm:px-8 lg:px-10">
+        <div className="flex h-20 lg:h-[84px] items-center justify-between gap-6">
           <Link to="/" className="flex items-center shrink-0" aria-label="Lier Varmepumpeservice — Hjem">
             <img
               src={logo}
               alt="Lier Varmepumpeservice"
-              className="h-16 md:h-20 lg:h-[86px] w-auto"
+              className="h-[60px] md:h-[68px] lg:h-[74px] w-auto block"
               width={1152}
               height={576}
             />
           </Link>
+
 
           <nav className="hidden lg:flex items-center gap-7" aria-label="Hovedmeny">
             {NAV.map((n) => (
