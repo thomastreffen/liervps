@@ -1,70 +1,106 @@
 
-# Materialliste / Plukkliste-modul
+## Utgangspunkt
 
-Bygger en integrert materialflyt per jobb/bestilling: opprett liste, plukk, forbruk, retur, print, eksport, standardpakker, og klargjør AI-forslag. Første versjon — praktisk flyt, ikke fullt lagersystem.
+Denne appen er et fullt utbygd elektro-/tavlesystem (MCS Service) med mange moduler: prosjekter, materialliste, kalkyle, ordreskjema, HMS, forms, Microsoft-integrasjon (Outlook/Teams/SharePoint), tavle-/høystrøms-AI, m.m. En bit-for-bit omskrivning av **hver** referanse til MCS/tavle/Microsoft er et flere-ukers arbeid og vil bryte mange interne flyter.
 
-## Datamodell (migrasjon)
+For å levere Lier VPS raskt uten å knuse eksisterende auth, tenant, RLS og databaseflyt, foreslår jeg en **faseinndelt konvertering**. Fase 1 (denne runden) leverer alt det synlige — hjemmesiden, navigasjon, terminologi i app-shell, dashboard, branding, integrasjonsspråk. Fase 2+ håndterer dyp modulomskriving trinnvis.
 
-Nye tabeller i `public`:
+---
 
-- `material_lists` — én per jobb/ordre. Felter: `job_id`, `order_id`, `company_id`, `status`, tidsstempler for hver fase (`ordered_at`, `received_at`, `picked_at`, `sent_with_installer_at`, `consumption_registered_at`, `completed_at`), `notes`, `created_by`, `approved_by`.
-- `material_list_items` — linjer. Felter: `elnr`, `supplier_sku`, `description`, `quantity_ordered/picked/used/returned`, `return_overridden`, `unit`, `supplier`, `source` (manual/template/copied/ai/added_after), `ai_confidence`, `ai_reason`, `comment`, `sort_order`. DB-trigger: hvis ikke overstyrt, `quantity_returned = picked - used`.
-- `material_templates` + `material_template_items` — standardpakker (company-scoped).
-- `material_products` — intern produktdatabase (elnr, beskrivelse, enhet, leverandør, supplier_sku, kategori, active).
+## Fase 1 (nå) — synlig konvertering
 
-GRANT + RLS for alle: lest/skrevet av `authenticated` innenfor egen `company_id` via eksisterende `user_memberships` / `has_role` mønster. Triggere for `updated_at`. Realtime publisering på `material_lists` og `material_list_items`.
+### 1. Branding
+- Bytt alle synlige forekomster av "MCS Service", "MCS", firmalogo/tittel/meta til **Lier Varmepumpeservice AS** / **Lier VPS**.
+- Oppdater `index.html` title + meta description + og:tags.
+- Oppdater sidebar-header, topbar, login-side, favicons hvor mulig.
+- Ny fargepalett: varm/kjølig klima-kontrast (dyp teal + varm oransje-aksent, off-white bakgrunn). Ny typografi som ikke er Inter (f.eks. Sora + Manrope eller Outfit + Figtree).
 
-## Frontend
+### 2. Offentlig hjemmeside (`/` når ikke innlogget)
+Bygger ny landingsside med seksjoner:
+- Hero (tittel/undertittel + CTA "Bestill befaring" / "Bestill service" / "Se våre tjenester")
+- Tjenester (6 kort: befaring, salg, montering, service, feilsøking, årlig serviceavtale)
+- Hvorfor velge Lier VPS (trust-punkter: lokal, sertifisert, rask respons, garanti)
+- Serviceavtale (verdiforslag + prisløfte)
+- Slik gjør vi det (4-stegs flyt: kontakt → befaring → montering → service)
+- Kundeportal / spor service (CTA til innlogging)
+- Kontakt / booking (skjema + telefon/e-post)
 
-### Ny fane på jobbkort
-`src/components/project/ProjectSubnav.tsx` + `src/pages/JobDetail.tsx` får ny tab `materiell` mellom Skjemaer og Service. Ny komponent `src/components/material/MaterialTab.tsx` viser jobbinfo-header, status-badge og enten tomtilstand med "Opprett materialliste" eller selve listen.
+Ingen elektro-/tavle-bilder. Bruker AI-genererte varmepumpe-bilder eller nøytrale ikoner.
 
-### Tabell/kortvisning
-`MaterialItemsTable.tsx` (desktop) + `MaterialItemCard.tsx` (mobil, via `useIsMobile`). Inline-redigering av antall, plukket, brukt; retur auto-beregnet med override-toggle. Knapper: Legg til vare, Legg til standardpakke, Kopier fra tidligere jobb, Foreslå med AI, Skriv ut plukkliste, Eksporter CSV, Registrer forbruk, Ferdigstill.
+### 3. App-navigasjon (sidebar)
+Erstatter dagens elektro-orienterte sidebar med:
+- Dashboard
+- Salg: Leads, Befaringer, Tilbud, Aksepterte tilbud
+- Drift: Kalender, Oppdrag, Uplanlagte jobber, Teknikere
+- Service: Serviceoppdrag, Årskontroller, Feilsøking, Reklamasjoner, Serviceavtaler
+- Kunder: Kunderegister, Anlegg, Varmepumper
+- Dokumentasjon: Bilder, Sjekklister, FDV, Google Drive
+- Økonomi: Fakturagrunnlag, Materiell, Ekstraarbeid
+- Innstillinger: Brukere, Google Workspace, Firmaprofil
 
-### Hurtigregistrering forbruk
-`MaterialConsumptionSheet.tsx` — full-screen sheet på mobil, én linje av gangen eller liste. Hurtigknapper "Brukt alt" / "Ikke brukt" / "Mangler". "Legg til ekstra vare" — kilde `added_after`.
+Ruter beholdes teknisk der de finnes (f.eks. `/projects` → "Oppdrag"), men **etiketter** endres. Rene tavle-/elektro-ruter (kalkyle-tavle, materialliste AI-tavle) skjules fra sidebar men beholdes i koden slik at intet krasjer.
 
-### Vare-søk
-`AddMaterialItemDialog.tsx` — søkefelt mot `material_products` (elnr, beskrivelse, supplier_sku) + manuell linje hvis ingen treff.
+### 4. Dashboard
+Erstatter KPI-kort med:
+- Nye leads, Befaringer denne uka, Tilbud sendt, Aksepterte tilbud, Planlagte monteringer, Åpne serviceoppdrag, Serviceavtaler, Årskontroller neste 30 dager, Reklamasjoner, Fakturagrunnlag klart.
 
-### Standardpakker
-`AddTemplateDialog.tsx` — velg pakke, antall ganger, preview linjer. Admin-side `src/pages/MaterialTemplatesPage.tsx` for CRUD på pakker.
+Kortene bruker eksisterende data-hooks der mulig (leads → leads-tabellen, tilbud → offers, oppdrag → events). Der ingen relevant data finnes, viser vi tomme tilstander med "kommer snart".
 
-### Kopier fra tidligere jobb
-`CopyFromJobDialog.tsx` — lister jobber på samme `customer` eller `address` med eksisterende materialliste.
+### 5. Terminologi (app-shell + hovedsider)
+Global søk-og-erstatt i **synlige strenger** (labels, headers, tomtilstander) — ikke i tabellnavn/kode:
+- MCS Service → Lier VPS
+- Prosjekt → Oppdrag
+- Prosjektrom → Jobbmappe
+- Tavle/switchboard/busbar/breaker → Varmepumpeanlegg (busbar/breaker fjernes uten erstatning)
+- Montør → Tekniker
+- Kontrakt → Serviceavtale (kun der det gir mening)
+- Endringsordre → Ekstraarbeid
+- Outlook → Gmail, Teams → Google Meet, SharePoint → Google Drive, Microsoft 365 → Google Workspace
 
-### AI-forslag
-`AiSuggestMaterialsDialog.tsx` — knapp åpner godkjenningsvisning. Sender kontekst til ny edge function `material-ai-suggest` (Lovable AI Gateway, structured tool calling). Returnerer forslag — bruker godkjenner/redigerer/avviser linje for linje. Tekst: "AI-forslag må kontrolleres før bestilling." Edge function-stubb implementeres med Lovable AI; ingen autobestilling.
+Databasekolonner, RLS, RPC-navn, funksjonsnavn, filnavn og interne identifikatorer **røres ikke**.
 
-### PDF-plukkliste
-`src/pages/MaterialPickListPrintPage.tsx` på rute `/jobs/:id/pickliste` — ren A4-layout, kun print-CSS, ingen meny. Topp: MCS-logo, jobbinfo, plassholder QR-kode (bruker eksisterende QR hvis tilgjengelig, ellers tekst-lenke). Tabell med avkrysning, elnr, beskrivelse, antall, enhet, kommentar, retur. Bunn: signaturfelt + instruksjon.
+### 6. Integrasjonsspråk
+Alle synlige tekster om Microsoft-integrasjon relabelles til Google Workspace. Selve integrasjonskoden (edge-functions, tokens) beholdes urørt i denne fasen — vi endrer kun **hva brukeren ser**. Instillinger-siden får banner: "Google Workspace-integrasjon kommer. Nåværende sync-motor brukes midlertidig."
 
-### CSV-eksport
-Helper `src/lib/material-csv.ts` — bygger CSV med jobbnummer, kunde, adresse, elnr, beskrivelse, antall, enhet, leverandør, kommentar. Lastes ned via blob.
+### 7. Skjules i denne fasen (uten sletting)
+- Tavle-/kalkyle-AI-spesifikke sider
+- HMS-modul (kan aktiveres senere hvis relevant)
+- Fagstøtte (elektro-spesifikk)
+- Kontraktsmodul (kompleks, erstattes senere av "Serviceavtaler")
+- Postkontor (avhengig av MS-mail)
 
-### Hooks
-- `useMaterialList(jobId)` — fetch + realtime subscribe.
-- `useMaterialTemplates(companyId)`.
-- `useMaterialProducts()` — søk.
+Skjules via feature-flag i sidebar. Rutene forblir tilgjengelige for admin.
 
-## Sikkerhet
-- RLS per company via `user_memberships`.
-- AI-edge function krever auth (401 hvis mangler).
-- AI overskriver aldri eksisterende linjer; legger til som forslag.
-- `updated_at`-triggere på alle tabeller.
+---
 
-## QA-sjekkliste etter bygg
-- TypeScript-build grønn.
-- Eksisterende JobDetail-faner fungerer.
-- Materialliste kan opprettes fra både jobb og ordre (samme komponent, ulik FK).
-- Print-side rendrer rent A4 uten sidemeny.
-- Mobil: kort-layout, store touch-mål, hurtigknapper synlige.
+## Fase 2 (senere, egen runde) — dyp modulkonvertering
 
-## Ut av scope (første versjon)
-- Faktisk lagerbeholdning / antall på hylle.
-- Direkte integrasjon mot Onninen/Ahlsell/EFObasen (kun datamodell klar).
-- Automatisk innkjøpsordre.
-- Strekkode-skanning (kan legges til senere).
+- Bygge ekte "Varmepumpeanlegg" og "Varmepumper" registre med dedikerte tabeller.
+- Bygge "Serviceavtaler" som eget datamodell (avløser contracts).
+- Bygge "Årskontroller" som schedulert servicejobb-generator.
+- Bygge Google Workspace edge-functions (Calendar, Gmail, Drive) som erstatter MS-funksjonene.
+- Rydde vekk skjulte tavle-moduler helt.
 
-Bekreft, så starter jeg med migrasjon + minimal end-to-end flyt (fane, opprett liste, legg til linjer, print, CSV) først, deretter standardpakker → kopier → AI-stub → produktsøk.
+---
+
+## Tekniske detaljer
+
+- **Ingen destruktive DB-endringer** i fase 1. Ingen migrasjon nødvendig.
+- **Auth, RLS, tenant, protected routes** beholdes 100 %.
+- Ny fil: `src/pages/PublicHome.tsx` erstatter dagens landingsside for uinnloggede.
+- Ny fil: `src/config/navigation.ts` (eller endring av eksisterende sidebar-config) med nye labels + skjul-flagg.
+- Ny fil: `src/pages/Dashboard.tsx` (eller endring av eksisterende) med varmepumpe-KPIer.
+- `index.html`: nye meta-tags.
+- `tailwind.config.ts` + `index.css`: ny fargepalett + fonter (semantiske tokens).
+- Ingen endringer i `src/integrations/supabase/*`.
+- Terminologi-endringer gjøres i UI-strenger, ikke i type-definisjoner eller DB-navn.
+
+---
+
+## Åpne spørsmål (svar valgfritt — jeg tar rimelige defaults hvis ikke)
+
+1. Skal jeg AI-generere 3–4 varmepumpe-bilder til hero/tjenestekort, eller vil du bruke enkle ikoner/mønster i første runde? (Default: 1 hero-bilde + ikoner.)
+2. Fargevalg: dyp teal (#0F4C5C) + varm oransje aksent (#E36414) + off-white, OK? Eller vil du velge palett?
+3. Kontaktinfo (telefon, e-post, adresse, org.nr) for footer og kontaktseksjon — har du dette klart, eller bruker jeg placeholders?
+
+Fase 1 er ca. 15–20 filer og bør leveres i én runde. Godkjenner du planen, starter jeg med branding + hjemmeside + navigasjon.
