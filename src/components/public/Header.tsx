@@ -28,15 +28,15 @@ export function Header() {
   const NAV = user ? INTERNAL_NAV : PUBLIC_NAV;
   return (
     <header className="sticky top-0 z-40 bg-[hsl(var(--warm-cream))]/95 backdrop-blur border-b border-[hsl(var(--warm-beige))]/70">
-      <div className="mx-auto max-w-[1440px] px-5 sm:px-8 lg:px-10">
-        <div className="flex h-20 lg:h-[84px] items-center justify-between gap-6">
+      <div className="mx-auto max-w-[1440px] px-5 sm:px-10 lg:px-14 xl:px-16">
+        <div className="flex h-[88px] lg:h-[104px] items-center justify-between gap-6">
           <Link to="/" className="flex items-center shrink-0" aria-label="Lier Varmepumpeservice — Hjem">
             <img
               src={logo}
               alt="Lier Varmepumpeservice"
-              className="h-[60px] md:h-[68px] lg:h-[74px] w-auto block"
-              width={1152}
-              height={576}
+              className="h-[68px] md:h-[84px] lg:h-[96px] w-auto block"
+              width={1108}
+              height={531}
             />
           </Link>
 
