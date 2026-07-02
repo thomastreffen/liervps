@@ -6600,6 +6600,44 @@ export type Database = {
           },
         ]
       }
+      integration_providers: {
+        Row: {
+          company_id: string
+          created_at: string
+          id: string
+          is_active: boolean
+          provider: string
+          scope: string
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          provider: string
+          scope: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          provider?: string
+          scope?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "integration_providers_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "internal_companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       internal_companies: {
         Row: {
           created_at: string
@@ -12173,6 +12211,62 @@ export type Database = {
           },
         ]
       }
+      user_integration_tokens: {
+        Row: {
+          access_token: string | null
+          company_id: string | null
+          created_at: string
+          expires_at: string | null
+          granted_scopes: string[]
+          id: string
+          metadata: Json
+          provider: string
+          provider_account_email: string | null
+          refresh_token: string | null
+          scope: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          access_token?: string | null
+          company_id?: string | null
+          created_at?: string
+          expires_at?: string | null
+          granted_scopes?: string[]
+          id?: string
+          metadata?: Json
+          provider: string
+          provider_account_email?: string | null
+          refresh_token?: string | null
+          scope: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          access_token?: string | null
+          company_id?: string | null
+          created_at?: string
+          expires_at?: string | null
+          granted_scopes?: string[]
+          id?: string
+          metadata?: Json
+          provider?: string
+          provider_account_email?: string | null
+          refresh_token?: string | null
+          scope?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_integration_tokens_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "internal_companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_memberships: {
         Row: {
           company_id: string
@@ -13074,6 +13168,10 @@ export type Database = {
       }
       get_active_offer_for_source: {
         Args: { _source_id: string; _source_kind: string }
+        Returns: string
+      }
+      get_active_provider: {
+        Args: { _company_id: string; _scope: string }
         Returns: string
       }
       get_attachment_by_token: {
