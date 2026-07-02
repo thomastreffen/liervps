@@ -54,23 +54,17 @@ export default function Login() {
             <Wrench className="h-6 w-6" />
           </div>
           <div className="text-center">
-            <h1 className="text-xl font-semibold text-card-foreground">MCS Service</h1>
-            <p className="text-sm text-muted-foreground">Ressursplanlegger</p>
+            <h1 className="text-xl font-semibold text-card-foreground">Lier Varmepumpeservice</h1>
+            <p className="text-sm text-muted-foreground">Intern arbeidsflate</p>
           </div>
         </div>
 
         <Button onClick={handleLogin} className="w-full gap-2" size="lg">
-          <svg viewBox="0 0 21 21" className="h-5 w-5" fill="none">
-            <rect x="1" y="1" width="9" height="9" fill="hsl(var(--destructive))" />
-            <rect x="11" y="1" width="9" height="9" fill="hsl(var(--status-accepted))" />
-            <rect x="1" y="11" width="9" height="9" fill="hsl(var(--primary))" />
-            <rect x="11" y="11" width="9" height="9" fill="hsl(var(--status-pending))" />
-          </svg>
-          Logg inn med Microsoft
+          Logg inn
         </Button>
 
         <p className="text-center text-xs text-muted-foreground">
-          Kun tilgjengelig for ansatte i organisasjonen.
+          Kun tilgjengelig for ansatte i Lier VPS.
         </p>
       </div>
     </div>

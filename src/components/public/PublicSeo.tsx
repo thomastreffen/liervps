@@ -1,7 +1,7 @@
 import { Helmet } from "react-helmet-async";
 
-export const SITE_URL = "https://mcsservice.no";
-export const SITE_NAME = "MCS Service";
+export const SITE_URL = "https://liervps.no";
+export const SITE_NAME = "Lier Varmepumpeservice AS";
 
 interface Props {
   title: string;
@@ -12,7 +12,7 @@ interface Props {
 
 export function PublicSeo({ title, description, path, jsonLd }: Props) {
   const fullUrl = `${SITE_URL}${path}`;
-  const fullTitle = title.includes("MCS Service") ? title : `${title} | MCS Service`;
+  const fullTitle = title.includes("Lier") ? title : `${title} | Lier VPS`;
   const schemas = Array.isArray(jsonLd) ? jsonLd : jsonLd ? [jsonLd] : [];
   return (
     <Helmet>
@@ -31,42 +31,4 @@ export function PublicSeo({ title, description, path, jsonLd }: Props) {
       ))}
     </Helmet>
   );
-}
-
-export function breadcrumbSchema(items: { name: string; path: string }[]) {
-  return {
-    "@context": "https://schema.org",
-    "@type": "BreadcrumbList",
-    itemListElement: items.map((it, i) => ({
-      "@type": "ListItem",
-      position: i + 1,
-      name: it.name,
-      item: `${SITE_URL}${it.path}`,
-    })),
-  };
-}
-
-export function serviceSchema(name: string, description: string, path: string) {
-  return {
-    "@context": "https://schema.org",
-    "@type": "Service",
-    name,
-    description,
-    provider: {
-      "@type": "LocalBusiness",
-      name: "MCS Service",
-      url: SITE_URL,
-      telephone: "+47 45 70 70 73",
-      email: "post@mcsservice.no",
-      address: {
-        "@type": "PostalAddress",
-        streetAddress: "Orkidèhøgda 2A",
-        postalCode: "3050",
-        addressLocality: "Mjøndalen",
-        addressCountry: "NO",
-      },
-    },
-    areaServed: "Norway",
-    url: `${SITE_URL}${path}`,
-  };
 }

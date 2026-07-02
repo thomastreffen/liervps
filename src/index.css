@@ -94,15 +94,15 @@
     --sidebar-border: 40 12% 89%;
     --sidebar-ring: 173 80% 26%;
 
-    /* MCS Service public marketing site tokens */
-    --mcs-navy: 213 64% 9%;            /* #081320 */
-    --mcs-charcoal: 220 38% 14%;       /* #142433 */
-    --mcs-light: 220 25% 97%;          /* #F5F7FA */
-    --mcs-steel: 220 17% 92%;          /* #EFB7EB-ish steel */
-    --mcs-border: 220 16% 88%;
-    --mcs-muted: 220 12% 42%;
-    --mcs-orange: 22 100% 50%;         /* #FF6400 */
-    --mcs-orange-hover: 22 100% 44%;
+    /* Lier VPS public marketing site tokens (retain --mcs-* names for compat) */
+    --mcs-navy: 192 71% 21%;           /* #0F4C5C deep teal */
+    --mcs-charcoal: 200 40% 14%;       /* #152F38 */
+    --mcs-light: 40 33% 97%;           /* #FBF8F3 warm off-white */
+    --mcs-steel: 200 18% 92%;
+    --mcs-border: 200 16% 88%;
+    --mcs-muted: 200 12% 38%;
+    --mcs-orange: 22 84% 51%;          /* #E36414 warm amber */
+    --mcs-orange-hover: 22 84% 44%;
   }
 
   .dark {
