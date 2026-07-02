@@ -3,6 +3,8 @@
  * Builds authorize URLs and initiates redirects.
  */
 
+import { supabase } from "@/integrations/supabase/client";
+
 export const GOOGLE_SCOPE_BUNDLES = {
   sso: ["openid", "email", "profile"],
   calendar: [
@@ -38,29 +40,50 @@ export const GOOGLE_SCOPE_BUNDLES = {
 export type GoogleScopeBundle = keyof typeof GOOGLE_SCOPE_BUNDLES;
 
 /**
- * Client ID is a public value — safe to expose in the frontend.
- * Configure it either as VITE_GOOGLE_OAUTH_CLIENT_ID at build time,
- * or leave blank; the login button will show a friendly "not configured" message.
+ * Client ID is a public value — fetched at runtime from the
+ * google-oauth-config edge function (which reads GOOGLE_OAUTH_CLIENT_ID).
+ * Cached in-memory for the session.
  */
-export const GOOGLE_CLIENT_ID: string =
-  (import.meta.env.VITE_GOOGLE_OAUTH_CLIENT_ID as string | undefined) ?? "";
+let _clientIdCache: { id: string; configured: boolean } | null = null;
 
-export function isGoogleConfigured(): boolean {
-  return !!GOOGLE_CLIENT_ID;
+export async function getGoogleClientId(): Promise<{ id: string; configured: boolean }> {
+  if (_clientIdCache) return _clientIdCache;
+  try {
+    const { data, error } = await supabase.functions.invoke("google-oauth-config");
+    if (error || !data) {
+      _clientIdCache = { id: "", configured: false };
+    } else {
+      _clientIdCache = {
+        id: (data as { client_id?: string }).client_id ?? "",
+        configured: !!(data as { configured?: boolean }).configured,
+      };
+    }
+  } catch {
+    _clientIdCache = { id: "", configured: false };
+  }
+  return _clientIdCache;
 }
 
-export function startGoogleLogin(options?: {
+export async function isGoogleConfigured(): Promise<boolean> {
+  const { configured } = await getGoogleClientId();
+  return configured;
+}
+
+export async function startGoogleLogin(options?: {
   scopeBundle?: GoogleScopeBundle;
   hostedDomain?: string;
   loginHint?: string;
   intendedPath?: string;
 }) {
+  const { id: clientId, configured } = await getGoogleClientId();
+  if (!configured) {
+    throw new Error("Google OAuth er ikke konfigurert enda.");
+  }
+
   const bundle = options?.scopeBundle ?? "sso";
   const redirectUri = `${window.location.origin}/auth/google/callback`;
   const scopes = GOOGLE_SCOPE_BUNDLES[bundle].join(" ");
 
-  // Persist the scope bundle and intended post-login path so the callback
-  // page can use them without relying on OAuth state (which Google truncates).
   sessionStorage.setItem(
     "google-oauth-pending",
     JSON.stringify({
@@ -71,7 +94,7 @@ export function startGoogleLogin(options?: {
   );
 
   const params = new URLSearchParams({
-    client_id: GOOGLE_CLIENT_ID,
+    client_id: clientId,
     redirect_uri: redirectUri,
     response_type: "code",
     scope: scopes,
