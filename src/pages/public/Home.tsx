@@ -105,6 +105,112 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Featured brands / products */}
+      <section className="bg-white py-16 lg:py-24">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <p className="text-[hsl(var(--mcs-orange))] text-sm font-semibold uppercase tracking-wider mb-2">Produkter</p>
+            <h2 className="text-3xl lg:text-4xl font-bold text-[hsl(var(--mcs-charcoal))]">Varmepumper vi anbefaler</h2>
+            <p className="mt-3 text-[hsl(var(--mcs-muted))] max-w-2xl mx-auto">
+              Vi jobber med ledende produsenter og hjelper deg med å velge en modell som passer boligen, budsjettet og bruksmønsteret ditt.
+            </p>
+          </div>
+          <div className="grid md:grid-cols-3 gap-6">
+            {[
+              {
+                brand: "Mitsubishi Electric",
+                tagline: "Premium kvalitet og driftssikkerhet",
+                body: "Kjent for solide varmepumper med høy driftssikkerhet, lavt lydnivå og god komfort gjennom hele året. Et godt valg for deg som ønsker kvalitet og lang levetid.",
+                bullets: ["Høy driftssikkerhet", "Lavt lydnivå", "Lang levetid"],
+              },
+              {
+                brand: "Panasonic",
+                tagline: "Ytelse og moderne design",
+                body: "Kombinerer effektiv oppvarming, moderne design og smart teknologi. Passer godt for deg som vil ha høy ytelse og en innedel som glir inn i hjemmet.",
+                bullets: ["Høy ytelse", "Smart styring", "Elegant innedel"],
+              },
+              {
+                brand: "Toshiba",
+                tagline: "Stille drift og smart regulering",
+                body: "Fokus på komfort, stillegående drift og stabil varme. Et effektivt og diskret alternativ for boliger der lyd og jevn temperatur betyr mye.",
+                bullets: ["Stillegående", "Stabil varme", "Smart regulering"],
+              },
+            ].map((b) => (
+              <div
+                key={b.brand}
+                className="group bg-white border border-[hsl(var(--mcs-border))] hover:border-[hsl(var(--mcs-navy))] hover:shadow-lg rounded-xl p-6 flex flex-col transition-all"
+              >
+                {/* Placeholder image slot — ready for approved brand imagery */}
+                <div className="aspect-[4/3] rounded-lg mb-5 bg-gradient-to-br from-[hsl(var(--mcs-navy))] to-[hsl(var(--mcs-blue-deep))] flex items-center justify-center relative overflow-hidden">
+                  <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_30%_20%,white,transparent_60%)]" />
+                  <Snowflake className="h-12 w-12 text-white/80 relative" />
+                  <span className="absolute bottom-3 right-3 text-[10px] uppercase tracking-widest text-white/60 font-semibold">Anbefalt</span>
+                </div>
+                <p className="text-[hsl(var(--mcs-orange))] text-xs font-semibold uppercase tracking-wider mb-1.5">{b.tagline}</p>
+                <h3 className="font-bold text-xl text-[hsl(var(--mcs-charcoal))] mb-3">{b.brand}</h3>
+                <p className="text-sm text-[hsl(var(--mcs-muted))] leading-relaxed mb-4">{b.body}</p>
+                <ul className="space-y-1.5 mb-6">
+                  {b.bullets.map((x) => (
+                    <li key={x} className="flex items-center gap-2 text-sm text-[hsl(var(--mcs-charcoal))]">
+                      <Check className="h-4 w-4 text-[hsl(var(--mcs-orange))] shrink-0" /> {x}
+                    </li>
+                  ))}
+                </ul>
+                <div className="mt-auto flex flex-col sm:flex-row gap-2">
+                  <Link
+                    to="/bestill-service"
+                    className="flex-1 bg-[hsl(var(--mcs-orange))] hover:bg-[hsl(var(--mcs-orange-hover))] text-white font-semibold text-sm px-4 py-2.5 rounded-md text-center"
+                  >
+                    Be om anbefaling
+                  </Link>
+                  <Link
+                    to="/tjenester/salg"
+                    className="flex-1 border border-[hsl(var(--mcs-navy))] text-[hsl(var(--mcs-navy))] hover:bg-[hsl(var(--mcs-navy))] hover:text-white font-semibold text-sm px-4 py-2.5 rounded-md text-center transition-colors"
+                  >
+                    Les mer
+                  </Link>
+                </div>
+              </div>
+            ))}
+          </div>
+          <p className="text-center text-xs text-[hsl(var(--mcs-muted))] mt-8">
+            Merkenavn tilhører sine respektive eiere. Vi fører flere modeller — kontakt oss for komplett utvalg.
+          </p>
+        </div>
+      </section>
+
+      {/* Product guidance */}
+      <section className="bg-[hsl(var(--mcs-light))] py-16 lg:py-24">
+        <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
+          <div className="rounded-2xl bg-white border border-[hsl(var(--mcs-border))] p-8 lg:p-12 grid lg:grid-cols-[1.4fr_1fr] gap-10 items-center shadow-sm">
+            <div>
+              <p className="text-[hsl(var(--mcs-orange))] text-xs font-semibold uppercase tracking-widest mb-3">Rådgivning</p>
+              <h2 className="text-2xl lg:text-3xl font-bold text-[hsl(var(--mcs-charcoal))] mb-4 leading-tight">
+                Usikker på hvilken varmepumpe du bør velge?
+              </h2>
+              <p className="text-[hsl(var(--mcs-muted))] mb-5 leading-relaxed">
+                Vi hjelper deg å velge riktig varmepumpe basert på boligtype, oppvarmet areal, plassering av innedel og utedel, lydnivå, effektbehov, design og budsjett — uten forpliktelse.
+              </p>
+              <ul className="grid sm:grid-cols-2 gap-2 text-sm text-[hsl(var(--mcs-charcoal))] mb-6">
+                {["Boligtype og areal", "Effektbehov", "Plassering og lyd", "Design og budsjett"].map((x) => (
+                  <li key={x} className="flex items-center gap-2"><Check className="h-4 w-4 text-[hsl(var(--mcs-orange))]" /> {x}</li>
+                ))}
+              </ul>
+              <Link to="/bestill-service" className="inline-flex items-center gap-2 bg-[hsl(var(--mcs-orange))] hover:bg-[hsl(var(--mcs-orange-hover))] text-white font-semibold px-6 py-3 rounded-md">
+                Få anbefaling <ArrowRight className="h-4 w-4" />
+              </Link>
+            </div>
+            <div className="hidden lg:flex items-center justify-center">
+              <div className="h-44 w-44 rounded-full bg-[hsl(var(--mcs-navy))]/5 border-2 border-[hsl(var(--mcs-navy))]/20 flex items-center justify-center">
+                <Search className="h-16 w-16 text-[hsl(var(--mcs-navy))]" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+
+
       {/* Services */}
       <section className="bg-white py-16 lg:py-24">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
