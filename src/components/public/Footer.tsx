@@ -7,11 +7,11 @@ const logo = logoAsset.url;
 export function Footer() {
   return (
     <footer className="bg-[hsl(var(--mcs-navy))] text-white/70 border-t border-white/5">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-14">
+      <div className="mx-auto max-w-[1440px] px-5 sm:px-10 lg:px-14 xl:px-16 py-14">
         <div className="grid gap-10 md:grid-cols-5">
           <div className="md:col-span-2">
-            <div className="bg-white rounded-xl inline-block px-5 py-4 mb-5 shadow-sm">
-              <img src={logo} alt="Lier Varmepumpeservice" className="h-16 md:h-[72px] w-auto" width={1152} height={576} />
+            <div className="bg-white/95 rounded-xl inline-block px-6 py-5 mb-5 shadow-sm">
+              <img src={logo} alt="Lier Varmepumpeservice" className="h-20 md:h-[92px] w-auto" width={1108} height={531} />
             </div>
 
             <p className="text-white font-semibold text-sm mb-2">Lier Varmepumpeservice AS</p>
