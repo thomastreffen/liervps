@@ -94,9 +94,17 @@ function fmtHour(d: Date) {
 /**
  * Status tones — stronger contrast for at-a-glance status read.
  * Left border accent + tinted bg + matching text color.
+ *
+ * VIKTIG: Violett/lilla tone er RESERVERT for schedule_blocks som er
+ * AI-uavklart / unmatched / needs_confirmation (match_state-drevet), IKKE for
+ * approval-status "requested" på en job-linked blokk. En vanlig planlagt
+ * jobb som ennå ikke er godkjent skal se ut som "planlagt" (sky/blå).
  */
-function statusTone(status?: string | null) {
-  switch (status) {
+function statusTone(block: { job_status?: string | null; job_id?: string | null; match_state?: string | null }) {
+  if (!block.job_id && (block.match_state === "needs_confirmation" || block.match_state === "external")) {
+    return "bg-violet-50 border-violet-300 border-l-[3px] border-l-violet-500 text-violet-950 dark:bg-violet-950/40 dark:border-violet-800 dark:border-l-violet-400 dark:text-violet-50";
+  }
+  switch (block.job_status) {
     case "approved":
     case "completed":
     case "ready_for_invoicing":
@@ -107,18 +115,18 @@ function statusTone(status?: string | null) {
     case "rejected":
     case "cancelled":
       return "bg-rose-50 border-rose-300 border-l-[3px] border-l-rose-500 text-rose-950 dark:bg-rose-950/40 dark:border-rose-800 dark:border-l-rose-400 dark:text-rose-50";
-    case "requested":
-      return "bg-violet-50 border-violet-300 border-l-[3px] border-l-violet-500 text-violet-950 dark:bg-violet-950/40 dark:border-violet-800 dark:border-l-violet-400 dark:text-violet-50";
     case "time_change_proposed":
       return "bg-orange-50 border-orange-300 border-l-[3px] border-l-orange-500 text-orange-950 dark:bg-orange-950/40 dark:border-orange-800 dark:border-l-orange-400 dark:text-orange-50";
     default:
-      // planlagt
       return "bg-sky-50 border-sky-300 border-l-[3px] border-l-sky-500 text-sky-950 dark:bg-sky-950/40 dark:border-sky-800 dark:border-l-sky-400 dark:text-sky-50";
   }
 }
 
-function statusDot(status?: string | null) {
-  switch (status) {
+function statusDot(block: { job_status?: string | null; job_id?: string | null; match_state?: string | null }) {
+  if (!block.job_id && (block.match_state === "needs_confirmation" || block.match_state === "external")) {
+    return "bg-violet-500";
+  }
+  switch (block.job_status) {
     case "approved":
     case "completed":
     case "ready_for_invoicing":
@@ -129,8 +137,6 @@ function statusDot(status?: string | null) {
     case "rejected":
     case "cancelled":
       return "bg-rose-500";
-    case "requested":
-      return "bg-violet-500";
     case "time_change_proposed":
       return "bg-orange-500";
     default:
@@ -492,8 +498,8 @@ export function TeamView({
 
 
                       {cellBlocks.map((b) => {
-                        const tone = statusTone(b.job_status);
-                        const dotCls = statusDot(b.job_status);
+                        const tone = statusTone(b);
+                        const dotCls = statusDot(b);
                         const isSelected = selectedBlockId === b.id;
                         // Primary: human-readable title (job → block → parent project)
                         const primaryTitle = b.job_title
