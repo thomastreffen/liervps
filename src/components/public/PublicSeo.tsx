@@ -32,3 +32,27 @@ export function PublicSeo({ title, description, path, jsonLd }: Props) {
     </Helmet>
   );
 }
+
+export function breadcrumbSchema(items: { name: string; path: string }[]) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: items.map((it, i) => ({
+      "@type": "ListItem",
+      position: i + 1,
+      name: it.name,
+      item: `${SITE_URL}${it.path}`,
+    })),
+  };
+}
+
+export function serviceSchema(name: string, description: string, path: string) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "Service",
+    name,
+    description,
+    url: `${SITE_URL}${path}`,
+    provider: { "@type": "LocalBusiness", name: SITE_NAME, url: SITE_URL },
+  };
+}
