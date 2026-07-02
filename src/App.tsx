@@ -48,6 +48,7 @@ import SalesCasesListPage from "./pages/SalesCasesListPage";
 import SalesCaseDetailPage from "./pages/SalesCaseDetailPage";
 import Login from "./pages/Login";
 import AuthCallback from "./pages/AuthCallback";
+import GoogleAuthCallback from "./pages/GoogleAuthCallback";
 import NotFound from "./pages/NotFound";
 import ApprovalPage from "./pages/ApprovalPage";
 import OffersPage from "./pages/OffersPage";
@@ -194,6 +195,7 @@ const App = () => (
 
             <Route path="/login" element={<Login />} />
             <Route path="/auth/callback" element={<AuthCallback />} />
+            <Route path="/auth/google/callback" element={<GoogleAuthCallback />} />
             <Route path="/approval/:token" element={<ApprovalPage />} />
             <Route path="/offer/accept/:token" element={<OfferAcceptPage />} />
             <Route path="/approve-change-order" element={<ApproveChangeOrderPage />} />
