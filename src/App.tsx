@@ -181,6 +181,7 @@ const App = () => (
           <CompanyProvider>
           <PermissionCompanyBridge>
           <PreviewModeProvider>
+          <HashScroll />
           <Routes>
             {/* Public marketing site */}
             <Route path="/" element={<PublicHome />} />
