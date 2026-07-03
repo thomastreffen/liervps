@@ -2169,7 +2169,7 @@ export function EventDrawer({
                   <span className="text-right font-medium">{format(new Date(deliveryStatus.notifiedAt), "dd.MM.yyyy HH:mm", { locale: nb })}</span>
                 </div>
                 <div className="flex items-start justify-between gap-3">
-                  <span className="text-muted-foreground">Outlook-synk</span>
+                  <span className="text-muted-foreground">Google Kalender-synk</span>
                   <span className="text-right font-medium">
                     {deliveryStatus.syncedAt ? `OK · ${deliveryStatus.syncedCount} oppdatert` : "Ikke kjørt"}
                   </span>
@@ -2245,7 +2245,7 @@ export function EventDrawer({
               <AlertDialogTitle>Fjern fra ressursplan?</AlertDialogTitle>
               <AlertDialogDescription>
                 {scheduleBlockId
-                  ? "Blokken fjernes fra planoversikten. Hvis den er koblet til Outlook, forsøkes sletting der også."
+                  ? "Blokken fjernes fra planoversikten. Hvis den er koblet til Google Kalender, forsøkes sletting der også."
                   : "Montørtildelingen og tidsplanen fjernes fra kalenderen. Prosjektet forblir intakt."}
               </AlertDialogDescription>
             </AlertDialogHeader>
