@@ -966,7 +966,7 @@ export function EventDrawer({
       const userName = session?.session?.user?.user_metadata?.full_name || session?.session?.user?.email || "Ukjent";
       const techNameMap = new Map(allTechnicians.map((t: any) => [t.id, t.name]));
 
-      // Backend permission validation
+      // Backend permission validation (super_admin bypass is handled server-side in check_permission_v2)
       if (userId) {
         const { data: canPlan } = await supabase.rpc("check_permission_v2", {
           _auth_user_id: userId,
@@ -976,12 +976,19 @@ export function EventDrawer({
           _auth_user_id: userId,
           _perm: "resourceplan.schedule",
         });
+        console.info("[PermissionCheck][Ressursplan]", {
+          userId,
+          canPlan,
+          canPlanLegacy,
+          missingPermission: !canPlan && !canPlanLegacy ? "resource_plan.plan_resources" : null,
+        });
         if (!canPlan && !canPlanLegacy) {
           toast.error("Mangler rettighet", { description: "Du har ikke tillatelse til å planlegge ressurser." });
           setSaving(false);
           return;
         }
       }
+
 
        if (isEditing && editEvent) {
          const criticalChanges = detectedChanges.filter((change) => change.severity === "critical");

@@ -185,13 +185,16 @@ export function usePermissions(): PermissionState {
 
   const hasPermission = useCallback(
     (key: string) => {
+      // Super admin always has every permission
+      if (user?.role === "super_admin") return true;
       if (preview?.active) {
         return preview.permissions[key] === true;
       }
       return permissions[key] === true;
     },
-    [permissions, preview]
+    [permissions, preview, user]
   );
+
 
   const currentContextKey = user ? `${user.id}:${activeCompanyId ?? "all"}` : null;
   const contextLoading = !!user && resolvedContextKey !== currentContextKey;
