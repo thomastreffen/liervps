@@ -7,12 +7,12 @@ const logo = logoAsset.url;
 
 
 const PUBLIC_NAV = [
-  { to: "/tjenester/service-og-feilsoking", label: "Tjenester" },
-  { to: "/tjenester/salg", label: "Varmepumper" },
-  { to: "/for-bolig", label: "For bolig" },
-  { to: "/for-naering", label: "For næring" },
-  { to: "/tjenester/serviceavtale", label: "Serviceavtale" },
-  { to: "/kontakt", label: "Kontakt" },
+  { to: "/#tjenester", label: "Tjenester" },
+  { to: "/#varmepumper", label: "Varmepumper" },
+  { to: "/#for-bolig", label: "For bolig" },
+  { to: "/#for-naering", label: "For næring" },
+  { to: "/#serviceavtale", label: "Serviceavtale" },
+  { to: "/#kontakt", label: "Kontakt" },
 ];
 
 const INTERNAL_NAV = [
