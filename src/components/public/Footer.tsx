@@ -22,21 +22,21 @@ export function Footer() {
           <div>
             <h4 className="text-white font-semibold mb-4 text-xs uppercase tracking-wider">Tjenester</h4>
             <ul className="space-y-2 text-sm">
-              <li><Link to="/tjenester/befaring" className="hover:text-white">Befaring og rådgivning</Link></li>
-              <li><Link to="/tjenester/salg" className="hover:text-white">Salg av varmepumpe</Link></li>
-              <li><Link to="/tjenester/montering" className="hover:text-white">Montering</Link></li>
-              <li><Link to="/tjenester/service" className="hover:text-white">Service og vedlikehold</Link></li>
-              <li><Link to="/tjenester/feilsoking" className="hover:text-white">Feilsøking</Link></li>
-              <li><Link to="/tjenester/serviceavtale" className="hover:text-white">Serviceavtale</Link></li>
+              <li><Link to="/#kontakt" className="hover:text-white">Befaring og rådgivning</Link></li>
+              <li><Link to="/#varmepumper" className="hover:text-white">Salg av varmepumpe</Link></li>
+              <li><Link to="/#tjenester" className="hover:text-white">Montering</Link></li>
+              <li><Link to="/#tjenester" className="hover:text-white">Service og vedlikehold</Link></li>
+              <li><Link to="/#tjenester" className="hover:text-white">Feilsøking</Link></li>
+              <li><Link to="/#serviceavtale" className="hover:text-white">Serviceavtale</Link></li>
             </ul>
           </div>
           <div>
             <h4 className="text-white font-semibold mb-4 text-xs uppercase tracking-wider">For deg</h4>
             <ul className="space-y-2 text-sm">
-              <li><Link to="/for-bolig" className="hover:text-white">For bolig</Link></li>
-              <li><Link to="/for-naering" className="hover:text-white">For næring</Link></li>
-              <li><Link to="/tjenester/salg" className="hover:text-white">Varmepumper</Link></li>
-              <li><Link to="/login" className="hover:text-white">Kundeportal</Link></li>
+              <li><Link to="/#for-bolig" className="hover:text-white">For bolig</Link></li>
+              <li><Link to="/#for-naering" className="hover:text-white">For næring</Link></li>
+              <li><Link to="/#varmepumper" className="hover:text-white">Varmepumper</Link></li>
+              <li><Link to="/portal/login" className="hover:text-white">Kundeportal</Link></li>
             </ul>
           </div>
           <div>
@@ -48,9 +48,7 @@ export function Footer() {
             </ul>
             <h4 className="text-white font-semibold mt-6 mb-3 text-xs uppercase tracking-wider">Selskap</h4>
             <ul className="space-y-2 text-sm">
-              <li><Link to="/om-mcs" className="hover:text-white">Om Lier VPS</Link></li>
-              <li><Link to="/personvern" className="hover:text-white">Personvern</Link></li>
-              <li><Link to="/betingelser" className="hover:text-white">Betingelser</Link></li>
+              <li><Link to="/#kontakt" className="hover:text-white">Om Lier VPS</Link></li>
             </ul>
           </div>
         </div>
