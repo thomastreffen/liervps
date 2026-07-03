@@ -151,8 +151,6 @@ export function TopBar({ onNewJob, onToggleSidebar, showMenuButton }: TopBarProp
         onMarkAsRead={markAsRead}
         onMarkAllAsRead={markAllAsRead}
       />
-      <InstallAppDialog open={installOpen} onOpenChange={setInstallOpen} />
-      <PwaStatusDialog open={statusOpen} onOpenChange={setStatusOpen} />
     </>
   );
 }
