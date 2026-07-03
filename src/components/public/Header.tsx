@@ -128,7 +128,7 @@ export function Header() {
                     Logg inn
                   </Link>
                   <Link
-                    to="/bestill-service"
+                    to="/#kontakt"
                     onClick={() => setOpen(false)}
                     className="block bg-[hsl(var(--mcs-orange))] text-white text-center font-semibold py-3 rounded-md"
                   >
