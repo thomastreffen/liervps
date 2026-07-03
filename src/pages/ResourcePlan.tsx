@@ -990,7 +990,7 @@ export default function ResourcePlan() {
         clickedTechId={clickedTechId}
         preselectedStart={preselectedStart}
         preselectedEnd={preselectedEnd}
-        preselectedTechId={selectedTechId}
+        preselectedTechId={clickedTechId ?? selectedTechId}
         projectId={dropProjectId}
         projectTitle={dropProjectTitle}
         readOnly={editEvent ? drawerReadOnly : false}
