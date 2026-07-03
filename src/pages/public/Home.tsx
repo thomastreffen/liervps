@@ -184,13 +184,13 @@ export default function Home() {
                   </p>
                   <div className="flex flex-col sm:flex-row gap-3">
                     <Link
-                      to="/bestill-service"
+                      to="/#kontakt"
                       className="bg-[hsl(var(--mcs-orange))] hover:bg-[hsl(var(--mcs-orange-hover))] text-white font-semibold px-7 py-3.5 rounded-lg inline-flex items-center justify-center gap-2 shadow-sm"
                     >
                       Bestill befaring <ArrowRight className="h-4 w-4" />
                     </Link>
                     <Link
-                      to="/tjenester/salg"
+                      to="/#for-bolig"
                       className="bg-white border border-[hsl(var(--mcs-navy))]/20 text-[hsl(var(--mcs-navy))] font-semibold px-7 py-3.5 rounded-lg text-center hover:border-[hsl(var(--mcs-navy))]"
                     >
                       Se løsninger
