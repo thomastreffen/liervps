@@ -944,13 +944,15 @@ export default function ResourcePlan() {
               if (ev) handleEventClick(ev);
             }}
             onCellCreate={(techId, day) => {
-              console.info("[ResourcePlan][CellCreate]", {
+              toast.success("ResourcePlan mottok celleklikk");
+              console.info("[ResourcePlan][onCellCreate]", {
                 techId,
                 day,
                 canWriteEvents,
                 isSuperAdmin,
                 isAdmin,
                 adminOverride,
+                clickedTechIdBefore: clickedTechId,
               });
               if (!canWriteEvents) {
                 toast.error("Du mangler tilgang til å planlegge aktiviteter.");
@@ -963,12 +965,25 @@ export default function ResourcePlan() {
               start.setHours(8, 0, 0, 0);
               const end = new Date(day);
               end.setHours(16, 0, 0, 0);
+              console.info("[ResourcePlan][OpeningDrawer]", {
+                clickedTechId: techId,
+                preselectedStart: start,
+                preselectedEnd: end,
+              });
               setPreselectedStart(start);
               setPreselectedEnd(end);
               setDropProjectId(null);
               setDropProjectTitle(null);
               setDrawerOpen(true);
-              toast.success("Åpner ny aktivitet…", { duration: 1200 });
+              toast.success("Åpner EventDrawer…", { duration: 1200 });
+              window.setTimeout(() => {
+                const drawer = document.querySelector('[data-resource-event-drawer="true"]');
+                if (!drawer) {
+                  toast.error("EventDrawer åpnet ikke", {
+                    description: "ResourcePlan satte open=true, men panelet finnes ikke i DOM.",
+                  });
+                }
+              }, 250);
             }}
 
           />

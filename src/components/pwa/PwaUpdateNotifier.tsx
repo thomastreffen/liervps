@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { toast } from "sonner";
-import { onUpdateState, applyUpdateAndReload } from "@/pwa/registerSW";
+import { onUpdateState, applyUpdateAndReload } from "@/pwa/runtimeCleanup";
 
 // Heuristic: are we in the middle of typing/uploading?
 // We treat composer focus + non-empty value, or contenteditable focus with
@@ -38,7 +38,7 @@ export function PwaUpdateNotifier() {
       // stale "Ny melding fra bestiller" badges that only clear in InPrivate).
       if (!hasUnsavedWork()) {
         autoApplied.current = true;
-        toast.loading("Oppdaterer MCS til nyeste versjon…", {
+        toast.loading("Oppdaterer Lier VPS til nyeste versjon…", {
           id: "pwa-update",
           duration: 4000,
         });
@@ -59,12 +59,12 @@ export function PwaUpdateNotifier() {
             return;
           }
         }
-        toast.loading("Oppdaterer MCS…", { id: "pwa-update" });
+        toast.loading("Oppdaterer Lier VPS…", { id: "pwa-update" });
         void applyUpdateAndReload();
       };
 
       toast(
-        "Ny versjon av MCS er tilgjengelig",
+        "Ny versjon av Lier VPS er tilgjengelig",
         {
           id: "pwa-update",
           duration: Infinity,

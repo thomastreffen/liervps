@@ -134,7 +134,7 @@ export default function MaterialPickListPrintPage() {
 
       <div className="picklist">
         <div className="qr">QR / lenke<br />{link.replace(/^https?:\/\//, "")}</div>
-        <h1>MCS Service — Plukkliste materiell</h1>
+        <h1>Lier VPS — Plukkliste materiell</h1>
         <h2>{job.title}</h2>
 
         <div className="meta">
@@ -190,7 +190,7 @@ export default function MaterialPickListPrintPage() {
             ___________________________________________________
           </p>
           <p style={{ marginTop: 16, fontSize: 11, fontStyle: "italic", color: "#666" }}>
-            Etter utført jobb: registrer brukt mengde og retur i MCS Kontrollsenter.
+            Etter utført jobb: registrer brukt mengde og retur i Lier VPS.
           </p>
         </div>
 

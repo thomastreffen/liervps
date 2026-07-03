@@ -67,7 +67,7 @@ export default function PortalLogin() {
                 Kundeportal
               </h1>
               <p className="text-sm text-muted-foreground">
-                MCS Service
+                Lier VPS
               </p>
             </div>
           </div>

@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
 import { nb } from "date-fns/locale";
-import { MCS_HANDBOOK_SEEDS } from "@/lib/hms/handbookSeed";
+import { Lier VPS_HANDBOOK_SEEDS } from "@/lib/hms/handbookSeed";
 import { toast } from "@/hooks/use-toast";
 import { logHmsAudit } from "@/lib/hms/audit";
 
@@ -48,7 +48,7 @@ export default function HmsHandbooksPage() {
       const { data: u } = await supabase.auth.getUser();
       let created = 0;
       let skipped = 0;
-      for (const seed of MCS_HANDBOOK_SEEDS) {
+      for (const seed of Lier VPS_HANDBOOK_SEEDS) {
         // Idempotency: skip if a handbook with same company + kind + title exists
         const { data: existing } = await sb
           .from("hms_handbooks")
@@ -98,9 +98,9 @@ export default function HmsHandbooksPage() {
     },
     onSuccess: (r) => {
       if (r.created === 0) {
-        toast({ title: "MCS-startstruktur finnes allerede", description: `${r.skipped} håndbøker var allerede opprettet.` });
+        toast({ title: "Lier VPS-startstruktur finnes allerede", description: `${r.skipped} håndbøker var allerede opprettet.` });
       } else {
-        toast({ title: "MCS-håndbøker opprettet", description: `${r.created} ny${r.created === 1 ? "" : "e"}, ${r.skipped} hoppet over.` });
+        toast({ title: "Lier VPS-håndbøker opprettet", description: `${r.created} ny${r.created === 1 ? "" : "e"}, ${r.skipped} hoppet over.` });
       }
       qc.invalidateQueries({ queryKey: ["hms-handbooks"] });
     },
@@ -124,7 +124,7 @@ export default function HmsHandbooksPage() {
         <div className="flex gap-2">
           <Button size="sm" variant="outline" onClick={() => seedMut.mutate()} disabled={seedMut.isPending}>
             <Sparkles className="h-4 w-4 mr-1.5" />
-            {seedMut.isPending ? "Oppretter…" : "Opprett MCS-startstruktur"}
+            {seedMut.isPending ? "Oppretter…" : "Opprett Lier VPS-startstruktur"}
           </Button>
           <Button size="sm" disabled title="Kommer">
             <Plus className="h-4 w-4 mr-1.5" />
@@ -145,7 +145,7 @@ export default function HmsHandbooksPage() {
             <BookOpen className="h-8 w-8 mx-auto text-muted-foreground/40" />
             <div className="font-medium text-foreground">Ingen håndbøker enda</div>
             <p className="max-w-sm mx-auto">
-              Når runde B er klar kan du opprette HMS-håndbok, arbeidshåndbok og MCS-spesifikke
+              Når runde B er klar kan du opprette HMS-håndbok, arbeidshåndbok og Lier VPS-spesifikke
               prosedyrer med versjonering og lesebekreftelse.
             </p>
           </CardContent>

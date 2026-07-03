@@ -3,7 +3,7 @@
  * Verifies that email routing logic correctly identifies entities from:
  * A) Subject bracket IDs (e.g. [JOB-000010])
  * B) In-Reply-To matching outgoing internet_message_id
- * C) X-MCS-ID custom header
+ * C) X-Lier VPS-ID custom header
  */
 import { describe, it, expect } from "vitest";
 
@@ -141,10 +141,10 @@ describe("Test B: In-Reply-To / References routing", () => {
 });
 
 // ═══════════════════════════════════════════════════════════
-// TEST CASE C: X-MCS-ID header is the only reliable signal
+// TEST CASE C: X-Lier VPS-ID header is the only reliable signal
 // ═══════════════════════════════════════════════════════════
-describe("Test C: X-MCS-ID header routing", () => {
-  it("extracts entity from X-MCS-ID header value", () => {
+describe("Test C: X-Lier VPS-ID header routing", () => {
+  it("extracts entity from X-Lier VPS-ID header value", () => {
     const xMcsId = "JOB-000010";
     const ids = extractIdsFromText(xMcsId, "subject");
     expect(ids.length).toBe(1);
@@ -152,14 +152,14 @@ describe("Test C: X-MCS-ID header routing", () => {
     expect(ids[0].lookupValue).toBe("JOB-000010");
   });
 
-  it("handles CASE X-MCS-ID", () => {
+  it("handles CASE X-Lier VPS-ID", () => {
     const xMcsId = "CASE-000001";
     const ids = extractIdsFromText(xMcsId, "subject");
     expect(ids.length).toBe(1);
     expect(ids[0].type).toBe("case");
   });
 
-  it("handles LEAD X-MCS-ID", () => {
+  it("handles LEAD X-Lier VPS-ID", () => {
     const xMcsId = "LEAD-2026-000087";
     const ids = extractIdsFromText(xMcsId, "subject");
     expect(ids.length).toBe(1);

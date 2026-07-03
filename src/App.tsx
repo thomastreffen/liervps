@@ -14,8 +14,6 @@ function RedirectContractToProject() {
   return <Navigate to={`/projects/contracts/${id}`} replace />;
 }
 import { AuthProvider } from "@/hooks/useAuth";
-import { PwaInstallPrompt } from "@/components/pwa/PwaInstallPrompt";
-import { PwaUpdateNotifier } from "@/components/pwa/PwaUpdateNotifier";
 import { HashScroll } from "@/components/public/HashScroll";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppLayout } from "@/components/AppLayout";
@@ -89,7 +87,6 @@ import InboxPage from "./pages/InboxPage";
 import FormBuilderPage from "./pages/FormBuilderPage";
 import FormFillPage from "./pages/FormFillPage";
 import SuperofficeSettingsPage from "./pages/SuperofficeSettingsPage";
-import MicrosoftAdminPage from "./pages/MicrosoftAdminPage";
 import ThreadInviteAcceptPage from "./pages/ThreadInviteAcceptPage";
 import ConfirmationsPage from "./pages/ConfirmationsPage";
 import AiMatcherReportPage from "./pages/AiMatcherReportPage";
@@ -175,8 +172,6 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <PwaInstallPrompt />
-      <PwaUpdateNotifier />
       <BrowserRouter>
         <AuthProvider>
           <CompanyProvider>
@@ -245,13 +240,13 @@ const App = () => (
               } />
               <Route path="/dashboard" element={<Navigate to="/overview" replace />} />
               <Route path="/tasks" element={<Navigate to="/overview" replace />} />
+              <Route path="/projects/plan" element={<ResourcePlan />} />
               <Route path="/projects" element={<JobsPage />} />
               <Route path="/projects/new" element={<ProjectNewPage />} />
               <Route path="/projects/:id" element={<JobDetail />} />
               <Route path="/projects/:id/settings" element={<ProjectSettingsPage />} />
               <Route path="/projects/:id/conversations/new" element={<ConversationNewPage />} />
               <Route path="/projects/:id/conversations/:threadId" element={<ConversationDetailPage />} />
-              <Route path="/projects/plan" element={<ResourcePlan />} />
               <Route path="/calendar/confirmations" element={<ConfirmationsPage />} />
               <Route path="/absence" element={<AbsencePage />} />
               <Route path="/admin/ai-matcher" element={
@@ -500,14 +495,7 @@ const App = () => (
                   </ProtectedRoute>
                 }
               />
-              <Route
-                path="/admin/microsoft"
-                element={
-                  <ProtectedRoute requiredRoles={["super_admin"]}>
-                    <MicrosoftAdminPage />
-                  </ProtectedRoute>
-                }
-              />
+              <Route path="/admin/microsoft" element={<Navigate to="/settings/integrations" replace />} />
               <Route
                 path="/admin/modules"
                 element={

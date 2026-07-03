@@ -222,7 +222,7 @@ export default function OfferAcceptPage() {
             )}
             <div>
               <h1 className="text-lg sm:text-xl font-bold text-foreground">
-                {company?.company_name || "MCS Service AS"}
+                {company?.company_name || "Lier Varmepumpeservice AS"}
               </h1>
               <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
                 {company?.phone && (

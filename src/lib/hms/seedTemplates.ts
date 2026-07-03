@@ -1,6 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 
-// MCS-tilpassede standardmaler. Generiske punkter — admin redigerer ved behov.
+// Lier VPS-tilpassede standardmaler. Generiske punkter — admin redigerer ved behov.
 // Tagging via hms_areas + suggested_work_types styrer suggest_hms_areas-rangering.
 
 type ItemType =
@@ -193,7 +193,7 @@ const TEMPLATES: SeedTemplate[] = [
   // CHECKLISTS
   {
     kind: "checklist", category: "onboarding", name: "Sjekkliste HMS-opplæring nyansatt",
-    description: "Gjennomgang av HMS for nyansatte i MCS Service.",
+    description: "Gjennomgang av HMS for nyansatte i Lier VPS.",
     hms_areas: ["internal_control", "fse", "ppe"],
     suggested_work_types: [],
     sections: [

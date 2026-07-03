@@ -29,7 +29,7 @@ export function EnableNotificationsButton() {
   if (permission === "ios-not-installed") {
     return (
       <p className="text-sm text-muted-foreground">
-        Legg MCS til på Hjem-skjerm først for å kunne aktivere varsler på iPhone/iPad.
+        Legg Lier VPS til på Hjem-skjerm først for å kunne aktivere varsler på iPhone/iPad.
       </p>
     );
   }

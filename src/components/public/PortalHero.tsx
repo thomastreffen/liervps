@@ -12,7 +12,7 @@ const EXTERNAL_SHORTCUTS = [
   { to: "/portal/projects", icon: Briefcase, label: "Aktive oppdrag" },
   { to: "/portal/deliveries", icon: FolderOpen, label: "Dokumentasjon" },
   { to: "/portal/messages", icon: AlertTriangle, label: "Avvik" },
-  { to: "/kontakt", icon: Phone, label: "Kontakt MCS" },
+  { to: "/kontakt", icon: Phone, label: "Kontakt Lier VPS" },
 ];
 
 const INTERNAL_SHORTCUTS = [
@@ -53,7 +53,7 @@ export function PortalHero() {
               className="bg-[hsl(var(--mcs-orange))] hover:bg-[hsl(var(--mcs-orange-hover))] text-white font-semibold px-4 lg:px-5 py-2.5 rounded-md inline-flex items-center justify-center gap-2 text-sm"
             >
               <LayoutDashboard className="h-4 w-4" />
-              <span>Åpne MCS Kontrollsenter</span>
+              <span>Åpne Lier VPS</span>
               <ArrowRight className="h-4 w-4 hidden lg:inline" />
             </Link>
             <Link

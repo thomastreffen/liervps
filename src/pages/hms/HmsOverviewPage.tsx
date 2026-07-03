@@ -248,7 +248,7 @@ export default function HmsOverviewPage() {
           </div>
           <h1 className="text-2xl font-semibold tracking-tight">Kontrollsenter</h1>
           <p className="text-sm text-muted-foreground max-w-2xl">
-            Status på håndbøker, SJA, risiko og arbeidsmiljølovens grenser for MCS Service.
+            Status på håndbøker, SJA, risiko og arbeidsmiljølovens grenser for Lier VPS.
           </p>
         </div>
         <div className="flex gap-2 flex-wrap">

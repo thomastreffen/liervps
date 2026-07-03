@@ -124,7 +124,7 @@ export default function ApprovalPage() {
               <Wrench className="h-5 w-5" />
             </div>
             <div>
-              <h1 className="text-lg font-bold">MCS Service</h1>
+              <h1 className="text-lg font-bold">Lier VPS</h1>
               <p className="text-sm opacity-80">Jobbforespørsel</p>
             </div>
           </div>

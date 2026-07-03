@@ -1,7 +1,7 @@
 {
-  "name": "MCS Kontrollsenter",
-  "short_name": "MCS",
-  "description": "Ressursplan, bestillinger, HMS og oppdrag for MCS Service",
+  "name": "Lier VPS",
+  "short_name": "Lier VPS",
+  "description": "Ressursplan, bestillinger, service og oppdrag for Lier Varmepumpeservice",
   "start_url": "/?source=pwa",
   "scope": "/",
   "display": "standalone",

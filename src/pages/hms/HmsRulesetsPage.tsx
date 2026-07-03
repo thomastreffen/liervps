@@ -100,7 +100,7 @@ export default function HmsRulesetsPage() {
   function startNew() {
     setEditing(null);
     setDraft(DEFAULT);
-    setName("MCS standard – AML");
+    setName("Lier VPS standard – AML");
     setDescription("");
     setIsDefault(rulesets.length === 0);
   }

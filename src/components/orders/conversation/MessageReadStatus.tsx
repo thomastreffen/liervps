@@ -82,13 +82,13 @@ export function MessageReadStatus({
       Icon = Check;
       tone = "muted";
     } else if (!someInternalRead) {
-      label = "Ikke lest av MCS";
+      label = "Ikke lest av Lier VPS";
       Icon = Check;
       tone = "muted";
     } else if (allInternalRead) {
       label = internalReaders.length === 1
         ? `Lest av ${internalReaders[0].display_name || internalReaders[0].name}`
-        : "Lest av MCS";
+        : "Lest av Lier VPS";
       Icon = CheckCheck;
       tone = "ok";
     } else if (internalReaders.length <= 2) {

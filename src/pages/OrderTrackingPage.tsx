@@ -75,7 +75,7 @@ const STATUS_HUMAN_COPY: Record<ExternalStatus, { headline: string; body: string
   },
   completed: {
     headline: "Oppdraget er fullført",
-    body: "Alt arbeid er ferdigstilt. Tusen takk for at du valgte MCS Service – ta kontakt om du lurer på noe.",
+    body: "Alt arbeid er ferdigstilt. Tusen takk for at du valgte Lier VPS – ta kontakt om du lurer på noe.",
   },
   closed: {
     headline: "Saken er avsluttet",
@@ -907,7 +907,7 @@ export default function OrderTrackingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-8 py-4 sm:py-5 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <div className="h-9 w-9 rounded-xl bg-foreground text-background flex items-center justify-center font-black text-sm tracking-tighter">
-              MCS
+              Lier VPS
             </div>
             <div className="leading-tight">
               <div className="text-base font-bold text-foreground tracking-tight">Service</div>
@@ -1130,7 +1130,7 @@ export default function OrderTrackingPage() {
                       <div key={msg.id} className={cn("flex gap-2.5", isCustomer ? "justify-end" : "justify-start")}>
                         {!isCustomer && (
                           <div className="h-8 w-8 rounded-full bg-foreground text-background flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">
-                            MCS
+                            Lier VPS
                           </div>
                         )}
                         <div
@@ -1236,7 +1236,7 @@ export default function OrderTrackingPage() {
                     <div className="rounded-lg border border-amber-300/60 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800/60 px-3 py-2 text-xs text-amber-900 dark:text-amber-200 flex items-start gap-2">
                       <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
                       <span>
-                        Du er innlogget som <strong>{user?.name || user?.email}</strong>. Meldingen sendes som <strong>MCS Service</strong>, ikke som kunde.
+                        Du er innlogget som <strong>{user?.name || user?.email}</strong>. Meldingen sendes som <strong>Lier VPS</strong>, ikke som kunde.
                       </span>
                     </div>
                   )}
@@ -1246,7 +1246,7 @@ export default function OrderTrackingPage() {
                     onChange={(e) => setReplyText(e.target.value)}
                     placeholder={
                       isInternalViewer
-                        ? "Skriv en melding til kunden som MCS Service..."
+                        ? "Skriv en melding til kunden som Lier VPS..."
                         : openRequest ? "Skriv svaret ditt her..." : "Skriv en melding til oss..."
                     }
                     rows={3}
@@ -1348,7 +1348,7 @@ export default function OrderTrackingPage() {
             Denne lenken er personlig og skal ikke deles med andre.
           </p>
           <p className="text-[11px] text-muted-foreground/70">
-            En tjeneste fra <span className="font-semibold text-foreground/80">MCS Service</span>
+            En tjeneste fra <span className="font-semibold text-foreground/80">Lier VPS</span>
           </p>
         </div>
       </div>

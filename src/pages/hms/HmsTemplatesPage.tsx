@@ -79,7 +79,7 @@ export default function HmsTemplatesPage() {
   const seedMcs = useMutation({
     mutationFn: () => seedMcsStandardTemplates(activeCompanyId!),
     onSuccess: (n) => {
-      toast.success(`${n} MCS-standardmaler importert`);
+      toast.success(`${n} Lier VPS-standardmaler importert`);
       qc.invalidateQueries({ queryKey: ["hms-templates"] });
     },
     onError: (e: any) => toast.error(e.message),
@@ -94,7 +94,7 @@ export default function HmsTemplatesPage() {
           </div>
           <h1 className="text-2xl font-semibold tracking-tight">SJA &amp; sjekklister</h1>
           <p className="text-sm text-muted-foreground max-w-2xl">
-            Maler tilpasset MCS Service: datacenter, næringsbygg, tavlemontasje, strømskinner og serviceoppdrag.
+            Maler tilpasset Lier VPS: datacenter, næringsbygg, tavlemontasje, strømskinner og serviceoppdrag.
           </p>
         </div>
         <div className="flex gap-2">
@@ -105,7 +105,7 @@ export default function HmsTemplatesPage() {
             disabled={seedMcs.isPending || !activeCompanyId}
           >
             <Sparkles className="h-4 w-4 mr-1.5" />
-            Importer MCS-standardmaler
+            Importer Lier VPS-standardmaler
           </Button>
           <Button size="sm" onClick={() => createBlank.mutate("sja")} disabled={createBlank.isPending}>
             <Plus className="h-4 w-4 mr-1.5" /> Ny SJA
@@ -145,7 +145,7 @@ export default function HmsTemplatesPage() {
             <FileText className="h-8 w-8 mx-auto text-muted-foreground/40" />
             <div className="font-medium text-foreground">Ingen maler enda</div>
             <p className="max-w-sm mx-auto">
-              Importer MCS-standardmaler for å komme raskt i gang, eller lag dine egne fra bunnen.
+              Importer Lier VPS-standardmaler for å komme raskt i gang, eller lag dine egne fra bunnen.
             </p>
           </CardContent>
         </Card>

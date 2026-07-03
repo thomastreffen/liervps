@@ -162,7 +162,7 @@ export const BESTILL_SERVICE_SECTIONS: SeedSection[] = [
         label: "Hvem skaffer materiell?",
         field_type: "radio",
         is_required: true,
-        options: ["MCS Service skaffer alt", "Bestiller / kunde leverer alt", "Deles mellom partene"],
+        options: ["Lier VPS skaffer alt", "Bestiller / kunde leverer alt", "Deles mellom partene"],
         sort_order: 0,
       },
       {
@@ -189,7 +189,7 @@ export const BESTILL_SERVICE_SECTIONS: SeedSection[] = [
         conditional_logic: {
           action: "show",
           rules: [
-            { field_key: "materiell_ansvar", operator: "equals", value: "MCS Service skaffer alt" },
+            { field_key: "materiell_ansvar", operator: "equals", value: "Lier VPS skaffer alt" },
             { field_key: "materiell_ansvar", operator: "equals", value: "Deles mellom partene" },
           ],
           logic: "or",

@@ -264,8 +264,8 @@ export function CaseEmailViewer({ items, caseId, companyId, linkedWorkOrderId, l
   };
 
   const ROUTING_LABELS: Record<string, string> = {
-    xheader: "X-MCS Header",
-    xheader_thread: "X-MCS Thread",
+    xheader: "X-Lier VPS Header",
+    xheader_thread: "X-Lier VPS Thread",
     in_reply_to_outgoing: "In-Reply-To (utgående)",
     references_outgoing: "References (utgående)",
     subject_id: "Emne-ID",

@@ -150,7 +150,7 @@ export default function SharedMaterialListPage() {
         <div className="max-w-md text-center space-y-2">
           <h1 className="text-xl font-semibold">Lenken er ikke gyldig</h1>
           <p className="text-sm text-muted-foreground">
-            Delingen kan ha blitt deaktivert. Ta kontakt med MCS for ny lenke.
+            Delingen kan ha blitt deaktivert. Ta kontakt med Lier VPS for ny lenke.
           </p>
         </div>
       </div>
@@ -266,7 +266,7 @@ export default function SharedMaterialListPage() {
               <h2 className="text-sm font-semibold">Foreslå materiell</h2>
             </div>
             <p className="text-xs text-muted-foreground">
-              Forslagene dine sendes til MCS for godkjenning før de legges inn på materiallisten.
+              Forslagene dine sendes til Lier VPS for godkjenning før de legges inn på materiallisten.
             </p>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">

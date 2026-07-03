@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { X, Share, Plus, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { isIOS, isStandalone } from "@/pwa/registerSW";
+import { isIOS, isStandalone } from "@/pwa/runtimeCleanup";
 import {
   getInstallPrompt,
   onInstallPromptChange,
@@ -10,7 +10,7 @@ import {
 } from "@/pwa/installPrompt";
 import { PwaIosInstructionsDialog } from "./PwaIosInstructionsDialog";
 
-const DISMISS_KEY = "mcs.pwa.install.dismissed_at";
+const DISMISS_KEY = "lier_vps.pwa.install.dismissed_at";
 const DISMISS_DAYS = 14;
 
 function recentlyDismissed(): boolean {
@@ -84,14 +84,14 @@ export function PwaInstallPrompt() {
         className="fixed left-3 right-3 z-50 rounded-2xl border border-border bg-card shadow-lg md:hidden"
         style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 0.75rem)" }}
         role="dialog"
-        aria-label="Legg MCS på Hjem-skjermen"
+        aria-label="Legg Lier VPS på Hjem-skjermen"
       >
         <div className="flex items-start gap-3 p-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground text-xs font-bold tracking-wide">
-            MCS
+            VPS
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold text-foreground">Legg MCS på Hjem-skjermen</p>
+            <p className="text-sm font-semibold text-foreground">Legg Lier VPS på Hjem-skjermen</p>
             {iosHint && !deferred ? (
               <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
                 Trykk <Share className="inline h-3.5 w-3.5 -mt-0.5" /> Del og
