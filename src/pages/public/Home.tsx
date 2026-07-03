@@ -306,7 +306,7 @@ export default function Home() {
       </section>
 
       {/* VARMEPUMPER VI ANBEFALER */}
-      <section className="bg-[hsl(var(--warm-cream))] pb-16">
+      <section id="varmepumper" className="bg-[hsl(var(--warm-cream))] pb-16 scroll-mt-28">
         <div className="mx-auto max-w-[1600px] px-6 sm:px-10 lg:px-12 xl:px-16 2xl:px-24 grid lg:grid-cols-[280px_1fr] gap-8 items-start">
           <div>
             <h2 className="text-2xl lg:text-3xl font-bold text-[hsl(var(--mcs-navy))] mb-3 leading-tight">
@@ -318,7 +318,7 @@ export default function Home() {
               og god tilgjengelighet på reservedeler og service.
             </p>
             <Link
-              to="/tjenester/salg"
+              to="/#varmepumper"
               className="inline-flex items-center gap-2 text-sm font-semibold text-[hsl(var(--mcs-navy))] border border-[hsl(var(--mcs-navy))]/20 hover:border-[hsl(var(--mcs-navy))] bg-white px-4 py-2 rounded-md"
             >
               Se alle modeller <ArrowRight className="h-4 w-4" />
@@ -336,7 +336,7 @@ export default function Home() {
                 </div>
                 <p className="text-xs text-[hsl(var(--mcs-muted))] leading-relaxed mb-4 flex-1 text-center">{b.text}</p>
                 <Link
-                  to="/bestill-service"
+                  to="/#kontakt"
                   className="bg-[hsl(var(--mcs-orange))] hover:bg-[hsl(var(--mcs-orange-hover))] text-white text-sm font-semibold px-4 py-2 rounded-md text-center"
                 >
                   Be om anbefaling
