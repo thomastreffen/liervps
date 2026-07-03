@@ -910,8 +910,8 @@ export function EventDrawer({
       action_type: updateOutlook ? "calendar_sync_requested" : "calendar_sync_skipped",
       performed_by: userId,
       performer_name: userName,
-      change_summary: updateOutlook ? "Outlook-oppdatering startet" : "Outlook-oppdatering hoppet over",
-      metadata: { updateOutlook },
+      change_summary: updateOutlook ? "Google Kalender-oppdatering startet" : "Google Kalender-oppdatering hoppet over",
+      metadata: { updateGoogleCalendar: updateOutlook },
     });
 
     if (logEntries.length > 0) {
