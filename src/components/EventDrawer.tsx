@@ -2433,13 +2433,13 @@ export function EventDrawer({
                         onCheckedChange={(checked) => setPendingSave((prev) => prev ? { ...prev, sendNotifications: checked === true } : prev)}
                       />
                       <div>
-                        <p className="font-medium">Varsle berørte montører</p>
+                        <p className="font-medium">Varsle berørte ressurser</p>
                         <p className="text-muted-foreground">
                           {requiresApproval.length > 0 && infoOnly.length > 0
-                            ? "Sender én samlet e-post: ny godkjenningsforespørsel for tid/montør, og en tydelig seksjon med øvrige praktiske endringer."
+                            ? "Sender oppdatert kalenderinvitasjon og e-postvarsel med endringene til valgte ressurser."
                             : requiresApproval.length > 0
-                              ? "Sender ny godkjenningsforespørsel for tid/montør."
-                              : "Sender info-e-post om endringene. Montørene trenger ikke å godkjenne på nytt."}
+                              ? "Sender ny godkjenningsforespørsel for tid/ressurs."
+                              : "Sender oppdatert kalenderinvitasjon eller e-postvarsel til valgte ressurser."}
                         </p>
                       </div>
                     </label>
@@ -2450,8 +2450,8 @@ export function EventDrawer({
                         onCheckedChange={(checked) => setPendingSave((prev) => prev ? { ...prev, updateOutlook: checked === true } : prev)}
                       />
                       <div>
-                        <p className="font-medium">Oppdater Outlook-kalenderhendelser</p>
-                        <p className="text-muted-foreground">Forsøker å oppdatere eksisterende kalenderkobling.</p>
+                        <p className="font-medium">Oppdater Google Kalender-hendelser</p>
+                        <p className="text-muted-foreground">Oppdaterer tilkoblede Google Kalender-hendelser.</p>
                       </div>
                     </label>
                   </div>
