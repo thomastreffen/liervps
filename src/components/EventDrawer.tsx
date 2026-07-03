@@ -1406,42 +1406,25 @@ export function EventDrawer({
         // Optional Gmail notification (only when user explicitly checked the box)
         if (sendEmailNotification && !isTask) {
           try {
-            // Collect assigned technician emails
-            const { data: techRows } = await supabase
-              .from("technicians")
-              .select("user_id")
-              .in("id", techIds);
-            const userIds = (techRows ?? []).map((t: any) => t.user_id).filter(Boolean);
-            const emails: string[] = [];
-            for (const uid of userIds) {
-              const { data: profile } = await supabase
-                .from("profiles")
-                .select("email")
-                .eq("id", uid)
-                .maybeSingle();
-              if (profile?.email) emails.push(profile.email);
-            }
-            if (emails.length === 0) {
+            const startLabel = `${date} ${startTime}`;
+            const { data: mailRes, error: mailErr } = await supabase.functions.invoke("gmail-send", {
+              body: {
+                event_id: createdId,
+                subject: `Nytt oppdrag: ${title}`,
+                text: `Du er tildelt: ${title}\nStart: ${startLabel}\n${customer ? "Kunde: " + customer + "\n" : ""}${address ? "Adresse: " + address + "\n" : ""}`,
+              },
+            });
+            if (mailErr) throw mailErr;
+            if (mailRes?.status === "sent") {
+              toast.success("E-postvarsel sendt via Gmail");
+            } else if (mailRes?.status === "no_token") {
+              toast.info("E-post ble ikke sendt. Gmail er ikke koblet til ennå.", {
+                description: "Koble til under Innstillinger → Integrasjoner.",
+              });
+            } else if (mailRes?.status === "no_recipients") {
               toast.info("Ingen e-postadresser funnet på tildelte montører");
             } else {
-              const startLabel = `${date} ${startTime}`;
-              const { data: mailRes, error: mailErr } = await supabase.functions.invoke("gmail-send", {
-                body: {
-                  to: emails,
-                  subject: `Nytt oppdrag: ${title}`,
-                  text: `Du er tildelt: ${title}\nStart: ${startLabel}\n${customer ? "Kunde: " + customer + "\n" : ""}${address ? "Adresse: " + address + "\n" : ""}`,
-                },
-              });
-              if (mailErr) throw mailErr;
-              if (mailRes?.status === "sent") {
-                toast.success("E-postvarsel sendt via Gmail");
-              } else if (mailRes?.status === "no_token") {
-                toast.info("E-post ble ikke sendt. Gmail er ikke koblet til ennå.", {
-                  description: "Koble til under Innstillinger → Integrasjoner.",
-                });
-              } else {
-                toast.error("E-post ble ikke sendt", { description: mailRes?.detail ?? "Ukjent feil" });
-              }
+              toast.error("E-post ble ikke sendt", { description: mailRes?.detail ?? "Ukjent feil" });
             }
           } catch (e: any) {
             console.error("[EventDrawer] gmail-send failed", e);
