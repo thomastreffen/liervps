@@ -210,6 +210,7 @@ export function EventDrawer({
     responseRequired: true,
     profile: "company_default",
   });
+  const [sendEmailNotification, setSendEmailNotification] = useState(false);
 
   // Existing job search
   const [searchQuery, setSearchQuery] = useState("");
