@@ -30,7 +30,7 @@ import { useApprovalSummaries } from "@/hooks/useApprovalSummaries";
 import { useCapacity } from "@/hooks/useCapacity";
 import { useTechnicianNowStatus, getContiguousFreeMinutes } from "@/hooks/useTechnicianNowStatus";
 import { useCalendarSync } from "@/hooks/useCalendarSync";
-import { OutlookConflictDialog } from "@/components/OutlookConflictDialog";
+// OutlookConflictDialog removed — Google Calendar has no equivalent write-conflict flow.
 import { useConfirmationCount, useScheduleBlocks, type ScheduleBlock } from "@/hooks/useScheduleBlocks";
 import { useAbsenceBlocks } from "@/hooks/useAbsenceBlocks";
 import { Badge } from "@/components/ui/badge";
@@ -525,8 +525,8 @@ export default function ResourcePlan() {
           .eq("project_id", eventId);
         const result = await syncUpdate(eventId);
         if (result === "synced") {
-          toast.success("Tidspunkt oppdatert. Outlook synkronisert ✓");
-        } else if (result !== "conflict") {
+          toast.success("Tidspunkt oppdatert. Google Kalender synkronisert ✓");
+        } else {
           toast.success("Hendelse flyttet");
         }
       }
@@ -591,8 +591,8 @@ export default function ResourcePlan() {
           .eq("project_id", eventId);
         const result = await syncUpdate(eventId);
         if (result === "synced") {
-          toast.success("Varighet oppdatert. Outlook synkronisert ✓");
-        } else if (result !== "conflict") {
+          toast.success("Varighet oppdatert. Google Kalender synkronisert ✓");
+        } else {
           toast.success("Varighet oppdatert");
         }
       }
@@ -1026,17 +1026,7 @@ export default function ResourcePlan() {
         }}
       />
 
-      <OutlookConflictDialog
-        conflict={conflict}
-        onUseSystem={() => conflict && forceUpdate(conflict.eventId)}
-        onUseOutlook={() => {
-          if (conflict?.graphVersion) {
-            acceptGraphVersion(conflict.eventId, conflict.graphVersion.start, conflict.graphVersion.end);
-            setRefreshKey((k) => k + 1);
-          }
-        }}
-        onDismiss={dismissConflict}
-      />
+      {/* OutlookConflictDialog removed — Lier VPS uses Google Calendar and has no write-conflict flow yet. */}
 
       {selectedBlock && (
         <ScheduleBlockDetailPanel

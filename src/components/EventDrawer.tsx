@@ -210,6 +210,7 @@ export function EventDrawer({
     responseRequired: true,
     profile: "company_default",
   });
+  const [sendEmailNotification, setSendEmailNotification] = useState(false);
 
   // Existing job search
   const [searchQuery, setSearchQuery] = useState("");
@@ -1401,6 +1402,35 @@ export function EventDrawer({
         });
         setSubmitted(true);
         onSaved?.(createdId);
+
+        // Optional Gmail notification (only when user explicitly checked the box)
+        if (sendEmailNotification && !isTask) {
+          try {
+            const startLabel = `${date} ${startTime}`;
+            const { data: mailRes, error: mailErr } = await supabase.functions.invoke("gmail-send", {
+              body: {
+                event_id: createdId,
+                subject: `Nytt oppdrag: ${title}`,
+                text: `Du er tildelt: ${title}\nStart: ${startLabel}\n${customer ? "Kunde: " + customer + "\n" : ""}${address ? "Adresse: " + address + "\n" : ""}`,
+              },
+            });
+            if (mailErr) throw mailErr;
+            if (mailRes?.status === "sent") {
+              toast.success("E-postvarsel sendt via Gmail");
+            } else if (mailRes?.status === "no_token") {
+              toast.info("E-post ble ikke sendt. Gmail er ikke koblet til ennå.", {
+                description: "Koble til under Innstillinger → Integrasjoner.",
+              });
+            } else if (mailRes?.status === "no_recipients") {
+              toast.info("Ingen e-postadresser funnet på tildelte montører");
+            } else {
+              toast.error("E-post ble ikke sendt", { description: mailRes?.detail ?? "Ukjent feil" });
+            }
+          } catch (e: any) {
+            console.error("[EventDrawer] gmail-send failed", e);
+            toast.error("E-post ble ikke sendt", { description: e?.message });
+          }
+        }
       }
     } catch (err: any) {
       toast.error("Feil ved lagring", { description: err?.message });
@@ -2169,7 +2199,7 @@ export function EventDrawer({
                   <span className="text-right font-medium">{format(new Date(deliveryStatus.notifiedAt), "dd.MM.yyyy HH:mm", { locale: nb })}</span>
                 </div>
                 <div className="flex items-start justify-between gap-3">
-                  <span className="text-muted-foreground">Outlook-synk</span>
+                  <span className="text-muted-foreground">Google Kalender-synk</span>
                   <span className="text-right font-medium">
                     {deliveryStatus.syncedAt ? `OK · ${deliveryStatus.syncedCount} oppdatert` : "Ikke kjørt"}
                   </span>
@@ -2177,6 +2207,25 @@ export function EventDrawer({
               </div>
             </section>
           )}
+
+          {/* ═══ SEND EMAIL NOTIFICATION (Gmail, opt-in) ═══ */}
+          {!isEditing && eventType === "project" && (
+            <label className="flex items-start gap-2 rounded-lg border border-border/40 bg-card p-3 text-sm cursor-pointer hover:bg-muted/30">
+              <input
+                type="checkbox"
+                className="mt-0.5"
+                checked={sendEmailNotification}
+                onChange={(e) => setSendEmailNotification(e.target.checked)}
+              />
+              <span>
+                <span className="font-medium">Send e-postvarsel</span>
+                <span className="block text-xs text-muted-foreground mt-0.5">
+                  Sender e-post via Gmail til tildelte montører når oppdraget opprettes. Krever Gmail-tilkobling.
+                </span>
+              </span>
+            </label>
+          )}
+
 
           {/* ═══ CONFLICTS ═══ */}
           {conflicts.length > 0 && (
@@ -2245,7 +2294,7 @@ export function EventDrawer({
               <AlertDialogTitle>Fjern fra ressursplan?</AlertDialogTitle>
               <AlertDialogDescription>
                 {scheduleBlockId
-                  ? "Blokken fjernes fra planoversikten. Hvis den er koblet til Outlook, forsøkes sletting der også."
+                  ? "Blokken fjernes fra planoversikten. Hvis den er koblet til Google Kalender, forsøkes sletting der også."
                   : "Montørtildelingen og tidsplanen fjernes fra kalenderen. Prosjektet forblir intakt."}
               </AlertDialogDescription>
             </AlertDialogHeader>

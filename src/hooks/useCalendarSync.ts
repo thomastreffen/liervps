@@ -1,174 +1,80 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
+/**
+ * Hook for syncing internal events to Google Calendar.
+ *
+ * - Local save always happens first (caller responsibility).
+ * - If the current user has not connected Google Calendar yet, we show a
+ *   single non-blocking toast per session and continue.
+ * - On real errors, we show a toast; we never delete the local activity.
+ *
+ * Legacy `forceUpdate` / `acceptGraphVersion` / `conflict` fields are kept
+ * as no-ops so existing call sites (ResourcePlan, EventDrawer) keep compiling
+ * without touching every reference — Google flow does not have Outlook-style
+ * write conflicts yet.
+ */
 export interface GraphConflict {
   eventId: string;
-  graphVersion: {
-    start: string;
-    end: string;
-    subject: string;
-  } | null;
+  graphVersion: { start: string; end: string; subject: string } | null;
 }
 
-/**
- * Hook for syncing internal events to Microsoft Graph (Outlook).
- * Returns fire-and-forget helpers that show toasts on failure.
- */
+type SyncStatus = "synced" | "no_token" | "error" | "unknown";
+
 export function useCalendarSync() {
-  const [conflict, setConflict] = useState<GraphConflict | null>(null);
+  // Only show "not connected" toast once per browser session
+  const noTokenToastShown = useRef(false);
 
-  const syncCreate = useCallback(async (eventId: string) => {
-    try {
-      const { data, error } = await supabase.functions.invoke("calendar-write-sync", {
-        body: { action: "create", event_id: eventId },
-      });
-      if (error) {
-        console.error("[CalendarSync] create invoke error:", error);
-        return;
-      }
-      if (data?.status === "created") {
-        console.log("[CalendarSync] Outlook event created:", data.graph_event_id);
-      } else if (data?.status === "no_token") {
-        // Silent – no MS connection
-      } else if (data?.status === "error") {
-        console.error("[CalendarSync] create error:", data.code, data.detail);
-        toast.error("Oppdraget ble lagret, men kalendersynk feilet", {
-          description: `Feilkode ${data.code}. Du kan prøve på nytt.`,
-          action: {
-            label: "Prøv igjen",
-            onClick: () => syncCreate(eventId),
-          },
-        });
-      }
-    } catch (err) {
-      console.error("[CalendarSync] create exception:", err);
-    }
+  const notifyNoToken = useCallback(() => {
+    if (noTokenToastShown.current) return;
+    noTokenToastShown.current = true;
+    toast.info("Lagret lokalt. Google Kalender er ikke koblet til ennå.", {
+      description: "Koble til Google under Innstillinger → Integrasjoner for automatisk kalender-synk.",
+      duration: 6000,
+    });
   }, []);
 
-  const syncUpdate = useCallback(async (eventId: string): Promise<"synced" | "conflict" | "error" | "no_token" | "unknown"> => {
+  const invoke = useCallback(async (action: "create" | "update" | "delete", eventId: string): Promise<SyncStatus> => {
     try {
-      const { data, error } = await supabase.functions.invoke("calendar-write-sync", {
-        body: { action: "update", event_id: eventId },
+      const { data, error } = await supabase.functions.invoke("google-calendar-sync", {
+        body: { action, event_id: eventId },
       });
       if (error) {
-        console.error("[CalendarSync] update invoke error:", error);
+        console.error("[GoogleCalendar] invoke error:", error);
+        toast.error("Google Kalender-synk feilet", { description: error.message });
         return "error";
-      }
-      if (data?.status === "updated" || data?.status === "created") {
-        console.log("[CalendarSync] Outlook synced");
-        return "synced";
-      } else if (data?.status === "conflict") {
-        setConflict({
-          eventId,
-          graphVersion: data.graph_version || null,
-        });
-        toast.warning("Outlook-konflikt oppdaget", {
-          description: "Hendelsen har blitt endret i Outlook. Velg hvilken versjon du vil beholde.",
-          duration: 8000,
-        });
-        return "conflict";
-      } else if (data?.status === "no_token") {
-        return "no_token";
-      } else if (data?.status === "error") {
-        toast.error("Outlook ble ikke oppdatert", {
-          description: `Feilkode ${data.code}`,
-        });
-        return "error";
-      }
-      return "unknown";
-    } catch (err) {
-      console.error("[CalendarSync] update exception:", err);
-      return "error";
-    }
-  }, []);
-
-  const syncDelete = useCallback(async (eventId: string): Promise<"deleted" | "not_found" | "error" | "no_token" | "unknown"> => {
-    try {
-      const { data, error } = await supabase.functions.invoke("calendar-write-sync", {
-        body: { action: "delete", event_id: eventId },
-      });
-      if (error) {
-        console.error("[CalendarSync] delete invoke error:", error);
-        return "error";
-      }
-      if (data?.status === "deleted") {
-        return "deleted";
-      }
-      if (data?.status === "not_found") {
-        toast.warning("Outlook-hendelsen kunne ikke bekreftes slettet", {
-          description: "Oppgaven ble fjernet fra planen, men Outlook-koblingen må kanskje ryddes opp manuelt.",
-        });
-        return "not_found";
       }
       if (data?.status === "no_token") {
+        notifyNoToken();
         return "no_token";
       }
+      if (data?.status === "created" || data?.status === "updated" || data?.status === "deleted" || data?.status === "not_found") {
+        return "synced";
+      }
       if (data?.status === "error") {
-        toast.error("Outlook-event ble ikke slettet", {
-          description: `Feilkode ${data.code}`,
+        console.error("[GoogleCalendar] error:", data);
+        toast.error("Google Kalender-synk feilet", {
+          description: `Kode ${data.code}: ${data.detail ?? ""}`.trim(),
         });
         return "error";
       }
       return "unknown";
-    } catch (err) {
-      console.error("[CalendarSync] delete exception:", err);
+    } catch (err: any) {
+      console.error("[GoogleCalendar] exception:", err);
+      toast.error("Google Kalender-synk feilet", { description: err?.message });
       return "error";
     }
-  }, []);
+  }, [notifyNoToken]);
 
-  const forceUpdate = useCallback(async (eventId: string) => {
-    try {
-      const { data, error } = await supabase.functions.invoke("calendar-write-sync", {
-        body: { action: "force_update", event_id: eventId },
-      });
-      if (error) {
-        console.error("[CalendarSync] force_update invoke error:", error);
-        return;
-      }
-      if (data?.status === "force_updated") {
-        toast.success("Konflikt løst. Valgt: Systemtid ✓", {
-          description: "Outlook er oppdatert med systemets tidspunkt.",
-        });
-        // Audit log
-        await supabase.from("event_logs").insert({
-          event_id: eventId,
-          action_type: "conflict_resolved",
-          change_summary: "Konflikt løst: Systemtid valgt (force_update)",
-        });
-        setConflict(null);
-      } else if (data?.status === "error") {
-        toast.error("Kunne ikke tvinge Outlook-oppdatering");
-      }
-    } catch (err) {
-      console.error("[CalendarSync] force_update exception:", err);
-    }
-  }, []);
+  const syncCreate = useCallback((eventId: string) => { void invoke("create", eventId); }, [invoke]);
+  const syncUpdate = useCallback((eventId: string) => invoke("update", eventId), [invoke]);
+  const syncDelete = useCallback((eventId: string) => invoke("delete", eventId), [invoke]);
 
-  const acceptGraphVersion = useCallback(async (eventId: string, graphStart: string, graphEnd: string) => {
-    try {
-      await supabase.from("events").update({
-        start_time: new Date(graphStart).toISOString(),
-        end_time: new Date(graphEnd).toISOString(),
-      }).eq("id", eventId);
-
-      toast.success("Konflikt løst. Valgt: Outlook-tid ✓", {
-        description: "Databasen er oppdatert med Outlook-tidspunktet.",
-      });
-      // Audit log
-      await supabase.from("event_logs").insert({
-        event_id: eventId,
-        action_type: "conflict_resolved",
-        change_summary: `Konflikt løst: Outlook-tid valgt (${graphStart} – ${graphEnd})`,
-      });
-      setConflict(null);
-    } catch (err) {
-      console.error("[CalendarSync] acceptGraph exception:", err);
-      toast.error("Kunne ikke oppdatere med Outlook-tid");
-    }
-  }, []);
-
-  const dismissConflict = useCallback(() => setConflict(null), []);
+  // Legacy Outlook conflict API — no-ops now.
+  const forceUpdate = useCallback((_eventId: string) => { /* Google has no conflict flow */ }, []);
+  const acceptGraphVersion = useCallback(async (_eventId: string, _start: string, _end: string) => { /* no-op */ }, []);
+  const dismissConflict = useCallback(() => { /* no-op */ }, []);
 
   return {
     syncCreate,
@@ -176,7 +82,7 @@ export function useCalendarSync() {
     syncDelete,
     forceUpdate,
     acceptGraphVersion,
-    conflict,
+    conflict: null as GraphConflict | null,
     dismissConflict,
   };
 }
