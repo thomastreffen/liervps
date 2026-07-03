@@ -8,6 +8,8 @@ interface AddressSuggestion {
   poststed: string;
   postnummer: string;
   kommunenavn: string;
+  lat?: number;
+  lon?: number;
 }
 
 export interface AddressSelection {
@@ -16,6 +18,9 @@ export interface AddressSelection {
   postalCode: string;
   city: string;
   municipality: string;
+  lat?: number;
+  lon?: number;
+  googleMapsUrl?: string;
 }
 
 interface AddressAutocompleteProps {
