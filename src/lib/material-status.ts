@@ -75,8 +75,8 @@ export type MaterialProvidedBy =
   | "annet";
 
 export const MATERIAL_PROVIDED_BY_LABELS: Record<MaterialProvidedBy, string> = {
-  mcs_service: "MCS Service",
-  mcs_elektrotavler: "MCS Elektrotavler",
+  mcs_service: "Lier VPS",
+  mcs_elektrotavler: "Lier VPS Elektrotavler",
   kunde: "Kunde",
   grossist_direkte: "Grossist direkte",
   lager: "Lager",
@@ -111,16 +111,16 @@ export const COMMON_SUPPLIERS = [
   "Solar Norge",
   "Elektroskandia",
   "Ahlsell",
-  "MCS Elektrotavler",
+  "Lier VPS Elektrotavler",
   "Lager",
   "Annet",
 ];
 
 export const DELIVERY_METHODS = [
-  "Til MCS lager",
+  "Til Lier VPS lager",
   "Direkte til jobb",
   "Til montør",
-  "Leveres av MCS Elektrotavler",
+  "Leveres av Lier VPS Elektrotavler",
   "Hentes hos grossist",
   "Annet",
 ];

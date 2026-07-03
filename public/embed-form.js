@@ -5,7 +5,7 @@
 
   var formSlug = script.getAttribute("data-form");
   if (!formSlug) {
-    console.error("[MCS Embed] Missing data-form attribute");
+    console.error("[Lier VPS Embed] Missing data-form attribute");
     return;
   }
 
@@ -14,7 +14,7 @@
     container = document.getElementById("mcs-order-form");
   }
   if (!container) {
-    console.error("[MCS Embed] No container element found (#mcs-order-form)");
+    console.error("[Lier VPS Embed] No container element found (#mcs-order-form)");
     return;
   }
 
@@ -28,7 +28,7 @@
   iframe.setAttribute("scrolling", "no");
   iframe.setAttribute("loading", "lazy");
   iframe.setAttribute("allow", "clipboard-write");
-  iframe.title = "MCS Bestillingsskjema";
+  iframe.title = "Lier VPS Bestillingsskjema";
 
   // Auto-resize via postMessage – no internal scroll
   window.addEventListener("message", function (e) {

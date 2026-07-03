@@ -1,11 +1,11 @@
 /**
  * Company / module accent helper
  *
- * MCS Signal er masterbrand (primary). Selskapsspesifikke aksenter brukes
+ * Lier VPS Signal er masterbrand (primary). Selskapsspesifikke aksenter brukes
  * KUN i kontekst der innholdet faktisk tilhører selskapet/modulen:
- *   - MCS Service       → brand-service (oransje)
- *   - MCS Elektrotavler → brand-tavler (blå)
- *   - Ukjent / felles   → primary (MCS Signal)
+ *   - Lier VPS       → brand-service (oransje)
+ *   - Lier VPS Elektrotavler → brand-tavler (blå)
+ *   - Ukjent / felles   → primary (Lier VPS Signal)
  *
  * Ikke bruk disse globalt – kun for selskapsbadges, modulhint, segmenterte
  * dashboards og lignende kontekstuelle markører.
@@ -15,7 +15,7 @@ export type CompanyKind = "service" | "tavler" | "unknown";
 
 /**
  * Detekter selskap fra et selskapsnavn eller slug. Tolerant for varianter
- * som "MCS Service AS", "mcs-service", "MCS Elektrotavler" osv.
+ * som "Lier Varmepumpeservice AS", "mcs-service", "Lier VPS Elektrotavler" osv.
  */
 export function detectCompanyKind(input?: string | null): CompanyKind {
   if (!input) return "unknown";
@@ -52,7 +52,7 @@ const SERVICE: AccentClasses = {
   soft: "bg-brand-service/10",
   softText: "text-brand-service",
   ring: "ring-brand-service",
-  label: "MCS Service",
+  label: "Lier VPS",
 };
 
 const TAVLER: AccentClasses = {
@@ -63,7 +63,7 @@ const TAVLER: AccentClasses = {
   soft: "bg-brand-tavler/10",
   softText: "text-brand-tavler",
   ring: "ring-brand-tavler",
-  label: "MCS Elektrotavler",
+  label: "Lier VPS Elektrotavler",
 };
 
 const PRIMARY: AccentClasses = {
@@ -74,7 +74,7 @@ const PRIMARY: AccentClasses = {
   soft: "bg-primary-soft",
   softText: "text-primary-soft-foreground",
   ring: "ring-primary",
-  label: "MCS",
+  label: "Lier VPS",
 };
 
 export function companyAccent(input?: string | null): AccentClasses {

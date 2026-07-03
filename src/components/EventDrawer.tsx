@@ -167,6 +167,16 @@ export function EventDrawer({
   const { settings: reminderSettings } = useReminderSettings();
   const isEditing = !!editEvent;
 
+  useEffect(() => {
+    console.info("[EventDrawer][Render]", {
+      open,
+      preselectedTechId,
+      preselectedStart,
+      preselectedEnd,
+      editEventId: editEvent?.id ?? null,
+    });
+  }, [open, preselectedTechId, preselectedStart, preselectedEnd, editEvent?.id]);
+
   // Form state
   const [mode, setMode] = useState<"new" | "existing">("new");
   const [eventType, setEventType] = useState<"project" | "task">("project");
@@ -1414,7 +1424,7 @@ export function EventDrawer({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="sm:max-w-[480px] flex flex-col overflow-y-auto">
+      <SheetContent data-resource-event-drawer="true" className="z-[100] sm:max-w-[480px] flex flex-col overflow-y-auto">
         <SheetHeader className="space-y-1">
           <SheetTitle className="flex items-center gap-2 text-base">
             {isEditing ? (

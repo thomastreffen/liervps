@@ -17,8 +17,8 @@ export function PwaIosInstructionsDialog({ open, onOpenChange }: Props) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-sm">
         <DialogHeader>
-          <DialogTitle>Legg MCS til på Hjem-skjerm</DialogTitle>
-          <DialogDescription>Slik installerer du MCS på iPhone og iPad.</DialogDescription>
+          <DialogTitle>Legg Lier VPS til på Hjem-skjerm</DialogTitle>
+          <DialogDescription>Slik installerer du Lier VPS på iPhone og iPad.</DialogDescription>
         </DialogHeader>
         <ol className="space-y-3 text-sm">
           <li className="flex gap-3">
@@ -42,7 +42,7 @@ export function PwaIosInstructionsDialog({ open, onOpenChange }: Props) {
             <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">
               3
             </span>
-            <span>Trykk «Legg til» øverst til høyre. MCS dukker opp som en app på Hjem-skjermen.</span>
+            <span>Trykk «Legg til» øverst til høyre. Lier VPS dukker opp som en app på Hjem-skjermen.</span>
           </li>
         </ol>
         <p className="rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">

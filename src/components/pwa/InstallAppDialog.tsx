@@ -14,7 +14,7 @@ import {
   triggerInstall,
   detectPlatform,
 } from "@/pwa/installPrompt";
-import { isStandalone } from "@/pwa/registerSW";
+import { isStandalone } from "@/pwa/runtimeCleanup";
 
 interface Props {
   open: boolean;
@@ -43,16 +43,16 @@ export function InstallAppDialog({ open, onOpenChange }: Props) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-sm">
         <DialogHeader>
-          <DialogTitle>Installer MCS</DialogTitle>
+          <DialogTitle>Installer Lier VPS</DialogTitle>
           <DialogDescription>
             {standalone
-              ? "MCS er allerede installert og kjører som app."
-              : "Få MCS som ikon på enheten din."}
+              ? "Lier VPS er allerede installert og kjører som app."
+              : "Få Lier VPS som ikon på enheten din."}
           </DialogDescription>
         </DialogHeader>
 
         {standalone ? (
-          <p className="text-sm text-muted-foreground">Du bruker MCS som installert app nå.</p>
+          <p className="text-sm text-muted-foreground">Du bruker Lier VPS som installert app nå.</p>
         ) : platform === "ios" ? (
           <ol className="space-y-3 text-sm">
             <li className="flex gap-3">
@@ -76,16 +76,16 @@ export function InstallAppDialog({ open, onOpenChange }: Props) {
               <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">
                 3
               </span>
-              <span>Bekreft «Legg til». MCS dukker opp på Hjem-skjermen som app.</span>
+              <span>Bekreft «Legg til». Lier VPS dukker opp på Hjem-skjermen som app.</span>
             </li>
           </ol>
         ) : hasPrompt ? (
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">
-              Klikk under for å installere MCS som en egen app.
+              Klikk under for å installere Lier VPS som en egen app.
             </p>
             <Button onClick={install} className="w-full">
-              <Download className="mr-2 h-4 w-4" /> Installer MCS
+              <Download className="mr-2 h-4 w-4" /> Installer Lier VPS
             </Button>
           </div>
         ) : platform === "android" ? (

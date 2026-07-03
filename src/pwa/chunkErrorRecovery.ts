@@ -3,7 +3,7 @@
 // or chunk-load-error), we clear caches once, set a sessionStorage flag, and
 // reload. The flag prevents infinite reload loops.
 
-import { clearAppCachesAndUnregister } from "./registerSW";
+import { clearAppCachesAndUnregister } from "./runtimeCleanup";
 
 const FLAG_KEY = "mcs-chunk-reload";
 

@@ -254,7 +254,7 @@ export function useTripletexImport() {
           mappingByTtId.get(projectNumber.toLowerCase()) ||
           mappingByTtNum.get(projectNumber.toLowerCase());
         if (mapHit) {
-          // Verifiser at MCS-prosjektet fortsatt finnes
+          // Verifiser at Lier VPS-prosjektet fortsatt finnes
           const stillAlive = allProjects.find((p) => p.id === mapHit.mcs_project_id);
           if (stillAlive) {
             mappingId = mapHit.id;

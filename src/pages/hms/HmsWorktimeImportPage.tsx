@@ -605,7 +605,7 @@ export default function HmsWorktimeImportPage() {
               </div>
             ) : unmatchedEmpCount > 0 && (
               <div className="p-3 rounded-md bg-amber-500/10 border border-amber-500/30 text-xs">
-                <strong>{unmatchedEmpCount} ansatte mangler kobling.</strong> Velg riktig MCS-ansatt fra listen. Tripletex ansattnummer lagres på MCS-ansatten for fremtidige importer.
+                <strong>{unmatchedEmpCount} ansatte mangler kobling.</strong> Velg riktig Lier VPS-ansatt fra listen. Tripletex ansattnummer lagres på Lier VPS-ansatten for fremtidige importer.
               </div>
             )}
             <div className="overflow-x-auto">
@@ -616,7 +616,7 @@ export default function HmsWorktimeImportPage() {
                     <TableHead>Navn (Tripletex)</TableHead>
                     <TableHead className="text-right">Linjer</TableHead>
                     <TableHead>Kilde</TableHead>
-                    <TableHead>MCS-ansatt</TableHead>
+                    <TableHead>Lier VPS-ansatt</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -658,7 +658,7 @@ export default function HmsWorktimeImportPage() {
                             }}
                           >
                             <SelectTrigger className="h-9 w-[300px]">
-                              <SelectValue placeholder="Velg MCS-ansatt" />
+                              <SelectValue placeholder="Velg Lier VPS-ansatt" />
                             </SelectTrigger>
                             <SelectContent>
                               <SelectItem value="__none__">— ikke koblet —</SelectItem>

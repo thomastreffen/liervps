@@ -11,7 +11,7 @@ interface Props {
 }
 
 /**
- * Compact "Sendt" / "Lest av MCS" status for customer's own messages on the tracking page.
+ * Compact "Sendt" / "Lest av Lier VPS" status for customer's own messages on the tracking page.
  * Does NOT expose internal participant names.
  */
 export function CustomerMessageReadIndicator({ readByInternal, readAt, className }: Props) {
@@ -21,7 +21,7 @@ export function CustomerMessageReadIndicator({ readByInternal, readAt, className
         <>
           <CheckCheck className="h-3 w-3" />
           <span>
-            Lest av MCS
+            Lest av Lier VPS
             {readAt ? ` · ${format(new Date(readAt), "d. MMM HH:mm", { locale: nb })}` : ""}
           </span>
         </>

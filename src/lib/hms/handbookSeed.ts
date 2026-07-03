@@ -1,5 +1,5 @@
-// MCS startstruktur for håndbøker.
-// Tekstene er interne UTKAST tilpasset MCS Service og må kvalitetssikres
+// Lier VPS startstruktur for håndbøker.
+// Tekstene er interne UTKAST tilpasset Lier VPS og må kvalitetssikres
 // internt før publisering. Ingen eksterne kilder kopieres direkte.
 
 export interface HandbookChapterSeed {
@@ -35,7 +35,7 @@ const renderChapter = (c: ChapterSpec): string =>
   `## Omfang\n${c.omfang}\n\n` +
   `## Ansvar\n${c.ansvar}\n\n` +
   `## Rutine\n${c.rutine}\n\n` +
-  `## Dokumentasjon i MCS Kontrollsenter\n${c.dokumentasjon}\n\n` +
+  `## Dokumentasjon i Lier VPS\n${c.dokumentasjon}\n\n` +
   `## Avvik og oppfølging\n${c.avvik}\n\n` +
   `## Henvisninger\n${c.henvisninger}\n` +
   (c.opplaering ? `\n## Bekreftelse / opplæring\n${c.opplaering}\n` : "");
@@ -43,17 +43,17 @@ const renderChapter = (c: ChapterSpec): string =>
 const ALL = (arr: ReadonlyArray<{ omfang?: string; opplaering?: string } & Omit<ChapterSpec, "omfang" | "opplaering">>): ChapterSpec[] =>
   arr.map((c) => ({
     ...c,
-    omfang: c.omfang ?? "Gjelder alle ansatte og innleide i MCS Service som omfattes av kapittelet, samt eksterne underleverandører på MCS-oppdrag der det er relevant.",
+    omfang: c.omfang ?? "Gjelder alle ansatte og innleide i Lier VPS som omfattes av kapittelet, samt eksterne underleverandører på Lier VPS-oppdrag der det er relevant.",
   }));
 
 const ARB: ChapterSpec[] = ALL([
   {
     title: "Innledning og formål",
-    formaal: "Beskrive hensikten med Arbeidshåndboken og hvordan den brukes i hverdagen i MCS Service.",
-    omfang: "Gjelder alle ansatte i MCS Service. Innleide og lærlinger orienteres ved oppstart.",
+    formaal: "Beskrive hensikten med Arbeidshåndboken og hvordan den brukes i hverdagen i Lier VPS.",
+    omfang: "Gjelder alle ansatte i Lier VPS. Innleide og lærlinger orienteres ved oppstart.",
     ansvar: "Daglig leder eier håndboken. HMS-leder vedlikeholder innholdet. Driftsleder følger opp at egne ansatte har lest gjeldende versjon.",
-    rutine: "Håndboken finnes i MCS Kontrollsenter under HMS & HR → Håndbøker. Endringer publiseres som ny versjon. Ansatte varsles og må bekrefte ny versjon.",
-    dokumentasjon: "Lesebekreftelser, versjonshistorikk og endringslogg lagres i MCS Kontrollsenter.",
+    rutine: "Håndboken finnes i Lier VPS under HMS & HR → Håndbøker. Endringer publiseres som ny versjon. Ansatte varsles og må bekrefte ny versjon.",
+    dokumentasjon: "Lesebekreftelser, versjonshistorikk og endringslogg lagres i Lier VPS.",
     avvik: "Manglende lesebekreftelse innen frist følges opp av nærmeste leder.",
     henvisninger: "Arbeidsmiljøloven. Internkontrollforskriften.",
     opplaering: "Nye ansatte gjennomgår håndboken sammen med driftsleder i løpet av første uke.",
@@ -63,16 +63,16 @@ const ARB: ChapterSpec[] = ALL([
     formaal: "Tydeliggjøre hvem som har ansvar for hva i den daglige driften.",
     ansvar: "Daglig leder, driftsleder, prosjektleder, FSE-ansvarlig, vernombud og ansatt – hver med definerte oppgaver.",
     rutine: "Rolleoversikt revideres ved organisasjonsendring og minst én gang i året. Stedfortreder skal være avklart.",
-    dokumentasjon: "Rolleoversikt vedlikeholdes i MCS Kontrollsenter.",
+    dokumentasjon: "Rolleoversikt vedlikeholdes i Lier VPS.",
     avvik: "Uklare roller løftes til ledelsens gjennomgang.",
     henvisninger: "Arbeidsmiljøloven kap. 2 og 6.",
   },
   {
     title: "Arbeidstid",
-    formaal: "Sikre at arbeidstid planlegges og registreres i tråd med arbeidsmiljøloven og MCS' interne ordning.",
-    ansvar: "Driftsleder planlegger oppdrag innenfor avtalt ordning. Den enkelte ansatte fører korrekte timer i Tripletex og MCS Kontrollsenter.",
+    formaal: "Sikre at arbeidstid planlegges og registreres i tråd med arbeidsmiljøloven og Lier VPS' interne ordning.",
+    ansvar: "Driftsleder planlegger oppdrag innenfor avtalt ordning. Den enkelte ansatte fører korrekte timer i Tripletex og Lier VPS.",
     rutine: "Normalarbeidstid avtales pr. ansatt. Avvik fra ordningen skal varsles driftsleder samme dag. Skift, beredskap og vakt registreres med riktig kategori.",
-    dokumentasjon: "Timer importeres fra Tripletex til MCS Kontrollsenter. AML-modulen overvåker dags-, ukes- og periodegrenser.",
+    dokumentasjon: "Timer importeres fra Tripletex til Lier VPS. AML-modulen overvåker dags-, ukes- og periodegrenser.",
     avvik: "Brudd på dagsgrense, ukesgrense eller hviletid genererer AML-varsel. Driftsleder kvitterer ut og iverksetter tiltak.",
     henvisninger: "Arbeidsmiljøloven kap. 10. Intern ordning for arbeidstid.",
   },
@@ -81,7 +81,7 @@ const ARB: ChapterSpec[] = ALL([
     formaal: "Sikre at all arbeidstid registreres fortløpende, korrekt og sporbart.",
     ansvar: "Den enkelte registrerer egne timer. Driftsleder kontrollerer og godkjenner i Tripletex.",
     rutine: "Timer føres samme dag, senest neste arbeidsdag. Bruk riktig oppdragsnummer, aktivitet og lønnsart. Reise, beredskap og pauser føres iht. kategori.",
-    dokumentasjon: "Timer importeres til MCS Kontrollsenter og brukes i AML, Ressursplan og Fakturagrunnlag.",
+    dokumentasjon: "Timer importeres til Lier VPS og brukes i AML, Ressursplan og Fakturagrunnlag.",
     avvik: "Manglende eller feil registrering rettes ved neste import. Mønsterfeil tas opp i medarbeidersamtale.",
     henvisninger: "Arbeidsmiljøloven §10-7. Bokføringsloven §10.",
   },
@@ -89,7 +89,7 @@ const ARB: ChapterSpec[] = ALL([
     title: "Overtid",
     formaal: "Sikre at overtid kun benyttes ved særlig og tidsavgrenset behov, godkjennes på forhånd og kompenseres riktig.",
     ansvar: "Driftsleder vurderer behov og gir forhåndsgodkjenning. Ansatt registrerer overtid med begrunnelse.",
-    rutine: "Overtid skal som hovedregel forhåndsgodkjennes. Akutt overtid godkjennes så snart som mulig i etterkant via MCS Kontrollsenter. Maksgrenser i AML overvåkes løpende.",
+    rutine: "Overtid skal som hovedregel forhåndsgodkjennes. Akutt overtid godkjennes så snart som mulig i etterkant via Lier VPS. Maksgrenser i AML overvåkes løpende.",
     dokumentasjon: "Overtid synliggjøres i Ressursplan og AML. Ventende godkjenninger vises i HMS-dashboard.",
     avvik: "Ikke-godkjent overtid behandles av nærmeste leder. Brudd på maksgrenser løftes til daglig leder.",
     henvisninger: "Arbeidsmiljøloven §10-6. Intern overtidsavtale.",
@@ -98,7 +98,7 @@ const ARB: ChapterSpec[] = ALL([
     title: "Godkjenning av overtid",
     formaal: "Tydelig prosess for hvem som godkjenner overtid og hvordan godkjenning dokumenteres.",
     ansvar: "Driftsleder er primær godkjenner. Daglig leder ved overskridelser eller systematisk bruk.",
-    rutine: "Overtidsforespørsel sendes via MCS Kontrollsenter eller muntlig + bekreftet skriftlig samme arbeidsdag. Godkjenning loggføres med tidspunkt og godkjenner.",
+    rutine: "Overtidsforespørsel sendes via Lier VPS eller muntlig + bekreftet skriftlig samme arbeidsdag. Godkjenning loggføres med tidspunkt og godkjenner.",
     dokumentasjon: "Alle godkjenninger lagres i overtime_approvals og er sporbare i ansattprofil.",
     avvik: "Manglende godkjenning skal lukkes innen 7 dager, ellers løftes saken.",
     henvisninger: "Intern overtidsavtale. Arbeidsmiljøloven §10-6.",
@@ -143,7 +143,7 @@ const ARB: ChapterSpec[] = ALL([
     title: "Fravær og sykefravær",
     formaal: "Tydelig melderutine ved fravær og oppfølging i tråd med IA-prinsipper.",
     ansvar: "Ansatt melder fravær så tidlig som mulig. Nærmeste leder følger opp etter fastsatt plan.",
-    rutine: "Sykefravær meldes pr. telefon før arbeidstidens start. Egenmelding registreres i MCS Kontrollsenter. Sykmelding leveres digitalt. Oppfølgingssamtale innen 4 uker.",
+    rutine: "Sykefravær meldes pr. telefon før arbeidstidens start. Egenmelding registreres i Lier VPS. Sykmelding leveres digitalt. Oppfølgingssamtale innen 4 uker.",
     dokumentasjon: "Fravær registreres i fraværsmodulen og synkroniseres mot Outlook (Out of Office).",
     avvik: "Manglende melding eller dokumentasjon følges opp individuelt.",
     henvisninger: "Folketrygdloven kap. 8. IA-avtalen.",
@@ -158,18 +158,18 @@ const ARB: ChapterSpec[] = ALL([
     henvisninger: "Ferieloven.",
   },
   {
-    title: "Bruk av MCS Kontrollsenter",
-    formaal: "Sikre at alle ansatte bruker MCS Kontrollsenter som primært arbeidsverktøy.",
+    title: "Bruk av Lier VPS",
+    formaal: "Sikre at alle ansatte bruker Lier VPS som primært arbeidsverktøy.",
     ansvar: "Alle ansatte er ansvarlige for å holde sine oppgaver, timer, SJA og avvik oppdatert i systemet.",
-    rutine: "Logg inn via Microsoft 365. Bruk mobilversjon i felt. Skriv kort, klart og faktabasert. Last opp bilder ved behov.",
+    rutine: "Logg inn via Google. Bruk mobilversjon i felt. Skriv kort, klart og faktabasert. Last opp bilder ved behov.",
     dokumentasjon: "Aktivitet logges automatisk i activity_log. Dokumenter lagres i prosjektmappen.",
     avvik: "Tekniske feil meldes til IT/systemansvarlig med skjermbilde.",
-    henvisninger: "Brukerveiledning MCS Kontrollsenter (intern).",
+    henvisninger: "Brukerveiledning Lier VPS (intern).",
     opplaering: "Nye brukere får intro av driftsleder. Mobilbruk demonstreres på første oppdrag.",
   },
   {
-    title: "AML-overvåking i MCS Kontrollsenter",
-    formaal: "Beskrive hvordan MCS bruker AML-modulen til å overvåke arbeidstid og overtid.",
+    title: "AML-overvåking i Lier VPS",
+    formaal: "Beskrive hvordan Lier VPS bruker AML-modulen til å overvåke arbeidstid og overtid.",
     ansvar: "HMS-leder eier regelsettet. Driftsleder følger opp varsler for sine ansatte.",
     rutine: "Timer importeres fra Tripletex. AML-modulen kontrollerer dag, uke og periode. Overtidsvarsler følges opp av leder. Overtid skal ha særskilt og tidsavgrenset behov. Mangler i datagrunnlag, for eksempel manglende start- og sluttid i Tripletex månedsoversikt, gjør at enkelte 24-timers vurderinger blir periodebaserte – dette er kommentert i hvert varsel.",
     dokumentasjon: "AML-varsler, kvitteringer og løsninger lagres i hms_alerts og activity_log.",
@@ -189,7 +189,7 @@ const ARB: ChapterSpec[] = ALL([
     title: "Avvik og varsling",
     formaal: "Sikre lav terskel for å melde avvik og kritikkverdige forhold.",
     ansvar: "Alle ansatte kan og skal melde avvik. HMS-leder behandler. Daglig leder ved varsling om kritikkverdige forhold.",
-    rutine: "Bruk avviksskjema i MCS Kontrollsenter. Beskriv hva, hvor, når og foreslått tiltak. Verneombud orienteres om HMS-avvik.",
+    rutine: "Bruk avviksskjema i Lier VPS. Beskriv hva, hvor, når og foreslått tiltak. Verneombud orienteres om HMS-avvik.",
     dokumentasjon: "Avvik følges fra meldt til lukket med tiltak og ansvarlig.",
     avvik: "Gjengangere analyseres i ledelsens gjennomgang.",
     henvisninger: "Arbeidsmiljøloven kap. 2A om varsling.",
@@ -197,8 +197,8 @@ const ARB: ChapterSpec[] = ALL([
   {
     title: "Arbeid hos kunde",
     formaal: "Sikre profesjonell og forsvarlig opptreden hos kunde.",
-    ansvar: "Driftsleder for oppdraget. Den enkelte representerer MCS i felt.",
-    rutine: "Meld ankomst til kontaktperson. Følg kundens HMS-regime og adgangsrutiner. Rydd og dokumenter ved avslutning. Kommuniser eventuelle avvik direkte til kunde og MCS.",
+    ansvar: "Driftsleder for oppdraget. Den enkelte representerer Lier VPS i felt.",
+    rutine: "Meld ankomst til kontaktperson. Følg kundens HMS-regime og adgangsrutiner. Rydd og dokumenter ved avslutning. Kommuniser eventuelle avvik direkte til kunde og Lier VPS.",
     dokumentasjon: "Sluttdokumentasjon, bilder og signaturer arkiveres i prosjektet.",
     avvik: "Avvik som påvirker kundens drift varsles umiddelbart både til kunde og driftsleder.",
     henvisninger: "Kundespesifikke prosedyrer.",
@@ -234,7 +234,7 @@ const ARB: ChapterSpec[] = ALL([
     title: "Bekreftelse lest og forstått",
     formaal: "Bekrefte at den ansatte har lest og forstått innholdet i Arbeidshåndboken.",
     ansvar: "Den enkelte ansatte. Driftsleder følger opp ved manglende bekreftelse.",
-    rutine: "Bekreftelse skjer i MCS Kontrollsenter etter publisering av ny versjon. Tekst: \"Jeg har lest og forstått denne håndboken.\"",
+    rutine: "Bekreftelse skjer i Lier VPS etter publisering av ny versjon. Tekst: \"Jeg har lest og forstått denne håndboken.\"",
     dokumentasjon: "Lesebekreftelser lagres med tidspunkt, bruker og versjon.",
     avvik: "Manglende bekreftelse innen frist eskaleres til daglig leder.",
     henvisninger: "Internkontrollforskriften §5.",
@@ -245,10 +245,10 @@ const ARB: ChapterSpec[] = ALL([
 const HMS: ChapterSpec[] = ALL([
   {
     title: "Internkontroll",
-    formaal: "Sikre systematisk HMS-arbeid i MCS Service i tråd med internkontrollforskriften.",
+    formaal: "Sikre systematisk HMS-arbeid i Lier VPS i tråd med internkontrollforskriften.",
     ansvar: "Daglig leder er ansvarlig for systemet. HMS-leder forvalter dokumentasjon og årshjul.",
     rutine: "Årshjul med vernerunder, ledelsens gjennomgang, risikovurderinger, opplæring og revisjon av prosedyrer.",
-    dokumentasjon: "Hele systemet ligger i MCS Kontrollsenter / HMS-modulen.",
+    dokumentasjon: "Hele systemet ligger i Lier VPS / HMS-modulen.",
     avvik: "Manglende gjennomføring av planlagte aktiviteter er avvik og skal lukkes med ny dato.",
     henvisninger: "Internkontrollforskriften.",
   },
@@ -266,7 +266,7 @@ const HMS: ChapterSpec[] = ALL([
     formaal: "Tydeliggjøre HMS-roller i organisasjonen.",
     ansvar: "Daglig leder, HMS-leder, driftsleder, vernombud, ansatt – hver med definert ansvar.",
     rutine: "Roller revideres årlig og ved organisasjonsendringer. Verneombud velges for 2 år.",
-    dokumentasjon: "Rolleoversikt vedlikeholdes i MCS Kontrollsenter.",
+    dokumentasjon: "Rolleoversikt vedlikeholdes i Lier VPS.",
     avvik: "Uklare roller løftes til ledelsens gjennomgang.",
     henvisninger: "Arbeidsmiljøloven kap. 6 og 7.",
   },
@@ -274,7 +274,7 @@ const HMS: ChapterSpec[] = ALL([
     title: "Medvirkning",
     formaal: "Sikre at ansatte og verneombud medvirker i HMS-arbeidet.",
     ansvar: "Verneombud representerer ansatte. Driftsleder legger til rette for medvirkning.",
-    rutine: "Faste HMS-punkter på personalmøter. Vernerunder med deltakelse fra verneombud. Innspill til prosedyrer kan meldes via MCS Kontrollsenter.",
+    rutine: "Faste HMS-punkter på personalmøter. Vernerunder med deltakelse fra verneombud. Innspill til prosedyrer kan meldes via Lier VPS.",
     dokumentasjon: "Møtereferater og innspill loggføres.",
     avvik: "Manglende medvirkning er avvik mot internkontroll.",
     henvisninger: "Arbeidsmiljøloven kap. 6.",
@@ -284,7 +284,7 @@ const HMS: ChapterSpec[] = ALL([
     formaal: "Sikre at alle har nødvendig kompetanse for sine oppgaver.",
     ansvar: "Driftsleder kartlegger behov. HMS-leder forvalter opplæringsplan.",
     rutine: "Kompetanseplan oppdateres årlig. FSE-kurs årlig. Førstehjelp hvert 12. mnd. for utsatte grupper. Sertifikater fornyes før utløp.",
-    dokumentasjon: "Kompetanse og kurs registreres i MCS Kontrollsenter.",
+    dokumentasjon: "Kompetanse og kurs registreres i Lier VPS.",
     avvik: "Arbeid uten gyldig sertifisering er avvik og stoppes.",
     henvisninger: "Arbeidsmiljøloven §3-2. FSE.",
     opplaering: "Ny ansatt får sjekkliste for opplæring og fadder de første 4 ukene.",
@@ -329,7 +329,7 @@ const HMS: ChapterSpec[] = ALL([
     title: "Avvik og RUH",
     formaal: "Lav terskel for å melde uønskede hendelser og forbedringsforslag.",
     ansvar: "Alle melder. HMS-leder behandler.",
-    rutine: "Meld i MCS Kontrollsenter. Beskriv hendelsen, ev. skade, umiddelbare tiltak og forslag til forbedring.",
+    rutine: "Meld i Lier VPS. Beskriv hendelsen, ev. skade, umiddelbare tiltak og forslag til forbedring.",
     dokumentasjon: "RUH/avvik følges til lukket med tiltak.",
     avvik: "Gjengangere analyseres og kan utløse ny prosedyre.",
     henvisninger: "Internkontrollforskriften §5 nr. 7.",
@@ -383,7 +383,7 @@ const HMS: ChapterSpec[] = ALL([
   {
     title: "Personlig verneutstyr",
     formaal: "Sikre at riktig personlig verneutstyr (PVU) brukes.",
-    ansvar: "MCS dekker pålagt PVU. Ansatt skal bruke og vedlikeholde det.",
+    ansvar: "Lier VPS dekker pålagt PVU. Ansatt skal bruke og vedlikeholde det.",
     rutine: "Vernesko, hjelm, briller, hørselvern, hansker og lysbueverntøy etter behov. Sjekk utstyr før bruk. Defekt utstyr byttes umiddelbart.",
     dokumentasjon: "Utlevering registreres pr. ansatt.",
     avvik: "Manglende eller feil bruk er avvik.",
@@ -421,7 +421,7 @@ const HMS: ChapterSpec[] = ALL([
     formaal: "Sikre forsvarlig bruk og oppbevaring av kjemikalier.",
     ansvar: "HMS-leder forvalter stoffkartotek. Ansatt leser sikkerhetsdatablad før bruk.",
     rutine: "Bruk kun godkjente produkter. Oppbevar etter datablad. Bruk anbefalt PVU. Avhend riktig.",
-    dokumentasjon: "Stoffkartotek vedlikeholdes i MCS Kontrollsenter.",
+    dokumentasjon: "Stoffkartotek vedlikeholdes i Lier VPS.",
     avvik: "Søl, eksponering eller manglende datablad meldes som RUH.",
     henvisninger: "Forskrift om utførelse av arbeid kap. 3.",
   },
@@ -447,7 +447,7 @@ const HMS: ChapterSpec[] = ALL([
     title: "Beredskap",
     formaal: "Sikre rask og riktig respons ved brann, ulykke, ran eller IT-hendelse.",
     ansvar: "Daglig leder er beredskapsleder. Driftsleder leder lokal respons.",
-    rutine: "Tiltakskort for de viktigste scenarier finnes i MCS Kontrollsenter. Beredskapsøvelse minst årlig.",
+    rutine: "Tiltakskort for de viktigste scenarier finnes i Lier VPS. Beredskapsøvelse minst årlig.",
     dokumentasjon: "Øvelser og hendelser loggføres og evalueres.",
     avvik: "Manglende øvelse er avvik mot internkontroll.",
     henvisninger: "Internkontrollforskriften §5 nr. 6.",
@@ -463,17 +463,17 @@ const HMS: ChapterSpec[] = ALL([
   },
 ]);
 
-export const MCS_HANDBOOK_SEEDS: HandbookSeed[] = [
+export const LIER_VPS_HANDBOOK_SEEDS: HandbookSeed[] = [
   {
     kind: "employee_handbook",
-    title: "Arbeidshåndbok – MCS Service",
+    title: "Arbeidshåndbok – Lier VPS",
     description:
-      "Arbeidstid, registrering, overtid, pauser, hviletid, reisetid, natt/helg, fravær, ferie, AML-overvåking, bruk av MCS Kontrollsenter, kunde-/datacenter-/næringsbygg-rutiner, tavle og strømskinner, HMS-ansvar, avvik og lesebekreftelse.",
+      "Arbeidstid, registrering, overtid, pauser, hviletid, reisetid, natt/helg, fravær, ferie, AML-overvåking, bruk av Lier VPS, kunde-/datacenter-/næringsbygg-rutiner, tavle og strømskinner, HMS-ansvar, avvik og lesebekreftelse.",
     chapters: ARB.map((c) => ({ title: c.title, body: renderChapter(c) })),
   },
   {
     kind: "hms_handbook",
-    title: "HMS-håndbok – MCS Service",
+    title: "HMS-håndbok – Lier VPS",
     description:
       "Internkontroll, HMS-mål, roller, medvirkning, opplæring, SJA, risiko, sjekklister, vernerunder, avvik/RUH, tiltak, FSE og elsikkerhet, strømulykke, alvorlig ulykke, PVU, datacenter, næringsbygg, tavlemontasje og strømskinner, kjemikalier, asbest, EE-avfall, beredskap og ledelsens gjennomgang.",
     chapters: HMS.map((c) => ({ title: c.title, body: renderChapter(c) })),

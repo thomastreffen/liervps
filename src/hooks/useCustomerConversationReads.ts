@@ -18,7 +18,7 @@ interface Args {
 
 /**
  * Customer-side hook: marks visible messages as read via tracking token and
- * exposes which of the customer's own messages have been read by MCS.
+ * exposes which of the customer's own messages have been read by Lier VPS.
  */
 export function useCustomerConversationReads({ trackingToken, visibleMessageIds, enabled = true }: Args) {
   const qc = useQueryClient();

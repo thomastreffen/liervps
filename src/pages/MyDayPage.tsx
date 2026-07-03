@@ -85,7 +85,7 @@ async function geocodeAddress(address: string): Promise<{ lat: number; lng: numb
   try {
     const resp = await fetch(
       `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1`,
-      { headers: { "User-Agent": "MCSService/1.0" } }
+      { headers: { "User-Agent": "LierVPS/1.0" } }
     );
     const data = await resp.json();
     if (data?.[0]) return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };

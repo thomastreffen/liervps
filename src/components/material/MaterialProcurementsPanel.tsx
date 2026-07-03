@@ -80,7 +80,7 @@ export function MaterialProcurementsPanel({ materialListId, currentListStatus, o
               <Truck className="h-4 w-4 text-primary" /> Bestilling og mottak
             </h4>
             <p className="text-xs text-muted-foreground">
-              Registrer hver bestilling/leveranse. Du kan legge inn flere — for eksempel én hos Onninen og én hos MCS
+              Registrer hver bestilling/leveranse. Du kan legge inn flere — for eksempel én hos Onninen og én hos Lier VPS
               Elektrotavler.
             </p>
           </div>
@@ -291,7 +291,7 @@ function ProcurementRow({
           <Field label="Leveringssted">
             <Input
               value={value.delivery_location ?? ""}
-              placeholder="MCS lager, jobbadresse, montør…"
+              placeholder="Lier VPS lager, jobbadresse, montør…"
               onChange={(e) => setLocal((s) => ({ ...s, delivery_location: e.target.value }))}
             />
           </Field>

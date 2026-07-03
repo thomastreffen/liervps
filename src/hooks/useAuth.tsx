@@ -2,6 +2,8 @@ import { createContext, useContext, useEffect, useState, useCallback, type React
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Session, User } from "@supabase/supabase-js";
+import { clearAppCachesAndUnregister } from "@/pwa/runtimeCleanup";
+import { clearLegacyRuntimeStorage } from "@/pwa/freshReset";
 
 export type AppRole = "super_admin" | "admin" | "montør" | "customer_user";
 
@@ -153,7 +155,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
    * No Microsoft/Azure logout — Lier VPS uses Google/Supabase auth.
    */
   const signOut = useCallback(async () => {
-    console.log("[Auth] Signing out...");
+    console.info("[Auth][Logout] Lier VPS local logout only");
     setUser(null);
     setSession(null);
     try {
@@ -166,22 +168,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (err) {
       console.error("[Auth] signOut error:", err);
     }
-    Object.keys(localStorage).forEach((key) => {
-      if (
-        key.startsWith("sb-") ||
-        key.startsWith("mcs.") ||
-        key.startsWith("react-query") ||
-        key.startsWith("unread-")
-      ) {
-        localStorage.removeItem(key);
-      }
-    });
     try {
-      sessionStorage.clear();
+      await clearAppCachesAndUnregister();
+    } catch (err) {
+      console.warn("[Auth][Logout] cache/SW cleanup failed", err);
+    }
+    clearLegacyRuntimeStorage({ includeSupabase: true, clearSession: true });
+    try {
+      Object.keys(localStorage).forEach((key) => {
+        if (key.startsWith("unread-")) localStorage.removeItem(key);
+      });
     } catch {
       /* noop */
     }
-    window.location.href = "/login";
+    window.location.replace("/login");
   }, [queryClient]);
 
   const isAdmin = user?.role === "admin" || user?.role === "super_admin";

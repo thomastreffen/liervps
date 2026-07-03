@@ -8,6 +8,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import type { ScheduleBlock } from "@/hooks/useScheduleBlocks";
 import type { AbsenceBlock } from "@/hooks/useAbsenceBlocks";
 import type { TechDayCapacity } from "@/hooks/useCapacity";
+import { toast } from "sonner";
 
 const TECH_COLOR_PRESETS = [
   "#D50000", "#F4511E", "#E67C73", "#F09300",
@@ -443,23 +444,38 @@ export function TeamView({
                   const cellAbsences = absencesByTechDay.get(key) || [];
                   const isEmpty = cellBlocks.length === 0 && cellAbsences.length === 0;
 
+                  const handleCellCreate = () => {
+                    const dateLabel = format(day, "yyyy-MM-dd");
+                    toast.info("TeamView cell click", { description: `${t.name} ${dateLabel}` });
+                    console.info("[TeamView][CellClick]", { techId: t.id, technicianName: t.name, day });
+                    if (isWeekend) {
+                      const ok = window.confirm(
+                        "Dette er helg/utenfor normal arbeidstid. Vil du planlegge aktivitet her?"
+                      );
+                      if (!ok) return;
+                    }
+                    console.info("[TeamView][onCellCreate called]", { techId: t.id, day });
+                    onCellCreate?.(t.id, day);
+                  };
+
                   return (
-                    <button
-                      type="button"
+                    <div
                       key={key}
+                      role="button"
+                      tabIndex={0}
                       onClick={(e) => {
                         if ((e.target as HTMLElement).closest("[data-chip]")) return;
-                        if (isWeekend) {
-                          const ok = window.confirm(
-                            "Dette er helg/utenfor normal arbeidstid. Vil du planlegge aktivitet her?"
-                          );
-                          if (!ok) return;
+                        handleCellCreate();
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          handleCellCreate();
                         }
-                        onCellCreate?.(t.id, day);
                       }}
                       className={cn(
-                        "relative min-h-[110px] border-r border-border last:border-r-0 px-1.5 py-1.5 flex flex-col gap-1 text-left transition-colors group/cell cursor-pointer",
-                        isWeekend ? "bg-muted/40 hover:bg-muted/60" : "hover:bg-primary/[0.04]",
+                        "relative min-h-[110px] border-r border-border last:border-r-0 px-1.5 py-1.5 flex flex-col gap-1 text-left transition-colors group/cell cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset",
+                        isWeekend ? "bg-muted/40 hover:bg-muted/60" : "hover:bg-primary/[0.06] hover:ring-1 hover:ring-primary/20 hover:ring-inset",
                         isToday && !isWeekend && "bg-primary/[0.04]",
                       )}
                     >
@@ -550,7 +566,7 @@ export function TeamView({
                           </div>
                         );
                       })}
-                    </button>
+                    </div>
                   );
                 })}
               </div>

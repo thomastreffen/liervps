@@ -9,13 +9,14 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { isStandalone } from "@/pwa/registerSW";
+import { isStandalone } from "@/pwa/runtimeCleanup";
 import {
   checkForUpdate,
   clearAppCachesAndUnregister,
   onUpdateState,
   applyUpdateAndReload,
-} from "@/pwa/registerSW";
+} from "@/pwa/runtimeCleanup";
+ 
 import { APP_VERSION, APP_BUILD_TIME } from "@/pwa/buildVersion";
 import { getInstallPrompt, onInstallPromptChange, detectPlatform } from "@/pwa/installPrompt";
 import { EnableNotificationsButton } from "./EnableNotificationsButton";
@@ -128,7 +129,7 @@ export function PwaStatusDialog({ open, onOpenChange }: Props) {
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>App-status</DialogTitle>
-          <DialogDescription>Teknisk status for MCS som installerbar app.</DialogDescription>
+          <DialogDescription>Teknisk status for Lier VPS som installerbar app.</DialogDescription>
         </DialogHeader>
 
         <div className="rounded-md border border-border bg-card px-3">

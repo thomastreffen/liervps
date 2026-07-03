@@ -15,7 +15,7 @@ export default function TripletexImportPage() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-foreground">Tripletex import</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Last opp eksportfiler fra Tripletex for å importere prosjekter og tilbud til MCS.
+          Last opp eksportfiler fra Tripletex for å importere prosjekter og tilbud til Lier VPS.
         </p>
       </div>
 

@@ -60,7 +60,7 @@ export default function PortalLayout() {
                   Kundeportal
                 </h1>
                 <p className="text-xs text-muted-foreground">
-                  {user.accountName ? `Samarbeid med ${user.accountName}` : "MCS Service"}
+                  {user.accountName ? `Samarbeid med ${user.accountName}` : "Lier VPS"}
                 </p>
               </div>
             </div>
