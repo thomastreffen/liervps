@@ -144,9 +144,14 @@ Deno.serve(async (req) => {
     .map((t: any) => t.technicians?.user_id)
     .filter(Boolean);
   const attendeeEmails: string[] = [];
+  const organizerEmail = (user.email || "").toLowerCase();
   for (const uid of userIds) {
     const { data: u } = await admin.auth.admin.getUserById(uid);
-    if (u?.user?.email) attendeeEmails.push(u.user.email);
+    const email = u?.user?.email;
+    if (!email) continue;
+    // Skip the connected user — they already own the calendar and don't need a self-invite.
+    if (email.toLowerCase() === organizerEmail) continue;
+    if (!attendeeEmails.includes(email)) attendeeEmails.push(email);
   }
 
   const calendarId = ev.google_calendar_id || "primary";
