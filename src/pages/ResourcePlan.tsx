@@ -119,12 +119,14 @@ export default function ResourcePlan() {
   const { isAdmin, isSuperAdmin } = useAuth();
   const { hasPermission } = usePermissions();
   const { activeCompanyId, allowedCompanyIds } = useCompanyContext();
-  const canReadBusy = hasPermission("calendar.read_busy");
-  const canViewExternal = hasPermission("calendar.view_external");
-  const canPlanResources = hasPermission("resource_plan.plan_resources") || hasPermission("resourceplan.schedule");
-  const canWriteEvents = canPlanResources || hasPermission("calendar.write_events");
-  const canDeleteEvents = hasPermission("calendar.delete_events");
-  const canEditOthers = hasPermission("resource_plan.edit_others") || hasPermission("resourceplan.edit_others");
+  // Superadmin/admin always have full access to Ressursplan
+  const adminOverride = isSuperAdmin || isAdmin;
+  const canReadBusy = adminOverride || hasPermission("calendar.read_busy");
+  const canViewExternal = adminOverride || hasPermission("calendar.view_external");
+  const canPlanResources = adminOverride || hasPermission("resource_plan.plan_resources") || hasPermission("resourceplan.schedule");
+  const canWriteEvents = adminOverride || canPlanResources || hasPermission("calendar.write_events");
+  const canDeleteEvents = adminOverride || hasPermission("calendar.delete_events");
+  const canEditOthers = adminOverride || hasPermission("resource_plan.edit_others") || hasPermission("resourceplan.edit_others");
   // Cross-company access is now driven by memberships, not a separate permission
   const canCrossCompany = allowedCompanyIds.length > 1;
   const drawerReadOnly = !canPlanResources;
