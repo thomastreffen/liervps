@@ -4388,6 +4388,9 @@ export type Database = {
           external_project_id: string | null
           external_system: string | null
           external_tripletex_id: string | null
+          google_calendar_event_id: string | null
+          google_calendar_id: string | null
+          google_calendar_synced_at: string | null
           id: string
           internal_number: string | null
           job_number: string | null
@@ -4474,6 +4477,9 @@ export type Database = {
           external_project_id?: string | null
           external_system?: string | null
           external_tripletex_id?: string | null
+          google_calendar_event_id?: string | null
+          google_calendar_id?: string | null
+          google_calendar_synced_at?: string | null
           id?: string
           internal_number?: string | null
           job_number?: string | null
@@ -4560,6 +4566,9 @@ export type Database = {
           external_project_id?: string | null
           external_system?: string | null
           external_tripletex_id?: string | null
+          google_calendar_event_id?: string | null
+          google_calendar_id?: string | null
+          google_calendar_synced_at?: string | null
           id?: string
           internal_number?: string | null
           job_number?: string | null
