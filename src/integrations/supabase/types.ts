@@ -13162,6 +13162,10 @@ export type Database = {
           technician_id: string
         }[]
       }
+      ensure_user_provisioning: {
+        Args: { p_avatar?: string; p_email?: string; p_full_name?: string }
+        Returns: Json
+      }
       event_technician_company_access: {
         Args: { _auth_user_id: string; _event_id: string }
         Returns: boolean
