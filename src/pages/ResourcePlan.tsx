@@ -146,6 +146,20 @@ export default function ResourcePlan() {
   }, [activeCompanyId]);
 
   const { technicians } = useTechnicians(effectiveCompanyId, allowedCompanyIds);
+
+  useEffect(() => {
+    console.info("[ResourcePlan][Permissions]", {
+      isAdmin,
+      isSuperAdmin,
+      canPlanResources,
+      canWriteEvents,
+      canDeleteEvents,
+      canEditOthers,
+      activeCompanyId,
+      techniciansCount: technicians.length,
+    });
+  }, [isAdmin, isSuperAdmin, canPlanResources, canWriteEvents, canDeleteEvents, canEditOthers, activeCompanyId, technicians.length]);
+
   const [selectedTechId, setSelectedTechId] = useState<string | null>(null);
   const [capacityFilter, setCapacityFilter] = useState<"all" | "available" | "partial">("all");
   const [externalBlocksCapacity, setExternalBlocksCapacity] = useState(true);
