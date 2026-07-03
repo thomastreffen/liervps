@@ -15,6 +15,9 @@ export interface Attachment {
   name: string;
   url: string;
   size?: number;
+  mimeType?: string;
+  driveFileId?: string;
+  driveWebViewLink?: string;
 }
 
 export type AppRole = "super_admin" | "admin" | "montør";
