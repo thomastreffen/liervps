@@ -83,12 +83,32 @@ Deno.serve(async (req) => {
   const user = await getUser(req);
   if (!user) return json({ status: "error", code: "unauthenticated" }, 401);
 
-  let body: { to?: string | string[]; subject?: string; text?: string; html?: string };
+  let body: { to?: string | string[]; event_id?: string; subject?: string; text?: string; html?: string };
   try { body = await req.json(); } catch { return json({ status: "error", code: "bad_json" }, 400); }
-  const rcpts = Array.isArray(body.to) ? body.to : body.to ? [body.to] : [];
-  if (!rcpts.length || !body.subject || (!body.text && !body.html)) {
-    return json({ status: "error", code: "missing_fields" }, 400);
+
+  const admin = createClient(SUPABASE_URL, SERVICE_KEY, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+
+  // Resolve recipients
+  let rcpts: string[] = Array.isArray(body.to) ? body.to : body.to ? [body.to] : [];
+  if (rcpts.length === 0 && body.event_id) {
+    const { data: techs } = await admin
+      .from("event_technicians")
+      .select("technician_id, technicians!inner(user_id)")
+      .eq("event_id", body.event_id);
+    const userIds = (techs ?? [])
+      .map((t: any) => t.technicians?.user_id)
+      .filter(Boolean);
+    for (const uid of userIds) {
+      const { data: u } = await admin.auth.admin.getUserById(uid);
+      if (u?.user?.email) rcpts.push(u.user.email);
+    }
   }
+  if (!rcpts.length || !body.subject || (!body.text && !body.html)) {
+    return json({ status: rcpts.length === 0 ? "no_recipients" : "error", code: "missing_fields" }, 200);
+  }
+
 
   const admin = createClient(SUPABASE_URL, SERVICE_KEY, {
     auth: { autoRefreshToken: false, persistSession: false },
