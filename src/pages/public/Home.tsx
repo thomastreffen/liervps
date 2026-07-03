@@ -184,13 +184,13 @@ export default function Home() {
                   </p>
                   <div className="flex flex-col sm:flex-row gap-3">
                     <Link
-                      to="/bestill-service"
+                      to="/#kontakt"
                       className="bg-[hsl(var(--mcs-orange))] hover:bg-[hsl(var(--mcs-orange-hover))] text-white font-semibold px-7 py-3.5 rounded-lg inline-flex items-center justify-center gap-2 shadow-sm"
                     >
                       Bestill befaring <ArrowRight className="h-4 w-4" />
                     </Link>
                     <Link
-                      to="/tjenester/salg"
+                      to="/#for-bolig"
                       className="bg-white border border-[hsl(var(--mcs-navy))]/20 text-[hsl(var(--mcs-navy))] font-semibold px-7 py-3.5 rounded-lg text-center hover:border-[hsl(var(--mcs-navy))]"
                     >
                       Se løsninger
@@ -222,10 +222,10 @@ export default function Home() {
 
 
       {/* FOR BOLIG OG NÆRING */}
-      <section className="bg-[hsl(var(--warm-cream))] pb-16">
+      <section className="bg-[hsl(var(--warm-cream))] pb-16 scroll-mt-28">
         <div className="mx-auto max-w-[1600px] px-6 sm:px-10 lg:px-12 xl:px-16 2xl:px-24 grid lg:grid-cols-2 gap-6">
           {/* Bolig */}
-          <div className="bg-white rounded-2xl overflow-hidden border border-[hsl(var(--warm-beige))] shadow-sm grid sm:grid-cols-[220px_1fr]">
+          <div id="for-bolig" className="scroll-mt-28 bg-white rounded-2xl overflow-hidden border border-[hsl(var(--warm-beige))] shadow-sm grid sm:grid-cols-[220px_1fr]">
             <img src={homeImg} alt="Koselig stue med varmepumpe" loading="lazy" width={1280} height={960} className="h-full w-full object-cover min-h-[280px]" />
             <div className="p-6 lg:p-7 flex flex-col">
               <h3 className="text-xl font-bold text-[hsl(var(--mcs-navy))] mb-2">For deg hjemme</h3>
@@ -241,7 +241,7 @@ export default function Home() {
                 ))}
               </ul>
               <Link
-                to="/for-bolig"
+                to="/#for-bolig"
                 className="mt-auto inline-flex items-center justify-center gap-2 bg-[hsl(var(--mcs-orange))] hover:bg-[hsl(var(--mcs-orange-hover))] text-white font-semibold px-5 py-2.5 rounded-md self-start"
               >
                 Se løsninger for bolig <ArrowRight className="h-4 w-4" />
@@ -249,7 +249,7 @@ export default function Home() {
             </div>
           </div>
           {/* Næring */}
-          <div className="bg-white rounded-2xl overflow-hidden border border-[hsl(var(--warm-beige))] shadow-sm grid sm:grid-cols-[1fr_220px]">
+          <div id="for-naering" className="scroll-mt-28 bg-white rounded-2xl overflow-hidden border border-[hsl(var(--warm-beige))] shadow-sm grid sm:grid-cols-[1fr_220px]">
             <div className="p-6 lg:p-7 flex flex-col order-2 sm:order-1">
               <h3 className="text-xl font-bold text-[hsl(var(--mcs-navy))] mb-2">For næringslokaler</h3>
               <div className="h-0.5 w-10 bg-[hsl(var(--mcs-orange))] mb-3" />
@@ -264,7 +264,7 @@ export default function Home() {
                 ))}
               </ul>
               <Link
-                to="/for-naering"
+                to="/#for-naering"
                 className="mt-auto inline-flex items-center justify-center gap-2 bg-[hsl(var(--mcs-orange))] hover:bg-[hsl(var(--mcs-orange-hover))] text-white font-semibold px-5 py-2.5 rounded-md self-start"
               >
                 Se løsninger for næring <ArrowRight className="h-4 w-4" />
@@ -306,7 +306,7 @@ export default function Home() {
       </section>
 
       {/* VARMEPUMPER VI ANBEFALER */}
-      <section className="bg-[hsl(var(--warm-cream))] pb-16">
+      <section id="varmepumper" className="bg-[hsl(var(--warm-cream))] pb-16 scroll-mt-28">
         <div className="mx-auto max-w-[1600px] px-6 sm:px-10 lg:px-12 xl:px-16 2xl:px-24 grid lg:grid-cols-[280px_1fr] gap-8 items-start">
           <div>
             <h2 className="text-2xl lg:text-3xl font-bold text-[hsl(var(--mcs-navy))] mb-3 leading-tight">
@@ -318,7 +318,7 @@ export default function Home() {
               og god tilgjengelighet på reservedeler og service.
             </p>
             <Link
-              to="/tjenester/salg"
+              to="/#varmepumper"
               className="inline-flex items-center gap-2 text-sm font-semibold text-[hsl(var(--mcs-navy))] border border-[hsl(var(--mcs-navy))]/20 hover:border-[hsl(var(--mcs-navy))] bg-white px-4 py-2 rounded-md"
             >
               Se alle modeller <ArrowRight className="h-4 w-4" />
@@ -336,7 +336,7 @@ export default function Home() {
                 </div>
                 <p className="text-xs text-[hsl(var(--mcs-muted))] leading-relaxed mb-4 flex-1 text-center">{b.text}</p>
                 <Link
-                  to="/bestill-service"
+                  to="/#kontakt"
                   className="bg-[hsl(var(--mcs-orange))] hover:bg-[hsl(var(--mcs-orange-hover))] text-white text-sm font-semibold px-4 py-2 rounded-md text-center"
                 >
                   Be om anbefaling
@@ -348,7 +348,7 @@ export default function Home() {
       </section>
 
       {/* VÅRE TJENESTER */}
-      <section className="bg-[hsl(var(--warm-cream))] pb-16">
+      <section id="tjenester" className="bg-[hsl(var(--warm-cream))] pb-16 scroll-mt-28">
         <div className="mx-auto max-w-[1600px] px-6 sm:px-10 lg:px-12 xl:px-16 2xl:px-24 grid lg:grid-cols-[220px_1fr] gap-8 items-start">
           <div>
             <h2 className="text-2xl lg:text-3xl font-bold text-[hsl(var(--mcs-navy))] leading-tight">Våre tjenester</h2>
@@ -390,7 +390,7 @@ export default function Home() {
       </section>
 
       {/* SERVICEAVTALE */}
-      <section className="bg-[hsl(var(--warm-cream))] pb-16">
+      <section id="serviceavtale" className="bg-[hsl(var(--warm-cream))] pb-16 scroll-mt-28">
         <div className="mx-auto max-w-[1600px] px-6 sm:px-10 lg:px-12 xl:px-16 2xl:px-24">
           <div className="rounded-2xl bg-[hsl(var(--mcs-navy))] text-white p-7 lg:p-10 grid lg:grid-cols-[auto_1fr_1fr] gap-8 items-center">
             <div className="h-20 w-20 rounded-full border-2 border-[hsl(var(--mcs-orange))]/60 flex items-center justify-center shrink-0 mx-auto lg:mx-0">
@@ -406,7 +406,7 @@ export default function Home() {
                 hjelp. Perfekt for både boligeiere og bedrifter.
               </p>
               <Link
-                to="/tjenester/serviceavtale"
+                to="/#kontakt"
                 className="inline-flex items-center gap-2 bg-[hsl(var(--mcs-orange))] hover:bg-[hsl(var(--mcs-orange-hover))] text-white text-sm font-semibold px-5 py-2.5 rounded-md"
               >
                 Les mer om serviceavtale
@@ -451,7 +451,7 @@ export default function Home() {
       {/* KUNDEPORTAL + FINAL CTA */}
       <section className="bg-[hsl(var(--warm-cream))] pb-16">
         <div className="mx-auto max-w-[1600px] px-6 sm:px-10 lg:px-12 xl:px-16 2xl:px-24 grid lg:grid-cols-2 gap-5">
-          <div className="bg-white rounded-2xl border border-[hsl(var(--warm-beige))] p-6 lg:p-7 flex flex-col sm:flex-row gap-5 items-start">
+          <div id="kundeportal" className="scroll-mt-28 bg-white rounded-2xl border border-[hsl(var(--warm-beige))] p-6 lg:p-7 flex flex-col sm:flex-row gap-5 items-start">
             <div className="h-14 w-14 rounded-lg bg-[hsl(var(--mcs-navy))] text-white flex items-center justify-center shrink-0">
               <Monitor className="h-7 w-7" />
             </div>
@@ -461,7 +461,7 @@ export default function Home() {
                 Logg inn i kundeportalen og få full oversikt over dine anlegg, servicebesøk og fakturaer.
               </p>
               <Link
-                to="/login"
+                to="/portal/login"
                 className="inline-flex items-center gap-2 text-sm font-semibold text-[hsl(var(--mcs-navy))] border border-[hsl(var(--mcs-navy))]/20 hover:border-[hsl(var(--mcs-navy))] px-4 py-2 rounded-md"
               >
                 Logg inn i kundeportalen <ArrowRight className="h-4 w-4" />
@@ -469,7 +469,7 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="rounded-2xl bg-[hsl(var(--mcs-orange))] text-white p-6 lg:p-7 flex flex-col justify-center">
+          <div id="kontakt" className="scroll-mt-28 rounded-2xl bg-[hsl(var(--mcs-orange))] text-white p-6 lg:p-7 flex flex-col justify-center">
             <h3 className="font-bold text-xl mb-2 text-center">
               Klar for varmepumpe eller trenger service?
             </h3>
@@ -477,12 +477,12 @@ export default function Home() {
               Ta kontakt for uforpliktende befaring. Vi hjelper deg raskt og finner riktig løsning.
             </p>
             <div className="flex flex-col sm:flex-row gap-2.5 justify-center">
-              <Link
-                to="/bestill-service"
+              <a
+                href="tel:+4732000000"
                 className="bg-[hsl(var(--mcs-navy))] hover:bg-[hsl(var(--mcs-navy))]/90 text-white font-semibold px-5 py-2.5 rounded-md inline-flex items-center justify-center gap-2"
               >
-                <Phone className="h-4 w-4" /> Bestill befaring
-              </Link>
+                <Phone className="h-4 w-4" /> Ring 32 00 00 00
+              </a>
               <a
                 href="mailto:post@liervps.no"
                 className="bg-white/10 border border-white/40 hover:bg-white/20 text-white font-semibold px-5 py-2.5 rounded-md inline-flex items-center justify-center gap-2"

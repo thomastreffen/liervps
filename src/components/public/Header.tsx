@@ -7,12 +7,12 @@ const logo = logoAsset.url;
 
 
 const PUBLIC_NAV = [
-  { to: "/tjenester/service-og-feilsoking", label: "Tjenester" },
-  { to: "/tjenester/salg", label: "Varmepumper" },
-  { to: "/for-bolig", label: "For bolig" },
-  { to: "/for-naering", label: "For næring" },
-  { to: "/tjenester/serviceavtale", label: "Serviceavtale" },
-  { to: "/kontakt", label: "Kontakt" },
+  { to: "/#tjenester", label: "Tjenester" },
+  { to: "/#varmepumper", label: "Varmepumper" },
+  { to: "/#for-bolig", label: "For bolig" },
+  { to: "/#for-naering", label: "For næring" },
+  { to: "/#serviceavtale", label: "Serviceavtale" },
+  { to: "/#kontakt", label: "Kontakt" },
 ];
 
 const INTERNAL_NAV = [
@@ -84,7 +84,7 @@ export function Header() {
                   <span className="i-user" /> Logg inn
                 </Link>
                 <Link
-                  to="/bestill-service"
+                  to="/#kontakt"
                   className="bg-[hsl(var(--mcs-orange))] hover:bg-[hsl(var(--mcs-orange-hover))] text-white text-sm font-semibold px-5 py-2.5 rounded-md transition-colors shadow-sm"
                 >
                   Bestill befaring
@@ -128,7 +128,7 @@ export function Header() {
                     Logg inn
                   </Link>
                   <Link
-                    to="/bestill-service"
+                    to="/#kontakt"
                     onClick={() => setOpen(false)}
                     className="block bg-[hsl(var(--mcs-orange))] text-white text-center font-semibold py-3 rounded-md"
                   >

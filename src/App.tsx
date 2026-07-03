@@ -16,6 +16,7 @@ function RedirectContractToProject() {
 import { AuthProvider } from "@/hooks/useAuth";
 import { PwaInstallPrompt } from "@/components/pwa/PwaInstallPrompt";
 import { PwaUpdateNotifier } from "@/components/pwa/PwaUpdateNotifier";
+import { HashScroll } from "@/components/public/HashScroll";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppLayout } from "@/components/AppLayout";
 import OverviewPage from "./pages/OverviewPage";
@@ -181,6 +182,7 @@ const App = () => (
           <CompanyProvider>
           <PermissionCompanyBridge>
           <PreviewModeProvider>
+          <HashScroll />
           <Routes>
             {/* Public marketing site */}
             <Route path="/" element={<PublicHome />} />
