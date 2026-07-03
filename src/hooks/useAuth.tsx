@@ -41,6 +41,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
 
+  /** Idempotent first-login provisioning: person, user_account, membership, role */
+  const ensureProvisioning = useCallback(async (supaUser: User) => {
+    try {
+      const meta = (supaUser.user_metadata || {}) as Record<string, any>;
+      const fullName =
+        meta.full_name || meta.name ||
+        [meta.given_name, meta.family_name].filter(Boolean).join(" ") ||
+        supaUser.email || "";
+      const avatar = meta.avatar_url || meta.picture || null;
+      console.info("[Auth] Provisioning start", {
+        auth_user_id: supaUser.id,
+        email: supaUser.email,
+        provider: supaUser.app_metadata?.provider,
+      });
+      const { data, error } = await supabase.rpc("ensure_user_provisioning", {
+        p_full_name: fullName,
+        p_email: supaUser.email || null,
+        p_avatar: avatar,
+      });
+      if (error) {
+        console.warn("[Auth] ensure_user_provisioning error:", error.message);
+        return;
+      }
+      console.info("[Auth] Provisioning result:", data);
+    } catch (err) {
+      console.warn("[Auth] provisioning exception:", err);
+    }
+  }, []);
+
   /** Non-blocking role fetch from DB — updates user if role differs */
   const fetchRoleInBackground = useCallback(async (supaUser: User) => {
     try {
@@ -81,11 +110,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(newSession);
 
         if (newSession?.user) {
-          // Set user immediately from metadata (non-blocking)
           const authUser = buildUserFromMeta(newSession.user);
           setUser(authUser);
-          // Then fetch real role in background
-          fetchRoleInBackground(newSession.user);
+          // Provision + role fetch (deferred to next tick to avoid deadlock in the callback)
+          setTimeout(() => {
+            ensureProvisioning(newSession.user).then(() => {
+              fetchRoleInBackground(newSession.user);
+            });
+          }, 0);
         } else {
           setUser(null);
         }
@@ -100,7 +132,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (existing?.user) {
         const authUser = buildUserFromMeta(existing.user);
         setUser(authUser);
-        fetchRoleInBackground(existing.user);
+        ensureProvisioning(existing.user).then(() => {
+          fetchRoleInBackground(existing.user);
+        });
       }
       setLoading(false);
     }).catch((err) => {
@@ -112,7 +146,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, [fetchRoleInBackground]);
+  }, [fetchRoleInBackground, ensureProvisioning]);
 
   /**
    * Sign out: always callable, no dependency on loading state.
