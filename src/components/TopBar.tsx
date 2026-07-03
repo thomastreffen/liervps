@@ -19,14 +19,11 @@ import {
   AlertTriangle,
   History,
   Users,
-  Download,
-  Smartphone,
   User as UserIcon,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { InstallAppDialog } from "@/components/pwa/InstallAppDialog";
-import { PwaStatusDialog } from "@/components/pwa/PwaStatusDialog";
 import { useAuth } from "@/hooks/useAuth";
+
 import { useNotifications } from "@/hooks/useNotifications";
 import { NotificationDrawer } from "@/components/NotificationDrawer";
 import { cn } from "@/lib/utils";
@@ -42,8 +39,7 @@ export function TopBar({ onNewJob, onToggleSidebar, showMenuButton }: TopBarProp
   const { user, isSuperAdmin, isAdmin, signOut } = useAuth();
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [installOpen, setInstallOpen] = useState(false);
-  const [statusOpen, setStatusOpen] = useState(false);
+
 
   return (
     <>
@@ -135,20 +131,12 @@ export function TopBar({ onNewJob, onToggleSidebar, showMenuButton }: TopBarProp
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuItem onClick={() => setInstallOpen(true)} className="gap-2">
-                <Download className="h-4 w-4" />
-                Installer app
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setStatusOpen(true)} className="gap-2">
-                <Smartphone className="h-4 w-4" />
-                App-status
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
               <DropdownMenuItem onClick={signOut} className="gap-2">
                 <LogOut className="h-4 w-4" />
                 Logg ut
               </DropdownMenuItem>
             </DropdownMenuContent>
+
           </DropdownMenu>
         </div>
       </header>
@@ -160,8 +148,6 @@ export function TopBar({ onNewJob, onToggleSidebar, showMenuButton }: TopBarProp
         onMarkAsRead={markAsRead}
         onMarkAllAsRead={markAllAsRead}
       />
-      <InstallAppDialog open={installOpen} onOpenChange={setInstallOpen} />
-      <PwaStatusDialog open={statusOpen} onOpenChange={setStatusOpen} />
     </>
   );
 }
