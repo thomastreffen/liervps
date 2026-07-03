@@ -390,7 +390,7 @@ export default function Home() {
       </section>
 
       {/* SERVICEAVTALE */}
-      <section className="bg-[hsl(var(--warm-cream))] pb-16">
+      <section id="serviceavtale" className="bg-[hsl(var(--warm-cream))] pb-16 scroll-mt-28">
         <div className="mx-auto max-w-[1600px] px-6 sm:px-10 lg:px-12 xl:px-16 2xl:px-24">
           <div className="rounded-2xl bg-[hsl(var(--mcs-navy))] text-white p-7 lg:p-10 grid lg:grid-cols-[auto_1fr_1fr] gap-8 items-center">
             <div className="h-20 w-20 rounded-full border-2 border-[hsl(var(--mcs-orange))]/60 flex items-center justify-center shrink-0 mx-auto lg:mx-0">
@@ -406,7 +406,7 @@ export default function Home() {
                 hjelp. Perfekt for både boligeiere og bedrifter.
               </p>
               <Link
-                to="/tjenester/serviceavtale"
+                to="/#kontakt"
                 className="inline-flex items-center gap-2 bg-[hsl(var(--mcs-orange))] hover:bg-[hsl(var(--mcs-orange-hover))] text-white text-sm font-semibold px-5 py-2.5 rounded-md"
               >
                 Les mer om serviceavtale
