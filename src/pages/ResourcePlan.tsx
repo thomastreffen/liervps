@@ -944,7 +944,16 @@ export default function ResourcePlan() {
               if (ev) handleEventClick(ev);
             }}
             onCellCreate={(techId, day) => {
-              if (!canWriteEvents) return;
+              console.info("[ResourcePlan][CellCreate]", {
+                techId,
+                day,
+                canWriteEvents,
+                isSuperAdmin,
+              });
+              if (!canWriteEvents) {
+                toast.error("Du mangler tilgang til å planlegge aktiviteter.");
+                return;
+              }
               setEditEvent(null);
               setClickedTechId(techId);
               const start = new Date(day);
