@@ -34,7 +34,7 @@ export function Header() {
             <img
               src={logo}
               alt="Lier Varmepumpeservice"
-              className="w-[160px] md:w-[175px] lg:w-[190px] max-h-[62px] object-contain block"
+              className="w-[170px] md:w-[200px] lg:w-[220px] max-h-[62px] object-contain block"
               width={1108}
               height={531}
             />
