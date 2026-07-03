@@ -958,7 +958,7 @@ export default function ResourcePlan() {
               }
               setEditEvent(null);
               setClickedTechId(techId);
-              setSelectedTechId(techId);
+
               const start = new Date(day);
               start.setHours(8, 0, 0, 0);
               const end = new Date(day);
