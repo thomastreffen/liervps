@@ -37,6 +37,20 @@ interface PersonRow {
   auth_user_id: string | null;
 }
 
+const ROLE_LABELS: Record<string, string> = {
+  super_admin: "Superadmin",
+  admin: "Administrator",
+  tenant_admin: "Administrator",
+  tekniker: "Tekniker",
+  montør: "Tekniker",
+  montor: "Tekniker",
+  technician: "Tekniker",
+  bruker: "Bruker",
+  user: "Bruker",
+};
+const roleLabel = (r: string) =>
+  ROLE_LABELS[r?.toLowerCase()] ?? (r ? r.charAt(0).toUpperCase() + r.slice(1) : "–");
+
 export default function PeoplePage() {
   const navigate = useNavigate();
   const { activeCompanyId, companies, allowedCompanyIds } = useCompanyContext();
@@ -294,7 +308,7 @@ export default function PeoplePage() {
                     <div className="flex flex-wrap gap-1">
                       {person.role_names.length > 0 ? (
                         person.role_names.map((r) => (
-                          <Badge key={r} variant="secondary" className="text-[10px]">{r}</Badge>
+                          <Badge key={r} variant="secondary" className="text-[10px]">{roleLabel(r)}</Badge>
                         ))
                       ) : (
                         <span className="text-xs text-muted-foreground">–</span>
