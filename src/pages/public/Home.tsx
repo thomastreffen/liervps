@@ -222,10 +222,10 @@ export default function Home() {
 
 
       {/* FOR BOLIG OG NÆRING */}
-      <section className="bg-[hsl(var(--warm-cream))] pb-16">
+      <section className="bg-[hsl(var(--warm-cream))] pb-16 scroll-mt-28">
         <div className="mx-auto max-w-[1600px] px-6 sm:px-10 lg:px-12 xl:px-16 2xl:px-24 grid lg:grid-cols-2 gap-6">
           {/* Bolig */}
-          <div className="bg-white rounded-2xl overflow-hidden border border-[hsl(var(--warm-beige))] shadow-sm grid sm:grid-cols-[220px_1fr]">
+          <div id="for-bolig" className="scroll-mt-28 bg-white rounded-2xl overflow-hidden border border-[hsl(var(--warm-beige))] shadow-sm grid sm:grid-cols-[220px_1fr]">
             <img src={homeImg} alt="Koselig stue med varmepumpe" loading="lazy" width={1280} height={960} className="h-full w-full object-cover min-h-[280px]" />
             <div className="p-6 lg:p-7 flex flex-col">
               <h3 className="text-xl font-bold text-[hsl(var(--mcs-navy))] mb-2">For deg hjemme</h3>
@@ -241,7 +241,7 @@ export default function Home() {
                 ))}
               </ul>
               <Link
-                to="/for-bolig"
+                to="/#kontakt"
                 className="mt-auto inline-flex items-center justify-center gap-2 bg-[hsl(var(--mcs-orange))] hover:bg-[hsl(var(--mcs-orange-hover))] text-white font-semibold px-5 py-2.5 rounded-md self-start"
               >
                 Se løsninger for bolig <ArrowRight className="h-4 w-4" />
@@ -249,7 +249,7 @@ export default function Home() {
             </div>
           </div>
           {/* Næring */}
-          <div className="bg-white rounded-2xl overflow-hidden border border-[hsl(var(--warm-beige))] shadow-sm grid sm:grid-cols-[1fr_220px]">
+          <div id="for-naering" className="scroll-mt-28 bg-white rounded-2xl overflow-hidden border border-[hsl(var(--warm-beige))] shadow-sm grid sm:grid-cols-[1fr_220px]">
             <div className="p-6 lg:p-7 flex flex-col order-2 sm:order-1">
               <h3 className="text-xl font-bold text-[hsl(var(--mcs-navy))] mb-2">For næringslokaler</h3>
               <div className="h-0.5 w-10 bg-[hsl(var(--mcs-orange))] mb-3" />
@@ -264,7 +264,7 @@ export default function Home() {
                 ))}
               </ul>
               <Link
-                to="/for-naering"
+                to="/#kontakt"
                 className="mt-auto inline-flex items-center justify-center gap-2 bg-[hsl(var(--mcs-orange))] hover:bg-[hsl(var(--mcs-orange-hover))] text-white font-semibold px-5 py-2.5 rounded-md self-start"
               >
                 Se løsninger for næring <ArrowRight className="h-4 w-4" />
