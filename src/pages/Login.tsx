@@ -47,18 +47,27 @@ export default function Login() {
   };
 
   const handleGoogle = async () => {
+    setGoogleError(null);
+    // eslint-disable-next-line no-console
+    console.info("[Google OAuth] click", {
+      window_origin: origin,
+      expected_redirect_uri: expectedRedirectUri,
+      scope_bundle: "sso",
+    });
     try {
       if (!(await isGoogleConfigured())) {
-        toast.error("Google-innlogging ikke konfigurert", {
-          description: "GOOGLE_OAUTH_CLIENT_ID mangler i backend.",
-        });
+        const msg = "GOOGLE_OAUTH_CLIENT_ID mangler i backend.";
+        setGoogleError(msg);
+        toast.error("Google-innlogging ikke konfigurert", { description: msg });
         return;
       }
       await startGoogleLogin({ scopeBundle: "sso" });
     } catch (err: any) {
-      toast.error("Kunne ikke starte Google-innlogging", {
-        description: err?.message,
-      });
+      const msg = err?.message ?? "Ukjent feil";
+      // eslint-disable-next-line no-console
+      console.error("[Google OAuth] failed", { message: msg, err });
+      setGoogleError(msg);
+      toast.error("Kunne ikke starte Google-innlogging", { description: msg });
     }
   };
 
