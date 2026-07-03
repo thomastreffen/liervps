@@ -949,6 +949,8 @@ export default function ResourcePlan() {
                 day,
                 canWriteEvents,
                 isSuperAdmin,
+                isAdmin,
+                adminOverride,
               });
               if (!canWriteEvents) {
                 toast.error("Du mangler tilgang til å planlegge aktiviteter.");
@@ -956,14 +958,19 @@ export default function ResourcePlan() {
               }
               setEditEvent(null);
               setClickedTechId(techId);
+              setSelectedTechId(techId);
               const start = new Date(day);
               start.setHours(8, 0, 0, 0);
               const end = new Date(day);
               end.setHours(16, 0, 0, 0);
               setPreselectedStart(start);
               setPreselectedEnd(end);
+              setDropProjectId(null);
+              setDropProjectTitle(null);
               setDrawerOpen(true);
+              toast.success("Åpner ny aktivitet…", { duration: 1200 });
             }}
+
           />
         </div>
       </div>
