@@ -106,6 +106,31 @@ export default function Login() {
           Logg inn med Google
         </Button>
 
+        {googleError && (
+          <div className="w-full rounded-md border border-destructive/40 bg-destructive/5 p-3 text-left text-xs text-destructive">
+            <div className="mb-2 flex items-center gap-2 font-semibold">
+              <AlertTriangle className="h-4 w-4" />
+              Google-innlogging feilet
+            </div>
+            <p className="mb-2 text-destructive/90">{googleError}</p>
+            <p className="mb-1 text-destructive/80">
+              Google OAuth-klienten må ha eksakt dette domenet oppført under
+              <span className="font-semibold"> Authorized JavaScript origins</span>:
+            </p>
+            <code className="mb-2 block break-all rounded bg-background/60 px-2 py-1 font-mono text-[11px] text-foreground">
+              {origin}
+            </code>
+            <p className="mb-1 text-destructive/80">
+              …og eksakt denne callback-URL-en under
+              <span className="font-semibold"> Authorized redirect URIs</span>:
+            </p>
+            <code className="block break-all rounded bg-background/60 px-2 py-1 font-mono text-[11px] text-foreground">
+              {expectedRedirectUri}
+            </code>
+          </div>
+        )}
+
+
         <div className="flex w-full items-center gap-3 text-xs text-muted-foreground">
           <div className="h-px flex-1 bg-border" />
           eller med e-post
