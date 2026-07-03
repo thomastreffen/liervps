@@ -111,20 +111,29 @@ export async function startGoogleLogin(options?: {
   if (options?.hostedDomain) params.set("hd", options.hostedDomain);
   if (options?.loginHint) params.set("login_hint", options.loginHint);
 
+  const maskedClientId = maskGoogleClientId(clientId);
   const authorizationUrl = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
+  const maskedAuthorizationUrl = authorizationUrl.replace(
+    encodeURIComponent(clientId),
+    encodeURIComponent(maskedClientId),
+  );
 
-  console.info("[Google OAuth] authorize", {
-    client_id: maskGoogleClientId(clientId),
+  const debug = {
+    window_origin: window.location.origin,
     redirect_uri: redirectUri,
+    client_id_masked: maskedClientId,
+    scope_bundle: bundle,
     scope: scopes,
     response_type: "code",
     access_type: "offline",
     prompt: params.get("prompt"),
-    authorization_url: authorizationUrl.replace(
-      encodeURIComponent(clientId),
-      encodeURIComponent(maskGoogleClientId(clientId)),
-    ),
-  });
+    authorization_url_masked: maskedAuthorizationUrl,
+  };
+  // eslint-disable-next-line no-console
+  console.info("[Google OAuth] authorize →", debug);
+  // eslint-disable-next-line no-console
+  console.table(debug);
 
   window.location.href = authorizationUrl;
+  return debug;
 }
