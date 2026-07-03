@@ -46,7 +46,7 @@ export type GoogleScopeBundle = keyof typeof GOOGLE_SCOPE_BUNDLES;
  */
 let _clientIdCache: { id: string; configured: boolean } | null = null;
 
-function maskGoogleClientId(clientId: string) {
+export function maskGoogleClientId(clientId: string) {
   if (!clientId) return "<empty>";
   if (clientId.length <= 18) return `${clientId.slice(0, 4)}…${clientId.slice(-4)}`;
   return `${clientId.slice(0, 8)}…${clientId.slice(-24)}`;
