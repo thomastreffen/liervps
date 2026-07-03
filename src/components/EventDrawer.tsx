@@ -1882,6 +1882,7 @@ export function EventDrawer({
                       setAddress(sel.address);
                       if (sel.postalCode) setPostalCode(sel.postalCode);
                       if (sel.city) setCity(sel.city);
+                      if (sel.googleMapsUrl && !mapLink) setMapLink(sel.googleMapsUrl);
                     }}
                     placeholder="Søk adresse…"
                     className="mt-1"
