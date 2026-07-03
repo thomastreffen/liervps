@@ -16,6 +16,9 @@ export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [googleError, setGoogleError] = useState<string | null>(null);
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  const expectedRedirectUri = `${origin}/auth/google/callback`;
 
   useEffect(() => {
     if (!authLoading && session) {
