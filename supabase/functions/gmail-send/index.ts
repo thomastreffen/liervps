@@ -110,10 +110,6 @@ Deno.serve(async (req) => {
   }
 
 
-  const admin = createClient(SUPABASE_URL, SERVICE_KEY, {
-    auth: { autoRefreshToken: false, persistSession: false },
-  });
-
   const tokenRow = await loadMailToken(admin, user.id);
   if (!tokenRow) return json({ status: "no_token" });
   const accessToken = await refresh(admin, tokenRow);
