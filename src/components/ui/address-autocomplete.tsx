@@ -8,6 +8,8 @@ interface AddressSuggestion {
   poststed: string;
   postnummer: string;
   kommunenavn: string;
+  lat?: number;
+  lon?: number;
 }
 
 export interface AddressSelection {
@@ -16,6 +18,9 @@ export interface AddressSelection {
   postalCode: string;
   city: string;
   municipality: string;
+  lat?: number;
+  lon?: number;
+  googleMapsUrl?: string;
 }
 
 interface AddressAutocompleteProps {
@@ -61,6 +66,8 @@ export function AddressAutocomplete({
         poststed: a.poststed || "",
         postnummer: a.postnummer || "",
         kommunenavn: a.kommunenavn || "",
+        lat: a.representasjonspunkt?.lat,
+        lon: a.representasjonspunkt?.lon,
       }));
       setSuggestions(items);
       setOpen(items.length > 0);
@@ -80,12 +87,18 @@ export function AddressAutocomplete({
   const selectSuggestion = (s: AddressSuggestion) => {
     const full = `${s.adressetekst}, ${s.postnummer} ${s.poststed}`;
     onChange(full);
+    const googleMapsUrl = s.lat && s.lon
+      ? `https://www.google.com/maps/search/?api=1&query=${s.lat},${s.lon}`
+      : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(full)}`;
     onSelect?.({
       address: full,
       street: s.adressetekst,
       postalCode: s.postnummer,
       city: s.poststed,
       municipality: s.kommunenavn,
+      lat: s.lat,
+      lon: s.lon,
+      googleMapsUrl,
     });
     setOpen(false);
     setSuggestions([]);
