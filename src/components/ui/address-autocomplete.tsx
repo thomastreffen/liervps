@@ -66,6 +66,8 @@ export function AddressAutocomplete({
         poststed: a.poststed || "",
         postnummer: a.postnummer || "",
         kommunenavn: a.kommunenavn || "",
+        lat: a.representasjonspunkt?.lat,
+        lon: a.representasjonspunkt?.lon,
       }));
       setSuggestions(items);
       setOpen(items.length > 0);
