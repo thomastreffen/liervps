@@ -294,7 +294,7 @@ export default function PeoplePage() {
                     <div className="flex flex-wrap gap-1">
                       {person.role_names.length > 0 ? (
                         person.role_names.map((r) => (
-                          <Badge key={r} variant="secondary" className="text-[10px]">{r}</Badge>
+                          <Badge key={r} variant="secondary" className="text-[10px]">{roleLabel(r)}</Badge>
                         ))
                       ) : (
                         <span className="text-xs text-muted-foreground">–</span>
