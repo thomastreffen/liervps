@@ -46,7 +46,7 @@ export type GoogleScopeBundle = keyof typeof GOOGLE_SCOPE_BUNDLES;
  */
 let _clientIdCache: { id: string; configured: boolean } | null = null;
 
-function maskGoogleClientId(clientId: string) {
+export function maskGoogleClientId(clientId: string) {
   if (!clientId) return "<empty>";
   if (clientId.length <= 18) return `${clientId.slice(0, 4)}…${clientId.slice(-4)}`;
   return `${clientId.slice(0, 8)}…${clientId.slice(-24)}`;
@@ -111,20 +111,29 @@ export async function startGoogleLogin(options?: {
   if (options?.hostedDomain) params.set("hd", options.hostedDomain);
   if (options?.loginHint) params.set("login_hint", options.loginHint);
 
+  const maskedClientId = maskGoogleClientId(clientId);
   const authorizationUrl = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
+  const maskedAuthorizationUrl = authorizationUrl.replace(
+    encodeURIComponent(clientId),
+    encodeURIComponent(maskedClientId),
+  );
 
-  console.info("[Google OAuth] authorize", {
-    client_id: maskGoogleClientId(clientId),
+  const debug = {
+    window_origin: window.location.origin,
     redirect_uri: redirectUri,
+    client_id_masked: maskedClientId,
+    scope_bundle: bundle,
     scope: scopes,
     response_type: "code",
     access_type: "offline",
     prompt: params.get("prompt"),
-    authorization_url: authorizationUrl.replace(
-      encodeURIComponent(clientId),
-      encodeURIComponent(maskGoogleClientId(clientId)),
-    ),
-  });
+    authorization_url_masked: maskedAuthorizationUrl,
+  };
+  // eslint-disable-next-line no-console
+  console.info("[Google OAuth] authorize →", debug);
+  // eslint-disable-next-line no-console
+  console.table(debug);
 
   window.location.href = authorizationUrl;
+  return debug;
 }

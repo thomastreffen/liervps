@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Flame, Loader2 } from "lucide-react";
+import { Flame, Loader2, AlertTriangle } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -16,6 +16,9 @@ export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [googleError, setGoogleError] = useState<string | null>(null);
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  const expectedRedirectUri = `${origin}/auth/google/callback`;
 
   useEffect(() => {
     if (!authLoading && session) {
@@ -44,18 +47,27 @@ export default function Login() {
   };
 
   const handleGoogle = async () => {
+    setGoogleError(null);
+    // eslint-disable-next-line no-console
+    console.info("[Google OAuth] click", {
+      window_origin: origin,
+      expected_redirect_uri: expectedRedirectUri,
+      scope_bundle: "sso",
+    });
     try {
       if (!(await isGoogleConfigured())) {
-        toast.error("Google-innlogging ikke konfigurert", {
-          description: "GOOGLE_OAUTH_CLIENT_ID mangler i backend.",
-        });
+        const msg = "GOOGLE_OAUTH_CLIENT_ID mangler i backend.";
+        setGoogleError(msg);
+        toast.error("Google-innlogging ikke konfigurert", { description: msg });
         return;
       }
       await startGoogleLogin({ scopeBundle: "sso" });
     } catch (err: any) {
-      toast.error("Kunne ikke starte Google-innlogging", {
-        description: err?.message,
-      });
+      const msg = err?.message ?? "Ukjent feil";
+      // eslint-disable-next-line no-console
+      console.error("[Google OAuth] failed", { message: msg, err });
+      setGoogleError(msg);
+      toast.error("Kunne ikke starte Google-innlogging", { description: msg });
     }
   };
 
@@ -93,6 +105,31 @@ export default function Login() {
           <GoogleIcon className="h-4 w-4" />
           Logg inn med Google
         </Button>
+
+        {googleError && (
+          <div className="w-full rounded-md border border-destructive/40 bg-destructive/5 p-3 text-left text-xs text-destructive">
+            <div className="mb-2 flex items-center gap-2 font-semibold">
+              <AlertTriangle className="h-4 w-4" />
+              Google-innlogging feilet
+            </div>
+            <p className="mb-2 text-destructive/90">{googleError}</p>
+            <p className="mb-1 text-destructive/80">
+              Google OAuth-klienten må ha eksakt dette domenet oppført under
+              <span className="font-semibold"> Authorized JavaScript origins</span>:
+            </p>
+            <code className="mb-2 block break-all rounded bg-background/60 px-2 py-1 font-mono text-[11px] text-foreground">
+              {origin}
+            </code>
+            <p className="mb-1 text-destructive/80">
+              …og eksakt denne callback-URL-en under
+              <span className="font-semibold"> Authorized redirect URIs</span>:
+            </p>
+            <code className="block break-all rounded bg-background/60 px-2 py-1 font-mono text-[11px] text-foreground">
+              {expectedRedirectUri}
+            </code>
+          </div>
+        )}
+
 
         <div className="flex w-full items-center gap-3 text-xs text-muted-foreground">
           <div className="h-px flex-1 bg-border" />
