@@ -264,7 +264,7 @@ export default function Home() {
                 ))}
               </ul>
               <Link
-                to="/#kontakt"
+                to="/#for-naering"
                 className="mt-auto inline-flex items-center justify-center gap-2 bg-[hsl(var(--mcs-orange))] hover:bg-[hsl(var(--mcs-orange-hover))] text-white font-semibold px-5 py-2.5 rounded-md self-start"
               >
                 Se løsninger for næring <ArrowRight className="h-4 w-4" />
