@@ -5,7 +5,7 @@ import type { Session, User } from "@supabase/supabase-js";
 
 export type AppRole = "super_admin" | "admin" | "montør" | "customer_user";
 
-const AZURE_TENANT_ID = "e1b96c2a-c273-40b9-bb46-a2a7b570e133";
+
 
 interface AuthUser {
   id: string;
@@ -149,30 +149,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [fetchRoleInBackground, ensureProvisioning]);
 
   /**
-   * Sign out: always callable, no dependency on loading state.
-   * 1. Local Supabase sign-out
-   * 2. Clear state
-   * 3. Redirect to Microsoft logout to clear SSO session
+   * Sign out: local Supabase sign-out, clear state, redirect to /login.
+   * No Microsoft/Azure logout — Lier VPS uses Google/Supabase auth.
    */
   const signOut = useCallback(async () => {
     console.log("[Auth] Signing out...");
-    // Clear state immediately
     setUser(null);
     setSession(null);
-    // Drop ALL user-scoped React Query cache so stale unread badges/counters
-    // from the previous session cannot leak into the next login.
     try {
       queryClient.clear();
     } catch (err) {
       console.warn("[Auth] queryClient.clear failed", err);
     }
-    // Global signout revokes server-side session too
     try {
       await supabase.auth.signOut({ scope: "global" });
     } catch (err) {
       console.error("[Auth] signOut error:", err);
     }
-    // Clear any remaining Supabase keys + any app-persisted state keys.
     Object.keys(localStorage).forEach((key) => {
       if (
         key.startsWith("sb-") ||
@@ -188,9 +181,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch {
       /* noop */
     }
-    // Redirect to Microsoft logout to clear SSO session, then land on the public marketing site
-    const postLogoutRedirect = encodeURIComponent(`${window.location.origin}/`);
-    window.location.href = `https://login.microsoftonline.com/${AZURE_TENANT_ID}/oauth2/v2.0/logout?post_logout_redirect_uri=${postLogoutRedirect}`;
+    window.location.href = "/login";
   }, [queryClient]);
 
   const isAdmin = user?.role === "admin" || user?.role === "super_admin";
