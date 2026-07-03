@@ -348,7 +348,7 @@ export default function Home() {
       </section>
 
       {/* VÅRE TJENESTER */}
-      <section className="bg-[hsl(var(--warm-cream))] pb-16">
+      <section id="tjenester" className="bg-[hsl(var(--warm-cream))] pb-16 scroll-mt-28">
         <div className="mx-auto max-w-[1600px] px-6 sm:px-10 lg:px-12 xl:px-16 2xl:px-24 grid lg:grid-cols-[220px_1fr] gap-8 items-start">
           <div>
             <h2 className="text-2xl lg:text-3xl font-bold text-[hsl(var(--mcs-navy))] leading-tight">Våre tjenester</h2>
