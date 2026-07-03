@@ -2208,6 +2208,25 @@ export function EventDrawer({
             </section>
           )}
 
+          {/* ═══ SEND EMAIL NOTIFICATION (Gmail, opt-in) ═══ */}
+          {!isEditing && eventType === "project" && (
+            <label className="flex items-start gap-2 rounded-lg border border-border/40 bg-card p-3 text-sm cursor-pointer hover:bg-muted/30">
+              <input
+                type="checkbox"
+                className="mt-0.5"
+                checked={sendEmailNotification}
+                onChange={(e) => setSendEmailNotification(e.target.checked)}
+              />
+              <span>
+                <span className="font-medium">Send e-postvarsel</span>
+                <span className="block text-xs text-muted-foreground mt-0.5">
+                  Sender e-post via Gmail til tildelte montører når oppdraget opprettes. Krever Gmail-tilkobling.
+                </span>
+              </span>
+            </label>
+          )}
+
+
           {/* ═══ CONFLICTS ═══ */}
           {conflicts.length > 0 && (
             <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 space-y-1.5">
