@@ -463,7 +463,7 @@ const HMS: ChapterSpec[] = ALL([
   },
 ]);
 
-export const Lier VPS_HANDBOOK_SEEDS: HandbookSeed[] = [
+export const LIER_VPS_HANDBOOK_SEEDS: HandbookSeed[] = [
   {
     kind: "employee_handbook",
     title: "Arbeidshåndbok – Lier VPS",

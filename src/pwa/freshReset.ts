@@ -3,7 +3,7 @@ const CLEANUP_MARKER_KEY = "lier_vps.runtime_cleanup_version";
 const CLEANUP_RELOAD_MARKER_KEY = "lier_vps.runtime_cleanup_reloaded";
 
 const CLEANUP_VERSION: string =
-  typeof __APP_VERSION__ !== "undefined" ? __APP_VERSION__ : "lier-vps-no-pwa-dev";
+  typeof __APP_VERSION__ !== "undefined" ? __APP_VERSION__ : "lier-vps-runtime-clean-v2-dev";
 
 function isAuthCallbackUrl(): boolean {
   if (typeof window === "undefined") return false;

@@ -19,7 +19,7 @@ interface MessageLike {
   body?: string | null;
 }
 
-const Lier VPS_NAME_HINTS = [
+const LIER_VPS_NAME_HINTS = [
   "mcs service",
   "mcs ressurs",
   "mcs postkontor",
@@ -37,7 +37,7 @@ function normalize(value?: string | null): string {
 function looksLikeInternalSender(name?: string | null): boolean {
   const n = normalize(name);
   if (!n) return false;
-  return Lier VPS_NAME_HINTS.some((hint) => n.includes(hint));
+  return LIER_VPS_NAME_HINTS.some((hint) => n.includes(hint));
 }
 
 /**

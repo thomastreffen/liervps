@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
 import { nb } from "date-fns/locale";
-import { Lier VPS_HANDBOOK_SEEDS } from "@/lib/hms/handbookSeed";
+import { LIER_VPS_HANDBOOK_SEEDS } from "@/lib/hms/handbookSeed";
 import { toast } from "@/hooks/use-toast";
 import { logHmsAudit } from "@/lib/hms/audit";
 
@@ -48,7 +48,7 @@ export default function HmsHandbooksPage() {
       const { data: u } = await supabase.auth.getUser();
       let created = 0;
       let skipped = 0;
-      for (const seed of Lier VPS_HANDBOOK_SEEDS) {
+      for (const seed of LIER_VPS_HANDBOOK_SEEDS) {
         // Idempotency: skip if a handbook with same company + kind + title exists
         const { data: existing } = await sb
           .from("hms_handbooks")
