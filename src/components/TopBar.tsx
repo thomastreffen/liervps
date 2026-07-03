@@ -42,8 +42,7 @@ export function TopBar({ onNewJob, onToggleSidebar, showMenuButton }: TopBarProp
   const { user, isSuperAdmin, isAdmin, signOut } = useAuth();
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [installOpen, setInstallOpen] = useState(false);
-  const [statusOpen, setStatusOpen] = useState(false);
+
 
   return (
     <>
