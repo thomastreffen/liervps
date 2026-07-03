@@ -119,12 +119,14 @@ export default function ResourcePlan() {
   const { isAdmin, isSuperAdmin } = useAuth();
   const { hasPermission } = usePermissions();
   const { activeCompanyId, allowedCompanyIds } = useCompanyContext();
-  const canReadBusy = hasPermission("calendar.read_busy");
-  const canViewExternal = hasPermission("calendar.view_external");
-  const canPlanResources = hasPermission("resource_plan.plan_resources") || hasPermission("resourceplan.schedule");
-  const canWriteEvents = canPlanResources || hasPermission("calendar.write_events");
-  const canDeleteEvents = hasPermission("calendar.delete_events");
-  const canEditOthers = hasPermission("resource_plan.edit_others") || hasPermission("resourceplan.edit_others");
+  // Superadmin/admin always have full access to Ressursplan
+  const adminOverride = isSuperAdmin || isAdmin;
+  const canReadBusy = adminOverride || hasPermission("calendar.read_busy");
+  const canViewExternal = adminOverride || hasPermission("calendar.view_external");
+  const canPlanResources = adminOverride || hasPermission("resource_plan.plan_resources") || hasPermission("resourceplan.schedule");
+  const canWriteEvents = adminOverride || canPlanResources || hasPermission("calendar.write_events");
+  const canDeleteEvents = adminOverride || hasPermission("calendar.delete_events");
+  const canEditOthers = adminOverride || hasPermission("resource_plan.edit_others") || hasPermission("resourceplan.edit_others");
   // Cross-company access is now driven by memberships, not a separate permission
   const canCrossCompany = allowedCompanyIds.length > 1;
   const drawerReadOnly = !canPlanResources;
@@ -144,6 +146,20 @@ export default function ResourcePlan() {
   }, [activeCompanyId]);
 
   const { technicians } = useTechnicians(effectiveCompanyId, allowedCompanyIds);
+
+  useEffect(() => {
+    console.info("[ResourcePlan][Permissions]", {
+      isAdmin,
+      isSuperAdmin,
+      canPlanResources,
+      canWriteEvents,
+      canDeleteEvents,
+      canEditOthers,
+      activeCompanyId,
+      techniciansCount: technicians.length,
+    });
+  }, [isAdmin, isSuperAdmin, canPlanResources, canWriteEvents, canDeleteEvents, canEditOthers, activeCompanyId, technicians.length]);
+
   const [selectedTechId, setSelectedTechId] = useState<string | null>(null);
   const [capacityFilter, setCapacityFilter] = useState<"all" | "available" | "partial">("all");
   const [externalBlocksCapacity, setExternalBlocksCapacity] = useState(true);
@@ -413,7 +429,10 @@ export default function ResourcePlan() {
   }, []);
 
   const handleDateSelect = useCallback((start: Date, end: Date) => {
-    if (!canWriteEvents) return;
+    if (!canWriteEvents) {
+      toast.error("Du mangler tilgang til å planlegge aktiviteter (calendar.write_events).");
+      return;
+    }
     setEditEvent(null);
     setPreselectedStart(start);
     setPreselectedEnd(end);
@@ -421,6 +440,7 @@ export default function ResourcePlan() {
     setDropProjectTitle(null);
     setDrawerOpen(true);
   }, [canWriteEvents]);
+
 
   const handleNewEvent = useCallback(() => {
     setEditEvent(null);
@@ -924,7 +944,16 @@ export default function ResourcePlan() {
               if (ev) handleEventClick(ev);
             }}
             onCellCreate={(techId, day) => {
-              if (!canWriteEvents) return;
+              console.info("[ResourcePlan][CellCreate]", {
+                techId,
+                day,
+                canWriteEvents,
+                isSuperAdmin,
+              });
+              if (!canWriteEvents) {
+                toast.error("Du mangler tilgang til å planlegge aktiviteter.");
+                return;
+              }
               setEditEvent(null);
               setClickedTechId(techId);
               const start = new Date(day);
