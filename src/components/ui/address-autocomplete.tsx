@@ -87,12 +87,18 @@ export function AddressAutocomplete({
   const selectSuggestion = (s: AddressSuggestion) => {
     const full = `${s.adressetekst}, ${s.postnummer} ${s.poststed}`;
     onChange(full);
+    const googleMapsUrl = s.lat && s.lon
+      ? `https://www.google.com/maps/search/?api=1&query=${s.lat},${s.lon}`
+      : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(full)}`;
     onSelect?.({
       address: full,
       street: s.adressetekst,
       postalCode: s.postnummer,
       city: s.poststed,
       municipality: s.kommunenavn,
+      lat: s.lat,
+      lon: s.lon,
+      googleMapsUrl,
     });
     setOpen(false);
     setSuggestions([]);
