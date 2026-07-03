@@ -84,7 +84,7 @@ export function Header() {
                   <span className="i-user" /> Logg inn
                 </Link>
                 <Link
-                  to="/bestill-service"
+                  to="/#kontakt"
                   className="bg-[hsl(var(--mcs-orange))] hover:bg-[hsl(var(--mcs-orange-hover))] text-white text-sm font-semibold px-5 py-2.5 rounded-md transition-colors shadow-sm"
                 >
                   Bestill befaring
