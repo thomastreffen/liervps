@@ -429,7 +429,10 @@ export default function ResourcePlan() {
   }, []);
 
   const handleDateSelect = useCallback((start: Date, end: Date) => {
-    if (!canWriteEvents) return;
+    if (!canWriteEvents) {
+      toast.error("Du mangler tilgang til å planlegge aktiviteter (calendar.write_events).");
+      return;
+    }
     setEditEvent(null);
     setPreselectedStart(start);
     setPreselectedEnd(end);
@@ -437,6 +440,7 @@ export default function ResourcePlan() {
     setDropProjectTitle(null);
     setDrawerOpen(true);
   }, [canWriteEvents]);
+
 
   const handleNewEvent = useCallback(() => {
     setEditEvent(null);
