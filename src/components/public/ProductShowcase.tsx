@@ -4,22 +4,31 @@ import {
   Check,
   ArrowRight,
   ExternalLink,
-  Snowflake,
-  Wind,
-  Volume2,
   Building2,
   Home as HomeIcon,
 } from "lucide-react";
 import { useBrandLogos, BRAND_LOGO_CLASS } from "./useBrandLogos";
+import { productImageFor } from "./useProductImages";
+import { HeatPumpIllustration } from "./HeatPumpIllustration";
 
 export type BrandName = "Mitsubishi Electric" | "Panasonic" | "Toshiba";
 export type Segment = "bolig" | "naering";
+export type ProductType =
+  | "Luft-luft"
+  | "Gulvmodell"
+  | "Multisplitt"
+  | "Luft-vann"
+  | "Næring"
+  | "Tilbehør";
 
 export type ProductItem = {
-  brand: BrandName;
+  /** Omitted for merkeuavhengige løsningskort. */
+  brand?: BrandName;
   /** Product/series name or supplier category name. */
   name: string;
   subtitle: string;
+  /** Shown on the card as product identity, e.g. "Luft-luft". */
+  productType?: ProductType;
   description: string;
   tags: string[];
   bestFor: string[];
@@ -35,6 +44,7 @@ export type ProductGroup = {
   description: string;
   items: ProductItem[];
 };
+
 
 const MEE = "https://mee.no/privat/produktkategori/luft-luft-varmepumper/";
 const PA = {
