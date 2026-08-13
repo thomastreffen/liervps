@@ -126,6 +126,8 @@ export function CreateBefaringDrawer({ open, onOpenChange, lead, onCreated }: Pr
       setSendEmail(false);
       setSyncGoogle(true);
       setPrepareDrive(true);
+
+      setPrepareDrive(true);
       setTechId("__none__");
     };
 
