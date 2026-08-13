@@ -631,16 +631,45 @@ function BoligForm({ installedPrice, onInstalledPrice }: { installedPrice: strin
           />
         </div>
 
-        <SelectField
-          label="Ønsket varmepumpetype"
-          value={pumpType}
-          onChange={(v) => setPumpType(v as typeof pumpType)}
-          options={[
-            { value: "luft_luft", label: "Luft-luft" },
-            { value: "luft_vann", label: "Luft-vann" },
-            { value: "usikker", label: "Usikker" },
-          ]}
-        />
+        <div className="grid sm:grid-cols-2 gap-5">
+          <SelectField
+            label="Ønsket varmepumpetype"
+            value={pumpType}
+            onChange={(v) => setPumpType(v as typeof pumpType)}
+            options={[
+              { value: "luft_luft", label: "Luft-luft" },
+              { value: "luft_vann", label: "Luft-vann" },
+              { value: "usikker", label: "Usikker" },
+            ]}
+          />
+          {pumpType === "luft_vann" ? (
+            <Field label="Dekningsløsning">
+              <div className="flex h-10 items-center rounded-md border border-[hsl(var(--warm-beige))] bg-[hsl(var(--warm-cream))] px-3 text-sm text-[hsl(var(--mcs-muted))]">
+                Full bolig (vannbåren)
+              </div>
+            </Field>
+          ) : (
+            <SelectField
+              label="Dekningsløsning"
+              value={solution}
+              onChange={(v) => setSolution(v as CoverageSolution)}
+              options={[
+                { value: "en_innedel", label: "Én innedel" },
+                { value: "to_innedeler", label: "To innedeler" },
+                { value: "flere_soner", label: "Flere soner / vurderes på befaring" },
+              ]}
+            />
+          )}
+        </div>
+
+        {result.airAirLargeArea && (
+          <p className="flex gap-2 rounded-lg border border-[hsl(var(--warm-beige))] bg-[hsl(var(--warm-cream))] px-3 py-2.5 text-xs text-[hsl(var(--mcs-muted))]">
+            <Info className="h-4 w-4 shrink-0 text-[hsl(var(--mcs-orange))]" />
+            For større boliger vil én luft-luft-varmepumpe ofte ikke dekke hele varmebehovet. Flere
+            innedeler eller annen løsning kan gi høyere dekning.
+          </p>
+        )}
+
 
         <AssumptionsPanel rough={result.rough} />
       </div>
