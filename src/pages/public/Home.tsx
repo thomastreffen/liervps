@@ -18,6 +18,8 @@ import {
 } from "lucide-react";
 import { PublicLayout } from "@/components/public/PublicLayout";
 import { SavingsCalculator } from "@/components/public/SavingsCalculator";
+import { BrandShowcase } from "@/components/public/BrandShowcase";
+
 import { PublicSeo, SITE_URL } from "@/components/public/PublicSeo";
 import { useAuth } from "@/hooks/useAuth";
 import heroImg from "@/assets/lier/hero-warm.jpg";
