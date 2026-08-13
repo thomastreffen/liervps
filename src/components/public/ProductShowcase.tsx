@@ -3,13 +3,20 @@ import { Link, useLocation } from "react-router-dom";
 import {
   Check,
   ArrowRight,
-  ExternalLink,
   Building2,
   Home as HomeIcon,
 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useBrandLogos, BRAND_LOGO_CLASS } from "./useBrandLogos";
 import { productImageFor } from "./useProductImages";
 import { HeatPumpIllustration } from "./HeatPumpIllustration";
+
 
 export type BrandName = "Mitsubishi Electric" | "Panasonic" | "Toshiba";
 export type Segment = "bolig" | "naering";
@@ -62,11 +69,14 @@ const TO = {
   multiNordic: "https://www.varmepumpeservice.no/toshiba-multisplitt-nordic",
 };
 
+/** Internal reference only — never rendered or linked publicly. */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const BRAND_SOURCE: Record<BrandName, string> = {
   "Mitsubishi Electric": MEE,
   Panasonic: "https://www.varmepumpeservice.no/panasonic?parent=10005",
   Toshiba: "https://www.varmepumpeservice.no/toshiba?parent=10005",
 };
+
 
 function illustrationVariant(type?: ProductType) {
   switch (type) {
@@ -771,10 +781,13 @@ const ALL_BRANDS = "Alle merker";
 function ProductCard({
   item,
   logo,
+  onOpen,
 }: {
   item: ProductItem;
   logo: string | null;
+  onOpen: () => void;
 }) {
+
   const photo = item.image ?? productImageFor(item.name);
   return (
     <article className="bg-white rounded-xl border border-[hsl(var(--warm-beige))] p-5 flex flex-col">
@@ -858,19 +871,120 @@ function ProductCard({
       >
         Få anbefalt riktig modell <ArrowRight className="h-4 w-4" />
       </Link>
-      {item.sourceUrl && (
-        <a
-          href={item.sourceUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="mt-2 inline-flex items-center justify-center gap-1.5 text-xs font-medium text-[hsl(var(--mcs-navy))]/70 hover:text-[hsl(var(--mcs-navy))]"
-        >
-          Les mer hos leverandør <ExternalLink className="h-3.5 w-3.5" />
-        </a>
-      )}
+      <button
+        type="button"
+        onClick={onOpen}
+        className="mt-2 inline-flex items-center justify-center gap-1.5 text-xs font-semibold text-[hsl(var(--mcs-navy))]/70 hover:text-[hsl(var(--mcs-navy))]"
+      >
+        {item.brand ? "Les mer om modellen" : "Les mer om løsningen"}
+      </button>
     </article>
   );
 }
+
+function ProductDetailDialog({
+  item,
+  logo,
+  open,
+  onOpenChange,
+}: {
+  item: ProductItem | null;
+  logo: string | null;
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+}) {
+  if (!item) return null;
+  const photo = item.image ?? productImageFor(item.name);
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto bg-white">
+        <DialogHeader>
+          <div className="h-9 flex items-center mb-2">
+            {item.brand && logo ? (
+              <img
+                src={logo}
+                alt={`${item.brand} logo`}
+                className={`w-auto object-contain ${BRAND_LOGO_CLASS[item.brand] ?? "max-h-9 max-w-[170px]"}`}
+              />
+            ) : (
+              <span className="text-[13px] font-semibold tracking-[0.14em] uppercase text-[hsl(var(--mcs-navy))]">
+                {item.brand ?? "Løsning"}
+              </span>
+            )}
+          </div>
+          <DialogTitle className="text-xl text-[hsl(var(--mcs-navy))]">{item.name}</DialogTitle>
+          <DialogDescription className="text-[hsl(var(--mcs-muted))]">
+            {[item.productType, item.subtitle].filter(Boolean).join(" · ")}
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="rounded-lg overflow-hidden border border-[hsl(var(--warm-beige))]">
+          {photo ? (
+            <img
+              src={photo}
+              alt={`${item.name} varmepumpe`}
+              className="aspect-[4/3] w-full object-contain bg-white"
+            />
+          ) : (
+            <HeatPumpIllustration
+              variant={illustrationVariant(item.productType)}
+              label={item.productType ?? item.subtitle}
+            />
+          )}
+        </div>
+
+        <p className="text-sm text-[hsl(var(--mcs-muted))] leading-relaxed">{item.description}</p>
+
+        <div className="flex flex-wrap gap-1.5">
+          {item.tags.map((t) => (
+            <span
+              key={t}
+              className="text-xs font-medium text-[hsl(var(--mcs-navy))] bg-[hsl(var(--warm-sand))] rounded-full px-2.5 py-1"
+            >
+              {t}
+            </span>
+          ))}
+        </div>
+
+        <div>
+          <p className="text-[11px] uppercase tracking-wider text-[hsl(var(--mcs-muted))] mb-2">
+            Passer for
+          </p>
+          <ul className="space-y-1.5">
+            {item.bestFor.map((b) => (
+              <li key={b} className="flex items-start gap-2 text-sm text-[hsl(var(--mcs-muted))]">
+                <Check className="h-4 w-4 mt-0.5 shrink-0 text-[hsl(var(--mcs-orange))]" />
+                {b}
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <p className="text-xs text-[hsl(var(--mcs-muted))] bg-[hsl(var(--warm-sand))] rounded-md p-3 leading-relaxed">
+          Endelig anbefaling av modell avhenger av bolig, planløsning, plassering og varmebehov.
+        </p>
+
+        <div className="flex flex-col sm:flex-row gap-2">
+          <Link
+            to="/#kontakt"
+            onClick={() => onOpenChange(false)}
+            className="flex-1 inline-flex items-center justify-center gap-2 bg-[hsl(var(--mcs-orange))] hover:bg-[hsl(var(--mcs-orange-hover))] text-white text-sm font-semibold px-4 py-2.5 rounded-md"
+          >
+            Bestill befaring <ArrowRight className="h-4 w-4" />
+          </Link>
+          <Link
+            to="/#kontakt"
+            onClick={() => onOpenChange(false)}
+            className="flex-1 inline-flex items-center justify-center text-sm font-semibold text-[hsl(var(--mcs-navy))] border border-[hsl(var(--mcs-navy))]/20 hover:border-[hsl(var(--mcs-navy))] px-4 py-2.5 rounded-md"
+          >
+            Send meg anbefaling
+          </Link>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 
 export function ProductShowcase() {
   const logos = useBrandLogos();
@@ -880,6 +994,8 @@ export function ProductShowcase() {
   const [brandFilter, setBrandFilter] = useState<BrandName | typeof ALL_BRANDS>(
     ALL_BRANDS
   );
+  const [detail, setDetail] = useState<ProductItem | null>(null);
+
 
   // Deep links from the bolig/næring cards: #varmepumper-bolig / #varmepumper-naering
   useEffect(() => {
@@ -1026,29 +1142,25 @@ export function ProductShowcase() {
               key={`${item.brand ?? "sol"}-${item.name}`}
               item={item}
               logo={logos[item.brand] ?? null}
+              onOpen={() => setDetail(item)}
             />
           ))}
         </div>
 
-        <div className="mt-6 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+        <ProductDetailDialog
+          item={detail}
+          logo={detail?.brand ? logos[detail.brand] ?? null : null}
+          open={detail !== null}
+          onOpenChange={(v) => !v && setDetail(null)}
+        />
+
+        <div className="mt-6">
           <p className="text-xs text-[hsl(var(--mcs-muted))]">
-            Utvalget under er veiledende. Endelig modell og løsning anbefales etter befaring,
+            Utvalget over er veiledende. Endelig modell og løsning anbefales etter befaring,
             planløsning og varmebehov. Modellutvalg kan variere.
           </p>
-          <div className="flex flex-wrap gap-3 shrink-0">
-            {(Object.keys(BRAND_SOURCE) as BrandName[]).map((b) => (
-              <a
-                key={b}
-                href={BRAND_SOURCE[b]}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 text-xs font-semibold text-[hsl(var(--mcs-navy))] hover:underline"
-              >
-                {b} <ExternalLink className="h-3.5 w-3.5" />
-              </a>
-            ))}
-          </div>
         </div>
+
       </div>
     </section>
   );
