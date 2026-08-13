@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { Check, ArrowRight, Snowflake, Wind, Volume2 } from "lucide-react";
-import { useBrandLogos } from "./useBrandLogos";
+import { useBrandLogos, BRAND_LOGO_CLASS } from "./useBrandLogos";
 
 /**
  * Brand logo / product image slots.
