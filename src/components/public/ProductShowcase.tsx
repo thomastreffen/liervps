@@ -1137,29 +1137,25 @@ export function ProductShowcase() {
               key={`${item.brand ?? "sol"}-${item.name}`}
               item={item}
               logo={logos[item.brand] ?? null}
+              onOpen={() => setDetail(item)}
             />
           ))}
         </div>
 
-        <div className="mt-6 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+        <ProductDetailDialog
+          item={detail}
+          logo={detail?.brand ? logos[detail.brand] ?? null : null}
+          open={detail !== null}
+          onOpenChange={(v) => !v && setDetail(null)}
+        />
+
+        <div className="mt-6">
           <p className="text-xs text-[hsl(var(--mcs-muted))]">
-            Utvalget under er veiledende. Endelig modell og løsning anbefales etter befaring,
+            Utvalget over er veiledende. Endelig modell og løsning anbefales etter befaring,
             planløsning og varmebehov. Modellutvalg kan variere.
           </p>
-          <div className="flex flex-wrap gap-3 shrink-0">
-            {(Object.keys(BRAND_SOURCE) as BrandName[]).map((b) => (
-              <a
-                key={b}
-                href={BRAND_SOURCE[b]}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 text-xs font-semibold text-[hsl(var(--mcs-navy))] hover:underline"
-              >
-                {b} <ExternalLink className="h-3.5 w-3.5" />
-              </a>
-            ))}
-          </div>
         </div>
+
       </div>
     </section>
   );
