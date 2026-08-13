@@ -401,21 +401,48 @@ function AssumptionsPanel({ rough }: { rough: boolean }) {
 
 /* ---------------- Bolig ---------------- */
 
+function UnknownKwhToggle({
+  id,
+  checked,
+  onChange,
+  label = "Jeg vet ikke årlig strømforbruk",
+}: {
+  id: string;
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  label?: string;
+}) {
+  return (
+    <label
+      htmlFor={id}
+      className="mt-3 flex cursor-pointer items-center gap-2.5 rounded-lg border border-[hsl(var(--warm-beige))] bg-[hsl(var(--warm-cream))] px-3 py-2.5 text-[13px] text-[hsl(var(--mcs-navy))]"
+    >
+      <Checkbox id={id} checked={checked} onCheckedChange={(v) => onChange(v === true)} />
+      {label}
+    </label>
+  );
+}
+
 function BoligForm({ installedPrice, onInstalledPrice }: { installedPrice: string; onInstalledPrice: (v: string) => void }) {
   const [type, setType] = useState("enebolig");
   const [area, setArea] = useState(150);
-  const [useKwh, setUseKwh] = useState(true);
+  const [unknownKwh, setUnknownKwh] = useState(false);
   const [kwh, setKwh] = useState(20000);
   const [source, setSource] = useState("panel");
   const [price, setPrice] = useState(1.4);
   const [pattern, setPattern] = useState<"low" | "normal" | "high">("normal");
+  const [standard, setStandard] = useState("normal");
   const [pumpType, setPumpType] = useState<"luft_luft" | "luft_vann" | "usikker">("luft_luft");
 
   const result = useMemo(() => {
-    const rough = !useKwh;
+    const rough = unknownKwh;
+    const std = STANDARD_FACTOR[standard] ?? 1;
     const heatNeed = rough
-      ? area * (BOLIG_KWH_PER_M2[type] ?? 85) * (pattern === "low" ? 0.85 : pattern === "high" ? 1.15 : 1)
-      : kwh * BOLIG_HEAT_SHARE[pattern];
+      ? area *
+        (BOLIG_KWH_PER_M2[type] ?? 85) *
+        (pattern === "low" ? 0.85 : pattern === "high" ? 1.15 : 1) *
+        std
+      : kwh * clamp(BOLIG_HEAT_SHARE[pattern] * std, 0.3, 0.78);
     return computeResult({
       heatNeed,
       rough,
@@ -423,7 +450,8 @@ function BoligForm({ installedPrice, onInstalledPrice }: { installedPrice: strin
       pumpType,
       sourceFactor: HEATING_SOURCE_FACTOR[source] ?? 0.85,
     });
-  }, [type, area, useKwh, kwh, source, price, pattern, pumpType]);
+  }, [type, area, unknownKwh, kwh, source, price, pattern, standard, pumpType]);
+
 
   return (
     <div className="grid lg:grid-cols-[1fr_400px] gap-6">
