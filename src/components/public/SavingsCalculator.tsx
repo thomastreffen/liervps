@@ -648,31 +648,24 @@ function NaeringForm({ installedPrice, onInstalledPrice }: { installedPrice: str
         />
 
         <div>
-          <div className="flex items-center justify-between gap-3 mb-1.5">
+          <div className="flex items-baseline justify-between gap-3 mb-1.5">
             <label className="text-[13px] font-semibold text-[hsl(var(--mcs-navy))]">
               Årlig strømforbruk <span className="font-normal text-[hsl(var(--mcs-muted))]">(valgfritt)</span>
             </label>
-            <button
-              type="button"
-              onClick={() => setUseKwh(!useKwh)}
-              className="text-xs font-semibold text-[hsl(var(--mcs-orange))] hover:underline"
-            >
-              {useKwh ? "Jeg vet ikke" : "Jeg vet forbruket"}
-            </button>
+            {!unknownKwh && (
+              <span className="text-[13px] font-semibold text-[hsl(var(--mcs-orange))]">{num(kwh)} kWh</span>
+            )}
           </div>
-          {useKwh ? (
-            <>
-              <div className="text-[13px] font-semibold text-[hsl(var(--mcs-orange))] text-right mb-1">
-                {num(kwh)} kWh
-              </div>
-              <Slider value={[kwh]} min={10000} max={600000} step={5000} onValueChange={(v) => setKwh(v[0])} className="py-2" />
-            </>
-          ) : (
+          {unknownKwh ? (
             <p className="text-xs text-[hsl(var(--mcs-muted))]">
               Vi anslår varmebehovet ut fra areal, lokaltype og driftstid. Estimatet blir da grovere.
             </p>
+          ) : (
+            <Slider value={[kwh]} min={10000} max={600000} step={5000} onValueChange={(v) => setKwh(v[0])} className="py-2" />
           )}
+          <UnknownKwhToggle id="naering-ukjent-kwh" checked={unknownKwh} onChange={setUnknownKwh} />
         </div>
+
 
         <div className="grid sm:grid-cols-2 gap-5">
           <SliderField
