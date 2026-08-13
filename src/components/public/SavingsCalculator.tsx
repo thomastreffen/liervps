@@ -336,18 +336,24 @@ function ResultPanel({
         {[
           ["Antatt varmebehov", `${num(result.heatNeed)} kWh/år`],
           ["Oppvarmet areal", `${num(result.area)} m²`],
+          ...(result.solutionLabel ? [["Dekningsløsning", result.solutionLabel]] : []),
           ["Beregningsgrunnlag", result.basis],
           ["Varmepumpen dekker", `ca. ${Math.round(expected.coverage * 100)} %`],
           ["Årsvarmefaktor brukt", expected.scop.toFixed(1).replace(".", ",")],
           ["Estimert spart strøm", `${num(expected.savedKwh)} kWh/år`],
-
         ].map(([k, v]) => (
           <div key={k} className="flex items-baseline justify-between gap-3">
             <dt className="text-[hsl(var(--mcs-muted))]">{k}</dt>
             <dd className="font-semibold text-[hsl(var(--mcs-navy))]">{v}</dd>
           </div>
         ))}
+        {result.coverageReduced && (
+          <p className="pt-1 text-xs text-[hsl(var(--mcs-muted))]">
+            Dekningsgrad justert ned på grunn av stort areal og valgt løsning.
+          </p>
+        )}
       </dl>
+
 
       <div className="mt-5">
         <label className="block text-[13px] font-semibold text-[hsl(var(--mcs-navy))] mb-1.5">
