@@ -10,13 +10,11 @@ import {
   ArrowRight,
   MapPin,
   Home as HomeIcon,
-  Building2,
   Award,
   Calendar,
   Phone,
   Mail,
   Monitor,
-  Leaf,
 } from "lucide-react";
 import { PublicLayout } from "@/components/public/PublicLayout";
 import { SavingsCalculator } from "@/components/public/SavingsCalculator";
