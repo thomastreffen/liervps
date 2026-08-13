@@ -21,6 +21,7 @@ import { NextStepCard } from "@/components/activity/NextStepCard";
 import { LeadConvertPanel } from "@/components/activity/LeadConvertPanel";
 import { CreateOrderFromLeadCard } from "@/components/leads/CreateOrderFromLeadCard";
 import { PublicLeadContextCard } from "@/components/leads/PublicLeadContextCard";
+import { GoogleWorkspaceStatusCard } from "@/components/leads/GoogleWorkspaceStatusCard";
 import { CreateBefaringDrawer } from "@/components/leads/CreateBefaringDrawer";
 import { LeadNextStepPanel } from "@/components/leads/LeadNextStepPanel";
 import { FlowTrail } from "@/components/flow/FlowTrail";
@@ -531,6 +532,8 @@ function LeadDetailInner() {
             </Card>
 
             {lead.public_lead_id && <PublicLeadContextCard publicLeadId={lead.public_lead_id} />}
+
+            <GoogleWorkspaceStatusCard leadId={lead.id} publicLeadId={lead.public_lead_id} />
 
             {/* Customer info */}
             <Card className="rounded-2xl shadow-sm">
