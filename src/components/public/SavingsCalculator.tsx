@@ -511,6 +511,7 @@ function BoligForm({ installedPrice, onInstalledPrice }: { installedPrice: strin
   const [pattern, setPattern] = useState<"low" | "normal" | "high">("normal");
   const [standard, setStandard] = useState("normal");
   const [pumpType, setPumpType] = useState<"luft_luft" | "luft_vann" | "usikker">("luft_luft");
+  const [solution, setSolution] = useState<CoverageSolution>("en_innedel");
 
   const result = useMemo(() => {
     const rough = unknownKwh;
@@ -531,8 +532,11 @@ function BoligForm({ installedPrice, onInstalledPrice }: { installedPrice: strin
       area,
       refArea: 130,
       basis: rough ? "Arealbasert estimat" : "Strømforbruk + areal",
+      solution,
+      showSolution: true,
     });
-  }, [type, area, unknownKwh, kwh, source, price, pattern, standard, pumpType]);
+  }, [type, area, unknownKwh, kwh, source, price, pattern, standard, pumpType, solution]);
+
 
 
 
