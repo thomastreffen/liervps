@@ -16,6 +16,7 @@ import {
 import { useBrandLogos, BRAND_LOGO_CLASS } from "./useBrandLogos";
 import { productImageFor } from "./useProductImages";
 import { HeatPumpIllustration } from "./HeatPumpIllustration";
+import { useLead, type LeadContext } from "./LeadContext";
 
 
 export type BrandName = "Mitsubishi Electric" | "Panasonic" | "Toshiba";
@@ -778,15 +779,30 @@ const SEGMENT_ICON: Record<Segment, typeof HomeIcon> = {
 };
 const ALL_BRANDS = "Alle merker";
 
+function leadForItem(item: ProductItem, segment: Segment): LeadContext {
+  return item.brand
+    ? {
+        source: "product",
+        segment,
+        interestType: "modell-anbefaling",
+        productName: item.name,
+        brand: item.brand,
+      }
+    : { source: "solution", segment, interestType: "losning-anbefaling", solutionName: item.name };
+}
+
 function ProductCard({
   item,
   logo,
+  segment,
   onOpen,
 }: {
   item: ProductItem;
   logo: string | null;
+  segment: Segment;
   onOpen: () => void;
 }) {
+  const { startLead } = useLead();
 
   const photo = item.image ?? productImageFor(item.name);
   return (
@@ -867,14 +883,14 @@ function ProductCard({
         </ul>
       </div>
 
-      <Link
-        to="/#kontakt"
+      <button
+        type="button"
+        onClick={() => startLead(leadForItem(item, segment))}
         className="inline-flex items-center justify-center gap-2 bg-[hsl(var(--mcs-orange))] hover:bg-[hsl(var(--mcs-orange-hover))] text-white text-sm font-semibold px-4 py-2.5 rounded-md"
       >
         {item.brand ? "Få anbefalt riktig modell" : "Få anbefalt riktig løsning"}{" "}
         <ArrowRight className="h-4 w-4" />
-
-      </Link>
+      </button>
       <button
         type="button"
         onClick={onOpen}
@@ -1147,6 +1163,7 @@ export function ProductShowcase() {
             <ProductCard
               key={`${item.brand ?? "sol"}-${item.name}`}
               item={item}
+              segment={segment}
               logo={logos[item.brand] ?? null}
               onOpen={() => setDetail(item)}
             />
