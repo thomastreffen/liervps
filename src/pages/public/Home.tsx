@@ -345,9 +345,9 @@ export default function Home() {
         </div>
       </section>
 
-      {/* KUNDEPORTAL + FINAL CTA */}
+      {/* KUNDEPORTAL */}
       <section className="bg-[hsl(var(--warm-cream))] pb-16">
-        <div className="mx-auto max-w-[1600px] px-6 sm:px-10 lg:px-12 xl:px-16 2xl:px-24 grid lg:grid-cols-2 gap-5">
+        <div className="mx-auto max-w-[1600px] px-6 sm:px-10 lg:px-12 xl:px-16 2xl:px-24">
           <div id="kundeportal" className="scroll-mt-28 bg-white rounded-2xl border border-[hsl(var(--warm-beige))] p-6 lg:p-7 flex flex-col sm:flex-row gap-5 items-start">
             <div className="h-14 w-14 rounded-lg bg-[hsl(var(--mcs-navy))] text-white flex items-center justify-center shrink-0">
               <Monitor className="h-7 w-7" />
@@ -365,31 +365,12 @@ export default function Home() {
               </Link>
             </div>
           </div>
-
-          <div id="kontakt" className="scroll-mt-28 rounded-2xl bg-[hsl(var(--mcs-orange))] text-white p-6 lg:p-7 flex flex-col justify-center">
-            <h3 className="font-bold text-xl mb-2 text-center">
-              Klar for varmepumpe eller trenger service?
-            </h3>
-            <p className="text-white/90 text-sm mb-5 text-center max-w-md mx-auto">
-              Ta kontakt for uforpliktende befaring. Vi hjelper deg raskt og finner riktig løsning.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-2.5 justify-center">
-              <a
-                href="tel:+4732000000"
-                className="bg-[hsl(var(--mcs-navy))] hover:bg-[hsl(var(--mcs-navy))]/90 text-white font-semibold px-5 py-2.5 rounded-md inline-flex items-center justify-center gap-2"
-              >
-                <Phone className="h-4 w-4" /> Ring 32 00 00 00
-              </a>
-              <a
-                href="mailto:post@liervps.no"
-                className="bg-white/10 border border-white/40 hover:bg-white/20 text-white font-semibold px-5 py-2.5 rounded-md inline-flex items-center justify-center gap-2"
-              >
-                <Mail className="h-4 w-4" /> post@liervps.no
-              </a>
-            </div>
-          </div>
         </div>
       </section>
+
+      {/* KONTAKT / LEAD FLOW */}
+      <ContactSection />
+
     </PublicLayout>
   );
 }
