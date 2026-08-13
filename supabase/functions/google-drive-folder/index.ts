@@ -78,10 +78,7 @@ Deno.serve(async (req) => {
   if (!lead) return json({ status: "error", code: "lead_not_found" }, 404);
 
   // Authorization: the caller must be a member of the lead's company (superadmin passes).
-  const { data: allowed } = await admin.rpc("is_super_admin", { _user_id: user.id }).then(
-    (r: any) => ({ data: r.data }),
-    () => ({ data: false }),
-  );
+  const { data: allowed } = await admin.rpc("is_super_admin", { _auth_user_id: user.id });
   if (!allowed && lead.company_id) {
     const { data: membership } = await admin
       .from("user_memberships")
