@@ -870,7 +870,9 @@ function ProductCard({
         to="/#kontakt"
         className="inline-flex items-center justify-center gap-2 bg-[hsl(var(--mcs-orange))] hover:bg-[hsl(var(--mcs-orange-hover))] text-white text-sm font-semibold px-4 py-2.5 rounded-md"
       >
-        Få anbefalt riktig modell <ArrowRight className="h-4 w-4" />
+        {item.brand ? "Få anbefalt riktig modell" : "Få anbefalt riktig løsning"}{" "}
+        <ArrowRight className="h-4 w-4" />
+
       </Link>
       <button
         type="button"
