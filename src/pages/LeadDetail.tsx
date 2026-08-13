@@ -22,6 +22,7 @@ import { LeadConvertPanel } from "@/components/activity/LeadConvertPanel";
 import { CreateOrderFromLeadCard } from "@/components/leads/CreateOrderFromLeadCard";
 import { PublicLeadContextCard } from "@/components/leads/PublicLeadContextCard";
 import { CreateBefaringDrawer } from "@/components/leads/CreateBefaringDrawer";
+import { LeadNextStepPanel } from "@/components/leads/LeadNextStepPanel";
 import { FlowTrail } from "@/components/flow/FlowTrail";
 import { useFlowChain } from "@/components/flow/useFlowChain";
 import { ContractListSection } from "@/components/contracts/ContractListSection";
