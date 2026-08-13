@@ -20,6 +20,7 @@ import { LeadStickyBar } from "@/components/activity/LeadStickyBar";
 import { NextStepCard } from "@/components/activity/NextStepCard";
 import { LeadConvertPanel } from "@/components/activity/LeadConvertPanel";
 import { CreateOrderFromLeadCard } from "@/components/leads/CreateOrderFromLeadCard";
+import { PublicLeadContextCard } from "@/components/leads/PublicLeadContextCard";
 import { FlowTrail } from "@/components/flow/FlowTrail";
 import { useFlowChain } from "@/components/flow/useFlowChain";
 import { ContractListSection } from "@/components/contracts/ContractListSection";
@@ -74,6 +75,7 @@ interface Lead {
   next_action_date: string | null;
   next_action_note: string | null;
   lead_ref_code: string | null;
+  public_lead_id?: string | null;
 }
 
 interface Participant {
@@ -503,6 +505,8 @@ function LeadDetailInner() {
                 />
               </CardContent>
             </Card>
+
+            {lead.public_lead_id && <PublicLeadContextCard publicLeadId={lead.public_lead_id} />}
 
             {/* Customer info */}
             <Card className="rounded-2xl shadow-sm">

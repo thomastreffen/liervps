@@ -151,7 +151,10 @@ export default function LeadsPage() {
       return l.company_name.toLowerCase().includes(s) ||
         (l.contact_name || "").toLowerCase().includes(s) ||
         (l.email || "").toLowerCase().includes(s) ||
-        (l.lead_ref_code || "").toLowerCase().includes(s);
+        (l.lead_ref_code || "").toLowerCase().includes(s) ||
+        (l.phone || "").toLowerCase().includes(s) ||
+        (l.source || "").toLowerCase().includes(s) ||
+        (l.notes || "").toLowerCase().includes(s);
     }
     return true;
   });
