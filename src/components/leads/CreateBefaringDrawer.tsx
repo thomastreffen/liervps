@@ -125,6 +125,7 @@ export function CreateBefaringDrawer({ open, onOpenChange, lead, onCreated }: Pr
       setNotes("");
       setSendEmail(false);
       setSyncGoogle(true);
+      setPrepareDrive(true);
       setTechId("__none__");
     };
 
@@ -467,6 +468,10 @@ export function CreateBefaringDrawer({ open, onOpenChange, lead, onCreated }: Pr
               <label className="flex items-center gap-2 text-sm">
                 <Checkbox checked={syncGoogle} onCheckedChange={v => setSyncGoogle(Boolean(v))} />
                 Synk til Google Kalender (hvis koblet til)
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <Checkbox checked={prepareDrive} onCheckedChange={v => setPrepareDrive(Boolean(v))} />
+                Opprett Google Drive-mappe (hvis koblet til)
               </label>
             </div>
 
