@@ -457,9 +457,12 @@ function AssumptionsPanel({ rough }: { rough: boolean }) {
             <li>Dekningsgrad luft-vann: 60 / 80 / 90 %.</li>
             <li>Årsvarmefaktor (SCOP): 2,6 (lavt), 3,4 (forventet), 4,0 (høyt).</li>
             <li>
-              Store areal gir lavere dekningsgrad for luft-luft, siden én innedel ikke varmer hele
-              bygget. Luft-vann skalerer bedre.
+              Dekningsløsning påvirker resultatet: én innedel dekker normalt godt opp til ca.
+              80–120 m², og dekningsgraden reduseres gradvis for større boliger. To innedeler gir
+              høyere dekning i større boliger, og flere soner vurderes ut fra planløsning og
+              plassering på befaring. Luft-vann er mindre arealsensitiv.
             </li>
+
             <li>Dagens oppvarmingskilde, standard og takhøyde/isolasjon justerer beregningen.</li>
           </ul>
 
