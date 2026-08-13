@@ -1023,7 +1023,7 @@ export function ProductShowcase() {
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {items.map((item) => (
             <ProductCard
-              key={`${item.brand}-${item.name}`}
+              key={`${item.brand ?? "sol"}-${item.name}`}
               item={item}
               logo={logos[item.brand] ?? null}
             />
