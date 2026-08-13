@@ -291,9 +291,12 @@ function ResultPanel({
       <dl className="mt-4 rounded-xl border border-[hsl(var(--warm-beige))] bg-[hsl(var(--warm-cream))] px-4 py-3 text-[13px] space-y-1.5">
         {[
           ["Antatt varmebehov", `${num(result.heatNeed)} kWh/år`],
-          ["Varmepumpen dekker", `${Math.round(expected.coverage * 100)} %`],
+          ["Oppvarmet areal", `${num(result.area)} m²`],
+          ["Beregningsgrunnlag", result.basis],
+          ["Varmepumpen dekker", `ca. ${Math.round(expected.coverage * 100)} %`],
           ["Årsvarmefaktor brukt", expected.scop.toFixed(1).replace(".", ",")],
           ["Estimert spart strøm", `${num(expected.savedKwh)} kWh/år`],
+
         ].map(([k, v]) => (
           <div key={k} className="flex items-baseline justify-between gap-3">
             <dt className="text-[hsl(var(--mcs-muted))]">{k}</dt>
