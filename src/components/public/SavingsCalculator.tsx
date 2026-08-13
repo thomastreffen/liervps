@@ -493,30 +493,22 @@ function BoligForm({ installedPrice, onInstalledPrice }: { installedPrice: strin
         />
 
         <div>
-          <div className="flex items-center justify-between gap-3 mb-1.5">
+          <div className="flex items-baseline justify-between gap-3 mb-1.5">
             <label className="text-[13px] font-semibold text-[hsl(var(--mcs-navy))]">
               Årlig strømforbruk <span className="font-normal text-[hsl(var(--mcs-muted))]">(valgfritt)</span>
             </label>
-            <button
-              type="button"
-              onClick={() => setUseKwh(!useKwh)}
-              className="text-xs font-semibold text-[hsl(var(--mcs-orange))] hover:underline"
-            >
-              {useKwh ? "Jeg vet ikke" : "Jeg vet forbruket"}
-            </button>
+            {!unknownKwh && (
+              <span className="text-[13px] font-semibold text-[hsl(var(--mcs-orange))]">{num(kwh)} kWh</span>
+            )}
           </div>
-          {useKwh ? (
-            <>
-              <div className="text-[13px] font-semibold text-[hsl(var(--mcs-orange))] text-right mb-1">
-                {num(kwh)} kWh
-              </div>
-              <Slider value={[kwh]} min={4000} max={60000} step={500} onValueChange={(v) => setKwh(v[0])} className="py-2" />
-            </>
-          ) : (
+          {unknownKwh ? (
             <p className="text-xs text-[hsl(var(--mcs-muted))]">
-              Vi anslår varmebehovet ut fra areal og boligtype. Estimatet blir da grovere.
+              Vi anslår varmebehovet ut fra areal, boligtype og standard. Estimatet blir da grovere.
             </p>
+          ) : (
+            <Slider value={[kwh]} min={4000} max={60000} step={500} onValueChange={(v) => setKwh(v[0])} className="py-2" />
           )}
+          <UnknownKwhToggle id="bolig-ukjent-kwh" checked={unknownKwh} onChange={setUnknownKwh} />
         </div>
 
         <SliderField
@@ -531,6 +523,16 @@ function BoligForm({ installedPrice, onInstalledPrice }: { installedPrice: strin
 
         <div className="grid sm:grid-cols-2 gap-5">
           <SelectField
+            label="Boligens standard"
+            value={standard}
+            onChange={setStandard}
+            options={[
+              { value: "eldre", label: "Eldre / trekkfull" },
+              { value: "normal", label: "Normal" },
+              { value: "nyere", label: "Nyere / godt isolert" },
+            ]}
+          />
+          <SelectField
             label="Bruksmønster"
             value={pattern}
             onChange={(v) => setPattern(v as typeof pattern)}
@@ -540,21 +542,28 @@ function BoligForm({ installedPrice, onInstalledPrice }: { installedPrice: strin
               { value: "high", label: "Høyt" },
             ]}
           />
-          <SelectField
-            label="Ønsket varmepumpetype"
-            value={pumpType}
-            onChange={(v) => setPumpType(v as typeof pumpType)}
-            options={[
-              { value: "luft_luft", label: "Luft-luft" },
-              { value: "luft_vann", label: "Luft-vann" },
-              { value: "usikker", label: "Usikker" },
-            ]}
-          />
         </div>
+
+        <SelectField
+          label="Ønsket varmepumpetype"
+          value={pumpType}
+          onChange={(v) => setPumpType(v as typeof pumpType)}
+          options={[
+            { value: "luft_luft", label: "Luft-luft" },
+            { value: "luft_vann", label: "Luft-vann" },
+            { value: "usikker", label: "Usikker" },
+          ]}
+        />
 
         <AssumptionsPanel rough={result.rough} />
       </div>
-      <ResultPanel result={result} installedPrice={installedPrice} onInstalledPrice={onInstalledPrice} />
+      <ResultPanel
+        result={result}
+        installedPrice={installedPrice}
+        onInstalledPrice={onInstalledPrice}
+        segment="bolig"
+      />
+
     </div>
   );
 }
