@@ -275,35 +275,9 @@ export default function Home() {
         </div>
       </section>
 
-      {/* EKSEMPLER PÅ BESPARELSE */}
-      <section className="bg-[hsl(var(--warm-cream))] pb-16">
-        <div className="mx-auto max-w-[1600px] px-6 sm:px-10 lg:px-12 xl:px-16 2xl:px-24">
-          <h2 className="text-2xl lg:text-3xl font-bold text-[hsl(var(--mcs-navy))] text-center mb-8">
-            Eksempler på besparelse
-          </h2>
-          <div className="grid lg:grid-cols-2 gap-6">
-            <SavingsCard
-              icon={HomeIcon}
-              title="Enebolig i Lier"
-              desc="Typisk enebolig på 150 m² med eldre elektrisk oppvarming."
-              before="24 000 kr / år"
-              after="12 000 kr / år"
-              savings="12 000 kr"
-            />
-            <SavingsCard
-              icon={Building2}
-              title="Kontor / næringslokaler"
-              desc="Kontorlokale på 500 m² med varierende oppvarming."
-              before="48 000 kr / år"
-              after="24 000 kr / år"
-              savings="24 000 kr"
-            />
-          </div>
-          <p className="text-center text-xs text-[hsl(var(--mcs-muted))] mt-6 max-w-3xl mx-auto">
-            Beregninger er estimater basert på strømpris, bruksmønster og byggets behov. Faktiske besparelser vil variere.
-          </p>
-        </div>
-      </section>
+      {/* BESPARELSESKALKULATOR */}
+      <SavingsCalculator />
+
 
       {/* VARMEPUMPER VI ANBEFALER */}
       <section id="varmepumper" className="bg-[hsl(var(--warm-cream))] pb-16 scroll-mt-28">
