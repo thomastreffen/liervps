@@ -876,7 +876,7 @@ export function ProductShowcase() {
   const logos = useBrandLogos();
   const { hash } = useLocation();
   const [segment, setSegment] = useState<Segment>("bolig");
-  const [groupId, setGroupId] = useState<string>("luft-luft");
+  const [groupId, setGroupId] = useState<string>("anbefalt-bolig");
   const [brandFilter, setBrandFilter] = useState<BrandName | typeof ALL_BRANDS>(
     ALL_BRANDS
   );
