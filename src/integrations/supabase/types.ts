@@ -10629,6 +10629,75 @@ export type Database = {
           },
         ]
       }
+      public_leads: {
+        Row: {
+          address: string | null
+          calculator_summary: Json | null
+          created_at: string
+          email: string | null
+          handled_at: string | null
+          handled_by: string | null
+          id: string
+          lead_context: Json | null
+          lead_source: string | null
+          message: string | null
+          name: string
+          page_url: string | null
+          phone: string | null
+          request_type: string
+          segment: string
+          selected_brand: string | null
+          selected_product_name: string | null
+          selected_solution_name: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          calculator_summary?: Json | null
+          created_at?: string
+          email?: string | null
+          handled_at?: string | null
+          handled_by?: string | null
+          id?: string
+          lead_context?: Json | null
+          lead_source?: string | null
+          message?: string | null
+          name: string
+          page_url?: string | null
+          phone?: string | null
+          request_type?: string
+          segment?: string
+          selected_brand?: string | null
+          selected_product_name?: string | null
+          selected_solution_name?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          calculator_summary?: Json | null
+          created_at?: string
+          email?: string | null
+          handled_at?: string | null
+          handled_by?: string | null
+          id?: string
+          lead_context?: Json | null
+          lead_source?: string | null
+          message?: string | null
+          name?: string
+          page_url?: string | null
+          phone?: string | null
+          request_type?: string
+          segment?: string
+          selected_brand?: string | null
+          selected_product_name?: string | null
+          selected_solution_name?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       regulation_queries: {
         Row: {
           actions: Json | null
