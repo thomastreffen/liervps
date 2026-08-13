@@ -50,11 +50,6 @@ const STEPS = [
   { n: "4", title: "Service", desc: "Årlig kontroll og oppfølging for effektiv drift." },
 ];
 
-const BRANDS = [
-  { name: "MITSUBISHI ELECTRIC", text: "Premium kvalitet og driftssikkerhet — et trygt valg med lang levetid." },
-  { name: "Panasonic", text: "Effektiv oppvarming og moderne design — smart teknologi." },
-  { name: "TOSHIBA", text: "Stillegående drift og stabil varme — et trygt valg for norsk klima." },
-];
 
 const AGREEMENT_BENEFITS = [
   "Årlig fysisk kontroll",
