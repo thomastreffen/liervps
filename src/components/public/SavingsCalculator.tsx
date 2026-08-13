@@ -96,26 +96,48 @@ type CalcRow = {
   scop: number;
 };
 
+type CoverageSolution = "en_innedel" | "to_innedeler" | "flere_soner";
+
+const COVERAGE_SOLUTION_LABEL: Record<CoverageSolution, string> = {
+  en_innedel: "Én innedel",
+  to_innedeler: "To innedeler",
+  flere_soner: "Flere soner / vurderes på befaring",
+};
+
 type CalcResult = {
   heatNeed: number;
   rows: CalcRow[];
   rough: boolean;
   area: number;
   basis: string;
+  solutionLabel?: string;
+  coverageReduced: boolean;
+  airAirLargeArea: boolean;
 };
 
 /**
- * Arealet påvirker hvor stor del av varmebehovet én varmepumpe realistisk kan dekke.
- * Luft-luft distribuerer varme dårlig i store bygg, luft-vann skalerer bedre.
+ * Arealet og valgt dekningsløsning påvirker hvor stor del av varmebehovet
+ * varmepumpen realistisk kan dekke. Luft-luft med én innedel distribuerer
+ * varme dårligere i store boliger, luft-vann skalerer bedre.
  */
 function areaCoverageFactor(
   area: number,
   pumpType: "luft_luft" | "luft_vann" | "usikker",
   refArea: number,
+  solution: CoverageSolution,
 ) {
-  const airAir = clamp(1 - Math.max(0, area - refArea) / refArea * 0.55, 0.45, 1) *
-    (area < refArea * 0.5 ? 0.95 : 1);
-  const airWater = clamp(1 - Math.max(0, area - refArea) / refArea * 0.12, 0.85, 1);
+  const decay = (start: number, perM2: number, min: number, boost = 1) =>
+    clamp(boost - (Math.max(0, area - start) / 100) * perM2, min, boost);
+
+  const airAir =
+    solution === "to_innedeler"
+      ? decay(refArea * 1.4, 0.1, 0.8, 1.15)
+      : solution === "flere_soner"
+        ? decay(refArea * 1.9, 0.06, 1, 1.25)
+        : decay(refArea * 0.8, 0.17, 0.62);
+
+  const airWater = decay(refArea * 1.5, 0.05, 0.88);
+
   if (pumpType === "luft_vann") return airWater;
   if (pumpType === "usikker") return (airAir + airWater) / 2;
   return airAir;
@@ -130,8 +152,11 @@ function computeResult(opts: {
   area: number;
   refArea: number;
   basis: string;
+  solution?: CoverageSolution;
+  showSolution?: boolean;
 }): CalcResult {
-  const areaFactor = areaCoverageFactor(opts.area, opts.pumpType, opts.refArea);
+  const solution: CoverageSolution = opts.solution ?? "en_innedel";
+  const areaFactor = areaCoverageFactor(opts.area, opts.pumpType, opts.refArea, solution);
   const rows = (["low", "expected", "high"] as const).map((key) => {
     const base = SCENARIOS[key];
     let coverage = base.coverage;
@@ -144,8 +169,27 @@ function computeResult(opts: {
     const savedKwh = Math.max(0, replaced - pumpUse);
     return { key, savedKwh, savedNok: savedKwh * opts.price, coverage, scop: base.scop };
   });
-  return { heatNeed: opts.heatNeed, rows, rough: opts.rough, area: opts.area, basis: opts.basis };
+  return {
+    heatNeed: opts.heatNeed,
+    rows,
+    rough: opts.rough,
+    area: opts.area,
+    basis: opts.basis,
+    solutionLabel: opts.showSolution
+      ? opts.pumpType === "luft_vann"
+        ? "Full bolig (luft-vann)"
+        : COVERAGE_SOLUTION_LABEL[solution]
+      : undefined,
+    coverageReduced: areaFactor < 0.99,
+    airAirLargeArea:
+      opts.pumpType !== "luft_vann" && solution === "en_innedel" && opts.area > refLarge(opts.refArea),
+  };
 }
+
+function refLarge(refArea: number) {
+  return refArea * 1.05;
+}
+
 
 
 
