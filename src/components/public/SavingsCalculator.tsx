@@ -615,9 +615,12 @@ function NaeringForm({ installedPrice, onInstalledPrice }: { installedPrice: str
     const rough = unknownKwh;
     const hoursFactor = clamp(hours / 45, 0.7, 1.35);
     const envFactorNeed = envelope === "hoyt" ? 1.2 : envelope === "isolert" ? 0.85 : 1;
+    const heatNeedFromArea = area * (NAERING_KWH_PER_M2[type] ?? 75) * hoursFactor * envFactorNeed;
+    const heatNeedFromConsumption =
+      kwh * clamp((NAERING_HEAT_SHARE[type] ?? 0.5) * hoursFactor * envFactorNeed, 0.25, 0.75);
     const heatNeed = rough
-      ? area * (NAERING_KWH_PER_M2[type] ?? 75) * hoursFactor * envFactorNeed
-      : kwh * clamp((NAERING_HEAT_SHARE[type] ?? 0.5) * hoursFactor * envFactorNeed, 0.25, 0.75);
+      ? heatNeedFromArea
+      : 0.7 * heatNeedFromConsumption + 0.3 * heatNeedFromArea;
 
     return computeResult({
       heatNeed,
@@ -626,8 +629,12 @@ function NaeringForm({ installedPrice, onInstalledPrice }: { installedPrice: str
       pumpType: "luft_luft",
       sourceFactor:
         (HEATING_SOURCE_FACTOR[source] ?? 0.85) * (ENVELOPE_FACTOR[envelope] ?? 1) * 0.95,
+      area,
+      refArea: 400,
+      basis: rough ? "Arealbasert estimat" : "Strømforbruk + areal",
     });
   }, [type, area, hours, unknownKwh, kwh, source, price, envelope]);
+
 
 
   return (
