@@ -797,6 +797,7 @@ function ProductCard({
             src={logo}
             alt={`${item.brand} logo`}
             loading="lazy"
+            onError={(e) => { e.currentTarget.style.display = "none"; }}
             className={`w-auto object-contain ${BRAND_LOGO_CLASS[item.brand] ?? "max-h-10 max-w-[180px]"}`}
           />
         ) : (
@@ -870,7 +871,9 @@ function ProductCard({
         to="/#kontakt"
         className="inline-flex items-center justify-center gap-2 bg-[hsl(var(--mcs-orange))] hover:bg-[hsl(var(--mcs-orange-hover))] text-white text-sm font-semibold px-4 py-2.5 rounded-md"
       >
-        Få anbefalt riktig modell <ArrowRight className="h-4 w-4" />
+        {item.brand ? "Få anbefalt riktig modell" : "Få anbefalt riktig løsning"}{" "}
+        <ArrowRight className="h-4 w-4" />
+
       </Link>
       <button
         type="button"
@@ -898,13 +901,14 @@ function ProductDetailDialog({
   const photo = item.image ?? productImageFor(item.name);
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto bg-white">
+      <DialogContent className="w-[calc(100%-1.5rem)] sm:w-full max-w-lg max-h-[85vh] overflow-y-auto bg-white">
         <DialogHeader>
-          <div className="h-9 flex items-center mb-2">
+          <div className="h-9 flex items-center mb-2 pr-8">
             {item.brand && logo ? (
               <img
                 src={logo}
                 alt={`${item.brand} logo`}
+                onError={(e) => { e.currentTarget.style.display = "none"; }}
                 className={`w-auto object-contain ${BRAND_LOGO_CLASS[item.brand] ?? "max-h-9 max-w-[170px]"}`}
               />
             ) : (
@@ -929,9 +933,10 @@ function ProductDetailDialog({
           ) : (
             <HeatPumpIllustration
               variant={illustrationVariant(item.productType)}
-              label={item.productType ?? item.subtitle}
+              label={`Illustrasjon · ${item.productType ?? item.subtitle}`}
             />
           )}
+
         </div>
 
         <p className="text-sm text-[hsl(var(--mcs-muted))] leading-relaxed">{item.description}</p>
@@ -965,7 +970,7 @@ function ProductDetailDialog({
           Endelig anbefaling av modell avhenger av bolig, planløsning, plassering og varmebehov.
         </p>
 
-        <div className="flex flex-col sm:flex-row gap-2">
+        <div className="sticky bottom-0 -mx-6 px-6 pt-3 pb-1 bg-white border-t border-[hsl(var(--warm-beige))] sm:static sm:mx-0 sm:px-0 sm:pt-0 sm:pb-0 sm:border-0 flex flex-col sm:flex-row gap-2">
           <Link
             to="/#kontakt"
             onClick={() => onOpenChange(false)}
