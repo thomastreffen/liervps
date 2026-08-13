@@ -931,9 +931,10 @@ function ProductDetailDialog({
           ) : (
             <HeatPumpIllustration
               variant={illustrationVariant(item.productType)}
-              label={item.productType ?? item.subtitle}
+              label={`Illustrasjon · ${item.productType ?? item.subtitle}`}
             />
           )}
+
         </div>
 
         <p className="text-sm text-[hsl(var(--mcs-muted))] leading-relaxed">{item.description}</p>
