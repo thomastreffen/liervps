@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useLead } from "./LeadContext";
 import { Link } from "react-router-dom";
 import { ArrowRight, ChevronDown, Info, Leaf, Calculator } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
