@@ -574,14 +574,14 @@ function NaeringForm({ installedPrice, onInstalledPrice }: { installedPrice: str
   const [type, setType] = useState("kontor");
   const [area, setArea] = useState(500);
   const [hours, setHours] = useState(50);
-  const [useKwh, setUseKwh] = useState(true);
+  const [unknownKwh, setUnknownKwh] = useState(false);
   const [kwh, setKwh] = useState(80000);
   const [source, setSource] = useState("panel");
   const [price, setPrice] = useState(1.3);
   const [envelope, setEnvelope] = useState("normalt");
 
   const result = useMemo(() => {
-    const rough = !useKwh;
+    const rough = unknownKwh;
     const hoursFactor = clamp(hours / 45, 0.7, 1.35);
     const envFactorNeed = envelope === "hoyt" ? 1.2 : envelope === "isolert" ? 0.85 : 1;
     const heatNeed = rough
@@ -596,7 +596,8 @@ function NaeringForm({ installedPrice, onInstalledPrice }: { installedPrice: str
       sourceFactor:
         (HEATING_SOURCE_FACTOR[source] ?? 0.85) * (ENVELOPE_FACTOR[envelope] ?? 1) * 0.95,
     });
-  }, [type, area, hours, useKwh, kwh, source, price, envelope]);
+  }, [type, area, hours, unknownKwh, kwh, source, price, envelope]);
+
 
   return (
     <div className="grid lg:grid-cols-[1fr_400px] gap-6">
