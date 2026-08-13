@@ -991,6 +991,8 @@ export function ProductShowcase() {
   const [brandFilter, setBrandFilter] = useState<BrandName | typeof ALL_BRANDS>(
     ALL_BRANDS
   );
+  const [detail, setDetail] = useState<ProductItem | null>(null);
+
 
   // Deep links from the bolig/næring cards: #varmepumper-bolig / #varmepumper-naering
   useEffect(() => {
