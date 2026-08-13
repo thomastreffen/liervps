@@ -4,7 +4,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useCompanyContext } from "@/hooks/useCompanyContext";
 import { useTechnicians } from "@/hooks/useTechnicians";
-import { useCalendarSync } from "@/hooks/useCalendarSync";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +13,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, CalendarPlus } from "lucide-react";
 import { toast } from "sonner";
+import { calcSummaryBlock } from "@/lib/calc-summary";
 
 interface PublicLeadRow {
   id: string;
@@ -50,17 +50,12 @@ interface Props {
 }
 
 function fmtCalc(summary: any): string {
-  if (!summary || typeof summary !== "object") return "";
-  return Object.entries(summary)
-    .filter(([, v]) => v !== null && v !== undefined && v !== "")
-    .map(([k, v]) => `  ${k}: ${typeof v === "object" ? JSON.stringify(v) : String(v)}`)
-    .join("\n");
+  return calcSummaryBlock(summary);
 }
 
 export function CreateBefaringDrawer({ open, onOpenChange, lead, onCreated }: Props) {
   const { user } = useAuth();
   const { activeCompanyId, allowedCompanyIds } = useCompanyContext();
-  const { syncCreate } = useCalendarSync();
   const companyId = lead.company_id || activeCompanyId || null;
   const { technicians } = useTechnicians(companyId, allowedCompanyIds);
 
@@ -185,6 +180,20 @@ export function CreateBefaringDrawer({ open, onOpenChange, lead, onCreated }: Pr
         eventId = existing.id;
       } else {
         const selectedTech = techId !== "__none__" ? techId : null;
+
+        // events.technician_id is a FK to technicians.id (not auth user id).
+        let ownerTechId = selectedTech;
+        if (!ownerTechId) {
+          const { data: myTech } = await supabase
+            .from("technicians").select("id").eq("user_id", user?.id || "").limit(1).maybeSingle();
+          ownerTechId = (myTech as any)?.id ?? technicians[0]?.id ?? null;
+        }
+        if (!ownerTechId) {
+          toast.error("Ingen ressurs tilgjengelig", { description: "Velg en tekniker for befaringen." });
+          setSaving(false);
+          return;
+        }
+
         const { data: created, error } = await supabase.from("events").insert({
           title: title.trim(),
           customer: customer.trim() || lead.company_name,
@@ -192,11 +201,11 @@ export function CreateBefaringDrawer({ open, onOpenChange, lead, onCreated }: Pr
           description: description || null,
           start_time: startISO,
           end_time: endISO,
-          technician_id: selectedTech || user?.id || "00000000-0000-0000-0000-000000000000",
+          technician_id: ownerTechId,
           status: "scheduled" as any,
           created_by: user?.id || null,
           client_request_id: clientRequestId,
-          project_type: "task",
+          project_type: "project",
           company_id: resolvedCompanyId,
           source_lead_id: lead.id,
         } as any).select("id").single();
@@ -220,18 +229,7 @@ export function CreateBefaringDrawer({ open, onOpenChange, lead, onCreated }: Pr
             [{ event_id: eventId, technician_id: selectedTech, start_at: startISO, end_at: endISO }],
             { onConflict: "event_id,technician_id", ignoreDuplicates: false },
           );
-          await (supabase as any).from("schedule_blocks").insert({
-            company_id: resolvedCompanyId,
-            technician_id: selectedTech,
-            project_id: eventId,
-            source: "manual",
-            start_at: startISO,
-            end_at: endISO,
-            title: title.trim(),
-            match_state: "manual",
-            match_confidence: 100,
-            match_reason: "Befaring opprettet fra henvendelse",
-          });
+          // schedule_blocks opprettes automatisk av databasetrigger på event_technicians.
         }
       }
 
@@ -271,7 +269,22 @@ export function CreateBefaringDrawer({ open, onOpenChange, lead, onCreated }: Pr
 
       toast.success("Befaring opprettet", { description: when });
 
-      if (syncGoogle) syncCreate(eventId);
+      // ── Integrasjoner: skal aldri kunne rulle tilbake lokal lagring ──
+      let calendarMissing = false;
+      let emailMissing = false;
+
+      if (syncGoogle) {
+        try {
+          const { data: cal, error: calErr } = await supabase.functions.invoke("google-calendar-sync", {
+            body: { action: "create", event_id: eventId },
+          });
+          if (calErr || cal?.status === "error") calendarMissing = true;
+          else if (cal?.status === "no_token") calendarMissing = true;
+        } catch (e) {
+          console.warn("[CreateBefaring] calendar sync failed:", e);
+          calendarMissing = true;
+        }
+      }
 
       if (sendEmail && email.trim()) {
         const text = [
@@ -286,16 +299,26 @@ export function CreateBefaringDrawer({ open, onOpenChange, lead, onCreated }: Pr
           "Vennlig hilsen",
           "Lier VPS",
         ].filter(Boolean).join("\n");
-        const { data: mail, error: mailErr } = await supabase.functions.invoke("gmail-send", {
-          body: { to: email.trim(), subject: `Befaring – ${format(new Date(startISO), "dd.MM.yyyy HH:mm")}`, text },
-        });
-        if (mailErr || mail?.status === "error") {
-          toast.warning("Befaring lagret, men e-post ble ikke sendt");
-        } else if (mail?.status === "no_token") {
-          toast.info("Befaring lagret. Gmail er ikke koblet til – e-post ble ikke sendt.");
-        } else {
-          toast.success("Bekreftelse sendt til kunden");
+        try {
+          const { data: mail, error: mailErr } = await supabase.functions.invoke("gmail-send", {
+            body: { to: email.trim(), subject: `Befaring – ${format(new Date(startISO), "dd.MM.yyyy HH:mm")}`, text },
+          });
+          if (mailErr || mail?.status === "error" || mail?.status === "no_token") emailMissing = true;
+          else toast.success("Bekreftelse sendt til kunden");
+        } catch (e) {
+          console.warn("[CreateBefaring] gmail-send failed:", e);
+          emailMissing = true;
         }
+      }
+
+      if (calendarMissing || emailMissing) {
+        const what = calendarMissing && emailMissing
+          ? "Google Kalender/e-post"
+          : calendarMissing ? "Google Kalender" : "E-post (Gmail)";
+        toast.info(`Befaring lagret lokalt. ${what} er ikke koblet til.`, {
+          description: "Koble til Google under Innstillinger → Integrasjoner.",
+          duration: 7000,
+        });
       }
 
       onOpenChange(false);
