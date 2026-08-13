@@ -62,7 +62,7 @@ function BrandCard({ brand }: { brand: Brand }) {
             src={brand.logo}
             alt={`${brand.name} logo`}
             loading="lazy"
-            className="max-h-10 max-w-[180px] w-auto object-contain"
+            className={`w-auto object-contain ${BRAND_LOGO_CLASS[brand.name] ?? "max-h-10 max-w-[180px]"}`}
           />
         ) : (
           <h3 className="text-[15px] font-semibold tracking-[0.14em] uppercase text-[hsl(var(--mcs-navy))]">
