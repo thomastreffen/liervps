@@ -900,7 +900,7 @@ function ProductDetailDialog({
   const photo = item.image ?? productImageFor(item.name);
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto bg-white">
+      <DialogContent className="w-[calc(100%-1.5rem)] sm:w-full max-w-lg max-h-[85vh] overflow-y-auto bg-white">
         <DialogHeader>
           <div className="h-9 flex items-center mb-2">
             {item.brand && logo ? (
