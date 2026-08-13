@@ -1,15 +1,16 @@
 import { Link } from "react-router-dom";
 import { Check, ArrowRight, Snowflake, Wind, Volume2 } from "lucide-react";
+import { useBrandLogos } from "./useBrandLogos";
 
 /**
  * Brand logo / product image slots.
  *
  * Real, rights-cleared assets can be dropped in here without touching the layout:
- *   1. Put the file in `src/assets/lier/brands/` (e.g. `mitsubishi-electric.png`)
- *   2. Import it below and set `logo` / `product` on the matching brand.
+ *   1. Put the file in `src/assets/lier/brands/` (e.g. `mitsubishi-electric-logo.png`)
+ *   2. The component discovers it automatically via import.meta.glob.
  *
- * While a slot is `null` the card renders a clean typographic brand name and an
- * icon illustration instead — no fabricated logos, no empty placeholder boxes.
+ * While a logo is missing the card renders a clean typographic brand name.
+ * Product image slots remain optional and render an icon illustration when empty.
  */
 type BrandAsset = string | null;
 
@@ -23,10 +24,9 @@ type Brand = {
   icon: typeof Wind;
 };
 
-const BRANDS: Brand[] = [
+const BASE_BRANDS: Omit<Brand, "logo">[] = [
   {
     name: "Mitsubishi Electric",
-    logo: null,
     product: null,
     positioning: "Premium driftssikkerhet og høy komfort.",
     models: ["Kaiteki", "Hara", "Gulvmodell"],
@@ -35,7 +35,6 @@ const BRANDS: Brand[] = [
   },
   {
     name: "Panasonic",
-    logo: null,
     product: null,
     positioning: "Effektiv oppvarming, moderne design og smart styring.",
     models: ["HZ", "NZ", "LZ"],
@@ -44,7 +43,6 @@ const BRANDS: Brand[] = [
   },
   {
     name: "Toshiba",
-    logo: null,
     product: null,
     positioning: "Stillegående og diskret komfort med stabil varme.",
     models: ["Daiseikai", "Polar", "Seiya"],
@@ -58,13 +56,13 @@ function BrandCard({ brand }: { brand: Brand }) {
   return (
     <article className="bg-white rounded-xl border border-[hsl(var(--warm-beige))] p-6 flex flex-col">
       {/* Logo slot */}
-      <div className="h-12 flex items-center justify-center mb-4">
+      <div className="h-14 flex items-center justify-center mb-4">
         {brand.logo ? (
           <img
             src={brand.logo}
             alt={`${brand.name} logo`}
             loading="lazy"
-            className="max-h-10 w-auto object-contain"
+            className="max-h-10 max-w-[180px] w-auto object-contain"
           />
         ) : (
           <h3 className="text-[15px] font-semibold tracking-[0.14em] uppercase text-[hsl(var(--mcs-navy))]">
@@ -137,6 +135,9 @@ function BrandCard({ brand }: { brand: Brand }) {
 }
 
 export function BrandShowcase() {
+  const logos = useBrandLogos();
+  const brands: Brand[] = BASE_BRANDS.map((b) => ({ ...b, logo: logos[b.name] ?? null }));
+
   return (
     <section id="varmepumper" className="bg-[hsl(var(--warm-cream))] pb-16 scroll-mt-28">
       <div className="mx-auto max-w-[1600px] px-6 sm:px-10 lg:px-12 xl:px-16 2xl:px-24">
@@ -152,7 +153,7 @@ export function BrandShowcase() {
         </div>
 
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {BRANDS.map((b) => (
+          {brands.map((b) => (
             <BrandCard key={b.name} brand={b} />
           ))}
         </div>
