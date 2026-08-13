@@ -794,6 +794,24 @@ function LeadDetailInner() {
         onActivityCreated={refreshAll}
       />
 
+      {/* ── Lag befaring ── */}
+      <CreateBefaringDrawer
+        open={befaringOpen}
+        onOpenChange={setBefaringOpen}
+        lead={{
+          id: lead.id,
+          company_name: lead.company_name,
+          contact_name: lead.contact_name,
+          email: lead.email,
+          phone: lead.phone,
+          notes: lead.notes,
+          company_id: lead.company_id,
+          public_lead_id: lead.public_lead_id,
+        }}
+        onCreated={() => { fetchLead(); fetchActivities(); fetchCalendarLinks(); }}
+      />
+
+
       {/* ── Only confirmation dialogs remain ── */}
       <Dialog open={addParticipantOpen} onOpenChange={setAddParticipantOpen}>
         <DialogContent className="max-w-sm">
