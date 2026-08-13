@@ -3,13 +3,20 @@ import { Link, useLocation } from "react-router-dom";
 import {
   Check,
   ArrowRight,
-  ExternalLink,
   Building2,
   Home as HomeIcon,
 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useBrandLogos, BRAND_LOGO_CLASS } from "./useBrandLogos";
 import { productImageFor } from "./useProductImages";
 import { HeatPumpIllustration } from "./HeatPumpIllustration";
+
 
 export type BrandName = "Mitsubishi Electric" | "Panasonic" | "Toshiba";
 export type Segment = "bolig" | "naering";
