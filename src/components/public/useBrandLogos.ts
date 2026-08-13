@@ -1,27 +1,24 @@
+import mitsubishiLogo from "../../assets/lier/brands/mitsubishi-electric-logo.png.asset.json";
+import panasonicLogo from "../../assets/lier/brands/panasonic-logo.png.asset.json";
+import toshibaLogo from "../../assets/lier/brands/toshiba-logo.png.asset.json";
+
 export function useBrandLogos(): Record<string, string | null> {
-  const modules = import.meta.glob<string>("../../assets/lier/brands/*.{png,svg,jpg,jpeg,webp}", {
-    eager: true,
-    import: "default",
-  });
-
-  const logos: Record<string, string | null> = {
-    "Mitsubishi Electric": null,
-    Panasonic: null,
-    Toshiba: null,
+  return {
+    "Mitsubishi Electric": mitsubishiLogo.url,
+    Panasonic: panasonicLogo.url,
+    Toshiba: toshibaLogo.url,
   };
-
-  Object.entries(modules).forEach(([path, url]) => {
-    const filename = path.split("/").pop() ?? "";
-    const base = filename.replace(/\.[^.]+$/, "").toLowerCase();
-
-    if (base.includes("mitsubishi")) {
-      logos["Mitsubishi Electric"] = url;
-    } else if (base.includes("panasonic")) {
-      logos.Panasonic = url;
-    } else if (base.includes("toshiba")) {
-      logos.Toshiba = url;
-    }
-  });
-
-  return logos;
 }
+
+/** Per-brand sizing so no logo visually dominates. */
+export const BRAND_LOGO_CLASS: Record<string, string> = {
+  "Mitsubishi Electric": "max-h-10 max-w-[170px]",
+  Panasonic: "max-h-11 max-w-[190px]",
+  Toshiba: "max-h-[52px] max-w-[130px]",
+};
+
+export const BRAND_STRIP_LOGO_CLASS: Record<string, string> = {
+  "Mitsubishi Electric": "h-6 max-w-[130px]",
+  Panasonic: "h-7 max-w-[140px]",
+  Toshiba: "h-9 max-w-[95px]",
+};
