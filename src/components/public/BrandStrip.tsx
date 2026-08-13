@@ -1,4 +1,4 @@
-import { useBrandLogos } from "./useBrandLogos";
+import { useBrandLogos, BRAND_STRIP_LOGO_CLASS } from "./useBrandLogos";
 
 const BRAND_ORDER = ["Mitsubishi Electric", "Panasonic", "Toshiba"];
 
@@ -20,7 +20,7 @@ export function BrandStrip() {
                   src={logos[name]!}
                   alt={`${name} logo`}
                   loading="lazy"
-                  className="h-7 w-auto max-w-[140px] object-contain"
+                  className={`w-auto object-contain ${BRAND_STRIP_LOGO_CLASS[name] ?? "h-7 max-w-[140px]"}`}
                 />
               ) : (
                 <span
