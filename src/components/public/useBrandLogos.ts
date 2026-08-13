@@ -13,12 +13,12 @@ export function useBrandLogos(): Record<string, string | null> {
 /** Per-brand sizing so no logo visually dominates. */
 export const BRAND_LOGO_CLASS: Record<string, string> = {
   "Mitsubishi Electric": "max-h-10 max-w-[170px]",
-  Panasonic: "max-h-11 max-w-[190px]",
-  Toshiba: "max-h-[52px] max-w-[130px]",
+  Panasonic: "max-h-11 max-w-[175px]",
+  Toshiba: "max-h-7 max-w-[160px]",
 };
 
 export const BRAND_STRIP_LOGO_CLASS: Record<string, string> = {
-  "Mitsubishi Electric": "h-6 max-w-[130px]",
-  Panasonic: "h-7 max-w-[140px]",
-  Toshiba: "h-9 max-w-[95px]",
+  "Mitsubishi Electric": "h-6 max-w-[110px]",
+  Panasonic: "h-6 max-w-[110px]",
+  Toshiba: "h-auto max-w-[105px]",
 };
