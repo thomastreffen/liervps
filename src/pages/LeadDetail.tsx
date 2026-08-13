@@ -22,6 +22,7 @@ import { LeadConvertPanel } from "@/components/activity/LeadConvertPanel";
 import { CreateOrderFromLeadCard } from "@/components/leads/CreateOrderFromLeadCard";
 import { PublicLeadContextCard } from "@/components/leads/PublicLeadContextCard";
 import { CreateBefaringDrawer } from "@/components/leads/CreateBefaringDrawer";
+import { LeadNextStepPanel } from "@/components/leads/LeadNextStepPanel";
 import { FlowTrail } from "@/components/flow/FlowTrail";
 import { useFlowChain } from "@/components/flow/useFlowChain";
 import { ContractListSection } from "@/components/contracts/ContractListSection";
@@ -465,6 +466,24 @@ function LeadDetailInner() {
         </div>
 
         {/* ── Flyt-kjede (Postkontor → Lead → Bestilling → Oppdrag) ── */}
+        {/* ── Neste steg: operativ oppfølging ── */}
+        <LeadNextStepPanel
+          lead={{
+            id: lead.id,
+            company_name: lead.company_name,
+            contact_name: lead.contact_name,
+            email: lead.email,
+            phone: lead.phone,
+            notes: lead.notes,
+            status: safeStatus,
+            company_id: lead.company_id,
+            public_lead_id: lead.public_lead_id,
+          }}
+          users={companyUsers}
+          onCreateBefaring={() => setBefaringOpen(true)}
+          onChanged={() => { fetchLead(); fetchActivities(); }}
+        />
+
         <LeadFlowTrail leadId={lead.id} leadName={lead.company_name} />
 
         {/* ── Pipeline bar ── */}
