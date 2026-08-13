@@ -1,4 +1,4 @@
-import { useBrandLogos } from "./useBrandLogos";
+import { useBrandLogos, BRAND_STRIP_LOGO_CLASS } from "./useBrandLogos";
 
 const BRAND_ORDER = ["Mitsubishi Electric", "Panasonic", "Toshiba"];
 
