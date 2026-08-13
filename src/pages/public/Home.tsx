@@ -18,6 +18,8 @@ import {
 } from "lucide-react";
 import { PublicLayout } from "@/components/public/PublicLayout";
 import { SavingsCalculator } from "@/components/public/SavingsCalculator";
+import { BrandShowcase } from "@/components/public/BrandShowcase";
+
 import { PublicSeo, SITE_URL } from "@/components/public/PublicSeo";
 import { useAuth } from "@/hooks/useAuth";
 import heroImg from "@/assets/lier/hero-warm.jpg";
@@ -48,11 +50,6 @@ const STEPS = [
   { n: "4", title: "Service", desc: "Årlig kontroll og oppfølging for effektiv drift." },
 ];
 
-const BRANDS = [
-  { name: "MITSUBISHI ELECTRIC", text: "Premium kvalitet og driftssikkerhet — et trygt valg med lang levetid." },
-  { name: "Panasonic", text: "Effektiv oppvarming og moderne design — smart teknologi." },
-  { name: "TOSHIBA", text: "Stillegående drift og stabil varme — et trygt valg for norsk klima." },
-];
 
 const AGREEMENT_BENEFITS = [
   "Årlig fysisk kontroll",
@@ -217,47 +214,9 @@ export default function Home() {
       <SavingsCalculator />
 
 
-      {/* VARMEPUMPER VI ANBEFALER */}
-      <section id="varmepumper" className="bg-[hsl(var(--warm-cream))] pb-16 scroll-mt-28">
-        <div className="mx-auto max-w-[1600px] px-6 sm:px-10 lg:px-12 xl:px-16 2xl:px-24 grid lg:grid-cols-[280px_1fr] gap-8 items-start">
-          <div>
-            <h2 className="text-2xl lg:text-3xl font-bold text-[hsl(var(--mcs-navy))] mb-3 leading-tight">
-              Varmepumper vi anbefaler
-            </h2>
-            <div className="h-0.5 w-10 bg-[hsl(var(--mcs-orange))] mb-4" />
-            <p className="text-sm text-[hsl(var(--mcs-muted))] leading-relaxed mb-5">
-              Vi velger kvalitetsmerker som er tilpasset norske forhold. Pålitelig teknologi, høy ytelse
-              og god tilgjengelighet på reservedeler og service.
-            </p>
-            <Link
-              to="/#varmepumper"
-              className="inline-flex items-center gap-2 text-sm font-semibold text-[hsl(var(--mcs-navy))] border border-[hsl(var(--mcs-navy))]/20 hover:border-[hsl(var(--mcs-navy))] bg-white px-4 py-2 rounded-md"
-            >
-              Se alle modeller <ArrowRight className="h-4 w-4" />
-            </Link>
-          </div>
-          <div className="grid sm:grid-cols-3 gap-4">
-            {BRANDS.map((b) => (
-              <div key={b.name} className="bg-white rounded-xl border border-[hsl(var(--warm-beige))] p-5 flex flex-col">
-                <div className="text-center text-[13px] font-bold text-[hsl(var(--mcs-navy))] tracking-wide mb-3 min-h-[36px] flex items-center justify-center">
-                  {b.name}
-                </div>
-                <div className="aspect-[4/3] rounded-lg bg-[hsl(var(--warm-sand))] flex items-center justify-center mb-4">
-                  {/* Neutral placeholder — approved product imagery can replace this */}
-                  <div className="h-10 w-24 rounded-md bg-white border border-[hsl(var(--warm-beige))] shadow-sm" aria-hidden />
-                </div>
-                <p className="text-xs text-[hsl(var(--mcs-muted))] leading-relaxed mb-4 flex-1 text-center">{b.text}</p>
-                <Link
-                  to="/#kontakt"
-                  className="bg-[hsl(var(--mcs-orange))] hover:bg-[hsl(var(--mcs-orange-hover))] text-white text-sm font-semibold px-4 py-2 rounded-md text-center"
-                >
-                  Be om anbefaling
-                </Link>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+      {/* KVALITETSMERKER VI ANBEFALER */}
+      <BrandShowcase />
+
 
       {/* VÅRE TJENESTER */}
       <section id="tjenester" className="bg-[hsl(var(--warm-cream))] pb-16 scroll-mt-28">
