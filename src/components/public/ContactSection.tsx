@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import { Mail, Phone, Info, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -48,27 +49,56 @@ export function ContactSection() {
 
   const calc = lead?.calculatorSummary;
 
-  function handleSubmit(e: React.FormEvent) {
+  const [submitting, setSubmitting] = useState(false);
+
+  // TODO (neste steg): bygg en enkel intern oversikt over public_leads
+  // (f.eks. /sales/leads-innboks) og evt. konvertering til `leads`/commercial_cases.
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (submitting) return;
     if (!name.trim() || (!email.trim() && !phone.trim())) {
       toast.error("Fyll inn navn og e-post eller telefon.");
       return;
     }
-    const payload = {
+    setSubmitting(true);
+    setSent(false);
+    const row = {
       name: name.trim().slice(0, 100),
-      email: email.trim().slice(0, 255),
-      phone: phone.trim().slice(0, 40),
-      place: place.trim().slice(0, 120),
+      email: email.trim().slice(0, 255) || null,
+      phone: phone.trim().slice(0, 40) || null,
+      address: place.trim().slice(0, 120) || null,
       segment,
-      interest,
-      interestLabel: INTEREST_LABEL[interest],
-      message: message.trim().slice(0, 1500),
-      leadContext: lead ?? { source: "kontakt-skjema" },
+      request_type: interest,
+      message: message.trim().slice(0, 1500) || null,
+      lead_source: lead?.source ?? "kontakt-skjema",
+      selected_brand: lead?.brand ?? null,
+      selected_product_name: lead?.productName ?? null,
+      selected_solution_name: lead?.solutionName ?? null,
+      calculator_summary: lead?.calculatorSummary ?? null,
+      lead_context: lead ?? { source: "kontakt-skjema" },
+      page_url: typeof window !== "undefined" ? window.location.href.slice(0, 500) : null,
+      status: "new",
     };
-    // eslint-disable-next-line no-console
-    console.info("[LeadFlow] submit", payload);
+
+    const { error } = await supabase.from("public_leads").insert(row);
+    setSubmitting(false);
+
+    if (error) {
+      // eslint-disable-next-line no-console
+      console.error("[LeadFlow] insert failed", error);
+      toast.error("Beklager — vi fikk ikke sendt forespørselen. Prøv igjen, eller ring oss.");
+      return;
+    }
+
     setSent(true);
-    toast.success("Takk! Vi tar kontakt så snart som mulig.");
+    toast.success("Takk! Vi har mottatt forespørselen og tar kontakt så snart som mulig.");
+    // Tømmer kun feltene — leadContext beholdes bevisst.
+    setName("");
+    setEmail("");
+    setPhone("");
+    setPlace("");
+    setMessage("");
+    setTouchedMessage(false);
   }
 
   return (
@@ -244,13 +274,14 @@ export function ContactSection() {
               <div className="flex flex-col sm:flex-row sm:items-center gap-3">
                 <button
                   type="submit"
-                  className="inline-flex items-center justify-center gap-2 bg-[hsl(var(--mcs-orange))] hover:bg-[hsl(var(--mcs-orange-hover))] text-white font-semibold px-6 py-3 rounded-md"
+                  disabled={submitting}
+                  className="inline-flex items-center justify-center gap-2 bg-[hsl(var(--mcs-orange))] hover:bg-[hsl(var(--mcs-orange-hover))] disabled:opacity-60 text-white font-semibold px-6 py-3 rounded-md"
                 >
-                  Send forespørsel <ArrowRight className="h-4 w-4" />
+                  {submitting ? "Sender …" : "Send forespørsel"} <ArrowRight className="h-4 w-4" />
                 </button>
                 {sent && (
                   <p className="text-sm font-semibold text-[hsl(var(--savings-green))]">
-                    Takk! Vi tar kontakt så snart som mulig.
+                    Takk! Vi har mottatt forespørselen og tar kontakt så snart som mulig.
                   </p>
                 )}
               </div>
