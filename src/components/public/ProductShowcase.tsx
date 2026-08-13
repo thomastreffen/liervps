@@ -775,11 +775,11 @@ function ProductCard({
   item: ProductItem;
   logo: string | null;
 }) {
-  const Icon = BRAND_ICON[item.brand];
+  const photo = item.image ?? productImageFor(item.name);
   return (
     <article className="bg-white rounded-xl border border-[hsl(var(--warm-beige))] p-5 flex flex-col">
       <div className="h-10 flex items-center mb-4">
-        {logo ? (
+        {item.brand && logo ? (
           <img
             src={logo}
             alt={`${item.brand} logo`}
@@ -788,38 +788,44 @@ function ProductCard({
           />
         ) : (
           <span className="text-[13px] font-semibold tracking-[0.14em] uppercase text-[hsl(var(--mcs-navy))]">
-            {item.brand}
+            {item.brand ?? "Løsning"}
           </span>
         )}
       </div>
 
       <div className="rounded-lg overflow-hidden mb-4 border border-[hsl(var(--warm-beige))]">
-        {item.image ? (
+        {photo ? (
           <img
-            src={item.image}
+            src={photo}
             alt={`${item.name} varmepumpe`}
             loading="lazy"
             className="aspect-[4/3] w-full object-contain bg-white"
           />
         ) : (
-          <div className="aspect-[4/3] w-full bg-gradient-to-br from-[hsl(var(--mcs-navy))] to-[hsl(var(--mcs-blue-deep))] flex flex-col items-center justify-center gap-2">
-            <Icon className="h-9 w-9 text-white/85" strokeWidth={1.4} aria-hidden />
-            <span className="text-[11px] uppercase tracking-[0.18em] text-white/70">
-              {item.subtitle}
-            </span>
-          </div>
+          <HeatPumpIllustration
+            variant={illustrationVariant(item.productType)}
+            label={item.productType ?? item.subtitle}
+          />
         )}
       </div>
 
       <h4 className="text-base font-bold text-[hsl(var(--mcs-navy))] leading-tight">
         {item.name}
       </h4>
-      <p className="text-[11px] uppercase tracking-wider text-[hsl(var(--mcs-muted))] mt-1 mb-2">
-        {item.subtitle}
-      </p>
+      <div className="flex flex-wrap items-center gap-2 mt-1.5 mb-2">
+        {item.productType && (
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-[hsl(var(--mcs-orange))] border border-[hsl(var(--mcs-orange))]/30 rounded-full px-2 py-0.5">
+            {item.productType}
+          </span>
+        )}
+        <span className="text-[11px] uppercase tracking-wider text-[hsl(var(--mcs-muted))]">
+          {item.subtitle}
+        </span>
+      </div>
       <p className="text-sm text-[hsl(var(--mcs-muted))] leading-relaxed mb-4">
         {item.description}
       </p>
+
 
       <div className="flex flex-wrap gap-1.5 mb-4">
         {item.tags.map((t) => (
