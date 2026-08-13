@@ -905,14 +905,17 @@ function ProductCard({
 function ProductDetailDialog({
   item,
   logo,
+  segment,
   open,
   onOpenChange,
 }: {
   item: ProductItem | null;
   logo: string | null;
+  segment: Segment;
   open: boolean;
   onOpenChange: (v: boolean) => void;
 }) {
+  const { startLead } = useLead();
   if (!item) return null;
   const photo = item.image ?? productImageFor(item.name);
   return (
@@ -987,20 +990,27 @@ function ProductDetailDialog({
         </p>
 
         <div className="sticky bottom-0 -mx-6 px-6 pt-3 pb-1 bg-white border-t border-[hsl(var(--warm-beige))] sm:static sm:mx-0 sm:px-0 sm:pt-0 sm:pb-0 sm:border-0 flex flex-col sm:flex-row gap-2">
-          <Link
-            to="/#kontakt"
-            onClick={() => onOpenChange(false)}
+          <button
+            type="button"
+            onClick={() => {
+              onOpenChange(false);
+              startLead(leadForItem(item, segment));
+            }}
             className="flex-1 inline-flex items-center justify-center gap-2 bg-[hsl(var(--mcs-orange))] hover:bg-[hsl(var(--mcs-orange-hover))] text-white text-sm font-semibold px-4 py-2.5 rounded-md"
           >
-            Bestill befaring <ArrowRight className="h-4 w-4" />
-          </Link>
-          <Link
-            to="/#kontakt"
-            onClick={() => onOpenChange(false)}
+            {item.brand ? "Få anbefalt riktig modell" : "Få anbefalt riktig løsning"}{" "}
+            <ArrowRight className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              onOpenChange(false);
+              startLead({ ...leadForItem(item, segment), interestType: "befaring" });
+            }}
             className="flex-1 inline-flex items-center justify-center text-sm font-semibold text-[hsl(var(--mcs-navy))] border border-[hsl(var(--mcs-navy))]/20 hover:border-[hsl(var(--mcs-navy))] px-4 py-2.5 rounded-md"
           >
-            Send meg anbefaling
-          </Link>
+            Bestill befaring
+          </button>
         </div>
       </DialogContent>
     </Dialog>
@@ -1172,6 +1182,7 @@ export function ProductShowcase() {
 
         <ProductDetailDialog
           item={detail}
+          segment={segment}
           logo={detail?.brand ? logos[detail.brand] ?? null : null}
           open={detail !== null}
           onOpenChange={(v) => !v && setDetail(null)}
