@@ -12,8 +12,6 @@ import {
   Home as HomeIcon,
   Award,
   Calendar,
-  Phone,
-  Mail,
   Monitor,
 } from "lucide-react";
 import { PublicLayout } from "@/components/public/PublicLayout";
