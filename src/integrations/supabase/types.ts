@@ -7572,6 +7572,8 @@ export type Database = {
           deleted_at: string | null
           deleted_by: string | null
           department_id: string | null
+          drive_folder_id: string | null
+          drive_folder_url: string | null
           email: string | null
           estimated_value: number | null
           expected_close_date: string | null
@@ -7604,6 +7606,8 @@ export type Database = {
           deleted_at?: string | null
           deleted_by?: string | null
           department_id?: string | null
+          drive_folder_id?: string | null
+          drive_folder_url?: string | null
           email?: string | null
           estimated_value?: number | null
           expected_close_date?: string | null
@@ -7636,6 +7640,8 @@ export type Database = {
           deleted_at?: string | null
           deleted_by?: string | null
           department_id?: string | null
+          drive_folder_id?: string | null
+          drive_folder_url?: string | null
           email?: string | null
           estimated_value?: number | null
           expected_close_date?: string | null
@@ -10648,6 +10654,8 @@ export type Database = {
           handled_at: string | null
           handled_by: string | null
           id: string
+          internal_notified_at: string | null
+          internal_notify_status: string | null
           lead_context: Json | null
           lead_source: string | null
           message: string | null
@@ -10670,6 +10678,8 @@ export type Database = {
           handled_at?: string | null
           handled_by?: string | null
           id?: string
+          internal_notified_at?: string | null
+          internal_notify_status?: string | null
           lead_context?: Json | null
           lead_source?: string | null
           message?: string | null
@@ -10692,6 +10702,8 @@ export type Database = {
           handled_at?: string | null
           handled_by?: string | null
           id?: string
+          internal_notified_at?: string | null
+          internal_notify_status?: string | null
           lead_context?: Json | null
           lead_source?: string | null
           message?: string | null
