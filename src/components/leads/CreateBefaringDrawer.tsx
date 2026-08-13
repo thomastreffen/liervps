@@ -165,11 +165,14 @@ export function CreateBefaringDrawer({ open, onOpenChange, lead, onCreated }: Pr
         return;
       }
 
+      const leadLink = `${window.location.origin}/sales/leads/${lead.id}`;
       const description = [
         notes.trim() ? notes.trim() : null,
         context.trim() ? `— Kontekst fra henvendelse —\n${context.trim()}` : null,
         [email, phone].filter(Boolean).length ? `Kontakt: ${[contact, email, phone].filter(Boolean).join(" · ")}` : null,
+        `Åpne henvendelsen i Lier VPS: ${leadLink}`,
       ].filter(Boolean).join("\n\n");
+
 
       // Idempotency: reuse if the same client_request_id already produced an event
       const { data: existing } = await supabase
