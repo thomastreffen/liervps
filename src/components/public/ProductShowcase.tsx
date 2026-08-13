@@ -797,6 +797,7 @@ function ProductCard({
             src={logo}
             alt={`${item.brand} logo`}
             loading="lazy"
+            onError={(e) => { e.currentTarget.style.display = "none"; }}
             className={`w-auto object-contain ${BRAND_LOGO_CLASS[item.brand] ?? "max-h-10 max-w-[180px]"}`}
           />
         ) : (
@@ -907,6 +908,7 @@ function ProductDetailDialog({
               <img
                 src={logo}
                 alt={`${item.brand} logo`}
+                onError={(e) => { e.currentTarget.style.display = "none"; }}
                 className={`w-auto object-contain ${BRAND_LOGO_CLASS[item.brand] ?? "max-h-9 max-w-[170px]"}`}
               />
             ) : (
