@@ -509,7 +509,81 @@ const GROUPS: ProductGroup[] = [
 
   /* ---------------- NÆRING ---------------- */
   {
+    id: "anbefalt-naering",
+    segment: "naering",
+    title: "Anbefalte løsninger",
+    description:
+      "Løsningene vi oftest anbefaler i næringsbygg — fra kontor og butikk til flere soner og vannbåren varme.",
+    items: [
+      {
+        brand: "Panasonic",
+        name: "Panasonic Næring",
+        subtitle: "Næringsserier",
+        productType: "Næring",
+        description:
+          "Serier for næringsbygg, kontor, butikk og tekniske rom med krav til stabil drift.",
+        tags: ["Næring", "Kontor", "Butikk"],
+        bestFor: ["Kontorlokaler", "Butikk", "Publikumsareal"],
+        sourceUrl: PA.naering,
+      },
+      {
+        brand: "Panasonic",
+        name: "Panasonic Luft/vann",
+        subtitle: "Vannbåren varme",
+        productType: "Luft-vann",
+        description:
+          "Luft-vann for bygg med vannbåren varme og høy dekningsgrad gjennom året.",
+        tags: ["Luft-vann", "Vannbåren varme"],
+        bestFor: ["Gulvvarme", "Radiatorer", "Driftsøkonomi"],
+        sourceUrl: PA.vann,
+      },
+      {
+        brand: "Panasonic",
+        name: "Panasonic Multisplitt nordisk",
+        subtitle: "Flere soner",
+        productType: "Multisplitt",
+        description:
+          "Multisplitt tilpasset nordiske forhold, med flere innedeler på samme utedel.",
+        tags: ["Multisplitt", "Nordisk", "Soner"],
+        bestFor: ["Kaldt klima", "Flere rom", "Helårsdrift"],
+        sourceUrl: PA.multiNordic,
+      },
+      {
+        brand: "Toshiba",
+        name: "Toshiba Multisplitt Nordic",
+        subtitle: "Flere soner",
+        productType: "Multisplitt",
+        description:
+          "Multisplitt for nordiske forhold og lokaler med flere rom som skal dekkes.",
+        tags: ["Multisplitt", "Nordisk"],
+        bestFor: ["Cellekontorer", "Møterom", "Stabil drift"],
+        sourceUrl: TO.multiNordic,
+      },
+      {
+        brand: "Mitsubishi Electric",
+        name: "Nordic Multi",
+        subtitle: "Multiløsning",
+        productType: "Multisplitt",
+        description:
+          "Flere innedeler fra samme utedel — plassbesparende og fleksibel soneinndeling.",
+        tags: ["Multisplitt", "Flere innedeler"],
+        bestFor: ["Mindre næringslokaler", "Flere soner", "Jevn temperatur"],
+        sourceUrl: MEE,
+      },
+      {
+        name: "Større lokaler / flere soner",
+        subtitle: "Prosjektert løsning",
+        productType: "Næring",
+        description:
+          "For større bygg setter vi sammen en løsning med riktig kapasitet, soneinndeling og styring — på tvers av merker.",
+        tags: ["Prosjektering", "Kapasitet", "Flere soner"],
+        bestFor: ["Store lokaler", "Høyt varmebehov", "Krav til driftssikkerhet"],
+      },
+    ],
+  },
+  {
     id: "kontor-butikk",
+
     segment: "naering",
     title: "Kontor og butikk",
     description:
