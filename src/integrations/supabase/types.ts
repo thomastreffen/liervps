@@ -7586,6 +7586,7 @@ export type Database = {
           owner_id: string | null
           phone: string | null
           probability: number | null
+          public_lead_id: string | null
           source: string | null
           status: Database["public"]["Enums"]["lead_status"]
           updated_at: string
@@ -7617,6 +7618,7 @@ export type Database = {
           owner_id?: string | null
           phone?: string | null
           probability?: number | null
+          public_lead_id?: string | null
           source?: string | null
           status?: Database["public"]["Enums"]["lead_status"]
           updated_at?: string
@@ -7648,6 +7650,7 @@ export type Database = {
           owner_id?: string | null
           phone?: string | null
           probability?: number | null
+          public_lead_id?: string | null
           source?: string | null
           status?: Database["public"]["Enums"]["lead_status"]
           updated_at?: string
@@ -7672,6 +7675,13 @@ export type Database = {
             columns: ["department_id"]
             isOneToOne: false
             referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leads_public_lead_id_fkey"
+            columns: ["public_lead_id"]
+            isOneToOne: false
+            referencedRelation: "public_leads"
             referencedColumns: ["id"]
           },
         ]
@@ -13654,6 +13664,10 @@ export type Database = {
       order_submission_allows_public_child_insert: {
         Args: { _submission_id: string }
         Returns: boolean
+      }
+      public_lead_to_lead_status: {
+        Args: { _s: string }
+        Returns: Database["public"]["Enums"]["lead_status"]
       }
       rename_submission_attachment: {
         Args: {
