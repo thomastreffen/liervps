@@ -141,6 +141,7 @@ function LeadDetailInner() {
 
   // Inline convert panel
   const [showConvertPanel, setShowConvertPanel] = useState(false);
+  const [befaringOpen, setBefaringOpen] = useState(false);
 
   // Side panel
   const [actionPanelOpen, setActionPanelOpen] = useState(false);
