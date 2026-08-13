@@ -817,9 +817,10 @@ function ProductCard({
         ) : (
           <HeatPumpIllustration
             variant={illustrationVariant(item.productType)}
-            label={item.productType ?? item.subtitle}
+            label={`Illustrasjon · ${item.productType ?? item.subtitle}`}
           />
         )}
+
       </div>
 
       <h4 className="text-base font-bold text-[hsl(var(--mcs-navy))] leading-tight">
