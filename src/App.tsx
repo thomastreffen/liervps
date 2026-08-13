@@ -15,6 +15,7 @@ function RedirectContractToProject() {
 }
 import { AuthProvider } from "@/hooks/useAuth";
 import { HashScroll } from "@/components/public/HashScroll";
+import { LeadProvider } from "@/components/public/LeadContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppLayout } from "@/components/AppLayout";
 import OverviewPage from "./pages/OverviewPage";
@@ -178,6 +179,7 @@ const App = () => (
           <PermissionCompanyBridge>
           <PreviewModeProvider>
           <HashScroll />
+          <LeadProvider>
           <Routes>
             {/* Public marketing site */}
             <Route path="/" element={<PublicHome />} />
@@ -665,6 +667,7 @@ const App = () => (
 
             <Route path="*" element={<NotFound />} />
           </Routes>
+          </LeadProvider>
           </PreviewModeProvider>
           </PermissionCompanyBridge>
           </CompanyProvider>

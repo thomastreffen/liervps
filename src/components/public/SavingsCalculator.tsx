@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useLead } from "./LeadContext";
 import { Link } from "react-router-dom";
 import { ArrowRight, ChevronDown, Info, Leaf, Calculator } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
@@ -97,6 +98,12 @@ type CalcRow = {
 };
 
 type CoverageSolution = "en_innedel" | "to_innedeler" | "flere_soner";
+
+const PUMP_TYPE_LABEL: Record<"luft_luft" | "luft_vann" | "usikker", string> = {
+  luft_luft: "Luft-luft",
+  luft_vann: "Luft-vann",
+  usikker: "Ikke bestemt",
+};
 
 const COVERAGE_SOLUTION_LABEL: Record<CoverageSolution, string> = {
   en_innedel: "Én innedel",
@@ -278,12 +285,15 @@ function ResultPanel({
   installedPrice,
   onInstalledPrice,
   segment,
+  leadInputs,
 }: {
   result: CalcResult;
   installedPrice: string;
   onInstalledPrice: (v: string) => void;
   segment: "bolig" | "naering";
+  leadInputs: { annualConsumptionKwh?: number; electricityPrice: number; heatPumpType: string };
 }) {
+  const { startLead } = useLead();
   const expected = result.rows.find((r) => r.key === "expected")!;
   const low = result.rows.find((r) => r.key === "low")!;
   const high = result.rows.find((r) => r.key === "high")!;
@@ -400,18 +410,35 @@ function ResultPanel({
 
 
       <div className="mt-5 flex flex-col sm:flex-row gap-2.5">
-        <Link
-          to="/bestill-service"
+        <button
+          type="button"
+          onClick={() => startLead({ source: "calculator", segment, interestType: "befaring" })}
           className="flex-1 inline-flex items-center justify-center gap-2 bg-[hsl(var(--mcs-orange))] hover:bg-[hsl(var(--mcs-orange-hover))] text-white font-semibold px-5 py-3 rounded-md text-sm"
         >
           Bestill befaring <ArrowRight className="h-4 w-4" />
-        </Link>
-        <Link
-          to="/kontakt"
+        </button>
+        <button
+          type="button"
+          onClick={() =>
+            startLead({
+              source: "calculator",
+              segment,
+              interestType: "beregning",
+              calculatorSummary: {
+                areaM2: result.area,
+                annualConsumptionKwh: leadInputs.annualConsumptionKwh,
+                electricityPrice: leadInputs.electricityPrice,
+                estimatedSavingsNok: Math.round(expected.savedNok / 100) * 100,
+                estimatedSavingsKwh: Math.round(expected.savedKwh),
+                heatPumpType: leadInputs.heatPumpType,
+                coverageSolution: result.solutionLabel,
+              },
+            })
+          }
           className="flex-1 inline-flex items-center justify-center gap-2 bg-white border border-[hsl(var(--mcs-navy))]/20 hover:border-[hsl(var(--mcs-navy))] text-[hsl(var(--mcs-navy))] font-semibold px-5 py-3 rounded-md text-sm"
         >
           Send meg denne beregningen
-        </Link>
+        </button>
       </div>
       <p className="mt-3 text-center text-xs text-[hsl(var(--mcs-muted))]">
         Bestill befaring for nøyaktig vurdering av ditt bygg.
@@ -687,6 +714,11 @@ function BoligForm({ installedPrice, onInstalledPrice }: { installedPrice: strin
         installedPrice={installedPrice}
         onInstalledPrice={onInstalledPrice}
         segment="bolig"
+        leadInputs={{
+          annualConsumptionKwh: unknownKwh ? undefined : kwh,
+          electricityPrice: price,
+          heatPumpType: PUMP_TYPE_LABEL[pumpType],
+        }}
       />
 
     </div>
@@ -828,6 +860,11 @@ function NaeringForm({ installedPrice, onInstalledPrice }: { installedPrice: str
         installedPrice={installedPrice}
         onInstalledPrice={onInstalledPrice}
         segment="naering"
+        leadInputs={{
+          annualConsumptionKwh: unknownKwh ? undefined : kwh,
+          electricityPrice: price,
+          heatPumpType: PUMP_TYPE_LABEL.luft_luft,
+        }}
       />
 
     </div>

@@ -12,14 +12,14 @@ import {
   Home as HomeIcon,
   Award,
   Calendar,
-  Phone,
-  Mail,
   Monitor,
 } from "lucide-react";
 import { PublicLayout } from "@/components/public/PublicLayout";
 import { SavingsCalculator } from "@/components/public/SavingsCalculator";
 import { ProductShowcase } from "@/components/public/ProductShowcase";
 import { BrandStrip } from "@/components/public/BrandStrip";
+import { ContactSection } from "@/components/public/ContactSection";
+import { useLead } from "@/components/public/LeadContext";
 
 import { PublicSeo, SITE_URL } from "@/components/public/PublicSeo";
 import { useAuth } from "@/hooks/useAuth";
@@ -71,6 +71,7 @@ const WHY = [
 
 export default function Home() {
   const { user } = useAuth();
+  const { startLead } = useLead();
 
   const localBusinessSchema = {
     "@context": "https://schema.org",
@@ -119,12 +120,13 @@ export default function Home() {
                     montering, service og driftssikre løsninger tilpasset norske forhold.
                   </p>
                   <div className="flex flex-col sm:flex-row gap-3">
-                    <Link
-                      to="/#kontakt"
+                    <button
+                      type="button"
+                      onClick={() => startLead({ source: "hero", interestType: "befaring" })}
                       className="bg-[hsl(var(--mcs-orange))] hover:bg-[hsl(var(--mcs-orange-hover))] text-white font-semibold px-7 py-3.5 rounded-lg inline-flex items-center justify-center gap-2 shadow-sm"
                     >
                       Bestill befaring <ArrowRight className="h-4 w-4" />
-                    </Link>
+                    </button>
                     <Link
                       to="/#for-bolig"
                       className="bg-white border border-[hsl(var(--mcs-navy))]/20 text-[hsl(var(--mcs-navy))] font-semibold px-7 py-3.5 rounded-lg text-center hover:border-[hsl(var(--mcs-navy))]"
@@ -178,12 +180,21 @@ export default function Home() {
                   </li>
                 ))}
               </ul>
-              <Link
-                to="/#varmepumper-bolig"
-                className="mt-auto inline-flex items-center justify-center gap-2 bg-[hsl(var(--mcs-orange))] hover:bg-[hsl(var(--mcs-orange-hover))] text-white font-semibold px-5 py-2.5 rounded-md self-start"
-              >
-                Se løsninger for bolig <ArrowRight className="h-4 w-4" />
-              </Link>
+              <div className="mt-auto flex flex-wrap items-center gap-3">
+                <Link
+                  to="/#varmepumper-bolig"
+                  className="inline-flex items-center justify-center gap-2 bg-[hsl(var(--mcs-orange))] hover:bg-[hsl(var(--mcs-orange-hover))] text-white font-semibold px-5 py-2.5 rounded-md"
+                >
+                  Se løsninger for bolig <ArrowRight className="h-4 w-4" />
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => startLead({ source: "bolig", segment: "bolig", interestType: "befaring" })}
+                  className="text-sm font-semibold text-[hsl(var(--mcs-navy))] border border-[hsl(var(--mcs-navy))]/20 hover:border-[hsl(var(--mcs-navy))] px-4 py-2.5 rounded-md"
+                >
+                  Bestill befaring
+                </button>
+              </div>
             </div>
           </div>
           {/* Næring */}
@@ -201,12 +212,21 @@ export default function Home() {
                   </li>
                 ))}
               </ul>
-              <Link
-                to="/#varmepumper-naering"
-                className="mt-auto inline-flex items-center justify-center gap-2 bg-[hsl(var(--mcs-orange))] hover:bg-[hsl(var(--mcs-orange-hover))] text-white font-semibold px-5 py-2.5 rounded-md self-start"
-              >
-                Se løsninger for næring <ArrowRight className="h-4 w-4" />
-              </Link>
+              <div className="mt-auto flex flex-wrap items-center gap-3">
+                <Link
+                  to="/#varmepumper-naering"
+                  className="inline-flex items-center justify-center gap-2 bg-[hsl(var(--mcs-orange))] hover:bg-[hsl(var(--mcs-orange-hover))] text-white font-semibold px-5 py-2.5 rounded-md"
+                >
+                  Se løsninger for næring <ArrowRight className="h-4 w-4" />
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => startLead({ source: "naering", segment: "naering", interestType: "befaring" })}
+                  className="text-sm font-semibold text-[hsl(var(--mcs-navy))] border border-[hsl(var(--mcs-navy))]/20 hover:border-[hsl(var(--mcs-navy))] px-4 py-2.5 rounded-md"
+                >
+                  Bestill befaring
+                </button>
+              </div>
             </div>
             <img src={commercialImg} alt="Moderne kontorlokale med varmepumpe" loading="lazy" width={1280} height={960} className="h-full w-full object-cover min-h-[280px] order-1 sm:order-2" />
           </div>
@@ -279,12 +299,13 @@ export default function Home() {
                 Med serviceavtale får du regelmessig kontroll, rengjøring og prioritet når du trenger
                 hjelp. Perfekt for både boligeiere og bedrifter.
               </p>
-              <Link
-                to="/#kontakt"
+              <button
+                type="button"
+                onClick={() => startLead({ source: "service", interestType: "service" })}
                 className="inline-flex items-center gap-2 bg-[hsl(var(--mcs-orange))] hover:bg-[hsl(var(--mcs-orange-hover))] text-white text-sm font-semibold px-5 py-2.5 rounded-md"
               >
-                Les mer om serviceavtale
-              </Link>
+                Snakk med oss om serviceavtale
+              </button>
             </div>
             <ul className="grid sm:grid-cols-2 gap-2 text-sm">
               {AGREEMENT_BENEFITS.map((b) => (
@@ -322,9 +343,9 @@ export default function Home() {
         </div>
       </section>
 
-      {/* KUNDEPORTAL + FINAL CTA */}
+      {/* KUNDEPORTAL */}
       <section className="bg-[hsl(var(--warm-cream))] pb-16">
-        <div className="mx-auto max-w-[1600px] px-6 sm:px-10 lg:px-12 xl:px-16 2xl:px-24 grid lg:grid-cols-2 gap-5">
+        <div className="mx-auto max-w-[1600px] px-6 sm:px-10 lg:px-12 xl:px-16 2xl:px-24">
           <div id="kundeportal" className="scroll-mt-28 bg-white rounded-2xl border border-[hsl(var(--warm-beige))] p-6 lg:p-7 flex flex-col sm:flex-row gap-5 items-start">
             <div className="h-14 w-14 rounded-lg bg-[hsl(var(--mcs-navy))] text-white flex items-center justify-center shrink-0">
               <Monitor className="h-7 w-7" />
@@ -342,31 +363,12 @@ export default function Home() {
               </Link>
             </div>
           </div>
-
-          <div id="kontakt" className="scroll-mt-28 rounded-2xl bg-[hsl(var(--mcs-orange))] text-white p-6 lg:p-7 flex flex-col justify-center">
-            <h3 className="font-bold text-xl mb-2 text-center">
-              Klar for varmepumpe eller trenger service?
-            </h3>
-            <p className="text-white/90 text-sm mb-5 text-center max-w-md mx-auto">
-              Ta kontakt for uforpliktende befaring. Vi hjelper deg raskt og finner riktig løsning.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-2.5 justify-center">
-              <a
-                href="tel:+4732000000"
-                className="bg-[hsl(var(--mcs-navy))] hover:bg-[hsl(var(--mcs-navy))]/90 text-white font-semibold px-5 py-2.5 rounded-md inline-flex items-center justify-center gap-2"
-              >
-                <Phone className="h-4 w-4" /> Ring 32 00 00 00
-              </a>
-              <a
-                href="mailto:post@liervps.no"
-                className="bg-white/10 border border-white/40 hover:bg-white/20 text-white font-semibold px-5 py-2.5 rounded-md inline-flex items-center justify-center gap-2"
-              >
-                <Mail className="h-4 w-4" /> post@liervps.no
-              </a>
-            </div>
-          </div>
         </div>
       </section>
+
+      {/* KONTAKT / LEAD FLOW */}
+      <ContactSection />
+
     </PublicLayout>
   );
 }
