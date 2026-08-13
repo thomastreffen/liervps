@@ -96,26 +96,48 @@ type CalcRow = {
   scop: number;
 };
 
+type CoverageSolution = "en_innedel" | "to_innedeler" | "flere_soner";
+
+const COVERAGE_SOLUTION_LABEL: Record<CoverageSolution, string> = {
+  en_innedel: "Én innedel",
+  to_innedeler: "To innedeler",
+  flere_soner: "Flere soner / vurderes på befaring",
+};
+
 type CalcResult = {
   heatNeed: number;
   rows: CalcRow[];
   rough: boolean;
   area: number;
   basis: string;
+  solutionLabel?: string;
+  coverageReduced: boolean;
+  airAirLargeArea: boolean;
 };
 
 /**
- * Arealet påvirker hvor stor del av varmebehovet én varmepumpe realistisk kan dekke.
- * Luft-luft distribuerer varme dårlig i store bygg, luft-vann skalerer bedre.
+ * Arealet og valgt dekningsløsning påvirker hvor stor del av varmebehovet
+ * varmepumpen realistisk kan dekke. Luft-luft med én innedel distribuerer
+ * varme dårligere i store boliger, luft-vann skalerer bedre.
  */
 function areaCoverageFactor(
   area: number,
   pumpType: "luft_luft" | "luft_vann" | "usikker",
   refArea: number,
+  solution: CoverageSolution,
 ) {
-  const airAir = clamp(1 - Math.max(0, area - refArea) / refArea * 0.55, 0.45, 1) *
-    (area < refArea * 0.5 ? 0.95 : 1);
-  const airWater = clamp(1 - Math.max(0, area - refArea) / refArea * 0.12, 0.85, 1);
+  const decay = (start: number, perM2: number, min: number, boost = 1) =>
+    clamp(boost - (Math.max(0, area - start) / 100) * perM2, min, boost);
+
+  const airAir =
+    solution === "to_innedeler"
+      ? decay(refArea * 1.4, 0.1, 0.8, 1.15)
+      : solution === "flere_soner"
+        ? decay(refArea * 1.9, 0.06, 1, 1.25)
+        : decay(refArea * 0.8, 0.17, 0.62);
+
+  const airWater = decay(refArea * 1.5, 0.05, 0.88);
+
   if (pumpType === "luft_vann") return airWater;
   if (pumpType === "usikker") return (airAir + airWater) / 2;
   return airAir;
@@ -130,8 +152,11 @@ function computeResult(opts: {
   area: number;
   refArea: number;
   basis: string;
+  solution?: CoverageSolution;
+  showSolution?: boolean;
 }): CalcResult {
-  const areaFactor = areaCoverageFactor(opts.area, opts.pumpType, opts.refArea);
+  const solution: CoverageSolution = opts.solution ?? "en_innedel";
+  const areaFactor = areaCoverageFactor(opts.area, opts.pumpType, opts.refArea, solution);
   const rows = (["low", "expected", "high"] as const).map((key) => {
     const base = SCENARIOS[key];
     let coverage = base.coverage;
@@ -144,8 +169,27 @@ function computeResult(opts: {
     const savedKwh = Math.max(0, replaced - pumpUse);
     return { key, savedKwh, savedNok: savedKwh * opts.price, coverage, scop: base.scop };
   });
-  return { heatNeed: opts.heatNeed, rows, rough: opts.rough, area: opts.area, basis: opts.basis };
+  return {
+    heatNeed: opts.heatNeed,
+    rows,
+    rough: opts.rough,
+    area: opts.area,
+    basis: opts.basis,
+    solutionLabel: opts.showSolution
+      ? opts.pumpType === "luft_vann"
+        ? "Full bolig (luft-vann)"
+        : COVERAGE_SOLUTION_LABEL[solution]
+      : undefined,
+    coverageReduced: areaFactor < 0.99,
+    airAirLargeArea:
+      opts.pumpType !== "luft_vann" && solution === "en_innedel" && opts.area > refLarge(opts.refArea),
+  };
 }
+
+function refLarge(refArea: number) {
+  return refArea * 1.05;
+}
+
 
 
 
@@ -292,18 +336,24 @@ function ResultPanel({
         {[
           ["Antatt varmebehov", `${num(result.heatNeed)} kWh/år`],
           ["Oppvarmet areal", `${num(result.area)} m²`],
+          ...(result.solutionLabel ? [["Dekningsløsning", result.solutionLabel]] : []),
           ["Beregningsgrunnlag", result.basis],
           ["Varmepumpen dekker", `ca. ${Math.round(expected.coverage * 100)} %`],
           ["Årsvarmefaktor brukt", expected.scop.toFixed(1).replace(".", ",")],
           ["Estimert spart strøm", `${num(expected.savedKwh)} kWh/år`],
-
         ].map(([k, v]) => (
           <div key={k} className="flex items-baseline justify-between gap-3">
             <dt className="text-[hsl(var(--mcs-muted))]">{k}</dt>
             <dd className="font-semibold text-[hsl(var(--mcs-navy))]">{v}</dd>
           </div>
         ))}
+        {result.coverageReduced && (
+          <p className="pt-1 text-xs text-[hsl(var(--mcs-muted))]">
+            Dekningsgrad justert ned på grunn av stort areal og valgt løsning.
+          </p>
+        )}
       </dl>
+
 
       <div className="mt-5">
         <label className="block text-[13px] font-semibold text-[hsl(var(--mcs-navy))] mb-1.5">
@@ -407,9 +457,12 @@ function AssumptionsPanel({ rough }: { rough: boolean }) {
             <li>Dekningsgrad luft-vann: 60 / 80 / 90 %.</li>
             <li>Årsvarmefaktor (SCOP): 2,6 (lavt), 3,4 (forventet), 4,0 (høyt).</li>
             <li>
-              Store areal gir lavere dekningsgrad for luft-luft, siden én innedel ikke varmer hele
-              bygget. Luft-vann skalerer bedre.
+              Dekningsløsning påvirker resultatet: én innedel dekker normalt godt opp til ca.
+              80–120 m², og dekningsgraden reduseres gradvis for større boliger. To innedeler gir
+              høyere dekning i større boliger, og flere soner vurderes ut fra planløsning og
+              plassering på befaring. Luft-vann er mindre arealsensitiv.
             </li>
+
             <li>Dagens oppvarmingskilde, standard og takhøyde/isolasjon justerer beregningen.</li>
           </ul>
 
@@ -467,6 +520,7 @@ function BoligForm({ installedPrice, onInstalledPrice }: { installedPrice: strin
   const [pattern, setPattern] = useState<"low" | "normal" | "high">("normal");
   const [standard, setStandard] = useState("normal");
   const [pumpType, setPumpType] = useState<"luft_luft" | "luft_vann" | "usikker">("luft_luft");
+  const [solution, setSolution] = useState<CoverageSolution>("en_innedel");
 
   const result = useMemo(() => {
     const rough = unknownKwh;
@@ -487,8 +541,11 @@ function BoligForm({ installedPrice, onInstalledPrice }: { installedPrice: strin
       area,
       refArea: 130,
       basis: rough ? "Arealbasert estimat" : "Strømforbruk + areal",
+      solution,
+      showSolution: true,
     });
-  }, [type, area, unknownKwh, kwh, source, price, pattern, standard, pumpType]);
+  }, [type, area, unknownKwh, kwh, source, price, pattern, standard, pumpType, solution]);
+
 
 
 
@@ -583,16 +640,45 @@ function BoligForm({ installedPrice, onInstalledPrice }: { installedPrice: strin
           />
         </div>
 
-        <SelectField
-          label="Ønsket varmepumpetype"
-          value={pumpType}
-          onChange={(v) => setPumpType(v as typeof pumpType)}
-          options={[
-            { value: "luft_luft", label: "Luft-luft" },
-            { value: "luft_vann", label: "Luft-vann" },
-            { value: "usikker", label: "Usikker" },
-          ]}
-        />
+        <div className="grid sm:grid-cols-2 gap-5">
+          <SelectField
+            label="Ønsket varmepumpetype"
+            value={pumpType}
+            onChange={(v) => setPumpType(v as typeof pumpType)}
+            options={[
+              { value: "luft_luft", label: "Luft-luft" },
+              { value: "luft_vann", label: "Luft-vann" },
+              { value: "usikker", label: "Usikker" },
+            ]}
+          />
+          {pumpType === "luft_vann" ? (
+            <Field label="Dekningsløsning">
+              <div className="flex h-10 items-center rounded-md border border-[hsl(var(--warm-beige))] bg-[hsl(var(--warm-cream))] px-3 text-sm text-[hsl(var(--mcs-muted))]">
+                Full bolig (vannbåren)
+              </div>
+            </Field>
+          ) : (
+            <SelectField
+              label="Dekningsløsning"
+              value={solution}
+              onChange={(v) => setSolution(v as CoverageSolution)}
+              options={[
+                { value: "en_innedel", label: "Én innedel" },
+                { value: "to_innedeler", label: "To innedeler" },
+                { value: "flere_soner", label: "Flere soner / vurderes på befaring" },
+              ]}
+            />
+          )}
+        </div>
+
+        {result.airAirLargeArea && (
+          <p className="flex gap-2 rounded-lg border border-[hsl(var(--warm-beige))] bg-[hsl(var(--warm-cream))] px-3 py-2.5 text-xs text-[hsl(var(--mcs-muted))]">
+            <Info className="h-4 w-4 shrink-0 text-[hsl(var(--mcs-orange))]" />
+            For større boliger vil én luft-luft-varmepumpe ofte ikke dekke hele varmebehovet. Flere
+            innedeler eller annen løsning kan gi høyere dekning.
+          </p>
+        )}
+
 
         <AssumptionsPanel rough={result.rough} />
       </div>
