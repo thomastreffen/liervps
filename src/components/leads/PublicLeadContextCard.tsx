@@ -27,13 +27,18 @@ interface PublicLead {
 
 const CALC_LABELS: Record<string, string> = {
   estimatedSavings: "Estimert besparelse",
+  estimatedSavingsNok: "Estimert besparelse",
+  estimatedSavingsKwh: "Estimert besparelse (kWh)",
   savingsLow: "Besparelse (lavt)",
   savingsExpected: "Besparelse (forventet)",
   savingsHigh: "Besparelse (høyt)",
   annualKwh: "Årlig strømforbruk",
+  annualConsumptionKwh: "Årlig strømforbruk",
   area: "Areal",
+  areaM2: "Oppvarmet areal",
   electricityPrice: "Strømpris",
   pumpType: "Varmepumpetype",
+  heatPumpType: "Varmepumpetype",
   coverageSolution: "Dekningsløsning",
   standard: "Boligstandard",
   paybackYears: "Nedbetalingstid",
@@ -43,15 +48,18 @@ const CALC_LABELS: Record<string, string> = {
 function formatCalcValue(key: string, value: unknown): string {
   if (value == null) return "—";
   if (typeof value === "number") {
-    if (/price|savings|kr/i.test(key)) return `kr ${value.toLocaleString("nb-NO")}`;
     if (/kwh/i.test(key)) return `${value.toLocaleString("nb-NO")} kWh`;
-    if (/area/i.test(key)) return `${value} m²`;
+    if (/area/i.test(key)) return `${value.toLocaleString("nb-NO")} m²`;
+    if (/electricityprice/i.test(key)) return `${value.toLocaleString("nb-NO")} kr/kWh`;
+    if (/price|savings|kr|nok/i.test(key)) return `kr ${value.toLocaleString("nb-NO")}`;
+    if (/years/i.test(key)) return `${value.toLocaleString("nb-NO")} år`;
     return value.toLocaleString("nb-NO");
   }
   if (typeof value === "boolean") return value ? "Ja" : "Nei";
   if (typeof value === "object") return JSON.stringify(value);
   return String(value);
 }
+
 
 function Row({ label, value }: { label: string; value: string | null }) {
   if (!value) return null;
