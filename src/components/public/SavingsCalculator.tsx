@@ -463,20 +463,25 @@ function BoligForm({ installedPrice, onInstalledPrice }: { installedPrice: strin
   const result = useMemo(() => {
     const rough = unknownKwh;
     const std = STANDARD_FACTOR[standard] ?? 1;
+    const patternFactor = pattern === "low" ? 0.85 : pattern === "high" ? 1.15 : 1;
+    const heatNeedFromArea = area * (BOLIG_KWH_PER_M2[type] ?? 85) * patternFactor * std;
+    const heatNeedFromConsumption = kwh * clamp(BOLIG_HEAT_SHARE[pattern] * std, 0.3, 0.78);
+    // Kjent forbruk er hovedgrunnlag, men areal justerer varmebehovet (70/30)
     const heatNeed = rough
-      ? area *
-        (BOLIG_KWH_PER_M2[type] ?? 85) *
-        (pattern === "low" ? 0.85 : pattern === "high" ? 1.15 : 1) *
-        std
-      : kwh * clamp(BOLIG_HEAT_SHARE[pattern] * std, 0.3, 0.78);
+      ? heatNeedFromArea
+      : 0.7 * heatNeedFromConsumption + 0.3 * heatNeedFromArea;
     return computeResult({
       heatNeed,
       rough,
       price,
       pumpType,
       sourceFactor: HEATING_SOURCE_FACTOR[source] ?? 0.85,
+      area,
+      refArea: 130,
+      basis: rough ? "Arealbasert estimat" : "Strømforbruk + areal",
     });
   }, [type, area, unknownKwh, kwh, source, price, pattern, standard, pumpType]);
+
 
 
   return (
