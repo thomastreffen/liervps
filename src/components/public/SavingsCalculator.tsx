@@ -396,18 +396,23 @@ function AssumptionsPanel({ rough }: { rough: boolean }) {
             </li>
           </ol>
           <p>
-            Oppgir du årlig strømforbruk, bruker vi en oppvarmingsandel på 45–70 % avhengig av
-            bruksmønster, byggtype og standard.{" "}
+            Hvis du oppgir årlig strømforbruk, bruker vi dette som hovedgrunnlag. Oppvarmet areal
+            brukes likevel til å justere varmebehov og hvor mye en varmepumpe realistisk kan dekke.{" "}
             {rough
               ? "Uten forbrukstall anslår vi varmebehovet ut fra areal, byggtype og standard med konservative kWh/m²."
-              : ""}
+              : "Varmebehovet vektes 70 % fra forbruket ditt og 30 % fra areal, byggtype og standard."}
           </p>
           <ul className="list-disc pl-5 space-y-1">
             <li>Dekningsgrad luft-luft: 45 % (lavt), 65 % (forventet), 78 % (høyt).</li>
             <li>Dekningsgrad luft-vann: 60 / 80 / 90 %.</li>
             <li>Årsvarmefaktor (SCOP): 2,6 (lavt), 3,4 (forventet), 4,0 (høyt).</li>
+            <li>
+              Store areal gir lavere dekningsgrad for luft-luft, siden én innedel ikke varmer hele
+              bygget. Luft-vann skalerer bedre.
+            </li>
             <li>Dagens oppvarmingskilde, standard og takhøyde/isolasjon justerer beregningen.</li>
           </ul>
+
 
           <p className="font-mono text-[12px] text-[hsl(var(--mcs-navy))]">
             erstattet strøm = varmebehov × dekningsgrad
