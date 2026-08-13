@@ -1,38 +1,62 @@
-import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
-import { Check, ArrowRight, ExternalLink, Snowflake, Wind, Volume2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Link, useLocation } from "react-router-dom";
+import {
+  Check,
+  ArrowRight,
+  ExternalLink,
+  Snowflake,
+  Wind,
+  Volume2,
+  Building2,
+  Home as HomeIcon,
+} from "lucide-react";
 import { useBrandLogos, BRAND_LOGO_CLASS } from "./useBrandLogos";
 
 export type BrandName = "Mitsubishi Electric" | "Panasonic" | "Toshiba";
+export type Segment = "bolig" | "naering";
 
 export type ProductItem = {
+  brand: BrandName;
+  /** Product/series name or supplier category name. */
   name: string;
   subtitle: string;
   description: string;
   tags: string[];
   bestFor: string[];
-  sourceUrl: string;
+  sourceUrl?: string;
   /** Optional local asset slot — never hotlink supplier images. */
   image?: string | null;
-  featured?: boolean;
 };
 
-export type ProductCategory = {
+export type ProductGroup = {
+  id: string;
+  segment: Segment;
   title: string;
   description: string;
-  sourceUrl: string;
-  products: ProductItem[];
-};
-
-export type ProductBrand = {
-  brand: BrandName;
-  logo?: string | null;
-  intro: string;
-  sourceUrl: string;
-  categories: ProductCategory[];
+  items: ProductItem[];
 };
 
 const MEE = "https://mee.no/privat/produktkategori/luft-luft-varmepumper/";
+const PA = {
+  best: "https://www.varmepumpeservice.no/panasonic-bestselgere",
+  multi: "https://www.varmepumpeservice.no/panasonic-multisplitt-med-innedeler",
+  multiNordic:
+    "https://www.varmepumpeservice.no/panasonic-multisplitt-nordisk-med-innedeler",
+  vann: "https://www.varmepumpeservice.no/panasonic-luft-vann",
+  naering: "https://www.varmepumpeservice.no/panasonic-naering",
+};
+const TO = {
+  best: "https://www.varmepumpeservice.no/toshiba-bestselgere",
+  tekstil: "https://www.varmepumpeservice.no/tekstiltrekk-til-toshiba-signatur",
+  multi: "https://www.varmepumpeservice.no/toshiba-multisplitt",
+  multiNordic: "https://www.varmepumpeservice.no/toshiba-multisplitt-nordic",
+};
+
+const BRAND_SOURCE: Record<BrandName, string> = {
+  "Mitsubishi Electric": MEE,
+  Panasonic: "https://www.varmepumpeservice.no/panasonic?parent=10005",
+  Toshiba: "https://www.varmepumpeservice.no/toshiba?parent=10005",
+};
 
 const BRAND_ICON: Record<BrandName, typeof Wind> = {
   "Mitsubishi Electric": Snowflake,
@@ -40,364 +64,513 @@ const BRAND_ICON: Record<BrandName, typeof Wind> = {
   Toshiba: Volume2,
 };
 
-const BRANDS: ProductBrand[] = [
+const GROUPS: ProductGroup[] = [
+  /* ---------------- BOLIG ---------------- */
   {
-    brand: "Mitsubishi Electric",
-    intro:
-      "Premium driftssikkerhet og høy komfort, med et bredt utvalg modeller for ulike planløsninger.",
-    sourceUrl: MEE,
-    categories: [
+    id: "luft-luft",
+    segment: "bolig",
+    title: "Luft-luft varmepumper",
+    description:
+      "Den vanligste løsningen i norske boliger — god varme i hovedoppholdsrommet og lavere strømforbruk.",
+    items: [
       {
-        title: "Toppmodell",
+        brand: "Mitsubishi Electric",
+        name: "UWANO Pure",
+        subtitle: "Toppmodell",
         description: "Toppmodell for høy komfort og sterk ytelse.",
+        tags: ["Toppmodell", "Premium", "Luft-luft"],
+        bestFor: ["Høy komfort", "Sterk ytelse", "Større oppholdsrom"],
         sourceUrl: MEE,
-        products: [
-          {
-            name: "UWANO Pure",
-            subtitle: "Toppmodell",
-            description: "Toppmodell for høy komfort og sterk ytelse.",
-            tags: ["Toppmodell", "Premium", "Luft-luft"],
-            bestFor: ["Høy komfort", "Sterk ytelse", "Større oppholdsrom"],
-            sourceUrl: MEE,
-            featured: true,
-          },
-        ],
       },
       {
-        title: "Komfortmodell",
-        description: "Komfortmodell for jevn varme og god innekomfort.",
-        sourceUrl: MEE,
-        products: [
-          {
-            name: "GUSSURI",
-            subtitle: "Komfortmodell",
-            description: "Komfortmodell for jevn varme og god innekomfort.",
-            tags: ["Komfort", "Stillegående", "Luft-luft"],
-            bestFor: ["Jevn varme", "Lavt lydnivå", "Soverom og stue"],
-            sourceUrl: MEE,
-            featured: true,
-          },
-        ],
-      },
-      {
-        title: "Bestselger",
+        brand: "Mitsubishi Electric",
+        name: "Kaiteki",
+        subtitle: "Bestselger",
         description: "Populær modell med design, ytelse og flere fargevalg.",
+        tags: ["Bestselger", "Design", "Luft-luft"],
+        bestFor: ["Normal bolig", "Design og fargevalg", "God totalpakke"],
         sourceUrl: MEE,
-        products: [
-          {
-            name: "Kaiteki",
-            subtitle: "Bestselger",
-            description: "Populær modell med design, ytelse og flere fargevalg.",
-            tags: ["Bestselger", "Design", "Luft-luft"],
-            bestFor: ["Normal bolig", "Design og fargevalg", "God totalpakke"],
-            sourceUrl: MEE,
-            featured: true,
-          },
-        ],
       },
       {
-        title: "Kompaktmodell",
-        description: "Kompakt modell der plass og diskret montering er viktig.",
+        brand: "Mitsubishi Electric",
+        name: "GUSSURI",
+        subtitle: "Komfortmodell",
+        description: "Komfortmodell for jevn varme og god innekomfort.",
+        tags: ["Komfort", "Stillegående", "Luft-luft"],
+        bestFor: ["Jevn varme", "Lavt lydnivå", "Stue og soverom"],
         sourceUrl: MEE,
-        products: [
-          {
-            name: "IGURU",
-            subtitle: "Kompaktmodell",
-            description:
-              "Kompakt modell for boliger der plass og diskret montering er viktig.",
-            tags: ["Kompakt", "Diskret", "Luft-luft"],
-            bestFor: ["Begrenset veggplass", "Mindre rom", "Diskret montering"],
-            sourceUrl: MEE,
-          },
-        ],
       },
       {
-        title: "Gulvmodell",
-        description: "Gulvmodell for lav plassering på vegg.",
-        sourceUrl: MEE,
-        products: [
-          {
-            name: "Furo",
-            subtitle: "Gulvmodell",
-            description:
-              "Gulvmodell for plassering lavt på vegg, godt egnet i enkelte planløsninger.",
-            tags: ["Gulvmodell", "Komfort", "Luft-luft"],
-            bestFor: ["Lav plassering", "Eldre bolig", "Spesielle planløsninger"],
-            sourceUrl: MEE,
-          },
-        ],
+        brand: "Panasonic",
+        name: "Panasonic HZ Flagship",
+        subtitle: "Toppserie",
+        description: "Toppserie med nanoe X-teknologi og høy varmeeffekt.",
+        tags: ["Toppmodell", "nanoe X", "Luft-luft"],
+        bestFor: ["Høy komfort", "Moderne bolig", "God varmeeffekt"],
+        sourceUrl: PA.best,
       },
       {
-        title: "Designmodell",
-        description: "Designmodell for interiørtilpasning.",
-        sourceUrl: MEE,
-        products: [
-          {
-            name: "Zen",
-            subtitle: "Designmodell",
-            description:
-              "Designmodell for boliger der utseende og interiørtilpasning betyr mye.",
-            tags: ["Design", "Diskret", "Luft-luft"],
-            bestFor: ["Synlig plassering", "Moderne interiør", "Designbevisste hjem"],
-            sourceUrl: MEE,
-          },
-        ],
+        brand: "Panasonic",
+        name: "Panasonic NZ",
+        subtitle: "Pris og ytelse",
+        description: "Mye av funksjonaliteten fra toppmodellene til lavere prisnivå.",
+        tags: ["Pris/ytelse", "Smart valg", "Luft-luft"],
+        bestFor: ["Normal bolig", "God ytelse", "Fornuftig investering"],
+        sourceUrl: PA.best,
       },
       {
-        title: "Duo-modellen",
-        description: "Løsning for flere soner eller større dekningsbehov.",
-        sourceUrl: MEE,
-        products: [
-          {
-            name: "Duo-modellen",
-            subtitle: "To soner",
-            description: "Løsning for flere soner eller større dekningsbehov.",
-            tags: ["Duo", "Flere soner", "Luft-luft"],
-            bestFor: ["To soner", "Større dekningsbehov", "Åpen planløsning"],
-            sourceUrl: MEE,
-          },
-        ],
+        brand: "Panasonic",
+        name: "Panasonic VZ Heatcharge",
+        subtitle: "Kraftig premiummodell",
+        description: "Kraftig modell med Heatcharge-teknologi for høyt varmebehov.",
+        tags: ["Heatcharge", "Kraftig", "Premium"],
+        bestFor: ["Høyt varmebehov", "Kaldt klima", "Premiumløsning"],
+        sourceUrl: PA.best,
       },
       {
-        title: "Multimodell",
-        description: "Multiløsning for flere innedeler i større boliger.",
-        sourceUrl: MEE,
-        products: [
-          {
-            name: "Nordic Multi",
-            subtitle: "Multimodell",
-            description:
-              "Multiløsning for flere innedeler og bedre dekning i større boliger.",
-            tags: ["Multi", "Flere innedeler", "Større bolig"],
-            bestFor: ["Flere rom", "Større bolig", "Høyere dekningsgrad"],
-            sourceUrl: MEE,
-            featured: true,
-          },
-        ],
+        brand: "Panasonic",
+        name: "Panasonic CZ",
+        subtitle: "Kompakt veggmodell",
+        description:
+          "Kompakt veggmodell med innebygd WiFi, egnet der plassen er begrenset.",
+        tags: ["Kompakt", "WiFi", "Luft-luft"],
+        bestFor: ["Mindre rom", "Begrenset plass", "Enkel styring"],
+        sourceUrl: PA.best,
+      },
+      {
+        brand: "Panasonic",
+        name: "Panasonic LZ",
+        subtitle: "Utskiftingsmodell",
+        description: "Godt egnet som utskiftingspumpe.",
+        tags: ["Utskifting", "Luft-luft"],
+        bestFor: ["Erstatte gammel varmepumpe", "Eksisterende plassering"],
+        sourceUrl: PA.best,
+      },
+      {
+        brand: "Toshiba",
+        name: "Toshiba Daiseikai 10 Kontur",
+        subtitle: "Toppmodell",
+        description: "Toppmodell med kraftig varmeeffekt og avansert teknologi.",
+        tags: ["Toppmodell", "Kraftig", "Luft-luft"],
+        bestFor: ["Høy komfort", "Kaldt klima", "Høyt varmebehov"],
+        sourceUrl: TO.best,
+      },
+      {
+        brand: "Toshiba",
+        name: "Toshiba Polar",
+        subtitle: "For kaldt klima",
+        description: "Kraftig varmepumpe med høy energiklasse, tilpasset kaldt klima.",
+        tags: ["Kaldt klima", "Kraftig", "Luft-luft"],
+        bestFor: ["Nordiske forhold", "Enebolig", "Høy varmeeffekt"],
+        sourceUrl: TO.best,
+      },
+      {
+        brand: "Toshiba",
+        name: "Toshiba Seiya",
+        subtitle: "Nordisk budsjettmodell",
+        description: "Nordisk budsjettmodell med smarte funksjoner.",
+        tags: ["Budsjett", "Nordisk", "Luft-luft"],
+        bestFor: ["Prisbevisste kunder", "Mindre bolig", "Enkel komfort"],
+        sourceUrl: TO.best,
       },
     ],
   },
   {
-    brand: "Panasonic",
-    intro:
-      "Effektiv oppvarming, moderne design og smart styring — fra kompakte modeller til luft-vann og næring.",
-    sourceUrl: "https://www.varmepumpeservice.no/panasonic?parent=10005",
-    categories: [
+    id: "design",
+    segment: "bolig",
+    title: "Designmodeller",
+    description:
+      "For boliger der innedelen er synlig og skal passe inn i interiøret.",
+    items: [
       {
-        title: "Bestselgere Panasonic",
-        description: "De mest solgte seriene for norske boliger.",
-        sourceUrl: "https://www.varmepumpeservice.no/panasonic-bestselgere",
-        products: [
-          {
-            name: "Panasonic HZ Flagship",
-            subtitle: "Toppserie",
-            description: "Toppserie med nanoe X-teknologi og høy varmeeffekt.",
-            tags: ["Toppmodell", "nanoe X", "Luft-luft"],
-            bestFor: ["Høy komfort", "Moderne bolig", "God varmeeffekt"],
-            sourceUrl: "https://www.varmepumpeservice.no/panasonic-bestselgere",
-            featured: true,
-          },
-          {
-            name: "Panasonic NZ",
-            subtitle: "Pris og ytelse",
-            description:
-              "Mye av funksjonaliteten fra toppmodellene til lavere prisnivå.",
-            tags: ["Pris/ytelse", "Luft-luft", "Smart valg"],
-            bestFor: ["Normal bolig", "God ytelse", "Fornuftig investering"],
-            sourceUrl: "https://www.varmepumpeservice.no/panasonic-bestselgere",
-            featured: true,
-          },
-          {
-            name: "Panasonic CZ",
-            subtitle: "Kompakt veggmodell",
-            description:
-              "Kompakt veggmodell med innebygd WiFi, egnet der plassen er begrenset.",
-            tags: ["Kompakt", "WiFi", "Luft-luft"],
-            bestFor: ["Mindre rom", "Begrenset plass", "Enkel styring"],
-            sourceUrl: "https://www.varmepumpeservice.no/panasonic-bestselgere",
-          },
-          {
-            name: "Panasonic Gulvmodell",
-            subtitle: "Gulvmodell",
-            description:
-              "Gulvmodell for alternative plasseringer og boliger der veggplass er utfordrende.",
-            tags: ["Gulvmodell", "Komfort", "Luft-luft"],
-            bestFor: ["Lav plassering", "Eldre bolig", "Spesielle planløsninger"],
-            sourceUrl: "https://www.varmepumpeservice.no/panasonic-bestselgere",
-          },
-          {
-            name: "Panasonic LZ",
-            subtitle: "Utskiftingsmodell",
-            description: "Godt egnet som utskiftingspumpe.",
-            tags: ["Utskifting", "Luft-luft"],
-            bestFor: ["Erstatte gammel varmepumpe", "Eksisterende plassering"],
-            sourceUrl: "https://www.varmepumpeservice.no/panasonic-bestselgere",
-          },
-          {
-            name: "Panasonic VZ Heatcharge",
-            subtitle: "Kraftig premiummodell",
-            description: "Kraftig modell med Heatcharge-teknologi for høyt varmebehov.",
-            tags: ["Heatcharge", "Kraftig", "Premium"],
-            bestFor: ["Høyt varmebehov", "Kaldt klima", "Premiumløsning"],
-            sourceUrl: "https://www.varmepumpeservice.no/panasonic-bestselgere",
-            featured: true,
-          },
-        ],
+        brand: "Mitsubishi Electric",
+        name: "Zen",
+        subtitle: "Designmodell",
+        description:
+          "Designmodell for boliger der utseende og interiørtilpasning betyr mye.",
+        tags: ["Design", "Diskret", "Luft-luft"],
+        bestFor: ["Synlig plassering", "Moderne interiør", "Designbevisste hjem"],
+        sourceUrl: MEE,
       },
       {
-        title: "Multisplitt med innedeler",
+        brand: "Mitsubishi Electric",
+        name: "IGURU",
+        subtitle: "Kompaktmodell",
+        description: "Kompakt modell der plass og diskret montering er viktig.",
+        tags: ["Kompakt", "Diskret", "Luft-luft"],
+        bestFor: ["Begrenset veggplass", "Mindre rom", "Diskret montering"],
+        sourceUrl: MEE,
+      },
+      {
+        brand: "Toshiba",
+        name: "Toshiba Signatur",
+        subtitle: "Designmodell",
+        description:
+          "Designmodell med energismarte funksjoner og utskiftbar tekstilfront.",
+        tags: ["Design", "Tekstilfront", "Luft-luft"],
+        bestFor: ["Designbevisste hjem", "Synlig plassering", "Moderne interiør"],
+        sourceUrl: TO.best,
+      },
+      {
+        brand: "Toshiba",
+        name: "Toshiba Daiseikai 10 Ask",
+        subtitle: "Toppmodell, dempet design",
+        description: "Toppmodell med avansert teknologi og dempet designuttrykk.",
+        tags: ["Toppmodell", "Design", "Komfort"],
+        bestFor: ["Premium komfort", "Design", "Større oppholdsrom"],
+        sourceUrl: TO.best,
+      },
+      {
+        brand: "Toshiba",
+        name: "Tekstiltrekk til Signatur",
+        subtitle: "Tilbehør",
+        description: "Tilbehør for å tilpasse Toshiba Signatur til interiøret.",
+        tags: ["Tilbehør", "Design", "Tekstilfront"],
+        bestFor: ["Interiørtilpasning", "Synlig plassering"],
+        sourceUrl: TO.tekstil,
+      },
+    ],
+  },
+  {
+    id: "gulv",
+    segment: "bolig",
+    title: "Gulvmodeller",
+    description:
+      "Lav plassering på vegg. Ofte et godt valg i eldre boliger og spesielle planløsninger.",
+    items: [
+      {
+        brand: "Mitsubishi Electric",
+        name: "Furo",
+        subtitle: "Gulvmodell",
+        description:
+          "Gulvmodell for plassering lavt på vegg, godt egnet i enkelte planløsninger.",
+        tags: ["Gulvmodell", "Komfort", "Luft-luft"],
+        bestFor: ["Lav plassering", "Eldre bolig", "Spesielle planløsninger"],
+        sourceUrl: MEE,
+      },
+      {
+        brand: "Panasonic",
+        name: "Panasonic Gulvmodell",
+        subtitle: "Gulvmodell",
+        description:
+          "Gulvmodell for alternative plasseringer og boliger der veggplass er utfordrende.",
+        tags: ["Gulvmodell", "Komfort", "Luft-luft"],
+        bestFor: ["Lav plassering", "Begrenset veggplass", "Eldre bolig"],
+        sourceUrl: PA.best,
+      },
+      {
+        brand: "Toshiba",
+        name: "Toshiba Gulvmodell",
+        subtitle: "Gulvmodell",
+        description: "Gulvmodell for alternative plasseringer.",
+        tags: ["Gulvmodell", "Komfort", "Luft-luft"],
+        bestFor: ["Lav plassering", "Spesielle planløsninger", "Eldre bolig"],
+        sourceUrl: TO.best,
+      },
+    ],
+  },
+  {
+    id: "multi-bolig",
+    segment: "bolig",
+    title: "Multisplitt / flere innedeler",
+    description:
+      "Flere innedeler på samme utedel gir varme i flere rom og høyere dekningsgrad i større boliger.",
+    items: [
+      {
+        brand: "Mitsubishi Electric",
+        name: "Nordic Multi",
+        subtitle: "Multimodell",
+        description:
+          "Multiløsning for flere innedeler og bedre dekning i større boliger.",
+        tags: ["Multi", "Flere innedeler", "Større bolig"],
+        bestFor: ["Flere rom", "Større bolig", "Høyere dekningsgrad"],
+        sourceUrl: MEE,
+      },
+      {
+        brand: "Mitsubishi Electric",
+        name: "Duo-modellen",
+        subtitle: "To soner",
+        description: "Løsning for flere soner eller større dekningsbehov.",
+        tags: ["Duo", "Flere soner", "Luft-luft"],
+        bestFor: ["To soner", "Større dekningsbehov", "Åpen planløsning"],
+        sourceUrl: MEE,
+      },
+      {
+        brand: "Panasonic",
+        name: "Multisplitt med innedeler",
+        subtitle: "Kategori",
         description:
           "Flere innedeler koblet til samme utedel for bedre dekning i flere rom.",
-        sourceUrl:
-          "https://www.varmepumpeservice.no/panasonic-multisplitt-med-innedeler",
-        products: [],
+        tags: ["Multisplitt", "Flere innedeler"],
+        bestFor: ["Flere rom", "Bolig over flere plan", "Jevnere varme"],
+        sourceUrl: PA.multi,
       },
       {
-        title: "Multisplitt nordisk med innedeler",
+        brand: "Panasonic",
+        name: "Multisplitt nordisk",
+        subtitle: "Kategori",
         description: "Multisplitt tilpasset nordiske forhold.",
-        sourceUrl:
-          "https://www.varmepumpeservice.no/panasonic-multisplitt-nordisk-med-innedeler",
-        products: [],
+        tags: ["Multisplitt", "Nordisk"],
+        bestFor: ["Kaldt klima", "Flere rom", "Helårsdrift"],
+        sourceUrl: PA.multiNordic,
       },
       {
-        title: "Luft/vann",
-        description:
-          "Luft-vann-løsninger for vannbåren varme og høyere dekningsgrad.",
-        sourceUrl: "https://www.varmepumpeservice.no/panasonic-luft-vann",
-        products: [],
+        brand: "Toshiba",
+        name: "Toshiba Multisplitt",
+        subtitle: "Kategori",
+        description: "Flere innedeler for bedre romdekning.",
+        tags: ["Multisplitt", "Flere innedeler"],
+        bestFor: ["Flere rom", "Større bolig", "Jevnere varme"],
+        sourceUrl: TO.multi,
       },
       {
-        title: "Panasonic Næring",
-        description:
-          "Løsninger for næringsbygg, tekniske rom, kontor og større installasjoner.",
-        sourceUrl: "https://www.varmepumpeservice.no/panasonic-naering",
-        products: [],
+        brand: "Toshiba",
+        name: "Toshiba Multisplitt Nordic",
+        subtitle: "Kategori",
+        description: "Multisplitt tilpasset nordiske forhold.",
+        tags: ["Multisplitt", "Nordisk"],
+        bestFor: ["Kaldt klima", "Flere rom", "Helårsdrift"],
+        sourceUrl: TO.multiNordic,
       },
     ],
   },
   {
-    brand: "Toshiba",
-    intro:
-      "Stillegående og diskret komfort med stabil varme, og et sterkt utvalg tilpasset nordisk klima.",
-    sourceUrl: "https://www.varmepumpeservice.no/toshiba?parent=10005",
-    categories: [
+    id: "luft-vann-bolig",
+    segment: "bolig",
+    title: "Luft-vann",
+    description:
+      "For boliger med vannbåren varme — gulvvarme, radiatorer og ofte høyere dekningsgrad.",
+    items: [
       {
-        title: "Toshiba bestselgere",
-        description: "De mest populære Toshiba-seriene.",
-        sourceUrl: "https://www.varmepumpeservice.no/toshiba-bestselgere",
-        products: [
-          {
-            name: "Toshiba Signatur",
-            subtitle: "Designmodell",
-            description:
-              "Designmodell med energismarte funksjoner og utskiftbar tekstilfront.",
-            tags: ["Design", "Tekstilfront", "Luft-luft"],
-            bestFor: ["Designbevisste hjem", "Synlig plassering", "Moderne interiør"],
-            sourceUrl: "https://www.varmepumpeservice.no/toshiba-bestselgere",
-            featured: true,
-          },
-          {
-            name: "Toshiba Daiseikai 10 Kontur",
-            subtitle: "Toppmodell",
-            description: "Toppmodell med kraftig varmeeffekt og avansert teknologi.",
-            tags: ["Toppmodell", "Kraftig", "Luft-luft"],
-            bestFor: ["Høy komfort", "Kaldt klima", "Høyt varmebehov"],
-            sourceUrl: "https://www.varmepumpeservice.no/toshiba-bestselgere",
-            featured: true,
-          },
-          {
-            name: "Toshiba Daiseikai 10 Ask",
-            subtitle: "Toppmodell, dempet design",
-            description: "Toppmodell med avansert teknologi og dempet designuttrykk.",
-            tags: ["Toppmodell", "Design", "Komfort"],
-            bestFor: ["Premium komfort", "Design", "Større oppholdsrom"],
-            sourceUrl: "https://www.varmepumpeservice.no/toshiba-bestselgere",
-          },
-          {
-            name: "Toshiba Polar",
-            subtitle: "For kaldt klima",
-            description:
-              "Kraftig varmepumpe med høy energiklasse, tilpasset kaldt klima.",
-            tags: ["Kaldt klima", "Kraftig", "Luft-luft"],
-            bestFor: ["Nordiske forhold", "Enebolig", "Høy varmeeffekt"],
-            sourceUrl: "https://www.varmepumpeservice.no/toshiba-bestselgere",
-            featured: true,
-          },
-          {
-            name: "Toshiba Seiya",
-            subtitle: "Nordisk budsjettmodell",
-            description: "Nordisk budsjettmodell med smarte funksjoner.",
-            tags: ["Budsjett", "Nordisk", "Luft-luft"],
-            bestFor: ["Prisbevisste kunder", "Mindre bolig", "Enkel komfort"],
-            sourceUrl: "https://www.varmepumpeservice.no/toshiba-bestselgere",
-          },
-          {
-            name: "Toshiba Gulvmodell",
-            subtitle: "Gulvmodell",
-            description: "Gulvmodell for alternative plasseringer.",
-            tags: ["Gulvmodell", "Komfort", "Luft-luft"],
-            bestFor: ["Lav plassering", "Spesielle planløsninger", "Eldre bolig"],
-            sourceUrl: "https://www.varmepumpeservice.no/toshiba-bestselgere",
-          },
-        ],
+        brand: "Panasonic",
+        name: "Panasonic Luft/vann",
+        subtitle: "Kategori",
+        description:
+          "Luft-vann-løsninger for vannbåren varme og høyere dekningsgrad.",
+        tags: ["Luft-vann", "Vannbåren varme"],
+        bestFor: ["Gulvvarme", "Radiatorer", "Høy dekningsgrad"],
+        sourceUrl: PA.vann,
+      },
+    ],
+  },
+
+  /* ---------------- NÆRING ---------------- */
+  {
+    id: "kontor-butikk",
+    segment: "naering",
+    title: "Kontor og butikk",
+    description:
+      "Jevn temperatur i publikumsareal og kontorlandskap, med lavt lydnivå og enkel styring.",
+    items: [
+      {
+        brand: "Panasonic",
+        name: "Panasonic Næring",
+        subtitle: "Næringsserier",
+        description:
+          "Løsninger for næringsbygg, tekniske rom, kontor og større installasjoner.",
+        tags: ["Næring", "Kontor", "Butikk"],
+        bestFor: ["Kontorlokaler", "Butikk", "Publikumsareal"],
+        sourceUrl: PA.naering,
       },
       {
-        title: "Tekstiltrekk til Toshiba Signatur",
-        description: "Tilbehør for å tilpasse Toshiba Signatur til interiøret.",
-        sourceUrl:
-          "https://www.varmepumpeservice.no/tekstiltrekk-til-toshiba-signatur",
-        products: [],
+        brand: "Toshiba",
+        name: "Toshiba Multisplitt",
+        subtitle: "Flere soner",
+        description: "Flere innedeler for bedre dekning i lokaler med flere rom.",
+        tags: ["Multisplitt", "Flere soner"],
+        bestFor: ["Cellekontorer", "Møterom", "Butikklokaler"],
+        sourceUrl: TO.multi,
       },
       {
-        title: "Toshiba Multisplitt",
-        description: "Flere innedeler for bedre romdekning.",
-        sourceUrl: "https://www.varmepumpeservice.no/toshiba-multisplitt",
-        products: [],
+        brand: "Mitsubishi Electric",
+        name: "Nordic Multi",
+        subtitle: "Multiløsning",
+        description: "Multiløsning for flere innedeler og bedre dekning i flere soner.",
+        tags: ["Multi", "Flere innedeler"],
+        bestFor: ["Mindre næringslokaler", "Flere soner", "Jevn temperatur"],
+        sourceUrl: MEE,
+      },
+    ],
+  },
+  {
+    id: "storre-lokaler",
+    segment: "naering",
+    title: "Større lokaler",
+    description:
+      "Høyt varmebehov, store volumer og krav til stabil drift gjennom hele året.",
+    items: [
+      {
+        brand: "Panasonic",
+        name: "Panasonic Næring",
+        subtitle: "Større installasjoner",
+        description:
+          "Næringsserier for større installasjoner og bygg med høyere kapasitetsbehov.",
+        tags: ["Næring", "Kapasitet", "Drift"],
+        bestFor: ["Store lokaler", "Høyt varmebehov", "Helårsdrift"],
+        sourceUrl: PA.naering,
       },
       {
-        title: "Toshiba Multisplitt Nordic",
+        brand: "Panasonic",
+        name: "Panasonic VZ Heatcharge",
+        subtitle: "Kraftig modell",
+        description: "Kraftig modell med Heatcharge-teknologi for høyt varmebehov.",
+        tags: ["Heatcharge", "Kraftig", "Premium"],
+        bestFor: ["Høyt varmebehov", "Kaldt klima", "Krevende lokaler"],
+        sourceUrl: PA.best,
+      },
+      {
+        brand: "Toshiba",
+        name: "Toshiba Polar",
+        subtitle: "For kaldt klima",
+        description: "Kraftig varmepumpe med høy energiklasse, tilpasset kaldt klima.",
+        tags: ["Kaldt klima", "Kraftig"],
+        bestFor: ["Nordiske forhold", "Høy varmeeffekt", "Stabil drift"],
+        sourceUrl: TO.best,
+      },
+    ],
+  },
+  {
+    id: "tekniske-rom",
+    segment: "naering",
+    title: "Tekniske rom og drift",
+    description:
+      "Kjøling og temperaturkontroll i serverrom, tekniske rom og arealer med jevn varmelast.",
+    items: [
+      {
+        brand: "Panasonic",
+        name: "Panasonic Næring",
+        subtitle: "Tekniske rom",
+        description:
+          "Næringsløsninger for tekniske rom og installasjoner med behov for stabil temperatur.",
+        tags: ["Teknisk rom", "Drift", "Næring"],
+        bestFor: ["Serverrom", "Tekniske rom", "Jevn temperatur"],
+        sourceUrl: PA.naering,
+      },
+      {
+        brand: "Mitsubishi Electric",
+        name: "Nordic Multi",
+        subtitle: "Flere soner",
+        description: "Multiløsning der flere rom skal dekkes fra samme utedel.",
+        tags: ["Multi", "Drift"],
+        bestFor: ["Flere tekniske soner", "Plassbesparende utedel"],
+        sourceUrl: MEE,
+      },
+    ],
+  },
+  {
+    id: "multi-naering",
+    segment: "naering",
+    title: "Multisplitt",
+    description:
+      "Flere innedeler på samme utedel gir fleksibel soneinndeling og færre utedeler på fasaden.",
+    items: [
+      {
+        brand: "Panasonic",
+        name: "Multisplitt med innedeler",
+        subtitle: "Kategori",
+        description:
+          "Flere innedeler koblet til samme utedel for bedre dekning i flere rom.",
+        tags: ["Multisplitt", "Soner"],
+        bestFor: ["Flere rom", "Fleksibel soneinndeling"],
+        sourceUrl: PA.multi,
+      },
+      {
+        brand: "Panasonic",
+        name: "Multisplitt nordisk",
+        subtitle: "Kategori",
         description: "Multisplitt tilpasset nordiske forhold.",
-        sourceUrl: "https://www.varmepumpeservice.no/toshiba-multisplitt-nordic",
-        products: [],
+        tags: ["Multisplitt", "Nordisk"],
+        bestFor: ["Kaldt klima", "Helårsdrift", "Flere soner"],
+        sourceUrl: PA.multiNordic,
+      },
+      {
+        brand: "Toshiba",
+        name: "Toshiba Multisplitt Nordic",
+        subtitle: "Kategori",
+        description: "Multisplitt tilpasset nordiske forhold.",
+        tags: ["Multisplitt", "Nordisk"],
+        bestFor: ["Kaldt klima", "Flere soner", "Stabil drift"],
+        sourceUrl: TO.multiNordic,
+      },
+    ],
+  },
+  {
+    id: "luft-vann-naering",
+    segment: "naering",
+    title: "Luft-vann",
+    description:
+      "For bygg med vannbåren varme, der varmepumpen kan dekke en stor del av oppvarmingsbehovet.",
+    items: [
+      {
+        brand: "Panasonic",
+        name: "Panasonic Luft/vann",
+        subtitle: "Kategori",
+        description:
+          "Luft-vann-løsninger for vannbåren varme og høyere dekningsgrad.",
+        tags: ["Luft-vann", "Vannbåren varme"],
+        bestFor: ["Vannbåren varme", "Høy dekningsgrad", "Driftsøkonomi"],
+        sourceUrl: PA.vann,
+      },
+    ],
+  },
+  {
+    id: "profesjonelle",
+    segment: "naering",
+    title: "Næringsserier og profesjonelle løsninger",
+    description:
+      "Profesjonelle serier for bygg med krav til kapasitet, styring og driftssikkerhet.",
+    items: [
+      {
+        brand: "Panasonic",
+        name: "Panasonic Næring",
+        subtitle: "Profesjonelle serier",
+        description:
+          "Løsninger for næringsbygg, tekniske rom, kontor og større installasjoner.",
+        tags: ["Næring", "Profesjonell", "Drift"],
+        bestFor: ["Næringsbygg", "Driftssikkerhet", "Større installasjoner"],
+        sourceUrl: PA.naering,
       },
     ],
   },
 ];
 
-const RECOMMENDED = "Anbefalte modeller";
+const SEGMENT_LABEL: Record<Segment, string> = { bolig: "Bolig", naering: "Næring" };
+const SEGMENT_ICON: Record<Segment, typeof HomeIcon> = {
+  bolig: HomeIcon,
+  naering: Building2,
+};
+const ALL_BRANDS = "Alle merker";
 
 function ProductCard({
-  product,
-  brand,
+  item,
   logo,
 }: {
-  product: ProductItem;
-  brand: BrandName;
+  item: ProductItem;
   logo: string | null;
 }) {
-  const Icon = BRAND_ICON[brand];
+  const Icon = BRAND_ICON[item.brand];
   return (
     <article className="bg-white rounded-xl border border-[hsl(var(--warm-beige))] p-5 flex flex-col">
       <div className="h-10 flex items-center mb-4">
         {logo ? (
           <img
             src={logo}
-            alt={`${brand} logo`}
+            alt={`${item.brand} logo`}
             loading="lazy"
-            className={`w-auto object-contain ${BRAND_LOGO_CLASS[brand] ?? "max-h-10 max-w-[180px]"}`}
+            className={`w-auto object-contain ${BRAND_LOGO_CLASS[item.brand] ?? "max-h-10 max-w-[180px]"}`}
           />
         ) : (
           <span className="text-[13px] font-semibold tracking-[0.14em] uppercase text-[hsl(var(--mcs-navy))]">
-            {brand}
+            {item.brand}
           </span>
         )}
       </div>
 
       <div className="rounded-lg overflow-hidden mb-4 border border-[hsl(var(--warm-beige))]">
-        {product.image ? (
+        {item.image ? (
           <img
-            src={product.image}
-            alt={`${product.name} varmepumpe`}
+            src={item.image}
+            alt={`${item.name} varmepumpe`}
             loading="lazy"
             className="aspect-[4/3] w-full object-contain bg-white"
           />
@@ -405,24 +578,24 @@ function ProductCard({
           <div className="aspect-[4/3] w-full bg-gradient-to-br from-[hsl(var(--mcs-navy))] to-[hsl(var(--mcs-blue-deep))] flex flex-col items-center justify-center gap-2">
             <Icon className="h-9 w-9 text-white/85" strokeWidth={1.4} aria-hidden />
             <span className="text-[11px] uppercase tracking-[0.18em] text-white/70">
-              {product.subtitle}
+              {item.subtitle}
             </span>
           </div>
         )}
       </div>
 
-      <h3 className="text-base font-bold text-[hsl(var(--mcs-navy))] leading-tight">
-        {product.name}
-      </h3>
+      <h4 className="text-base font-bold text-[hsl(var(--mcs-navy))] leading-tight">
+        {item.name}
+      </h4>
       <p className="text-[11px] uppercase tracking-wider text-[hsl(var(--mcs-muted))] mt-1 mb-2">
-        {product.subtitle}
+        {item.subtitle}
       </p>
       <p className="text-sm text-[hsl(var(--mcs-muted))] leading-relaxed mb-4">
-        {product.description}
+        {item.description}
       </p>
 
       <div className="flex flex-wrap gap-1.5 mb-4">
-        {product.tags.map((t) => (
+        {item.tags.map((t) => (
           <span
             key={t}
             className="text-xs font-medium text-[hsl(var(--mcs-navy))] bg-[hsl(var(--warm-sand))] rounded-full px-2.5 py-1"
@@ -437,7 +610,7 @@ function ProductCard({
           Passer for
         </p>
         <ul className="space-y-1.5">
-          {product.bestFor.map((b) => (
+          {item.bestFor.map((b) => (
             <li key={b} className="flex items-start gap-2 text-sm text-[hsl(var(--mcs-muted))]">
               <Check className="h-4 w-4 mt-0.5 shrink-0 text-[hsl(var(--mcs-orange))]" />
               {b}
@@ -452,169 +625,190 @@ function ProductCard({
       >
         Få anbefalt riktig modell <ArrowRight className="h-4 w-4" />
       </Link>
-      <a
-        href={product.sourceUrl}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="mt-2 inline-flex items-center justify-center gap-1.5 text-xs font-medium text-[hsl(var(--mcs-navy))]/70 hover:text-[hsl(var(--mcs-navy))]"
-      >
-        Les mer hos leverandør <ExternalLink className="h-3.5 w-3.5" />
-      </a>
+      {item.sourceUrl && (
+        <a
+          href={item.sourceUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-2 inline-flex items-center justify-center gap-1.5 text-xs font-medium text-[hsl(var(--mcs-navy))]/70 hover:text-[hsl(var(--mcs-navy))]"
+        >
+          Les mer hos leverandør <ExternalLink className="h-3.5 w-3.5" />
+        </a>
+      )}
     </article>
   );
 }
 
 export function ProductShowcase() {
   const logos = useBrandLogos();
-  const [activeBrand, setActiveBrand] = useState<BrandName>("Mitsubishi Electric");
-  const [activeCategory, setActiveCategory] = useState<string>(RECOMMENDED);
+  const { hash } = useLocation();
+  const [segment, setSegment] = useState<Segment>("bolig");
+  const [groupId, setGroupId] = useState<string>("luft-luft");
+  const [brandFilter, setBrandFilter] = useState<BrandName | typeof ALL_BRANDS>(
+    ALL_BRANDS
+  );
 
-  const brand = BRANDS.find((b) => b.brand === activeBrand)!;
-  const logo = logos[activeBrand] ?? null;
+  // Deep links from the bolig/næring cards: #varmepumper-bolig / #varmepumper-naering
+  useEffect(() => {
+    const id = hash.replace("#", "");
+    if (id === "varmepumper-naering") selectSegment("naering");
+    else if (id === "varmepumper-bolig") selectSegment("bolig");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hash]);
 
-  const visibleProducts = useMemo(() => {
-    if (activeCategory === RECOMMENDED) {
-      return brand.categories.flatMap((c) => c.products.filter((p) => p.featured));
-    }
-    return brand.categories.find((c) => c.title === activeCategory)?.products ?? [];
-  }, [brand, activeCategory]);
+  const groups = useMemo(
+    () => GROUPS.filter((g) => g.segment === segment),
+    [segment]
+  );
 
-  const activeCat =
-    activeCategory === RECOMMENDED
-      ? null
-      : brand.categories.find((c) => c.title === activeCategory) ?? null;
+  const activeGroup = groups.find((g) => g.id === groupId) ?? groups[0];
 
-  const selectBrand = (name: BrandName) => {
-    setActiveBrand(name);
-    setActiveCategory(RECOMMENDED);
-  };
+  const brandsInGroup = useMemo(
+    () => Array.from(new Set(activeGroup.items.map((i) => i.brand))),
+    [activeGroup]
+  );
+
+  const items = activeGroup.items.filter(
+    (i) => brandFilter === ALL_BRANDS || i.brand === brandFilter
+  );
+
+  function selectSegment(next: Segment) {
+    setSegment(next);
+    const first = GROUPS.find((g) => g.segment === next)!;
+    setGroupId(first.id);
+    setBrandFilter(ALL_BRANDS);
+  }
 
   return (
     <section id="varmepumper" className="bg-[hsl(var(--warm-cream))] pb-16 scroll-mt-28">
+      {/* Deep-link anchors used by the bolig/næring entry cards */}
+      <span id="varmepumper-bolig" className="block scroll-mt-28" aria-hidden />
+      <span id="varmepumper-naering" className="block scroll-mt-28" aria-hidden />
+
       <div className="mx-auto max-w-[1600px] px-6 sm:px-10 lg:px-12 xl:px-16 2xl:px-24">
         <div className="max-w-2xl mb-7">
           <h2 className="text-2xl lg:text-3xl font-bold text-[hsl(var(--mcs-navy))] leading-tight">
-            Kvalitetsmerker vi anbefaler
+            Løsninger og kvalitetsmerker vi anbefaler
           </h2>
           <div className="h-0.5 w-10 bg-[hsl(var(--mcs-orange))] mt-3 mb-4" />
           <p className="text-sm text-[hsl(var(--mcs-muted))] leading-relaxed">
-            Vi fører og anbefaler flere serier fra Mitsubishi Electric, Panasonic og Toshiba.
-            Riktig modell avhenger av bolig, planløsning, plassering, lydkrav og ønsket komfort.
+            Start med hva bygget ditt trenger. Vi hjelper deg å finne riktig løsning for bolig,
+            næring, flere rom eller vannbåren varme.
           </p>
         </div>
 
-        {/* Brand tabs */}
+        {/* Primary segment control */}
         <div
           role="tablist"
-          aria-label="Merker"
-          className="inline-flex flex-wrap gap-1 bg-white border border-[hsl(var(--warm-beige))] rounded-full p-1 mb-5"
+          aria-label="Bolig eller næring"
+          className="inline-flex gap-1 bg-white border border-[hsl(var(--warm-beige))] rounded-full p-1 mb-5"
         >
-          {BRANDS.map((b) => {
-            const active = b.brand === activeBrand;
+          {(["bolig", "naering"] as Segment[]).map((s) => {
+            const active = s === segment;
+            const Icon = SEGMENT_ICON[s];
             return (
               <button
-                key={b.brand}
+                key={s}
                 role="tab"
                 aria-selected={active}
-                onClick={() => selectBrand(b.brand)}
-                className={`text-sm font-semibold px-4 py-2 rounded-full transition-colors ${
+                onClick={() => selectSegment(s)}
+                className={`inline-flex items-center gap-2 text-sm font-semibold px-5 py-2 rounded-full transition-colors ${
                   active
                     ? "bg-[hsl(var(--mcs-navy))] text-white"
                     : "text-[hsl(var(--mcs-navy))] hover:bg-[hsl(var(--warm-sand))]"
                 }`}
               >
-                {b.brand}
+                <Icon className="h-4 w-4" /> {SEGMENT_LABEL[s]}
               </button>
             );
           })}
         </div>
 
-        <p className="text-sm text-[hsl(var(--mcs-navy))] font-medium mb-4 max-w-2xl">
-          {brand.intro}
-        </p>
-
-        {/* Category pills */}
-        <div className="flex flex-wrap gap-2 mb-6">
-          {[RECOMMENDED, ...brand.categories.map((c) => c.title)].map((title) => {
-            const active = title === activeCategory;
+        {/* Group pills */}
+        <div className="flex flex-wrap gap-2 mb-5">
+          {groups.map((g) => {
+            const active = g.id === activeGroup.id;
             return (
               <button
-                key={title}
-                onClick={() => setActiveCategory(title)}
+                key={g.id}
+                onClick={() => {
+                  setGroupId(g.id);
+                  setBrandFilter(ALL_BRANDS);
+                }}
                 className={`text-xs font-medium px-3 py-1.5 rounded-full border transition-colors ${
                   active
                     ? "bg-[hsl(var(--mcs-orange))] text-white border-transparent"
                     : "bg-white text-[hsl(var(--mcs-navy))] border-[hsl(var(--warm-beige))] hover:border-[hsl(var(--mcs-navy))]/30"
                 }`}
               >
-                {title}
+                {g.title}
               </button>
             );
           })}
         </div>
 
-        {activeCat && (
-          <div className="mb-5 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-            <p className="text-sm text-[hsl(var(--mcs-muted))]">{activeCat.description}</p>
-            <a
-              href={activeCat.sourceUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-xs font-semibold text-[hsl(var(--mcs-navy))] hover:underline"
-            >
-              Se kategorien hos leverandør <ExternalLink className="h-3.5 w-3.5" />
-            </a>
+        <div className="mb-5">
+          <h3 className="text-lg font-bold text-[hsl(var(--mcs-navy))]">
+            {activeGroup.title}
+          </h3>
+          <p className="text-sm text-[hsl(var(--mcs-muted))] max-w-2xl mt-1">
+            {activeGroup.description}
+          </p>
+        </div>
+
+        {/* Brand filter */}
+        {brandsInGroup.length > 1 && (
+          <div className="flex flex-wrap items-center gap-2 mb-6">
+            <span className="text-[11px] uppercase tracking-wider text-[hsl(var(--mcs-muted))]">
+              Merke
+            </span>
+            {[ALL_BRANDS, ...brandsInGroup].map((b) => {
+              const active = b === brandFilter;
+              return (
+                <button
+                  key={b}
+                  onClick={() => setBrandFilter(b as BrandName | typeof ALL_BRANDS)}
+                  className={`text-xs font-medium px-3 py-1.5 rounded-full border transition-colors ${
+                    active
+                      ? "bg-[hsl(var(--mcs-navy))] text-white border-transparent"
+                      : "bg-white text-[hsl(var(--mcs-navy))] border-[hsl(var(--warm-beige))] hover:border-[hsl(var(--mcs-navy))]/30"
+                  }`}
+                >
+                  {b}
+                </button>
+              );
+            })}
           </div>
         )}
 
-        {visibleProducts.length > 0 ? (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {visibleProducts.map((p) => (
-              <ProductCard key={p.name} product={p} brand={brand.brand} logo={logo} />
-            ))}
-          </div>
-        ) : (
-          <div className="bg-white rounded-xl border border-[hsl(var(--warm-beige))] p-6 max-w-2xl">
-            <p className="text-sm text-[hsl(var(--mcs-navy))] font-medium mb-2">
-              {activeCat?.title}
-            </p>
-            <p className="text-sm text-[hsl(var(--mcs-muted))] mb-4">
-              {activeCat?.description} Vi setter sammen riktig løsning etter befaring.
-            </p>
-            <div className="flex flex-wrap items-center gap-3">
-              <Link
-                to="/#kontakt"
-                className="inline-flex items-center gap-2 bg-[hsl(var(--mcs-orange))] hover:bg-[hsl(var(--mcs-orange-hover))] text-white text-sm font-semibold px-4 py-2.5 rounded-md"
-              >
-                Få anbefalt riktig modell <ArrowRight className="h-4 w-4" />
-              </Link>
-              {activeCat && (
-                <a
-                  href={activeCat.sourceUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 text-sm font-medium text-[hsl(var(--mcs-navy))]/70 hover:text-[hsl(var(--mcs-navy))]"
-                >
-                  Les mer hos leverandør <ExternalLink className="h-3.5 w-3.5" />
-                </a>
-              )}
-            </div>
-          </div>
-        )}
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {items.map((item) => (
+            <ProductCard
+              key={`${item.brand}-${item.name}`}
+              item={item}
+              logo={logos[item.brand] ?? null}
+            />
+          ))}
+        </div>
 
         <div className="mt-6 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
           <p className="text-xs text-[hsl(var(--mcs-muted))]">
-            Utvalget over er ment som veiledning. Endelig modell anbefales etter befaring, og
-            modellutvalg kan variere med tilgjengelighet og behov.
+            Utvalget under er veiledende. Endelig modell og løsning anbefales etter befaring,
+            planløsning og varmebehov. Modellutvalg kan variere.
           </p>
-          <a
-            href={brand.sourceUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 text-xs font-semibold text-[hsl(var(--mcs-navy))] hover:underline shrink-0"
-          >
-            Se hele utvalget fra {brand.brand} <ExternalLink className="h-3.5 w-3.5" />
-          </a>
+          <div className="flex flex-wrap gap-3 shrink-0">
+            {(Object.keys(BRAND_SOURCE) as BrandName[]).map((b) => (
+              <a
+                key={b}
+                href={BRAND_SOURCE[b]}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-[hsl(var(--mcs-navy))] hover:underline"
+              >
+                {b} <ExternalLink className="h-3.5 w-3.5" />
+              </a>
+            ))}
+          </div>
         </div>
       </div>
     </section>
