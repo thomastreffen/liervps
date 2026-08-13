@@ -778,10 +778,13 @@ const ALL_BRANDS = "Alle merker";
 function ProductCard({
   item,
   logo,
+  onOpen,
 }: {
   item: ProductItem;
   logo: string | null;
+  onOpen: () => void;
 }) {
+
   const photo = item.image ?? productImageFor(item.name);
   return (
     <article className="bg-white rounded-xl border border-[hsl(var(--warm-beige))] p-5 flex flex-col">
