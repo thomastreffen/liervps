@@ -358,18 +358,28 @@ function AssumptionsPanel({ rough }: { rough: boolean }) {
         <ChevronDown className={`h-4 w-4 transition-transform ${open ? "rotate-180" : ""}`} />
       </CollapsibleTrigger>
       <CollapsibleContent>
-        <div className="rounded-xl border border-t-0 border-[hsl(var(--warm-beige))] bg-white px-4 py-4 text-[13px] leading-relaxed text-[hsl(var(--mcs-muted))] space-y-2">
+        <div className="rounded-xl border border-t-0 border-[hsl(var(--warm-beige))] bg-white px-4 py-4 text-[13px] leading-relaxed text-[hsl(var(--mcs-muted))] space-y-3">
+          <ol className="list-decimal pl-5 space-y-1.5 text-[hsl(var(--mcs-navy))]">
+            <li>Vi estimerer hvor mye av strømforbruket som går til oppvarming.</li>
+            <li>Deretter beregner vi hvor stor del varmepumpen realistisk kan dekke.</li>
+            <li>
+              Besparelsen kommer av at varmepumpen leverer flere kWh varme per kWh strøm den bruker.
+            </li>
+          </ol>
           <p>
-            Vi anslår først hvor mye energi som går til oppvarming. Oppgir du årlig strømforbruk,
-            bruker vi en oppvarmingsandel på 45–70 % avhengig av bruksmønster og byggtype.{" "}
-            {rough ? "Uten forbrukstall anslår vi varmebehovet ut fra areal og byggtype med konservative kWh/m²." : ""}
+            Oppgir du årlig strømforbruk, bruker vi en oppvarmingsandel på 45–70 % avhengig av
+            bruksmønster, byggtype og standard.{" "}
+            {rough
+              ? "Uten forbrukstall anslår vi varmebehovet ut fra areal, byggtype og standard med konservative kWh/m²."
+              : ""}
           </p>
           <ul className="list-disc pl-5 space-y-1">
             <li>Dekningsgrad luft-luft: 45 % (lavt), 65 % (forventet), 78 % (høyt).</li>
             <li>Dekningsgrad luft-vann: 60 / 80 / 90 %.</li>
             <li>Årsvarmefaktor (SCOP): 2,6 (lavt), 3,4 (forventet), 4,0 (høyt).</li>
-            <li>Dagens oppvarmingskilde og takhøyde/isolasjon justerer dekningsgraden.</li>
+            <li>Dagens oppvarmingskilde, standard og takhøyde/isolasjon justerer beregningen.</li>
           </ul>
+
           <p className="font-mono text-[12px] text-[hsl(var(--mcs-navy))]">
             erstattet strøm = varmebehov × dekningsgrad
             <br />
