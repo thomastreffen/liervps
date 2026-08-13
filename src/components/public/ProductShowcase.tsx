@@ -69,11 +69,14 @@ const TO = {
   multiNordic: "https://www.varmepumpeservice.no/toshiba-multisplitt-nordic",
 };
 
+/** Internal reference only — never rendered or linked publicly. */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const BRAND_SOURCE: Record<BrandName, string> = {
   "Mitsubishi Electric": MEE,
   Panasonic: "https://www.varmepumpeservice.no/panasonic?parent=10005",
   Toshiba: "https://www.varmepumpeservice.no/toshiba?parent=10005",
 };
+
 
 function illustrationVariant(type?: ProductType) {
   switch (type) {
