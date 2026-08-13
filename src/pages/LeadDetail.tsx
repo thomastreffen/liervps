@@ -21,6 +21,7 @@ import { NextStepCard } from "@/components/activity/NextStepCard";
 import { LeadConvertPanel } from "@/components/activity/LeadConvertPanel";
 import { CreateOrderFromLeadCard } from "@/components/leads/CreateOrderFromLeadCard";
 import { PublicLeadContextCard } from "@/components/leads/PublicLeadContextCard";
+import { CreateBefaringDrawer } from "@/components/leads/CreateBefaringDrawer";
 import { FlowTrail } from "@/components/flow/FlowTrail";
 import { useFlowChain } from "@/components/flow/useFlowChain";
 import { ContractListSection } from "@/components/contracts/ContractListSection";
@@ -140,6 +141,7 @@ function LeadDetailInner() {
 
   // Inline convert panel
   const [showConvertPanel, setShowConvertPanel] = useState(false);
+  const [befaringOpen, setBefaringOpen] = useState(false);
 
   // Side panel
   const [actionPanelOpen, setActionPanelOpen] = useState(false);
@@ -457,6 +459,9 @@ function LeadDetailInner() {
               <span className="text-sm text-muted-foreground">Opprettet {format(new Date(lead.created_at), "d. MMM yyyy", { locale: nb })}</span>
             </div>
           </div>
+          <Button onClick={() => setBefaringOpen(true)} className="mt-1 gap-1.5 rounded-xl shrink-0">
+            <CalendarPlus className="h-4 w-4" /> Lag befaring
+          </Button>
         </div>
 
         {/* ── Flyt-kjede (Postkontor → Lead → Bestilling → Oppdrag) ── */}
@@ -788,6 +793,24 @@ function LeadDetailInner() {
         participantEmails={participants.filter(p => p.user_email).map(p => p.user_email!)}
         onActivityCreated={refreshAll}
       />
+
+      {/* ── Lag befaring ── */}
+      <CreateBefaringDrawer
+        open={befaringOpen}
+        onOpenChange={setBefaringOpen}
+        lead={{
+          id: lead.id,
+          company_name: lead.company_name,
+          contact_name: lead.contact_name,
+          email: lead.email,
+          phone: lead.phone,
+          notes: lead.notes,
+          company_id: lead.company_id,
+          public_lead_id: lead.public_lead_id,
+        }}
+        onCreated={() => { fetchLead(); fetchActivities(); fetchCalendarLinks(); }}
+      />
+
 
       {/* ── Only confirmation dialogs remain ── */}
       <Dialog open={addParticipantOpen} onOpenChange={setAddParticipantOpen}>
