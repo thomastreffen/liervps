@@ -75,13 +75,28 @@ const ENVELOPE_FACTOR: Record<string, number> = {
   isolert: 0.85,
 };
 
+// Boligens standard påvirker varmebehovet
+const STANDARD_FACTOR: Record<string, number> = {
+  eldre: 1.2,
+  normal: 1,
+  nyere: 0.82,
+};
+
 function clamp(v: number, min: number, max: number) {
   return Math.max(min, Math.min(max, v));
 }
 
+type CalcRow = {
+  key: "low" | "expected" | "high";
+  savedKwh: number;
+  savedNok: number;
+  coverage: number;
+  scop: number;
+};
+
 type CalcResult = {
   heatNeed: number;
-  rows: { key: "low" | "expected" | "high"; savedKwh: number; savedNok: number }[];
+  rows: CalcRow[];
   rough: boolean;
 };
 
@@ -102,10 +117,11 @@ function computeResult(opts: {
     const replaced = opts.heatNeed * coverage;
     const pumpUse = replaced / base.scop;
     const savedKwh = Math.max(0, replaced - pumpUse);
-    return { key, savedKwh, savedNok: savedKwh * opts.price };
+    return { key, savedKwh, savedNok: savedKwh * opts.price, coverage, scop: base.scop };
   });
   return { heatNeed: opts.heatNeed, rows, rough: opts.rough };
 }
+
 
 /* ---------------- Presentasjonshjelpere ---------------- */
 
