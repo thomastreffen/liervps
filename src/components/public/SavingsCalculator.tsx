@@ -207,17 +207,21 @@ function ResultPanel({
   result,
   installedPrice,
   onInstalledPrice,
+  segment,
 }: {
   result: CalcResult;
   installedPrice: string;
   onInstalledPrice: (v: string) => void;
+  segment: "bolig" | "naering";
 }) {
   const expected = result.rows.find((r) => r.key === "expected")!;
   const low = result.rows.find((r) => r.key === "low")!;
   const high = result.rows.find((r) => r.key === "high")!;
   const priceNum = Number(installedPrice.replace(/\s/g, ""));
-  const payback =
-    priceNum > 0 && expected.savedNok > 0 ? priceNum / expected.savedNok : null;
+  const payback = priceNum > 0 && expected.savedNok > 0 ? priceNum / expected.savedNok : null;
+  const paybackFast = priceNum > 0 && high.savedNok > 0 ? priceNum / high.savedNok : null;
+  const paybackSlow = priceNum > 0 && low.savedNok > 0 ? priceNum / low.savedNok : null;
+  const yr = (v: number) => v.toFixed(1).replace(".", ",");
 
   return (
     <div className="bg-white rounded-2xl border border-[hsl(var(--warm-beige))] shadow-sm p-6 lg:p-7 lg:sticky lg:top-28">
@@ -231,6 +235,11 @@ function ResultPanel({
         <div className="text-xs text-[hsl(var(--savings-green))] mt-1 inline-flex items-center gap-1">
           ca. {num(expected.savedKwh)} kWh spart i året <Leaf className="h-3 w-3" />
         </div>
+        {result.rough && (
+          <div className="mt-2 inline-block rounded-full bg-white/70 px-3 py-1 text-[11px] font-semibold text-[hsl(var(--mcs-navy))]">
+            Grovere estimat basert på areal
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-3 gap-2 mt-4">
@@ -252,6 +261,21 @@ function ResultPanel({
         ))}
       </div>
 
+      {/* Slik ser regnestykket ut (forventet) */}
+      <dl className="mt-4 rounded-xl border border-[hsl(var(--warm-beige))] bg-[hsl(var(--warm-cream))] px-4 py-3 text-[13px] space-y-1.5">
+        {[
+          ["Antatt varmebehov", `${num(result.heatNeed)} kWh/år`],
+          ["Varmepumpen dekker", `${Math.round(expected.coverage * 100)} %`],
+          ["Årsvarmefaktor brukt", expected.scop.toFixed(1).replace(".", ",")],
+          ["Estimert spart strøm", `${num(expected.savedKwh)} kWh/år`],
+        ].map(([k, v]) => (
+          <div key={k} className="flex items-baseline justify-between gap-3">
+            <dt className="text-[hsl(var(--mcs-muted))]">{k}</dt>
+            <dd className="font-semibold text-[hsl(var(--mcs-navy))]">{v}</dd>
+          </div>
+        ))}
+      </dl>
+
       <div className="mt-5">
         <label className="block text-[13px] font-semibold text-[hsl(var(--mcs-navy))] mb-1.5">
           Forventet pris ferdig montert (valgfritt)
@@ -267,20 +291,34 @@ function ResultPanel({
           <span className="text-sm text-[hsl(var(--mcs-muted))]">kr</span>
         </div>
         {payback !== null && (
-          <p className="mt-2 text-sm text-[hsl(var(--mcs-navy))]">
-            Estimert nedbetalingstid:{" "}
-            <strong>{payback.toFixed(1).replace(".", ",")} år</strong> ved forventet besparelse.
-          </p>
+          <div className="mt-2 text-sm text-[hsl(var(--mcs-navy))]">
+            <p>
+              Estimert tilbakebetalingstid: <strong>ca. {yr(payback)} år</strong>
+            </p>
+            {paybackFast !== null && paybackSlow !== null && (
+              <p className="text-xs text-[hsl(var(--mcs-muted))] mt-0.5">
+                Typisk intervall: {Math.round(paybackFast)}–{Math.round(paybackSlow)} år
+              </p>
+            )}
+          </div>
         )}
       </div>
 
       {result.rough && (
         <p className="mt-4 flex gap-2 text-xs text-[hsl(var(--mcs-muted))]">
           <Info className="h-4 w-4 shrink-0 text-[hsl(var(--mcs-orange))]" />
-          Du har ikke oppgitt årlig strømforbruk, så varmebehovet er anslått ut fra areal og byggtype.
-          Dette gir et grovere estimat.
+          Du har ikke oppgitt årlig strømforbruk, så varmebehovet er anslått ut fra areal, byggtype og
+          standard. Dette gir et grovere estimat.
         </p>
       )}
+
+      {segment === "naering" && (
+        <p className="mt-3 flex gap-2 text-xs text-[hsl(var(--mcs-muted))]">
+          <Info className="h-4 w-4 shrink-0 text-[hsl(var(--mcs-orange))]" />
+          Næringslokaler varierer mye. Resultatet bør brukes som indikasjon før befaring.
+        </p>
+      )}
+
 
       <div className="mt-5 flex flex-col sm:flex-row gap-2.5">
         <Link
