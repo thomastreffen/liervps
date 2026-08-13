@@ -897,13 +897,19 @@ export function ProductShowcase() {
   const activeGroup = groups.find((g) => g.id === groupId) ?? groups[0];
 
   const brandsInGroup = useMemo(
-    () => Array.from(new Set(activeGroup.items.map((i) => i.brand))),
+    () =>
+      Array.from(
+        new Set(activeGroup.items.map((i) => i.brand).filter(Boolean) as BrandName[])
+      ),
     [activeGroup]
   );
 
-  const items = activeGroup.items.filter(
+  const filtered = activeGroup.items.filter(
     (i) => brandFilter === ALL_BRANDS || i.brand === brandFilter
   );
+  // Never show an empty product area — fall back to the full group.
+  const items = filtered.length > 0 ? filtered : activeGroup.items;
+
 
   function selectSegment(next: Segment) {
     setSegment(next);
