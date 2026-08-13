@@ -19,6 +19,7 @@ import {
 import { PublicLayout } from "@/components/public/PublicLayout";
 import { SavingsCalculator } from "@/components/public/SavingsCalculator";
 import { BrandShowcase } from "@/components/public/BrandShowcase";
+import { BrandStrip } from "@/components/public/BrandStrip";
 
 import { PublicSeo, SITE_URL } from "@/components/public/PublicSeo";
 import { useAuth } from "@/hooks/useAuth";
