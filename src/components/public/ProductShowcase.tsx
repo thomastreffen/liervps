@@ -68,16 +68,159 @@ const BRAND_SOURCE: Record<BrandName, string> = {
   Toshiba: "https://www.varmepumpeservice.no/toshiba?parent=10005",
 };
 
-const BRAND_ICON: Record<BrandName, typeof Wind> = {
-  "Mitsubishi Electric": Snowflake,
-  Panasonic: Wind,
-  Toshiba: Volume2,
-};
+function illustrationVariant(type?: ProductType) {
+  switch (type) {
+    case "Gulvmodell":
+      return "floor" as const;
+    case "Multisplitt":
+      return "multi" as const;
+    case "Luft-vann":
+      return "water" as const;
+    case "Næring":
+      return "commercial" as const;
+    default:
+      return "wall" as const;
+  }
+}
 
 const GROUPS: ProductGroup[] = [
   /* ---------------- BOLIG ---------------- */
   {
+    id: "anbefalt-bolig",
+    segment: "bolig",
+    title: "Anbefalte modeller",
+    description:
+      "Modellene vi oftest anbefaler i norske boliger — fra Mitsubishi Electric, Panasonic og Toshiba.",
+    items: [
+      {
+        brand: "Mitsubishi Electric",
+        name: "UWANO Pure",
+        subtitle: "Toppmodell",
+        productType: "Luft-luft",
+        description: "Toppmodell for høy komfort og sterk ytelse gjennom hele året.",
+        tags: ["Toppmodell", "Premium", "Luft-luft"],
+        bestFor: ["Høy komfort", "Sterk ytelse", "Større oppholdsrom"],
+        sourceUrl: MEE,
+      },
+      {
+        brand: "Mitsubishi Electric",
+        name: "Kaiteki",
+        subtitle: "Bestselger",
+        productType: "Luft-luft",
+        description: "Populær modell med design, ytelse og flere fargevalg.",
+        tags: ["Bestselger", "Design", "Luft-luft"],
+        bestFor: ["Normal bolig", "Design og fargevalg", "God totalpakke"],
+        sourceUrl: MEE,
+      },
+      {
+        brand: "Mitsubishi Electric",
+        name: "GUSSURI",
+        subtitle: "Komfortmodell",
+        productType: "Luft-luft",
+        description: "Komfortmodell for jevn varme og lavt lydnivå.",
+        tags: ["Komfort", "Stillegående", "Luft-luft"],
+        bestFor: ["Jevn varme", "Lavt lydnivå", "Stue og soverom"],
+        sourceUrl: MEE,
+      },
+      {
+        brand: "Mitsubishi Electric",
+        name: "Nordic Multi",
+        subtitle: "Multiløsning",
+        productType: "Multisplitt",
+        description:
+          "Flere innedeler på samme utedel for bedre dekning i større boliger.",
+        tags: ["Multisplitt", "Flere innedeler", "Større bolig"],
+        bestFor: ["Flere rom", "Større bolig", "Høyere dekningsgrad"],
+        sourceUrl: MEE,
+      },
+      {
+        brand: "Panasonic",
+        name: "Panasonic HZ Flagship",
+        subtitle: "Toppserie",
+        productType: "Luft-luft",
+        description: "Toppserie med nanoe X-teknologi og høy varmeeffekt.",
+        tags: ["Toppmodell", "nanoe X", "Luft-luft"],
+        bestFor: ["Høy komfort", "Moderne bolig", "God varmeeffekt"],
+        sourceUrl: PA.best,
+      },
+      {
+        brand: "Panasonic",
+        name: "Panasonic NZ",
+        subtitle: "Pris og ytelse",
+        productType: "Luft-luft",
+        description:
+          "Mye av funksjonaliteten fra toppmodellene til lavere prisnivå.",
+        tags: ["Pris/ytelse", "Smart valg", "Luft-luft"],
+        bestFor: ["Normal bolig", "God ytelse", "Fornuftig investering"],
+        sourceUrl: PA.best,
+      },
+      {
+        brand: "Panasonic",
+        name: "Panasonic VZ Heatcharge",
+        subtitle: "Kraftig premiummodell",
+        productType: "Luft-luft",
+        description: "Heatcharge-teknologi for stabil varme i kalde perioder.",
+        tags: ["Heatcharge", "Kraftig", "Premium"],
+        bestFor: ["Høyt varmebehov", "Kaldt klima", "Premiumløsning"],
+        sourceUrl: PA.best,
+      },
+      {
+        brand: "Panasonic",
+        name: "Panasonic Gulvmodell",
+        subtitle: "Gulvmodell",
+        productType: "Gulvmodell",
+        description:
+          "Lav plassering på vegg der veggplassen er begrenset eller planløsningen krever det.",
+        tags: ["Gulvmodell", "Komfort", "Luft-luft"],
+        bestFor: ["Lav plassering", "Begrenset veggplass", "Eldre bolig"],
+        sourceUrl: PA.best,
+      },
+      {
+        brand: "Toshiba",
+        name: "Toshiba Signatur",
+        subtitle: "Designmodell",
+        productType: "Luft-luft",
+        description:
+          "Designmodell med energismarte funksjoner og utskiftbar tekstilfront.",
+        tags: ["Design", "Tekstilfront", "Luft-luft"],
+        bestFor: ["Designbevisste hjem", "Synlig plassering", "Moderne interiør"],
+        sourceUrl: TO.best,
+      },
+      {
+        brand: "Toshiba",
+        name: "Toshiba Daiseikai 10 Kontur",
+        subtitle: "Toppmodell",
+        productType: "Luft-luft",
+        description: "Toppmodell med kraftig varmeeffekt og avansert teknologi.",
+        tags: ["Toppmodell", "Kraftig", "Luft-luft"],
+        bestFor: ["Høy komfort", "Kaldt klima", "Høyt varmebehov"],
+        sourceUrl: TO.best,
+      },
+      {
+        brand: "Toshiba",
+        name: "Toshiba Polar",
+        subtitle: "For kaldt klima",
+        productType: "Luft-luft",
+        description: "Kraftig varmepumpe med høy energiklasse, tilpasset kaldt klima.",
+        tags: ["Kaldt klima", "Kraftig", "Luft-luft"],
+        bestFor: ["Nordiske forhold", "Enebolig", "Høy varmeeffekt"],
+        sourceUrl: TO.best,
+      },
+      {
+        brand: "Toshiba",
+        name: "Toshiba Gulvmodell",
+        subtitle: "Gulvmodell",
+        productType: "Gulvmodell",
+        description: "Gulvmodell for alternative plasseringer og eldre boliger.",
+        tags: ["Gulvmodell", "Komfort", "Luft-luft"],
+        bestFor: ["Lav plassering", "Spesielle planløsninger", "Eldre bolig"],
+        sourceUrl: TO.best,
+      },
+    ],
+  },
+  {
     id: "luft-luft",
+
     segment: "bolig",
     title: "Luft-luft varmepumper",
     description:
