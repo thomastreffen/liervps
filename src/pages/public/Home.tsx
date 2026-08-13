@@ -10,15 +10,14 @@ import {
   ArrowRight,
   MapPin,
   Home as HomeIcon,
-  Building2,
   Award,
   Calendar,
   Phone,
   Mail,
   Monitor,
-  Leaf,
 } from "lucide-react";
 import { PublicLayout } from "@/components/public/PublicLayout";
+import { SavingsCalculator } from "@/components/public/SavingsCalculator";
 import { PublicSeo, SITE_URL } from "@/components/public/PublicSeo";
 import { useAuth } from "@/hooks/useAuth";
 import heroImg from "@/assets/lier/hero-warm.jpg";
@@ -71,67 +70,6 @@ const WHY = [
   "Dokumentert servicehistorikk",
   "Oppfølging for både bolig og næring",
 ];
-
-function SavingsCard({
-  icon: Icon,
-  title,
-  desc,
-  before,
-  after,
-  savings,
-}: {
-  icon: typeof HomeIcon;
-  title: string;
-  desc: string;
-  before: string;
-  after: string;
-  savings: string;
-}) {
-  return (
-    <div className="bg-white rounded-2xl border border-[hsl(var(--warm-beige))] p-6 lg:p-7 shadow-sm">
-      <div className="flex items-start gap-4 mb-5">
-        <div className="h-11 w-11 rounded-full bg-[hsl(var(--mcs-navy))] text-white flex items-center justify-center shrink-0">
-          <Icon className="h-5 w-5" />
-        </div>
-        <div>
-          <h3 className="font-semibold text-lg text-[hsl(var(--mcs-navy))]">{title}</h3>
-          <p className="text-sm text-[hsl(var(--mcs-muted))] mt-0.5">{desc}</p>
-        </div>
-      </div>
-      <div className="grid md:grid-cols-[1fr_auto] gap-5 items-center">
-        <div className="space-y-3">
-          <div>
-            <div className="flex items-center justify-between text-xs font-semibold mb-1.5">
-              <span className="text-[hsl(var(--mcs-muted))]">FØR</span>
-              <span className="text-[hsl(var(--mcs-muted))]">{before}</span>
-            </div>
-            <div className="h-2.5 rounded-full bg-[hsl(var(--warm-sand))] overflow-hidden">
-              <div className="h-full w-full bg-[hsl(var(--mcs-muted))]/50" />
-            </div>
-          </div>
-          <div>
-            <div className="flex items-center justify-between text-xs font-semibold mb-1.5">
-              <span className="text-[hsl(var(--mcs-navy))]">ETTER</span>
-              <span className="text-[hsl(var(--mcs-navy))]">{after}</span>
-            </div>
-            <div className="h-2.5 rounded-full bg-[hsl(var(--warm-sand))] overflow-hidden">
-              <div className="h-full w-1/2 bg-[hsl(var(--mcs-navy))]" />
-            </div>
-          </div>
-        </div>
-        <div className="rounded-xl bg-[hsl(var(--savings-green-soft))] px-5 py-4 text-center min-w-[160px]">
-          <div className="text-[10px] font-semibold uppercase tracking-wider text-[hsl(var(--savings-green))]">
-            Estimert besparelse
-          </div>
-          <div className="text-2xl font-bold text-[hsl(var(--savings-green))] mt-1">{savings}</div>
-          <div className="text-xs text-[hsl(var(--savings-green))] mt-0.5 inline-flex items-center gap-1">
-            i året <Leaf className="h-3 w-3" />
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 export default function Home() {
   const { user } = useAuth();
@@ -275,35 +213,9 @@ export default function Home() {
         </div>
       </section>
 
-      {/* EKSEMPLER PÅ BESPARELSE */}
-      <section className="bg-[hsl(var(--warm-cream))] pb-16">
-        <div className="mx-auto max-w-[1600px] px-6 sm:px-10 lg:px-12 xl:px-16 2xl:px-24">
-          <h2 className="text-2xl lg:text-3xl font-bold text-[hsl(var(--mcs-navy))] text-center mb-8">
-            Eksempler på besparelse
-          </h2>
-          <div className="grid lg:grid-cols-2 gap-6">
-            <SavingsCard
-              icon={HomeIcon}
-              title="Enebolig i Lier"
-              desc="Typisk enebolig på 150 m² med eldre elektrisk oppvarming."
-              before="24 000 kr / år"
-              after="12 000 kr / år"
-              savings="12 000 kr"
-            />
-            <SavingsCard
-              icon={Building2}
-              title="Kontor / næringslokaler"
-              desc="Kontorlokale på 500 m² med varierende oppvarming."
-              before="48 000 kr / år"
-              after="24 000 kr / år"
-              savings="24 000 kr"
-            />
-          </div>
-          <p className="text-center text-xs text-[hsl(var(--mcs-muted))] mt-6 max-w-3xl mx-auto">
-            Beregninger er estimater basert på strømpris, bruksmønster og byggets behov. Faktiske besparelser vil variere.
-          </p>
-        </div>
-      </section>
+      {/* BESPARELSESKALKULATOR */}
+      <SavingsCalculator />
+
 
       {/* VARMEPUMPER VI ANBEFALER */}
       <section id="varmepumper" className="bg-[hsl(var(--warm-cream))] pb-16 scroll-mt-28">
