@@ -4,22 +4,31 @@ import {
   Check,
   ArrowRight,
   ExternalLink,
-  Snowflake,
-  Wind,
-  Volume2,
   Building2,
   Home as HomeIcon,
 } from "lucide-react";
 import { useBrandLogos, BRAND_LOGO_CLASS } from "./useBrandLogos";
+import { productImageFor } from "./useProductImages";
+import { HeatPumpIllustration } from "./HeatPumpIllustration";
 
 export type BrandName = "Mitsubishi Electric" | "Panasonic" | "Toshiba";
 export type Segment = "bolig" | "naering";
+export type ProductType =
+  | "Luft-luft"
+  | "Gulvmodell"
+  | "Multisplitt"
+  | "Luft-vann"
+  | "Næring"
+  | "Tilbehør";
 
 export type ProductItem = {
-  brand: BrandName;
+  /** Omitted for merkeuavhengige løsningskort. */
+  brand?: BrandName;
   /** Product/series name or supplier category name. */
   name: string;
   subtitle: string;
+  /** Shown on the card as product identity, e.g. "Luft-luft". */
+  productType?: ProductType;
   description: string;
   tags: string[];
   bestFor: string[];
@@ -35,6 +44,7 @@ export type ProductGroup = {
   description: string;
   items: ProductItem[];
 };
+
 
 const MEE = "https://mee.no/privat/produktkategori/luft-luft-varmepumper/";
 const PA = {
@@ -58,16 +68,159 @@ const BRAND_SOURCE: Record<BrandName, string> = {
   Toshiba: "https://www.varmepumpeservice.no/toshiba?parent=10005",
 };
 
-const BRAND_ICON: Record<BrandName, typeof Wind> = {
-  "Mitsubishi Electric": Snowflake,
-  Panasonic: Wind,
-  Toshiba: Volume2,
-};
+function illustrationVariant(type?: ProductType) {
+  switch (type) {
+    case "Gulvmodell":
+      return "floor" as const;
+    case "Multisplitt":
+      return "multi" as const;
+    case "Luft-vann":
+      return "water" as const;
+    case "Næring":
+      return "commercial" as const;
+    default:
+      return "wall" as const;
+  }
+}
 
 const GROUPS: ProductGroup[] = [
   /* ---------------- BOLIG ---------------- */
   {
+    id: "anbefalt-bolig",
+    segment: "bolig",
+    title: "Anbefalte modeller",
+    description:
+      "Modellene vi oftest anbefaler i norske boliger — fra Mitsubishi Electric, Panasonic og Toshiba.",
+    items: [
+      {
+        brand: "Mitsubishi Electric",
+        name: "UWANO Pure",
+        subtitle: "Toppmodell",
+        productType: "Luft-luft",
+        description: "Toppmodell for høy komfort og sterk ytelse gjennom hele året.",
+        tags: ["Toppmodell", "Premium", "Luft-luft"],
+        bestFor: ["Høy komfort", "Sterk ytelse", "Større oppholdsrom"],
+        sourceUrl: MEE,
+      },
+      {
+        brand: "Mitsubishi Electric",
+        name: "Kaiteki",
+        subtitle: "Bestselger",
+        productType: "Luft-luft",
+        description: "Populær modell med design, ytelse og flere fargevalg.",
+        tags: ["Bestselger", "Design", "Luft-luft"],
+        bestFor: ["Normal bolig", "Design og fargevalg", "God totalpakke"],
+        sourceUrl: MEE,
+      },
+      {
+        brand: "Mitsubishi Electric",
+        name: "GUSSURI",
+        subtitle: "Komfortmodell",
+        productType: "Luft-luft",
+        description: "Komfortmodell for jevn varme og lavt lydnivå.",
+        tags: ["Komfort", "Stillegående", "Luft-luft"],
+        bestFor: ["Jevn varme", "Lavt lydnivå", "Stue og soverom"],
+        sourceUrl: MEE,
+      },
+      {
+        brand: "Mitsubishi Electric",
+        name: "Nordic Multi",
+        subtitle: "Multiløsning",
+        productType: "Multisplitt",
+        description:
+          "Flere innedeler på samme utedel for bedre dekning i større boliger.",
+        tags: ["Multisplitt", "Flere innedeler", "Større bolig"],
+        bestFor: ["Flere rom", "Større bolig", "Høyere dekningsgrad"],
+        sourceUrl: MEE,
+      },
+      {
+        brand: "Panasonic",
+        name: "Panasonic HZ Flagship",
+        subtitle: "Toppserie",
+        productType: "Luft-luft",
+        description: "Toppserie med nanoe X-teknologi og høy varmeeffekt.",
+        tags: ["Toppmodell", "nanoe X", "Luft-luft"],
+        bestFor: ["Høy komfort", "Moderne bolig", "God varmeeffekt"],
+        sourceUrl: PA.best,
+      },
+      {
+        brand: "Panasonic",
+        name: "Panasonic NZ",
+        subtitle: "Pris og ytelse",
+        productType: "Luft-luft",
+        description:
+          "Mye av funksjonaliteten fra toppmodellene til lavere prisnivå.",
+        tags: ["Pris/ytelse", "Smart valg", "Luft-luft"],
+        bestFor: ["Normal bolig", "God ytelse", "Fornuftig investering"],
+        sourceUrl: PA.best,
+      },
+      {
+        brand: "Panasonic",
+        name: "Panasonic VZ Heatcharge",
+        subtitle: "Kraftig premiummodell",
+        productType: "Luft-luft",
+        description: "Heatcharge-teknologi for stabil varme i kalde perioder.",
+        tags: ["Heatcharge", "Kraftig", "Premium"],
+        bestFor: ["Høyt varmebehov", "Kaldt klima", "Premiumløsning"],
+        sourceUrl: PA.best,
+      },
+      {
+        brand: "Panasonic",
+        name: "Panasonic Gulvmodell",
+        subtitle: "Gulvmodell",
+        productType: "Gulvmodell",
+        description:
+          "Lav plassering på vegg der veggplassen er begrenset eller planløsningen krever det.",
+        tags: ["Gulvmodell", "Komfort", "Luft-luft"],
+        bestFor: ["Lav plassering", "Begrenset veggplass", "Eldre bolig"],
+        sourceUrl: PA.best,
+      },
+      {
+        brand: "Toshiba",
+        name: "Toshiba Signatur",
+        subtitle: "Designmodell",
+        productType: "Luft-luft",
+        description:
+          "Designmodell med energismarte funksjoner og utskiftbar tekstilfront.",
+        tags: ["Design", "Tekstilfront", "Luft-luft"],
+        bestFor: ["Designbevisste hjem", "Synlig plassering", "Moderne interiør"],
+        sourceUrl: TO.best,
+      },
+      {
+        brand: "Toshiba",
+        name: "Toshiba Daiseikai 10 Kontur",
+        subtitle: "Toppmodell",
+        productType: "Luft-luft",
+        description: "Toppmodell med kraftig varmeeffekt og avansert teknologi.",
+        tags: ["Toppmodell", "Kraftig", "Luft-luft"],
+        bestFor: ["Høy komfort", "Kaldt klima", "Høyt varmebehov"],
+        sourceUrl: TO.best,
+      },
+      {
+        brand: "Toshiba",
+        name: "Toshiba Polar",
+        subtitle: "For kaldt klima",
+        productType: "Luft-luft",
+        description: "Kraftig varmepumpe med høy energiklasse, tilpasset kaldt klima.",
+        tags: ["Kaldt klima", "Kraftig", "Luft-luft"],
+        bestFor: ["Nordiske forhold", "Enebolig", "Høy varmeeffekt"],
+        sourceUrl: TO.best,
+      },
+      {
+        brand: "Toshiba",
+        name: "Toshiba Gulvmodell",
+        subtitle: "Gulvmodell",
+        productType: "Gulvmodell",
+        description: "Gulvmodell for alternative plasseringer og eldre boliger.",
+        tags: ["Gulvmodell", "Komfort", "Luft-luft"],
+        bestFor: ["Lav plassering", "Spesielle planløsninger", "Eldre bolig"],
+        sourceUrl: TO.best,
+      },
+    ],
+  },
+  {
     id: "luft-luft",
+
     segment: "bolig",
     title: "Luft-luft varmepumper",
     description:
@@ -356,7 +509,81 @@ const GROUPS: ProductGroup[] = [
 
   /* ---------------- NÆRING ---------------- */
   {
+    id: "anbefalt-naering",
+    segment: "naering",
+    title: "Anbefalte løsninger",
+    description:
+      "Løsningene vi oftest anbefaler i næringsbygg — fra kontor og butikk til flere soner og vannbåren varme.",
+    items: [
+      {
+        brand: "Panasonic",
+        name: "Panasonic Næring",
+        subtitle: "Næringsserier",
+        productType: "Næring",
+        description:
+          "Serier for næringsbygg, kontor, butikk og tekniske rom med krav til stabil drift.",
+        tags: ["Næring", "Kontor", "Butikk"],
+        bestFor: ["Kontorlokaler", "Butikk", "Publikumsareal"],
+        sourceUrl: PA.naering,
+      },
+      {
+        brand: "Panasonic",
+        name: "Panasonic Luft/vann",
+        subtitle: "Vannbåren varme",
+        productType: "Luft-vann",
+        description:
+          "Luft-vann for bygg med vannbåren varme og høy dekningsgrad gjennom året.",
+        tags: ["Luft-vann", "Vannbåren varme"],
+        bestFor: ["Gulvvarme", "Radiatorer", "Driftsøkonomi"],
+        sourceUrl: PA.vann,
+      },
+      {
+        brand: "Panasonic",
+        name: "Panasonic Multisplitt nordisk",
+        subtitle: "Flere soner",
+        productType: "Multisplitt",
+        description:
+          "Multisplitt tilpasset nordiske forhold, med flere innedeler på samme utedel.",
+        tags: ["Multisplitt", "Nordisk", "Soner"],
+        bestFor: ["Kaldt klima", "Flere rom", "Helårsdrift"],
+        sourceUrl: PA.multiNordic,
+      },
+      {
+        brand: "Toshiba",
+        name: "Toshiba Multisplitt Nordic",
+        subtitle: "Flere soner",
+        productType: "Multisplitt",
+        description:
+          "Multisplitt for nordiske forhold og lokaler med flere rom som skal dekkes.",
+        tags: ["Multisplitt", "Nordisk"],
+        bestFor: ["Cellekontorer", "Møterom", "Stabil drift"],
+        sourceUrl: TO.multiNordic,
+      },
+      {
+        brand: "Mitsubishi Electric",
+        name: "Nordic Multi",
+        subtitle: "Multiløsning",
+        productType: "Multisplitt",
+        description:
+          "Flere innedeler fra samme utedel — plassbesparende og fleksibel soneinndeling.",
+        tags: ["Multisplitt", "Flere innedeler"],
+        bestFor: ["Mindre næringslokaler", "Flere soner", "Jevn temperatur"],
+        sourceUrl: MEE,
+      },
+      {
+        name: "Større lokaler / flere soner",
+        subtitle: "Prosjektert løsning",
+        productType: "Næring",
+        description:
+          "For større bygg setter vi sammen en løsning med riktig kapasitet, soneinndeling og styring — på tvers av merker.",
+        tags: ["Prosjektering", "Kapasitet", "Flere soner"],
+        bestFor: ["Store lokaler", "Høyt varmebehov", "Krav til driftssikkerhet"],
+      },
+    ],
+  },
+  {
     id: "kontor-butikk",
+
     segment: "naering",
     title: "Kontor og butikk",
     description:
@@ -548,11 +775,11 @@ function ProductCard({
   item: ProductItem;
   logo: string | null;
 }) {
-  const Icon = BRAND_ICON[item.brand];
+  const photo = item.image ?? productImageFor(item.name);
   return (
     <article className="bg-white rounded-xl border border-[hsl(var(--warm-beige))] p-5 flex flex-col">
       <div className="h-10 flex items-center mb-4">
-        {logo ? (
+        {item.brand && logo ? (
           <img
             src={logo}
             alt={`${item.brand} logo`}
@@ -561,38 +788,44 @@ function ProductCard({
           />
         ) : (
           <span className="text-[13px] font-semibold tracking-[0.14em] uppercase text-[hsl(var(--mcs-navy))]">
-            {item.brand}
+            {item.brand ?? "Løsning"}
           </span>
         )}
       </div>
 
       <div className="rounded-lg overflow-hidden mb-4 border border-[hsl(var(--warm-beige))]">
-        {item.image ? (
+        {photo ? (
           <img
-            src={item.image}
+            src={photo}
             alt={`${item.name} varmepumpe`}
             loading="lazy"
             className="aspect-[4/3] w-full object-contain bg-white"
           />
         ) : (
-          <div className="aspect-[4/3] w-full bg-gradient-to-br from-[hsl(var(--mcs-navy))] to-[hsl(var(--mcs-blue-deep))] flex flex-col items-center justify-center gap-2">
-            <Icon className="h-9 w-9 text-white/85" strokeWidth={1.4} aria-hidden />
-            <span className="text-[11px] uppercase tracking-[0.18em] text-white/70">
-              {item.subtitle}
-            </span>
-          </div>
+          <HeatPumpIllustration
+            variant={illustrationVariant(item.productType)}
+            label={item.productType ?? item.subtitle}
+          />
         )}
       </div>
 
       <h4 className="text-base font-bold text-[hsl(var(--mcs-navy))] leading-tight">
         {item.name}
       </h4>
-      <p className="text-[11px] uppercase tracking-wider text-[hsl(var(--mcs-muted))] mt-1 mb-2">
-        {item.subtitle}
-      </p>
+      <div className="flex flex-wrap items-center gap-2 mt-1.5 mb-2">
+        {item.productType && (
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-[hsl(var(--mcs-orange))] border border-[hsl(var(--mcs-orange))]/30 rounded-full px-2 py-0.5">
+            {item.productType}
+          </span>
+        )}
+        <span className="text-[11px] uppercase tracking-wider text-[hsl(var(--mcs-muted))]">
+          {item.subtitle}
+        </span>
+      </div>
       <p className="text-sm text-[hsl(var(--mcs-muted))] leading-relaxed mb-4">
         {item.description}
       </p>
+
 
       <div className="flex flex-wrap gap-1.5 mb-4">
         {item.tags.map((t) => (
@@ -643,7 +876,7 @@ export function ProductShowcase() {
   const logos = useBrandLogos();
   const { hash } = useLocation();
   const [segment, setSegment] = useState<Segment>("bolig");
-  const [groupId, setGroupId] = useState<string>("luft-luft");
+  const [groupId, setGroupId] = useState<string>("anbefalt-bolig");
   const [brandFilter, setBrandFilter] = useState<BrandName | typeof ALL_BRANDS>(
     ALL_BRANDS
   );
@@ -664,13 +897,19 @@ export function ProductShowcase() {
   const activeGroup = groups.find((g) => g.id === groupId) ?? groups[0];
 
   const brandsInGroup = useMemo(
-    () => Array.from(new Set(activeGroup.items.map((i) => i.brand))),
+    () =>
+      Array.from(
+        new Set(activeGroup.items.map((i) => i.brand).filter(Boolean) as BrandName[])
+      ),
     [activeGroup]
   );
 
-  const items = activeGroup.items.filter(
+  const filtered = activeGroup.items.filter(
     (i) => brandFilter === ALL_BRANDS || i.brand === brandFilter
   );
+  // Never show an empty product area — fall back to the full group.
+  const items = filtered.length > 0 ? filtered : activeGroup.items;
+
 
   function selectSegment(next: Segment) {
     setSegment(next);
@@ -784,7 +1023,7 @@ export function ProductShowcase() {
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {items.map((item) => (
             <ProductCard
-              key={`${item.brand}-${item.name}`}
+              key={`${item.brand ?? "sol"}-${item.name}`}
               item={item}
               logo={logos[item.brand] ?? null}
             />
