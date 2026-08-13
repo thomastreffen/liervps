@@ -691,7 +691,13 @@ function NaeringForm({ installedPrice, onInstalledPrice }: { installedPrice: str
 
         <AssumptionsPanel rough={result.rough} />
       </div>
-      <ResultPanel result={result} installedPrice={installedPrice} onInstalledPrice={onInstalledPrice} />
+      <ResultPanel
+        result={result}
+        installedPrice={installedPrice}
+        onInstalledPrice={onInstalledPrice}
+        segment="naering"
+      />
+
     </div>
   );
 }
