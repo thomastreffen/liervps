@@ -77,6 +77,8 @@ export function CreateBefaringDrawer({ open, onOpenChange, lead, onCreated }: Pr
   const [context, setContext] = useState("");
   const [sendEmail, setSendEmail] = useState(false);
   const [syncGoogle, setSyncGoogle] = useState(true);
+  const [prepareDrive, setPrepareDrive] = useState(true);
+
   const [clientRequestId, setClientRequestId] = useState<string>(() => crypto.randomUUID());
 
   // ── Prefill when opened ──
