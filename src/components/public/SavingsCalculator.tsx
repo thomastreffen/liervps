@@ -100,7 +100,26 @@ type CalcResult = {
   heatNeed: number;
   rows: CalcRow[];
   rough: boolean;
+  area: number;
+  basis: string;
 };
+
+/**
+ * Arealet påvirker hvor stor del av varmebehovet én varmepumpe realistisk kan dekke.
+ * Luft-luft distribuerer varme dårlig i store bygg, luft-vann skalerer bedre.
+ */
+function areaCoverageFactor(
+  area: number,
+  pumpType: "luft_luft" | "luft_vann" | "usikker",
+  refArea: number,
+) {
+  const airAir = clamp(1 - Math.max(0, area - refArea) / refArea * 0.55, 0.45, 1) *
+    (area < refArea * 0.5 ? 0.95 : 1);
+  const airWater = clamp(1 - Math.max(0, area - refArea) / refArea * 0.12, 0.85, 1);
+  if (pumpType === "luft_vann") return airWater;
+  if (pumpType === "usikker") return (airAir + airWater) / 2;
+  return airAir;
+}
 
 function computeResult(opts: {
   heatNeed: number;
@@ -108,21 +127,26 @@ function computeResult(opts: {
   price: number;
   pumpType: "luft_luft" | "luft_vann" | "usikker";
   sourceFactor: number;
+  area: number;
+  refArea: number;
+  basis: string;
 }): CalcResult {
+  const areaFactor = areaCoverageFactor(opts.area, opts.pumpType, opts.refArea);
   const rows = (["low", "expected", "high"] as const).map((key) => {
     const base = SCENARIOS[key];
     let coverage = base.coverage;
     if (opts.pumpType === "luft_vann") coverage = AIR_WATER_COVERAGE[key];
     if (opts.pumpType === "usikker") coverage = (base.coverage + AIR_WATER_COVERAGE[key]) / 2;
-    coverage = clamp(coverage * opts.sourceFactor, 0.15, 0.92);
+    coverage = clamp(coverage * opts.sourceFactor * areaFactor, 0.12, 0.92);
 
     const replaced = opts.heatNeed * coverage;
     const pumpUse = replaced / base.scop;
     const savedKwh = Math.max(0, replaced - pumpUse);
     return { key, savedKwh, savedNok: savedKwh * opts.price, coverage, scop: base.scop };
   });
-  return { heatNeed: opts.heatNeed, rows, rough: opts.rough };
+  return { heatNeed: opts.heatNeed, rows, rough: opts.rough, area: opts.area, basis: opts.basis };
 }
+
 
 
 /* ---------------- Presentasjonshjelpere ---------------- */
