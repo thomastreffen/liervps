@@ -2,6 +2,8 @@ import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight, ChevronDown, Info, Leaf, Calculator } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
+import { Checkbox } from "@/components/ui/checkbox";
+
 import {
   Select,
   SelectContent,
@@ -75,13 +77,28 @@ const ENVELOPE_FACTOR: Record<string, number> = {
   isolert: 0.85,
 };
 
+// Boligens standard påvirker varmebehovet
+const STANDARD_FACTOR: Record<string, number> = {
+  eldre: 1.2,
+  normal: 1,
+  nyere: 0.82,
+};
+
 function clamp(v: number, min: number, max: number) {
   return Math.max(min, Math.min(max, v));
 }
 
+type CalcRow = {
+  key: "low" | "expected" | "high";
+  savedKwh: number;
+  savedNok: number;
+  coverage: number;
+  scop: number;
+};
+
 type CalcResult = {
   heatNeed: number;
-  rows: { key: "low" | "expected" | "high"; savedKwh: number; savedNok: number }[];
+  rows: CalcRow[];
   rough: boolean;
 };
 
@@ -102,10 +119,11 @@ function computeResult(opts: {
     const replaced = opts.heatNeed * coverage;
     const pumpUse = replaced / base.scop;
     const savedKwh = Math.max(0, replaced - pumpUse);
-    return { key, savedKwh, savedNok: savedKwh * opts.price };
+    return { key, savedKwh, savedNok: savedKwh * opts.price, coverage, scop: base.scop };
   });
   return { heatNeed: opts.heatNeed, rows, rough: opts.rough };
 }
+
 
 /* ---------------- Presentasjonshjelpere ---------------- */
 
@@ -191,17 +209,21 @@ function ResultPanel({
   result,
   installedPrice,
   onInstalledPrice,
+  segment,
 }: {
   result: CalcResult;
   installedPrice: string;
   onInstalledPrice: (v: string) => void;
+  segment: "bolig" | "naering";
 }) {
   const expected = result.rows.find((r) => r.key === "expected")!;
   const low = result.rows.find((r) => r.key === "low")!;
   const high = result.rows.find((r) => r.key === "high")!;
   const priceNum = Number(installedPrice.replace(/\s/g, ""));
-  const payback =
-    priceNum > 0 && expected.savedNok > 0 ? priceNum / expected.savedNok : null;
+  const payback = priceNum > 0 && expected.savedNok > 0 ? priceNum / expected.savedNok : null;
+  const paybackFast = priceNum > 0 && high.savedNok > 0 ? priceNum / high.savedNok : null;
+  const paybackSlow = priceNum > 0 && low.savedNok > 0 ? priceNum / low.savedNok : null;
+  const yr = (v: number) => v.toFixed(1).replace(".", ",");
 
   return (
     <div className="bg-white rounded-2xl border border-[hsl(var(--warm-beige))] shadow-sm p-6 lg:p-7 lg:sticky lg:top-28">
@@ -215,6 +237,11 @@ function ResultPanel({
         <div className="text-xs text-[hsl(var(--savings-green))] mt-1 inline-flex items-center gap-1">
           ca. {num(expected.savedKwh)} kWh spart i året <Leaf className="h-3 w-3" />
         </div>
+        {result.rough && (
+          <div className="mt-2 inline-block rounded-full bg-white/70 px-3 py-1 text-[11px] font-semibold text-[hsl(var(--mcs-navy))]">
+            Grovere estimat basert på areal
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-3 gap-2 mt-4">
@@ -236,6 +263,21 @@ function ResultPanel({
         ))}
       </div>
 
+      {/* Slik ser regnestykket ut (forventet) */}
+      <dl className="mt-4 rounded-xl border border-[hsl(var(--warm-beige))] bg-[hsl(var(--warm-cream))] px-4 py-3 text-[13px] space-y-1.5">
+        {[
+          ["Antatt varmebehov", `${num(result.heatNeed)} kWh/år`],
+          ["Varmepumpen dekker", `${Math.round(expected.coverage * 100)} %`],
+          ["Årsvarmefaktor brukt", expected.scop.toFixed(1).replace(".", ",")],
+          ["Estimert spart strøm", `${num(expected.savedKwh)} kWh/år`],
+        ].map(([k, v]) => (
+          <div key={k} className="flex items-baseline justify-between gap-3">
+            <dt className="text-[hsl(var(--mcs-muted))]">{k}</dt>
+            <dd className="font-semibold text-[hsl(var(--mcs-navy))]">{v}</dd>
+          </div>
+        ))}
+      </dl>
+
       <div className="mt-5">
         <label className="block text-[13px] font-semibold text-[hsl(var(--mcs-navy))] mb-1.5">
           Forventet pris ferdig montert (valgfritt)
@@ -251,20 +293,34 @@ function ResultPanel({
           <span className="text-sm text-[hsl(var(--mcs-muted))]">kr</span>
         </div>
         {payback !== null && (
-          <p className="mt-2 text-sm text-[hsl(var(--mcs-navy))]">
-            Estimert nedbetalingstid:{" "}
-            <strong>{payback.toFixed(1).replace(".", ",")} år</strong> ved forventet besparelse.
-          </p>
+          <div className="mt-2 text-sm text-[hsl(var(--mcs-navy))]">
+            <p>
+              Estimert tilbakebetalingstid: <strong>ca. {yr(payback)} år</strong>
+            </p>
+            {paybackFast !== null && paybackSlow !== null && (
+              <p className="text-xs text-[hsl(var(--mcs-muted))] mt-0.5">
+                Typisk intervall: {Math.round(paybackFast)}–{Math.round(paybackSlow)} år
+              </p>
+            )}
+          </div>
         )}
       </div>
 
       {result.rough && (
         <p className="mt-4 flex gap-2 text-xs text-[hsl(var(--mcs-muted))]">
           <Info className="h-4 w-4 shrink-0 text-[hsl(var(--mcs-orange))]" />
-          Du har ikke oppgitt årlig strømforbruk, så varmebehovet er anslått ut fra areal og byggtype.
-          Dette gir et grovere estimat.
+          Du har ikke oppgitt årlig strømforbruk, så varmebehovet er anslått ut fra areal, byggtype og
+          standard. Dette gir et grovere estimat.
         </p>
       )}
+
+      {segment === "naering" && (
+        <p className="mt-3 flex gap-2 text-xs text-[hsl(var(--mcs-muted))]">
+          <Info className="h-4 w-4 shrink-0 text-[hsl(var(--mcs-orange))]" />
+          Næringslokaler varierer mye. Resultatet bør brukes som indikasjon før befaring.
+        </p>
+      )}
+
 
       <div className="mt-5 flex flex-col sm:flex-row gap-2.5">
         <Link
@@ -304,18 +360,28 @@ function AssumptionsPanel({ rough }: { rough: boolean }) {
         <ChevronDown className={`h-4 w-4 transition-transform ${open ? "rotate-180" : ""}`} />
       </CollapsibleTrigger>
       <CollapsibleContent>
-        <div className="rounded-xl border border-t-0 border-[hsl(var(--warm-beige))] bg-white px-4 py-4 text-[13px] leading-relaxed text-[hsl(var(--mcs-muted))] space-y-2">
+        <div className="rounded-xl border border-t-0 border-[hsl(var(--warm-beige))] bg-white px-4 py-4 text-[13px] leading-relaxed text-[hsl(var(--mcs-muted))] space-y-3">
+          <ol className="list-decimal pl-5 space-y-1.5 text-[hsl(var(--mcs-navy))]">
+            <li>Vi estimerer hvor mye av strømforbruket som går til oppvarming.</li>
+            <li>Deretter beregner vi hvor stor del varmepumpen realistisk kan dekke.</li>
+            <li>
+              Besparelsen kommer av at varmepumpen leverer flere kWh varme per kWh strøm den bruker.
+            </li>
+          </ol>
           <p>
-            Vi anslår først hvor mye energi som går til oppvarming. Oppgir du årlig strømforbruk,
-            bruker vi en oppvarmingsandel på 45–70 % avhengig av bruksmønster og byggtype.{" "}
-            {rough ? "Uten forbrukstall anslår vi varmebehovet ut fra areal og byggtype med konservative kWh/m²." : ""}
+            Oppgir du årlig strømforbruk, bruker vi en oppvarmingsandel på 45–70 % avhengig av
+            bruksmønster, byggtype og standard.{" "}
+            {rough
+              ? "Uten forbrukstall anslår vi varmebehovet ut fra areal, byggtype og standard med konservative kWh/m²."
+              : ""}
           </p>
           <ul className="list-disc pl-5 space-y-1">
             <li>Dekningsgrad luft-luft: 45 % (lavt), 65 % (forventet), 78 % (høyt).</li>
             <li>Dekningsgrad luft-vann: 60 / 80 / 90 %.</li>
             <li>Årsvarmefaktor (SCOP): 2,6 (lavt), 3,4 (forventet), 4,0 (høyt).</li>
-            <li>Dagens oppvarmingskilde og takhøyde/isolasjon justerer dekningsgraden.</li>
+            <li>Dagens oppvarmingskilde, standard og takhøyde/isolasjon justerer beregningen.</li>
           </ul>
+
           <p className="font-mono text-[12px] text-[hsl(var(--mcs-navy))]">
             erstattet strøm = varmebehov × dekningsgrad
             <br />
@@ -337,21 +403,48 @@ function AssumptionsPanel({ rough }: { rough: boolean }) {
 
 /* ---------------- Bolig ---------------- */
 
+function UnknownKwhToggle({
+  id,
+  checked,
+  onChange,
+  label = "Jeg vet ikke årlig strømforbruk",
+}: {
+  id: string;
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  label?: string;
+}) {
+  return (
+    <label
+      htmlFor={id}
+      className="mt-3 flex cursor-pointer items-center gap-2.5 rounded-lg border border-[hsl(var(--warm-beige))] bg-[hsl(var(--warm-cream))] px-3 py-2.5 text-[13px] text-[hsl(var(--mcs-navy))]"
+    >
+      <Checkbox id={id} checked={checked} onCheckedChange={(v) => onChange(v === true)} />
+      {label}
+    </label>
+  );
+}
+
 function BoligForm({ installedPrice, onInstalledPrice }: { installedPrice: string; onInstalledPrice: (v: string) => void }) {
   const [type, setType] = useState("enebolig");
   const [area, setArea] = useState(150);
-  const [useKwh, setUseKwh] = useState(true);
+  const [unknownKwh, setUnknownKwh] = useState(false);
   const [kwh, setKwh] = useState(20000);
   const [source, setSource] = useState("panel");
   const [price, setPrice] = useState(1.4);
   const [pattern, setPattern] = useState<"low" | "normal" | "high">("normal");
+  const [standard, setStandard] = useState("normal");
   const [pumpType, setPumpType] = useState<"luft_luft" | "luft_vann" | "usikker">("luft_luft");
 
   const result = useMemo(() => {
-    const rough = !useKwh;
+    const rough = unknownKwh;
+    const std = STANDARD_FACTOR[standard] ?? 1;
     const heatNeed = rough
-      ? area * (BOLIG_KWH_PER_M2[type] ?? 85) * (pattern === "low" ? 0.85 : pattern === "high" ? 1.15 : 1)
-      : kwh * BOLIG_HEAT_SHARE[pattern];
+      ? area *
+        (BOLIG_KWH_PER_M2[type] ?? 85) *
+        (pattern === "low" ? 0.85 : pattern === "high" ? 1.15 : 1) *
+        std
+      : kwh * clamp(BOLIG_HEAT_SHARE[pattern] * std, 0.3, 0.78);
     return computeResult({
       heatNeed,
       rough,
@@ -359,7 +452,8 @@ function BoligForm({ installedPrice, onInstalledPrice }: { installedPrice: strin
       pumpType,
       sourceFactor: HEATING_SOURCE_FACTOR[source] ?? 0.85,
     });
-  }, [type, area, useKwh, kwh, source, price, pattern, pumpType]);
+  }, [type, area, unknownKwh, kwh, source, price, pattern, standard, pumpType]);
+
 
   return (
     <div className="grid lg:grid-cols-[1fr_400px] gap-6">
@@ -401,30 +495,22 @@ function BoligForm({ installedPrice, onInstalledPrice }: { installedPrice: strin
         />
 
         <div>
-          <div className="flex items-center justify-between gap-3 mb-1.5">
+          <div className="flex items-baseline justify-between gap-3 mb-1.5">
             <label className="text-[13px] font-semibold text-[hsl(var(--mcs-navy))]">
               Årlig strømforbruk <span className="font-normal text-[hsl(var(--mcs-muted))]">(valgfritt)</span>
             </label>
-            <button
-              type="button"
-              onClick={() => setUseKwh(!useKwh)}
-              className="text-xs font-semibold text-[hsl(var(--mcs-orange))] hover:underline"
-            >
-              {useKwh ? "Jeg vet ikke" : "Jeg vet forbruket"}
-            </button>
+            {!unknownKwh && (
+              <span className="text-[13px] font-semibold text-[hsl(var(--mcs-orange))]">{num(kwh)} kWh</span>
+            )}
           </div>
-          {useKwh ? (
-            <>
-              <div className="text-[13px] font-semibold text-[hsl(var(--mcs-orange))] text-right mb-1">
-                {num(kwh)} kWh
-              </div>
-              <Slider value={[kwh]} min={4000} max={60000} step={500} onValueChange={(v) => setKwh(v[0])} className="py-2" />
-            </>
-          ) : (
+          {unknownKwh ? (
             <p className="text-xs text-[hsl(var(--mcs-muted))]">
-              Vi anslår varmebehovet ut fra areal og boligtype. Estimatet blir da grovere.
+              Vi anslår varmebehovet ut fra areal, boligtype og standard. Estimatet blir da grovere.
             </p>
+          ) : (
+            <Slider value={[kwh]} min={4000} max={60000} step={500} onValueChange={(v) => setKwh(v[0])} className="py-2" />
           )}
+          <UnknownKwhToggle id="bolig-ukjent-kwh" checked={unknownKwh} onChange={setUnknownKwh} />
         </div>
 
         <SliderField
@@ -439,6 +525,16 @@ function BoligForm({ installedPrice, onInstalledPrice }: { installedPrice: strin
 
         <div className="grid sm:grid-cols-2 gap-5">
           <SelectField
+            label="Boligens standard"
+            value={standard}
+            onChange={setStandard}
+            options={[
+              { value: "eldre", label: "Eldre / trekkfull" },
+              { value: "normal", label: "Normal" },
+              { value: "nyere", label: "Nyere / godt isolert" },
+            ]}
+          />
+          <SelectField
             label="Bruksmønster"
             value={pattern}
             onChange={(v) => setPattern(v as typeof pattern)}
@@ -448,21 +544,28 @@ function BoligForm({ installedPrice, onInstalledPrice }: { installedPrice: strin
               { value: "high", label: "Høyt" },
             ]}
           />
-          <SelectField
-            label="Ønsket varmepumpetype"
-            value={pumpType}
-            onChange={(v) => setPumpType(v as typeof pumpType)}
-            options={[
-              { value: "luft_luft", label: "Luft-luft" },
-              { value: "luft_vann", label: "Luft-vann" },
-              { value: "usikker", label: "Usikker" },
-            ]}
-          />
         </div>
+
+        <SelectField
+          label="Ønsket varmepumpetype"
+          value={pumpType}
+          onChange={(v) => setPumpType(v as typeof pumpType)}
+          options={[
+            { value: "luft_luft", label: "Luft-luft" },
+            { value: "luft_vann", label: "Luft-vann" },
+            { value: "usikker", label: "Usikker" },
+          ]}
+        />
 
         <AssumptionsPanel rough={result.rough} />
       </div>
-      <ResultPanel result={result} installedPrice={installedPrice} onInstalledPrice={onInstalledPrice} />
+      <ResultPanel
+        result={result}
+        installedPrice={installedPrice}
+        onInstalledPrice={onInstalledPrice}
+        segment="bolig"
+      />
+
     </div>
   );
 }
@@ -473,14 +576,14 @@ function NaeringForm({ installedPrice, onInstalledPrice }: { installedPrice: str
   const [type, setType] = useState("kontor");
   const [area, setArea] = useState(500);
   const [hours, setHours] = useState(50);
-  const [useKwh, setUseKwh] = useState(true);
+  const [unknownKwh, setUnknownKwh] = useState(false);
   const [kwh, setKwh] = useState(80000);
   const [source, setSource] = useState("panel");
   const [price, setPrice] = useState(1.3);
   const [envelope, setEnvelope] = useState("normalt");
 
   const result = useMemo(() => {
-    const rough = !useKwh;
+    const rough = unknownKwh;
     const hoursFactor = clamp(hours / 45, 0.7, 1.35);
     const envFactorNeed = envelope === "hoyt" ? 1.2 : envelope === "isolert" ? 0.85 : 1;
     const heatNeed = rough
@@ -495,7 +598,8 @@ function NaeringForm({ installedPrice, onInstalledPrice }: { installedPrice: str
       sourceFactor:
         (HEATING_SOURCE_FACTOR[source] ?? 0.85) * (ENVELOPE_FACTOR[envelope] ?? 1) * 0.95,
     });
-  }, [type, area, hours, useKwh, kwh, source, price, envelope]);
+  }, [type, area, hours, unknownKwh, kwh, source, price, envelope]);
+
 
   return (
     <div className="grid lg:grid-cols-[1fr_400px] gap-6">
@@ -546,31 +650,24 @@ function NaeringForm({ installedPrice, onInstalledPrice }: { installedPrice: str
         />
 
         <div>
-          <div className="flex items-center justify-between gap-3 mb-1.5">
+          <div className="flex items-baseline justify-between gap-3 mb-1.5">
             <label className="text-[13px] font-semibold text-[hsl(var(--mcs-navy))]">
               Årlig strømforbruk <span className="font-normal text-[hsl(var(--mcs-muted))]">(valgfritt)</span>
             </label>
-            <button
-              type="button"
-              onClick={() => setUseKwh(!useKwh)}
-              className="text-xs font-semibold text-[hsl(var(--mcs-orange))] hover:underline"
-            >
-              {useKwh ? "Jeg vet ikke" : "Jeg vet forbruket"}
-            </button>
+            {!unknownKwh && (
+              <span className="text-[13px] font-semibold text-[hsl(var(--mcs-orange))]">{num(kwh)} kWh</span>
+            )}
           </div>
-          {useKwh ? (
-            <>
-              <div className="text-[13px] font-semibold text-[hsl(var(--mcs-orange))] text-right mb-1">
-                {num(kwh)} kWh
-              </div>
-              <Slider value={[kwh]} min={10000} max={600000} step={5000} onValueChange={(v) => setKwh(v[0])} className="py-2" />
-            </>
-          ) : (
+          {unknownKwh ? (
             <p className="text-xs text-[hsl(var(--mcs-muted))]">
               Vi anslår varmebehovet ut fra areal, lokaltype og driftstid. Estimatet blir da grovere.
             </p>
+          ) : (
+            <Slider value={[kwh]} min={10000} max={600000} step={5000} onValueChange={(v) => setKwh(v[0])} className="py-2" />
           )}
+          <UnknownKwhToggle id="naering-ukjent-kwh" checked={unknownKwh} onChange={setUnknownKwh} />
         </div>
+
 
         <div className="grid sm:grid-cols-2 gap-5">
           <SliderField
@@ -596,7 +693,13 @@ function NaeringForm({ installedPrice, onInstalledPrice }: { installedPrice: str
 
         <AssumptionsPanel rough={result.rough} />
       </div>
-      <ResultPanel result={result} installedPrice={installedPrice} onInstalledPrice={onInstalledPrice} />
+      <ResultPanel
+        result={result}
+        installedPrice={installedPrice}
+        onInstalledPrice={onInstalledPrice}
+        segment="naering"
+      />
+
     </div>
   );
 }
