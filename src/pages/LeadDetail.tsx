@@ -459,6 +459,9 @@ function LeadDetailInner() {
               <span className="text-sm text-muted-foreground">Opprettet {format(new Date(lead.created_at), "d. MMM yyyy", { locale: nb })}</span>
             </div>
           </div>
+          <Button onClick={() => setBefaringOpen(true)} className="mt-1 gap-1.5 rounded-xl shrink-0">
+            <CalendarPlus className="h-4 w-4" /> Lag befaring
+          </Button>
         </div>
 
         {/* ── Flyt-kjede (Postkontor → Lead → Bestilling → Oppdrag) ── */}
