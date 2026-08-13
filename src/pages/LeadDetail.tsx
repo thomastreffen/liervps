@@ -465,6 +465,24 @@ function LeadDetailInner() {
         </div>
 
         {/* ── Flyt-kjede (Postkontor → Lead → Bestilling → Oppdrag) ── */}
+        {/* ── Neste steg: operativ oppfølging ── */}
+        <LeadNextStepPanel
+          lead={{
+            id: lead.id,
+            company_name: lead.company_name,
+            contact_name: lead.contact_name,
+            email: lead.email,
+            phone: lead.phone,
+            notes: lead.notes,
+            status: safeStatus,
+            company_id: lead.company_id,
+            public_lead_id: lead.public_lead_id,
+          }}
+          users={companyUsers}
+          onCreateBefaring={() => setBefaringOpen(true)}
+          onChanged={() => { fetchLead(); fetchActivities(); }}
+        />
+
         <LeadFlowTrail leadId={lead.id} leadName={lead.company_name} />
 
         {/* ── Pipeline bar ── */}
