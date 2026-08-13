@@ -902,7 +902,7 @@ function ProductDetailDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="w-[calc(100%-1.5rem)] sm:w-full max-w-lg max-h-[85vh] overflow-y-auto bg-white">
         <DialogHeader>
-          <div className="h-9 flex items-center mb-2">
+          <div className="h-9 flex items-center mb-2 pr-8">
             {item.brand && logo ? (
               <img
                 src={logo}
