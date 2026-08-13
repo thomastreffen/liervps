@@ -14,6 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { CalendarPlus, CheckCircle2, ClipboardList, Copy, Loader2, Sparkles } from "lucide-react";
 import { LEAD_STATUS_CONFIG, type LeadStatus } from "@/lib/lead-status";
 import { toast } from "sonner";
+import { calcSummaryLine } from "@/lib/calc-summary";
 
 export interface NextStepLead {
   id: string;
@@ -74,11 +75,7 @@ function recommend(requestType: string | null | undefined): Recommendation {
 }
 
 function fmtCalc(summary: any): string {
-  if (!summary || typeof summary !== "object") return "";
-  return Object.entries(summary)
-    .filter(([, v]) => v !== null && v !== undefined && v !== "")
-    .map(([k, v]) => `${k}: ${typeof v === "object" ? JSON.stringify(v) : String(v)}`)
-    .join(", ");
+  return calcSummaryLine(summary);
 }
 
 interface Props {
@@ -101,11 +98,23 @@ export function LeadNextStepPanel({ lead, users, onCreateBefaring, onChanged }: 
   const [taskNote, setTaskNote] = useState("");
   const [savingTask, setSavingTask] = useState(false);
 
+  const [leadTasks, setLeadTasks] = useState<{ id: string; title: string; due_at: string | null; status: string }[]>([]);
+
   useEffect(() => {
     if (!lead.public_lead_id) { setPl(null); return; }
     supabase.from("public_leads").select("*").eq("id", lead.public_lead_id).maybeSingle()
       .then(({ data }) => setPl((data as any) || null));
   }, [lead.public_lead_id]);
+
+  const fetchLeadTasks = useCallback(() => {
+    supabase.from("tasks").select("id, title, due_at, status")
+      .eq("linked_lead_id", lead.id)
+      .order("created_at", { ascending: false })
+      .limit(10)
+      .then(({ data }) => setLeadTasks((data as any) || []));
+  }, [lead.id]);
+
+  useEffect(() => { fetchLeadTasks(); }, [fetchLeadTasks]);
 
   const rec = useMemo(() => recommend(pl?.request_type), [pl?.request_type]);
   const statusCfg = LEAD_STATUS_CONFIG[lead.status];
@@ -199,18 +208,30 @@ export function LeadNextStepPanel({ lead, users, onCreateBefaring, onChanged }: 
         setSavingTask(false);
         return;
       }
-      const { error } = await supabase.from("tasks").insert({
+      const assignee = taskUser !== "__none__" ? taskUser : null;
+      const { data: createdTask, error } = await supabase.from("tasks").insert({
         title: taskTitle.trim(),
         description: taskNote.trim() || null,
         due_at: taskDue ? new Date(taskDue).toISOString() : null,
-        assigned_user_id: taskUser !== "__none__" ? taskUser : null,
+        assigned_user_id: assignee,
         owner_user_id: user.id,
         created_by: user.id,
         company_id: companyId,
         status: "open",
+        priority: "normal",
         linked_lead_id: lead.id,
-      } as any);
+      } as any).select("id").single();
       if (error) throw error;
+
+      if (assignee && createdTask?.id) {
+        await (supabase as any).from("task_assignees").insert({ task_id: createdTask.id, user_id: assignee, role: "owner" });
+        if (assignee !== user.id) {
+          await (supabase as any).from("notifications").insert({
+            user_id: assignee, company_id: companyId, type: "task_assigned",
+            title: "Ny oppgave tildelt", message: taskTitle.trim(), link_url: `/tasks/${createdTask.id}`, read: false,
+          });
+        }
+      }
 
       const desc = `Oppgave opprettet: ${taskTitle.trim()}${taskDue ? ` (frist ${format(new Date(taskDue), "dd.MM.yyyy HH:mm")})` : ""}`;
       await supabase.from("lead_history").insert({
@@ -222,6 +243,7 @@ export function LeadNextStepPanel({ lead, users, onCreateBefaring, onChanged }: 
       } as any);
       toast.success("Oppgave opprettet");
       setTaskOpen(false);
+      fetchLeadTasks();
       onChanged();
     } catch (err: any) {
       console.error("[LeadNextStep] saveTask", err);
@@ -267,6 +289,24 @@ export function LeadNextStepPanel({ lead, users, onCreateBefaring, onChanged }: 
               <Copy className="h-4 w-4" /> Kopier oppsummering
             </Button>
           </div>
+
+          {leadTasks.length > 0 && (
+            <div className="space-y-1.5 pt-1">
+              <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Oppgaver på henvendelsen</p>
+              {leadTasks.map(t => (
+                <div key={t.id} className="flex items-center gap-2 text-sm border-b border-border/30 last:border-0 py-1.5">
+                  <ClipboardList className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                  <span className="flex-1 min-w-0 truncate">{t.title}</span>
+                  {t.due_at && (
+                    <span className="text-xs text-muted-foreground shrink-0">
+                      {format(new Date(t.due_at), "dd.MM.yyyy HH:mm")}
+                    </span>
+                  )}
+                  <Badge variant="outline" className="text-[10px] shrink-0">{t.status}</Badge>
+                </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
 
