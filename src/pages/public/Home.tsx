@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import { PublicLayout } from "@/components/public/PublicLayout";
 import { SavingsCalculator } from "@/components/public/SavingsCalculator";
-import { BrandShowcase } from "@/components/public/BrandShowcase";
+import { ProductShowcase } from "@/components/public/ProductShowcase";
 import { BrandStrip } from "@/components/public/BrandStrip";
 
 import { PublicSeo, SITE_URL } from "@/components/public/PublicSeo";
@@ -218,7 +218,7 @@ export default function Home() {
 
 
       {/* KVALITETSMERKER VI ANBEFALER */}
-      <BrandShowcase />
+      <ProductShowcase />
 
 
       {/* VÅRE TJENESTER */}
