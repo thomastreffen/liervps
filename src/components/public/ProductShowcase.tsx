@@ -970,7 +970,7 @@ function ProductDetailDialog({
           Endelig anbefaling av modell avhenger av bolig, planløsning, plassering og varmebehov.
         </p>
 
-        <div className="flex flex-col sm:flex-row gap-2">
+        <div className="sticky bottom-0 -mx-6 px-6 pt-3 pb-1 bg-white border-t border-[hsl(var(--warm-beige))] sm:static sm:mx-0 sm:px-0 sm:pt-0 sm:pb-0 sm:border-0 flex flex-col sm:flex-row gap-2">
           <Link
             to="/#kontakt"
             onClick={() => onOpenChange(false)}
