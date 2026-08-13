@@ -62,7 +62,9 @@ export function ContactSection() {
     }
     setSubmitting(true);
     setSent(false);
+    const publicLeadId = crypto.randomUUID();
     const row = {
+      id: publicLeadId,
       name: name.trim().slice(0, 100),
       email: email.trim().slice(0, 255) || null,
       phone: phone.trim().slice(0, 40) || null,
@@ -90,8 +92,18 @@ export function ContactSection() {
       return;
     }
 
+    // Intern Gmail-varsling — må aldri påvirke besøkende (fire-and-forget).
+    void supabase.functions
+      .invoke("lead-notify-internal", {
+        body: { public_lead_id: publicLeadId, origin: window.location.origin },
+      })
+      .catch(() => {
+        /* stille: besøkende skal aldri se integrasjonsfeil */
+      });
+
     setSent(true);
     toast.success("Takk! Vi har mottatt forespørselen og tar kontakt så snart som mulig.");
+
     // Tømmer kun feltene — leadContext beholdes bevisst.
     setName("");
     setEmail("");
