@@ -100,7 +100,26 @@ type CalcResult = {
   heatNeed: number;
   rows: CalcRow[];
   rough: boolean;
+  area: number;
+  basis: string;
 };
+
+/**
+ * Arealet påvirker hvor stor del av varmebehovet én varmepumpe realistisk kan dekke.
+ * Luft-luft distribuerer varme dårlig i store bygg, luft-vann skalerer bedre.
+ */
+function areaCoverageFactor(
+  area: number,
+  pumpType: "luft_luft" | "luft_vann" | "usikker",
+  refArea: number,
+) {
+  const airAir = clamp(1 - Math.max(0, area - refArea) / refArea * 0.55, 0.45, 1) *
+    (area < refArea * 0.5 ? 0.95 : 1);
+  const airWater = clamp(1 - Math.max(0, area - refArea) / refArea * 0.12, 0.85, 1);
+  if (pumpType === "luft_vann") return airWater;
+  if (pumpType === "usikker") return (airAir + airWater) / 2;
+  return airAir;
+}
 
 function computeResult(opts: {
   heatNeed: number;
@@ -108,21 +127,26 @@ function computeResult(opts: {
   price: number;
   pumpType: "luft_luft" | "luft_vann" | "usikker";
   sourceFactor: number;
+  area: number;
+  refArea: number;
+  basis: string;
 }): CalcResult {
+  const areaFactor = areaCoverageFactor(opts.area, opts.pumpType, opts.refArea);
   const rows = (["low", "expected", "high"] as const).map((key) => {
     const base = SCENARIOS[key];
     let coverage = base.coverage;
     if (opts.pumpType === "luft_vann") coverage = AIR_WATER_COVERAGE[key];
     if (opts.pumpType === "usikker") coverage = (base.coverage + AIR_WATER_COVERAGE[key]) / 2;
-    coverage = clamp(coverage * opts.sourceFactor, 0.15, 0.92);
+    coverage = clamp(coverage * opts.sourceFactor * areaFactor, 0.12, 0.92);
 
     const replaced = opts.heatNeed * coverage;
     const pumpUse = replaced / base.scop;
     const savedKwh = Math.max(0, replaced - pumpUse);
     return { key, savedKwh, savedNok: savedKwh * opts.price, coverage, scop: base.scop };
   });
-  return { heatNeed: opts.heatNeed, rows, rough: opts.rough };
+  return { heatNeed: opts.heatNeed, rows, rough: opts.rough, area: opts.area, basis: opts.basis };
 }
+
 
 
 /* ---------------- Presentasjonshjelpere ---------------- */
@@ -267,9 +291,12 @@ function ResultPanel({
       <dl className="mt-4 rounded-xl border border-[hsl(var(--warm-beige))] bg-[hsl(var(--warm-cream))] px-4 py-3 text-[13px] space-y-1.5">
         {[
           ["Antatt varmebehov", `${num(result.heatNeed)} kWh/år`],
-          ["Varmepumpen dekker", `${Math.round(expected.coverage * 100)} %`],
+          ["Oppvarmet areal", `${num(result.area)} m²`],
+          ["Beregningsgrunnlag", result.basis],
+          ["Varmepumpen dekker", `ca. ${Math.round(expected.coverage * 100)} %`],
           ["Årsvarmefaktor brukt", expected.scop.toFixed(1).replace(".", ",")],
           ["Estimert spart strøm", `${num(expected.savedKwh)} kWh/år`],
+
         ].map(([k, v]) => (
           <div key={k} className="flex items-baseline justify-between gap-3">
             <dt className="text-[hsl(var(--mcs-muted))]">{k}</dt>
@@ -369,18 +396,23 @@ function AssumptionsPanel({ rough }: { rough: boolean }) {
             </li>
           </ol>
           <p>
-            Oppgir du årlig strømforbruk, bruker vi en oppvarmingsandel på 45–70 % avhengig av
-            bruksmønster, byggtype og standard.{" "}
+            Hvis du oppgir årlig strømforbruk, bruker vi dette som hovedgrunnlag. Oppvarmet areal
+            brukes likevel til å justere varmebehov og hvor mye en varmepumpe realistisk kan dekke.{" "}
             {rough
               ? "Uten forbrukstall anslår vi varmebehovet ut fra areal, byggtype og standard med konservative kWh/m²."
-              : ""}
+              : "Varmebehovet vektes 70 % fra forbruket ditt og 30 % fra areal, byggtype og standard."}
           </p>
           <ul className="list-disc pl-5 space-y-1">
             <li>Dekningsgrad luft-luft: 45 % (lavt), 65 % (forventet), 78 % (høyt).</li>
             <li>Dekningsgrad luft-vann: 60 / 80 / 90 %.</li>
             <li>Årsvarmefaktor (SCOP): 2,6 (lavt), 3,4 (forventet), 4,0 (høyt).</li>
+            <li>
+              Store areal gir lavere dekningsgrad for luft-luft, siden én innedel ikke varmer hele
+              bygget. Luft-vann skalerer bedre.
+            </li>
             <li>Dagens oppvarmingskilde, standard og takhøyde/isolasjon justerer beregningen.</li>
           </ul>
+
 
           <p className="font-mono text-[12px] text-[hsl(var(--mcs-navy))]">
             erstattet strøm = varmebehov × dekningsgrad
@@ -439,20 +471,25 @@ function BoligForm({ installedPrice, onInstalledPrice }: { installedPrice: strin
   const result = useMemo(() => {
     const rough = unknownKwh;
     const std = STANDARD_FACTOR[standard] ?? 1;
+    const patternFactor = pattern === "low" ? 0.85 : pattern === "high" ? 1.15 : 1;
+    const heatNeedFromArea = area * (BOLIG_KWH_PER_M2[type] ?? 85) * patternFactor * std;
+    const heatNeedFromConsumption = kwh * clamp(BOLIG_HEAT_SHARE[pattern] * std, 0.3, 0.78);
+    // Kjent forbruk er hovedgrunnlag, men areal justerer varmebehovet (70/30)
     const heatNeed = rough
-      ? area *
-        (BOLIG_KWH_PER_M2[type] ?? 85) *
-        (pattern === "low" ? 0.85 : pattern === "high" ? 1.15 : 1) *
-        std
-      : kwh * clamp(BOLIG_HEAT_SHARE[pattern] * std, 0.3, 0.78);
+      ? heatNeedFromArea
+      : 0.7 * heatNeedFromConsumption + 0.3 * heatNeedFromArea;
     return computeResult({
       heatNeed,
       rough,
       price,
       pumpType,
       sourceFactor: HEATING_SOURCE_FACTOR[source] ?? 0.85,
+      area,
+      refArea: 130,
+      basis: rough ? "Arealbasert estimat" : "Strømforbruk + areal",
     });
   }, [type, area, unknownKwh, kwh, source, price, pattern, standard, pumpType]);
+
 
 
   return (
@@ -586,9 +623,12 @@ function NaeringForm({ installedPrice, onInstalledPrice }: { installedPrice: str
     const rough = unknownKwh;
     const hoursFactor = clamp(hours / 45, 0.7, 1.35);
     const envFactorNeed = envelope === "hoyt" ? 1.2 : envelope === "isolert" ? 0.85 : 1;
+    const heatNeedFromArea = area * (NAERING_KWH_PER_M2[type] ?? 75) * hoursFactor * envFactorNeed;
+    const heatNeedFromConsumption =
+      kwh * clamp((NAERING_HEAT_SHARE[type] ?? 0.5) * hoursFactor * envFactorNeed, 0.25, 0.75);
     const heatNeed = rough
-      ? area * (NAERING_KWH_PER_M2[type] ?? 75) * hoursFactor * envFactorNeed
-      : kwh * clamp((NAERING_HEAT_SHARE[type] ?? 0.5) * hoursFactor * envFactorNeed, 0.25, 0.75);
+      ? heatNeedFromArea
+      : 0.7 * heatNeedFromConsumption + 0.3 * heatNeedFromArea;
 
     return computeResult({
       heatNeed,
@@ -597,8 +637,12 @@ function NaeringForm({ installedPrice, onInstalledPrice }: { installedPrice: str
       pumpType: "luft_luft",
       sourceFactor:
         (HEATING_SOURCE_FACTOR[source] ?? 0.85) * (ENVELOPE_FACTOR[envelope] ?? 1) * 0.95,
+      area,
+      refArea: 400,
+      basis: rough ? "Arealbasert estimat" : "Strømforbruk + areal",
     });
   }, [type, area, hours, unknownKwh, kwh, source, price, envelope]);
+
 
 
   return (
