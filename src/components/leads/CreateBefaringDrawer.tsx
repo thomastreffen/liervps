@@ -275,6 +275,8 @@ export function CreateBefaringDrawer({ open, onOpenChange, lead, onCreated }: Pr
       // ── Integrasjoner: skal aldri kunne rulle tilbake lokal lagring ──
       let calendarMissing = false;
       let emailMissing = false;
+      let driveMissing = false;
+      let driveUrl: string | null = null;
 
       if (syncGoogle) {
         try {
@@ -293,18 +295,22 @@ export function CreateBefaringDrawer({ open, onOpenChange, lead, onCreated }: Pr
         const text = [
           `Hei ${contact || customer},`,
           "",
-          `Vi har satt opp befaring: ${title.trim()}`,
-          `Tidspunkt: ${when}`,
+          "Takk for henvendelsen til Lier Varmepumpeservice.",
+          `Vi har satt opp befaring: ${when}`,
           address.trim() ? `Sted: ${address.trim()}` : null,
           "",
-          "Ta kontakt hvis tidspunktet ikke passer.",
+          "På befaringen ser vi på plassering av inne- og utedel, varmebehov, strømtilførsel og praktisk montering.",
+          "",
+          "Passer ikke tidspunktet? Svar på denne e-posten eller ring oss.",
+          "",
+          "Endelig anbefaling og pris gis etter befaringen.",
           "",
           "Vennlig hilsen",
-          "Lier VPS",
+          "Lier Varmepumpeservice",
         ].filter(Boolean).join("\n");
         try {
           const { data: mail, error: mailErr } = await supabase.functions.invoke("gmail-send", {
-            body: { to: email.trim(), subject: `Befaring – ${format(new Date(startISO), "dd.MM.yyyy HH:mm")}`, text },
+            body: { to: email.trim(), subject: "Befaring fra Lier Varmepumpeservice", text },
           });
           if (mailErr || mail?.status === "error" || mail?.status === "no_token") emailMissing = true;
           else toast.success("Bekreftelse sendt til kunden");
@@ -314,17 +320,52 @@ export function CreateBefaringDrawer({ open, onOpenChange, lead, onCreated }: Pr
         }
       }
 
-      if (calendarMissing || emailMissing) {
-        const what = calendarMissing && emailMissing
-          ? "Google Kalender/e-post"
-          : calendarMissing ? "Google Kalender" : "E-post (Gmail)";
-        toast.info(`Befaring lagret lokalt. ${what} er ikke koblet til.`, {
+      if (prepareDrive) {
+        try {
+          const { data: drive, error: driveErr } = await supabase.functions.invoke("google-drive-folder", {
+            body: { lead_id: lead.id },
+          });
+          if (driveErr || !drive || drive.status === "error" || drive.status === "no_token") driveMissing = true;
+          else driveUrl = drive.folder_url ?? null;
+        } catch (e) {
+          console.warn("[CreateBefaring] drive folder failed:", e);
+          driveMissing = true;
+        }
+      }
+
+      // Google Workspace-status for henvendelsen (vises i lead-detaljen)
+      await supabase.from("activity_log").insert({
+        entity_type: "lead",
+        entity_id: lead.id,
+        action: "google_workspace_sync",
+        type: "system",
+        title: "Google Workspace",
+        description: "Status for kalender, e-post og Drive ved befaring",
+        performed_by: user?.id || null,
+        metadata: {
+          event_id: eventId,
+          calendar: syncGoogle ? (calendarMissing ? "failed" : "created") : "skipped",
+          customer_email: sendEmail && email.trim() ? (emailMissing ? "failed" : "sent") : "skipped",
+          drive: prepareDrive ? (driveMissing ? "failed" : "created") : "skipped",
+          drive_folder_url: driveUrl,
+        },
+      } as any);
+
+      if (emailMissing) {
+        toast.info("Befaring lagret. E-postbekreftelse ble ikke sendt fordi Gmail ikke er koblet til.", { duration: 7000 });
+      }
+      if (calendarMissing) {
+        toast.info("Befaring lagret lokalt. Google Kalender er ikke koblet til.", {
           description: "Koble til Google under Innstillinger → Integrasjoner.",
           duration: 7000,
         });
       }
+      if (driveMissing) {
+        toast.info("Google Drive ikke koblet til.", { description: "Mappe for henvendelsen ble ikke opprettet.", duration: 6000 });
+      }
 
       onOpenChange(false);
+
       onCreated?.();
     } catch (err: any) {
       console.error("[CreateBefaring] error:", err);
