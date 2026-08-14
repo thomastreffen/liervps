@@ -5,7 +5,9 @@
 
 import { clearAppCachesAndUnregister } from "./runtimeCleanup";
 
-const FLAG_KEY = "mcs-chunk-reload";
+const FLAG_KEY = "lier-vps-chunk-reload";
+const RETRY_PARAM = "module-retry";
+let recoveryStarted = false;
 
 function isChunkError(message: string | undefined | null): boolean {
   if (!message) return false;
@@ -18,7 +20,12 @@ function isChunkError(message: string | undefined | null): boolean {
   );
 }
 
-async function recover() {
+export async function recoverFromChunkError(error?: unknown) {
+  const message = error instanceof Error ? error.message : String(error ?? "");
+  if (message && !isChunkError(message)) return;
+  if (recoveryStarted) return;
+  recoveryStarted = true;
+
   try {
     if (sessionStorage.getItem(FLAG_KEY) === "1") {
       // Already tried once this session — give up to avoid a reload loop.
@@ -28,30 +35,38 @@ async function recover() {
   } catch {
     /* sessionStorage may be unavailable */
   }
+  // Cache/service-worker cleanup must not be allowed to postpone recovery
+  // indefinitely. A changed document URL also bypasses stale preview caches.
+  await Promise.race([
+    clearAppCachesAndUnregister().catch(() => undefined),
+    new Promise<void>((resolve) => window.setTimeout(resolve, 1500)),
+  ]);
+
+  const retryUrl = new URL(window.location.href);
+  retryUrl.searchParams.set(RETRY_PARAM, Date.now().toString());
+  window.location.replace(retryUrl.toString());
+}
+
+export function markChunkLoadHealthy() {
   try {
-    await clearAppCachesAndUnregister();
+    sessionStorage.removeItem(FLAG_KEY);
   } catch {
     /* noop */
   }
-  window.location.reload();
+
+  const currentUrl = new URL(window.location.href);
+  if (!currentUrl.searchParams.has(RETRY_PARAM)) return;
+  currentUrl.searchParams.delete(RETRY_PARAM);
+  window.history.replaceState(window.history.state, "", currentUrl.toString());
 }
 
 export function installChunkErrorRecovery() {
   if (typeof window === "undefined") return;
 
-  // Clear the flag on a clean load so future stale chunks can recover again.
-  window.addEventListener("load", () => {
-    try {
-      sessionStorage.removeItem(FLAG_KEY);
-    } catch {
-      /* noop */
-    }
-  });
-
   window.addEventListener("error", (event) => {
     const msg = event.message || (event.error && String(event.error));
     if (isChunkError(msg)) {
-      void recover();
+      void recoverFromChunkError(event.error ?? msg);
     }
   });
 
@@ -61,7 +76,8 @@ export function installChunkErrorRecovery() {
       (reason && (reason.message || (typeof reason === "string" ? reason : String(reason)))) ||
       "";
     if (isChunkError(msg)) {
-      void recover();
+      event.preventDefault();
+      void recoverFromChunkError(reason ?? msg);
     }
   });
 }
