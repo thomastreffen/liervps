@@ -6637,6 +6637,39 @@ export type Database = {
           },
         ]
       }
+      integration_health: {
+        Row: {
+          error_code: string | null
+          id: string
+          last_failed_at: string | null
+          last_success_at: string | null
+          provider: string
+          service: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          error_code?: string | null
+          id?: string
+          last_failed_at?: string | null
+          last_success_at?: string | null
+          provider?: string
+          service: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          error_code?: string | null
+          id?: string
+          last_failed_at?: string | null
+          last_success_at?: string | null
+          provider?: string
+          service?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       integration_providers: {
         Row: {
           company_id: string
