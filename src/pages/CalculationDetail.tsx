@@ -41,6 +41,7 @@ import { toast } from "sonner";
 import { NewRegulationQueryDialog } from "@/components/regulation/NewRegulationQueryDialog";
 import { ContactPersonSelect, type ContactPerson } from "@/components/offer/ContactPersonSelect";
 import { CustomerSelect } from "@/components/offer/CustomerSelect";
+import { syncLeadOnOfferAccepted, syncLeadOnOfferRejected } from "@/lib/lead-status-sync";
 
 interface CalcItem {
   id: string;
