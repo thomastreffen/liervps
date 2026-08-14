@@ -1147,6 +1147,13 @@ function ProductDetailDialog({
           {rp.positioning}
         </p>
 
+        {rp.details?.guidanceNote && (
+          <p className="-mt-1 text-sm font-medium text-[hsl(var(--mcs-navy))]">
+            {rp.details.guidanceNote}
+          </p>
+        )}
+
+
         <TagRow tags={item.tags} />
 
         <div className="space-y-5">
