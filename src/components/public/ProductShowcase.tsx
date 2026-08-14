@@ -837,9 +837,19 @@ function resolveProduct(item: ProductItem): ResolvedProduct {
     details?.coldClimateNote,
   ].filter((v): v is string => Boolean(v));
 
+  const imageAlt = details?.imageAlt ?? `${item.name} varmepumpe`;
+  const gallery = resolveProductGallery({
+    name: item.name,
+    images: details?.images,
+    imageKey: details?.imageKey,
+    imageAlt,
+    directSrc: item.image ?? null,
+  });
+
   return {
     item,
     details,
+
     positioning: details?.shortPositioning ?? item.description,
     suitableFor: details?.suitableFor?.length ? details.suitableFor : item.bestFor,
     typicalUse:
