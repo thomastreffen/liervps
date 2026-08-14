@@ -27,6 +27,7 @@ import { LeadNextStepPanel } from "@/components/leads/LeadNextStepPanel";
 import { CreateOfferDraftDrawer } from "@/components/leads/CreateOfferDraftDrawer";
 import { CreateJobFromLeadDrawer } from "@/components/leads/CreateJobFromLeadDrawer";
 import { LeadLinkedJobsCard } from "@/components/leads/LeadLinkedJobsCard";
+import { OfferPreviewDialog } from "@/components/leads/OfferPreviewDialog";
 import { FlowTrail } from "@/components/flow/FlowTrail";
 import { useFlowChain } from "@/components/flow/useFlowChain";
 import { ContractListSection } from "@/components/contracts/ContractListSection";
