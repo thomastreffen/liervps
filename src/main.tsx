@@ -2,6 +2,11 @@ import { createRoot } from "react-dom/client";
 import "./index.css";
 import { handleFreshResetIfRequested, runLierVpsRuntimeCleanup } from "./pwa/freshReset";
 import { installNavigationGuard } from "./lib/navigationGuard";
+import { installChunkErrorRecovery } from "./pwa/chunkErrorRecovery";
+
+// Install before the bootstrap imports. Otherwise a stale App.tsx URL rejects
+// before the recovery listeners exist and leaves the preview blank.
+installChunkErrorRecovery();
 
 async function bootstrap() {
   // Must run before React so ?fresh=1 cannot mount an old app shell
@@ -10,11 +15,10 @@ async function bootstrap() {
   await runLierVpsRuntimeCleanup();
   installNavigationGuard();
 
-  const [{ default: App }, { ErrorBoundary }, { isStandalone, cleanupLegacyServiceWorkers }, { installChunkErrorRecovery }, { APP_VERSION, APP_BUILD_TIME }, { HelmetProvider }] = await Promise.all([
+  const [{ default: App }, { ErrorBoundary }, { isStandalone, cleanupLegacyServiceWorkers }, { APP_VERSION, APP_BUILD_TIME }, { HelmetProvider }] = await Promise.all([
     import("./App.tsx"),
     import("./components/ErrorBoundary.tsx"),
     import("./pwa/runtimeCleanup"),
-    import("./pwa/chunkErrorRecovery"),
     import("./pwa/buildVersion"),
     import("react-helmet-async"),
   ]);
@@ -24,10 +28,12 @@ async function bootstrap() {
   if (isStandalone()) {
     document.body.classList.add("pwa-standalone");
   }
-  installChunkErrorRecovery();
   cleanupLegacyServiceWorkers();
 
-  createRoot(document.getElementById("root")!).render(
+  const root = document.getElementById("root");
+  if (!root) return;
+
+  createRoot(root).render(
     <ErrorBoundary>
       <HelmetProvider>
         <App />
