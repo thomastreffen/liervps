@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
   Check,
@@ -1754,6 +1754,9 @@ export function ProductShowcase() {
       ),
     [activeGroup]
   );
+
+  const activeSelected =
+    selected && activeGroup.items.some((i) => i.name === selected.name) ? selected : null;
 
   const filtered = activeGroup.items.filter(
     (i) => brandFilter === ALL_BRANDS || i.brand === brandFilter
