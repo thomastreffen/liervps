@@ -232,6 +232,12 @@ export const PRODUCT_DETAILS: Record<string, ProductDetails> = {
     placementNotes:
       "Plassering av innedel og utedel har mye å si for resultatet. Vi ser på luftveier, avstander og støy mot naboer på befaring.",
     imageKey: "mitsubishi-uwano-pure",
+    images: [
+      { key: "mitsubishi-uwano-pure", type: "primary", alt: "a", status: "local_approved" },
+      { key: "mitsubishi-zen", type: "outdoor", alt: "b", status: "local_approved" },
+      { key: "mitsubishi-furo", type: "lifestyle", alt: "c", status: "local_approved" },
+      { key: "does-not-exist", type: "detail", alt: "d", status: "missing" },
+    ],
     imageAlt: "Mitsubishi Electric UWANO Pure innedel montert på vegg",
     imageStatus: "local_approved",
     sourceUrl: SRC.meeUwanoPure.url,
