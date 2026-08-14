@@ -282,8 +282,8 @@ export default function CompanySettings() {
         </CardContent>
       </Card>
 
+      {/* SharePoint (skjult – Microsoft deaktivert) */}
       {MICROSOFT_UI_ENABLED && (
-        {/* SharePoint */}
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
