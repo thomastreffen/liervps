@@ -240,19 +240,20 @@ export function OfferPreviewDialog({ open, onOpenChange, offer, lead, onUpdated 
               {recipient && <p className="text-muted-foreground">{recipient}</p>}
             </div>
 
-            {(snap.recommended_solution || snap.selected_product) && (
+            {(snap.recommended_solution || product) && (
               <div className="space-y-1">
                 <p className="font-medium">Anbefalt løsning</p>
                 {snap.recommended_solution && <p>{snap.recommended_solution}</p>}
-                {snap.selected_product && <p className="text-muted-foreground">Produkt: {snap.selected_product}</p>}
+                {product && <p className="text-muted-foreground">Produkt: {product}</p>}
               </div>
             )}
 
-            {offer.description && (
+            {scopeText && (
               <div className="space-y-1">
                 <p className="font-medium">Omfang</p>
-                <p className="whitespace-pre-wrap text-muted-foreground">{offer.description}</p>
+                <p className="whitespace-pre-wrap text-muted-foreground">{scopeText}</p>
               </div>
+
             )}
 
             {calcRows.length > 0 && (
