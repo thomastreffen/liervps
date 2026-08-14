@@ -416,12 +416,12 @@ export function OfferPreviewDialog({ open, onOpenChange, offer, lead, onUpdated 
             </Button>
             {hasPdf && (
               <Button variant="outline" className="gap-1.5" asChild>
-                <a href={offer.pdf_drive_url!} target="_blank" rel="noreferrer">
+                <a href={pdfUrl!} target="_blank" rel="noreferrer">
                   <ExternalLink className="h-4 w-4" /> Åpne PDF
                 </a>
               </Button>
             )}
-            {(hasPdf || offer.pdf_generated_at) && (
+            {pdfEverGenerated && (
               <Button variant="outline" className="gap-1.5" onClick={handleRegenerate} disabled={pdfBusy}>
                 {pdfBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
                 Regenerer PDF
@@ -431,7 +431,7 @@ export function OfferPreviewDialog({ open, onOpenChange, offer, lead, onUpdated 
               <CheckCircle2 className="h-4 w-4" /> Marker som sendt
             </Button>
 
-            <Button className="gap-1.5" onClick={handleSend} disabled={sending || isSent || !recipient}>
+            <Button className="gap-1.5" onClick={handleSend} disabled={sending || pdfBusy || isSent || !recipient}>
               {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
               Send tilbud
             </Button>
