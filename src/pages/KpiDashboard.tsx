@@ -500,7 +500,7 @@ function SalesDashboardView({ data, navigate }: { data: SalesData; navigate: (pa
     <div className="space-y-5 sm:space-y-8">
       {/* KPI row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-        <KpiCard title="Leads denne mnd" value={data.leadsThisMonth} icon={<UserPlus className="h-4 w-4" />} onClick={() => navigate("/sales/leads")} />
+        <KpiCard title="Henvendelser denne mnd" value={data.leadsThisMonth} icon={<UserPlus className="h-4 w-4" />} onClick={() => navigate("/sales/leads")} />
         <KpiCard title="Konverteringsrate" value={`${data.conversionRate.toFixed(0)}%`} icon={<Target className="h-4 w-4" />} onClick={() => navigate("/sales/pipeline")} />
         <KpiCard title="Pipeline-verdi" value={`kr ${(data.pipelineValue / 1000).toFixed(0)}k`} icon={<TrendingUp className="h-4 w-4" />} accent onClick={() => navigate("/sales/pipeline")} />
         <KpiCard title="Tilbud sendt" value={data.offersSent} icon={<ReceiptText className="h-4 w-4" />} onClick={() => navigate("/sales/offers")} />
@@ -558,7 +558,7 @@ function SalesDashboardView({ data, navigate }: { data: SalesData; navigate: (pa
         </SectionCard>
 
         {/* Leads per kilde */}
-        <SectionCard title="Leads per kilde" subtitle="Aktive leads" icon={<PieChart className="h-4 w-4" />}>
+        <SectionCard title="Henvendelser per kilde" subtitle="Aktive henvendelser" icon={<PieChart className="h-4 w-4" />}>
           {data.leadsPerSource.length > 0 ? (
             <DonutChart data={data.leadsPerSource} isMobile={isMobile} />
           ) : (
@@ -571,8 +571,8 @@ function SalesDashboardView({ data, navigate }: { data: SalesData; navigate: (pa
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-5">
         <SectionCard title="Krever oppfølging" subtitle="Salgsoppgaver" icon={<AlertTriangle className="h-4 w-4" />}>
           <div className="space-y-1">
-            <ActionItem label="Leads uten oppfølging" count={data.actionItems.leadsNoFollowup} variant="warning" onClick={() => navigate("/sales/leads")} />
-            <ActionItem label="Leads uten aktivitet >7d" count={data.actionItems.leadsInactive7d} variant="warning" onClick={() => navigate("/sales/leads")} />
+            <ActionItem label="Henvendelser uten oppfølging" count={data.actionItems.leadsNoFollowup} variant="warning" onClick={() => navigate("/sales/leads")} />
+            <ActionItem label="Henvendelser uten aktivitet >7d" count={data.actionItems.leadsInactive7d} variant="warning" onClick={() => navigate("/sales/leads")} />
             <ActionItem label="Tilbud uten oppfølging" count={data.actionItems.offersNotFollowed} variant="error" onClick={() => navigate("/sales/offers")} />
           </div>
         </SectionCard>
