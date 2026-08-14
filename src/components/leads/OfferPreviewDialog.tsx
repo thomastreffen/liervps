@@ -44,7 +44,12 @@ export interface OfferRow {
   customer_email?: string | null;
   description?: string | null;
   input_snapshot?: any;
+  pdf_drive_file_id?: string | null;
+  pdf_drive_url?: string | null;
+  pdf_generated_at?: string | null;
+  pdf_content_hash?: string | null;
 }
+
 
 interface Props {
   open: boolean;
