@@ -13,7 +13,11 @@
 
 import type { BrandName, ProductType } from "./product-types";
 
-export type ImageStatus = "missing" | "local" | "approved-source-needed";
+export type ImageStatus =
+  | "missing"
+  | "local_approved"
+  | "needs_approval"
+  | "approved-source-needed";
 
 export type ProductDetails = {
   brand?: BrandName;
@@ -55,6 +59,38 @@ const REVIEWED = "2026-08-14";
 const SRC = {
   mee: {
     url: "https://mee.no/privat/produktkategori/luft-luft-varmepumper/",
+    label: "Mitsubishi Electric Norge (produsent)",
+  },
+  meeUwanoPure: {
+    url: "https://mee.no/privat/produktkategori/luft-luft-varmepumper/uwanopure/",
+    label: "Mitsubishi Electric Norge (produsent)",
+  },
+  meeKaiteki: {
+    url: "https://mee.no/privat/produktkategori/luft-luft-varmepumper/kaiteki/",
+    label: "Mitsubishi Electric Norge (produsent)",
+  },
+  meeGussuri: {
+    url: "https://mee.no/privat/produktkategori/luft-luft-varmepumper/gussuri/",
+    label: "Mitsubishi Electric Norge (produsent)",
+  },
+  meeIguru: {
+    url: "https://mee.no/privat/produktkategori/luft-luft-varmepumper/iguru/",
+    label: "Mitsubishi Electric Norge (produsent)",
+  },
+  meeFuro: {
+    url: "https://mee.no/privat/produktkategori/luft-luft-varmepumper/furo/",
+    label: "Mitsubishi Electric Norge (produsent)",
+  },
+  meeZen: {
+    url: "https://mee.no/privat/produktkategori/luft-luft-varmepumper/zen/",
+    label: "Mitsubishi Electric Norge (produsent)",
+  },
+  meeDuo: {
+    url: "https://mee.no/privat/produktkategori/luft-luft-varmepumper/duo-7000/",
+    label: "Mitsubishi Electric Norge (produsent)",
+  },
+  meeNordicMulti: {
+    url: "https://mee.no/privat/produktkategori/luft-luft-varmepumper/nordic-multi/",
     label: "Mitsubishi Electric Norge (produsent)",
   },
   paBest: {
@@ -104,7 +140,7 @@ export const PRODUCT_DETAILS: Record<string, ProductDetails> = {
     modelFamily: "UWANO",
     productType: "Luft-luft",
     shortPositioning:
-      "Toppmodellen i serien, typisk valgt når komfort og stabil varme gjennom hele året veier tyngst.",
+      "Toppmodellen i serien hos Mitsubishi Electric, typisk valgt når komfort og stabil varme gjennom hele året veier tyngst.",
     suitableFor: [
       "Enebolig eller rekkehus med ett hovedoppholdsrom",
       "Boliger der varmepumpen skal være hovedvarmekilde",
@@ -124,9 +160,9 @@ export const PRODUCT_DETAILS: Record<string, ProductDetails> = {
       "Plassering av innedel og utedel har mye å si for resultatet. Vi ser på luftveier, avstander og støy mot naboer på befaring.",
     imageKey: "mitsubishi-uwano-pure",
     imageAlt: "Mitsubishi Electric UWANO Pure innedel montert på vegg",
-    imageStatus: "missing",
-    sourceUrl: SRC.mee.url,
-    sourceLabel: SRC.mee.label,
+    imageStatus: "needs_approval",
+    sourceUrl: SRC.meeUwanoPure.url,
+    sourceLabel: SRC.meeUwanoPure.label,
     lastReviewed: REVIEWED,
   },
   Kaiteki: {
@@ -135,7 +171,7 @@ export const PRODUCT_DETAILS: Record<string, ProductDetails> = {
     modelFamily: "Kaiteki",
     productType: "Luft-luft",
     shortPositioning:
-      "Populær allroundmodell som treffer de fleste vanlige boliger, med god balanse mellom ytelse, design og pris.",
+      "Bestselgeren hos Mitsubishi Electric, en allroundmodell som treffer de fleste vanlige boliger.",
     suitableFor: [
       "Vanlig enebolig, rekkehus eller leilighet",
       "Boliger som i dag varmes opp med panelovner",
@@ -152,9 +188,9 @@ export const PRODUCT_DETAILS: Record<string, ProductDetails> = {
       "Fargevalg gjør det enklere å tilpasse innedelen til rommet. Tilgjengelige varianter avklares ved bestilling.",
     imageKey: "mitsubishi-kaiteki",
     imageAlt: "Mitsubishi Electric Kaiteki innedel",
-    imageStatus: "missing",
-    sourceUrl: SRC.mee.url,
-    sourceLabel: SRC.mee.label,
+    imageStatus: "needs_approval",
+    sourceUrl: SRC.meeKaiteki.url,
+    sourceLabel: SRC.meeKaiteki.label,
     lastReviewed: REVIEWED,
   },
   GUSSURI: {
@@ -163,7 +199,7 @@ export const PRODUCT_DETAILS: Record<string, ProductDetails> = {
     modelFamily: "GUSSURI",
     productType: "Luft-luft",
     shortPositioning:
-      "Komfortmodell der jevn varme og et rolig lydbilde er viktigere enn maksimal effekt.",
+      "Komfortmodellen hos Mitsubishi Electric, der jevn varme og et rolig lydbilde er viktigere enn maksimal effekt.",
     suitableFor: [
       "Soverom, hybel eller mindre oppholdsrom",
       "Boliger der innedelen står nær der man sover eller jobber",
@@ -180,9 +216,9 @@ export const PRODUCT_DETAILS: Record<string, ProductDetails> = {
       "Modellen er posisjonert av produsenten som en stillegående komfortmodell. Faktisk opplevd lyd avhenger av rom, montasje og driftsnivå.",
     imageKey: "mitsubishi-gussuri",
     imageAlt: "Mitsubishi Electric GUSSURI innedel",
-    imageStatus: "missing",
-    sourceUrl: SRC.mee.url,
-    sourceLabel: SRC.mee.label,
+    imageStatus: "needs_approval",
+    sourceUrl: SRC.meeGussuri.url,
+    sourceLabel: SRC.meeGussuri.label,
     lastReviewed: REVIEWED,
   },
   IGURU: {
@@ -191,7 +227,7 @@ export const PRODUCT_DETAILS: Record<string, ProductDetails> = {
     modelFamily: "IGURU",
     productType: "Luft-luft",
     shortPositioning:
-      "Kompakt innedel for boliger der veggplassen er begrenset eller pumpen skal være lite synlig.",
+      "Kompaktmodellen hos Mitsubishi Electric, for boliger der veggplassen er begrenset eller pumpen skal være lite synlig.",
     suitableFor: [
       "Leilighet eller mindre bolig",
       "Rom med smal eller delvis opptatt vegg",
@@ -208,9 +244,9 @@ export const PRODUCT_DETAILS: Record<string, ProductDetails> = {
       "Kompakt størrelse gir flere plasseringsmuligheter, men luftveien i rommet må fortsatt vurderes på befaring.",
     imageKey: "mitsubishi-iguru",
     imageAlt: "Mitsubishi Electric IGURU kompakt innedel",
-    imageStatus: "missing",
-    sourceUrl: SRC.mee.url,
-    sourceLabel: SRC.mee.label,
+    imageStatus: "needs_approval",
+    sourceUrl: SRC.meeIguru.url,
+    sourceLabel: SRC.meeIguru.label,
     lastReviewed: REVIEWED,
   },
   Furo: {
@@ -219,7 +255,7 @@ export const PRODUCT_DETAILS: Record<string, ProductDetails> = {
     modelFamily: "Furo",
     productType: "Gulvmodell",
     shortPositioning:
-      "Gulvmodell for lav plassering på vegg, aktuelt der høy montering ikke passer.",
+      "Gulvmodellen hos Mitsubishi Electric, for lav plassering der høy montering ikke passer.",
     suitableFor: [
       "Eldre boliger med lav takhøyde eller mange vinduer",
       "Rom der veggen over er opptatt av vindu eller skap",
@@ -236,9 +272,9 @@ export const PRODUCT_DETAILS: Record<string, ProductDetails> = {
       "Krever fri luftvei foran enheten. Møblering og gardiner må hensyntas, og vurderes på befaring.",
     imageKey: "mitsubishi-furo",
     imageAlt: "Mitsubishi Electric Furo gulvmodell",
-    imageStatus: "missing",
-    sourceUrl: SRC.mee.url,
-    sourceLabel: SRC.mee.label,
+    imageStatus: "needs_approval",
+    sourceUrl: SRC.meeFuro.url,
+    sourceLabel: SRC.meeFuro.label,
     lastReviewed: REVIEWED,
   },
   Zen: {
@@ -247,7 +283,7 @@ export const PRODUCT_DETAILS: Record<string, ProductDetails> = {
     modelFamily: "Zen",
     productType: "Luft-luft",
     shortPositioning:
-      "Designmodell for boliger der innedelen er godt synlig og skal passe inn i interiøret.",
+      "Designmodellen hos Mitsubishi Electric, for boliger der innedelen er godt synlig og skal passe inn i interiøret.",
     suitableFor: [
       "Stue eller kjøkken med synlig plassering",
       "Nyere boliger med tydelig interiøruttrykk",
@@ -264,9 +300,9 @@ export const PRODUCT_DETAILS: Record<string, ProductDetails> = {
       "Designmodellene har et flatere frontuttrykk enn standardmodellene. Endelig valg avhenger av rommet og plasseringen.",
     imageKey: "mitsubishi-zen",
     imageAlt: "Mitsubishi Electric Zen designmodell",
-    imageStatus: "missing",
-    sourceUrl: SRC.mee.url,
-    sourceLabel: SRC.mee.label,
+    imageStatus: "needs_approval",
+    sourceUrl: SRC.meeZen.url,
+    sourceLabel: SRC.meeZen.label,
     lastReviewed: REVIEWED,
   },
   "Duo-modellen": {
@@ -275,7 +311,7 @@ export const PRODUCT_DETAILS: Record<string, ProductDetails> = {
     modelFamily: "Duo",
     productType: "Multisplitt",
     shortPositioning:
-      "To innedeler på samme utedel, aktuelt når varmen skal nå to soner uten to komplette anlegg.",
+      "Duomodellen hos Mitsubishi Electric, med to innedeler på samme utedel.",
     suitableFor: [
       "Bolig over to plan",
       "Delt planløsning med to naturlige soner",
@@ -290,11 +326,11 @@ export const PRODUCT_DETAILS: Record<string, ProductDetails> = {
     ],
     placementNotes:
       "Rørføring mellom sonene er avgjørende for hva som er praktisk mulig, og må kartlegges på befaring.",
-    imageKey: "mitsubishi-duo",
+    imageKey: "mitsubishi-duo-modellen",
     imageAlt: "Mitsubishi Electric Duo multiløsning",
-    imageStatus: "missing",
-    sourceUrl: SRC.mee.url,
-    sourceLabel: SRC.mee.label,
+    imageStatus: "needs_approval",
+    sourceUrl: SRC.meeDuo.url,
+    sourceLabel: SRC.meeDuo.label,
     lastReviewed: REVIEWED,
   },
   "Nordic Multi": {
@@ -303,7 +339,7 @@ export const PRODUCT_DETAILS: Record<string, ProductDetails> = {
     modelFamily: "Nordic Multi",
     productType: "Multisplitt",
     shortPositioning:
-      "Multiløsning der flere innedeler kobles til én utedel for å dekke flere rom.",
+      "Multimodellen hos Mitsubishi Electric, der flere innedeler kobles til én utedel for å dekke flere rom.",
     suitableFor: [
       "Større boliger med flere rom som skal varmes",
       "Boliger med lukket planløsning",
@@ -321,9 +357,9 @@ export const PRODUCT_DETAILS: Record<string, ProductDetails> = {
       "Serien er posisjonert av produsenten for nordiske forhold. Dimensjonering settes etter befaring.",
     imageKey: "mitsubishi-nordic-multi",
     imageAlt: "Mitsubishi Electric Nordic Multi utedel med flere innedeler",
-    imageStatus: "missing",
-    sourceUrl: SRC.mee.url,
-    sourceLabel: SRC.mee.label,
+    imageStatus: "needs_approval",
+    sourceUrl: SRC.meeNordicMulti.url,
+    sourceLabel: SRC.meeNordicMulti.label,
     lastReviewed: REVIEWED,
   },
 
