@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
+import { MICROSOFT_UI_ENABLED } from "@/lib/feature-flags";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -281,32 +282,34 @@ export default function CompanySettings() {
         </CardContent>
       </Card>
 
-      {/* SharePoint */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center gap-2">
-            <Building2 className="h-4 w-4" /> SharePoint-konfigurasjon
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <p className="text-xs text-muted-foreground">Konfigurer SharePoint-tilkobling for prosjektmapper. Disse verdiene brukes når jobber søker etter prosjektmapper.</p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label>Site ID</Label>
-              <Input value={data.sharepoint_site_id || ""} onChange={(e) => update("sharepoint_site_id", e.target.value)} placeholder="contoso.sharepoint.com,guid,guid" className="font-mono text-xs" />
+      {/* SharePoint (skjult – Microsoft deaktivert) */}
+      {MICROSOFT_UI_ENABLED && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Building2 className="h-4 w-4" /> SharePoint-konfigurasjon
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-xs text-muted-foreground">Konfigurer SharePoint-tilkobling for prosjektmapper. Disse verdiene brukes når jobber søker etter prosjektmapper.</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Site ID</Label>
+                <Input value={data.sharepoint_site_id || ""} onChange={(e) => update("sharepoint_site_id", e.target.value)} placeholder="contoso.sharepoint.com,guid,guid" className="font-mono text-xs" />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Drive ID</Label>
+                <Input value={data.sharepoint_drive_id || ""} onChange={(e) => update("sharepoint_drive_id", e.target.value)} placeholder="b!abc123..." className="font-mono text-xs" />
+              </div>
             </div>
             <div className="space-y-1.5">
-              <Label>Drive ID</Label>
-              <Input value={data.sharepoint_drive_id || ""} onChange={(e) => update("sharepoint_drive_id", e.target.value)} placeholder="b!abc123..." className="font-mono text-xs" />
+              <Label>Base Path (rotmappe for prosjekter)</Label>
+              <Input value={data.sharepoint_base_path || ""} onChange={(e) => update("sharepoint_base_path", e.target.value)} placeholder="Drift" />
+              <p className="text-xs text-muted-foreground">Prosjektmapper søkes under denne mappen, f.eks. «Drift/J12345»</p>
             </div>
-          </div>
-          <div className="space-y-1.5">
-            <Label>Base Path (rotmappe for prosjekter)</Label>
-            <Input value={data.sharepoint_base_path || ""} onChange={(e) => update("sharepoint_base_path", e.target.value)} placeholder="Drift" />
-            <p className="text-xs text-muted-foreground">Prosjektmapper søkes under denne mappen, f.eks. «Drift/J12345»</p>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

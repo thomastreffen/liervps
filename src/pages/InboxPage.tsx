@@ -279,7 +279,7 @@ export default function InboxPage() {
       const { data, error } = await supabase.functions.invoke("inbox-sync");
       if (error) throw error;
       if (data?.ms_reauth) {
-        if (!silent) toast.error("Microsoft-tilkobling må fornyes. Gå til Integrasjoner.");
+        if (!silent) toast.error("Tilkoblingen må fornyes. Gå til Integrasjoner.");
         return;
       }
       setLastSyncAt(new Date());

@@ -124,7 +124,7 @@ export function EmailComposer({
 
       if (error) throw error;
       if (data?.ms_reauth) {
-        toast.error("Microsoft-tilkobling må fornyes", {
+        toast.error("Tilkoblingen må fornyes", {
           description: (data.error_info as StructuredError)?.recommendation || "Logg inn på nytt.",
         });
         return false;

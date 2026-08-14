@@ -1,10 +1,14 @@
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 import { EmployeeImport } from "@/components/EmployeeImport";
+import { MICROSOFT_UI_ENABLED } from "@/lib/feature-flags";
 
 export default function EmployeeImportPage() {
   const navigate = useNavigate();
+
+  // Microsoft 365-import er deaktivert i Lier VPS.
+  if (!MICROSOFT_UI_ENABLED) return <Navigate to="/admin/personer" replace />;
 
   return (
     <div className="p-4 sm:p-6 space-y-6 max-w-4xl mx-auto">

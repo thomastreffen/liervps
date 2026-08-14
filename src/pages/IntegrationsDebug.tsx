@@ -257,7 +257,7 @@ export default function IntegrationsDebug() {
           state={drive}
           onConnect={() => connect("files")}
           disabled={!oauthConfigured}
-          helpText="Erstatter tidligere SharePoint/OneDrive. App-filer lagres med scope drive.file."
+          helpText="App-filer lagres i Google Drive med scope drive.file."
           comingSoon
         />
         <Card>
