@@ -24,6 +24,9 @@ import { PublicLeadContextCard } from "@/components/leads/PublicLeadContextCard"
 import { GoogleWorkspaceStatusCard } from "@/components/leads/GoogleWorkspaceStatusCard";
 import { CreateBefaringDrawer } from "@/components/leads/CreateBefaringDrawer";
 import { LeadNextStepPanel } from "@/components/leads/LeadNextStepPanel";
+import { CreateOfferDraftDrawer } from "@/components/leads/CreateOfferDraftDrawer";
+import { CreateJobFromLeadDrawer } from "@/components/leads/CreateJobFromLeadDrawer";
+import { LeadLinkedJobsCard } from "@/components/leads/LeadLinkedJobsCard";
 import { FlowTrail } from "@/components/flow/FlowTrail";
 import { useFlowChain } from "@/components/flow/useFlowChain";
 import { ContractListSection } from "@/components/contracts/ContractListSection";
