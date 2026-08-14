@@ -1005,7 +1005,7 @@ function ProductDetailDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="w-[calc(100%-1.5rem)] sm:w-full max-w-xl max-h-[88vh] overflow-y-auto bg-white p-5 sm:p-6">
-        <DialogHeader className="space-y-1">
+        <DialogHeader className="space-y-1 text-left sm:text-left">
           <div className="mb-1 pr-8">
             <BrandRow brand={item.brand} logo={logo} />
           </div>
