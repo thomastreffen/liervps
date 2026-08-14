@@ -111,6 +111,7 @@ export function buildOfferText(offer: OfferRow, contact: string, address: string
 export function OfferPreviewDialog({ open, onOpenChange, offer, lead, onUpdated }: Props) {
   const { user } = useAuth();
   const [sending, setSending] = useState(false);
+  const [marking, setMarking] = useState(false);
   const [confirmManual, setConfirmManual] = useState(false);
 
   const snap = offer.input_snapshot || {};
@@ -120,6 +121,9 @@ export function OfferPreviewDialog({ open, onOpenChange, offer, lead, onUpdated 
   const recipient = (offer.customer_email || lead.email || "").trim();
   const calcRows = useMemo(() => calcSummaryRows(snap.calculator_summary), [snap.calculator_summary]);
   const isSent = offer.status === "sent" || Boolean(offer.offer_sent_at);
+  const scopeText = useMemo(() => sanitizeScope(offer.description), [offer.description]);
+  const product = productLabel(snap);
+
 
   const markSent = async (mode: "email" | "manual") => {
     const stamp = format(new Date(), "dd.MM.yyyy HH:mm");
