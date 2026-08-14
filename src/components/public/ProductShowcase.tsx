@@ -1039,6 +1039,10 @@ function ProductDetailDialog({
 }) {
   const { startLead } = useLead();
   if (!item) return null;
+  const rp = resolveProduct(item);
+  const displayName = rp.details?.modelName ?? item.name;
+  const family = rp.details?.modelFamily;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="w-[calc(100%-1.5rem)] sm:w-full max-w-xl max-h-[88vh] overflow-y-auto bg-white p-5 sm:p-6">
@@ -1047,23 +1051,29 @@ function ProductDetailDialog({
             <BrandRow brand={item.brand} logo={logo} />
           </div>
           <DialogTitle className="text-xl sm:text-2xl text-[hsl(var(--mcs-navy))] leading-tight">
-            {item.name}
+            {displayName}
           </DialogTitle>
           <DialogDescription className="text-[hsl(var(--mcs-muted))]">
-            {[item.productType, item.subtitle].filter(Boolean).join(" · ")}
+            {[item.brand, family, item.productType ?? rp.details?.productType]
+              .filter(Boolean)
+              .join(" · ")}
           </DialogDescription>
         </DialogHeader>
 
         <div className="mt-1">
-          <ProductMedia item={item} size="dialog" />
+          <ProductMedia rp={rp} />
         </div>
+
+        <p className="text-sm text-[hsl(var(--mcs-navy))] leading-relaxed">
+          {rp.positioning}
+        </p>
 
         <TagRow tags={item.tags} />
 
         <div className="space-y-5">
-          <DialogSection title="Passer for">
+          <DialogSection title="Passer ofte for">
             <ul className="space-y-1.5">
-              {item.bestFor.map((b) => (
+              {rp.suitableFor.map((b) => (
                 <li
                   key={b}
                   className="flex items-start gap-2 text-sm text-[hsl(var(--mcs-muted))]"
@@ -1077,15 +1087,34 @@ function ProductDetailDialog({
 
           <DialogSection title="Typisk bruk">
             <p className="text-sm text-[hsl(var(--mcs-muted))] leading-relaxed">
-              {typicalUseFor(item)}
+              {rp.typicalUse}
             </p>
           </DialogSection>
 
-          <DialogSection title="Hvorfor vi anbefaler den">
-            <p className="text-sm text-[hsl(var(--mcs-muted))] leading-relaxed">
-              {whyWeRecommend(item)}
-            </p>
+          <DialogSection title="Styrker">
+            <ul className="space-y-1.5">
+              {rp.strengths.map((s) => (
+                <li
+                  key={s}
+                  className="flex items-start gap-2 text-sm text-[hsl(var(--mcs-muted))]"
+                >
+                  <Check className="h-4 w-4 mt-0.5 shrink-0 text-[hsl(var(--mcs-orange))]" />
+                  <span className="min-w-0">{s}</span>
+                </li>
+              ))}
+            </ul>
           </DialogSection>
+
+          <DialogSection title="Viktig å vurdere på befaring">
+            <ul className="space-y-2">
+              {rp.considerations.map((c) => (
+                <li key={c} className="text-sm text-[hsl(var(--mcs-muted))] leading-relaxed">
+                  {c}
+                </li>
+              ))}
+            </ul>
+          </DialogSection>
+
 
           <DialogSection title="Neste steg">
             <p className="text-sm text-[hsl(var(--mcs-muted))] leading-relaxed mb-3">
