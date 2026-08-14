@@ -27,6 +27,7 @@ import { LeadNextStepPanel } from "@/components/leads/LeadNextStepPanel";
 import { CreateOfferDraftDrawer } from "@/components/leads/CreateOfferDraftDrawer";
 import { CreateJobFromLeadDrawer } from "@/components/leads/CreateJobFromLeadDrawer";
 import { LeadLinkedJobsCard } from "@/components/leads/LeadLinkedJobsCard";
+import { OfferPreviewDialog } from "@/components/leads/OfferPreviewDialog";
 import { FlowTrail } from "@/components/flow/FlowTrail";
 import { useFlowChain } from "@/components/flow/useFlowChain";
 import { ContractListSection } from "@/components/contracts/ContractListSection";
@@ -99,6 +100,11 @@ interface LeadCalc {
   status: string;
   total_price: number | null;
   created_at: string;
+  offer_sent_at?: string | null;
+  customer_name?: string | null;
+  customer_email?: string | null;
+  description?: string | null;
+  input_snapshot?: any;
 }
 
 interface CalendarLink {
@@ -150,6 +156,7 @@ function LeadDetailInner() {
   const [offerDraftOpen, setOfferDraftOpen] = useState(false);
   const [jobDrawerOpen, setJobDrawerOpen] = useState(false);
   const [jobsRefreshKey, setJobsRefreshKey] = useState(0);
+  const [previewOffer, setPreviewOffer] = useState<LeadCalc | null>(null);
 
   // Side panel
   const [actionPanelOpen, setActionPanelOpen] = useState(false);
@@ -207,7 +214,7 @@ function LeadDetailInner() {
     if (!id) return;
     try {
       const { data } = await supabase.from("calculations")
-        .select("id, project_title, status, total_price, created_at")
+        .select("id, project_title, status, total_price, created_at, offer_sent_at, customer_name, customer_email, description, input_snapshot")
         .eq("lead_id", id)
         .is("deleted_at", null)
         .order("created_at", { ascending: false });
@@ -716,18 +723,33 @@ function LeadDetailInner() {
                     {offers.map(offer => (
                       <div
                         key={offer.id}
-                        className="flex items-center gap-3 py-2.5 px-2 border-b border-border/20 last:border-0 group rounded-lg hover:bg-secondary/40 cursor-pointer transition-colors"
-                        onClick={() => navigate(`/sales/offers/${offer.id}`)}
+                        className="py-2.5 px-2 border-b border-border/20 last:border-0 rounded-lg hover:bg-secondary/40 transition-colors"
                       >
-                        <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate">{offer.project_title}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {format(new Date(offer.created_at), "d. MMM yyyy", { locale: nb })} · kr {Number(offer.total_price || 0).toLocaleString("nb-NO")} eks. mva
-                          </p>
+                        <div
+                          className="flex items-center gap-3 group cursor-pointer"
+                          onClick={() => navigate(`/sales/offers/${offer.id}`)}
+                        >
+                          <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate">{offer.project_title}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {format(new Date(offer.created_at), "d. MMM yyyy", { locale: nb })} · kr {Number(offer.total_price || 0).toLocaleString("nb-NO")} eks. mva
+                              {offer.offer_sent_at ? ` · Sendt ${format(new Date(offer.offer_sent_at), "d. MMM HH:mm", { locale: nb })}` : ""}
+                            </p>
+                          </div>
+                          <Badge variant="outline" className="text-[10px] capitalize">{offer.status}</Badge>
+                          <ArrowRight className="h-3 w-3 text-muted-foreground/0 group-hover:text-primary/50 transition-all shrink-0" />
                         </div>
-                        <Badge variant="outline" className="text-[10px] capitalize">{offer.status}</Badge>
-                        <ArrowRight className="h-3 w-3 text-muted-foreground/0 group-hover:text-primary/50 transition-all shrink-0" />
+                        <div className="flex gap-2 pl-7 pt-1.5">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 text-xs rounded-lg"
+                            onClick={() => setPreviewOffer(offer)}
+                          >
+                            Forhåndsvis tilbud
+                          </Button>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -896,6 +918,24 @@ function LeadDetailInner() {
         }}
         onCreated={() => { fetchLead(); fetchActivities(); setJobsRefreshKey(k => k + 1); }}
       />
+
+      {/* ── Forhåndsvis / send tilbud ── */}
+      {previewOffer && (
+        <OfferPreviewDialog
+          open={Boolean(previewOffer)}
+          onOpenChange={(v) => { if (!v) setPreviewOffer(null); }}
+          offer={previewOffer}
+          lead={{
+            id: lead.id,
+            company_name: lead.company_name,
+            contact_name: lead.contact_name,
+            email: lead.email,
+            phone: lead.phone,
+            public_lead_id: lead.public_lead_id,
+          }}
+          onUpdated={() => { fetchLead(); fetchOffers(); fetchActivities(); setPreviewOffer(null); }}
+        />
+      )}
 
 
 

@@ -1,0 +1,1 @@
+ALTER TABLE public.calculations ADD COLUMN IF NOT EXISTS offer_sent_at timestamptz;
