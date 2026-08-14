@@ -109,7 +109,7 @@ export default function TrashPage() {
   const typeLabel = (type: string) => {
     if (type === "job") return "Prosjekt";
     if (type === "calculation") return "Kalkulasjon";
-    if (type === "lead") return "Lead";
+    if (type === "lead") return "Henvendelse";
     if (type === "contract") return "Kontrakt";
     if (type === "conversation") return "Samtale";
     if (type === "order") return "Bestilling";
@@ -133,7 +133,7 @@ export default function TrashPage() {
         <TabsList className="flex-wrap">
           <TabsTrigger value="all">Alle ({items.length})</TabsTrigger>
           <TabsTrigger value="job" className="gap-1"><FolderKanban className="h-3 w-3" />Jobber ({countByType("job")})</TabsTrigger>
-          <TabsTrigger value="lead" className="gap-1"><UserPlus className="h-3 w-3" />Leads ({countByType("lead")})</TabsTrigger>
+          <TabsTrigger value="lead" className="gap-1"><UserPlus className="h-3 w-3" />Henvendelser ({countByType("lead")})</TabsTrigger>
           <TabsTrigger value="contract" className="gap-1"><FileSignature className="h-3 w-3" />Kontrakter ({countByType("contract")})</TabsTrigger>
           <TabsTrigger value="calculation" className="gap-1"><Calculator className="h-3 w-3" />Kalkulasjoner ({countByType("calculation")})</TabsTrigger>
           <TabsTrigger value="offer" className="gap-1"><ReceiptText className="h-3 w-3" />Tilbud ({countByType("offer")})</TabsTrigger>

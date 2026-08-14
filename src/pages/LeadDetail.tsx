@@ -282,9 +282,9 @@ function LeadDetailInner() {
       notes: notes.trim() || null,
     };
     await supabase.from("leads").update(payload).eq("id", lead.id);
-    await logActivity({ action: "updated", description: "Lead oppdatert", type: "note", performedBy: user?.id });
-    await supabase.from("lead_history").insert({ lead_id: id!, action: "updated", description: "Lead oppdatert", performed_by: user?.id, metadata: {} });
-    toast.success("Lead lagret");
+    await logActivity({ action: "updated", description: "Henvendelse oppdatert", type: "note", performedBy: user?.id });
+    await supabase.from("lead_history").insert({ lead_id: id!, action: "updated", description: "Henvendelse oppdatert", performed_by: user?.id, metadata: {} });
+    toast.success("Henvendelse lagret");
     setSaving(false);
     fetchLead();
     fetchActivities();
@@ -304,7 +304,7 @@ function LeadDetailInner() {
     const desc = `Status endret fra ${oldLabel} til ${newLabel}`;
     await logActivity({ action: "status_changed", description: desc, type: "status_change", title: `Status: ${newLabel}`, performedBy: user?.id, metadata: { from: lead.status, to: newStatus } });
     await supabase.from("lead_history").insert({ lead_id: id!, action: "status_changed", description: desc, performed_by: user?.id, metadata: { from: lead.status, to: newStatus } });
-    await notifyParticipants(`Status endret til ${newLabel}`, `Lead "${lead.company_name}" fikk ny status: ${newLabel}`);
+    await notifyParticipants(`Status endret til ${newLabel}`, `Henvendelse "${lead.company_name}" fikk ny status: ${newLabel}`);
     toast.success(`Status endret til ${newLabel}`);
     setLead({ ...lead, status: newStatus });
     fetchActivities();
@@ -318,7 +318,7 @@ function LeadDetailInner() {
     const desc = `Eier endret til ${ownerName}`;
     await logActivity({ action: "owner_changed", description: desc, type: "status_change", title: `Ny eier: ${ownerName}`, performedBy: user?.id, metadata: { new_owner: newOwnerId } });
     await supabase.from("lead_history").insert({ lead_id: lead.id, action: "owner_changed", description: desc, performed_by: user?.id, metadata: { new_owner: newOwnerId } });
-    await notifyParticipants(`Ny eier: ${ownerName}`, `Lead "${lead.company_name}" fikk ny eier: ${ownerName}`);
+    await notifyParticipants(`Ny eier: ${ownerName}`, `Henvendelse "${lead.company_name}" fikk ny eier: ${ownerName}`);
     toast.success("Eier endret");
     fetchLead();
     fetchParticipants();

@@ -14,7 +14,7 @@ export function CustomerSnapshot({ projectCount, offerCount, leadCount, lastActi
   const stats = [
     { icon: FolderKanban, label: "Prosjekter", value: projectCount, color: "text-primary" },
     { icon: FileText, label: "Tilbud", value: offerCount, color: "text-info" },
-    { icon: TrendingUp, label: "Leads", value: leadCount, color: "text-accent" },
+    { icon: TrendingUp, label: "Henvendelser", value: leadCount, color: "text-accent" },
   ];
 
   return (

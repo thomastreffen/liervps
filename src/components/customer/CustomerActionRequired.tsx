@@ -19,7 +19,7 @@ export function CustomerActionRequired({ customerId, customerName, leadCount, of
   if (leadCount === 0) {
     actions.push({
       icon: TrendingUp,
-      text: "Opprett lead",
+      text: "Opprett henvendelse",
       action: () => navigate(`/sales/leads/new?customer=${customerId}`),
       variant: "default",
     });

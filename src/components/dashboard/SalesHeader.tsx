@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 
 const tabs = [
   { label: "Oversikt", url: "/sales", icon: BarChart3, exact: true },
-  { label: "Leads", url: "/sales/leads", icon: Target },
+  { label: "Henvendelser", url: "/sales/leads", icon: Target },
   { label: "Tilbud", url: "/sales/offers", icon: FileText },
   { label: "Kalkyler", url: "/sales/calc-engine", icon: Calculator },
 ];

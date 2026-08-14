@@ -50,7 +50,7 @@ export default function HelpCenterPage() {
   const showResults = query.length > 0 || selectedCategory !== null;
 
   if (selectedArticle) {
-    return <ArticleView article={selectedArticle} onBack={() => setSelectedArticle(null)} />;
+    return <ArticleView article={selectedArticle} onBack={() => setSelectedArticle(null)} onSelect={setSelectedArticle} />;
   }
 
   return (
@@ -213,7 +213,7 @@ function ArticleRow({ article, onClick }: { article: HelpArticle; onClick: () =>
 }
 
 /* ─── Article Detail ─── */
-function ArticleView({ article, onBack }: { article: HelpArticle; onBack: () => void }) {
+function ArticleView({ article, onBack, onSelect }: { article: HelpArticle; onBack: () => void; onSelect: (a: HelpArticle) => void }) {
   const related = (article.relatedIds || [])
     .map((id) => helpArticles.find((a) => a.id === id))
     .filter(Boolean) as HelpArticle[];
@@ -263,7 +263,7 @@ function ArticleView({ article, onBack }: { article: HelpArticle; onBack: () => 
           <div className="space-y-2 pt-4 border-t border-border/40">
             <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Relaterte artikler</h2>
             {related.map((a) => (
-              <button key={a.id} className="w-full text-left text-sm text-primary hover:underline" onClick={() => {}}>
+              <button key={a.id} className="w-full text-left text-sm text-primary hover:underline" onClick={() => onSelect(a)}>
                 {a.title}
               </button>
             ))}

@@ -1313,7 +1313,7 @@ export default function OrderFormDetailPage() {
             variant="outline"
             className="text-[10px] gap-1 cursor-pointer hover:bg-muted border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300"
             onClick={() => navigate(`/sales/leads/${sourceLead.id}`)}
-            title={`Lead: ${sourceLead.company_name}${sourceLead.contact_name ? ` · ${sourceLead.contact_name}` : ""}${sourceLead.email ? ` · ${sourceLead.email}` : ""}${sourceLead.phone ? ` · ${sourceLead.phone}` : ""}`}
+            title={`Henvendelse: ${sourceLead.company_name}${sourceLead.contact_name ? ` · ${sourceLead.contact_name}` : ""}${sourceLead.email ? ` · ${sourceLead.email}` : ""}${sourceLead.phone ? ` · ${sourceLead.phone}` : ""}`}
           >
             <User className="h-2.5 w-2.5" />
             Opprettet fra lead: {sourceLead.company_name}

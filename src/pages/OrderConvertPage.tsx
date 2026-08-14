@@ -563,7 +563,7 @@ export default function OrderConvertPage() {
             className="h-6 ml-auto gap-1 text-xs"
             onClick={() => navigate(`/sales/leads/${(sourceLead as any).id}`)}
           >
-            Åpne lead <ArrowRight className="h-3 w-3" />
+            Åpne henvendelse <ArrowRight className="h-3 w-3" />
           </Button>
         </div>
       )}

@@ -134,7 +134,7 @@ export function RecentLeadsList({ leads, loading }: LeadsProps) {
                          px-4 py-2.5 rounded-xl border border-primary/20
                          hover:bg-primary/10 active:scale-[0.97] transition-all cursor-pointer"
             >
-              Opprett første lead <ArrowRight className="h-3.5 w-3.5" />
+              Opprett første henvendelse <ArrowRight className="h-3.5 w-3.5" />
             </button>
           </div>
         ) : (

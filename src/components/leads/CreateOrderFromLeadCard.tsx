@@ -103,7 +103,7 @@ export function CreateOrderFromLeadCard({ lead, logActivity }: Props) {
       lead.email ? `E-post: ${lead.email}` : null,
       lead.phone ? `Telefon: ${lead.phone}` : null,
       "",
-      "Fra lead i CRM.",
+      "Fra henvendelse i CRM.",
       lead.notes ? `\nNotat:\n${lead.notes}` : null,
     ].filter(Boolean);
     return lines.join("\n");

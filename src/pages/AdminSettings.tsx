@@ -124,7 +124,7 @@ export default function AdminSettings() {
                 <Label>Standard sannsynlighet ved ny lead (%)</Label>
                 <Input type="number" value={salg.default_probability || 50} onChange={e => updateSetting("salg", "default_probability", Number(e.target.value))} className="w-24" />
               </div>
-              <ToggleRow label="Auto-opprett jobb ved vunnet" description="Opprett jobb automatisk når lead/tilbud vinnes" checked={!!salg.auto_create_job_on_won} onChange={v => updateSetting("salg", "auto_create_job_on_won", v)} />
+              <ToggleRow label="Auto-opprett jobb ved vunnet" description="Opprett jobb automatisk når henvendelse/tilbud vinnes" checked={!!salg.auto_create_job_on_won} onChange={v => updateSetting("salg", "auto_create_job_on_won", v)} />
               <div className="space-y-1.5">
                 <Label>Standard tilbudsforbehold</Label>
                 <Textarea value={salg.default_offer_conditions || ""} onChange={e => updateSetting("salg", "default_offer_conditions", e.target.value)} rows={3} placeholder="Forbehold som legges til nye tilbud..." />

@@ -63,7 +63,7 @@ export function CustomerActivityList({ customerId }: Props) {
   useEffect(() => { fetchActivity(); }, [fetchActivity]);
 
   const iconMap = { offer: FileText, lead: TrendingUp, case: MessageSquare };
-  const typeLabel = { offer: "Tilbud", lead: "Lead", case: "Sak" };
+  const typeLabel = { offer: "Tilbud", lead: "Henvendelse", case: "Sak" };
 
   if (items.length === 0) {
     return (

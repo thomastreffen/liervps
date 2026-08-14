@@ -58,7 +58,7 @@ const baseQuickActions: QuickAction[] = [
     permission: null,
   },
   {
-    label: "Ny lead",
+    label: "Ny henvendelse",
     description: "Registrer en ny salgsmulighet",
     icon: Users,
     path: "/leads?new=1",
@@ -136,7 +136,7 @@ const moreMenuItems: MoreMenuItem[] = [
   { label: "Fakturagrunnlag", icon: Receipt, path: "/invoice-basis", moduleKey: "invoice_basis", modulePermission: "module.invoice_basis", requiredPermission: "jobs.view_pricing" },
   { label: "Fagstøtte", icon: BookOpen, path: "/fag", moduleKey: "fag", modulePermission: "module.fag", requiredPermission: "regulation.review" },
   { label: "Salg", icon: TrendingUp, path: "/sales", moduleKey: "sales", modulePermission: "module.sales" },
-  { label: "Leads", icon: Target, path: "/sales/leads", moduleKey: "sales", modulePermission: "module.sales" },
+  { label: "Henvendelser", icon: Target, path: "/sales/leads", moduleKey: "sales", modulePermission: "module.sales" },
   { label: "Tilbud", icon: FileText, path: "/sales/offers", moduleKey: "sales", modulePermission: "module.sales" },
   { label: "Kunder", icon: Users, path: "/customers", moduleKey: "customers", modulePermission: "module.customers", requiredPermission: "jobs.view" },
   { label: "Lederoversikt", icon: Gauge, path: "/management", moduleKey: "management", modulePermission: "module.management" },

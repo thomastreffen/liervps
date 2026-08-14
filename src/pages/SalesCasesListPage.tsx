@@ -35,7 +35,7 @@ interface CaseRow {
 }
 
 const PHASE_LABELS: Record<string, string> = {
-  lead: "Lead",
+  lead: "Henvendelse",
   qualifying: "Kvalifisering",
   calculating: "Kalkulerer",
   quoted: "Tilbud sendt",
@@ -185,7 +185,7 @@ export default function SalesCasesListPage() {
           </div>
         ) : filtered.length === 0 ? (
           <div className="py-16 text-center text-sm text-muted-foreground">
-            {search ? "Ingen treff." : "Ingen saker enda. Saker opprettes automatisk fra lead, kalkyle eller prosjekt."}
+            {search ? "Ingen treff." : "Ingen saker enda. Saker opprettes automatisk fra henvendelse, kalkyle eller prosjekt."}
           </div>
         ) : (
           <Table>

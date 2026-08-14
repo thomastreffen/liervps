@@ -258,7 +258,7 @@ export default function CompanyMigrationPage() {
                 <ImpactCard icon={<Users2 className="h-5 w-5" />} label="Kunder" count={analysis.customers.length} accent="text-primary" />
                 <ImpactCard icon={<FolderKanban className="h-5 w-5" />} label="Prosjekter" count={analysis.related.projects} accent="text-info" />
                 <ImpactCard icon={<FileText className="h-5 w-5" />} label="Tilbud" count={analysis.related.offers} accent="text-accent" />
-                <ImpactCard icon={<Target className="h-5 w-5" />} label="Leads" count={analysis.related.leads} accent="text-warning" />
+                <ImpactCard icon={<Target className="h-5 w-5" />} label="Henvendelser" count={analysis.related.leads} accent="text-warning" />
                 <ImpactCard icon={<Inbox className="h-5 w-5" />} label="Saker" count={analysis.related.cases} accent="text-destructive" />
               </div>
 

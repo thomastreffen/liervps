@@ -564,16 +564,16 @@ export default function InboxPage() {
       } as any);
       await logSystemItem(
         c,
-        "Konvertert til lead",
+        "Konvertert til henvendelse",
         `Henvendelse konvertert til lead «${companyNameGuess}». Lead ID: ${data.id}`,
       );
-      toast.success("Lead opprettet uten koblet kunde", {
+      toast.success("Henvendelse opprettet uten koblet kunde", {
         description: "Du kan koble kunde/selskap manuelt på leadet senere.",
         action: { label: "Åpne lead", onClick: () => navigate(`/sales/leads/${data.id}`) },
       });
       navigate(`/sales/leads/${data.id}`);
     } catch (err: any) {
-      toast.error("Kunne ikke opprette lead: " + (err.message || ""));
+      toast.error("Kunne ikke opprette henvendelse: " + (err.message || ""));
     }
   };
 
