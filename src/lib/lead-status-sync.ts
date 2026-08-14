@@ -145,3 +145,53 @@ export async function syncLeadOnJobStatus(opts: {
     metadata: { job_id: jobId },
   });
 }
+
+/**
+ * Resolver henvendelse fra et oppdrag og speiler status konservativt.
+ * Kalles etter at oppdragsstatus er endret i UI.
+ */
+export async function syncLeadFromJobStatusChange(opts: {
+  jobId: string;
+  newStatus: string;
+  userId?: string | null;
+}) {
+  const { jobId, newStatus, userId } = opts;
+  const confirmedStatuses = ["scheduled", "approved", "in_progress", "completed"];
+  const cancelledStatuses = ["rejected"];
+  const kind = confirmedStatuses.includes(newStatus)
+    ? "confirmed"
+    : cancelledStatuses.includes(newStatus)
+      ? "cancelled"
+      : null;
+  if (!kind) return;
+
+  const { data: job } = await supabase
+    .from("events")
+    .select("id, title, source_lead_id, source_calculation_id, project_type")
+    .eq("id", jobId)
+    .maybeSingle();
+  if (!job) return;
+
+  // Befaringer skal aldri automatisk sette vunnet/tapt.
+  const isBefaring = String((job as any).title || "").toLowerCase().startsWith("befaring");
+  if (isBefaring) return;
+
+  let leadId: string | null = (job as any).source_lead_id || null;
+  if (!leadId && (job as any).source_calculation_id) {
+    const { data: calc } = await supabase
+      .from("calculations")
+      .select("lead_id")
+      .eq("id", (job as any).source_calculation_id)
+      .maybeSingle();
+    leadId = (calc as any)?.lead_id || null;
+  }
+  if (!leadId) return;
+
+  await syncLeadOnJobStatus({
+    leadId,
+    jobId,
+    jobTitle: (job as any).title || undefined,
+    status: kind,
+    userId,
+  });
+}

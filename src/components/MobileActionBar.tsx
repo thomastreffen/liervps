@@ -26,6 +26,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import { syncLeadFromJobStatusChange } from "@/lib/lead-status-sync";
 import {
   ChevronRight,
   Copy,
@@ -83,6 +84,10 @@ export function MobileActionBar({
         performed_by: user.id,
         change_summary: `Status endret fra "${JOB_STATUS_CONFIG[job.status].label}" til "${JOB_STATUS_CONFIG[newStatus].label}"`,
       });
+      // Konservativ tilbakesynk til henvendelse (public_leads speiles av trigger)
+      try {
+        await syncLeadFromJobStatusChange({ jobId: job.id, newStatus, userId: user.id });
+      } catch (e) { console.error("[lead-sync job status]", e); }
       onStatusChanged(newStatus);
       toast.success("Status oppdatert", {
         description: JOB_STATUS_CONFIG[newStatus].label,
