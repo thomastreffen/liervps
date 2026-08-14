@@ -126,15 +126,53 @@ Deno.serve(async (req) => {
   const senderEmail = tokenRow.provider_account_email || user.email || "me";
   const contentType = body.html ? 'text/html; charset="UTF-8"' : 'text/plain; charset="UTF-8"';
   const bodyContent = body.html ?? body.text ?? "";
-  const rfc2822 = [
-    `To: ${rcpts.join(", ")}`,
-    `From: ${senderEmail}`,
-    `Subject: ${body.subject}`,
-    "MIME-Version: 1.0",
-    `Content-Type: ${contentType}`,
-    "",
-    bodyContent,
-  ].join("\r\n");
+
+  const attachments = (body.attachments ?? []).filter(
+    (a) => a?.content_base64 && /^[A-Za-z0-9+/=\s]+$/.test(a.content_base64) && a.content_base64.length < 20_000_000,
+  );
+
+  let rfc2822: string;
+  if (attachments.length) {
+    const boundary = `lvps_${crypto.randomUUID().replace(/-/g, "")}`;
+    const parts: string[] = [
+      `To: ${rcpts.join(", ")}`,
+      `From: ${senderEmail}`,
+      `Subject: ${body.subject}`,
+      "MIME-Version: 1.0",
+      `Content-Type: multipart/mixed; boundary="${boundary}"`,
+      "",
+      `--${boundary}`,
+      `Content-Type: ${contentType}`,
+      "",
+      bodyContent,
+    ];
+    for (const a of attachments) {
+      const name = (a.filename ?? "vedlegg.pdf").replace(/[\r\n"]/g, "");
+      const mime = (a.mime_type ?? "application/pdf").replace(/[\r\n]/g, "");
+      const b64 = (a.content_base64 as string).replace(/\s+/g, "").replace(/(.{76})/g, "$1\r\n");
+      parts.push(
+        `--${boundary}`,
+        `Content-Type: ${mime}; name="${name}"`,
+        "Content-Transfer-Encoding: base64",
+        `Content-Disposition: attachment; filename="${name}"`,
+        "",
+        b64,
+      );
+    }
+    parts.push(`--${boundary}--`, "");
+    rfc2822 = parts.join("\r\n");
+  } else {
+    rfc2822 = [
+      `To: ${rcpts.join(", ")}`,
+      `From: ${senderEmail}`,
+      `Subject: ${body.subject}`,
+      "MIME-Version: 1.0",
+      `Content-Type: ${contentType}`,
+      "",
+      bodyContent,
+    ].join("\r\n");
+  }
+
 
   const raw = toBase64Url(rfc2822);
   const res = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/messages/send", {
