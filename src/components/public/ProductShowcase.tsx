@@ -785,7 +785,7 @@ function leadForItem(item: ProductItem, segment: Segment): LeadContext {
     : { source: "solution", segment, interestType: "losning-anbefaling", solutionName: item.name };
 }
 
-/** Generic, non-technical usage text per product type. No specs, no claims. */
+/** Generic fallback usage text per product type, used when no structured entry exists. */
 const TYPICAL_USE: Record<string, string> = {
   "Luft-luft":
     "Montert i hovedoppholdsrommet, typisk stue, og varmer opp den delen av boligen du bruker mest.",
@@ -800,51 +800,81 @@ const TYPICAL_USE: Record<string, string> = {
   Tilbehør: "Supplerer en eksisterende installasjon.",
 };
 
-function typicalUseFor(item: ProductItem) {
-  return (
-    TYPICAL_USE[item.productType ?? ""] ??
-    "Tilpasses bygget etter befaring, planløsning og varmebehov."
-  );
-}
+/** Merged view of a showcase item and its structured catalog entry. */
+type ResolvedProduct = {
+  item: ProductItem;
+  details: ProductDetails | null;
+  positioning: string;
+  suitableFor: string[];
+  typicalUse: string;
+  strengths: string[];
+  /** "Viktig å vurdere på befaring" — only conservative, non-spec notes. */
+  considerations: string[];
+  imageAlt: string;
+};
 
-function whyWeRecommend(item: ProductItem) {
-  const reasons = item.bestFor.slice(0, 3).join(", ").toLowerCase();
-  return `${item.description} Vi trekker den fram når ${reasons} står sentralt. Endelig anbefaling gjør vi først etter befaring.`;
+function resolveProduct(item: ProductItem): ResolvedProduct {
+  const details = productDetailsFor(item.name);
+  const considerations = [
+    details?.placementNotes,
+    details?.heatingNotes,
+    details?.coolingNotes,
+    details?.designNotes,
+    details?.noiseNote,
+    details?.coldClimateNote,
+  ].filter((v): v is string => Boolean(v));
+
+  return {
+    item,
+    details,
+    positioning: details?.shortPositioning ?? item.description,
+    suitableFor: details?.suitableFor?.length ? details.suitableFor : item.bestFor,
+    typicalUse:
+      details?.typicalUse ??
+      TYPICAL_USE[item.productType ?? ""] ??
+      "Tilpasses bygget etter befaring, planløsning og varmebehov.",
+    strengths: details?.keyStrengths?.length ? details.keyStrengths : item.tags,
+    considerations: considerations.length
+      ? considerations
+      : [
+          "Endelig modell og størrelse avhenger av bolig, planløsning, plassering og varmebehov, og må vurderes på befaring.",
+        ],
+    imageAlt: details?.imageAlt ?? `${item.name} varmepumpe`,
+  };
 }
 
 /** Shared image area — fixed 4:3 slot so all cards line up. */
-function ProductMedia({
-  item,
-  size = "card",
-}: {
-  item: ProductItem;
-  size?: "card" | "dialog";
-}) {
-  const photo = item.image ?? productImageFor(item.name);
+function ProductMedia({ rp }: { rp: ResolvedProduct }) {
+  const { item, details, imageAlt } = rp;
+  const [failed, setFailed] = useState(false);
+  const photo =
+    item.image ??
+    (details?.imageKey ? productImageForKey(details.imageKey) : null) ??
+    productImageFor(item.name);
+  const showPhoto = Boolean(photo) && !failed;
+
   return (
-    <div
-      className={`relative overflow-hidden rounded-lg border border-[hsl(var(--warm-beige))] bg-white ${
-        size === "dialog" ? "" : ""
-      }`}
-    >
+    <div className="relative overflow-hidden rounded-lg border border-[hsl(var(--warm-beige))] bg-white">
       <div className="aspect-[4/3] w-full">
-        {photo ? (
+        {showPhoto ? (
           <img
-            src={photo}
-            alt={`${item.name} varmepumpe`}
+            src={photo!}
+            alt={imageAlt}
             loading="lazy"
+            onError={() => setFailed(true)}
             className="h-full w-full object-contain p-3"
           />
         ) : (
           <HeatPumpIllustration
-            variant={illustrationVariant(item.productType)}
-            label={`Illustrasjon · ${item.productType ?? item.subtitle}`}
+            variant={illustrationVariant(item.productType ?? details?.productType)}
+            label={`Illustrasjon · ${item.productType ?? details?.productType ?? item.subtitle}`}
           />
         )}
       </div>
     </div>
   );
 }
+
 
 function BrandRow({
   brand,
