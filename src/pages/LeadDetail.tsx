@@ -105,7 +105,12 @@ interface LeadCalc {
   customer_email?: string | null;
   description?: string | null;
   input_snapshot?: any;
+  pdf_drive_file_id?: string | null;
+  pdf_drive_url?: string | null;
+  pdf_generated_at?: string | null;
+  pdf_content_hash?: string | null;
 }
+
 
 interface CalendarLink {
   id: string;
@@ -214,7 +219,7 @@ function LeadDetailInner() {
     if (!id) return;
     try {
       const { data } = await supabase.from("calculations")
-        .select("id, project_title, status, total_price, created_at, offer_sent_at, customer_name, customer_email, description, input_snapshot")
+        .select("id, project_title, status, total_price, created_at, offer_sent_at, customer_name, customer_email, description, input_snapshot, pdf_drive_file_id, pdf_drive_url, pdf_generated_at, pdf_content_hash")
         .eq("lead_id", id)
         .is("deleted_at", null)
         .order("created_at", { ascending: false });
@@ -749,6 +754,19 @@ function LeadDetailInner() {
                           >
                             Forhåndsvis tilbud
                           </Button>
+                          {offer.pdf_drive_url && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 text-xs rounded-lg"
+                              asChild
+                            >
+                              <a href={offer.pdf_drive_url} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>
+                                Åpne PDF
+                              </a>
+                            </Button>
+                          )}
+
                         </div>
                       </div>
                     ))}

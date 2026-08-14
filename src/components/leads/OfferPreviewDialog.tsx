@@ -11,11 +11,11 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Loader2, Mail, CheckCircle2 } from "lucide-react";
+import { Loader2, Mail, CheckCircle2, FileDown, ExternalLink, RefreshCw, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { calcSummaryRows } from "@/lib/calc-summary";
+import { buildOfferPdf, offerContentHash, offerPdfBase64, offerPdfFilename, type OfferPdfInput } from "@/lib/offer-pdf";
 
-// TODO (Tilbud v2): generer PDF av tilbudet og legg ved i e-posten.
 
 export const COMPANY = {
   name: "Lier Varmepumpeservice AS",
@@ -44,7 +44,12 @@ export interface OfferRow {
   customer_email?: string | null;
   description?: string | null;
   input_snapshot?: any;
+  pdf_drive_file_id?: string | null;
+  pdf_drive_url?: string | null;
+  pdf_generated_at?: string | null;
+  pdf_content_hash?: string | null;
 }
+
 
 interface Props {
   open: boolean;
@@ -124,6 +129,71 @@ export function OfferPreviewDialog({ open, onOpenChange, offer, lead, onUpdated 
   const scopeText = useMemo(() => sanitizeScope(offer.description), [offer.description]);
   const product = productLabel(snap);
 
+  const pdfInput: OfferPdfInput = useMemo(() => ({
+    offerId: offer.id,
+    title: offer.project_title,
+    createdAt: offer.created_at,
+    customerName: contact,
+    contactPerson: contactPerson || null,
+    customerEmail: recipient || null,
+    address,
+    recommendedSolution: snap.recommended_solution || null,
+    product,
+    scope: scopeText,
+    calculatorSummary: snap.calculator_summary,
+    totalPrice: offer.total_price,
+    company: COMPANY,
+    validityText: VALIDITY_TEXT,
+    assumptions: ASSUMPTIONS,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [offer.id, offer.project_title, offer.created_at, offer.total_price, contact, contactPerson, recipient, address, scopeText, product, snap.recommended_solution, snap.calculator_summary]);
+
+  const currentHash = useMemo(() => offerContentHash(pdfInput), [pdfInput]);
+  const hasPdf = Boolean(offer.pdf_drive_url);
+  const pdfOutdated = hasPdf && Boolean(offer.pdf_content_hash) && offer.pdf_content_hash !== currentHash;
+  const [pdfBusy, setPdfBusy] = useState(false);
+
+  /** Genererer PDF lokalt og laster den opp til Drive-mappen når Drive er koblet til. */
+  const generatePdf = async (): Promise<{ base64: string; filename: string; driveStatus: string } | null> => {
+    const doc = buildOfferPdf(pdfInput);
+    const base64 = offerPdfBase64(doc);
+    const filename = offerPdfFilename(pdfInput);
+    let driveStatus = "skipped";
+    try {
+      const { data, error } = await supabase.functions.invoke("offer-pdf-upload", {
+        body: { calculation_id: offer.id, lead_id: lead.id, filename, pdf_base64: base64 },
+      });
+      driveStatus = error ? "error" : ((data as any)?.status ?? "error");
+    } catch (e) {
+      console.error("[OfferPreview] pdf upload", e);
+      driveStatus = "error";
+    }
+    await supabase.from("calculations")
+      .update({ pdf_generated_at: new Date().toISOString(), pdf_content_hash: currentHash } as any)
+      .eq("id", offer.id);
+    return { base64, filename, driveStatus };
+  };
+
+  const handleRegenerate = async () => {
+    if (pdfBusy) return;
+    setPdfBusy(true);
+    try {
+      const res = await generatePdf();
+      if (res?.driveStatus === "uploaded") toast.success("PDF oppdatert i Google Drive");
+      else if (res?.driveStatus === "no_token") toast.message("PDF laget uten Drive-lagring", { description: "Google Drive er ikke koblet til." });
+      else toast.message("PDF laget", { description: "Kunne ikke lagre i Google Drive." });
+      onUpdated?.();
+    } finally {
+      setPdfBusy(false);
+    }
+  };
+
+  const handleDownloadPdf = () => {
+    const doc = buildOfferPdf(pdfInput);
+    doc.save(offerPdfFilename(pdfInput));
+  };
+
+
 
   const markSent = async (mode: "email" | "manual") => {
     const stamp = format(new Date(), "dd.MM.yyyy HH:mm");
@@ -163,17 +233,41 @@ export function OfferPreviewDialog({ open, onOpenChange, offer, lead, onUpdated 
     setSending(true);
 
     try {
-      const body = buildOfferText(offer, contactPerson || contact, address);
+      // 1) PDF: generer (og lagre i Drive når mulig). Feiler den, sendes e-posten som før.
+      let pdf: { base64: string; filename: string; driveStatus: string } | null = null;
+      try {
+        pdf = await generatePdf();
+      } catch (e) {
+        console.error("[OfferPreview] pdf generate", e);
+        pdf = null;
+      }
+
       const greeting = contactPerson ? `Hei ${contactPerson},` : "Hei,";
-      const text = [
-        greeting,
-        "",
-        `Takk for henvendelsen til ${COMPANY.name}. Her er tilbudet vårt.`,
-        "",
-        body,
-        "",
-        "Har du spørsmål kan du svare direkte på denne e-posten, så hjelper vi deg videre.",
-      ].join("\n");
+      const text = pdf
+        ? [
+            greeting,
+            "",
+            `Takk for henvendelsen til ${COMPANY.name}. Tilbudet ligger vedlagt som PDF.`,
+            "",
+            offer.project_title,
+            product ? `Produkt: ${product}` : "",
+            Number(offer.total_price) > 0 ? `Estimert pris: ${nok(Number(offer.total_price))} eks. mva` : "",
+            "",
+            VALIDITY_TEXT,
+            "",
+            "Har du spørsmål kan du svare direkte på denne e-posten, så hjelper vi deg videre.",
+            "",
+            `${COMPANY.name} · Tlf ${COMPANY.phone} · ${COMPANY.email}`,
+          ].filter(l => l !== "").join("\n")
+        : [
+            greeting,
+            "",
+            `Takk for henvendelsen til ${COMPANY.name}. Her er tilbudet vårt.`,
+            "",
+            buildOfferText(offer, contactPerson || contact, address),
+            "",
+            "Har du spørsmål kan du svare direkte på denne e-posten, så hjelper vi deg videre.",
+          ].join("\n");
 
       const { data, error } = await supabase.functions.invoke("gmail-send", {
         body: {
@@ -182,6 +276,9 @@ export function OfferPreviewDialog({ open, onOpenChange, offer, lead, onUpdated 
           text,
           html: `<div style="font-family:Arial,sans-serif;font-size:14px;color:#1f2937;white-space:pre-wrap">${text
             .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</div>`,
+          attachments: pdf
+            ? [{ filename: pdf.filename, mime_type: "application/pdf", content_base64: pdf.base64 }]
+            : undefined,
         },
       });
 
@@ -196,8 +293,19 @@ export function OfferPreviewDialog({ open, onOpenChange, offer, lead, onUpdated 
       }
 
       await markSent("email");
-      toast.success("Tilbud sendt", { description: recipient });
+      if (!pdf) {
+        toast.success("Tilbud sendt uten PDF", { description: recipient });
+      } else if (pdf.driveStatus === "uploaded") {
+        toast.success("Tilbud sendt med PDF", { description: `${recipient} · lagret i Google Drive` });
+      } else if (pdf.driveStatus === "no_token") {
+        toast.success("Tilbud sendt med PDF", { description: recipient });
+        toast.message("Tilbud sendt uten Drive-lagring fordi Google Drive ikke er koblet til.");
+      } else {
+        toast.success("Tilbud sendt med PDF", { description: recipient });
+        toast.message("PDF-en ble ikke lagret i Google Drive.");
+      }
       onOpenChange(false);
+
     } catch (e: any) {
       console.error("[OfferPreview] send", e);
       toast.error("Tilbudet ble ikke sendt fordi Gmail ikke er koblet til.");
@@ -287,11 +395,34 @@ export function OfferPreviewDialog({ open, onOpenChange, offer, lead, onUpdated 
             </p>
           </div>
 
-          <DialogFooter className="gap-2 sm:gap-2">
+          {pdfOutdated && (
+            <p className="flex items-center gap-1.5 text-xs text-amber-600">
+              <AlertTriangle className="h-3.5 w-3.5" /> Tilbudet er endret etter PDF ble generert.
+            </p>
+          )}
+
+          <DialogFooter className="gap-2 sm:gap-2 flex-wrap">
             <Button variant="ghost" onClick={() => onOpenChange(false)}>Lukk</Button>
+            <Button variant="outline" className="gap-1.5" onClick={handleDownloadPdf}>
+              <FileDown className="h-4 w-4" /> Last ned PDF
+            </Button>
+            {hasPdf && (
+              <Button variant="outline" className="gap-1.5" asChild>
+                <a href={offer.pdf_drive_url!} target="_blank" rel="noreferrer">
+                  <ExternalLink className="h-4 w-4" /> Åpne PDF
+                </a>
+              </Button>
+            )}
+            {(hasPdf || offer.pdf_generated_at) && (
+              <Button variant="outline" className="gap-1.5" onClick={handleRegenerate} disabled={pdfBusy}>
+                {pdfBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                Regenerer PDF
+              </Button>
+            )}
             <Button variant="outline" className="gap-1.5" onClick={() => setConfirmManual(true)} disabled={isSent}>
               <CheckCircle2 className="h-4 w-4" /> Marker som sendt
             </Button>
+
             <Button className="gap-1.5" onClick={handleSend} disabled={sending || isSent || !recipient}>
               {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
               Send tilbud
