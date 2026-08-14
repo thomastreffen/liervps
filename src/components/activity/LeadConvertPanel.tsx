@@ -116,7 +116,7 @@ export function LeadConvertPanel({
         metadata: { job_id: data!.id },
       });
 
-      toast.success("Prosjekt opprettet fra lead");
+      toast.success("Oppdrag opprettet fra henvendelse");
       onConverted(data!.id);
       navigate(`/projects/${data!.id}`);
     } catch (err: any) {
