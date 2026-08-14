@@ -65,10 +65,19 @@ export type ProductDetails = {
   noiseNote?: string;
   /** Only when officially stated by the manufacturer/distributor. */
   coldClimateNote?: string;
-  /** Local asset base name (without extension) under src/assets/lier/products/<brand>/. */
+  /**
+   * Local asset base name (without extension) under src/assets/lier/products/<brand>/.
+   * Kept for backwards compatibility — used as the primary image when `images` is absent.
+   */
   imageKey?: string;
   imageAlt?: string;
   imageStatus: ImageStatus;
+  /**
+   * Optional multi-image gallery. Cards use the first `primary` entry;
+   * the modal shows all entries that resolve to a local file.
+   */
+  images?: ProductImage[];
+
   /** Internal only. */
   sourceUrl?: string;
   /** Internal only. */
