@@ -21,6 +21,27 @@ export type ImageStatus =
   | "needs_approval"
   | "approved-source-needed";
 
+/** Role an image plays for a product. Only one `primary` is used on cards. */
+export type ProductImageType =
+  | "primary"
+  | "indoor"
+  | "outdoor"
+  | "lifestyle"
+  | "detail"
+  | "variant";
+
+/**
+ * One image slot for a product. `key` is the local asset base name (no extension)
+ * under src/assets/lier/products/<brand>/. Never a remote URL — no hotlinking.
+ */
+export type ProductImage = {
+  key: string;
+  type: ProductImageType;
+  alt: string;
+  status: Extract<ImageStatus, "local_approved" | "needs_approval" | "missing">;
+};
+
+
 export type ProductDetails = {
   brand?: BrandName;
   /** Name as shown to the customer — matches the name used in the showcase groups. */
