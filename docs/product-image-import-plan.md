@@ -74,3 +74,39 @@ lanseres offentlig før forhandler-/leverandørstatus er formelt godkjent.
    Norge, ABK-Qviller (Toshiba) og Panasonic-distributør.
 2. Bytt ev. til bilder fra offisiell bildebank hvis leverandør ønsker det.
 3. Oppdater dette dokumentet og `docs/product-source-notes.md`.
+
+## Flere bilder per produkt (2026-08-14)
+
+Datamodellen støtter nå flere bilder per produkt:
+
+```ts
+images?: {
+  key: string;                 // lokalt filnavn uten filendelse
+  type: "primary" | "indoor" | "outdoor" | "lifestyle" | "detail" | "variant";
+  alt: string;
+  status: "local_approved" | "needs_approval" | "missing";
+}[]
+```
+
+- `imageKey` beholdes og brukes som primærbilde når `images` mangler.
+- Produktkort viser kun ett bilde (primary → imageKey → egen illustrasjon).
+  Ingen karusell på kort.
+- Modalen viser stort bilde + miniatyrer når det finnes mer enn ett bilde.
+- Bilder uten lokal fil filtreres bort før rendring, så manglende
+  sekundærbilder aldri gir ødelagte bildeikoner.
+
+Navnekonvensjon ved flere bilder:
+
+```
+mitsubishi-uwano-pure-primary.webp
+mitsubishi-uwano-pure-outdoor.webp
+mitsubishi-uwano-pure-lifestyle.webp
+panasonic-hz-flagship-primary.webp
+toshiba-signatur-primary.webp
+```
+
+**Status i dag:** alle 22 importerte produktbilder er enkeltbilder, så ingen
+produkter har galleri ennå. Nye utedels-, detalj- og miljøbilder kan legges
+inn uten kodeendringer – kun fil + `images[]`-oppføring. Godkjenningsgrunnlag
+er uendret: «Approved by site owner for use pending dealer/supplier approval
+before public launch.»
