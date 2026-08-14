@@ -33,6 +33,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { useModuleVisibility } from "@/hooks/useModuleVisibility";
 import { supabase } from "@/integrations/supabase/client";
 import { useUnreadOrderMessages } from "@/hooks/useUnreadOrderMessages";
+import { useNewLeads } from "@/hooks/useNewLeads";
 import {
   Sidebar,
   SidebarContent,
@@ -167,6 +168,7 @@ export function AppSidebar() {
   const [inboxCount, setInboxCount] = useState<number>(0);
   const [offerCount, setOfferCount] = useState<number>(0);
   const { unreadSubmissionCount: orderUnreadCount } = useUnreadOrderMessages();
+  const { newCount: newLeadCount } = useNewLeads();
 
   useEffect(() => {
     if (!user) return;
@@ -314,7 +316,7 @@ export function AppSidebar() {
                          <SidebarMenu className="ml-5 mt-1 space-y-0.5 border-l border-sidebar-border/40 pl-2">
                            <NavItem item={{ title: "Oversikt", url: "/sales", icon: BarChart3 }} isActive={(url) => location.pathname === "/sales"} collapsed={collapsed} />
                            <NavItem item={{ title: "Saker", url: "/sales/cases", icon: Briefcase }} isActive={isActive} collapsed={collapsed} />
-                           <NavItem item={{ title: "Leads", url: "/sales/leads", icon: Target }} isActive={isActive} collapsed={collapsed} />
+                           <NavItem item={{ title: "Henvendelser", url: "/sales/leads", icon: Target }} isActive={isActive} collapsed={collapsed} badge={newLeadCount > 0 ? newLeadCount : undefined} />
                             <NavItem item={{ title: "Tilbud", url: "/sales/offers", icon: FileText }} isActive={isActive} collapsed={collapsed} badge={offerCount > 0 ? offerCount : undefined} />
                             <NavItem item={{ title: "Kalkyler", url: "/sales/calc-engine", icon: Calculator }} isActive={isActive} collapsed={collapsed} />
                           </SidebarMenu>

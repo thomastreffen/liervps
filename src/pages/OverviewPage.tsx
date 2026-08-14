@@ -18,6 +18,7 @@ import { EventDrawer } from "@/components/EventDrawer";
 import { fetchActiveLeads } from "@/lib/lead-queries";
 import { useUnreadOrderMessages } from "@/hooks/useUnreadOrderMessages";
 import { cn } from "@/lib/utils";
+import { NewLeadsCard } from "@/components/leads/NewLeadsCard";
 
 // ── Types ──
 
@@ -373,6 +374,8 @@ export default function OverviewPage() {
           <QuickAction icon={<TriangleAlert className="h-3.5 w-3.5" />} label="Avvik" onClick={() => navigate("/jobs")} />
         </div>
       </div>
+
+      <NewLeadsCard className="mb-6" />
 
       {/* ─── KPI Row ─── */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 sm:gap-3 mb-8">
