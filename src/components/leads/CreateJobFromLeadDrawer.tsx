@@ -65,22 +65,36 @@ export function CreateJobFromLeadDrawer({ open, onOpenChange, lead, offer, onCre
     setClientRequestId(crypto.randomUUID());
   }, [open]);
 
+  const [existingLeadJob, setExistingLeadJob] = useState<{ id: string; title: string } | null>(null);
+
   // Hindrer dobbelt oppdrag: finnes det allerede et oppdrag på tilbudet, åpnes det i stedet.
+  // Uten tilbudskontekst varsles det om eksisterende oppdrag på henvendelsen.
   useEffect(() => {
-    if (!open || !offer?.id) return;
+    if (!open) return;
     let cancelled = false;
+    setExistingLeadJob(null);
     (async () => {
-      const { data } = await supabase
-        .from("events").select("id").eq("source_calculation_id", offer.id)
-        .is("deleted_at", null).limit(1).maybeSingle();
-      if (cancelled || !data) return;
-      toast.info("Oppdraget finnes allerede", { description: "Åpner det eksisterende oppdraget." });
-      onOpenChange(false);
-      navigate(`/projects/${(data as any).id}`);
+      if (offer?.id) {
+        const { data } = await supabase
+          .from("events").select("id").eq("source_calculation_id", offer.id)
+          .is("deleted_at", null).limit(1).maybeSingle();
+        if (cancelled || !data) return;
+        toast.info("Oppdraget finnes allerede", { description: "Åpner det eksisterende oppdraget." });
+        onOpenChange(false);
+        navigate(`/projects/${(data as any).id}`);
+        return;
+      }
+      const { data: leadJobs } = await supabase
+        .from("events").select("id, title").eq("source_lead_id", lead.id)
+        .eq("project_type", "project").is("deleted_at", null)
+        .order("created_at", { ascending: false }).limit(1);
+      const job = (leadJobs || []).find((j: any) => !/^befaring/i.test(j.title || ""));
+      if (!cancelled && job) setExistingLeadJob(job as any);
     })();
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, offer?.id]);
+  }, [open, offer?.id, lead.id]);
+
 
   useEffect(() => {
     if (!open || loading) return;
