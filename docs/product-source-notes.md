@@ -111,3 +111,21 @@ Større lokaler / flere soner.
   brukt. Bør suppleres fra offisielle datablad/produktark når disse er tilgjengelige.
 - **Veiledende areal** – ingen av kildene oppgir dette. Feltet
   `suitableAreaIndicative` er derfor tomt for alle produkter.
+
+## Varianter i serien (oppdatert 2026-08-15)
+
+`product-specs.ts` støtter nå `variants[]` – flere offisielt dokumenterte
+størrelser per serie. Modalen viser en sammenlikningstabell («Størrelser i
+serien») når serien har to eller flere dokumenterte størrelser.
+
+| Serie | Dokumenterte størrelser | Kilde |
+| --- | --- | --- |
+| Panasonic HZ Flagship | KIT-HZ25ZKE, KIT-HZ35ZKE | distributørkatalog |
+| Panasonic NZ | KIT-NZ25YKE, KIT-NZ35YKE, KIT-NZ50YKE | distributørkatalog |
+| Panasonic CZ | KIT-CZ25ZKE, KIT-CZ35ZKE | distributørkatalog |
+| Panasonic LZ | KIT-LZ25TKE, KIT-LZ35TKE | distributørkatalog |
+| Panasonic Gulvmodell | KIT-Z25CFEA-1, KIT-Z35CFEA-1 | distributørkatalog |
+
+Toshiba-kildene publiserer kun 25-varianten med full tabell, og Mitsubishi
+Electric publiserer ikke variantvise tabeller offentlig. Disse har derfor
+ingen variantsammenlikning – ingenting er estimert eller interpolert.
