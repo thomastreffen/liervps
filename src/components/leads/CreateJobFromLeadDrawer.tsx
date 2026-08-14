@@ -322,6 +322,21 @@ export function CreateJobFromLeadDrawer({ open, onOpenChange, lead, offer, onCre
               </Badge>
             )}
 
+            {existingLeadJob && (
+              <div className="rounded-xl border border-border/60 bg-muted/40 p-3 text-xs">
+                <p className="font-medium text-foreground">Det finnes allerede et oppdrag på denne henvendelsen</p>
+                <p className="text-muted-foreground">«{existingLeadJob.title}» – unngå dobbeltregistrering.</p>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="mt-2 h-7 rounded-lg text-xs"
+                  onClick={() => { onOpenChange(false); navigate(`/projects/${existingLeadJob.id}`); }}
+                >
+                  Åpne eksisterende oppdrag
+                </Button>
+              </div>
+            )}
+
             <div className="space-y-1.5">
               <Label>Tittel *</Label>
               <Input value={title} onChange={e => setTitle(e.target.value)} />
