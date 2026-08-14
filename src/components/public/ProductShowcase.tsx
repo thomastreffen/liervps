@@ -1241,7 +1241,8 @@ function ProductDetailDialog({
         </DialogHeader>
 
         <div className="mt-1">
-          <ProductMedia rp={rp} />
+          <ProductGallery rp={rp} />
+
         </div>
 
         <p className="text-sm text-[hsl(var(--mcs-navy))] leading-relaxed">
