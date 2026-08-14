@@ -1205,7 +1205,7 @@ function ProductCard({
 
   return (
     <article
-      id={productAnchorId(item)}
+      id={productAnchorId(item, segment)}
       className={`h-full scroll-mt-28 bg-white rounded-xl border p-4 sm:p-5 flex flex-col transition-shadow ${
         selected
           ? "border-[hsl(var(--mcs-orange))] shadow-[0_8px_24px_-12px_hsl(var(--mcs-navy)/0.25)]"
