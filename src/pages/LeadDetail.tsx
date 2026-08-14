@@ -836,6 +836,41 @@ function LeadDetailInner() {
         onCreated={() => { fetchLead(); fetchActivities(); fetchCalendarLinks(); }}
       />
 
+      {/* ── Lag tilbud ── */}
+      <CreateOfferDraftDrawer
+        open={offerDraftOpen}
+        onOpenChange={setOfferDraftOpen}
+        lead={{
+          id: lead.id,
+          company_name: lead.company_name,
+          contact_name: lead.contact_name,
+          email: lead.email,
+          phone: lead.phone,
+          notes: lead.notes,
+          company_id: lead.company_id,
+          public_lead_id: lead.public_lead_id,
+        }}
+        onCreated={() => { fetchLead(); fetchActivities(); fetchOffers(); }}
+      />
+
+      {/* ── Opprett oppdrag ── */}
+      <CreateJobFromLeadDrawer
+        open={jobDrawerOpen}
+        onOpenChange={setJobDrawerOpen}
+        lead={{
+          id: lead.id,
+          company_name: lead.company_name,
+          contact_name: lead.contact_name,
+          email: lead.email,
+          phone: lead.phone,
+          notes: lead.notes,
+          company_id: lead.company_id,
+          public_lead_id: lead.public_lead_id,
+        }}
+        onCreated={() => { fetchLead(); fetchActivities(); setJobsRefreshKey(k => k + 1); }}
+      />
+
+
 
       {/* ── Only confirmation dialogs remain ── */}
       <Dialog open={addParticipantOpen} onOpenChange={setAddParticipantOpen}>
