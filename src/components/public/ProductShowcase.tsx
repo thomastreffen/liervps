@@ -821,7 +821,10 @@ type ResolvedProduct = {
   /** "Viktig å vurdere på befaring" — only conservative, non-spec notes. */
   considerations: string[];
   imageAlt: string;
+  /** Locally stored images only. First entry is the card image. */
+  gallery: ResolvedImage[];
 };
+
 
 function resolveProduct(item: ProductItem): ResolvedProduct {
   const details = productDetailsFor(item.name);
