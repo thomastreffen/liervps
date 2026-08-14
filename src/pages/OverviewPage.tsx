@@ -375,7 +375,12 @@ export default function OverviewPage() {
         </div>
       </div>
 
+      <div className="mb-6 empty:mb-0">
+        <GoogleReconnectBanner />
+      </div>
+
       <NewLeadsCard className="mb-6" />
+
 
       {/* ─── KPI Row ─── */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 sm:gap-3 mb-8">
