@@ -1,65 +1,76 @@
-# Bildeimport – Mitsubishi Electric (MEE)
+# Bildeimport – produktbilder Lier VPS
 
 Internt arbeidsdokument. Ingenting herfra vises på nettsiden, og ingen eksterne
 lenker eksponeres mot kunde.
 
 Sist gjennomgått: 2026-08-14
 
-## Status
+## Godkjenningsgrunnlag
 
-Produktdata (navn, familieplassering, konservative beskrivelser) er verifisert
-mot MEEs produktsider. **Ingen bilder er importert.** MEE oppgir ikke på
-produktsidene at bildene fritt kan brukes i forhandler-/partnermarkedsføring,
-og bruksretten er derfor uavklart. Etter regelen «ved uklar bruksrett – ikke
-importer» står alle Mitsubishi-produkter med `imageStatus: "needs_approval"`,
-og kortene viser vår egen illustrasjon.
+> «Approved by site owner for use pending dealer/supplier approval before public launch.»
 
-## Neste steg
+Nettstedseier har bekreftet at produktbilder fra merke-/distributørkildene under
+kan brukes på liervps.no i utviklings- og pre-launch-fasen. Nettstedet skal ikke
+lanseres offentlig før forhandler-/leverandørstatus er formelt godkjent.
 
-1. Be Mitsubishi Electric Norge om skriftlig bekreftelse på bruk av
-   produktbilder på liervps.no (forhandler-/partnerbruk).
-2. Ved bekreftelse: last ned fra offisiell bildebank (ikke fra nettsiden),
-   konverter til `.webp`, behold sideforhold, maks ~250 kB.
-3. Lagre som filnavnene under i `src/assets/lier/products/mitsubishi/`.
-4. Sett `imageStatus: "local_approved"` i `product-catalog.ts` og oppdater
-   `docs/product-source-notes.md`.
+## Teknisk policy
 
-## Kildekandidater (kun til intern oppfølging)
+- Bilder lastes ned og lagres lokalt i repoet. Ingen hotlinking.
+- Konvertert til `.webp` (kvalitet 82), maks 1200 px lengste side.
+- Sideforhold bevares. Vises i fast 4:3-slot med `object-contain` – aldri
+  beskåret eller strukket.
+- Mangler et bilde, beholdes vår egen illustrasjon som fallback.
+- Importerte bilder markeres `imageStatus: "local_approved"` i
+  `product-catalog.ts`.
 
-| Produkt | MEE produktside | Ønsket filnavn | Bildekandidat på siden |
-| --- | --- | --- | --- |
-| UWANO Pure | /privat/produktkategori/luft-luft-varmepumper/uwanopure/ | mitsubishi-uwano-pure.webp | toppbilde + interiørbilde av innedel |
-| GUSSURI | /privat/produktkategori/luft-luft-varmepumper/gussuri/ | mitsubishi-gussuri.webp | toppbilde + innedel i stue |
-| Kaiteki | /privat/produktkategori/luft-luft-varmepumper/kaiteki/ | mitsubishi-kaiteki.webp | toppbilde + fargevarianter |
-| IGURU | /privat/produktkategori/luft-luft-varmepumper/iguru/ | mitsubishi-iguru.webp | toppbilde av innedel |
-| Furo | /privat/produktkategori/luft-luft-varmepumper/furo/ | mitsubishi-furo.webp | gulvmodell i stue |
-| Zen | /privat/produktkategori/luft-luft-varmepumper/zen/ | mitsubishi-zen.webp | toppbilde, hvit og sort variant |
-| Duo-modellen | /privat/produktkategori/luft-luft-varmepumper/duo-7000/ | mitsubishi-duo-modellen.webp | utedel med to innedeler |
-| Nordic Multi | /privat/produktkategori/luft-luft-varmepumper/nordic-multi/ | mitsubishi-nordic-multi.webp | toppbilde multiløsning |
+## Importerte bilder (2026-08-14)
 
-Hotlinking er ikke tillatt. Bildene skal aldri lastes fra mee.no i drift.
+### Mitsubishi Electric — kilde: mee.no (produsent Norge)
 
-## Toshiba (ABK-Qviller)
+| Produkt | Filnavn | Kildeside |
+| --- | --- | --- |
+| UWANO Pure | `mitsubishi-uwano-pure.webp` | mee.no · uwanopure |
+| GUSSURI | `mitsubishi-gussuri.webp` | mee.no · gussuri |
+| Kaiteki | `mitsubishi-kaiteki.webp` | mee.no · kaiteki |
+| IGURU | `mitsubishi-iguru.webp` | mee.no · iguru |
+| Furo | `mitsubishi-furo.webp` | mee.no · furo |
+| Zen | `mitsubishi-zen.webp` | mee.no · zen |
+| Duo-modellen | `mitsubishi-duo-modellen.webp` | mee.no · duo-7000 |
+| Nordic Multi | `mitsubishi-nordic-multi.webp` | mee.no · nordic-multi |
 
-Produktdata er verifisert mot Toshiba Norges egne produktsider
-(importør ABK-Qviller). Produktsidene oppgir ingen tydelige bruksvilkår for
-forhandlerbruk av bildene, og det er ikke funnet en åpen bildebank med klart
-angitte rettigheter. **Ingen bilder er importert** – alle syv står som
-`needs_approval`, og kortene viser vår egen illustrasjon.
+### Toshiba — kilde: toshibavarmepumper.no (ABK-Qviller, importør)
 
-Neste steg: be ABK-Qviller om tilgang til offisiell bildebank og skriftlig
-bekreftelse på bruk på liervps.no. Ved bekreftelse lagres `.webp`-filer i
-`src/assets/lier/products/toshiba/` med filnavnene under, og `imageStatus`
-settes til `local_approved`.
+| Produkt | Filnavn | Kildeside |
+| --- | --- | --- |
+| Signatur | `toshiba-signatur.webp` | signatur-25 |
+| Daiseikai 10 Kontur | `toshiba-daiseikai-10-kontur.webp` | toshiba-kontur-25 |
+| Daiseikai 10 Ask | `toshiba-daiseikai-10-ask.webp` | toshiba-ask-25 |
+| Polar | `toshiba-polar.webp` | toshiba-polar-25 |
+| Seiya Nordic | `toshiba-seiya-nordic.webp` | toshiba-seiya-nordic-25 |
+| Gulvmodell | `toshiba-gulvmodell.webp` | toshiba-gulvmodell-25 |
+| Multi Nordic | `toshiba-multi-nordic.webp` | multi-nordic |
 
-| Produkt | Produktside (intern) | Ønsket filnavn | Bildekandidat |
-| --- | --- | --- | --- |
-| Signatur | /varmepumper-luft-luft/signatur-25/ | toshiba-signatur.webp | innedel med tekstiltrekk i stue |
-| Daiseikai 10 Kontur | /varmepumper-luft-luft/toshiba-kontur-25/ | toshiba-daiseikai-10-kontur.webp | innedel montert i stue |
-| Daiseikai 10 Ask | /varmepumper-luft-luft/toshiba-ask-25/ | toshiba-daiseikai-10-ask.webp | innedel på vegg, designbilde |
-| Polar | /varmepumper-luft-luft/toshiba-polar-25/ | toshiba-polar.webp | hvit innedel i stue |
-| Seiya Nordic | /varmepumper-luft-luft/toshiba-seiya-nordic-25/ | toshiba-seiya-nordic.webp | innedel i soverom |
-| Gulvmodell | /varmepumper-luft-luft/toshiba-gulvmodell-25/ | toshiba-gulvmodell.webp | gulvmodell i stue |
-| Multi Nordic | /varmepumper-luft-luft/multi-nordic/ | toshiba-multi-nordic.webp | multiløsning med to innedeler |
+### Panasonic — kilde: varmepumpeservice.no (distributørkatalog)
 
-Hotlinking er ikke tillatt. Bildene skal aldri lastes fra toshibavarmepumper.no i drift.
+| Produkt | Filnavn | Kildeartikkel |
+| --- | --- | --- |
+| HZ Flagship | `panasonic-hz-flagship.webp` | KIT-HZ25ZKE |
+| NZ Etherea | `panasonic-nz-etherea.webp` | KIT-NZ25YKE |
+| CZ | `panasonic-cz.webp` | KIT-CZ25ZKE |
+| Gulvmodell | `panasonic-gulvmodell.webp` | KIT-Z25CFEA-1 |
+| LZ Retro Fit | `panasonic-lz-retro-fit.webp` | KIT-LZ25TKE |
+| VZ Heatcharge | `panasonic-vz-heatcharge.webp` | KIT-VZ12-SKE |
+| Multisplitt | `panasonic-multisplitt.webp` | CU-3Z52TBE (utedel) |
+
+## Fortsatt uten bilde (fallback-illustrasjon)
+
+- Panasonic Luft-vann, Panasonic Multisplitt nordisk, Panasonic Næringsserier
+- Toshiba Multisplitt (ikke-nordisk), Toshiba tekstiltrekk
+- «Større lokaler / flere soner» (merkeuavhengig løsning)
+
+## Før offentlig lansering
+
+1. Innhent skriftlig forhandler-/leverandørgodkjenning fra Mitsubishi Electric
+   Norge, ABK-Qviller (Toshiba) og Panasonic-distributør.
+2. Bytt ev. til bilder fra offisiell bildebank hvis leverandør ønsker det.
+3. Oppdater dette dokumentet og `docs/product-source-notes.md`.
