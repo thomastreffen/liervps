@@ -177,7 +177,7 @@ export function ProjectToolCards({ jobId, technicianNames, start, end, onNavigat
         <ToolCard
           icon={<FileText className="h-5 w-5" />}
           title="Dokumenter"
-          description="Filer, SharePoint og vedlegg"
+          description="Filer og vedlegg"
           badge={docCount > 0 ? docCount : undefined}
           onClick={() => onNavigateTool("dokumenter")}
         />

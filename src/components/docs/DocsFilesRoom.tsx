@@ -51,6 +51,8 @@ import {
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { SharePointExplorer } from "@/components/SharePointExplorer";
+// TODO: Port to Google Workspace later (Google Drive). Microsoft-UI er skjult bak feature-flagg.
+import { MICROSOFT_UI_ENABLED } from "@/lib/feature-flags";
 import type { Attachment } from "@/lib/mock-data";
 
 /* ── Helpers ── */
@@ -870,7 +872,7 @@ export function DocsFilesRoom({ projectId, jobId }: DocsFilesRoomProps) {
             <div className="space-y-1">
               <h3 className="text-lg font-semibold text-foreground">Ingen dokumenter ennå</h3>
               <p className="text-sm text-muted-foreground max-w-sm">
-                Opprett en mappe, last opp filer eller koble til SharePoint for å komme i gang.
+                Opprett en mappe eller last opp filer for å komme i gang.
               </p>
             </div>
           </div>
@@ -949,7 +951,8 @@ export function DocsFilesRoom({ projectId, jobId }: DocsFilesRoomProps) {
           </section>
         )}
 
-        {/* ── Section 3: SharePoint ── */}
+        {/* ── Section 3: SharePoint (skjult – TODO: Port to Google Workspace later) ── */}
+        {MICROSOFT_UI_ENABLED && (
         <section className="space-y-3">
           <div className="flex items-center gap-2">
             <Link2 className="h-4 w-4 text-primary" />
@@ -1006,6 +1009,7 @@ export function DocsFilesRoom({ projectId, jobId }: DocsFilesRoomProps) {
             </div>
           )}
         </section>
+        )}
 
         <input ref={uploadRef} type="file" multiple onChange={handleUpload} className="hidden" />
         {uploading && <UploadingIndicator />}
@@ -1106,14 +1110,18 @@ function NewButton({
           <Upload className="h-4 w-4 text-muted-foreground" />
           Last opp filer
         </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuLabel className="text-xs text-muted-foreground font-normal px-2">
-          Koble fra ekstern kilde…
-        </DropdownMenuLabel>
-        <DropdownMenuItem onClick={onSharePoint} className="gap-2.5 py-2">
-          <Link2 className="h-4 w-4 text-primary" />
-          SharePoint
-        </DropdownMenuItem>
+        {MICROSOFT_UI_ENABLED && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel className="text-xs text-muted-foreground font-normal px-2">
+              Koble fra ekstern kilde…
+            </DropdownMenuLabel>
+            <DropdownMenuItem onClick={onSharePoint} className="gap-2.5 py-2">
+              <Link2 className="h-4 w-4 text-primary" />
+              SharePoint
+            </DropdownMenuItem>
+          </>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );

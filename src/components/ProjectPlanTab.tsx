@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { TechnicianMultiSelect } from "./TechnicianMultiSelect";
 import { JobCalendarSync } from "./JobCalendarSync";
+import { MICROSOFT_UI_ENABLED } from "@/lib/feature-flags";
 import { EventDrawer } from "./EventDrawer";
 import { useTechnicians } from "@/hooks/useTechnicians";
 import { toast } from "sonner";
@@ -347,12 +348,14 @@ export function ProjectPlanTab({
         </div>
       )}
 
-      {/* ── Outlook calendar sync ── */}
+      {/* ── Kalendersync (Outlook) – skjult. TODO: Port to Google Workspace later (Google Kalender). ── */}
+      {MICROSOFT_UI_ENABLED && (
       <div className="rounded-2xl border border-border/60 bg-card shadow-sm p-5">
         <JobCalendarSync jobId={jobId} jobStart={jobStart} jobEnd={jobEnd}
           technicianIds={technicianIds} isAdmin={isAdmin}
           calendarDirty={calendarDirty} calendarLastSyncedAt={calendarLastSyncedAt} onSynced={onSynced} />
       </div>
+      )}
 
       {/* ── Create Task Drawer ── */}
       <CreateTaskDrawer

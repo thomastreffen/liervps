@@ -15,6 +15,8 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { EmailComposer } from "@/components/EmailComposer";
 import { ActivityComposer } from "@/components/activity/ActivityComposer";
 import { toast } from "sonner";
+// TODO: Port to Google Workspace later (Google Meet). Teams-UI er skjult bak feature-flagg.
+import { MICROSOFT_UI_ENABLED } from "@/lib/feature-flags";
 
 export type ActionPanelTab = "meeting" | "teams" | "task" | "email" | "note";
 
@@ -181,9 +183,11 @@ export function LeadActionPanel({
             <TabsTrigger value="meeting" className="gap-1.5 text-xs">
               <CalendarPlus className="h-3.5 w-3.5" /> Møte
             </TabsTrigger>
-            <TabsTrigger value="teams" className="gap-1.5 text-xs">
-              <Video className="h-3.5 w-3.5" /> Teams
-            </TabsTrigger>
+            {MICROSOFT_UI_ENABLED && (
+              <TabsTrigger value="teams" className="gap-1.5 text-xs">
+                <Video className="h-3.5 w-3.5" /> Teams
+              </TabsTrigger>
+            )}
             <TabsTrigger value="task" className="gap-1.5 text-xs">
               <CheckCircle2 className="h-3.5 w-3.5" /> Oppgave
             </TabsTrigger>
