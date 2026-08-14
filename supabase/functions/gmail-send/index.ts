@@ -214,7 +214,12 @@ Deno.serve(async (req) => {
   const data = await res.json();
   if (!res.ok) {
     console.error("[gmail-send] failed", res.status, data);
+    if (res.status === 401 || res.status === 403) {
+      await recordGoogleHealth(admin, "gmail", "needs_reconnect", `gmail_${res.status}`);
+    }
     return json({ status: "error", code: res.status, detail: data?.error?.message ?? "unknown" });
   }
+  await recordGoogleHealth(admin, "gmail", "ok");
   return json({ status: "sent", message_id: data.id });
+
 });
