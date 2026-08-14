@@ -135,7 +135,7 @@ export default function LeadsPage() {
     } else if (viewMode === "archived") {
       await supabase.from("leads").update({ archived_at: null, archived_by: null } as any).eq("id", leadId);
     }
-    toast.success("Lead gjenopprettet");
+    toast.success("Henvendelse gjenopprettet");
     fetchLeads();
   };
 
@@ -230,7 +230,7 @@ export default function LeadsPage() {
             <BulkDeleteBar
               selectedIds={selectedIds}
               entityType="leads"
-              entityLabel="leads"
+              entityLabel="henvendelser"
               onComplete={() => { setSelectedIds([]); fetchLeads(); }}
               onCancel={() => setSelectedIds([])}
             />

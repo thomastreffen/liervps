@@ -109,7 +109,7 @@ export default function TrashPage() {
   const typeLabel = (type: string) => {
     if (type === "job") return "Prosjekt";
     if (type === "calculation") return "Kalkulasjon";
-    if (type === "lead") return "Lead";
+    if (type === "lead") return "Henvendelse";
     if (type === "contract") return "Kontrakt";
     if (type === "conversation") return "Samtale";
     if (type === "order") return "Bestilling";

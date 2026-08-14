@@ -10,7 +10,7 @@ import { format } from "date-fns";
 import { nb } from "date-fns/locale";
 
 const PHASE_LABELS: Record<string, string> = {
-  lead: "Lead",
+  lead: "Henvendelse",
   qualifying: "Kvalifisering",
   calculating: "Kalkulerer",
   quoted: "Tilbud sendt",
@@ -201,7 +201,7 @@ export default function SalesCaseDetailPage() {
                 className="w-full flex items-center gap-3 p-2.5 rounded-lg border border-border/40 hover:bg-accent/40 transition text-left">
                 <Target className="h-4 w-4 text-primary shrink-0" />
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium truncate">{l.title || "Lead"}</div>
+                  <div className="text-sm font-medium truncate">{l.title || "Henvendelse"}</div>
                   {l.lead_ref_code && <div className="text-xs text-muted-foreground font-mono">{l.lead_ref_code}</div>}
                 </div>
                 {l.status && <Badge variant="outline" className="text-xs">{l.status}</Badge>}

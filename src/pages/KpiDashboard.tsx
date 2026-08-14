@@ -509,7 +509,7 @@ function SalesDashboardView({ data, navigate }: { data: SalesData; navigate: (pa
       {/* Charts row */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-5">
         {/* Lead funnel */}
-        <SectionCard title="Lead → Jobb" subtitle="Konverteringstrakt" icon={<TrendingUp className="h-4 w-4" />}>
+        <SectionCard title="Henvendelse → Oppdrag" subtitle="Konverteringstrakt" icon={<TrendingUp className="h-4 w-4" />}>
           {data.leadConversion.some(d => d.count > 0) ? (
             <div className="w-full" style={{ height: isMobile ? 160 : 192 }}>
               <ResponsiveContainer width="100%" height="100%">

@@ -58,7 +58,7 @@ const baseQuickActions: QuickAction[] = [
     permission: null,
   },
   {
-    label: "Ny lead",
+    label: "Ny henvendelse",
     description: "Registrer en ny salgsmulighet",
     icon: Users,
     path: "/leads?new=1",

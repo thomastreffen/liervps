@@ -134,7 +134,7 @@ export default function ContractsPage() {
           <SelectContent>
             <SelectItem value="all">Alle tilknytninger</SelectItem>
             <SelectItem value="job">Jobb</SelectItem>
-            <SelectItem value="lead">Lead</SelectItem>
+            <SelectItem value="lead">Henvendelse</SelectItem>
             <SelectItem value="global">Global</SelectItem>
           </SelectContent>
         </Select>
