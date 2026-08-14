@@ -1164,6 +1164,9 @@ function ProductDetailDialog({
             </ul>
           </DialogSection>
 
+          <ModalKeyFacts details={rp.details} />
+
+
           <DialogSection title="Typisk bruk">
             <p className="text-sm text-[hsl(var(--mcs-muted))] leading-relaxed">
               {rp.typicalUse}
