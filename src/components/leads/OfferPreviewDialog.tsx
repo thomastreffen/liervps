@@ -56,10 +56,32 @@ interface Props {
 
 const nok = (v: number) => `kr ${Number(v).toLocaleString("nb-NO")}`;
 
+/** Interne blokker som aldri skal vises til kunden. */
+const INTERNAL_BLOCK = /^(notater fra henvendelsen|interne notater|internt|kundens melding|fra befaringen)\b/i;
+
+/** Fjerner interne avsnitt fra omfangsteksten før den vises/sendes til kunden. */
+export function sanitizeScope(text?: string | null): string {
+  if (!text) return "";
+  return text
+    .split(/\n\s*\n/)
+    .filter(block => !INTERNAL_BLOCK.test(block.trim()))
+    .join("\n\n")
+    .trim();
+}
+
+/** Produktnavn: eksplisitt valgt produkt, ellers merke + modell fra snapshot. */
+export function productLabel(snap: any): string | null {
+  if (snap?.selected_product) return String(snap.selected_product);
+  const bm = [snap?.brand, snap?.model].filter(Boolean).join(" ");
+  return bm || null;
+}
+
 /** Ren, kundevendt tekstversjon av tilbudet — ingen interne notater eller JSON. */
 export function buildOfferText(offer: OfferRow, contact: string, address: string | null) {
   const snap = offer.input_snapshot || {};
   const rows = calcSummaryRows(snap.calculator_summary);
+  const scope = sanitizeScope(offer.description);
+  const product = productLabel(snap);
   const lines: string[] = [];
   lines.push(`${COMPANY.name}`);
   lines.push("");
@@ -69,11 +91,12 @@ export function buildOfferText(offer: OfferRow, contact: string, address: string
   if (address) lines.push(`Adresse: ${address}`);
   lines.push("");
   if (snap.recommended_solution) lines.push(`Anbefalt løsning: ${snap.recommended_solution}`);
-  if (snap.selected_product) lines.push(`Produkt: ${snap.selected_product}`);
+  if (product) lines.push(`Produkt: ${product}`);
   if (offer.total_price) lines.push(`Estimert pris: ${nok(offer.total_price)} eks. mva`);
-  if (offer.description) {
-    lines.push("", "Omfang:", offer.description.trim());
+  if (scope) {
+    lines.push("", "Omfang:", scope);
   }
+
   if (rows.length) {
     lines.push("", "Grunnlag fra sparekalkulator:");
     rows.forEach(r => lines.push(`- ${r.label}: ${r.value}`));
@@ -88,6 +111,7 @@ export function buildOfferText(offer: OfferRow, contact: string, address: string
 export function OfferPreviewDialog({ open, onOpenChange, offer, lead, onUpdated }: Props) {
   const { user } = useAuth();
   const [sending, setSending] = useState(false);
+  const [marking, setMarking] = useState(false);
   const [confirmManual, setConfirmManual] = useState(false);
 
   const snap = offer.input_snapshot || {};
@@ -97,6 +121,9 @@ export function OfferPreviewDialog({ open, onOpenChange, offer, lead, onUpdated 
   const recipient = (offer.customer_email || lead.email || "").trim();
   const calcRows = useMemo(() => calcSummaryRows(snap.calculator_summary), [snap.calculator_summary]);
   const isSent = offer.status === "sent" || Boolean(offer.offer_sent_at);
+  const scopeText = useMemo(() => sanitizeScope(offer.description), [offer.description]);
+  const product = productLabel(snap);
+
 
   const markSent = async (mode: "email" | "manual") => {
     const stamp = format(new Date(), "dd.MM.yyyy HH:mm");
@@ -128,11 +155,13 @@ export function OfferPreviewDialog({ open, onOpenChange, offer, lead, onUpdated 
   };
 
   const handleSend = async () => {
+    if (sending || isSent) return;
     if (!recipient) {
       toast.error("Mangler e-postadresse på kunden");
       return;
     }
     setSending(true);
+
     try {
       const body = buildOfferText(offer, contactPerson || contact, address);
       const greeting = contactPerson ? `Hei ${contactPerson},` : "Hei,";
@@ -211,19 +240,20 @@ export function OfferPreviewDialog({ open, onOpenChange, offer, lead, onUpdated 
               {recipient && <p className="text-muted-foreground">{recipient}</p>}
             </div>
 
-            {(snap.recommended_solution || snap.selected_product) && (
+            {(snap.recommended_solution || product) && (
               <div className="space-y-1">
                 <p className="font-medium">Anbefalt løsning</p>
                 {snap.recommended_solution && <p>{snap.recommended_solution}</p>}
-                {snap.selected_product && <p className="text-muted-foreground">Produkt: {snap.selected_product}</p>}
+                {product && <p className="text-muted-foreground">Produkt: {product}</p>}
               </div>
             )}
 
-            {offer.description && (
+            {scopeText && (
               <div className="space-y-1">
                 <p className="font-medium">Omfang</p>
-                <p className="whitespace-pre-wrap text-muted-foreground">{offer.description}</p>
+                <p className="whitespace-pre-wrap text-muted-foreground">{scopeText}</p>
               </div>
+
             )}
 
             {calcRows.length > 0 && (
@@ -279,16 +309,26 @@ export function OfferPreviewDialog({ open, onOpenChange, offer, lead, onUpdated 
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Avbryt</AlertDialogCancel>
+            <AlertDialogCancel disabled={marking}>Avbryt</AlertDialogCancel>
             <AlertDialogAction
-              onClick={async () => {
-                await markSent("manual");
-                toast.success("Tilbud markert som sendt");
-                onOpenChange(false);
+              disabled={marking || isSent}
+              onClick={async (e) => {
+                e.preventDefault();
+                if (marking || isSent) return;
+                setMarking(true);
+                try {
+                  await markSent("manual");
+                  toast.success("Tilbud markert som sendt");
+                  setConfirmManual(false);
+                  onOpenChange(false);
+                } finally {
+                  setMarking(false);
+                }
               }}
             >
-              Marker som sendt
+              {marking ? "Markerer …" : "Marker som sendt"}
             </AlertDialogAction>
+
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
