@@ -775,7 +775,12 @@ function LeadDetailInner() {
                             leadId={lead.id}
                             onUpdated={() => { fetchOffers(); fetchLead(); fetchActivities(); }}
                             onCreateJob={(o) => {
-                              setJobOffer({ id: o.id, project_title: o.project_title });
+                              setJobOffer({
+                                id: o.id,
+                                project_title: o.project_title,
+                                total_price: (offer as any).total_price ?? null,
+                                input_snapshot: (offer as any).input_snapshot ?? null,
+                              });
                               setJobDrawerOpen(true);
                             }}
                           />

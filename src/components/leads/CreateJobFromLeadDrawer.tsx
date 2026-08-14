@@ -65,22 +65,36 @@ export function CreateJobFromLeadDrawer({ open, onOpenChange, lead, offer, onCre
     setClientRequestId(crypto.randomUUID());
   }, [open]);
 
+  const [existingLeadJob, setExistingLeadJob] = useState<{ id: string; title: string } | null>(null);
+
   // Hindrer dobbelt oppdrag: finnes det allerede et oppdrag på tilbudet, åpnes det i stedet.
+  // Uten tilbudskontekst varsles det om eksisterende oppdrag på henvendelsen.
   useEffect(() => {
-    if (!open || !offer?.id) return;
+    if (!open) return;
     let cancelled = false;
+    setExistingLeadJob(null);
     (async () => {
-      const { data } = await supabase
-        .from("events").select("id").eq("source_calculation_id", offer.id)
-        .is("deleted_at", null).limit(1).maybeSingle();
-      if (cancelled || !data) return;
-      toast.info("Oppdraget finnes allerede", { description: "Åpner det eksisterende oppdraget." });
-      onOpenChange(false);
-      navigate(`/projects/${(data as any).id}`);
+      if (offer?.id) {
+        const { data } = await supabase
+          .from("events").select("id").eq("source_calculation_id", offer.id)
+          .is("deleted_at", null).limit(1).maybeSingle();
+        if (cancelled || !data) return;
+        toast.info("Oppdraget finnes allerede", { description: "Åpner det eksisterende oppdraget." });
+        onOpenChange(false);
+        navigate(`/projects/${(data as any).id}`);
+        return;
+      }
+      const { data: leadJobs } = await supabase
+        .from("events").select("id, title").eq("source_lead_id", lead.id)
+        .eq("project_type", "project").is("deleted_at", null)
+        .order("created_at", { ascending: false }).limit(1);
+      const job = (leadJobs || []).find((j: any) => !/^befaring/i.test(j.title || ""));
+      if (!cancelled && job) setExistingLeadJob(job as any);
     })();
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, offer?.id]);
+  }, [open, offer?.id, lead.id]);
+
 
   useEffect(() => {
     if (!open || loading) return;
@@ -306,6 +320,21 @@ export function CreateJobFromLeadDrawer({ open, onOpenChange, lead, offer, onCre
               <Badge variant="secondary" className="text-[11px]">
                 Befaring {format(new Date(befaring.start_time), "d. MMM yyyy 'kl.' HH:mm", { locale: nb })}
               </Badge>
+            )}
+
+            {existingLeadJob && (
+              <div className="rounded-xl border border-border/60 bg-muted/40 p-3 text-xs">
+                <p className="font-medium text-foreground">Det finnes allerede et oppdrag på denne henvendelsen</p>
+                <p className="text-muted-foreground">«{existingLeadJob.title}» – unngå dobbeltregistrering.</p>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="mt-2 h-7 rounded-lg text-xs"
+                  onClick={() => { onOpenChange(false); navigate(`/projects/${existingLeadJob.id}`); }}
+                >
+                  Åpne eksisterende oppdrag
+                </Button>
+              </div>
             )}
 
             <div className="space-y-1.5">
