@@ -1,0 +1,3 @@
+DELETE FROM public.lead_history WHERE lead_id IN (SELECT id FROM public.leads WHERE public_lead_id IN (SELECT id FROM public.public_leads WHERE name ILIKE 'QA %' OR email LIKE 'qa-%example.invalid'));
+DELETE FROM public.leads WHERE public_lead_id IN (SELECT id FROM public.public_leads WHERE name ILIKE 'QA %' OR email LIKE 'qa-%example.invalid');
+DELETE FROM public.public_leads WHERE name ILIKE 'QA %' OR email LIKE 'qa-%example.invalid';
