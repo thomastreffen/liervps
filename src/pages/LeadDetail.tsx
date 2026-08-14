@@ -689,7 +689,14 @@ function LeadDetailInner() {
 
             {/* Tilbud */}
             <Card className="rounded-2xl shadow-sm">
-              <CardHeader className="pb-3"><CardTitle className="text-base">Tilbud</CardTitle></CardHeader>
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base">Tilbud</CardTitle>
+                  <Button size="sm" variant="ghost" className="gap-1 h-7 text-xs" onClick={() => setOfferDraftOpen(true)}>
+                    <Plus className="h-3 w-3" /> Lag tilbud
+                  </Button>
+                </div>
+              </CardHeader>
               <CardContent>
                 {offers.length === 0 ? (
                   <div className="text-center py-4">
@@ -699,9 +706,9 @@ function LeadDetailInner() {
                       size="sm"
                       variant="outline"
                       className="mt-2 gap-1.5 text-xs rounded-xl"
-                      onClick={() => navigate(`/sales/offers/new?lead_id=${lead.id}`)}
+                      onClick={() => setOfferDraftOpen(true)}
                     >
-                      <Plus className="h-3 w-3" /> Opprett tilbud
+                      <Plus className="h-3 w-3" /> Opprett tilbudsutkast
                     </Button>
                   </div>
                 ) : (
