@@ -119,10 +119,12 @@ Deno.serve(async (req) => {
     const folderUrl = `https://drive.google.com/drive/folders/${folderId}`;
 
     await admin.from("leads").update({ drive_folder_id: folderId, drive_folder_url: folderUrl }).eq("id", leadId);
+    await recordGoogleHealth(admin, "drive", "ok");
 
     return json({ status: "created", folder_id: folderId, folder_url: folderUrl });
   } catch (e) {
     console.error("[google-drive-folder] failed", e);
+    await recordGoogleHealth(admin, "drive", "needs_reconnect", "drive_failed");
     return json({ status: "error", code: "drive_failed", detail: String(e) });
   }
 });

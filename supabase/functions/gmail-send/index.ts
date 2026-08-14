@@ -119,9 +119,15 @@ Deno.serve(async (req) => {
 
 
   const tokenRow = await loadMailToken(admin, user.id);
-  if (!tokenRow) return json({ status: "no_token" });
+  if (!tokenRow) {
+    await recordGoogleHealth(admin, "gmail", "needs_reconnect", "no_token");
+    return json({ status: "no_token" });
+  }
   const accessToken = await refresh(admin, tokenRow);
-  if (!accessToken) return json({ status: "no_token" });
+  if (!accessToken) {
+    await recordGoogleHealth(admin, "gmail", "needs_reconnect", "refresh_failed");
+    return json({ status: "no_token" });
+  }
 
   const senderEmail = tokenRow.provider_account_email || user.email || "me";
   const contentType = body.html ? 'text/html; charset="UTF-8"' : 'text/plain; charset="UTF-8"';
