@@ -69,7 +69,7 @@ const INTERNAL_BLOCK = /^(notater fra henvendelsen|interne notater|internt|kunde
  * Interne blokker legges alltid til sist, så alt fra første interne overskrift kuttes –
  * det dekker også notater som selv inneholder blanke linjer.
  */
-export function sanitizeScope(text?: string | null): string {
+export function sanitizeScope(text?: string | null, opts?: { dropCalculatorBlock?: boolean }): string {
   if (!text) return "";
   const lines = text.split("\n");
   const cut = lines.findIndex(l => INTERNAL_BLOCK.test(l.trim()));
@@ -78,9 +78,10 @@ export function sanitizeScope(text?: string | null): string {
     .join("\n")
     .split(/\n\s*\n/)
     .filter(block => !INTERNAL_BLOCK.test(block.trim()))
+    // Kalkulatorgrunnlaget vises som egen seksjon – unngå dobbelt oppføring.
+    .filter(block => !(opts?.dropCalculatorBlock && /^fra kalkulator\b/i.test(block.trim())))
     .join("\n\n")
     .trim();
-
 }
 
 /** Produktnavn: eksplisitt valgt produkt, ellers merke + modell fra snapshot. */
@@ -94,7 +95,7 @@ export function productLabel(snap: any): string | null {
 export function buildOfferText(offer: OfferRow, contact: string, address: string | null) {
   const snap = offer.input_snapshot || {};
   const rows = calcSummaryRows(snap.calculator_summary);
-  const scope = sanitizeScope(offer.description);
+  const scope = sanitizeScope(offer.description, { dropCalculatorBlock: rows.length > 0 });
   const product = productLabel(snap);
   const lines: string[] = [];
   lines.push(`${COMPANY.name}`);
@@ -135,7 +136,7 @@ export function OfferPreviewDialog({ open, onOpenChange, offer, lead, onUpdated 
   const recipient = (offer.customer_email || lead.email || "").trim();
   const calcRows = useMemo(() => calcSummaryRows(snap.calculator_summary), [snap.calculator_summary]);
   const isSent = offer.status === "sent" || Boolean(offer.offer_sent_at);
-  const scopeText = useMemo(() => sanitizeScope(offer.description), [offer.description]);
+  const scopeText = useMemo(() => sanitizeScope(offer.description, { dropCalculatorBlock: calcRows.length > 0 }), [offer.description, calcRows.length]);
   const product = productLabel(snap);
 
   const pdfInput: OfferPdfInput = useMemo(() => ({
