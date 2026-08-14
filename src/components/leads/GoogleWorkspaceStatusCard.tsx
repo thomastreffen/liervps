@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CheckCircle2, CircleSlash, ExternalLink, FolderPlus, Loader2, XCircle } from "lucide-react";
 import { toast } from "sonner";
+import { GoogleReconnectBanner } from "@/components/integrations/GoogleReconnectBanner";
 
 interface Props {
   leadId: string;
@@ -90,6 +91,7 @@ export function GoogleWorkspaceStatusCard({ leadId, publicLeadId }: Props) {
         <CardTitle className="text-sm">Google Workspace</CardTitle>
       </CardHeader>
       <CardContent className="space-y-2">
+        <GoogleReconnectBanner compact />
         {loading ? (
           <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
         ) : (

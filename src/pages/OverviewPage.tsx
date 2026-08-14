@@ -18,6 +18,7 @@ import { EventDrawer } from "@/components/EventDrawer";
 import { fetchActiveLeads } from "@/lib/lead-queries";
 import { useUnreadOrderMessages } from "@/hooks/useUnreadOrderMessages";
 import { cn } from "@/lib/utils";
+import { GoogleReconnectBanner } from "@/components/integrations/GoogleReconnectBanner";
 import { NewLeadsCard } from "@/components/leads/NewLeadsCard";
 
 // ── Types ──
