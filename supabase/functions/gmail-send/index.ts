@@ -83,8 +83,16 @@ Deno.serve(async (req) => {
   const user = await getUser(req);
   if (!user) return json({ status: "error", code: "unauthenticated" }, 401);
 
-  let body: { to?: string | string[]; event_id?: string; subject?: string; text?: string; html?: string };
+  let body: {
+    to?: string | string[];
+    event_id?: string;
+    subject?: string;
+    text?: string;
+    html?: string;
+    attachments?: { filename?: string; mime_type?: string; content_base64?: string }[];
+  };
   try { body = await req.json(); } catch { return json({ status: "error", code: "bad_json" }, 400); }
+
 
   const admin = createClient(SUPABASE_URL, SERVICE_KEY, {
     auth: { autoRefreshToken: false, persistSession: false },
