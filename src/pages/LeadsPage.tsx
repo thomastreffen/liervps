@@ -19,11 +19,12 @@ import { BulkDeleteBar } from "@/components/BulkDeleteBar";
 import { LeadActionPanel, type ActionPanelTab } from "@/components/activity/LeadActionPanel";
 import { LEAD_STATUS_CONFIG, ALL_LEAD_STATUSES, PIPELINE_STAGES, type LeadStatus } from "@/lib/lead-status";
 import {
-  Search, Plus, Loader2, ArrowRight, RotateCcw, Archive, Trash2,
+  Search, Plus, Loader2, ArrowRight, RotateCcw, Archive, Trash2, Globe,
   Users, Phone, CalendarDays, Mail, FileText, Clock, Send, MessageSquare,
   StickyNote, CalendarPlus, CheckCircle2,
 } from "lucide-react";
 import { toast } from "sonner";
+import { isWebsiteLead } from "@/hooks/useNewLeads";
 
 type ViewMode = "active" | "archived" | "trash";
 
@@ -79,6 +80,7 @@ export default function LeadsPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState(searchParams.get("status") || "all");
+  const [newWebsiteOnly, setNewWebsiteOnly] = useState(searchParams.get("filter") === "new_website");
   const [viewMode, setViewMode] = useState<ViewMode>("active");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
@@ -96,7 +98,7 @@ export default function LeadsPage() {
     if (viewMode === "trash") result = await fetchDeletedLeads("*", activeCompanyId);
     else if (viewMode === "archived") result = await fetchArchivedLeads("*", activeCompanyId);
     else result = await fetchActiveLeads("*", activeCompanyId);
-    const sorted = (result.data || []).sort((a: any, b: any) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+    const sorted = (result.data || []).sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     setLeads(sorted as any as Lead[]);
     setSelectedIds([]);
     setLoading(false);
@@ -146,6 +148,7 @@ export default function LeadsPage() {
 
   const filtered = leads.filter((l) => {
     if (viewMode === "active" && statusFilter !== "all" && l.status !== statusFilter) return false;
+    if (viewMode === "active" && newWebsiteOnly && !(l.status === "new" && isWebsiteLead(l.source))) return false;
     if (search) {
       const s = search.toLowerCase();
       return l.company_name.toLowerCase().includes(s) ||
@@ -196,6 +199,18 @@ export default function LeadsPage() {
               ))}
             </SelectContent>
           </Select>
+        )}
+        {viewMode === "active" && (
+          <button
+            onClick={() => setNewWebsiteOnly(v => !v)}
+            className={`text-xs px-3 py-1.5 rounded-xl border transition-all inline-flex items-center gap-1.5 ${
+              newWebsiteOnly
+                ? "bg-primary/10 border-primary/30 text-primary font-medium"
+                : "border-border/40 text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <Globe className="h-3 w-3" /> Nye fra nettsiden
+          </button>
         )}
         <div className="flex items-center gap-2 ml-auto">
           <span className="text-xs text-muted-foreground">{filtered.length} henvendelser</span>
@@ -286,8 +301,20 @@ export default function LeadsPage() {
                           <div className="flex items-center gap-2.5">
                             <div className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: stageColor }} />
                             <div className="min-w-0">
-                              <p className="text-sm font-medium truncate">{lead.company_name}</p>
-                              <p className="text-[10px] text-muted-foreground/50 font-mono">{lead.lead_ref_code || "—"}</p>
+                              <div className="flex items-center gap-1.5 min-w-0">
+                                <p className="text-sm font-medium truncate">{lead.company_name}</p>
+                                {lead.status === "new" && (
+                                  <Badge className="text-[9px] rounded-md bg-primary/10 text-primary border-primary/20 px-1.5 py-0">Ny</Badge>
+                                )}
+                                {isWebsiteLead(lead.source) && (
+                                  <Badge variant="outline" className="text-[9px] rounded-md gap-0.5 px-1.5 py-0 text-muted-foreground">
+                                    <Globe className="h-2.5 w-2.5" /> Nettside
+                                  </Badge>
+                                )}
+                              </div>
+                              <p className="text-[10px] text-muted-foreground/50 font-mono">
+                                {lead.lead_ref_code || "—"} · {formatDistanceToNow(new Date(lead.created_at), { addSuffix: true, locale: nb })}
+                              </p>
                             </div>
                           </div>
                         </TableCell>
