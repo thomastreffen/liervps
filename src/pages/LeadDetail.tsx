@@ -144,6 +144,9 @@ function LeadDetailInner() {
   // Inline convert panel
   const [showConvertPanel, setShowConvertPanel] = useState(false);
   const [befaringOpen, setBefaringOpen] = useState(false);
+  const [offerDraftOpen, setOfferDraftOpen] = useState(false);
+  const [jobDrawerOpen, setJobDrawerOpen] = useState(false);
+  const [jobsRefreshKey, setJobsRefreshKey] = useState(0);
 
   // Side panel
   const [actionPanelOpen, setActionPanelOpen] = useState(false);
