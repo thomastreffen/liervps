@@ -1741,14 +1741,30 @@ export function ProductShowcase() {
     if (id === "varmepumper-naering") selectSegment("naering");
     else if (id === "varmepumper-bolig") selectSegment("bolig");
     else if (id.startsWith("produkt-")) {
+      // 1) segment-scoped anchor, 2) legacy anchor -> first matching group
+      const open = (g: (typeof GROUPS)[number], match: ProductItem) => {
+        setSegment(g.segment);
+        setGroupId(g.id);
+        setBrandFilter(ALL_BRANDS);
+        selectProduct(match);
+      };
+
+      let found = false;
       for (const g of GROUPS) {
-        const match = g.items.find((i) => productAnchorId(i) === id);
+        const match = g.items.find((i) => productAnchorId(i, g.segment) === id);
         if (match) {
-          setSegment(g.segment);
-          setGroupId(g.id);
-          setBrandFilter(ALL_BRANDS);
-          selectProduct(match);
+          open(g, match);
+          found = true;
           break;
+        }
+      }
+      if (!found) {
+        for (const g of GROUPS) {
+          const match = g.items.find((i) => legacyProductAnchorId(i) === id);
+          if (match) {
+            open(g, match);
+            break;
+          }
         }
       }
     }
