@@ -239,7 +239,7 @@ export default function ProjectSettingsPage() {
           {/* Project Aliases */}
           <div>
             <Label>Kallenavn / Aliases</Label>
-            <p className="text-xs text-muted-foreground mb-1.5">Montørene bruker ofte kallenavn i Outlook. Legg til her for bedre automatisk matching.</p>
+            <p className="text-xs text-muted-foreground mb-1.5">Montørene bruker ofte kallenavn i kalenderen. Legg til her for bedre automatisk matching.</p>
             <div className="flex flex-wrap gap-1.5 mb-2">
               {aliases.map((alias, i) => (
                 <span
