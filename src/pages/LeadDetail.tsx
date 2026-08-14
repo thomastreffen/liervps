@@ -919,6 +919,24 @@ function LeadDetailInner() {
         onCreated={() => { fetchLead(); fetchActivities(); setJobsRefreshKey(k => k + 1); }}
       />
 
+      {/* ── Forhåndsvis / send tilbud ── */}
+      {previewOffer && (
+        <OfferPreviewDialog
+          open={Boolean(previewOffer)}
+          onOpenChange={(v) => { if (!v) setPreviewOffer(null); }}
+          offer={previewOffer}
+          lead={{
+            id: lead.id,
+            company_name: lead.company_name,
+            contact_name: lead.contact_name,
+            email: lead.email,
+            phone: lead.phone,
+            public_lead_id: lead.public_lead_id,
+          }}
+          onUpdated={() => { fetchLead(); fetchOffers(); fetchActivities(); setPreviewOffer(null); }}
+        />
+      )}
+
 
 
       {/* ── Only confirmation dialogs remain ── */}
