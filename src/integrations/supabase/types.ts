@@ -1227,6 +1227,7 @@ export type Database = {
           next_step: string | null
           next_step_at: string | null
           norm_table_id: string | null
+          offer_accepted_at: string | null
           offer_sent_at: string | null
           package_id: string | null
           parent_offer_id: string | null
@@ -1276,6 +1277,7 @@ export type Database = {
           next_step?: string | null
           next_step_at?: string | null
           norm_table_id?: string | null
+          offer_accepted_at?: string | null
           offer_sent_at?: string | null
           package_id?: string | null
           parent_offer_id?: string | null
@@ -1325,6 +1327,7 @@ export type Database = {
           next_step?: string | null
           next_step_at?: string | null
           norm_table_id?: string | null
+          offer_accepted_at?: string | null
           offer_sent_at?: string | null
           package_id?: string | null
           parent_offer_id?: string | null
@@ -4439,6 +4442,7 @@ export type Database = {
           sharepoint_site_id: string | null
           site_contact_name: string | null
           site_contact_phone: string | null
+          source_calculation_id: string | null
           source_lead_id: string | null
           source_order_form_id: string | null
           start_time: string
@@ -4528,6 +4532,7 @@ export type Database = {
           sharepoint_site_id?: string | null
           site_contact_name?: string | null
           site_contact_phone?: string | null
+          source_calculation_id?: string | null
           source_lead_id?: string | null
           source_order_form_id?: string | null
           start_time: string
@@ -4617,6 +4622,7 @@ export type Database = {
           sharepoint_site_id?: string | null
           site_contact_name?: string | null
           site_contact_phone?: string | null
+          source_calculation_id?: string | null
           source_lead_id?: string | null
           source_order_form_id?: string | null
           start_time?: string
@@ -4679,6 +4685,13 @@ export type Database = {
             columns: ["parent_project_id"]
             isOneToOne: false
             referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "events_source_calculation_id_fkey"
+            columns: ["source_calculation_id"]
+            isOneToOne: false
+            referencedRelation: "calculations"
             referencedColumns: ["id"]
           },
           {
