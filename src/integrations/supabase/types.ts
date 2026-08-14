@@ -13270,6 +13270,7 @@ export type Database = {
         Args: { _auth_user_id: string; _event_id: string }
         Returns: boolean
       }
+      format_calculator_summary: { Args: { _summary: Json }; Returns: string }
       get_active_offer_for_source: {
         Args: { _source_id: string; _source_kind: string }
         Returns: string
