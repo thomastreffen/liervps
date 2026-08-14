@@ -108,8 +108,6 @@ export function Serviceavtale() {
   />;
 }
 
-// Backwards-compat re-exports for existing routes
+// Gamle MCS-navn beholdes kun som aliaser for eventuell ekstern import
 export const ServiceFeilsoking = Feilsoking;
-export const Elektrotavler = Salg;
-export const Stromskinner = Montering;
-export const Hasteoppdrag = Service;
+

@@ -109,7 +109,7 @@ export function RecentLeadsList({ leads, loading }: LeadsProps) {
       <div className="h-1 bg-gradient-to-r from-primary/60 to-accent/60" />
       <div className="p-5">
         <div className="flex items-center justify-between mb-4">
-          <h4 className="text-xs font-semibold text-foreground uppercase tracking-wider">Siste leads</h4>
+          <h4 className="text-xs font-semibold text-foreground uppercase tracking-wider">Siste henvendelser</h4>
           <button
             onClick={() => nav("/sales/leads")}
             className="inline-flex items-center gap-1.5 text-xs font-medium
@@ -127,7 +127,7 @@ export function RecentLeadsList({ leads, loading }: LeadsProps) {
           </div>
         ) : leads.length === 0 ? (
           <div className="flex flex-col items-center py-8 gap-3">
-            <p className="text-sm text-muted-foreground/60">Ingen leads ennå</p>
+            <p className="text-sm text-muted-foreground/60">Ingen henvendelser ennå</p>
             <button
               onClick={() => nav("/sales/leads/new")}
               className="inline-flex items-center gap-1.5 text-xs font-medium text-primary

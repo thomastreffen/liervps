@@ -149,7 +149,7 @@ import PortalNotificationSettings from "./pages/portal/PortalNotificationSetting
 import PortalNotificationsPage from "./pages/portal/PortalNotificationsPage";
 import { PortalProvider } from "@/hooks/usePortal";
 import PublicHome from "./pages/public/Home";
-import { ServiceFeilsoking, Elektrotavler, Stromskinner, Hasteoppdrag } from "./pages/public/ServicePages";
+import { Befaring, Salg, Montering, Service, Feilsoking, Serviceavtale } from "./pages/public/ServicePages";
 import { Kontakt, BestillService, OmMcs, Referanser } from "./pages/public/InfoPages";
 
 const queryClient = new QueryClient();
@@ -183,11 +183,20 @@ const App = () => (
           <Routes>
             {/* Public marketing site */}
             <Route path="/" element={<PublicHome />} />
-            <Route path="/tjenester/service-og-feilsoking" element={<ServiceFeilsoking />} />
-            <Route path="/tjenester/elektrotavler" element={<Elektrotavler />} />
-            <Route path="/tjenester/stromskinner" element={<Stromskinner />} />
-            <Route path="/tjenester/hasteoppdrag" element={<Hasteoppdrag />} />
-            <Route path="/om-mcs" element={<OmMcs />} />
+            <Route path="/tjenester/befaring" element={<Befaring />} />
+            <Route path="/tjenester/salg" element={<Salg />} />
+            <Route path="/tjenester/montering" element={<Montering />} />
+            <Route path="/tjenester/service" element={<Service />} />
+            <Route path="/tjenester/feilsoking" element={<Feilsoking />} />
+            <Route path="/tjenester/serviceavtale" element={<Serviceavtale />} />
+            {/* Gamle elektro-URL-er fra MCS – videresendes til varmepumpesidene */}
+            <Route path="/tjenester/service-og-feilsoking" element={<Navigate to="/tjenester/feilsoking" replace />} />
+            <Route path="/tjenester/elektrotavler" element={<Navigate to="/tjenester/salg" replace />} />
+            <Route path="/tjenester/stromskinner" element={<Navigate to="/tjenester/montering" replace />} />
+            <Route path="/tjenester/hasteoppdrag" element={<Navigate to="/tjenester/service" replace />} />
+            <Route path="/om-oss" element={<OmMcs />} />
+            <Route path="/om-mcs" element={<Navigate to="/om-oss" replace />} />
+
             <Route path="/referanser" element={<Referanser />} />
             <Route path="/kontakt" element={<Kontakt />} />
             <Route path="/bestill-service" element={<BestillService />} />

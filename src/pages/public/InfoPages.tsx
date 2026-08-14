@@ -141,8 +141,8 @@ export function OmMcs() {
       <PublicSeo
         title="Om Lier Varmepumpeservice AS"
         description="Lier VPS er et lokalt varmepumpefirma i Lier — vi leverer befaring, salg, montering og service."
-        path="/om-mcs"
-        jsonLd={breadcrumbSchema([{ name: "Hjem", path: "/" }, { name: "Om oss", path: "/om-mcs" }])}
+        path="/om-oss"
+        jsonLd={breadcrumbSchema([{ name: "Hjem", path: "/" }, { name: "Om oss", path: "/om-oss" }])}
       />
       <section className="bg-white py-16 lg:py-24">
         <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">

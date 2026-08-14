@@ -44,7 +44,7 @@ export function PortalHero() {
               Hei, {firstName}!
             </h1>
             <p className="text-white/60 text-xs lg:text-sm mt-0.5 truncate">
-              {activeCompany ? <>Tilknyttet <span className="text-white/90 font-medium">{activeCompany.name}</span></> : "Microsoft-kontoen din er aktiv"}
+              {activeCompany ? <>Tilknyttet <span className="text-white/90 font-medium">{activeCompany.name}</span></> : "Google-kontoen din er aktiv"}
             </p>
           </div>
           <div className="flex flex-row gap-2 shrink-0">

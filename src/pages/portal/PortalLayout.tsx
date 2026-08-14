@@ -69,7 +69,7 @@ export default function PortalLayout() {
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button variant="outline" size="sm" className="gap-1.5 text-xs" asChild>
-                    <a href="mailto:post@mcsservice.no">
+                    <a href="mailto:post@liervps.no">
                       <Phone className="h-3.5 w-3.5" />
                       <span className="hidden sm:inline">Kontakt prosjektleder</span>
                     </a>

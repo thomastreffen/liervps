@@ -115,7 +115,7 @@ export function CreateOrderFromLeadCard({ lead, logActivity }: Props) {
       return;
     }
     if (!lead.company_id) {
-      toast.error("Lead mangler selskap — kan ikke opprette bestilling");
+      toast.error("Henvendelsen mangler selskap — kan ikke opprette bestilling");
       return;
     }
     setCreating(true);
@@ -166,7 +166,7 @@ export function CreateOrderFromLeadCard({ lead, logActivity }: Props) {
         console.warn("[CreateOrderFromLead] history insert failed", e);
       }
 
-      toast.success("Bestilling opprettet fra lead");
+      toast.success("Bestilling opprettet fra henvendelse");
       navigate(`/orders/${data.id}`);
     } catch (err: any) {
       console.error("[CreateOrderFromLead] insert error:", err);
@@ -277,9 +277,9 @@ export function CreateOrderFromLeadCard({ lead, logActivity }: Props) {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Opprett bestilling fra lead</DialogTitle>
+            <DialogTitle>Opprett bestilling fra henvendelse</DialogTitle>
             <DialogDescription>
-              Bestillingen kobles tilbake til dette leadet. Kontaktinfo og notater
+              Bestillingen kobles tilbake til denne henvendelsen. Kontaktinfo og notater
               kopieres inn automatisk.
             </DialogDescription>
           </DialogHeader>

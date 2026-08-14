@@ -427,7 +427,7 @@ export function PersonnelDialog({ technicianId, open, onOpenChange, onSaved }: P
                     </div>
                     <div>
                       <Label className="text-xs">Fagbrev-type</Label>
-                      <Input value={profile.trade_certificate_type || ""} onChange={(e) => setProfile({ ...profile, trade_certificate_type: e.target.value })} placeholder="F.eks. Elektriker" />
+                      <Input value={profile.trade_certificate_type || ""} onChange={(e) => setProfile({ ...profile, trade_certificate_type: e.target.value })} placeholder="F.eks. Kuldemontør" />
                     </div>
                   </div>
 

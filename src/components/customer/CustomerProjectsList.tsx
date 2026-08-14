@@ -30,14 +30,14 @@ export function CustomerProjectsList({ projects, customerId }: Props) {
           <FolderKanban className="h-10 w-10 text-muted-foreground/30" />
           <div>
             <p className="text-sm font-medium">Denne kunden har ingen aktivitet ennå.</p>
-            <p className="text-xs text-muted-foreground mt-1">Start med å opprette et prosjekt, lead eller tilbud.</p>
+            <p className="text-xs text-muted-foreground mt-1">Start med å opprette et oppdrag, en henvendelse eller et tilbud.</p>
           </div>
           <div className="flex gap-2 flex-wrap justify-center">
             <Button size="sm" onClick={() => navigate(`/projects/new?customer=${customerId}`)} className="gap-1.5 rounded-xl">
               <Plus className="h-3.5 w-3.5" /> Opprett prosjekt
             </Button>
             <Button size="sm" variant="outline" onClick={() => navigate(`/sales/leads/new?customer=${customerId}`)} className="gap-1.5 rounded-xl">
-              <Plus className="h-3.5 w-3.5" /> Opprett lead
+              <Plus className="h-3.5 w-3.5" /> Ny henvendelse
             </Button>
           </div>
           <p className="text-[10px] text-muted-foreground mt-2">
