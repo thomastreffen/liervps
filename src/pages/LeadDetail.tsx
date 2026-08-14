@@ -99,6 +99,11 @@ interface LeadCalc {
   status: string;
   total_price: number | null;
   created_at: string;
+  offer_sent_at?: string | null;
+  customer_name?: string | null;
+  customer_email?: string | null;
+  description?: string | null;
+  input_snapshot?: any;
 }
 
 interface CalendarLink {
