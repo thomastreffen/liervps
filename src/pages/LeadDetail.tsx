@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, Component, type ReactNode, type Error
 import { useParams, useNavigate } from "react-router-dom";
 import { format, isPast, isToday } from "date-fns";
 import { nb } from "date-fns/locale";
+import { MICROSOFT_UI_ENABLED } from "@/lib/feature-flags";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useActivityLog } from "@/hooks/useActivityLog";
@@ -390,7 +391,7 @@ function LeadDetailInner() {
       const { data, error } = await supabase.functions.invoke("lead-calendar-event", { body: { action: "delete", link_id: linkId } });
       if (error) throw error;
       if (data?.error) { toast.error(data.error); return; }
-      toast.success("Møte slettet fra Outlook");
+      toast.success("Møte slettet");
       await logActivity({ action: "meeting_deleted", description: "Møte slettet", type: "meeting", performedBy: user?.id });
       fetchCalendarLinks();
       fetchActivities();
@@ -455,7 +456,7 @@ function LeadDetailInner() {
 
       <div className="mx-auto max-w-5xl p-4 sm:p-6 space-y-5">
         {/* ── MS re-auth banner ── */}
-        {msReauthNeeded && (
+        {MICROSOFT_UI_ENABLED && msReauthNeeded && (
           <div className="flex items-center gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-4">
             <AlertTriangle className="h-5 w-5 text-destructive shrink-0" />
             <div className="flex-1">
@@ -856,7 +857,7 @@ function LeadDetailInner() {
                           <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleResyncCalendarLink(link.id)} title="Resynkroniser">
                             <RefreshCw className="h-3.5 w-3.5 text-muted-foreground" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDeleteCalendarLink(link.id)} title="Slett fra Outlook">
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDeleteCalendarLink(link.id)} title="Slett møte">
                             <Trash2 className="h-3.5 w-3.5 text-destructive" />
                           </Button>
                         </div>

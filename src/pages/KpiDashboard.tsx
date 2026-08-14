@@ -454,7 +454,6 @@ function OpsDashboard({ data, navigate }: { data: OpsData; navigate: (path: stri
               <ActionItem label="Jobber uten plan" count={data.actionItems.unplannedJobs} variant="warning" onClick={() => navigate("/projects")} />
               <ActionItem label="Mangler Google-token" count={data.actionItems.missingToken} variant="warning" onClick={() => navigate("/admin/integration-health")} />
               <ActionItem label="Kalenderhendelse slettet" count={data.actionItems.itemNotFound} variant="error" onClick={() => navigate("/admin/integration-health")} />
-              <ActionItem label="Jobber uten Teams-møte" count={data.actionItems.jobsWithoutTeams} variant="default" onClick={() => navigate("/projects")} />
             </div>
           </div>
         </div>

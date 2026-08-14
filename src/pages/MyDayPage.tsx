@@ -486,10 +486,10 @@ function JobDetailView({
             <MyDayChecklists projectId={block.project_id} />
           )}
 
-          {/* Outlook link */}
+          {/* Kalenderlenke */}
           {block.outlook_weblink && (
             <Button variant="outline" className="w-full gap-2 text-xs" onClick={() => window.open(block.outlook_weblink!, "_blank")}>
-              <ExternalLink className="h-3.5 w-3.5" /> Åpne i Outlook
+              <ExternalLink className="h-3.5 w-3.5" /> Åpne i Google Kalender
             </Button>
           )}
 
@@ -572,7 +572,7 @@ function JobDetailView({
       {!block.project_id && (
         <div className="shrink-0 border-t border-border/60 bg-card p-4 safe-area-bottom">
           <p className="text-xs text-muted-foreground text-center">
-            Denne hendelsen er ikke knyttet til et oppdrag. Åpne i Outlook for detaljer.
+            Denne hendelsen er ikke knyttet til et oppdrag.
           </p>
         </div>
       )}
@@ -708,7 +708,7 @@ export default function MyDayPage() {
                 <CardContent className="p-8 text-center">
                   <CalendarDays className="h-10 w-10 text-muted-foreground/40 mx-auto mb-3" />
                   <p className="text-sm text-muted-foreground">Ingen planlagte oppdrag i dag.</p>
-                  <p className="text-xs text-muted-foreground mt-1">Sjekk Outlook-kalenderen for eventuelle endringer.</p>
+                  <p className="text-xs text-muted-foreground mt-1">Sjekk kalenderen for eventuelle endringer.</p>
                   <Button variant="ghost" size="sm" className="mt-3 gap-1.5 text-xs" onClick={handleRefresh} disabled={refreshing}>
                     <RefreshCw className={cn("h-3 w-3", refreshing && "animate-spin")} /> Oppdater
                   </Button>
@@ -730,7 +730,7 @@ export default function MyDayPage() {
             {todayBlocks.length === 0 && upcomingBlocks.length === 0 && (
               <div className="text-center py-8">
                 <p className="text-sm text-muted-foreground">Ingen kommende oppdrag denne uken.</p>
-                <p className="text-xs text-muted-foreground/60 mt-1">Nye oppdrag dukker opp automatisk fra Outlook-kalenderen.</p>
+                <p className="text-xs text-muted-foreground/60 mt-1">Nye oppdrag dukker opp automatisk fra kalenderen.</p>
               </div>
             )}
           </>

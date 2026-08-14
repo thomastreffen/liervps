@@ -240,8 +240,8 @@ export default function IntegrationHealthPage() {
       await supabase.from("notifications").insert({
         user_id: techUserId,
         type: "ms_connect_request",
-        title: "Koble Microsoft 365",
-        message: "Administrator ber deg koble Microsoft-kontoen din for kalender- og e-postsynkronisering. Gå til Integrasjoner for å koble til.",
+        title: "Koble Google-konto",
+        message: "Administrator ber deg koble Google-kontoen din for kalender- og e-postsynkronisering. Gå til Integrasjoner for å koble til.",
       });
       toast.success(`Varsel sendt til ${techName}`);
       fetchAll();
@@ -273,8 +273,8 @@ export default function IntegrationHealthPage() {
         await supabase.from("notifications").insert({
           user_id: userId,
           type: "ms_connect_request",
-          title: "Koble Microsoft 365",
-          message: "Administrator ber deg koble Microsoft-kontoen din for kalender- og e-postsynkronisering.",
+          title: "Koble Google-konto",
+          message: "Administrator ber deg koble Google-kontoen din for kalender- og e-postsynkronisering.",
         });
         sent++;
       }
@@ -322,12 +322,12 @@ export default function IntegrationHealthPage() {
 
   // ── Error code labels ──
   const errorLabels: Record<string, string> = {
-    missing_token: "Mangler Microsoft-tilkobling",
+    missing_token: "Mangler Google-tilkobling",
     invalid_grant: "Token utløpt / ugyldig",
-    item_not_found: "Outlook-event slettet",
-    itemNotFound: "Outlook-event slettet",
+    item_not_found: "Kalenderhendelse slettet",
+    itemNotFound: "Kalenderhendelse slettet",
     insufficient_privileges: "Mangler rettigheter",
-    throttled: "Rate-limited av Graph",
+    throttled: "Rate-limited av kalender-API",
     unknown: "Ukjent feil",
   };
 
@@ -344,7 +344,7 @@ export default function IntegrationHealthPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Integrasjonshelse</h1>
-          <p className="text-sm text-muted-foreground">Oversikt over Microsoft-integrasjoner for kalender og e-post</p>
+          <p className="text-sm text-muted-foreground">Oversikt over Google Workspace-integrasjoner for kalender og e-post</p>
         </div>
         <Button variant="outline" size="sm" className="gap-1.5" onClick={fetchAll}>
           <RefreshCw className="h-3.5 w-3.5" /> Oppdater
@@ -368,7 +368,7 @@ export default function IntegrationHealthPage() {
           description="Calendar links failed"
         />
         <KpiCard
-          title="Uten Microsoft"
+          title="Uten Google"
           value={kpi.disconnectedTechs}
           icon={<Unplug className="h-4 w-4" />}
           variant={kpi.disconnectedTechs > 0 ? "warning" : "ok"}
@@ -512,7 +512,7 @@ export default function IntegrationHealthPage() {
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
-            <Unplug className="h-4 w-4" /> Teknikere uten Microsoft-tilkobling
+            <Unplug className="h-4 w-4" /> Teknikere uten Google-tilkobling
           </CardTitle>
         </CardHeader>
         <CardContent>

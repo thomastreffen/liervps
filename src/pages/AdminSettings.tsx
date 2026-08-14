@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
+import { MICROSOFT_UI_ENABLED } from "@/lib/feature-flags";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -104,8 +105,9 @@ export default function AdminSettings() {
                 <Input value={drift.default_job_status || "requested"} onChange={e => updateSetting("drift", "default_job_status", e.target.value)} />
                 <p className="text-xs text-muted-foreground">Teknisk nøkkel: requested, approved, scheduled, etc.</p>
               </div>
-              <ToggleRow label="Auto-opprett Teams-møte" description="Opprett Teams-møte automatisk ved ny jobb" checked={!!drift.auto_create_teams} onChange={v => updateSetting("drift", "auto_create_teams", v)} />
-              <ToggleRow label="Krev Outlook-sync før Planlagt" description='Jobb kan ikke settes til "Planlagt" uten sync' checked={!!drift.require_outlook_sync_before_planned} onChange={v => updateSetting("drift", "require_outlook_sync_before_planned", v)} />
+              {/* TODO: Google Meet-støtte kan legges til senere */}
+              {MICROSOFT_UI_ENABLED && <ToggleRow label="Auto-opprett Teams-møte" description="Opprett Teams-møte automatisk ved ny jobb" checked={!!drift.auto_create_teams} onChange={v => updateSetting("drift", "auto_create_teams", v)} />}
+              {MICROSOFT_UI_ENABLED && <ToggleRow label="Krev Outlook-sync før Planlagt" description='Jobb kan ikke settes til "Planlagt" uten sync' checked={!!drift.require_outlook_sync_before_planned} onChange={v => updateSetting("drift", "require_outlook_sync_before_planned", v)} />}
               <div className="space-y-1.5">
                 <Label>Standard arbeidstid per dag (timer)</Label>
                 <Input type="number" value={drift.default_work_hours_per_day || 8} onChange={e => updateSetting("drift", "default_work_hours_per_day", Number(e.target.value))} className="w-24" />
