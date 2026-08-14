@@ -149,7 +149,7 @@ import PortalNotificationSettings from "./pages/portal/PortalNotificationSetting
 import PortalNotificationsPage from "./pages/portal/PortalNotificationsPage";
 import { PortalProvider } from "@/hooks/usePortal";
 import PublicHome from "./pages/public/Home";
-import { ServiceFeilsoking, Elektrotavler, Stromskinner, Hasteoppdrag } from "./pages/public/ServicePages";
+import { Befaring, Salg, Montering, Service, Feilsoking, Serviceavtale } from "./pages/public/ServicePages";
 import { Kontakt, BestillService, OmMcs, Referanser } from "./pages/public/InfoPages";
 
 const queryClient = new QueryClient();
