@@ -30,8 +30,17 @@ export type ProductSpecs = {
   suitableAreaIndicative?: string;
 };
 
+/** One size/variant within a series, with its own official numbers. */
+export type ProductSpecVariant = {
+  /** Type designation as published by manufacturer/importer. */
+  label: string;
+  specs: ProductSpecs;
+};
+
 export type ProductSpecEntry = {
   specs: ProductSpecs;
+  /** Other officially documented sizes in the same series. */
+  variants?: ProductSpecVariant[];
   /** Which model size / type designation the numbers apply to. Shown publicly. */
   specBasis?: string;
   /** Short customer-friendly guidance line. Shown publicly. */
@@ -356,6 +365,42 @@ export const PRODUCT_SPECS: Record<string, ProductSpecEntry> = {
       indoorUnitDimensions: "H 295 × B 870 × D 229 mm",
       outdoorUnitDimensions: "H 622 × B 824 × D 299 mm",
     },
+    variants: [
+      {
+        label: "KIT-HZ25ZKE",
+        specs: {
+          heatingCapacityNominalKw: "3,20 kW",
+          heatingCapacityMinMaxKw: "0,85 – 7,50 kW",
+          coolingCapacityNominalKw: "2,50 kW",
+          coolingCapacityMinMaxKw: "0,85 – 3,60 kW",
+          scop: "5,69",
+          energyClassHeating: "A+++",
+          indoorNoiseDb: "18 – 45 dB(A)",
+          outdoorNoiseDb: "47 dB(A)",
+          operationTempHeating: "3,60 kW ved -25 °C",
+          refrigerant: "R32",
+          indoorUnitDimensions: "H 295 × B 870 × D 229 mm",
+          outdoorUnitDimensions: "H 622 × B 824 × D 299 mm",
+        },
+      },
+      {
+        label: "KIT-HZ35ZKE",
+        specs: {
+          heatingCapacityNominalKw: "4,20 kW",
+          heatingCapacityMinMaxKw: "0,85 – 7,90 kW",
+          coolingCapacityNominalKw: "3,50 kW",
+          coolingCapacityMinMaxKw: "0,85 – 4,60 kW",
+          scop: "5,30",
+          energyClassHeating: "A+++",
+          indoorNoiseDb: "18 – 45 dB(A)",
+          outdoorNoiseDb: "50 dB(A)",
+          operationTempHeating: "3,70 kW ved -25 °C",
+          refrigerant: "R32",
+          indoorUnitDimensions: "H 295 × B 870 × D 229 mm",
+          outdoorUnitDimensions: "H 622 × B 824 × D 299 mm",
+        },
+      },
+    ],
     specBasis: "KIT-HZ25ZKE",
     guidanceNote: "Aktuell ved større varmebehov og kalde vintre.",
     specSourceUrl:
@@ -380,6 +425,59 @@ export const PRODUCT_SPECS: Record<string, ProductSpecEntry> = {
       indoorUnitDimensions: "H 295 × B 870 × D 229 mm",
       outdoorUnitDimensions: "H 622 × B 824 × D 299 mm",
     },
+    variants: [
+      {
+        label: "KIT-NZ25YKE",
+        specs: {
+          heatingCapacityNominalKw: "3,40 kW",
+          heatingCapacityMinMaxKw: "0,85 – 6,50 kW",
+          coolingCapacityNominalKw: "2,50 kW",
+          coolingCapacityMinMaxKw: "0,85 – 3,00 kW",
+          scop: "5,00",
+          energyClassHeating: "A++",
+          indoorNoiseDb: "19 – 42 dB(A)",
+          outdoorNoiseDb: "48 dB(A)",
+          operationTempHeating: "2,25 kW ved -25 °C",
+          refrigerant: "R32",
+          indoorUnitDimensions: "H 295 × B 870 × D 229 mm",
+          outdoorUnitDimensions: "H 622 × B 824 × D 299 mm",
+        },
+      },
+      {
+        label: "KIT-NZ35YKE",
+        specs: {
+          heatingCapacityNominalKw: "4,00 kW",
+          heatingCapacityMinMaxKw: "0,85 – 7,40 kW",
+          coolingCapacityNominalKw: "3,50 kW",
+          coolingCapacityMinMaxKw: "0,85 – 4,00 kW",
+          scop: "5,00",
+          energyClassHeating: "A++",
+          indoorNoiseDb: "19 – 44 dB(A)",
+          outdoorNoiseDb: "50 dB(A)",
+          operationTempHeating: "3,03 kW ved -25 °C",
+          refrigerant: "R32",
+          indoorUnitDimensions: "H 295 × B 870 × D 229 mm",
+          outdoorUnitDimensions: "H 622 × B 824 × D 299 mm",
+        },
+      },
+      {
+        label: "KIT-NZ50YKE",
+        specs: {
+          heatingCapacityNominalKw: "5,80 kW",
+          heatingCapacityMinMaxKw: "0,98 – 8,30 kW",
+          coolingCapacityNominalKw: "5,00 kW",
+          coolingCapacityMinMaxKw: "0,98 – 6,10 kW",
+          scop: "4,80",
+          energyClassHeating: "A++",
+          indoorNoiseDb: "30 – 44 dB(A)",
+          outdoorNoiseDb: "50 dB(A)",
+          operationTempHeating: "3,72 kW ved -25 °C",
+          refrigerant: "R32",
+          indoorUnitDimensions: "H 295 × B 1040 × D 244 mm",
+          outdoorUnitDimensions: "H 701 × B 875 × D 320 mm",
+        },
+      },
+    ],
     specBasis: "KIT-NZ25YKE (CS-NZ25YKE + CU-NZ25YKE)",
     guidanceNote: "Allroundmodell som treffer de fleste vanlige boliger.",
     specSourceUrl:
@@ -402,6 +500,42 @@ export const PRODUCT_SPECS: Record<string, ProductSpecEntry> = {
       indoorUnitDimensions: "H 290 × B 779 × D 209 mm",
       outdoorUnitDimensions: "H 622 × B 824 × D 299 mm",
     },
+    variants: [
+      {
+        label: "KIT-CZ25ZKE",
+        specs: {
+          heatingCapacityNominalKw: "3,40 kW",
+          heatingCapacityMinMaxKw: "0,85 – 5,30 kW",
+          coolingCapacityNominalKw: "2,50 kW",
+          coolingCapacityMinMaxKw: "0,85 – 3,00 kW",
+          scop: "4,30",
+          energyClassHeating: "A+",
+          indoorNoiseDb: "20 – 40 dB(A)",
+          outdoorNoiseDb: "47 dB(A)",
+          operationTempHeating: "1,50 kW ved -25 °C",
+          refrigerant: "R32",
+          indoorUnitDimensions: "H 290 × B 779 × D 209 mm",
+          outdoorUnitDimensions: "H 622 × B 824 × D 299 mm",
+        },
+      },
+      {
+        label: "KIT-CZ35ZKE",
+        specs: {
+          heatingCapacityNominalKw: "4,00 kW",
+          heatingCapacityMinMaxKw: "0,85 – 6,70 kW",
+          coolingCapacityNominalKw: "3,50 kW",
+          coolingCapacityMinMaxKw: "0,85 – 4,00 kW",
+          scop: "4,30",
+          energyClassHeating: "A+",
+          indoorNoiseDb: "20 – 43 dB(A)",
+          outdoorNoiseDb: "50 dB(A)",
+          operationTempHeating: "2,40 kW ved -25 °C",
+          refrigerant: "R32",
+          indoorUnitDimensions: "H 290 × B 779 × D 209 mm",
+          outdoorUnitDimensions: "H 622 × B 824 × D 299 mm",
+        },
+      },
+    ],
     specBasis: "KIT-CZ25ZKE",
     guidanceNote: "Passer ofte for mindre boliger, hytte eller bod.",
     specSourceUrl:
@@ -424,6 +558,42 @@ export const PRODUCT_SPECS: Record<string, ProductSpecEntry> = {
       indoorUnitDimensions: "H 249 × B 790 × D 355 mm",
       outdoorUnitDimensions: "H 622 × B 824 × D 299 mm",
     },
+    variants: [
+      {
+        label: "KIT-LZ25TKE",
+        specs: {
+          heatingCapacityNominalKw: "3,20 kW",
+          heatingCapacityMinMaxKw: "0,85 – 6,55 kW",
+          coolingCapacityNominalKw: "2,50 kW",
+          coolingCapacityMinMaxKw: "0,85 – 3,00 kW",
+          scop: "5,0",
+          energyClassHeating: "A++",
+          indoorNoiseDb: "18 – 45 dB(A)",
+          outdoorNoiseDb: "44 dB(A)",
+          operationTempHeating: "3,90 kW ved -15 °C",
+          refrigerant: "R32",
+          indoorUnitDimensions: "H 249 × B 790 × D 355 mm",
+          outdoorUnitDimensions: "H 622 × B 824 × D 299 mm",
+        },
+      },
+      {
+        label: "KIT-LZ35TKE",
+        specs: {
+          heatingCapacityNominalKw: "4,20 kW",
+          heatingCapacityMinMaxKw: "0,85 – 7,65 kW",
+          coolingCapacityNominalKw: "3,50 kW",
+          coolingCapacityMinMaxKw: "0,85 – 4,00 kW",
+          scop: "4,9",
+          energyClassHeating: "A++",
+          indoorNoiseDb: "19 – 46 dB(A)",
+          outdoorNoiseDb: "47 dB(A)",
+          operationTempHeating: "4,35 kW ved -15 °C",
+          refrigerant: "R32",
+          indoorUnitDimensions: "H 249 × B 790 × D 355 mm",
+          outdoorUnitDimensions: "H 622 × B 824 × D 299 mm",
+        },
+      },
+    ],
     specBasis: "KIT-LZ25TKE",
     guidanceNote: "Aktuell ved utskifting av en eldre varmepumpe.",
     specSourceUrl: "https://www.varmepumpeservice.no/panasonic-lz25tke-kit",
@@ -468,6 +638,42 @@ export const PRODUCT_SPECS: Record<string, ProductSpecEntry> = {
       indoorUnitDimensions: "H 600 × B 750 × D 207 mm",
       outdoorUnitDimensions: "H 622 × B 824 × D 299 mm",
     },
+    variants: [
+      {
+        label: "KIT-Z25CFEA-1",
+        specs: {
+          heatingCapacityNominalKw: "3,4 kW",
+          heatingCapacityMinMaxKw: "0,85 – 5,50 kW",
+          coolingCapacityNominalKw: "2,5 kW",
+          coolingCapacityMinMaxKw: "0,85 – 3,40 kW",
+          scop: "4,7",
+          energyClassHeating: "A++",
+          indoorNoiseDb: "19 – 38 dB(A)",
+          outdoorNoiseDb: "48 dB(A)",
+          operationTempHeating: "2,40 kW ved -25 °C",
+          refrigerant: "R32",
+          indoorUnitDimensions: "H 600 × B 750 × D 207 mm",
+          outdoorUnitDimensions: "H 622 × B 824 × D 299 mm",
+        },
+      },
+      {
+        label: "KIT-Z35CFEA-1",
+        specs: {
+          heatingCapacityNominalKw: "4,3 kW",
+          heatingCapacityMinMaxKw: "0,85 – 6,20 kW",
+          coolingCapacityNominalKw: "3,5 kW",
+          coolingCapacityMinMaxKw: "0,85 – 3,80 kW",
+          scop: "4,6",
+          energyClassHeating: "A++",
+          indoorNoiseDb: "19 – 39 dB(A)",
+          outdoorNoiseDb: "50 dB(A)",
+          operationTempHeating: "2,85 kW ved -25 °C",
+          refrigerant: "R32",
+          indoorUnitDimensions: "H 600 × B 750 × D 207 mm",
+          outdoorUnitDimensions: "H 622 × B 824 × D 299 mm",
+        },
+      },
+    ],
     specBasis: "KIT-Z25CFEA-1",
     guidanceNote: "Aktuell når høy montering på vegg ikke passer.",
     specSourceUrl:
@@ -523,6 +729,21 @@ export function fullSpecRows(
   push("Veiledende areal", specs.suitableAreaIndicative);
   return rows;
 }
+
+/** Rows used for the side-by-side variant comparison in the modal. */
+export const VARIANT_ROWS: Array<{
+  label: string;
+  get: (s: ProductSpecs) => string | undefined;
+}> = [
+  { label: "Varmeeffekt (min–maks)", get: (s) => s.heatingCapacityMinMaxKw },
+  { label: "Varmeeffekt (nominell)", get: (s) => s.heatingCapacityNominalKw },
+  { label: "Kjøleeffekt (nominell)", get: (s) => s.coolingCapacityNominalKw },
+  { label: "SCOP", get: (s) => s.scop },
+  { label: "Energiklasse varme", get: (s) => s.energyClassHeating },
+  { label: "Lydnivå innedel", get: (s) => s.indoorNoiseDb },
+  { label: "Lydnivå utedel", get: (s) => s.outdoorNoiseDb },
+  { label: "Drift varme", get: (s) => s.operationTempHeating },
+];
 
 export const SPEC_DISCLAIMER =
   "Tallene er produsent-/importørdata. Riktig modell må vurderes ut fra bolig, planløsning, plassering, klima og faktisk varmebehov.";

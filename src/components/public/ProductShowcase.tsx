@@ -26,6 +26,7 @@ import {
   compactSpecRows,
   fullSpecRows,
   SPEC_DISCLAIMER,
+  VARIANT_ROWS,
 } from "./product-specs";
 
 
@@ -896,6 +897,65 @@ function CardKeyFacts({ details }: { details: ProductDetails | null }) {
   );
 }
 
+/** Side-by-side comparison of officially documented sizes in a series. */
+function ModalVariants({ details }: { details: ProductDetails | null }) {
+  const variants = details?.specVariants;
+  if (!variants || variants.length < 2) return null;
+  const rows = VARIANT_ROWS.map((r) => ({
+    label: r.label,
+    values: variants.map((v) => r.get(v.specs)),
+  })).filter((r) => r.values.some(Boolean));
+  if (!rows.length) return null;
+
+  return (
+    <DialogSection title="Størrelser i serien">
+      <div className="-mx-1 overflow-x-auto px-1">
+        <table className="w-full min-w-[26rem] border-collapse text-[13px]">
+          <thead>
+            <tr>
+              <th className="sticky left-0 z-10 bg-white text-left font-normal text-[hsl(var(--mcs-muted))] py-2 pr-3 align-bottom">
+                Modell
+              </th>
+              {variants.map((v) => (
+                <th
+                  key={v.label}
+                  className="px-3 py-2 text-left font-semibold text-[hsl(var(--mcs-navy))] whitespace-nowrap"
+                >
+                  {v.label}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr
+                key={r.label}
+                className="border-t border-[hsl(var(--warm-beige))] odd:bg-[hsl(var(--warm-beige))]/25"
+              >
+                <th className="sticky left-0 z-10 bg-inherit text-left font-normal text-[hsl(var(--mcs-muted))] py-2 pr-3 align-top">
+                  {r.label}
+                </th>
+                {r.values.map((val, i) => (
+                  <td
+                    key={variants[i].label}
+                    className="px-3 py-2 align-top font-medium text-[hsl(var(--mcs-navy))]"
+                  >
+                    {val ?? "–"}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="mt-2 text-xs text-[hsl(var(--mcs-muted))] leading-relaxed">
+        Riktig størrelse velges ut fra bolig, planløsning og varmebehov – vi
+        vurderer dette på befaring.
+      </p>
+    </DialogSection>
+  );
+}
+
 /** Full spec list in the modal. */
 function ModalKeyFacts({ details }: { details: ProductDetails | null }) {
   if (!details?.specs) return null;
@@ -1274,6 +1334,7 @@ function ProductDetailDialog({
           </DialogSection>
 
           <ModalKeyFacts details={rp.details} />
+          <ModalVariants details={rp.details} />
 
 
           <DialogSection title="Typisk bruk">
