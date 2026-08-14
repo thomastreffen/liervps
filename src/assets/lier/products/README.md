@@ -32,19 +32,25 @@ Undermappen er kun for ryddighet – oppslaget skjer på filnavnet.
 
 ## Filnavn
 
-Filnavnet (uten filendelse) må være identisk med `imageKey` i
-`src/components/public/product-catalog.ts`.
+Filnavnet (uten filendelse) må være identisk med `imageKey` – eller med
+`key` i `images[]` – i `src/components/public/product-catalog.ts`.
 
-Format: `<merke>-<modell>` med små bokstaver og bindestrek.
+Format: `<merke>-<modell>` med små bokstaver og bindestrek. Ved flere bilder
+per produkt legges bilderollen til på slutten: `-primary`, `-indoor`,
+`-outdoor`, `-lifestyle`, `-detail`, `-variant`.
 
 Eksempler:
 
 ```
-mitsubishi-uwano-pure.webp
-mitsubishi-kaiteki.webp
-panasonic-hz.webp
-toshiba-daiseikai-kontur.webp
+mitsubishi-uwano-pure-primary.webp
+mitsubishi-uwano-pure-outdoor.webp
+mitsubishi-uwano-pure-lifestyle.webp
+panasonic-hz-flagship-primary.webp
+toshiba-signatur-primary.webp
 ```
+
+Enkeltbilde uten rollesuffiks (f.eks. `mitsubishi-kaiteki.webp`) fungerer
+fortsatt, og brukes da som primærbilde.
 
 ## Anbefalte dimensjoner
 
@@ -54,14 +60,35 @@ toshiba-daiseikai-kontur.webp
 - Filstørrelse: helst under 250 kB
 - Bakgrunn: hvit eller nøytral, produktet sentrert med litt luft
 
+## Flere bilder per produkt
+
+Produktkortene viser **alltid kun ett bilde** (første med `type: "primary"`,
+ellers `imageKey`, ellers vår egen illustrasjon). Modalen viser galleri med
+miniatyrbilder når produktet har flere bilder.
+
+I `product-catalog.ts`:
+
+```ts
+images: [
+  { key: "mitsubishi-uwano-pure-primary", type: "primary",
+    alt: "Mitsubishi Electric UWANO Pure innedel", status: "local_approved" },
+  { key: "mitsubishi-uwano-pure-outdoor", type: "outdoor",
+    alt: "UWANO Pure utedel", status: "local_approved" },
+]
+```
+
+Bilder uten lokal fil hoppes over automatisk – manglende sekundærbilder gir
+verken tomme miniatyrer eller ødelagte bildeikoner.
+
 ## Koble bilde til produktdata
 
 1. Legg filen i riktig merkemappe med riktig filnavn.
-2. Sjekk at `imageKey` i `product-catalog.ts` matcher filnavnet.
-3. Oppdater `imageStatus` fra `missing` til `local` for produktet.
+2. Sjekk at `imageKey` (eller `images[].key`) matcher filnavnet.
+3. Sett `status`/`imageStatus` til `local_approved` når bruksretten er avklart.
 4. Oppdater `docs/product-source-notes.md` med hvor bildet kommer fra.
 
 Ingen kodeendringer utover dette er nødvendig – bildene plukkes opp automatisk.
+
 
 ## Store filer
 

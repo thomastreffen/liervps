@@ -14,7 +14,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useBrandLogos, BRAND_LOGO_CLASS } from "./useBrandLogos";
-import { productImageFor, productImageForKey } from "./useProductImages";
+import {
+  resolveProductGallery,
+  type ResolvedImage,
+} from "./useProductImages";
+
 import { HeatPumpIllustration } from "./HeatPumpIllustration";
 import { useLead, type LeadContext } from "./LeadContext";
 import { productDetailsFor, type ProductDetails } from "./product-catalog";
@@ -817,7 +821,10 @@ type ResolvedProduct = {
   /** "Viktig å vurdere på befaring" — only conservative, non-spec notes. */
   considerations: string[];
   imageAlt: string;
+  /** Locally stored images only. First entry is the card image. */
+  gallery: ResolvedImage[];
 };
+
 
 function resolveProduct(item: ProductItem): ResolvedProduct {
   const details = productDetailsFor(item.name);
@@ -830,9 +837,19 @@ function resolveProduct(item: ProductItem): ResolvedProduct {
     details?.coldClimateNote,
   ].filter((v): v is string => Boolean(v));
 
+  const imageAlt = details?.imageAlt ?? `${item.name} varmepumpe`;
+  const gallery = resolveProductGallery({
+    name: item.name,
+    images: details?.images,
+    imageKey: details?.imageKey,
+    imageAlt,
+    directSrc: item.image ?? null,
+  });
+
   return {
     item,
     details,
+
     positioning: details?.shortPositioning ?? item.description,
     suitableFor: details?.suitableFor?.length ? details.suitableFor : item.bestFor,
     typicalUse:
@@ -845,9 +862,11 @@ function resolveProduct(item: ProductItem): ResolvedProduct {
       : [
           "Endelig modell og størrelse avhenger av bolig, planløsning, plassering og varmebehov, og må vurderes på befaring.",
         ],
-    imageAlt: details?.imageAlt ?? `${item.name} varmepumpe`,
+    imageAlt,
+    gallery,
   };
 }
+
 
 /** Compact "Nøkkeldata" strip on the card. Hidden when no official specs exist. */
 function CardKeyFacts({ details }: { details: ProductDetails | null }) {
@@ -912,14 +931,30 @@ function ModalKeyFacts({ details }: { details: ProductDetails | null }) {
 
 
 
-/** Shared image area — fixed 4:3 slot so all cards line up. */
-function ProductMedia({ rp }: { rp: ResolvedProduct }) {
-  const { item, details, imageAlt } = rp;
+const IMAGE_TYPE_LABEL: Record<ResolvedImage["type"], string> = {
+  primary: "Produktbilde",
+  indoor: "Innedel",
+  outdoor: "Utedel",
+  lifestyle: "I bruk",
+  detail: "Detalj",
+  variant: "Variant",
+};
+
+/** Fixed 4:3 frame so every card and modal image lines up. */
+function ImageFrame({
+  photo,
+  alt,
+  rp,
+  eager,
+}: {
+  photo: string | null;
+  alt: string;
+  rp: ResolvedProduct;
+  eager?: boolean;
+}) {
+  const { item, details } = rp;
   const [failed, setFailed] = useState(false);
-  const photo =
-    item.image ??
-    (details?.imageKey ? productImageForKey(details.imageKey) : null) ??
-    productImageFor(item.name);
+  useEffect(() => setFailed(false), [photo]);
   const showPhoto = Boolean(photo) && !failed;
 
   return (
@@ -928,8 +963,8 @@ function ProductMedia({ rp }: { rp: ResolvedProduct }) {
         {showPhoto ? (
           <img
             src={photo!}
-            alt={imageAlt}
-            loading="lazy"
+            alt={alt}
+            loading={eager ? "eager" : "lazy"}
             onError={() => setFailed(true)}
             className="h-full w-full object-contain p-3"
           />
@@ -943,6 +978,72 @@ function ProductMedia({ rp }: { rp: ResolvedProduct }) {
     </div>
   );
 }
+
+/** Card image — always a single image (primary), never a carousel. */
+function ProductMedia({ rp }: { rp: ResolvedProduct }) {
+  const primary =
+    rp.gallery.find((g) => g.type === "primary") ?? rp.gallery[0] ?? null;
+  return (
+    <ImageFrame
+      rp={rp}
+      photo={primary?.src ?? null}
+      alt={primary?.alt ?? rp.imageAlt}
+    />
+  );
+}
+
+/** Modal image area — large image plus thumbnails when more images exist. */
+function ProductGallery({ rp }: { rp: ResolvedProduct }) {
+  const [active, setActive] = useState(0);
+  useEffect(() => setActive(0), [rp.item.name]);
+
+  const images = rp.gallery;
+  const current = images[Math.min(active, Math.max(images.length - 1, 0))];
+
+  return (
+    <div>
+      <ImageFrame
+        rp={rp}
+        photo={current?.src ?? null}
+        alt={current?.alt ?? rp.imageAlt}
+        eager
+      />
+
+      {images.length > 1 && (
+        <div className="mt-2 flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+          {images.map((img, i) => (
+            <button
+              key={img.key + i}
+              type="button"
+              onClick={() => setActive(i)}
+              aria-label={`Vis ${IMAGE_TYPE_LABEL[img.type]} – ${img.alt}`}
+              aria-current={i === active}
+              className={`shrink-0 w-16 h-16 rounded-md border bg-white overflow-hidden transition ${
+                i === active
+                  ? "border-[hsl(var(--mcs-orange))] ring-1 ring-[hsl(var(--mcs-orange))]"
+                  : "border-[hsl(var(--warm-beige))] hover:border-[hsl(var(--mcs-navy))]/30"
+              }`}
+            >
+              <img
+                src={img.src}
+                alt=""
+                loading="lazy"
+                className="h-full w-full object-contain p-1"
+              />
+            </button>
+          ))}
+        </div>
+      )}
+
+      {images.length > 1 && current && (
+        <p className="mt-1 text-xs text-[hsl(var(--mcs-muted))]">
+          {IMAGE_TYPE_LABEL[current.type]}
+        </p>
+      )}
+    </div>
+  );
+}
+
 
 
 function BrandRow({
@@ -1140,7 +1241,8 @@ function ProductDetailDialog({
         </DialogHeader>
 
         <div className="mt-1">
-          <ProductMedia rp={rp} />
+          <ProductGallery rp={rp} />
+
         </div>
 
         <p className="text-sm text-[hsl(var(--mcs-navy))] leading-relaxed">
