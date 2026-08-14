@@ -18,6 +18,7 @@
  */
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { recordGoogleHealth } from "../_shared/google-token.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -212,6 +213,14 @@ Deno.serve(async (req) => {
     );
     if (upsertErr) {
       console.error("[google-auth-callback] token upsert failed", upsertErr);
+    } else if (refresh_token) {
+      // A fresh consent with a refresh token clears the "needs reconnect" warning
+      // for every service the user just granted.
+      const granted: string[] = grantedScopes ?? [];
+      const has = (s: string) => granted.some((g: string) => g.startsWith(s));
+      if (has("https://www.googleapis.com/auth/gmail")) await recordGoogleHealth(admin, "gmail", "ok");
+      if (has("https://www.googleapis.com/auth/calendar")) await recordGoogleHealth(admin, "calendar", "ok");
+      if (has("https://www.googleapis.com/auth/drive")) await recordGoogleHealth(admin, "drive", "ok");
     }
   }
 
