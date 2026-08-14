@@ -300,8 +300,8 @@ export default function OverviewPage() {
     if (deviationCount > 0) pItems.push({ icon: <ShieldAlert className="h-4 w-4" />, label: "Åpne avvik", count: deviationCount, severity: "critical", route: "/jobs", description: "Ubehandlede avvik krever oppfølging" });
     if (ordersWaiting > 0) pItems.push({ icon: <Inbox className="h-4 w-4" />, label: "Bestillinger venter på kundesvar", count: ordersWaiting, severity: "warning", route: "/orders" });
     if (offersOverdue > 0) pItems.push({ icon: <Send className="h-4 w-4" />, label: "Tilbud uten oppfølging", count: offersOverdue, severity: "warning", route: "/sales/offers" });
-    if (inactiveLeads > 0) pItems.push({ icon: <Clock className="h-4 w-4" />, label: "Leads uten aktivitet > 7 dager", count: inactiveLeads, severity: "info", route: "/sales/leads" });
-    if (leadsWithoutNextStep > 0) pItems.push({ icon: <ListX className="h-4 w-4" />, label: "Leads uten neste steg", count: leadsWithoutNextStep, severity: "info", route: "/sales/leads" });
+    if (inactiveLeads > 0) pItems.push({ icon: <Clock className="h-4 w-4" />, label: "Henvendelser uten aktivitet > 7 dager", count: inactiveLeads, severity: "info", route: "/sales/leads" });
+    if (leadsWithoutNextStep > 0) pItems.push({ icon: <ListX className="h-4 w-4" />, label: "Henvendelser uten neste steg", count: leadsWithoutNextStep, severity: "info", route: "/sales/leads" });
     if (readyForInvoicing > 0) pItems.push({ icon: <ReceiptText className="h-4 w-4" />, label: "Klar for fakturering", count: readyForInvoicing, severity: "info", route: "/jobs" });
     setPriorities(pItems);
 

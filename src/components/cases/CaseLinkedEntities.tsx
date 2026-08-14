@@ -114,7 +114,7 @@ export function CaseLinkedEntities({
           className="cursor-pointer text-[10px] gap-1 hover:bg-primary/10 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300"
           onClick={() => navigate(`/sales/leads/${effectiveLead}`)}
         >
-          <Users className="h-3 w-3" /> Koblet til Lead
+          <Users className="h-3 w-3" /> Koblet til henvendelse
           <ExternalLink className="h-2.5 w-2.5 ml-0.5" />
         </Badge>
       )}

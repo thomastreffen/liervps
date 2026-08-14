@@ -241,7 +241,7 @@ export function SalesPulse() {
 
     // Actions
     const actionItems: ActionItem[] = [];
-    if (inactiveLeads > 0) actionItems.push({ label: "Leads uten aktivitet > 7d", count: inactiveLeads, severity: inactiveLeads > 5 ? "high" : "medium", href: "/sales/leads?filter=inactive_7d" });
+    if (inactiveLeads > 0) actionItems.push({ label: "Henvendelser uten aktivitet > 7d", count: inactiveLeads, severity: inactiveLeads > 5 ? "high" : "medium", href: "/sales/leads?filter=inactive_7d" });
     if (offersWithoutFollowup > 0) actionItems.push({ label: "Tilbud uten oppfølging > 5d", count: offersWithoutFollowup, severity: offersWithoutFollowup > 3 ? "high" : "medium", href: "/sales/offers?filter=no_followup" });
     const leadsWithCalcNoOffer = leads.filter(l => { const hasCalc = calcs.some(c => (c as any).lead_id === l.id && (c as any).status === "completed"); const hasOffer = offers.some(o => (o as any).lead_id === l.id); return hasCalc && !hasOffer; }).length;
     if (leadsWithCalcNoOffer > 0) actionItems.push({ label: "Kalkyle ferdig, mangler tilbud", count: leadsWithCalcNoOffer, severity: "medium", href: "/sales/calculations?filter=ready_no_offer" });

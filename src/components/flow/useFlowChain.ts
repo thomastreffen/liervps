@@ -134,7 +134,7 @@ export function useFlowChain(seed: Seed): { steps: FlowStep[]; loading: boolean 
         ? { id: seed.caseId, case_number: seed.caseNumber || null }
         : null,
     leadRow: resolvedLeadId
-      ? { id: resolvedLeadId, company_name: seed.leadName || leadData?.company_name || "Lead" }
+      ? { id: resolvedLeadId, company_name: seed.leadName || leadData?.company_name || "Henvendelse" }
       : null,
     orderRow: orderData
       ? {
@@ -176,7 +176,7 @@ export function useFlowChain(seed: Seed): { steps: FlowStep[]; loading: boolean 
     const nextExists = !!(chain.orderRow || chain.eventRow);
     steps.push({
       kind: "lead",
-      label: "Lead",
+      label: "Henvendelse",
       status: nextExists ? "completed" : "active",
       ref: chain.leadRow.company_name,
       subtitle: nextExists ? "Koblet" : "Aktivt",

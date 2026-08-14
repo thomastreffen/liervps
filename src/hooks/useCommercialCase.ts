@@ -24,7 +24,7 @@ export interface CommercialCase {
 }
 
 export const COMMERCIAL_PHASES: Array<{ value: string; label: string }> = [
-  { value: "lead", label: "Lead" },
+  { value: "lead", label: "Henvendelse" },
   { value: "qualifying", label: "Kvalifisering" },
   { value: "calculating", label: "Kalkulerer" },
   { value: "quoted", label: "Tilbud sendt" },

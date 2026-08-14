@@ -17,7 +17,7 @@ type SoftDeletableTable =
 const TABLE_LABELS: Record<SoftDeletableTable, string> = {
   events: "Oppdrag",
   offers: "Tilbud",
-  leads: "Lead",
+  leads: "Henvendelse",
   calculations: "Kalkyle",
   contracts: "Kontrakt",
   cases: "Henvendelse",

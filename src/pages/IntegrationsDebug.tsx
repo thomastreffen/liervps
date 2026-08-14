@@ -13,6 +13,8 @@ import {
   Video, AlertTriangle, Copy, ExternalLink, ShieldAlert,
 } from "lucide-react";
 import { startGoogleLogin, isGoogleConfigured } from "@/lib/integrations/google-oauth";
+import { GoogleReconnectBanner } from "@/components/integrations/GoogleReconnectBanner";
+import { ReleaseStatusPanel } from "@/components/integrations/ReleaseStatusPanel";
 
 type ScopeState = { connected: boolean; email: string | null; grantedAt: string | null };
 
@@ -115,6 +117,10 @@ export default function IntegrationsDebug() {
           Kalender, e-post, Drive og Meet for {session?.user?.email ?? "din bruker"}
         </p>
       </div>
+
+      <GoogleReconnectBanner />
+
+      <ReleaseStatusPanel />
 
       {/* Setup checklist — always visible so admin kan feilsøke Google Cloud oppsett */}
       <Alert className="border-amber-500/40 bg-amber-500/5">
