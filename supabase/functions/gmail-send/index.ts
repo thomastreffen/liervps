@@ -127,6 +127,25 @@ Deno.serve(async (req) => {
   const contentType = body.html ? 'text/html; charset="UTF-8"' : 'text/plain; charset="UTF-8"';
   const bodyContent = body.html ?? body.text ?? "";
 
+  // Base64 av UTF-8 (kroppen kan inneholde æøå -> må ikke sendes som rå 8-bit).
+  const b64Utf8 = (s: string) => {
+    const u8 = new TextEncoder().encode(s);
+    let bin = "";
+    for (const b of u8) bin += String.fromCharCode(b);
+    return btoa(bin).replace(/(.{76})/g, "$1\r\n");
+  };
+  // RFC 2047 for emnelinjer med ikke-ASCII.
+  const encodeHeader = (s: string) => {
+    const clean = s.replace(/[\r\n]/g, " ");
+    // eslint-disable-next-line no-control-regex
+    return /^[\x00-\x7F]*$/.test(clean) ? clean : `=?UTF-8?B?${b64Utf8(clean).replace(/\r\n/g, "")}?=`;
+  };
+  const asciiFilename = (s: string) =>
+    s.replace(/[æÆ]/g, "ae").replace(/[øØ]/g, "oe").replace(/[åÅ]/g, "aa")
+      .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+      // eslint-disable-next-line no-control-regex
+      .replace(/[^\x20-\x7E]/g, "_").replace(/["\\]/g, "");
+
   const attachments = (body.attachments ?? []).filter(
     (a) => a?.content_base64 && /^[A-Za-z0-9+/=\s]+$/.test(a.content_base64) && a.content_base64.length < 20_000_000,
   );
@@ -137,18 +156,19 @@ Deno.serve(async (req) => {
     const parts: string[] = [
       `To: ${rcpts.join(", ")}`,
       `From: ${senderEmail}`,
-      `Subject: ${body.subject}`,
+      `Subject: ${encodeHeader(body.subject!)}`,
       "MIME-Version: 1.0",
       `Content-Type: multipart/mixed; boundary="${boundary}"`,
       "",
       `--${boundary}`,
       `Content-Type: ${contentType}`,
+      "Content-Transfer-Encoding: base64",
       "",
-      bodyContent,
+      b64Utf8(bodyContent),
     ];
     for (const a of attachments) {
-      const name = (a.filename ?? "vedlegg.pdf").replace(/[\r\n"]/g, "");
-      const mime = (a.mime_type ?? "application/pdf").replace(/[\r\n]/g, "");
+      const name = asciiFilename(a.filename ?? "vedlegg.pdf") || "vedlegg.pdf";
+      const mime = (a.mime_type ?? "application/pdf").replace(/[\r\n";]/g, "");
       const b64 = (a.content_base64 as string).replace(/\s+/g, "").replace(/(.{76})/g, "$1\r\n");
       parts.push(
         `--${boundary}`,
@@ -165,13 +185,14 @@ Deno.serve(async (req) => {
     rfc2822 = [
       `To: ${rcpts.join(", ")}`,
       `From: ${senderEmail}`,
-      `Subject: ${body.subject}`,
+      `Subject: ${encodeHeader(body.subject!)}`,
       "MIME-Version: 1.0",
       `Content-Type: ${contentType}`,
       "",
       bodyContent,
     ].join("\r\n");
   }
+
 
 
   const raw = toBase64Url(rfc2822);
