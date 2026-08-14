@@ -56,10 +56,32 @@ interface Props {
 
 const nok = (v: number) => `kr ${Number(v).toLocaleString("nb-NO")}`;
 
+/** Interne blokker som aldri skal vises til kunden. */
+const INTERNAL_BLOCK = /^(notater fra henvendelsen|interne notater|internt|kundens melding|fra befaringen)\b/i;
+
+/** Fjerner interne avsnitt fra omfangsteksten før den vises/sendes til kunden. */
+export function sanitizeScope(text?: string | null): string {
+  if (!text) return "";
+  return text
+    .split(/\n\s*\n/)
+    .filter(block => !INTERNAL_BLOCK.test(block.trim()))
+    .join("\n\n")
+    .trim();
+}
+
+/** Produktnavn: eksplisitt valgt produkt, ellers merke + modell fra snapshot. */
+export function productLabel(snap: any): string | null {
+  if (snap?.selected_product) return String(snap.selected_product);
+  const bm = [snap?.brand, snap?.model].filter(Boolean).join(" ");
+  return bm || null;
+}
+
 /** Ren, kundevendt tekstversjon av tilbudet — ingen interne notater eller JSON. */
 export function buildOfferText(offer: OfferRow, contact: string, address: string | null) {
   const snap = offer.input_snapshot || {};
   const rows = calcSummaryRows(snap.calculator_summary);
+  const scope = sanitizeScope(offer.description);
+  const product = productLabel(snap);
   const lines: string[] = [];
   lines.push(`${COMPANY.name}`);
   lines.push("");
@@ -69,11 +91,12 @@ export function buildOfferText(offer: OfferRow, contact: string, address: string
   if (address) lines.push(`Adresse: ${address}`);
   lines.push("");
   if (snap.recommended_solution) lines.push(`Anbefalt løsning: ${snap.recommended_solution}`);
-  if (snap.selected_product) lines.push(`Produkt: ${snap.selected_product}`);
+  if (product) lines.push(`Produkt: ${product}`);
   if (offer.total_price) lines.push(`Estimert pris: ${nok(offer.total_price)} eks. mva`);
-  if (offer.description) {
-    lines.push("", "Omfang:", offer.description.trim());
+  if (scope) {
+    lines.push("", "Omfang:", scope);
   }
+
   if (rows.length) {
     lines.push("", "Grunnlag fra sparekalkulator:");
     rows.forEach(r => lines.push(`- ${r.label}: ${r.value}`));
