@@ -38,3 +38,28 @@ og kortene viser vår egen illustrasjon.
 | Nordic Multi | /privat/produktkategori/luft-luft-varmepumper/nordic-multi/ | mitsubishi-nordic-multi.webp | toppbilde multiløsning |
 
 Hotlinking er ikke tillatt. Bildene skal aldri lastes fra mee.no i drift.
+
+## Toshiba (ABK-Qviller)
+
+Produktdata er verifisert mot Toshiba Norges egne produktsider
+(importør ABK-Qviller). Produktsidene oppgir ingen tydelige bruksvilkår for
+forhandlerbruk av bildene, og det er ikke funnet en åpen bildebank med klart
+angitte rettigheter. **Ingen bilder er importert** – alle syv står som
+`needs_approval`, og kortene viser vår egen illustrasjon.
+
+Neste steg: be ABK-Qviller om tilgang til offisiell bildebank og skriftlig
+bekreftelse på bruk på liervps.no. Ved bekreftelse lagres `.webp`-filer i
+`src/assets/lier/products/toshiba/` med filnavnene under, og `imageStatus`
+settes til `local_approved`.
+
+| Produkt | Produktside (intern) | Ønsket filnavn | Bildekandidat |
+| --- | --- | --- | --- |
+| Signatur | /varmepumper-luft-luft/signatur-25/ | toshiba-signatur.webp | innedel med tekstiltrekk i stue |
+| Daiseikai 10 Kontur | /varmepumper-luft-luft/toshiba-kontur-25/ | toshiba-daiseikai-10-kontur.webp | innedel montert i stue |
+| Daiseikai 10 Ask | /varmepumper-luft-luft/toshiba-ask-25/ | toshiba-daiseikai-10-ask.webp | innedel på vegg, designbilde |
+| Polar | /varmepumper-luft-luft/toshiba-polar-25/ | toshiba-polar.webp | hvit innedel i stue |
+| Seiya Nordic | /varmepumper-luft-luft/toshiba-seiya-nordic-25/ | toshiba-seiya-nordic.webp | innedel i soverom |
+| Gulvmodell | /varmepumper-luft-luft/toshiba-gulvmodell-25/ | toshiba-gulvmodell.webp | gulvmodell i stue |
+| Multi Nordic | /varmepumper-luft-luft/multi-nordic/ | toshiba-multi-nordic.webp | multiløsning med to innedeler |
+
+Hotlinking er ikke tillatt. Bildene skal aldri lastes fra toshibavarmepumper.no i drift.

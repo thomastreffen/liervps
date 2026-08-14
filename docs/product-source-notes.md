@@ -42,14 +42,14 @@ Sist gjennomgått: 2026-08-14
 | Panasonic Multisplitt | Distributørkatalog | Flere innedeler, én utedel | panasonic-multisplitt | missing |
 | Panasonic Multisplitt nordisk | Distributørkatalog | Nordisk multiløsning | panasonic-multisplitt-nordisk | missing |
 | Panasonic Næring | Distributørkatalog | Næringsserier, drift | panasonic-naering | missing |
-| Toshiba Signatur | Distributørkatalog | Design, tekstilfront | toshiba-signatur | missing |
-| Toshiba Daiseikai 10 Kontur | Distributørkatalog | Toppmodell, helårsdrift | toshiba-daiseikai-kontur | missing |
-| Toshiba Daiseikai 10 Ask | Distributørkatalog | Variant av toppserie | toshiba-daiseikai-ask | missing |
-| Toshiba Polar | Distributørkatalog | Kaldt klima | toshiba-polar | missing |
-| Toshiba Seiya Nordic | Distributørkatalog | Inngangsmodell, nordisk | toshiba-seiya | missing |
-| Toshiba Gulvmodell | Distributørkatalog | Gulvplassering | toshiba-gulvmodell | missing |
+| Toshiba Signatur | Toshiba Norge (ABK-Qviller) – https://www.toshibavarmepumper.no/varmepumper-luft-luft/signatur-25/ | Navn, designposisjonering, tekstiltrekk | toshiba-signatur | needs_approval (2026-08-14) |
+| Toshiba Daiseikai 10 Kontur | Toshiba Norge (ABK-Qviller) – https://www.toshibavarmepumper.no/varmepumper-luft-luft/toshiba-kontur-25/ | Navn, toppmodell-plassering, komfortfunksjoner | toshiba-daiseikai-10-kontur | needs_approval (2026-08-14) |
+| Toshiba Daiseikai 10 Ask | Toshiba Norge (ABK-Qviller) – https://www.toshibavarmepumper.no/varmepumper-luft-luft/toshiba-ask-25/ | Navn, toppmodell i designklassen, nordisk designuttrykk | toshiba-daiseikai-10-ask | needs_approval (2026-08-14) |
+| Toshiba Polar | Toshiba Norge (ABK-Qviller) – https://www.toshibavarmepumper.no/varmepumper-luft-luft/toshiba-polar-25/ | Navn, kompakt modell for nordisk klima | toshiba-polar | needs_approval (2026-08-14) |
+| Toshiba Seiya Nordic | Toshiba Norge (ABK-Qviller) – https://www.toshibavarmepumper.no/varmepumper-luft-luft/toshiba-seiya-nordic-25/ | Navn, inngangsmodell, nordisk tilpasning | toshiba-seiya-nordic | needs_approval (2026-08-14) |
+| Toshiba Gulvmodell | Toshiba Norge (ABK-Qviller) – https://www.toshibavarmepumper.no/varmepumper-luft-luft/toshiba-gulvmodell-25/ | Navn, gulvmodell-plassering | toshiba-gulvmodell | needs_approval (2026-08-14) |
 | Toshiba Multisplitt | Distributørkatalog | Flere innedeler | toshiba-multisplitt | missing |
-| Toshiba Multi Nordic | Distributørkatalog | Nordisk multiløsning | toshiba-multi-nordic | missing |
+| Toshiba Multi Nordic | Toshiba Norge (ABK-Qviller) – https://www.toshibavarmepumper.no/varmepumper-luft-luft/multi-nordic/ | Navn, multiløsning med kombinerbare innedeler for kaldt klima | toshiba-multi-nordic | needs_approval (2026-08-14) |
 | Tekstiltrekk til Signatur | Distributørkatalog | Tilbehør | toshiba-signatur-tekstil | missing |
 | Større lokaler / flere soner | Egen tekst (merkeuavhengig) | Prosjektert løsning | – | missing |
 
@@ -65,3 +65,7 @@ Sist gjennomgått: 2026-08-14
 
 Mitsubishi-bilder: se `docs/product-image-import-plan.md`. Ingen MEE-bilder er
 importert – bruksrett for forhandler-/partnerbruk er ikke skriftlig bekreftet.
+
+Toshiba-bilder: kandidater finnes på Toshiba Norges produktsider, men bruksrett
+for forhandlerbruk er ikke skriftlig bekreftet av ABK-Qviller. Ingen bilder er
+importert. Se `docs/product-image-import-plan.md`.
