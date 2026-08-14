@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
   Check,
@@ -796,6 +796,22 @@ function leadForItem(item: ProductItem, segment: Segment): LeadContext {
     : { source: "solution", segment, interestType: "losning-anbefaling", solutionName: item.name };
 }
 
+/** Stable anchor id for deep-linking a product, e.g. #produkt-mitsubishi-electric-uwano-pure */
+function slugify(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/æ/g, "ae")
+    .replace(/ø/g, "o")
+    .replace(/å/g, "a")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function productAnchorId(item: ProductItem) {
+  return `produkt-${slugify(`${item.brand ?? "losning"}-${item.name}`)}`;
+}
+
+
 /** Generic fallback usage text per product type, used when no structured entry exists. */
 const TYPICAL_USE: Record<string, string> = {
   "Luft-luft":
@@ -1154,20 +1170,33 @@ function ProductCard({
   item,
   logo,
   segment,
-  onOpen,
+  onSelect,
+  onQuickView,
+  selected,
 }: {
   item: ProductItem;
   logo: string | null;
   segment: Segment;
-  onOpen: () => void;
+  onSelect: () => void;
+  onQuickView: () => void;
+  selected: boolean;
 }) {
   const { startLead } = useLead();
   const rp = useMemo(() => resolveProduct(item), [item]);
   const displayName = rp.details?.modelName ?? item.name;
   const family = rp.details?.modelFamily;
+  const hasVariants = (rp.details?.specVariants?.length ?? 0) > 1;
 
   return (
-    <article className="h-full bg-white rounded-xl border border-[hsl(var(--warm-beige))] p-4 sm:p-5 flex flex-col shadow-[0_1px_2px_hsl(var(--mcs-navy)/0.04)] hover:shadow-[0_8px_24px_-12px_hsl(var(--mcs-navy)/0.18)] transition-shadow">
+    <article
+      id={productAnchorId(item)}
+      className={`h-full scroll-mt-28 bg-white rounded-xl border p-4 sm:p-5 flex flex-col transition-shadow ${
+        selected
+          ? "border-[hsl(var(--mcs-orange))] shadow-[0_8px_24px_-12px_hsl(var(--mcs-navy)/0.25)]"
+          : "border-[hsl(var(--warm-beige))] shadow-[0_1px_2px_hsl(var(--mcs-navy)/0.04)] hover:shadow-[0_8px_24px_-12px_hsl(var(--mcs-navy)/0.18)]"
+      }`}
+    >
+
       <div className="mb-3">
         <BrandRow brand={item.brand} logo={logo} />
       </div>
@@ -1229,6 +1258,11 @@ function ProductCard({
         </ul>
       </div>
 
+      {hasVariants && (
+        <p className="mt-3 text-xs text-[hsl(var(--mcs-muted))]">
+          Nøkkeldata avhenger av valgt størrelse i serien.
+        </p>
+      )}
 
       <div className="mt-5 pt-4 border-t border-[hsl(var(--warm-beige))] flex flex-col gap-2">
         <button
@@ -1243,12 +1277,21 @@ function ProductCard({
         </button>
         <button
           type="button"
-          onClick={onOpen}
-          className="w-full inline-flex items-center justify-center gap-1.5 text-xs font-semibold text-[hsl(var(--mcs-navy))]/70 hover:text-[hsl(var(--mcs-navy))] py-1"
+          onClick={onSelect}
+          aria-expanded={selected}
+          className="w-full inline-flex items-center justify-center gap-1.5 text-sm font-semibold text-[hsl(var(--mcs-navy))] border border-[hsl(var(--mcs-navy))]/20 hover:border-[hsl(var(--mcs-navy))] px-4 py-2 rounded-md transition-colors"
         >
-          {item.brand ? "Les mer om modellen" : "Les mer om løsningen"}
+          {selected ? "Vises under" : "Se detaljer"}
+        </button>
+        <button
+          type="button"
+          onClick={onQuickView}
+          className="w-full inline-flex items-center justify-center text-xs font-medium text-[hsl(var(--mcs-navy))]/60 hover:text-[hsl(var(--mcs-navy))] py-0.5"
+        >
+          Hurtigvisning
         </button>
       </div>
+
     </article>
   );
 }
@@ -1407,7 +1450,255 @@ function ProductDetailDialog({
 
 
 
+/** Inline "mini product page" shown below the grid for the selected model. */
+function InlineProductDetail({
+  item,
+  logo,
+  segment,
+  onClose,
+}: {
+  item: ProductItem;
+  logo: string | null;
+  segment: Segment;
+  onClose: () => void;
+}) {
+  const { startLead } = useLead();
+  const rp = useMemo(() => resolveProduct(item), [item]);
+  const displayName = rp.details?.modelName ?? item.name;
+  const family = rp.details?.modelFamily;
+
+  return (
+    <div className="mt-8 scroll-mt-28 rounded-2xl border border-[hsl(var(--warm-beige))] bg-white p-5 sm:p-7 shadow-[0_8px_30px_-20px_hsl(var(--mcs-navy)/0.35)]">
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <BrandRow brand={item.brand} logo={logo} />
+          <h3 className="mt-2 text-xl sm:text-2xl font-bold text-[hsl(var(--mcs-navy))] leading-tight">
+            {displayName}
+          </h3>
+          <p className="mt-1 text-sm text-[hsl(var(--mcs-muted))]">
+            {[item.brand, family, item.productType ?? rp.details?.productType]
+              .filter(Boolean)
+              .join(" · ")}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="shrink-0 text-xs font-semibold text-[hsl(var(--mcs-navy))]/60 hover:text-[hsl(var(--mcs-navy))] underline underline-offset-4"
+        >
+          Lukk
+        </button>
+      </div>
+
+      <div className="mt-5 grid grid-cols-1 lg:grid-cols-[minmax(0,26rem)_minmax(0,1fr)] gap-6 lg:gap-8">
+        <div>
+          <ProductGallery rp={rp} />
+          <p className="mt-4 text-sm text-[hsl(var(--mcs-navy))] leading-relaxed">
+            {rp.positioning}
+          </p>
+          {rp.details?.guidanceNote && (
+            <p className="mt-2 text-sm font-medium text-[hsl(var(--mcs-navy))]">
+              {rp.details.guidanceNote}
+            </p>
+          )}
+          <div className="mt-3">
+            <TagRow tags={item.tags} />
+          </div>
+        </div>
+
+        <div className="min-w-0 space-y-5">
+          <DialogSection title="Passer ofte for">
+            <ul className="space-y-1.5">
+              {rp.suitableFor.map((b) => (
+                <li key={b} className="flex items-start gap-2 text-sm text-[hsl(var(--mcs-muted))]">
+                  <Check className="h-4 w-4 mt-0.5 shrink-0 text-[hsl(var(--mcs-orange))]" />
+                  <span className="min-w-0">{b}</span>
+                </li>
+              ))}
+            </ul>
+          </DialogSection>
+
+          <DialogSection title="Typisk bruk">
+            <p className="text-sm text-[hsl(var(--mcs-muted))] leading-relaxed">
+              {rp.typicalUse}
+            </p>
+          </DialogSection>
+
+          <DialogSection title="Styrker">
+            <ul className="space-y-1.5">
+              {rp.strengths.map((s) => (
+                <li key={s} className="flex items-start gap-2 text-sm text-[hsl(var(--mcs-muted))]">
+                  <Check className="h-4 w-4 mt-0.5 shrink-0 text-[hsl(var(--mcs-orange))]" />
+                  <span className="min-w-0">{s}</span>
+                </li>
+              ))}
+            </ul>
+          </DialogSection>
+
+          <ModalKeyFacts details={rp.details} />
+          <ModalVariants details={rp.details} />
+
+          <DialogSection title="Viktig å vurdere på befaring">
+            <ul className="space-y-2">
+              {rp.considerations.map((c) => (
+                <li key={c} className="text-sm text-[hsl(var(--mcs-muted))] leading-relaxed">
+                  {c}
+                </li>
+              ))}
+            </ul>
+          </DialogSection>
+
+          <p className="text-xs text-[hsl(var(--mcs-muted))] leading-relaxed">
+            Tallene er produsent-/importørdata. Riktig modell og størrelse må vurderes ut fra
+            bolig, planløsning, plassering, klima og faktisk varmebehov.
+          </p>
+
+          <div className="flex flex-col sm:flex-row gap-2 pt-1">
+            <button
+              type="button"
+              onClick={() => startLead(leadForItem(item, segment))}
+              className="flex-1 inline-flex items-center justify-center gap-2 bg-[hsl(var(--mcs-orange))] hover:bg-[hsl(var(--mcs-orange-hover))] text-white text-sm font-semibold px-4 py-2.5 rounded-md transition-colors"
+            >
+              <span className="truncate">
+                {item.brand ? "Få anbefalt riktig modell" : "Få anbefalt riktig løsning"}
+              </span>
+              <ArrowRight className="h-4 w-4 shrink-0" />
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                startLead({ ...leadForItem(item, segment), interestType: "befaring" })
+              }
+              className="flex-1 inline-flex items-center justify-center text-sm font-semibold text-[hsl(var(--mcs-navy))] border border-[hsl(var(--mcs-navy))]/20 hover:border-[hsl(var(--mcs-navy))] px-4 py-2.5 rounded-md transition-colors"
+            >
+              Bestill befaring
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const COMPARE_ROWS: Array<{
+  label: string;
+  get: (rp: ResolvedProduct) => string | undefined;
+}> = [
+  {
+    label: "Type/familie",
+    get: (rp) =>
+      [rp.item.productType ?? rp.details?.productType, rp.details?.modelFamily]
+        .filter(Boolean)
+        .join(" · ") || undefined,
+  },
+  {
+    label: "Varmeeffekt",
+    get: (rp) =>
+      rp.details?.specs?.heatingCapacityMinMaxKw ??
+      rp.details?.specs?.heatingCapacityNominalKw,
+  },
+  { label: "SCOP", get: (rp) => rp.details?.specs?.scop },
+  { label: "Lydnivå innedel", get: (rp) => rp.details?.specs?.indoorNoiseDb },
+  {
+    label: "Energiklasse varme",
+    get: (rp) => rp.details?.specs?.energyClassHeating,
+  },
+  {
+    label: "Passer ofte for",
+    get: (rp) => (rp.suitableFor.length ? rp.suitableFor.slice(0, 2).join(", ") : undefined),
+  },
+];
+
+/** Compact comparison of the products currently shown. Empty rows are dropped. */
+function ComparisonTable({
+  items,
+  selectedName,
+  onSelect,
+}: {
+  items: ProductItem[];
+  selectedName: string | null;
+  onSelect: (item: ProductItem) => void;
+}) {
+  const resolved = useMemo(() => items.map(resolveProduct), [items]);
+  const rows = useMemo(
+    () =>
+      COMPARE_ROWS.map((r) => ({
+        label: r.label,
+        values: resolved.map((rp) => r.get(rp)),
+      })).filter((r) => r.values.some(Boolean)),
+    [resolved]
+  );
+
+  if (resolved.length < 2 || !rows.length) return null;
+
+  return (
+    <div className="mt-8 rounded-2xl border border-[hsl(var(--warm-beige))] bg-white p-4 sm:p-6">
+      <h3 className="text-base font-bold text-[hsl(var(--mcs-navy))]">
+        Sammenlign modellene i utvalget
+      </h3>
+      <p className="mt-1 text-sm text-[hsl(var(--mcs-muted))]">
+        Kun felt der vi har offisielle tall fra produsent eller importør vises.
+      </p>
+
+      <div className="-mx-1 mt-4 overflow-x-auto px-1">
+        <table className="w-full min-w-[38rem] border-collapse text-[13px]">
+          <thead>
+            <tr>
+              <th className="sticky left-0 z-10 bg-white text-left font-normal text-[hsl(var(--mcs-muted))] py-2 pr-3 align-bottom">
+                Modell
+              </th>
+              {resolved.map((rp) => (
+                <th
+                  key={rp.item.name}
+                  className="px-3 py-2 text-left align-bottom"
+                >
+                  <button
+                    type="button"
+                    onClick={() => onSelect(rp.item)}
+                    className={`font-semibold underline-offset-4 hover:underline ${
+                      rp.item.name === selectedName
+                        ? "text-[hsl(var(--mcs-orange))]"
+                        : "text-[hsl(var(--mcs-navy))]"
+                    }`}
+                  >
+                    {rp.details?.modelName ?? rp.item.name}
+                  </button>
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr
+                key={r.label}
+                className="border-t border-[hsl(var(--warm-beige))] odd:bg-[hsl(var(--warm-beige))]/25"
+              >
+                <th className="sticky left-0 z-10 bg-inherit text-left font-normal text-[hsl(var(--mcs-muted))] py-2 pr-3 align-top whitespace-nowrap">
+                  {r.label}
+                </th>
+                {r.values.map((v, i) => (
+                  <td
+                    key={resolved[i].item.name}
+                    className="px-3 py-2 align-top font-medium text-[hsl(var(--mcs-navy))]"
+                  >
+                    {v ?? "–"}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <p className="mt-3 text-xs text-[hsl(var(--mcs-muted))] leading-relaxed">
+        {SPEC_DISCLAIMER}
+      </p>
+    </div>
+  );
+}
+
 export function ProductShowcase() {
+
   const logos = useBrandLogos();
   const { hash } = useLocation();
   const [segment, setSegment] = useState<Segment>("bolig");
@@ -1416,15 +1707,38 @@ export function ProductShowcase() {
     ALL_BRANDS
   );
   const [detail, setDetail] = useState<ProductItem | null>(null);
+  const [selected, setSelected] = useState<ProductItem | null>(null);
+  const inlineRef = useRef<HTMLDivElement | null>(null);
 
+  function selectProduct(item: ProductItem) {
+    setSelected(item);
+    if (typeof window !== "undefined") {
+      window.requestAnimationFrame(() =>
+        inlineRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+      );
+    }
+  }
 
   // Deep links from the bolig/næring cards: #varmepumper-bolig / #varmepumper-naering
   useEffect(() => {
     const id = hash.replace("#", "");
     if (id === "varmepumper-naering") selectSegment("naering");
     else if (id === "varmepumper-bolig") selectSegment("bolig");
+    else if (id.startsWith("produkt-")) {
+      for (const g of GROUPS) {
+        const match = g.items.find((i) => productAnchorId(i) === id);
+        if (match) {
+          setSegment(g.segment);
+          setGroupId(g.id);
+          setBrandFilter(ALL_BRANDS);
+          selectProduct(match);
+          break;
+        }
+      }
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hash]);
+
 
   const groups = useMemo(
     () => GROUPS.filter((g) => g.segment === segment),
@@ -1440,6 +1754,9 @@ export function ProductShowcase() {
       ),
     [activeGroup]
   );
+
+  const activeSelected =
+    selected && activeGroup.items.some((i) => i.name === selected.name) ? selected : null;
 
   const filtered = activeGroup.items.filter(
     (i) => brandFilter === ALL_BRANDS || i.brand === brandFilter
@@ -1564,10 +1881,29 @@ export function ProductShowcase() {
               item={item}
               segment={segment}
               logo={logos[item.brand] ?? null}
-              onOpen={() => setDetail(item)}
+              selected={activeSelected?.name === item.name}
+              onSelect={() => selectProduct(item)}
+              onQuickView={() => setDetail(item)}
             />
           ))}
         </div>
+
+        <div ref={inlineRef} className="scroll-mt-28">
+          {activeSelected && (
+            <InlineProductDetail
+              item={activeSelected}
+              segment={segment}
+              logo={activeSelected.brand ? logos[activeSelected.brand] ?? null : null}
+              onClose={() => setSelected(null)}
+            />
+          )}
+        </div>
+
+        <ComparisonTable
+          items={items}
+          selectedName={activeSelected?.name ?? null}
+          onSelect={selectProduct}
+        />
 
         <ProductDetailDialog
           item={detail}
@@ -1576,6 +1912,7 @@ export function ProductShowcase() {
           open={detail !== null}
           onOpenChange={(v) => !v && setDetail(null)}
         />
+
 
         <div className="mt-6">
           <p className="text-xs text-[hsl(var(--mcs-muted))]">
