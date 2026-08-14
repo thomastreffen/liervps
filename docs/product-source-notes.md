@@ -19,17 +19,19 @@ Sist gjennomgått: 2026-08-14
 `missing` = ingen lokal fil ennå (kortet viser vår egen illustrasjon)
 `local` = rettighetsklarert fil ligger i `src/assets/lier/products/<merke>/`
 `approved-source-needed` = bilde finnes hos leverandør, bruksrett må avklares
+`needs_approval` = bildekandidat identifisert hos produsent, bruksrett ikke bekreftet – ikke importert
+`local_approved` = rettighetsklarert fil lagret lokalt
 
 | Produkt | Kilde brukt | Hva som er hentet | Bildenøkkel | Bildestatus |
 | --- | --- | --- | --- | --- |
-| UWANO Pure | Mitsubishi Electric Norge (produsent) | Serieplassering, komfortprofil | mitsubishi-uwano-pure | missing |
-| Kaiteki | Mitsubishi Electric Norge | Serieplassering, fargevalg | mitsubishi-kaiteki | missing |
-| GUSSURI | Mitsubishi Electric Norge | Komfort-/lydposisjonering | mitsubishi-gussuri | missing |
-| IGURU | Mitsubishi Electric Norge | Kompaktposisjonering | mitsubishi-iguru | missing |
-| Furo | Mitsubishi Electric Norge | Gulvmodell, plassering | mitsubishi-furo | missing |
-| Zen | Mitsubishi Electric Norge | Designposisjonering | mitsubishi-zen | missing |
-| Duo-modellen | Mitsubishi Electric Norge | To soner / én utedel | mitsubishi-duo | missing |
-| Nordic Multi | Mitsubishi Electric Norge | Multiløsning, nordisk tilpasning | mitsubishi-nordic-multi | missing |
+| UWANO Pure | MEE – https://mee.no/privat/produktkategori/luft-luft-varmepumper/uwanopure/ | Navn, familieplassering (Toppmodellen), komfortprofil | mitsubishi-uwano-pure | needs_approval (2026-08-14) |
+| Kaiteki | MEE – https://mee.no/privat/produktkategori/luft-luft-varmepumper/kaiteki/ | Navn, familieplassering (Bestselgeren), fargevalg | mitsubishi-kaiteki | needs_approval (2026-08-14) |
+| GUSSURI | MEE – https://mee.no/privat/produktkategori/luft-luft-varmepumper/gussuri/ | Navn, familieplassering (Komfortmodellen), lydposisjonering | mitsubishi-gussuri | needs_approval (2026-08-14) |
+| IGURU | MEE – https://mee.no/privat/produktkategori/luft-luft-varmepumper/iguru/ | Navn, familieplassering (Kompaktmodellen) | mitsubishi-iguru | needs_approval (2026-08-14) |
+| Furo | MEE – https://mee.no/privat/produktkategori/luft-luft-varmepumper/furo/ | Navn, familieplassering (Gulvmodellen), plassering | mitsubishi-furo | needs_approval (2026-08-14) |
+| Zen | MEE – https://mee.no/privat/produktkategori/luft-luft-varmepumper/zen/ | Navn, familieplassering (Designmodellen) | mitsubishi-zen | needs_approval (2026-08-14) |
+| Duo-modellen | MEE – https://mee.no/privat/produktkategori/luft-luft-varmepumper/duo-7000/ | Navn, familieplassering (Duomodellen), to soner / én utedel | mitsubishi-duo-modellen | needs_approval (2026-08-14) |
+| Nordic Multi | MEE – https://mee.no/privat/produktkategori/luft-luft-varmepumper/nordic-multi/ | Navn, familieplassering (Multimodellen), nordisk tilpasning | mitsubishi-nordic-multi | needs_approval (2026-08-14) |
 | Panasonic HZ Flagship | Distributørkatalog | Toppserie, nanoe X | panasonic-hz | missing |
 | Panasonic NZ Etherea | Distributørkatalog | Plassering under toppserie | panasonic-nz | missing |
 | Panasonic CZ | Distributørkatalog | Kompakt, innebygget WiFi | panasonic-cz | missing |
@@ -59,3 +61,7 @@ Sist gjennomgått: 2026-08-14
 3. Legg filene i `src/assets/lier/products/<merke>/` etter navnekonvensjonen
    i `src/assets/lier/products/README.md`.
 4. Sett `imageStatus: "local"` i `product-catalog.ts` og oppdater tabellen over.
+
+
+Mitsubishi-bilder: se `docs/product-image-import-plan.md`. Ingen MEE-bilder er
+importert – bruksrett for forhandler-/partnerbruk er ikke skriftlig bekreftet.
