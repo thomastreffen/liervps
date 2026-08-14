@@ -89,3 +89,80 @@ export function productImageFor(name: string): string | null {
 export function missingProductImageKeys(): string[] {
   return Object.values(PRODUCT_IMAGE_KEY).filter((k) => !IMAGES[k]);
 }
+
+/* ------------------------------------------------------------------ *
+ * Multi-image support
+ * ------------------------------------------------------------------ */
+
+export type ResolvedImage = {
+  key: string;
+  src: string;
+  alt: string;
+  type: "primary" | "indoor" | "outdoor" | "lifestyle" | "detail" | "variant";
+};
+
+type ImageSpec = {
+  key: string;
+  type: ResolvedImage["type"];
+  alt: string;
+  status: "local_approved" | "needs_approval" | "missing";
+};
+
+const TYPE_ORDER: Record<ResolvedImage["type"], number> = {
+  primary: 0,
+  indoor: 1,
+  outdoor: 2,
+  detail: 3,
+  variant: 4,
+  lifestyle: 5,
+};
+
+/**
+ * Resolve a product's gallery to locally stored files only.
+ *
+ * Order of precedence:
+ *  1. `images[]` entries that resolve to a local asset (primary first)
+ *  2. legacy `imageKey`
+ *  3. name lookup in PRODUCT_IMAGE_KEY
+ *
+ * Entries without a local file are dropped, so missing secondary images
+ * never produce a broken image icon.
+ */
+export function resolveProductGallery(opts: {
+  name: string;
+  images?: ImageSpec[];
+  imageKey?: string;
+  imageAlt?: string;
+  /** Pre-resolved src (e.g. a bundled illustration passed from the showcase item). */
+  directSrc?: string | null;
+}): ResolvedImage[] {
+  const alt = opts.imageAlt ?? `${opts.name} varmepumpe`;
+  const out: ResolvedImage[] = [];
+  const seen = new Set<string>();
+
+  const push = (img: ResolvedImage) => {
+    if (seen.has(img.src)) return;
+    seen.add(img.src);
+    out.push(img);
+  };
+
+  for (const spec of opts.images ?? []) {
+    const src = IMAGES[spec.key];
+    if (!src) continue;
+    push({ key: spec.key, src, alt: spec.alt || alt, type: spec.type });
+  }
+
+  out.sort((a, b) => TYPE_ORDER[a.type] - TYPE_ORDER[b.type]);
+
+  if (!out.length) {
+    const fallbackKey = opts.imageKey ?? PRODUCT_IMAGE_KEY[opts.name];
+    const src =
+      (fallbackKey ? IMAGES[fallbackKey] : null) ?? opts.directSrc ?? null;
+    if (src) push({ key: fallbackKey ?? opts.name, src, alt, type: "primary" });
+  } else if (opts.directSrc) {
+    // keep an explicitly provided image available in the gallery too
+    push({ key: `${opts.name}-direct`, src: opts.directSrc, alt, type: "detail" });
+  }
+
+  return out;
+}
