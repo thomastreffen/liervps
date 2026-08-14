@@ -1230,6 +1230,10 @@ export type Database = {
           offer_sent_at: string | null
           package_id: string | null
           parent_offer_id: string | null
+          pdf_content_hash: string | null
+          pdf_drive_file_id: string | null
+          pdf_drive_url: string | null
+          pdf_generated_at: string | null
           project_title: string
           rate_table_id: string | null
           responsible_user_id: string | null
@@ -1275,6 +1279,10 @@ export type Database = {
           offer_sent_at?: string | null
           package_id?: string | null
           parent_offer_id?: string | null
+          pdf_content_hash?: string | null
+          pdf_drive_file_id?: string | null
+          pdf_drive_url?: string | null
+          pdf_generated_at?: string | null
           project_title: string
           rate_table_id?: string | null
           responsible_user_id?: string | null
@@ -1320,6 +1328,10 @@ export type Database = {
           offer_sent_at?: string | null
           package_id?: string | null
           parent_offer_id?: string | null
+          pdf_content_hash?: string | null
+          pdf_drive_file_id?: string | null
+          pdf_drive_url?: string | null
+          pdf_generated_at?: string | null
           project_title?: string
           rate_table_id?: string | null
           responsible_user_id?: string | null
