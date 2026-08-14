@@ -9,10 +9,15 @@ Sist gjennomgått: 2026-08-14
 
 - Kun konservative, kundevennlige formuleringer: "passer ofte for", "aktuelt ved",
   "typisk valgt når", "må vurderes på befaring".
-- Ingen priser, ingen eksakte ytelsestall (SCOP, dB, kW), ingen "best i test",
-  ingen garanterte besparelser.
-- Lyd- og kuldeklima-notater brukes kun der produsent/leverandør selv posisjonerer
-  modellen slik, og formuleres som posisjonering – ikke som måltall.
+- Ingen priser, ingen "best i test", ingen garanterte besparelser.
+- Ytelsestall (SCOP, SEER, dB, kW, energiklasse) er tillatt **kun** som direkte
+  gjengivelse av offisielle produsent-/importørdata, lagret i
+  `src/components/public/product-specs.ts`. Ingenting estimeres eller
+  interpoleres. Mangler en verdi, utelates linjen.
+- Lyd- og kuldeklima-notater i `product-catalog.ts` brukes kun der
+  produsent/leverandør selv posisjonerer modellen slik, og formuleres som
+  posisjonering – ikke som måltall.
+
 
 ## Bildestatus
 
