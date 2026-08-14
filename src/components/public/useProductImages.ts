@@ -57,6 +57,16 @@ export const PRODUCT_IMAGE_KEY: Record<string, string> = {
   "Toshiba Gulvmodell": "toshiba-gulvmodell",
 };
 
+/** Look up a locally stored image by its asset base name (imageKey). */
+export function productImageForKey(key: string): string | null {
+  return IMAGES[key] ?? null;
+}
+
+/** True when a locally stored, rights-cleared image exists for the key. */
+export function hasProductImage(key: string): boolean {
+  return Boolean(IMAGES[key]);
+}
+
 export function productImageFor(name: string): string | null {
   const key = PRODUCT_IMAGE_KEY[name];
   if (key && IMAGES[key]) return IMAGES[key];
