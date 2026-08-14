@@ -791,6 +791,111 @@ function leadForItem(item: ProductItem, segment: Segment): LeadContext {
     : { source: "solution", segment, interestType: "losning-anbefaling", solutionName: item.name };
 }
 
+/** Generic, non-technical usage text per product type. No specs, no claims. */
+const TYPICAL_USE: Record<string, string> = {
+  "Luft-luft":
+    "Montert i hovedoppholdsrommet, typisk stue, og varmer opp den delen av boligen du bruker mest.",
+  Gulvmodell:
+    "Plasseres lavt på vegg der veggplassen er begrenset, eller der planløsningen gjør høy plassering upraktisk.",
+  Multisplitt:
+    "Flere innedeler koblet til én utedel, slik at varmen fordeles til flere rom eller etasjer.",
+  "Luft-vann":
+    "Kobles til vannbårent anlegg som gulvvarme eller radiatorer, og kan også dekke varmtvann.",
+  Næring:
+    "Brukes i næringsbygg der flere soner skal ha jevn temperatur gjennom hele driftsdøgnet.",
+  Tilbehør: "Supplerer en eksisterende installasjon.",
+};
+
+function typicalUseFor(item: ProductItem) {
+  return (
+    TYPICAL_USE[item.productType ?? ""] ??
+    "Tilpasses bygget etter befaring, planløsning og varmebehov."
+  );
+}
+
+function whyWeRecommend(item: ProductItem) {
+  const reasons = item.bestFor.slice(0, 3).join(", ").toLowerCase();
+  return `${item.description} Vi trekker den fram når ${reasons} står sentralt. Endelig anbefaling gjør vi først etter befaring.`;
+}
+
+/** Shared image area — fixed 4:3 slot so all cards line up. */
+function ProductMedia({
+  item,
+  size = "card",
+}: {
+  item: ProductItem;
+  size?: "card" | "dialog";
+}) {
+  const photo = item.image ?? productImageFor(item.name);
+  return (
+    <div
+      className={`relative overflow-hidden rounded-lg border border-[hsl(var(--warm-beige))] bg-white ${
+        size === "dialog" ? "" : ""
+      }`}
+    >
+      <div className="aspect-[4/3] w-full">
+        {photo ? (
+          <img
+            src={photo}
+            alt={`${item.name} varmepumpe`}
+            loading="lazy"
+            className="h-full w-full object-contain p-3"
+          />
+        ) : (
+          <HeatPumpIllustration
+            variant={illustrationVariant(item.productType)}
+            label={`Illustrasjon · ${item.productType ?? item.subtitle}`}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+function BrandRow({
+  brand,
+  logo,
+}: {
+  brand?: BrandName;
+  logo: string | null;
+}) {
+  const [logoFailed, setLogoFailed] = useState(false);
+  const showLogo = Boolean(brand && logo) && !logoFailed;
+  return (
+    <div className="h-8 flex items-center">
+      {showLogo ? (
+        <img
+          src={logo!}
+          alt={`${brand} logo`}
+          loading="lazy"
+          onError={() => setLogoFailed(true)}
+          className={`w-auto object-contain object-left ${BRAND_LOGO_CLASS[brand!] ?? "max-h-7 max-w-[150px]"}`}
+        />
+      ) : (
+        <span className="text-[12px] font-semibold tracking-[0.14em] uppercase text-[hsl(var(--mcs-navy))]">
+          {brand ?? "Løsning"}
+        </span>
+      )}
+    </div>
+  );
+}
+
+function TagRow({ tags, max }: { tags: string[]; max?: number }) {
+  const shown = typeof max === "number" ? tags.slice(0, max) : tags;
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {shown.map((t) => (
+        <span
+          key={t}
+          className="max-w-full truncate text-[11px] leading-4 font-medium text-[hsl(var(--mcs-navy))] bg-[hsl(var(--warm-sand))] rounded-full px-2.5 py-1"
+        >
+          {t}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 function ProductCard({
   item,
   logo,
@@ -804,48 +909,20 @@ function ProductCard({
 }) {
   const { startLead } = useLead();
 
-  const photo = item.image ?? productImageFor(item.name);
   return (
-    <article className="bg-white rounded-xl border border-[hsl(var(--warm-beige))] p-5 flex flex-col">
-      <div className="h-10 flex items-center mb-4">
-        {item.brand && logo ? (
-          <img
-            src={logo}
-            alt={`${item.brand} logo`}
-            loading="lazy"
-            onError={(e) => { e.currentTarget.style.display = "none"; }}
-            className={`w-auto object-contain ${BRAND_LOGO_CLASS[item.brand] ?? "max-h-10 max-w-[180px]"}`}
-          />
-        ) : (
-          <span className="text-[13px] font-semibold tracking-[0.14em] uppercase text-[hsl(var(--mcs-navy))]">
-            {item.brand ?? "Løsning"}
-          </span>
-        )}
+    <article className="h-full bg-white rounded-xl border border-[hsl(var(--warm-beige))] p-4 sm:p-5 flex flex-col shadow-[0_1px_2px_hsl(var(--mcs-navy)/0.04)] hover:shadow-[0_8px_24px_-12px_hsl(var(--mcs-navy)/0.18)] transition-shadow">
+      <div className="mb-3">
+        <BrandRow brand={item.brand} logo={logo} />
       </div>
 
-      <div className="rounded-lg overflow-hidden mb-4 border border-[hsl(var(--warm-beige))]">
-        {photo ? (
-          <img
-            src={photo}
-            alt={`${item.name} varmepumpe`}
-            loading="lazy"
-            className="aspect-[4/3] w-full object-contain bg-white"
-          />
-        ) : (
-          <HeatPumpIllustration
-            variant={illustrationVariant(item.productType)}
-            label={`Illustrasjon · ${item.productType ?? item.subtitle}`}
-          />
-        )}
+      <ProductMedia item={item} />
 
-      </div>
-
-      <h4 className="text-base font-bold text-[hsl(var(--mcs-navy))] leading-tight">
+      <h4 className="mt-4 text-base font-bold text-[hsl(var(--mcs-navy))] leading-snug">
         {item.name}
       </h4>
-      <div className="flex flex-wrap items-center gap-2 mt-1.5 mb-2">
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1.5">
         {item.productType && (
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-[hsl(var(--mcs-orange))] border border-[hsl(var(--mcs-orange))]/30 rounded-full px-2 py-0.5">
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-[hsl(var(--mcs-orange))] border border-[hsl(var(--mcs-orange))]/30 rounded-full px-2 py-0.5">
             {item.productType}
           </span>
         )}
@@ -853,23 +930,16 @@ function ProductCard({
           {item.subtitle}
         </span>
       </div>
-      <p className="text-sm text-[hsl(var(--mcs-muted))] leading-relaxed mb-4">
+
+      <p className="mt-2.5 text-sm text-[hsl(var(--mcs-muted))] leading-relaxed">
         {item.description}
       </p>
 
-
-      <div className="flex flex-wrap gap-1.5 mb-4">
-        {item.tags.map((t) => (
-          <span
-            key={t}
-            className="text-xs font-medium text-[hsl(var(--mcs-navy))] bg-[hsl(var(--warm-sand))] rounded-full px-2.5 py-1"
-          >
-            {t}
-          </span>
-        ))}
+      <div className="mt-3">
+        <TagRow tags={item.tags} max={3} />
       </div>
 
-      <div className="mb-5 flex-1">
+      <div className="mt-4 flex-1">
         <p className="text-[11px] uppercase tracking-wider text-[hsl(var(--mcs-muted))] mb-2">
           Passer for
         </p>
@@ -877,28 +947,43 @@ function ProductCard({
           {item.bestFor.map((b) => (
             <li key={b} className="flex items-start gap-2 text-sm text-[hsl(var(--mcs-muted))]">
               <Check className="h-4 w-4 mt-0.5 shrink-0 text-[hsl(var(--mcs-orange))]" />
-              {b}
+              <span className="min-w-0">{b}</span>
             </li>
           ))}
         </ul>
       </div>
 
-      <button
-        type="button"
-        onClick={() => startLead(leadForItem(item, segment))}
-        className="inline-flex items-center justify-center gap-2 bg-[hsl(var(--mcs-orange))] hover:bg-[hsl(var(--mcs-orange-hover))] text-white text-sm font-semibold px-4 py-2.5 rounded-md"
-      >
-        {item.brand ? "Få anbefalt riktig modell" : "Få anbefalt riktig løsning"}{" "}
-        <ArrowRight className="h-4 w-4" />
-      </button>
-      <button
-        type="button"
-        onClick={onOpen}
-        className="mt-2 inline-flex items-center justify-center gap-1.5 text-xs font-semibold text-[hsl(var(--mcs-navy))]/70 hover:text-[hsl(var(--mcs-navy))]"
-      >
-        {item.brand ? "Les mer om modellen" : "Les mer om løsningen"}
-      </button>
+      <div className="mt-5 pt-4 border-t border-[hsl(var(--warm-beige))] flex flex-col gap-2">
+        <button
+          type="button"
+          onClick={() => startLead(leadForItem(item, segment))}
+          className="w-full inline-flex items-center justify-center gap-2 bg-[hsl(var(--mcs-orange))] hover:bg-[hsl(var(--mcs-orange-hover))] text-white text-sm font-semibold px-4 py-2.5 rounded-md transition-colors"
+        >
+          <span className="truncate">
+            {item.brand ? "Få anbefalt riktig modell" : "Få anbefalt riktig løsning"}
+          </span>
+          <ArrowRight className="h-4 w-4 shrink-0" />
+        </button>
+        <button
+          type="button"
+          onClick={onOpen}
+          className="w-full inline-flex items-center justify-center gap-1.5 text-xs font-semibold text-[hsl(var(--mcs-navy))]/70 hover:text-[hsl(var(--mcs-navy))] py-1"
+        >
+          {item.brand ? "Les mer om modellen" : "Les mer om løsningen"}
+        </button>
+      </div>
     </article>
+  );
+}
+
+function DialogSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section>
+      <h5 className="text-[11px] font-semibold uppercase tracking-wider text-[hsl(var(--mcs-muted))] mb-2">
+        {title}
+      </h5>
+      {children}
+    </section>
   );
 }
 
@@ -917,105 +1002,91 @@ function ProductDetailDialog({
 }) {
   const { startLead } = useLead();
   if (!item) return null;
-  const photo = item.image ?? productImageFor(item.name);
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[calc(100%-1.5rem)] sm:w-full max-w-lg max-h-[85vh] overflow-y-auto bg-white">
-        <DialogHeader>
-          <div className="h-9 flex items-center mb-2 pr-8">
-            {item.brand && logo ? (
-              <img
-                src={logo}
-                alt={`${item.brand} logo`}
-                onError={(e) => { e.currentTarget.style.display = "none"; }}
-                className={`w-auto object-contain ${BRAND_LOGO_CLASS[item.brand] ?? "max-h-9 max-w-[170px]"}`}
-              />
-            ) : (
-              <span className="text-[13px] font-semibold tracking-[0.14em] uppercase text-[hsl(var(--mcs-navy))]">
-                {item.brand ?? "Løsning"}
-              </span>
-            )}
+      <DialogContent className="w-[calc(100%-1.5rem)] sm:w-full max-w-xl max-h-[88vh] overflow-y-auto bg-white p-5 sm:p-6">
+        <DialogHeader className="space-y-1 text-left sm:text-left">
+          <div className="mb-1 pr-8">
+            <BrandRow brand={item.brand} logo={logo} />
           </div>
-          <DialogTitle className="text-xl text-[hsl(var(--mcs-navy))]">{item.name}</DialogTitle>
+          <DialogTitle className="text-xl sm:text-2xl text-[hsl(var(--mcs-navy))] leading-tight">
+            {item.name}
+          </DialogTitle>
           <DialogDescription className="text-[hsl(var(--mcs-muted))]">
             {[item.productType, item.subtitle].filter(Boolean).join(" · ")}
           </DialogDescription>
         </DialogHeader>
 
-        <div className="rounded-lg overflow-hidden border border-[hsl(var(--warm-beige))]">
-          {photo ? (
-            <img
-              src={photo}
-              alt={`${item.name} varmepumpe`}
-              className="aspect-[4/3] w-full object-contain bg-white"
-            />
-          ) : (
-            <HeatPumpIllustration
-              variant={illustrationVariant(item.productType)}
-              label={`Illustrasjon · ${item.productType ?? item.subtitle}`}
-            />
-          )}
-
+        <div className="mt-1">
+          <ProductMedia item={item} size="dialog" />
         </div>
 
-        <p className="text-sm text-[hsl(var(--mcs-muted))] leading-relaxed">{item.description}</p>
+        <TagRow tags={item.tags} />
 
-        <div className="flex flex-wrap gap-1.5">
-          {item.tags.map((t) => (
-            <span
-              key={t}
-              className="text-xs font-medium text-[hsl(var(--mcs-navy))] bg-[hsl(var(--warm-sand))] rounded-full px-2.5 py-1"
-            >
-              {t}
-            </span>
-          ))}
-        </div>
+        <div className="space-y-5">
+          <DialogSection title="Passer for">
+            <ul className="space-y-1.5">
+              {item.bestFor.map((b) => (
+                <li
+                  key={b}
+                  className="flex items-start gap-2 text-sm text-[hsl(var(--mcs-muted))]"
+                >
+                  <Check className="h-4 w-4 mt-0.5 shrink-0 text-[hsl(var(--mcs-orange))]" />
+                  <span className="min-w-0">{b}</span>
+                </li>
+              ))}
+            </ul>
+          </DialogSection>
 
-        <div>
-          <p className="text-[11px] uppercase tracking-wider text-[hsl(var(--mcs-muted))] mb-2">
-            Passer for
-          </p>
-          <ul className="space-y-1.5">
-            {item.bestFor.map((b) => (
-              <li key={b} className="flex items-start gap-2 text-sm text-[hsl(var(--mcs-muted))]">
-                <Check className="h-4 w-4 mt-0.5 shrink-0 text-[hsl(var(--mcs-orange))]" />
-                {b}
-              </li>
-            ))}
-          </ul>
-        </div>
+          <DialogSection title="Typisk bruk">
+            <p className="text-sm text-[hsl(var(--mcs-muted))] leading-relaxed">
+              {typicalUseFor(item)}
+            </p>
+          </DialogSection>
 
-        <p className="text-xs text-[hsl(var(--mcs-muted))] bg-[hsl(var(--warm-sand))] rounded-md p-3 leading-relaxed">
-          Endelig anbefaling av modell avhenger av bolig, planløsning, plassering og varmebehov.
-        </p>
+          <DialogSection title="Hvorfor vi anbefaler den">
+            <p className="text-sm text-[hsl(var(--mcs-muted))] leading-relaxed">
+              {whyWeRecommend(item)}
+            </p>
+          </DialogSection>
 
-        <div className="sticky bottom-0 -mx-6 px-6 pt-3 pb-1 bg-white border-t border-[hsl(var(--warm-beige))] sm:static sm:mx-0 sm:px-0 sm:pt-0 sm:pb-0 sm:border-0 flex flex-col sm:flex-row gap-2">
-          <button
-            type="button"
-            onClick={() => {
-              onOpenChange(false);
-              startLead(leadForItem(item, segment));
-            }}
-            className="flex-1 inline-flex items-center justify-center gap-2 bg-[hsl(var(--mcs-orange))] hover:bg-[hsl(var(--mcs-orange-hover))] text-white text-sm font-semibold px-4 py-2.5 rounded-md"
-          >
-            {item.brand ? "Få anbefalt riktig modell" : "Få anbefalt riktig løsning"}{" "}
-            <ArrowRight className="h-4 w-4" />
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              onOpenChange(false);
-              startLead({ ...leadForItem(item, segment), interestType: "befaring" });
-            }}
-            className="flex-1 inline-flex items-center justify-center text-sm font-semibold text-[hsl(var(--mcs-navy))] border border-[hsl(var(--mcs-navy))]/20 hover:border-[hsl(var(--mcs-navy))] px-4 py-2.5 rounded-md"
-          >
-            Bestill befaring
-          </button>
+          <DialogSection title="Neste steg">
+            <p className="text-sm text-[hsl(var(--mcs-muted))] leading-relaxed mb-3">
+              Vi tar en kort prat om boligen din, avtaler befaring og gir deg en anbefaling
+              med pris. Endelig modell avhenger av bolig, planløsning, plassering og varmebehov.
+            </p>
+            <div className="sticky bottom-0 -mx-5 sm:-mx-6 px-5 sm:px-6 pt-3 pb-1 bg-white border-t border-[hsl(var(--warm-beige))] sm:static sm:mx-0 sm:px-0 sm:pt-0 sm:pb-0 sm:border-0 flex flex-col sm:flex-row gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  onOpenChange(false);
+                  startLead(leadForItem(item, segment));
+                }}
+                className="flex-1 inline-flex items-center justify-center gap-2 bg-[hsl(var(--mcs-orange))] hover:bg-[hsl(var(--mcs-orange-hover))] text-white text-sm font-semibold px-4 py-2.5 rounded-md transition-colors"
+              >
+                <span className="truncate">
+                  {item.brand ? "Få anbefalt riktig modell" : "Få anbefalt riktig løsning"}
+                </span>
+                <ArrowRight className="h-4 w-4 shrink-0" />
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  onOpenChange(false);
+                  startLead({ ...leadForItem(item, segment), interestType: "befaring" });
+                }}
+                className="flex-1 inline-flex items-center justify-center text-sm font-semibold text-[hsl(var(--mcs-navy))] border border-[hsl(var(--mcs-navy))]/20 hover:border-[hsl(var(--mcs-navy))] px-4 py-2.5 rounded-md transition-colors"
+              >
+                Bestill befaring
+              </button>
+            </div>
+          </DialogSection>
         </div>
       </DialogContent>
     </Dialog>
   );
 }
+
 
 
 export function ProductShowcase() {
@@ -1168,7 +1239,7 @@ export function ProductShowcase() {
           </div>
         )}
 
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5 items-stretch">
           {items.map((item) => (
             <ProductCard
               key={`${item.brand ?? "sol"}-${item.name}`}
