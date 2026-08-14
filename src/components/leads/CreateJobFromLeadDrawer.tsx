@@ -19,14 +19,23 @@ import { toast } from "sonner";
 import { calcSummaryBlock } from "@/lib/calc-summary";
 import { useLeadConversionContext, segmentLabel, type ConversionLead } from "./useLeadConversionContext";
 
+export interface JobOfferContext {
+  id: string;
+  project_title: string;
+  total_price?: number | null;
+  input_snapshot?: any;
+}
+
 interface Props {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   lead: ConversionLead;
+  /** Tilbudet oppdraget bekreftes fra – gir kobling og hindrer dobbeltoppdrag. */
+  offer?: JobOfferContext | null;
   onCreated?: () => void;
 }
 
-export function CreateJobFromLeadDrawer({ open, onOpenChange, lead, onCreated }: Props) {
+export function CreateJobFromLeadDrawer({ open, onOpenChange, lead, offer, onCreated }: Props) {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { activeCompanyId, allowedCompanyIds } = useCompanyContext();
@@ -47,6 +56,7 @@ export function CreateJobFromLeadDrawer({ open, onOpenChange, lead, onCreated }:
   const [description, setDescription] = useState("");
   const [customerId, setCustomerId] = useState("__none__");
   const [confirmed, setConfirmed] = useState(false);
+  const [sendConfirmation, setSendConfirmation] = useState(false);
   const [saving, setSaving] = useState(false);
   const [clientRequestId, setClientRequestId] = useState(() => crypto.randomUUID());
 
@@ -55,18 +65,36 @@ export function CreateJobFromLeadDrawer({ open, onOpenChange, lead, onCreated }:
     setClientRequestId(crypto.randomUUID());
   }, [open]);
 
+  // Hindrer dobbelt oppdrag: finnes det allerede et oppdrag på tilbudet, åpnes det i stedet.
+  useEffect(() => {
+    if (!open || !offer?.id) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("events").select("id").eq("source_calculation_id", offer.id)
+        .is("deleted_at", null).limit(1).maybeSingle();
+      if (cancelled || !data) return;
+      toast.info("Oppdraget finnes allerede", { description: "Åpner det eksisterende oppdraget." });
+      onOpenChange(false);
+      navigate(`/projects/${(data as any).id}`);
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, offer?.id]);
+
   useEffect(() => {
     if (!open || loading) return;
     const pl = publicLead;
     const brandModel = [pl?.selected_brand, pl?.selected_product_name].filter(Boolean).join(" ").trim();
-    setTitle(brandModel ? `Montering – ${brandModel}` : "Montering – varmepumpe");
+    setTitle(offer?.project_title?.trim() || (brandModel ? `Montering – ${brandModel}` : "Montering – varmepumpe"));
     setCustomer(lead.company_name || pl?.name || "");
     setContact(lead.contact_name || pl?.name || "");
     setEmail(lead.email || pl?.email || "");
     setPhone(lead.phone || pl?.phone || "");
     setAddress(pl?.address || befaring?.address || "");
     setCustomerId(customerMatches.length === 1 ? customerMatches[0].id : "__none__");
-    setConfirmed(false);
+    setConfirmed(Boolean(offer));
+    setSendConfirmation(false);
     setTechId("__none__");
 
     setDescription([
@@ -80,7 +108,7 @@ export function CreateJobFromLeadDrawer({ open, onOpenChange, lead, onCreated }:
       `\nÅpne henvendelsen: ${window.location.origin}/sales/leads/${lead.id}`,
     ].filter(Boolean).join("\n"));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, loading, publicLead?.id, befaring?.id, customerMatches.length]);
+  }, [open, loading, publicLead?.id, befaring?.id, customerMatches.length, offer?.id]);
 
   const canSave = useMemo(
     () => Boolean(title.trim() && date && startTime && endTime && !saving && !loading),
@@ -151,6 +179,7 @@ export function CreateJobFromLeadDrawer({ open, onOpenChange, lead, onCreated }:
           project_type: "project",
           company_id: resolvedCompanyId,
           source_lead_id: lead.id,
+          source_calculation_id: offer?.id || null,
         } as any).select("id").single();
 
         if (error || !created) {
@@ -198,9 +227,58 @@ export function CreateJobFromLeadDrawer({ open, onOpenChange, lead, onCreated }:
       // Lead-status endres kun når oppdraget faktisk er bekreftet
       if (confirmed) {
         await supabase.from("leads").update({ status: "won" as any }).eq("id", lead.id);
+        if (lead.public_lead_id) {
+          await supabase.from("public_leads")
+            .update({ status: "won", handled_at: new Date().toISOString(), handled_by: user?.id || null } as any)
+            .eq("id", lead.public_lead_id);
+        }
       }
 
       toast.success(label);
+
+      // Ordrebekreftelse er valgfri og skal aldri blokkere lagringen.
+      if (confirmed && sendConfirmation && email.trim()) {
+        try {
+          const brandModel = [publicLead?.selected_brand, publicLead?.selected_product_name].filter(Boolean).join(" ").trim();
+          const solution = publicLead?.selected_solution_name || brandModel || title.trim();
+          const bodyLines = [
+            `Hei ${contact || customer || ""}`.trim(),
+            "",
+            "Takk for tilliten – vi har registrert oppdraget ditt.",
+            "",
+            `Bekreftet løsning: ${solution}`,
+            address.trim() ? `Adresse: ${address.trim()}` : null,
+            `Planlagt dato: ${format(new Date(startISO), "d. MMMM yyyy 'kl.' HH:mm", { locale: nb })}`,
+            "",
+            "Neste steg: vi tar kontakt for endelig avtale om montering og forbereder utstyret.",
+            "",
+            "Lier Varmepumpeservice AS",
+            "post@liervps.no · liervps.no",
+          ].filter(Boolean).join("\n");
+
+          const { error: mailError } = await supabase.functions.invoke("gmail-send", {
+            body: {
+              to: email.trim(),
+              subject: "Ordrebekreftelse fra Lier Varmepumpeservice",
+              text: bodyLines,
+              html: `<div style="font-family:Arial,sans-serif;font-size:14px;color:#1f2937;white-space:pre-wrap">${bodyLines
+                .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</div>`,
+            },
+          });
+          if (mailError) throw mailError;
+          toast.success("Ordrebekreftelse sendt til kunden");
+          await supabase.from("lead_history").insert({
+            lead_id: lead.id, action: "order_confirmation_sent",
+            description: `Ordrebekreftelse sendt til ${email.trim()}: ${stamp}`,
+            performed_by: user?.id, metadata: { job_id: jobId },
+          } as any);
+        } catch (mailErr: any) {
+          console.warn("[CreateJobFromLead] ordrebekreftelse feilet", mailErr);
+          toast.error("Oppdraget er lagret, men e-posten ble ikke sendt", {
+            description: mailErr?.message || "Sjekk Google-tilkoblingen.",
+          });
+        }
+      }
       onOpenChange(false);
       onCreated?.();
       navigate(`/projects/${jobId}`);
@@ -317,6 +395,18 @@ export function CreateJobFromLeadDrawer({ open, onOpenChange, lead, onCreated }:
                 <span className="block text-xs text-muted-foreground">Setter henvendelsen til «vunnet». Uten dette lagres oppdraget som utkast og status beholdes.</span>
               </span>
             </label>
+
+            {confirmed && (
+              <label className="flex items-start gap-2.5 cursor-pointer rounded-xl border border-border/60 p-3">
+                <Checkbox checked={sendConfirmation} onCheckedChange={v => setSendConfirmation(!!v)} disabled={!email.trim()} />
+                <span className="text-sm">
+                  Send ordrebekreftelse til kunde
+                  <span className="block text-xs text-muted-foreground">
+                    {email.trim() ? `Sendes til ${email.trim()} via Gmail. Feiler e-posten, lagres oppdraget likevel.` : "Krever e-postadresse på kunden."}
+                  </span>
+                </span>
+              </label>
+            )}
 
             <div className="flex items-center gap-2 pt-1">
               <Button className="flex-1 rounded-xl gap-1.5" onClick={handleSave} disabled={!canSave}>
