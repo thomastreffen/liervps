@@ -932,6 +932,9 @@ function ProductCard({
   onOpen: () => void;
 }) {
   const { startLead } = useLead();
+  const rp = useMemo(() => resolveProduct(item), [item]);
+  const displayName = rp.details?.modelName ?? item.name;
+  const family = rp.details?.modelFamily;
 
   return (
     <article className="h-full bg-white rounded-xl border border-[hsl(var(--warm-beige))] p-4 sm:p-5 flex flex-col shadow-[0_1px_2px_hsl(var(--mcs-navy)/0.04)] hover:shadow-[0_8px_24px_-12px_hsl(var(--mcs-navy)/0.18)] transition-shadow">
@@ -939,10 +942,10 @@ function ProductCard({
         <BrandRow brand={item.brand} logo={logo} />
       </div>
 
-      <ProductMedia item={item} />
+      <ProductMedia rp={rp} />
 
       <h4 className="mt-4 text-base font-bold text-[hsl(var(--mcs-navy))] leading-snug">
-        {item.name}
+        {displayName}
       </h4>
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1.5">
         {item.productType && (
@@ -951,31 +954,41 @@ function ProductCard({
           </span>
         )}
         <span className="text-[11px] uppercase tracking-wider text-[hsl(var(--mcs-muted))]">
-          {item.subtitle}
+          {family && family !== displayName ? `${family} · ${item.subtitle}` : item.subtitle}
         </span>
       </div>
 
       <p className="mt-2.5 text-sm text-[hsl(var(--mcs-muted))] leading-relaxed">
-        {item.description}
+        {rp.positioning}
       </p>
 
-      <div className="mt-3">
-        <TagRow tags={item.tags} max={3} />
-      </div>
-
-      <div className="mt-4 flex-1">
+      <div className="mt-4">
         <p className="text-[11px] uppercase tracking-wider text-[hsl(var(--mcs-muted))] mb-2">
-          Passer for
+          Styrker
         </p>
         <ul className="space-y-1.5">
-          {item.bestFor.map((b) => (
-            <li key={b} className="flex items-start gap-2 text-sm text-[hsl(var(--mcs-muted))]">
+          {rp.strengths.slice(0, 4).map((s) => (
+            <li key={s} className="flex items-start gap-2 text-sm text-[hsl(var(--mcs-muted))]">
               <Check className="h-4 w-4 mt-0.5 shrink-0 text-[hsl(var(--mcs-orange))]" />
-              <span className="min-w-0">{b}</span>
+              <span className="min-w-0">{s}</span>
             </li>
           ))}
         </ul>
       </div>
+
+      <div className="mt-4 flex-1">
+        <p className="text-[11px] uppercase tracking-wider text-[hsl(var(--mcs-muted))] mb-2">
+          Passer ofte for
+        </p>
+        <ul className="space-y-1">
+          {rp.suitableFor.slice(0, 3).map((b) => (
+            <li key={b} className="text-sm text-[hsl(var(--mcs-muted))] leading-snug">
+              · {b}
+            </li>
+          ))}
+        </ul>
+      </div>
+
 
       <div className="mt-5 pt-4 border-t border-[hsl(var(--warm-beige))] flex flex-col gap-2">
         <button
