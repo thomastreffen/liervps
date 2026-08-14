@@ -309,16 +309,26 @@ export function OfferPreviewDialog({ open, onOpenChange, offer, lead, onUpdated 
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Avbryt</AlertDialogCancel>
+            <AlertDialogCancel disabled={marking}>Avbryt</AlertDialogCancel>
             <AlertDialogAction
-              onClick={async () => {
-                await markSent("manual");
-                toast.success("Tilbud markert som sendt");
-                onOpenChange(false);
+              disabled={marking || isSent}
+              onClick={async (e) => {
+                e.preventDefault();
+                if (marking || isSent) return;
+                setMarking(true);
+                try {
+                  await markSent("manual");
+                  toast.success("Tilbud markert som sendt");
+                  setConfirmManual(false);
+                  onOpenChange(false);
+                } finally {
+                  setMarking(false);
+                }
               }}
             >
-              Marker som sendt
+              {marking ? "Markerer …" : "Marker som sendt"}
             </AlertDialogAction>
+
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
