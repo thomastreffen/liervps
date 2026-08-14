@@ -852,6 +852,34 @@ function ProductMedia({
   );
 }
 
+function BrandRow({
+  brand,
+  logo,
+}: {
+  brand?: BrandName;
+  logo: string | null;
+}) {
+  const [logoFailed, setLogoFailed] = useState(false);
+  const showLogo = Boolean(brand && logo) && !logoFailed;
+  return (
+    <div className="h-8 flex items-center">
+      {showLogo ? (
+        <img
+          src={logo!}
+          alt={`${brand} logo`}
+          loading="lazy"
+          onError={() => setLogoFailed(true)}
+          className={`w-auto object-contain object-left ${BRAND_LOGO_CLASS[brand!] ?? "max-h-7 max-w-[150px]"}`}
+        />
+      ) : (
+        <span className="text-[12px] font-semibold tracking-[0.14em] uppercase text-[hsl(var(--mcs-navy))]">
+          {brand ?? "Løsning"}
+        </span>
+      )}
+    </div>
+  );
+}
+
 function TagRow({ tags, max }: { tags: string[]; max?: number }) {
   const shown = typeof max === "number" ? tags.slice(0, max) : tags;
   return (
@@ -883,22 +911,8 @@ function ProductCard({
 
   return (
     <article className="h-full bg-white rounded-xl border border-[hsl(var(--warm-beige))] p-4 sm:p-5 flex flex-col shadow-[0_1px_2px_hsl(var(--mcs-navy)/0.04)] hover:shadow-[0_8px_24px_-12px_hsl(var(--mcs-navy)/0.18)] transition-shadow">
-      <div className="h-8 flex items-center mb-3">
-        {item.brand && logo ? (
-          <img
-            src={logo}
-            alt={`${item.brand} logo`}
-            loading="lazy"
-            onError={(e) => {
-              e.currentTarget.style.display = "none";
-            }}
-            className={`w-auto max-h-8 object-contain object-left ${BRAND_LOGO_CLASS[item.brand] ?? "max-w-[160px]"}`}
-          />
-        ) : (
-          <span className="text-[12px] font-semibold tracking-[0.14em] uppercase text-[hsl(var(--mcs-navy))]">
-            {item.brand ?? "Løsning"}
-          </span>
-        )}
+      <div className="mb-3">
+        <BrandRow brand={item.brand} logo={logo} />
       </div>
 
       <ProductMedia item={item} />
@@ -992,21 +1006,8 @@ function ProductDetailDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="w-[calc(100%-1.5rem)] sm:w-full max-w-xl max-h-[88vh] overflow-y-auto bg-white p-5 sm:p-6">
         <DialogHeader className="space-y-1">
-          <div className="h-8 flex items-center mb-1 pr-8">
-            {item.brand && logo ? (
-              <img
-                src={logo}
-                alt={`${item.brand} logo`}
-                onError={(e) => {
-                  e.currentTarget.style.display = "none";
-                }}
-                className={`w-auto max-h-8 object-contain object-left ${BRAND_LOGO_CLASS[item.brand] ?? "max-w-[160px]"}`}
-              />
-            ) : (
-              <span className="text-[12px] font-semibold tracking-[0.14em] uppercase text-[hsl(var(--mcs-navy))]">
-                {item.brand ?? "Løsning"}
-              </span>
-            )}
+          <div className="mb-1 pr-8">
+            <BrandRow brand={item.brand} logo={logo} />
           </div>
           <DialogTitle className="text-xl sm:text-2xl text-[hsl(var(--mcs-navy))] leading-tight">
             {item.name}
