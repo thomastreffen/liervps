@@ -64,14 +64,23 @@ const nok = (v: number) => `kr ${Number(v).toLocaleString("nb-NO")}`;
 /** Interne blokker som aldri skal vises til kunden. */
 const INTERNAL_BLOCK = /^(notater fra henvendelsen|interne notater|internt|kundens melding|fra befaringen)\b/i;
 
-/** Fjerner interne avsnitt fra omfangsteksten før den vises/sendes til kunden. */
+/**
+ * Fjerner interne avsnitt fra omfangsteksten før den vises/sendes til kunden.
+ * Interne blokker legges alltid til sist, så alt fra første interne overskrift kuttes –
+ * det dekker også notater som selv inneholder blanke linjer.
+ */
 export function sanitizeScope(text?: string | null): string {
   if (!text) return "";
-  return text
+  const lines = text.split("\n");
+  const cut = lines.findIndex(l => INTERNAL_BLOCK.test(l.trim()));
+  const kept = cut === -1 ? lines : lines.slice(0, cut);
+  return kept
+    .join("\n")
     .split(/\n\s*\n/)
     .filter(block => !INTERNAL_BLOCK.test(block.trim()))
     .join("\n\n")
     .trim();
+
 }
 
 /** Produktnavn: eksplisitt valgt produkt, ellers merke + modell fra snapshot. */
