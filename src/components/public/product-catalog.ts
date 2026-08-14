@@ -12,7 +12,11 @@
  */
 
 import type { BrandName, ProductType } from "./product-types";
-import { productSpecsFor, type ProductSpecs } from "./product-specs";
+import {
+  productSpecsFor,
+  type ProductSpecs,
+  type ProductSpecVariant,
+} from "./product-specs";
 
 
 export type ImageStatus =
@@ -86,6 +90,8 @@ export type ProductDetails = {
   lastReviewed?: string;
   /** Official manufacturer/distributor specifications. Never estimated. */
   specs?: ProductSpecs;
+  /** Other officially documented sizes in the same series. Public. */
+  specVariants?: ProductSpecVariant[];
   /** Which model size the specs apply to. Public. */
   specBasis?: string;
   /** Short customer-friendly guidance line. Public. */
@@ -1010,13 +1016,144 @@ export const PRODUCT_DETAILS: Record<string, ProductDetails> = {
   },
 };
 
+
+/**
+ * Locally stored gallery per primary image key. Cards use the `primary`
+ * entry; the modal shows every entry that resolves to a local file.
+ * All files live in src/assets/lier/products/<brand>/ — never hotlinked.
+ */
+export const PRODUCT_GALLERIES: Record<string, ProductImage[]> = {
+  "mitsubishi-duo-modellen": [
+    { key: "mitsubishi-duo-modellen", type: "primary", alt: "Mitsubishi Electric Duo-modellen – produktbilde", status: "local_approved" },
+    { key: "mitsubishi-duo-modellen-detail", type: "detail", alt: "Mitsubishi Electric Duo-modellen – detalj", status: "local_approved" },
+    { key: "mitsubishi-duo-modellen-lifestyle", type: "lifestyle", alt: "Mitsubishi Electric Duo-modellen – i bruk", status: "local_approved" },
+  ],
+  "mitsubishi-furo": [
+    { key: "mitsubishi-furo", type: "primary", alt: "Mitsubishi Electric Furo – produktbilde", status: "local_approved" },
+    { key: "mitsubishi-furo-indoor", type: "indoor", alt: "Mitsubishi Electric Furo – innedel", status: "local_approved" },
+    { key: "mitsubishi-furo-detail", type: "detail", alt: "Mitsubishi Electric Furo – detalj", status: "local_approved" },
+    { key: "mitsubishi-furo-lifestyle", type: "lifestyle", alt: "Mitsubishi Electric Furo – i bruk", status: "local_approved" },
+  ],
+  "mitsubishi-gussuri": [
+    { key: "mitsubishi-gussuri", type: "primary", alt: "Mitsubishi Electric GUSSURI – produktbilde", status: "local_approved" },
+    { key: "mitsubishi-gussuri-indoor", type: "indoor", alt: "Mitsubishi Electric GUSSURI – innedel", status: "local_approved" },
+    { key: "mitsubishi-gussuri-outdoor", type: "outdoor", alt: "Mitsubishi Electric GUSSURI – utedel", status: "local_approved" },
+    { key: "mitsubishi-gussuri-detail", type: "detail", alt: "Mitsubishi Electric GUSSURI – detalj", status: "local_approved" },
+    { key: "mitsubishi-gussuri-lifestyle", type: "lifestyle", alt: "Mitsubishi Electric GUSSURI – i bruk", status: "local_approved" },
+  ],
+  "mitsubishi-iguru": [
+    { key: "mitsubishi-iguru", type: "primary", alt: "Mitsubishi Electric IGURU – produktbilde", status: "local_approved" },
+    { key: "mitsubishi-iguru-indoor", type: "indoor", alt: "Mitsubishi Electric IGURU – innedel", status: "local_approved" },
+    { key: "mitsubishi-iguru-lifestyle", type: "lifestyle", alt: "Mitsubishi Electric IGURU – i bruk", status: "local_approved" },
+  ],
+  "mitsubishi-kaiteki": [
+    { key: "mitsubishi-kaiteki", type: "primary", alt: "Mitsubishi Electric Kaiteki – produktbilde", status: "local_approved" },
+    { key: "mitsubishi-kaiteki-indoor", type: "indoor", alt: "Mitsubishi Electric Kaiteki – innedel", status: "local_approved" },
+    { key: "mitsubishi-kaiteki-variant", type: "variant", alt: "Mitsubishi Electric Kaiteki – variant", status: "local_approved" },
+    { key: "mitsubishi-kaiteki-lifestyle", type: "lifestyle", alt: "Mitsubishi Electric Kaiteki – i bruk", status: "local_approved" },
+  ],
+  "mitsubishi-nordic-multi": [
+    { key: "mitsubishi-nordic-multi", type: "primary", alt: "Mitsubishi Electric Nordic Multi – produktbilde", status: "local_approved" },
+    { key: "mitsubishi-nordic-multi-lifestyle", type: "lifestyle", alt: "Mitsubishi Electric Nordic Multi – i bruk", status: "local_approved" },
+  ],
+  "mitsubishi-uwano-pure": [
+    { key: "mitsubishi-uwano-pure", type: "primary", alt: "Mitsubishi Electric UWANO Pure – produktbilde", status: "local_approved" },
+    { key: "mitsubishi-uwano-pure-indoor", type: "indoor", alt: "Mitsubishi Electric UWANO Pure – innedel", status: "local_approved" },
+    { key: "mitsubishi-uwano-pure-outdoor", type: "outdoor", alt: "Mitsubishi Electric UWANO Pure – utedel", status: "local_approved" },
+    { key: "mitsubishi-uwano-pure-detail", type: "detail", alt: "Mitsubishi Electric UWANO Pure – detalj", status: "local_approved" },
+    { key: "mitsubishi-uwano-pure-lifestyle", type: "lifestyle", alt: "Mitsubishi Electric UWANO Pure – i bruk", status: "local_approved" },
+  ],
+  "mitsubishi-zen": [
+    { key: "mitsubishi-zen", type: "primary", alt: "Mitsubishi Electric Zen – produktbilde", status: "local_approved" },
+    { key: "mitsubishi-zen-indoor", type: "indoor", alt: "Mitsubishi Electric Zen – innedel", status: "local_approved" },
+    { key: "mitsubishi-zen-outdoor", type: "outdoor", alt: "Mitsubishi Electric Zen – utedel", status: "local_approved" },
+    { key: "mitsubishi-zen-variant", type: "variant", alt: "Mitsubishi Electric Zen – variant", status: "local_approved" },
+    { key: "mitsubishi-zen-lifestyle", type: "lifestyle", alt: "Mitsubishi Electric Zen – i bruk", status: "local_approved" },
+  ],
+  "panasonic-cz": [
+    { key: "panasonic-cz", type: "primary", alt: "Panasonic CZ – produktbilde", status: "local_approved" },
+    { key: "panasonic-cz-indoor", type: "indoor", alt: "Panasonic CZ – innedel", status: "local_approved" },
+  ],
+  "panasonic-gulvmodell": [
+    { key: "panasonic-gulvmodell", type: "primary", alt: "Panasonic Gulvmodell – produktbilde", status: "local_approved" },
+    { key: "panasonic-gulvmodell-indoor", type: "indoor", alt: "Panasonic Gulvmodell – innedel", status: "local_approved" },
+    { key: "panasonic-gulvmodell-outdoor", type: "outdoor", alt: "Panasonic Gulvmodell – utedel", status: "local_approved" },
+    { key: "panasonic-gulvmodell-detail", type: "detail", alt: "Panasonic Gulvmodell – detalj", status: "local_approved" },
+    { key: "panasonic-gulvmodell-variant", type: "variant", alt: "Panasonic Gulvmodell – variant", status: "local_approved" },
+  ],
+  "panasonic-hz-flagship": [
+    { key: "panasonic-hz-flagship", type: "primary", alt: "Panasonic HZ Flagship – produktbilde", status: "local_approved" },
+    { key: "panasonic-hz-flagship-indoor", type: "indoor", alt: "Panasonic HZ Flagship – innedel", status: "local_approved" },
+    { key: "panasonic-hz-flagship-outdoor", type: "outdoor", alt: "Panasonic HZ Flagship – utedel", status: "local_approved" },
+    { key: "panasonic-hz-flagship-variant", type: "variant", alt: "Panasonic HZ Flagship – variant", status: "local_approved" },
+    { key: "panasonic-hz-flagship-lifestyle", type: "lifestyle", alt: "Panasonic HZ Flagship – i bruk", status: "local_approved" },
+  ],
+  "panasonic-lz-retro-fit": [
+    { key: "panasonic-lz-retro-fit", type: "primary", alt: "Panasonic LZ – produktbilde", status: "local_approved" },
+    { key: "panasonic-lz-retro-fit-indoor", type: "indoor", alt: "Panasonic LZ – innedel", status: "local_approved" },
+    { key: "panasonic-lz-retro-fit-outdoor", type: "outdoor", alt: "Panasonic LZ – utedel", status: "local_approved" },
+  ],
+  "panasonic-nz-etherea": [
+    { key: "panasonic-nz-etherea", type: "primary", alt: "Panasonic NZ Etherea – produktbilde", status: "local_approved" },
+    { key: "panasonic-nz-etherea-indoor", type: "indoor", alt: "Panasonic NZ Etherea – innedel", status: "local_approved" },
+    { key: "panasonic-nz-etherea-outdoor", type: "outdoor", alt: "Panasonic NZ Etherea – utedel", status: "local_approved" },
+    { key: "panasonic-nz-etherea-variant", type: "variant", alt: "Panasonic NZ Etherea – variant", status: "local_approved" },
+  ],
+  "panasonic-vz-heatcharge": [
+    { key: "panasonic-vz-heatcharge", type: "primary", alt: "Panasonic VZ Heatcharge – produktbilde", status: "local_approved" },
+    { key: "panasonic-vz-heatcharge-indoor", type: "indoor", alt: "Panasonic VZ Heatcharge – innedel", status: "local_approved" },
+    { key: "panasonic-vz-heatcharge-outdoor", type: "outdoor", alt: "Panasonic VZ Heatcharge – utedel", status: "local_approved" },
+  ],
+  "toshiba-daiseikai-10-ask": [
+    { key: "toshiba-daiseikai-10-ask", type: "primary", alt: "Toshiba Daiseikai 10 Ask – produktbilde", status: "local_approved" },
+    { key: "toshiba-daiseikai-10-ask-variant", type: "variant", alt: "Toshiba Daiseikai 10 Ask – variant", status: "local_approved" },
+    { key: "toshiba-daiseikai-10-ask-lifestyle", type: "lifestyle", alt: "Toshiba Daiseikai 10 Ask – i bruk", status: "local_approved" },
+  ],
+  "toshiba-daiseikai-10-kontur": [
+    { key: "toshiba-daiseikai-10-kontur", type: "primary", alt: "Toshiba Daiseikai 10 Kontur – produktbilde", status: "local_approved" },
+    { key: "toshiba-daiseikai-10-kontur-detail", type: "detail", alt: "Toshiba Daiseikai 10 Kontur – detalj", status: "local_approved" },
+    { key: "toshiba-daiseikai-10-kontur-lifestyle", type: "lifestyle", alt: "Toshiba Daiseikai 10 Kontur – i bruk", status: "local_approved" },
+  ],
+  "toshiba-gulvmodell": [
+    { key: "toshiba-gulvmodell", type: "primary", alt: "Toshiba Gulvmodell – produktbilde", status: "local_approved" },
+    { key: "toshiba-gulvmodell-detail", type: "detail", alt: "Toshiba Gulvmodell – detalj", status: "local_approved" },
+    { key: "toshiba-gulvmodell-lifestyle", type: "lifestyle", alt: "Toshiba Gulvmodell – i bruk", status: "local_approved" },
+  ],
+  "toshiba-multi-nordic": [
+    { key: "toshiba-multi-nordic", type: "primary", alt: "Toshiba Multi Nordic – produktbilde", status: "local_approved" },
+    { key: "toshiba-multi-nordic-lifestyle", type: "lifestyle", alt: "Toshiba Multi Nordic – i bruk", status: "local_approved" },
+  ],
+  "toshiba-polar": [
+    { key: "toshiba-polar", type: "primary", alt: "Toshiba Polar – produktbilde", status: "local_approved" },
+    { key: "toshiba-polar-indoor", type: "indoor", alt: "Toshiba Polar – innedel", status: "local_approved" },
+    { key: "toshiba-polar-detail", type: "detail", alt: "Toshiba Polar – detalj", status: "local_approved" },
+    { key: "toshiba-polar-lifestyle", type: "lifestyle", alt: "Toshiba Polar – i bruk", status: "local_approved" },
+  ],
+  "toshiba-seiya-nordic": [
+    { key: "toshiba-seiya-nordic", type: "primary", alt: "Toshiba Seiya Nordic – produktbilde", status: "local_approved" },
+    { key: "toshiba-seiya-nordic-indoor", type: "indoor", alt: "Toshiba Seiya Nordic – innedel", status: "local_approved" },
+    { key: "toshiba-seiya-nordic-detail", type: "detail", alt: "Toshiba Seiya Nordic – detalj", status: "local_approved" },
+    { key: "toshiba-seiya-nordic-lifestyle", type: "lifestyle", alt: "Toshiba Seiya Nordic – i bruk", status: "local_approved" },
+  ],
+  "toshiba-signatur": [
+    { key: "toshiba-signatur", type: "primary", alt: "Toshiba Signatur – produktbilde", status: "local_approved" },
+    { key: "toshiba-signatur-detail", type: "detail", alt: "Toshiba Signatur – detalj", status: "local_approved" },
+    { key: "toshiba-signatur-variant", type: "variant", alt: "Toshiba Signatur – variant", status: "local_approved" },
+    { key: "toshiba-signatur-lifestyle", type: "lifestyle", alt: "Toshiba Signatur – i bruk", status: "local_approved" },
+  ],
+};
+
 export function productDetailsFor(name: string): ProductDetails | null {
-  const base = PRODUCT_DETAILS[name];
-  if (!base) return null;
+  const raw = PRODUCT_DETAILS[name];
+  if (!raw) return null;
+  const gallery =
+    raw.images ?? (raw.imageKey ? PRODUCT_GALLERIES[raw.imageKey] : undefined);
+  const base: ProductDetails = gallery ? { ...raw, images: gallery } : raw;
   const spec = productSpecsFor(name);
   if (!spec) return base;
   return {
     ...base,
+    specVariants: spec.variants,
     specs: spec.specs,
     specBasis: spec.specBasis,
     guidanceNote: spec.guidanceNote,

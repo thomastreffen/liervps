@@ -75,38 +75,48 @@ lanseres offentlig før forhandler-/leverandørstatus er formelt godkjent.
 2. Bytt ev. til bilder fra offisiell bildebank hvis leverandør ønsker det.
 3. Oppdater dette dokumentet og `docs/product-source-notes.md`.
 
-## Flere bilder per produkt (2026-08-14)
+## Flere bilder per produkt (oppdatert 2026-08-15)
 
-Datamodellen støtter nå flere bilder per produkt:
+Datamodellen støtter flere bilder per produkt via `images[]`
+(`primary | indoor | outdoor | lifestyle | detail | variant`). Galleriene er
+samlet i `PRODUCT_GALLERIES` i `product-catalog.ts` og kobles automatisk på
+produktet via `imageKey`. Kortene viser kun primærbildet; modalen viser
+galleri med miniatyrer. Bilder uten lokal fil filtreres bort.
 
-```ts
-images?: {
-  key: string;                 // lokalt filnavn uten filendelse
-  type: "primary" | "indoor" | "outdoor" | "lifestyle" | "detail" | "variant";
-  alt: string;
-  status: "local_approved" | "needs_approval" | "missing";
-}[]
-```
+Totalt 77 lokale produktbilder i 22 gallerier.
 
-- `imageKey` beholdes og brukes som primærbilde når `images` mangler.
-- Produktkort viser kun ett bilde (primary → imageKey → egen illustrasjon).
-  Ingen karusell på kort.
-- Modalen viser stort bilde + miniatyrer når det finnes mer enn ett bilde.
-- Bilder uten lokal fil filtreres bort før rendring, så manglende
-  sekundærbilder aldri gir ødelagte bildeikoner.
+| Bildenøkkel | Roller | Antall |
+| --- | --- | --- |
+| `mitsubishi-duo-modellen` | primary, detail, lifestyle | 3 |
+| `mitsubishi-furo` | primary, detail, indoor, lifestyle | 4 |
+| `mitsubishi-gussuri` | primary, detail, indoor, lifestyle, outdoor | 5 |
+| `mitsubishi-iguru` | primary, indoor, lifestyle | 3 |
+| `mitsubishi-kaiteki` | primary, indoor, lifestyle, variant | 4 |
+| `mitsubishi-nordic-multi` | primary, lifestyle | 2 |
+| `mitsubishi-uwano-pure` | primary, detail, indoor, lifestyle, outdoor | 5 |
+| `mitsubishi-zen` | primary, indoor, lifestyle, outdoor, variant | 5 |
+| `panasonic-cz` | primary, indoor | 2 |
+| `panasonic-gulvmodell` | primary, detail, indoor, outdoor, variant | 5 |
+| `panasonic-hz-flagship` | primary, indoor, lifestyle, outdoor, variant | 5 |
+| `panasonic-lz-retro-fit` | primary, indoor, outdoor | 3 |
+| `panasonic-multisplitt` | primary | 1 |
+| `panasonic-nz-etherea` | primary, indoor, outdoor, variant | 4 |
+| `panasonic-vz-heatcharge` | primary, indoor, outdoor | 3 |
+| `toshiba-daiseikai-10-ask` | primary, lifestyle, variant | 3 |
+| `toshiba-daiseikai-10-kontur` | primary, detail, lifestyle | 3 |
+| `toshiba-gulvmodell` | primary, detail, lifestyle | 3 |
+| `toshiba-multi-nordic` | primary, lifestyle | 2 |
+| `toshiba-polar` | primary, detail, indoor, lifestyle | 4 |
+| `toshiba-seiya-nordic` | primary, detail, indoor, lifestyle | 4 |
+| `toshiba-signatur` | primary, detail, lifestyle, variant | 4 |
 
-Navnekonvensjon ved flere bilder:
+Godkjenningsgrunnlag er uendret: «Approved by site owner for use pending
+dealer/supplier approval before public launch.» Sekundærbildene er hentet fra
+de samme merke-/importørsidene som primærbildene (mee.no,
+toshibavarmepumper.no, distributørkatalog Panasonic), lastet ned lokalt og
+konvertert til `.webp` (maks 1200 px, kvalitet 82, hvit bakgrunn der kilden
+var transparent PNG). Ingen hotlinking.
 
-```
-mitsubishi-uwano-pure-primary.webp
-mitsubishi-uwano-pure-outdoor.webp
-mitsubishi-uwano-pure-lifestyle.webp
-panasonic-hz-flagship-primary.webp
-toshiba-signatur-primary.webp
-```
-
-**Status i dag:** alle 22 importerte produktbilder er enkeltbilder, så ingen
-produkter har galleri ennå. Nye utedels-, detalj- og miljøbilder kan legges
-inn uten kodeendringer – kun fil + `images[]`-oppføring. Godkjenningsgrunnlag
-er uendret: «Approved by site owner for use pending dealer/supplier approval
-before public launch.»
+Bilder som ble vurdert og forkastet: måltegninger på sort bakgrunn
+(Mitsubishi IGURU), sertifiseringsgrafikk (Toshiba Ask) og app-skjermbilder
+(Toshiba Multi Nordic) – ikke produktrelevante nok for kundevendt galleri.
