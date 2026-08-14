@@ -35,13 +35,59 @@ export async function loadAnyInternalToken(admin: any, scopes: string[]) {
   return (data ?? []).find((t: any) => hasScope(t, scopes)) ?? null;
 }
 
-export async function ensureFreshAccessToken(admin: any, tokenRow: any): Promise<string | null> {
-  if (!tokenRow) return null;
+export type GoogleService = "gmail" | "calendar" | "drive";
+
+/**
+ * Records health for a Google service so admins get a reconnect warning.
+ * Never throws — health logging must not break a caller.
+ */
+export async function recordGoogleHealth(
+  admin: any,
+  service: GoogleService,
+  outcome: "ok" | "needs_reconnect",
+  errorCode?: string | null,
+) {
+  try {
+    const now = new Date().toISOString();
+    await admin.from("integration_health").upsert(
+      {
+        provider: "google",
+        service,
+        status: outcome,
+        error_code: outcome === "ok" ? null : (errorCode ?? "unknown"),
+        last_failed_at: outcome === "ok" ? null : now,
+        ...(outcome === "ok" ? { last_success_at: now } : {}),
+        updated_at: now,
+      },
+      { onConflict: "provider,service" },
+    );
+  } catch (e) {
+    console.error("[google-token] health log failed", e);
+  }
+}
+
+export async function ensureFreshAccessToken(
+  admin: any,
+  tokenRow: any,
+  service?: GoogleService,
+): Promise<string | null> {
+  const fail = async (code: string) => {
+    if (service) await recordGoogleHealth(admin, service, "needs_reconnect", code);
+    return null;
+  };
+  if (!tokenRow) return await fail("no_token");
   const now = Date.now();
   const expiresAt = tokenRow.expires_at ? new Date(tokenRow.expires_at).getTime() : 0;
-  if (tokenRow.access_token && expiresAt - now > 60_000) return tokenRow.access_token;
-  if (!tokenRow.refresh_token) return tokenRow.access_token ?? null;
-  if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) return null;
+  if (tokenRow.access_token && expiresAt - now > 60_000) {
+    if (service) await recordGoogleHealth(admin, service, "ok");
+    return tokenRow.access_token;
+  }
+  if (!tokenRow.refresh_token) {
+    if (tokenRow.access_token) return tokenRow.access_token;
+    return await fail("refresh_token_missing");
+  }
+  if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) return await fail("oauth_not_configured");
+
 
   const res = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
@@ -56,14 +102,16 @@ export async function ensureFreshAccessToken(admin: any, tokenRow: any): Promise
   const data = await res.json().catch(() => ({}));
   if (!res.ok || !data.access_token) {
     console.error("[google-token] refresh failed", data);
-    return null;
+    return await fail(typeof data?.error === "string" ? data.error : "refresh_failed");
   }
   const newExpiresAt = new Date(Date.now() + (data.expires_in ?? 3600) * 1000).toISOString();
   await admin
     .from("user_integration_tokens")
     .update({ access_token: data.access_token, expires_at: newExpiresAt })
     .eq("id", tokenRow.id);
+  if (service) await recordGoogleHealth(admin, service, "ok");
   return data.access_token;
+
 }
 
 function toBase64Url(str: string): string {

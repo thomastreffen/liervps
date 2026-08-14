@@ -1,0 +1,2 @@
+delete from public.leads where email = 'qa-blocker@test.invalid' or company_name in ('QA Blocker','x');
+delete from public.public_leads where email = 'qa-blocker@test.invalid' or name in ('QA Blocker','x');

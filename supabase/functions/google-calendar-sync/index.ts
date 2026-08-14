@@ -11,6 +11,7 @@
  */
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { recordGoogleHealth } from "../_shared/google-token.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -72,6 +73,7 @@ async function ensureFreshAccessToken(admin: any, tokenRow: any): Promise<string
   const data = await res.json();
   if (!res.ok || !data.access_token) {
     console.error("[google-calendar-sync] refresh failed", data);
+    await recordGoogleHealth(admin, "calendar", "needs_reconnect", typeof data?.error === "string" ? data.error : "refresh_failed");
     return null;
   }
   const newExpiresAt = new Date(Date.now() + (data.expires_in ?? 3600) * 1000).toISOString();
@@ -123,10 +125,14 @@ Deno.serve(async (req) => {
   });
 
   const tokenRow = await loadCalendarToken(admin, user.id);
-  if (!tokenRow) return json({ status: "no_token" });
+  if (!tokenRow) {
+    await recordGoogleHealth(admin, "calendar", "needs_reconnect", "no_token");
+    return json({ status: "no_token" });
+  }
 
   const accessToken = await ensureFreshAccessToken(admin, tokenRow);
   if (!accessToken) return json({ status: "no_token" });
+  await recordGoogleHealth(admin, "calendar", "ok");
 
   const { data: ev, error: evErr } = await admin
     .from("events")

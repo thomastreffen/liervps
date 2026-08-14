@@ -18,7 +18,7 @@ const TOPIC_COLORS: Record<string, string> = {
 
 const SCOPE_LABELS: Record<string, string> = {
   global: "Globalt",
-  lead: "Lead",
+  lead: "Henvendelse",
   quote: "Tilbud",
   job: "Prosjekt",
 };

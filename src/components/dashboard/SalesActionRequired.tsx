@@ -120,7 +120,7 @@ export function buildActionItems(data: {
   if (data.inactiveLeads > 0)
     items.push({
       key: "inactive",
-      label: "Leads uten aktivitet > 7 dager",
+      label: "Henvendelser uten aktivitet > 7 dager",
       count: data.inactiveLeads,
       severity: data.inactiveLeads > 5 ? "high" : "medium",
       href: "/sales/leads?filter=inactive_7d",
@@ -140,7 +140,7 @@ export function buildActionItems(data: {
   if (data.leadsWithoutNextStep > 0)
     items.push({
       key: "no_next_step",
-      label: "Leads uten neste steg",
+      label: "Henvendelser uten neste steg",
       count: data.leadsWithoutNextStep,
       severity: data.leadsWithoutNextStep > 3 ? "high" : "medium",
       href: "/sales/leads?filter=no_next_step",

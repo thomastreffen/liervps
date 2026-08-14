@@ -94,7 +94,7 @@ export function LeadConvertPanel({
         action: "converted_to_project",
         description: "Konvertert til prosjekt",
         type: "status_change",
-        title: "Lead konvertert til prosjekt",
+        title: "Henvendelse konvertert til prosjekt",
         performedBy: user.id,
         metadata: {
           job_id: data!.id,

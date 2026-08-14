@@ -492,7 +492,7 @@ export default function CompanyMigrationPage() {
                             <TableRow key={i}>
                               <TableCell>
                                 <Badge variant="outline" className="text-[10px]">
-                                  {m.entity_type === "project" ? "Prosjekt" : m.entity_type === "offer" ? "Tilbud" : "Lead"}
+                                  {m.entity_type === "project" ? "Prosjekt" : m.entity_type === "offer" ? "Tilbud" : "Henvendelse"}
                                 </Badge>
                               </TableCell>
                               <TableCell className="text-sm font-medium">{m.entity_name || m.entity_id.slice(0, 8)}</TableCell>

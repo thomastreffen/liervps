@@ -18,6 +18,7 @@ import { EventDrawer } from "@/components/EventDrawer";
 import { fetchActiveLeads } from "@/lib/lead-queries";
 import { useUnreadOrderMessages } from "@/hooks/useUnreadOrderMessages";
 import { cn } from "@/lib/utils";
+import { GoogleReconnectBanner } from "@/components/integrations/GoogleReconnectBanner";
 import { NewLeadsCard } from "@/components/leads/NewLeadsCard";
 
 // ── Types ──
@@ -300,8 +301,8 @@ export default function OverviewPage() {
     if (deviationCount > 0) pItems.push({ icon: <ShieldAlert className="h-4 w-4" />, label: "Åpne avvik", count: deviationCount, severity: "critical", route: "/jobs", description: "Ubehandlede avvik krever oppfølging" });
     if (ordersWaiting > 0) pItems.push({ icon: <Inbox className="h-4 w-4" />, label: "Bestillinger venter på kundesvar", count: ordersWaiting, severity: "warning", route: "/orders" });
     if (offersOverdue > 0) pItems.push({ icon: <Send className="h-4 w-4" />, label: "Tilbud uten oppfølging", count: offersOverdue, severity: "warning", route: "/sales/offers" });
-    if (inactiveLeads > 0) pItems.push({ icon: <Clock className="h-4 w-4" />, label: "Leads uten aktivitet > 7 dager", count: inactiveLeads, severity: "info", route: "/sales/leads" });
-    if (leadsWithoutNextStep > 0) pItems.push({ icon: <ListX className="h-4 w-4" />, label: "Leads uten neste steg", count: leadsWithoutNextStep, severity: "info", route: "/sales/leads" });
+    if (inactiveLeads > 0) pItems.push({ icon: <Clock className="h-4 w-4" />, label: "Henvendelser uten aktivitet > 7 dager", count: inactiveLeads, severity: "info", route: "/sales/leads" });
+    if (leadsWithoutNextStep > 0) pItems.push({ icon: <ListX className="h-4 w-4" />, label: "Henvendelser uten neste steg", count: leadsWithoutNextStep, severity: "info", route: "/sales/leads" });
     if (readyForInvoicing > 0) pItems.push({ icon: <ReceiptText className="h-4 w-4" />, label: "Klar for fakturering", count: readyForInvoicing, severity: "info", route: "/jobs" });
     setPriorities(pItems);
 
@@ -375,7 +376,12 @@ export default function OverviewPage() {
         </div>
       </div>
 
+      <div className="mb-6 empty:mb-0">
+        <GoogleReconnectBanner />
+      </div>
+
       <NewLeadsCard className="mb-6" />
+
 
       {/* ─── KPI Row ─── */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 sm:gap-3 mb-8">

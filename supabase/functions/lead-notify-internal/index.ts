@@ -11,7 +11,7 @@
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { calcSummaryBlock } from "../_shared/calc-summary.ts";
-import { SCOPE_GMAIL_SEND, ensureFreshAccessToken, gmailSendText, loadAnyInternalToken } from "../_shared/google-token.ts";
+import { SCOPE_GMAIL_SEND, ensureFreshAccessToken, gmailSendText, loadAnyInternalToken, recordGoogleHealth } from "../_shared/google-token.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -74,12 +74,13 @@ Deno.serve(async (req) => {
     const tokenRow = await loadAnyInternalToken(admin, [SCOPE_GMAIL_SEND]);
     if (!tokenRow) {
       console.info("[lead-notify-internal] Gmail not connected, internal notification skipped");
+      await recordGoogleHealth(admin, "gmail", "needs_reconnect", "no_token");
       await admin.from("public_leads")
         .update({ internal_notify_status: "no_token" })
         .eq("id", publicLeadId);
       return json({ status: "no_token" });
     }
-    const accessToken = await ensureFreshAccessToken(admin, tokenRow);
+    const accessToken = await ensureFreshAccessToken(admin, tokenRow, "gmail");
     if (!accessToken) {
       console.info("[lead-notify-internal] Gmail not connected, internal notification skipped");
       await admin.from("public_leads").update({ internal_notify_status: "no_token" }).eq("id", publicLeadId);
@@ -112,6 +113,7 @@ Deno.serve(async (req) => {
     await admin.from("public_leads")
       .update({ internal_notified_at: new Date().toISOString(), internal_notify_status: "sent" })
       .eq("id", publicLeadId);
+    await recordGoogleHealth(admin, "gmail", "ok");
 
     return json({ status: "sent", message_id: messageId, recipient });
   } catch (e) {

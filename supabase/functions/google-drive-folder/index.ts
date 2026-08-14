@@ -10,7 +10,7 @@
  */
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { SCOPE_DRIVE_FILE, ensureFreshAccessToken, loadUserToken } from "../_shared/google-token.ts";
+import { SCOPE_DRIVE_FILE, ensureFreshAccessToken, loadUserToken, recordGoogleHealth } from "../_shared/google-token.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -94,7 +94,7 @@ Deno.serve(async (req) => {
   }
 
   const tokenRow = await loadUserToken(admin, user.id, [SCOPE_DRIVE_FILE]);
-  const accessToken = await ensureFreshAccessToken(admin, tokenRow);
+  const accessToken = await ensureFreshAccessToken(admin, tokenRow, "drive");
   if (!tokenRow || !accessToken) {
     console.info("[google-drive-folder] Google Drive not connected, folder creation skipped");
     return json({ status: "no_token" });
@@ -119,10 +119,12 @@ Deno.serve(async (req) => {
     const folderUrl = `https://drive.google.com/drive/folders/${folderId}`;
 
     await admin.from("leads").update({ drive_folder_id: folderId, drive_folder_url: folderUrl }).eq("id", leadId);
+    await recordGoogleHealth(admin, "drive", "ok");
 
     return json({ status: "created", folder_id: folderId, folder_url: folderUrl });
   } catch (e) {
     console.error("[google-drive-folder] failed", e);
+    await recordGoogleHealth(admin, "drive", "needs_reconnect", "drive_failed");
     return json({ status: "error", code: "drive_failed", detail: String(e) });
   }
 });

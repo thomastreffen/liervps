@@ -48,7 +48,7 @@ export const PERMISSION_LABELS: Record<string, PermissionMeta> = {
   "module.communication": { label: "Kommunikasjon", description: "Tilgang til kommunikasjonsmodulen.", category: "Modultilgang" },
   "module.contracts": { label: "Kontrakter", description: "Tilgang til kontraktsmodulen.", category: "Modultilgang" },
   "module.sharepoint": { label: "SharePoint", description: "Tilgang til SharePoint-integrasjonen.", category: "Modultilgang" },
-  "module.leads": { label: "Leads", description: "Tilgang til leadsmodulen.", category: "Modultilgang" },
+  "module.leads": { label: "Henvendelser", description: "Tilgang til henvendelsesmodulen.", category: "Modultilgang" },
   "module.products": { label: "Produkter", description: "Tilgang til produktkatalogen.", category: "Modultilgang" },
   "module.purchasing": { label: "Innkjøp", description: "Tilgang til innkjøpsmodulen.", category: "Modultilgang" },
 
@@ -126,14 +126,14 @@ export const PERMISSION_LABELS: Record<string, PermissionMeta> = {
   "admin.data_integrity": { label: "Dataintegritet", description: "Tilgang til dataintegritet og systemvedlikehold.", category: "Administrasjon" },
 
   // ── Leads ──
-  "leads.view": { label: "Se leads", category: "Leads" },
-  "leads.create": { label: "Opprette leads", category: "Leads" },
-  "leads.edit": { label: "Redigere leads", category: "Leads" },
-  "leads.transfer_owner": { label: "Overføre eierskap på leads", description: "Kan endre hvem som er ansvarlig eier av en lead.", category: "Leads" },
-  "leads.manage_participants": { label: "Administrere deltakere på leads", description: "Kan legge til og fjerne deltakere på leads.", category: "Leads" },
-  "leads.convert": { label: "Konvertere lead til prosjekt", description: "Kan konvertere et akseptert tilbud på en lead til et prosjekt.", category: "Leads" },
-  "leads.email_draft": { label: "Opprette e-postutkast fra lead", description: "Kan opprette Outlook e-postutkast koblet til en lead.", category: "Leads" },
-  "leads.create_meeting": { label: "Opprette møte/befaring fra lead", description: "Kan opprette Outlook kalenderhendelser fra en lead.", category: "Leads" },
+  "leads.view": { label: "Se henvendelser", category: "Henvendelser" },
+  "leads.create": { label: "Opprette henvendelser", category: "Henvendelser" },
+  "leads.edit": { label: "Redigere henvendelser", category: "Henvendelser" },
+  "leads.transfer_owner": { label: "Overføre eierskap på henvendelser", description: "Kan endre hvem som er ansvarlig eier av en henvendelse.", category: "Henvendelser" },
+  "leads.manage_participants": { label: "Administrere deltakere på henvendelser", description: "Kan legge til og fjerne deltakere på henvendelser.", category: "Henvendelser" },
+  "leads.convert": { label: "Konvertere henvendelse til prosjekt", description: "Kan konvertere et akseptert tilbud på en henvendelse til et prosjekt.", category: "Henvendelser" },
+  "leads.email_draft": { label: "Opprette e-postutkast fra henvendelse", description: "Kan opprette e-postutkast koblet til en henvendelse.", category: "Henvendelser" },
+  "leads.create_meeting": { label: "Opprette møte/befaring fra henvendelse", description: "Kan opprette kalenderhendelser fra en henvendelse.", category: "Henvendelser" },
 
   // ── Regulation ──
   "regulation.review": { label: "Godkjenne fagforespørsler", description: "Kan godkjenne eller avvise fagforespørsler som faglig ansvarlig.", category: "Fag" },
@@ -243,7 +243,7 @@ export const PERMISSION_CATEGORIES: { category: string; description: string; key
     keys: ["admin.manage_companies", "admin.manage_departments", "admin.manage_users", "admin.manage_roles", "admin.manage_settings", "admin.data_integrity"],
   },
   {
-    category: "Leads",
+    category: "Henvendelser",
     description: "Tilgang til leads og salgsprosess.",
     keys: ["leads.view", "leads.create", "leads.edit", "leads.transfer_owner", "leads.manage_participants", "leads.convert", "leads.email_draft", "leads.create_meeting"],
   },

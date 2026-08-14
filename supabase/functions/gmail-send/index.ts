@@ -8,6 +8,7 @@
  */
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { recordGoogleHealth } from "../_shared/google-token.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -119,9 +120,15 @@ Deno.serve(async (req) => {
 
 
   const tokenRow = await loadMailToken(admin, user.id);
-  if (!tokenRow) return json({ status: "no_token" });
+  if (!tokenRow) {
+    await recordGoogleHealth(admin, "gmail", "needs_reconnect", "no_token");
+    return json({ status: "no_token" });
+  }
   const accessToken = await refresh(admin, tokenRow);
-  if (!accessToken) return json({ status: "no_token" });
+  if (!accessToken) {
+    await recordGoogleHealth(admin, "gmail", "needs_reconnect", "refresh_failed");
+    return json({ status: "no_token" });
+  }
 
   const senderEmail = tokenRow.provider_account_email || user.email || "me";
   const contentType = body.html ? 'text/html; charset="UTF-8"' : 'text/plain; charset="UTF-8"';
@@ -207,7 +214,12 @@ Deno.serve(async (req) => {
   const data = await res.json();
   if (!res.ok) {
     console.error("[gmail-send] failed", res.status, data);
+    if (res.status === 401 || res.status === 403) {
+      await recordGoogleHealth(admin, "gmail", "needs_reconnect", `gmail_${res.status}`);
+    }
     return json({ status: "error", code: res.status, detail: data?.error?.message ?? "unknown" });
   }
+  await recordGoogleHealth(admin, "gmail", "ok");
   return json({ status: "sent", message_id: data.id });
+
 });
