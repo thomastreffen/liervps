@@ -64,12 +64,22 @@ const nok = (v: number) => `kr ${Number(v).toLocaleString("nb-NO")}`;
 /** Interne blokker som aldri skal vises til kunden. */
 const INTERNAL_BLOCK = /^(notater fra henvendelsen|interne notater|internt|kundens melding|fra befaringen)\b/i;
 
-/** Fjerner interne avsnitt fra omfangsteksten før den vises/sendes til kunden. */
-export function sanitizeScope(text?: string | null): string {
+/**
+ * Fjerner interne avsnitt fra omfangsteksten før den vises/sendes til kunden.
+ * Interne blokker legges alltid til sist, så alt fra første interne overskrift kuttes –
+ * det dekker også notater som selv inneholder blanke linjer.
+ */
+export function sanitizeScope(text?: string | null, opts?: { dropCalculatorBlock?: boolean }): string {
   if (!text) return "";
-  return text
+  const lines = text.split("\n");
+  const cut = lines.findIndex(l => INTERNAL_BLOCK.test(l.trim()));
+  const kept = cut === -1 ? lines : lines.slice(0, cut);
+  return kept
+    .join("\n")
     .split(/\n\s*\n/)
     .filter(block => !INTERNAL_BLOCK.test(block.trim()))
+    // Kalkulatorgrunnlaget vises som egen seksjon – unngå dobbelt oppføring.
+    .filter(block => !(opts?.dropCalculatorBlock && /^fra kalkulator\b/i.test(block.trim())))
     .join("\n\n")
     .trim();
 }
@@ -85,7 +95,7 @@ export function productLabel(snap: any): string | null {
 export function buildOfferText(offer: OfferRow, contact: string, address: string | null) {
   const snap = offer.input_snapshot || {};
   const rows = calcSummaryRows(snap.calculator_summary);
-  const scope = sanitizeScope(offer.description);
+  const scope = sanitizeScope(offer.description, { dropCalculatorBlock: rows.length > 0 });
   const product = productLabel(snap);
   const lines: string[] = [];
   lines.push(`${COMPANY.name}`);
@@ -126,7 +136,7 @@ export function OfferPreviewDialog({ open, onOpenChange, offer, lead, onUpdated 
   const recipient = (offer.customer_email || lead.email || "").trim();
   const calcRows = useMemo(() => calcSummaryRows(snap.calculator_summary), [snap.calculator_summary]);
   const isSent = offer.status === "sent" || Boolean(offer.offer_sent_at);
-  const scopeText = useMemo(() => sanitizeScope(offer.description), [offer.description]);
+  const scopeText = useMemo(() => sanitizeScope(offer.description, { dropCalculatorBlock: calcRows.length > 0 }), [offer.description, calcRows.length]);
   const product = productLabel(snap);
 
   const pdfInput: OfferPdfInput = useMemo(() => ({
@@ -149,21 +159,28 @@ export function OfferPreviewDialog({ open, onOpenChange, offer, lead, onUpdated 
   }), [offer.id, offer.project_title, offer.created_at, offer.total_price, contact, contactPerson, recipient, address, scopeText, product, snap.recommended_solution, snap.calculator_summary]);
 
   const currentHash = useMemo(() => offerContentHash(pdfInput), [pdfInput]);
-  const hasPdf = Boolean(offer.pdf_drive_url);
-  const pdfOutdated = hasPdf && Boolean(offer.pdf_content_hash) && offer.pdf_content_hash !== currentHash;
   const [pdfBusy, setPdfBusy] = useState(false);
+  // Lokal PDF-status så lenker og advarsel oppdateres uten å lukke dialogen.
+  const [localPdf, setLocalPdf] = useState<{ url: string | null; hash: string | null } | null>(null);
+  const pdfUrl = localPdf ? localPdf.url : (offer.pdf_drive_url ?? null);
+  const pdfHash = localPdf ? localPdf.hash : (offer.pdf_content_hash ?? null);
+  const hasPdf = Boolean(pdfUrl);
+  const pdfEverGenerated = hasPdf || Boolean(localPdf) || Boolean(offer.pdf_generated_at);
+  const pdfOutdated = pdfEverGenerated && Boolean(pdfHash) && pdfHash !== currentHash;
 
   /** Genererer PDF lokalt og laster den opp til Drive-mappen når Drive er koblet til. */
-  const generatePdf = async (): Promise<{ base64: string; filename: string; driveStatus: string } | null> => {
+  const generatePdf = async (): Promise<{ base64: string; filename: string; driveStatus: string; fileUrl: string | null }> => {
     const doc = buildOfferPdf(pdfInput);
     const base64 = offerPdfBase64(doc);
     const filename = offerPdfFilename(pdfInput);
     let driveStatus = "skipped";
+    let fileUrl: string | null = null;
     try {
       const { data, error } = await supabase.functions.invoke("offer-pdf-upload", {
         body: { calculation_id: offer.id, lead_id: lead.id, filename, pdf_base64: base64 },
       });
       driveStatus = error ? "error" : ((data as any)?.status ?? "error");
+      fileUrl = (data as any)?.file_url ?? null;
     } catch (e) {
       console.error("[OfferPreview] pdf upload", e);
       driveStatus = "error";
@@ -171,22 +188,23 @@ export function OfferPreviewDialog({ open, onOpenChange, offer, lead, onUpdated 
     await supabase.from("calculations")
       .update({ pdf_generated_at: new Date().toISOString(), pdf_content_hash: currentHash } as any)
       .eq("id", offer.id);
-    return { base64, filename, driveStatus };
+    setLocalPdf({ url: fileUrl ?? offer.pdf_drive_url ?? null, hash: currentHash });
+    return { base64, filename, driveStatus, fileUrl };
   };
 
   const handleRegenerate = async () => {
-    if (pdfBusy) return;
+    if (pdfBusy || sending) return;
     setPdfBusy(true);
     try {
       const res = await generatePdf();
-      if (res?.driveStatus === "uploaded") toast.success("PDF oppdatert i Google Drive");
-      else if (res?.driveStatus === "no_token") toast.message("PDF laget uten Drive-lagring", { description: "Google Drive er ikke koblet til." });
+      if (res.driveStatus === "uploaded") toast.success("PDF oppdatert i Google Drive");
+      else if (res.driveStatus === "no_token") toast.message("PDF laget uten Drive-lagring", { description: "Google Drive er ikke koblet til." });
       else toast.message("PDF laget", { description: "Kunne ikke lagre i Google Drive." });
-      onUpdated?.();
     } finally {
       setPdfBusy(false);
     }
   };
+
 
   const handleDownloadPdf = () => {
     const doc = buildOfferPdf(pdfInput);
@@ -408,12 +426,12 @@ export function OfferPreviewDialog({ open, onOpenChange, offer, lead, onUpdated 
             </Button>
             {hasPdf && (
               <Button variant="outline" className="gap-1.5" asChild>
-                <a href={offer.pdf_drive_url!} target="_blank" rel="noreferrer">
+                <a href={pdfUrl!} target="_blank" rel="noreferrer">
                   <ExternalLink className="h-4 w-4" /> Åpne PDF
                 </a>
               </Button>
             )}
-            {(hasPdf || offer.pdf_generated_at) && (
+            {pdfEverGenerated && (
               <Button variant="outline" className="gap-1.5" onClick={handleRegenerate} disabled={pdfBusy}>
                 {pdfBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
                 Regenerer PDF
@@ -423,7 +441,7 @@ export function OfferPreviewDialog({ open, onOpenChange, offer, lead, onUpdated 
               <CheckCircle2 className="h-4 w-4" /> Marker som sendt
             </Button>
 
-            <Button className="gap-1.5" onClick={handleSend} disabled={sending || isSent || !recipient}>
+            <Button className="gap-1.5" onClick={handleSend} disabled={sending || pdfBusy || isSent || !recipient}>
               {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
               Send tilbud
             </Button>
