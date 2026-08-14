@@ -10,7 +10,7 @@
  */
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { SCOPE_DRIVE_FILE, ensureFreshAccessToken, loadUserToken } from "../_shared/google-token.ts";
+import { SCOPE_DRIVE_FILE, ensureFreshAccessToken, loadUserToken, recordGoogleHealth } from "../_shared/google-token.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -94,7 +94,7 @@ Deno.serve(async (req) => {
   }
 
   const tokenRow = await loadUserToken(admin, user.id, [SCOPE_DRIVE_FILE]);
-  const accessToken = await ensureFreshAccessToken(admin, tokenRow);
+  const accessToken = await ensureFreshAccessToken(admin, tokenRow, "drive");
   if (!tokenRow || !accessToken) {
     console.info("[google-drive-folder] Google Drive not connected, folder creation skipped");
     return json({ status: "no_token" });
