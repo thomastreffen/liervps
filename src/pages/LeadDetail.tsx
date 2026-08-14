@@ -155,6 +155,7 @@ function LeadDetailInner() {
   const [offerDraftOpen, setOfferDraftOpen] = useState(false);
   const [jobDrawerOpen, setJobDrawerOpen] = useState(false);
   const [jobsRefreshKey, setJobsRefreshKey] = useState(0);
+  const [previewOffer, setPreviewOffer] = useState<LeadCalc | null>(null);
 
   // Side panel
   const [actionPanelOpen, setActionPanelOpen] = useState(false);
