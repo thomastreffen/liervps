@@ -796,7 +796,13 @@ function leadForItem(item: ProductItem, segment: Segment): LeadContext {
     : { source: "solution", segment, interestType: "losning-anbefaling", solutionName: item.name };
 }
 
-/** Stable anchor id for deep-linking a product, e.g. #produkt-mitsubishi-electric-uwano-pure */
+/**
+ * Stable anchor id for deep-linking a product.
+ * Segment-scoped so the same model can appear in both bolig and næring
+ * without producing duplicate ids, e.g.
+ *   #produkt-bolig-mitsubishi-electric-nordic-multi
+ *   #produkt-naering-mitsubishi-electric-nordic-multi
+ */
 function slugify(value: string) {
   return value
     .toLowerCase()
@@ -807,8 +813,18 @@ function slugify(value: string) {
     .replace(/^-+|-+$/g, "");
 }
 
-function productAnchorId(item: ProductItem) {
-  return `produkt-${slugify(`${item.brand ?? "losning"}-${item.name}`)}`;
+/** Brand+model part only — used for legacy anchors without segment. */
+function productSlug(item: ProductItem) {
+  return slugify(`${item.brand ?? "losning"}-${item.name}`);
+}
+
+function productAnchorId(item: ProductItem, segment: Segment) {
+  return `produkt-${segment}-${productSlug(item)}`;
+}
+
+/** Legacy (pre-segment) anchor, kept so old links still resolve. */
+function legacyProductAnchorId(item: ProductItem) {
+  return `produkt-${productSlug(item)}`;
 }
 
 
