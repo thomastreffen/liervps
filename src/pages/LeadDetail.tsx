@@ -212,7 +212,7 @@ function LeadDetailInner() {
     if (!id) return;
     try {
       const { data } = await supabase.from("calculations")
-        .select("id, project_title, status, total_price, created_at")
+        .select("id, project_title, status, total_price, created_at, offer_sent_at, customer_name, customer_email, description, input_snapshot")
         .eq("lead_id", id)
         .is("deleted_at", null)
         .order("created_at", { ascending: false });
