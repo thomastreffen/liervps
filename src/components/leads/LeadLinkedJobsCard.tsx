@@ -34,6 +34,7 @@ export function LeadLinkedJobsCard({ leadId, refreshKey, onCreate }: { leadId: s
       .from("events")
       .select("id, title, status, start_time, address")
       .eq("source_lead_id", leadId)
+      .not("title", "ilike", "Befaring%")
       .is("deleted_at", null)
       .order("start_time", { ascending: false });
     setJobs((data as any) || []);
