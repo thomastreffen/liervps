@@ -41,6 +41,7 @@ import { toast } from "sonner";
 import { NewRegulationQueryDialog } from "@/components/regulation/NewRegulationQueryDialog";
 import { ContactPersonSelect, type ContactPerson } from "@/components/offer/ContactPersonSelect";
 import { CustomerSelect } from "@/components/offer/CustomerSelect";
+import { syncLeadOnOfferAccepted, syncLeadOnOfferRejected } from "@/lib/lead-status-sync";
 
 interface CalcItem {
   id: string;
@@ -443,14 +444,45 @@ export default function CalculationDetail() {
   };
 
   const handleOfferStatusChange = async (offerId: string, status: OfferStatus) => {
-    await supabase.from("offers").update({ status }).eq("id", offerId);
-    setOffers((prev) => prev.map((o) => o.id === offerId ? { ...o, status } : o));
+    const nowIso = new Date().toISOString();
+    const patch: any = { status };
+    if (status === "accepted") patch.accepted_at = nowIso;
+    if (status === "rejected") patch.rejected_at = nowIso;
+    await supabase.from("offers").update(patch).eq("id", offerId);
+    setOffers((prev) => prev.map((o) => o.id === offerId ? { ...o, ...patch } : o));
     toast.success(`Tilbudsstatus endret til ${OFFER_STATUS_CONFIG[status].label}`);
     if (status === "accepted") {
       await handleStatusChange("accepted");
+      if (calc) {
+        await supabase.from("calculations")
+          .update({ offer_accepted_at: nowIso } as any)
+          .eq("id", calc.id);
+      }
+      // Speil til henvendelsen (public_leads oppdateres av trigger)
+      if (calc?.lead_id) {
+        try {
+          const { won } = await syncLeadOnOfferAccepted({
+            leadId: calc.lead_id, offerId: calc.id,
+            offerTitle: calc.project_title, userId: user?.id || null,
+          });
+          if (!won) {
+            toast.info("Tilbud akseptert, venter på oppdrag", {
+              description: "Henvendelsen settes til «vunnet» når oppdraget er bekreftet.",
+            });
+          }
+        } catch (e) { console.error("[lead-sync accepted]", e); }
+      }
     }
     if (status === "rejected") {
       await handleStatusChange("rejected");
+      if (calc?.lead_id) {
+        try {
+          await syncLeadOnOfferRejected({
+            leadId: calc.lead_id, offerId: calc.id,
+            offerTitle: calc.project_title, userId: user?.id || null,
+          });
+        } catch (e) { console.error("[lead-sync rejected]", e); }
+      }
     }
   };
 

@@ -85,6 +85,7 @@ const adminItems = [
   { title: "Systemhelse", url: "/admin/system-health", moduleKey: "admin_system_health" },
   { title: "Dataintegritet", url: "/admin/data-integrity", moduleKey: "admin_data_integrity" },
   { title: "Kontraktvarsler", url: "/admin/contract-cron", moduleKey: "admin_contract_cron" },
+  // moduleKey beholdes som "admin_microsoft" i DB (rettighetsnøkkel) – brukervendt tekst er Google Workspace.
   { title: "Google Workspace", url: "/settings/integrations", requireSuperAdmin: true, moduleKey: "admin_microsoft" },
   { title: "Innstillinger", url: "/admin/settings", moduleKey: "admin_settings" },
   { title: "Papirkurv", url: "/admin/trash", moduleKey: "admin_trash" },

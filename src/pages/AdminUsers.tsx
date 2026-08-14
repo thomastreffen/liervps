@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { EmployeeImport } from "@/components/EmployeeImport";
+// TODO: Port to Google Workspace later (Google Directory-import).
+import { MICROSOFT_UI_ENABLED } from "@/lib/feature-flags";
 import {
   Table,
   TableBody,
@@ -105,9 +107,11 @@ export default function AdminUsers() {
           </div>
         )}
 
-        <div className="mt-8">
-          <EmployeeImport />
-        </div>
+        {MICROSOFT_UI_ENABLED && (
+          <div className="mt-8">
+            <EmployeeImport />
+          </div>
+        )}
       </div>
     </div>
   );

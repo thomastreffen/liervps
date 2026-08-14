@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { MICROSOFT_UI_ENABLED } from "@/lib/feature-flags";
 import { supabase } from "@/integrations/supabase/client";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
@@ -256,13 +257,16 @@ export default function PeoplePage() {
                 <UserPlus className="h-4 w-4" />
                 Legg til manuelt
               </DropdownMenuItem>
-              <DropdownMenuItem
-                className="gap-2"
-                onClick={() => navigate("/admin/personer/import")}
-              >
-                <CloudDownload className="h-4 w-4" />
-                Importer fra Microsoft 365
-              </DropdownMenuItem>
+              {/* TODO: Port to Google Workspace later (Google Directory-import). */}
+              {MICROSOFT_UI_ENABLED && (
+                <DropdownMenuItem
+                  className="gap-2"
+                  onClick={() => navigate("/admin/personer/import")}
+                >
+                  <CloudDownload className="h-4 w-4" />
+                  Importer fra Microsoft 365
+                </DropdownMenuItem>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

@@ -238,12 +238,13 @@ export function CreateJobFromLeadDrawer({ open, onOpenChange, lead, offer, onCre
         metadata: { job_id: jobId, confirmed },
       } as any);
 
-      // Lead-status endres kun når oppdraget faktisk er bekreftet
+      // Lead-status endres kun når oppdraget faktisk er bekreftet.
+      // public_leads.status speiles av databasetriggeren – ikke skriv status herfra.
       if (confirmed) {
         await supabase.from("leads").update({ status: "won" as any }).eq("id", lead.id);
         if (lead.public_lead_id) {
           await supabase.from("public_leads")
-            .update({ status: "won", handled_at: new Date().toISOString(), handled_by: user?.id || null } as any)
+            .update({ handled_at: new Date().toISOString(), handled_by: user?.id || null } as any)
             .eq("id", lead.public_lead_id);
         }
       }
