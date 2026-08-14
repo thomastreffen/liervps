@@ -11,11 +11,11 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Loader2, Mail, CheckCircle2 } from "lucide-react";
+import { Loader2, Mail, CheckCircle2, FileDown, ExternalLink, RefreshCw, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { calcSummaryRows } from "@/lib/calc-summary";
+import { buildOfferPdf, offerContentHash, offerPdfBase64, offerPdfFilename, type OfferPdfInput } from "@/lib/offer-pdf";
 
-// TODO (Tilbud v2): generer PDF av tilbudet og legg ved i e-posten.
 
 export const COMPANY = {
   name: "Lier Varmepumpeservice AS",
