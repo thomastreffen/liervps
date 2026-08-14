@@ -735,6 +735,15 @@ function LeadDetailInner() {
               </CardContent>
             </Card>
 
+            {/* Oppdrag fra henvendelsen */}
+            <LeadLinkedJobsCard
+              leadId={lead.id}
+              refreshKey={jobsRefreshKey}
+              onCreate={() => setJobDrawerOpen(true)}
+            />
+
+
+
             {/* Bestilling fra lead */}
             <CreateOrderFromLeadCard
               lead={{
