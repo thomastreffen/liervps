@@ -395,11 +395,34 @@ export function OfferPreviewDialog({ open, onOpenChange, offer, lead, onUpdated 
             </p>
           </div>
 
-          <DialogFooter className="gap-2 sm:gap-2">
+          {pdfOutdated && (
+            <p className="flex items-center gap-1.5 text-xs text-amber-600">
+              <AlertTriangle className="h-3.5 w-3.5" /> Tilbudet er endret etter PDF ble generert.
+            </p>
+          )}
+
+          <DialogFooter className="gap-2 sm:gap-2 flex-wrap">
             <Button variant="ghost" onClick={() => onOpenChange(false)}>Lukk</Button>
+            <Button variant="outline" className="gap-1.5" onClick={handleDownloadPdf}>
+              <FileDown className="h-4 w-4" /> Last ned PDF
+            </Button>
+            {hasPdf && (
+              <Button variant="outline" className="gap-1.5" asChild>
+                <a href={offer.pdf_drive_url!} target="_blank" rel="noreferrer">
+                  <ExternalLink className="h-4 w-4" /> Åpne PDF
+                </a>
+              </Button>
+            )}
+            {(hasPdf || offer.pdf_generated_at) && (
+              <Button variant="outline" className="gap-1.5" onClick={handleRegenerate} disabled={pdfBusy}>
+                {pdfBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                Regenerer PDF
+              </Button>
+            )}
             <Button variant="outline" className="gap-1.5" onClick={() => setConfirmManual(true)} disabled={isSent}>
               <CheckCircle2 className="h-4 w-4" /> Marker som sendt
             </Button>
+
             <Button className="gap-1.5" onClick={handleSend} disabled={sending || isSent || !recipient}>
               {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
               Send tilbud
