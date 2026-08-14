@@ -233,17 +233,41 @@ export function OfferPreviewDialog({ open, onOpenChange, offer, lead, onUpdated 
     setSending(true);
 
     try {
-      const body = buildOfferText(offer, contactPerson || contact, address);
+      // 1) PDF: generer (og lagre i Drive når mulig). Feiler den, sendes e-posten som før.
+      let pdf: { base64: string; filename: string; driveStatus: string } | null = null;
+      try {
+        pdf = await generatePdf();
+      } catch (e) {
+        console.error("[OfferPreview] pdf generate", e);
+        pdf = null;
+      }
+
       const greeting = contactPerson ? `Hei ${contactPerson},` : "Hei,";
-      const text = [
-        greeting,
-        "",
-        `Takk for henvendelsen til ${COMPANY.name}. Her er tilbudet vårt.`,
-        "",
-        body,
-        "",
-        "Har du spørsmål kan du svare direkte på denne e-posten, så hjelper vi deg videre.",
-      ].join("\n");
+      const text = pdf
+        ? [
+            greeting,
+            "",
+            `Takk for henvendelsen til ${COMPANY.name}. Tilbudet ligger vedlagt som PDF.`,
+            "",
+            offer.project_title,
+            product ? `Produkt: ${product}` : "",
+            Number(offer.total_price) > 0 ? `Estimert pris: ${nok(Number(offer.total_price))} eks. mva` : "",
+            "",
+            VALIDITY_TEXT,
+            "",
+            "Har du spørsmål kan du svare direkte på denne e-posten, så hjelper vi deg videre.",
+            "",
+            `${COMPANY.name} · Tlf ${COMPANY.phone} · ${COMPANY.email}`,
+          ].filter(l => l !== "").join("\n")
+        : [
+            greeting,
+            "",
+            `Takk for henvendelsen til ${COMPANY.name}. Her er tilbudet vårt.`,
+            "",
+            buildOfferText(offer, contactPerson || contact, address),
+            "",
+            "Har du spørsmål kan du svare direkte på denne e-posten, så hjelper vi deg videre.",
+          ].join("\n");
 
       const { data, error } = await supabase.functions.invoke("gmail-send", {
         body: {
@@ -252,6 +276,9 @@ export function OfferPreviewDialog({ open, onOpenChange, offer, lead, onUpdated 
           text,
           html: `<div style="font-family:Arial,sans-serif;font-size:14px;color:#1f2937;white-space:pre-wrap">${text
             .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</div>`,
+          attachments: pdf
+            ? [{ filename: pdf.filename, mime_type: "application/pdf", content_base64: pdf.base64 }]
+            : undefined,
         },
       });
 
@@ -266,8 +293,19 @@ export function OfferPreviewDialog({ open, onOpenChange, offer, lead, onUpdated 
       }
 
       await markSent("email");
-      toast.success("Tilbud sendt", { description: recipient });
+      if (!pdf) {
+        toast.success("Tilbud sendt uten PDF", { description: recipient });
+      } else if (pdf.driveStatus === "uploaded") {
+        toast.success("Tilbud sendt med PDF", { description: `${recipient} · lagret i Google Drive` });
+      } else if (pdf.driveStatus === "no_token") {
+        toast.success("Tilbud sendt med PDF", { description: recipient });
+        toast.message("Tilbud sendt uten Drive-lagring fordi Google Drive ikke er koblet til.");
+      } else {
+        toast.success("Tilbud sendt med PDF", { description: recipient });
+        toast.message("PDF-en ble ikke lagret i Google Drive.");
+      }
       onOpenChange(false);
+
     } catch (e: any) {
       console.error("[OfferPreview] send", e);
       toast.error("Tilbudet ble ikke sendt fordi Gmail ikke er koblet til.");
