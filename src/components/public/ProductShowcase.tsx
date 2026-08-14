@@ -18,6 +18,12 @@ import { productImageFor, productImageForKey } from "./useProductImages";
 import { HeatPumpIllustration } from "./HeatPumpIllustration";
 import { useLead, type LeadContext } from "./LeadContext";
 import { productDetailsFor, type ProductDetails } from "./product-catalog";
+import {
+  compactSpecRows,
+  fullSpecRows,
+  SPEC_DISCLAIMER,
+} from "./product-specs";
+
 
 
 export type { BrandName, Segment, ProductType } from "./product-types";
@@ -961,6 +967,16 @@ function ProductCard({
       <p className="mt-2.5 text-sm text-[hsl(var(--mcs-muted))] leading-relaxed">
         {rp.positioning}
       </p>
+
+      {rp.details?.guidanceNote && (
+        <p className="mt-2 text-sm font-medium text-[hsl(var(--mcs-navy))] leading-snug">
+          {rp.details.guidanceNote}
+        </p>
+      )}
+
+      <CardKeyFacts details={rp.details} />
+
+
 
       <div className="mt-4">
         <p className="text-[11px] uppercase tracking-wider text-[hsl(var(--mcs-muted))] mb-2">

@@ -12,6 +12,8 @@
  */
 
 import type { BrandName, ProductType } from "./product-types";
+import { productSpecsFor, type ProductSpecs } from "./product-specs";
+
 
 export type ImageStatus =
   | "missing"
@@ -52,7 +54,20 @@ export type ProductDetails = {
   sourceLabel?: string;
   /** Internal only. ISO date of last content review. */
   lastReviewed?: string;
+  /** Official manufacturer/distributor specifications. Never estimated. */
+  specs?: ProductSpecs;
+  /** Which model size the specs apply to. Public. */
+  specBasis?: string;
+  /** Short customer-friendly guidance line. Public. */
+  guidanceNote?: string;
+  /** Internal only. */
+  specSourceUrl?: string;
+  /** Internal only. */
+  specSourceLabel?: string;
+  /** Internal only. ISO date of last spec review. */
+  specLastReviewed?: string;
 };
+
 
 const REVIEWED = "2026-08-14";
 
@@ -966,5 +981,18 @@ export const PRODUCT_DETAILS: Record<string, ProductDetails> = {
 };
 
 export function productDetailsFor(name: string): ProductDetails | null {
-  return PRODUCT_DETAILS[name] ?? null;
+  const base = PRODUCT_DETAILS[name];
+  if (!base) return null;
+  const spec = productSpecsFor(name);
+  if (!spec) return base;
+  return {
+    ...base,
+    specs: spec.specs,
+    specBasis: spec.specBasis,
+    guidanceNote: spec.guidanceNote,
+    specSourceUrl: spec.specSourceUrl,
+    specSourceLabel: spec.specSourceLabel,
+    specLastReviewed: spec.specLastReviewed,
+  };
 }
+
