@@ -862,9 +862,11 @@ function resolveProduct(item: ProductItem): ResolvedProduct {
       : [
           "Endelig modell og størrelse avhenger av bolig, planløsning, plassering og varmebehov, og må vurderes på befaring.",
         ],
-    imageAlt: details?.imageAlt ?? `${item.name} varmepumpe`,
+    imageAlt,
+    gallery,
   };
 }
+
 
 /** Compact "Nøkkeldata" strip on the card. Hidden when no official specs exist. */
 function CardKeyFacts({ details }: { details: ProductDetails | null }) {
