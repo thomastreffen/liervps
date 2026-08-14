@@ -1170,20 +1170,33 @@ function ProductCard({
   item,
   logo,
   segment,
-  onOpen,
+  onSelect,
+  onQuickView,
+  selected,
 }: {
   item: ProductItem;
   logo: string | null;
   segment: Segment;
-  onOpen: () => void;
+  onSelect: () => void;
+  onQuickView: () => void;
+  selected: boolean;
 }) {
   const { startLead } = useLead();
   const rp = useMemo(() => resolveProduct(item), [item]);
   const displayName = rp.details?.modelName ?? item.name;
   const family = rp.details?.modelFamily;
+  const hasVariants = (rp.details?.specVariants?.length ?? 0) > 1;
 
   return (
-    <article className="h-full bg-white rounded-xl border border-[hsl(var(--warm-beige))] p-4 sm:p-5 flex flex-col shadow-[0_1px_2px_hsl(var(--mcs-navy)/0.04)] hover:shadow-[0_8px_24px_-12px_hsl(var(--mcs-navy)/0.18)] transition-shadow">
+    <article
+      id={productAnchorId(item)}
+      className={`h-full scroll-mt-28 bg-white rounded-xl border p-4 sm:p-5 flex flex-col transition-shadow ${
+        selected
+          ? "border-[hsl(var(--mcs-orange))] shadow-[0_8px_24px_-12px_hsl(var(--mcs-navy)/0.25)]"
+          : "border-[hsl(var(--warm-beige))] shadow-[0_1px_2px_hsl(var(--mcs-navy)/0.04)] hover:shadow-[0_8px_24px_-12px_hsl(var(--mcs-navy)/0.18)]"
+      }`}
+    >
+
       <div className="mb-3">
         <BrandRow brand={item.brand} logo={logo} />
       </div>
