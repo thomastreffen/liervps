@@ -274,16 +274,16 @@ export const ScheduleBlockDetailPanel = memo(function ScheduleBlockDetailPanel({
 
       if (result?.status === "ok") {
         if (result.deleted_in_outlook) {
-          toast.success("Fjernet fra plan og Outlook ✓", {
-            description: `${result.outlook_events_removed} Outlook-hendelse(r) slettet.`,
+          toast.success("Fjernet fra plan og ekstern kalender ✓", {
+            description: `${result.outlook_events_removed} kalenderhendelse(r) slettet.`,
           });
         } else if ((forceDeleteOutlook ?? false) || isSystem) {
           toast.warning("Delvis sletting", {
-            description: result.outlook_error || "Outlook-avtale ble ikke bekreftet slettet.",
+            description: result.outlook_error || "Kalenderavtalen ble ikke bekreftet slettet.",
           });
         } else if (isOutlook && !forceDeleteOutlook) {
           toast.success("Fjernet fra plan", {
-            description: "Outlook-avtalen er beholdt.",
+            description: "Kalenderavtalen er beholdt.",
           });
         } else {
           toast.success("Fjernet fra plan ✓");
@@ -320,7 +320,7 @@ export const ScheduleBlockDetailPanel = memo(function ScheduleBlockDetailPanel({
             {isOutlook && (
               <div className="flex items-center gap-1.5 mb-1">
                 <CalendarIcon className="h-3.5 w-3.5 text-primary" />
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-primary">Fra Outlook</span>
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-primary">Fra ekstern kalender</span>
               </div>
             )}
             {isSystem && (
@@ -492,7 +492,7 @@ export const ScheduleBlockDetailPanel = memo(function ScheduleBlockDetailPanel({
           <a href={outlookUrl} target="_blank" rel="noopener noreferrer" className="block">
             <Button variant="ghost" size="sm" className="h-7 text-xs gap-1 rounded-lg w-full justify-start">
               <ExternalLink className="h-3 w-3" />
-              Åpne i Outlook
+              Åpne i kalender
             </Button>
           </a>
         )}
@@ -519,8 +519,8 @@ export const ScheduleBlockDetailPanel = memo(function ScheduleBlockDetailPanel({
               </AlertDialogTitle>
               <AlertDialogDescription>
                 {isSystem
-                  ? "Dette fjerner oppdraget fra planen og sletter avtalen fra montørens Outlook-kalender. Kan ikke angres."
-                  : "Denne hendelsen ble importert fra Outlook. Velg om du bare vil fjerne den fra planoversikten, eller også slette den fra Outlook."}
+                  ? "Dette fjerner oppdraget fra planen og sletter avtalen fra montørens kalender. Kan ikke angres."
+                  : "Denne hendelsen ble importert fra en ekstern kalender. Velg om du bare vil fjerne den fra planoversikten, eller også slette den i kalenderen."}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -543,7 +543,7 @@ export const ScheduleBlockDetailPanel = memo(function ScheduleBlockDetailPanel({
                     className="gap-1.5"
                   >
                     {actionLoading === "delete" && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                    Fjern også fra Outlook
+                    Fjern også fra kalenderen
                   </Button>
                 </>
               ) : (
