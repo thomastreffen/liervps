@@ -1878,10 +1878,29 @@ export function ProductShowcase() {
               item={item}
               segment={segment}
               logo={logos[item.brand] ?? null}
-              onOpen={() => setDetail(item)}
+              selected={activeSelected?.name === item.name}
+              onSelect={() => selectProduct(item)}
+              onQuickView={() => setDetail(item)}
             />
           ))}
         </div>
+
+        <div ref={inlineRef} className="scroll-mt-28">
+          {activeSelected && (
+            <InlineProductDetail
+              item={activeSelected}
+              segment={segment}
+              logo={activeSelected.brand ? logos[activeSelected.brand] ?? null : null}
+              onClose={() => setSelected(null)}
+            />
+          )}
+        </div>
+
+        <ComparisonTable
+          items={items}
+          selectedName={activeSelected?.name ?? null}
+          onSelect={selectProduct}
+        />
 
         <ProductDetailDialog
           item={detail}
@@ -1890,6 +1909,7 @@ export function ProductShowcase() {
           open={detail !== null}
           onOpenChange={(v) => !v && setDetail(null)}
         />
+
 
         <div className="mt-6">
           <p className="text-xs text-[hsl(var(--mcs-muted))]">
