@@ -796,7 +796,13 @@ function leadForItem(item: ProductItem, segment: Segment): LeadContext {
     : { source: "solution", segment, interestType: "losning-anbefaling", solutionName: item.name };
 }
 
-/** Stable anchor id for deep-linking a product, e.g. #produkt-mitsubishi-electric-uwano-pure */
+/**
+ * Stable anchor id for deep-linking a product.
+ * Segment-scoped so the same model can appear in both bolig and næring
+ * without producing duplicate ids, e.g.
+ *   #produkt-bolig-mitsubishi-electric-nordic-multi
+ *   #produkt-naering-mitsubishi-electric-nordic-multi
+ */
 function slugify(value: string) {
   return value
     .toLowerCase()
@@ -807,8 +813,18 @@ function slugify(value: string) {
     .replace(/^-+|-+$/g, "");
 }
 
-function productAnchorId(item: ProductItem) {
-  return `produkt-${slugify(`${item.brand ?? "losning"}-${item.name}`)}`;
+/** Brand+model part only — used for legacy anchors without segment. */
+function productSlug(item: ProductItem) {
+  return slugify(`${item.brand ?? "losning"}-${item.name}`);
+}
+
+function productAnchorId(item: ProductItem, segment: Segment) {
+  return `produkt-${segment}-${productSlug(item)}`;
+}
+
+/** Legacy (pre-segment) anchor, kept so old links still resolve. */
+function legacyProductAnchorId(item: ProductItem) {
+  return `produkt-${productSlug(item)}`;
 }
 
 
@@ -1189,7 +1205,7 @@ function ProductCard({
 
   return (
     <article
-      id={productAnchorId(item)}
+      id={productAnchorId(item, segment)}
       className={`h-full scroll-mt-28 bg-white rounded-xl border p-4 sm:p-5 flex flex-col transition-shadow ${
         selected
           ? "border-[hsl(var(--mcs-orange))] shadow-[0_8px_24px_-12px_hsl(var(--mcs-navy)/0.25)]"
@@ -1725,14 +1741,30 @@ export function ProductShowcase() {
     if (id === "varmepumper-naering") selectSegment("naering");
     else if (id === "varmepumper-bolig") selectSegment("bolig");
     else if (id.startsWith("produkt-")) {
+      // 1) segment-scoped anchor, 2) legacy anchor -> first matching group
+      const open = (g: (typeof GROUPS)[number], match: ProductItem) => {
+        setSegment(g.segment);
+        setGroupId(g.id);
+        setBrandFilter(ALL_BRANDS);
+        selectProduct(match);
+      };
+
+      let found = false;
       for (const g of GROUPS) {
-        const match = g.items.find((i) => productAnchorId(i) === id);
+        const match = g.items.find((i) => productAnchorId(i, g.segment) === id);
         if (match) {
-          setSegment(g.segment);
-          setGroupId(g.id);
-          setBrandFilter(ALL_BRANDS);
-          selectProduct(match);
+          open(g, match);
+          found = true;
           break;
+        }
+      }
+      if (!found) {
+        for (const g of GROUPS) {
+          const match = g.items.find((i) => legacyProductAnchorId(i) === id);
+          if (match) {
+            open(g, match);
+            break;
+          }
         }
       }
     }
