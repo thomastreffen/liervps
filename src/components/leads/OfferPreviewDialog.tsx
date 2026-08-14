@@ -155,11 +155,13 @@ export function OfferPreviewDialog({ open, onOpenChange, offer, lead, onUpdated 
   };
 
   const handleSend = async () => {
+    if (sending || isSent) return;
     if (!recipient) {
       toast.error("Mangler e-postadresse på kunden");
       return;
     }
     setSending(true);
+
     try {
       const body = buildOfferText(offer, contactPerson || contact, address);
       const greeting = contactPerson ? `Hei ${contactPerson},` : "Hei,";
