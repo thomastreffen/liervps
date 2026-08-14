@@ -17,17 +17,11 @@ import { useBrandLogos, BRAND_LOGO_CLASS } from "./useBrandLogos";
 import { productImageFor } from "./useProductImages";
 import { HeatPumpIllustration } from "./HeatPumpIllustration";
 import { useLead, type LeadContext } from "./LeadContext";
+import { productDetailsFor, type ProductDetails } from "./product-catalog";
 
 
-export type BrandName = "Mitsubishi Electric" | "Panasonic" | "Toshiba";
-export type Segment = "bolig" | "naering";
-export type ProductType =
-  | "Luft-luft"
-  | "Gulvmodell"
-  | "Multisplitt"
-  | "Luft-vann"
-  | "Næring"
-  | "Tilbehør";
+export type { BrandName, Segment, ProductType } from "./product-types";
+import type { BrandName, Segment, ProductType } from "./product-types";
 
 export type ProductItem = {
   /** Omitted for merkeuavhengige løsningskort. */
