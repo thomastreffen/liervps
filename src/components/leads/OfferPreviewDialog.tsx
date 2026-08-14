@@ -149,21 +149,28 @@ export function OfferPreviewDialog({ open, onOpenChange, offer, lead, onUpdated 
   }), [offer.id, offer.project_title, offer.created_at, offer.total_price, contact, contactPerson, recipient, address, scopeText, product, snap.recommended_solution, snap.calculator_summary]);
 
   const currentHash = useMemo(() => offerContentHash(pdfInput), [pdfInput]);
-  const hasPdf = Boolean(offer.pdf_drive_url);
-  const pdfOutdated = hasPdf && Boolean(offer.pdf_content_hash) && offer.pdf_content_hash !== currentHash;
   const [pdfBusy, setPdfBusy] = useState(false);
+  // Lokal PDF-status så lenker og advarsel oppdateres uten å lukke dialogen.
+  const [localPdf, setLocalPdf] = useState<{ url: string | null; hash: string | null } | null>(null);
+  const pdfUrl = localPdf ? localPdf.url : (offer.pdf_drive_url ?? null);
+  const pdfHash = localPdf ? localPdf.hash : (offer.pdf_content_hash ?? null);
+  const hasPdf = Boolean(pdfUrl);
+  const pdfEverGenerated = hasPdf || Boolean(localPdf) || Boolean(offer.pdf_generated_at);
+  const pdfOutdated = pdfEverGenerated && Boolean(pdfHash) && pdfHash !== currentHash;
 
   /** Genererer PDF lokalt og laster den opp til Drive-mappen når Drive er koblet til. */
-  const generatePdf = async (): Promise<{ base64: string; filename: string; driveStatus: string } | null> => {
+  const generatePdf = async (): Promise<{ base64: string; filename: string; driveStatus: string; fileUrl: string | null }> => {
     const doc = buildOfferPdf(pdfInput);
     const base64 = offerPdfBase64(doc);
     const filename = offerPdfFilename(pdfInput);
     let driveStatus = "skipped";
+    let fileUrl: string | null = null;
     try {
       const { data, error } = await supabase.functions.invoke("offer-pdf-upload", {
         body: { calculation_id: offer.id, lead_id: lead.id, filename, pdf_base64: base64 },
       });
       driveStatus = error ? "error" : ((data as any)?.status ?? "error");
+      fileUrl = (data as any)?.file_url ?? null;
     } catch (e) {
       console.error("[OfferPreview] pdf upload", e);
       driveStatus = "error";
@@ -171,22 +178,23 @@ export function OfferPreviewDialog({ open, onOpenChange, offer, lead, onUpdated 
     await supabase.from("calculations")
       .update({ pdf_generated_at: new Date().toISOString(), pdf_content_hash: currentHash } as any)
       .eq("id", offer.id);
-    return { base64, filename, driveStatus };
+    setLocalPdf({ url: fileUrl ?? offer.pdf_drive_url ?? null, hash: currentHash });
+    return { base64, filename, driveStatus, fileUrl };
   };
 
   const handleRegenerate = async () => {
-    if (pdfBusy) return;
+    if (pdfBusy || sending) return;
     setPdfBusy(true);
     try {
       const res = await generatePdf();
-      if (res?.driveStatus === "uploaded") toast.success("PDF oppdatert i Google Drive");
-      else if (res?.driveStatus === "no_token") toast.message("PDF laget uten Drive-lagring", { description: "Google Drive er ikke koblet til." });
+      if (res.driveStatus === "uploaded") toast.success("PDF oppdatert i Google Drive");
+      else if (res.driveStatus === "no_token") toast.message("PDF laget uten Drive-lagring", { description: "Google Drive er ikke koblet til." });
       else toast.message("PDF laget", { description: "Kunne ikke lagre i Google Drive." });
-      onUpdated?.();
     } finally {
       setPdfBusy(false);
     }
   };
+
 
   const handleDownloadPdf = () => {
     const doc = buildOfferPdf(pdfInput);
