@@ -1707,15 +1707,38 @@ export function ProductShowcase() {
     ALL_BRANDS
   );
   const [detail, setDetail] = useState<ProductItem | null>(null);
+  const [selected, setSelected] = useState<ProductItem | null>(null);
+  const inlineRef = useRef<HTMLDivElement | null>(null);
 
+  function selectProduct(item: ProductItem) {
+    setSelected(item);
+    if (typeof window !== "undefined") {
+      window.requestAnimationFrame(() =>
+        inlineRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+      );
+    }
+  }
 
   // Deep links from the bolig/næring cards: #varmepumper-bolig / #varmepumper-naering
   useEffect(() => {
     const id = hash.replace("#", "");
     if (id === "varmepumper-naering") selectSegment("naering");
     else if (id === "varmepumper-bolig") selectSegment("bolig");
+    else if (id.startsWith("produkt-")) {
+      for (const g of GROUPS) {
+        const match = g.items.find((i) => productAnchorId(i) === id);
+        if (match) {
+          setSegment(g.segment);
+          setGroupId(g.id);
+          setBrandFilter(ALL_BRANDS);
+          selectProduct(match);
+          break;
+        }
+      }
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hash]);
+
 
   const groups = useMemo(
     () => GROUPS.filter((g) => g.segment === segment),
