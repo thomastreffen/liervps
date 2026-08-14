@@ -25,6 +25,15 @@ export function HeatPumpIllustration({
             <stop offset="0%" stopColor="#ffffff" />
             <stop offset="100%" stopColor="#eef1f4" />
           </linearGradient>
+          <linearGradient id="hpFace" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#ffffff" />
+            <stop offset="62%" stopColor="#f7f9fb" />
+            <stop offset="100%" stopColor="#e6ebf0" />
+          </linearGradient>
+          <linearGradient id="hpVent" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="hsl(var(--mcs-navy))" stopOpacity="0.22" />
+            <stop offset="100%" stopColor="hsl(var(--mcs-navy))" stopOpacity="0.06" />
+          </linearGradient>
         </defs>
 
         {/* wall / floor reference line */}
@@ -89,17 +98,28 @@ export function HeatPumpIllustration({
             {/* indoor unit — wall mounted or floor standing */}
             {variant === "floor" ? (
               <g>
-                <rect x="52" y="46" width="96" height="58" rx="10" fill="url(#hpBody)" stroke="hsl(var(--mcs-navy))" strokeOpacity="0.35" strokeWidth="2" />
-                <line x1="62" y1="92" x2="138" y2="92" stroke="hsl(var(--mcs-navy))" strokeOpacity="0.25" strokeWidth="3" />
-                <line x1="62" y1="60" x2="110" y2="60" stroke="hsl(var(--mcs-navy))" strokeOpacity="0.15" strokeWidth="2" />
-                <circle cx="134" cy="60" r="3" fill="hsl(var(--mcs-orange))" />
+                <ellipse cx="100" cy="106" rx="52" ry="4" fill="hsl(var(--mcs-navy))" fillOpacity="0.07" />
+                <rect x="54" y="44" width="92" height="60" rx="12" fill="url(#hpFace)" stroke="hsl(var(--mcs-navy))" strokeOpacity="0.28" strokeWidth="1.6" />
+                <path d="M62 50h76" stroke="#ffffff" strokeOpacity="0.9" strokeWidth="2" strokeLinecap="round" />
+                <rect x="64" y="88" width="72" height="8" rx="4" fill="url(#hpVent)" />
+                <path d="M64 62h48" stroke="hsl(var(--mcs-navy))" strokeOpacity="0.09" strokeWidth="1.4" strokeLinecap="round" />
+                <circle cx="132" cy="62" r="2.4" fill="hsl(var(--mcs-orange))" />
               </g>
             ) : (
               <g>
-                <rect x="38" y="30" width="124" height="34" rx="14" fill="url(#hpBody)" stroke="hsl(var(--mcs-navy))" strokeOpacity="0.35" strokeWidth="2" />
-                <line x1="50" y1="55" x2="150" y2="55" stroke="hsl(var(--mcs-navy))" strokeOpacity="0.25" strokeWidth="3" />
-                <line x1="50" y1="43" x2="112" y2="43" stroke="hsl(var(--mcs-navy))" strokeOpacity="0.12" strokeWidth="2" />
-                <circle cx="150" cy="43" r="3" fill="hsl(var(--mcs-orange))" />
+                {/* soft shadow under the unit */}
+                <ellipse cx="100" cy="70" rx="60" ry="5" fill="hsl(var(--mcs-navy))" fillOpacity="0.07" />
+                {/* main body — slim, rounded, modern */}
+                <rect x="34" y="28" width="132" height="36" rx="17" fill="url(#hpFace)" stroke="hsl(var(--mcs-navy))" strokeOpacity="0.28" strokeWidth="1.6" />
+                {/* top surface highlight */}
+                <path d="M44 34h112" stroke="#ffffff" strokeOpacity="0.9" strokeWidth="2" strokeLinecap="round" />
+                {/* louvre / air outlet */}
+                <rect x="44" y="53" width="112" height="7" rx="3.5" fill="url(#hpVent)" />
+                <path d="M46 56.5h108" stroke="hsl(var(--mcs-navy))" strokeOpacity="0.18" strokeWidth="1" strokeLinecap="round" />
+                {/* subtle front seam + display */}
+                <path d="M44 45h74" stroke="hsl(var(--mcs-navy))" strokeOpacity="0.09" strokeWidth="1.4" strokeLinecap="round" />
+                <rect x="132" y="41" width="22" height="6" rx="3" fill="hsl(var(--mcs-navy))" fillOpacity="0.08" />
+                <circle cx="151" cy="44" r="2.2" fill="hsl(var(--mcs-orange))" />
               </g>
             )}
             {/* airflow */}
@@ -108,8 +128,8 @@ export function HeatPumpIllustration({
                 key={i}
                 d={
                   variant === "floor"
-                    ? `M${68 + i * 26} 34c6 5 6 9 0 14`
-                    : `M${70 + i * 26} 74c6 6 6 11 0 17`
+                    ? `M${74 + i * 24} 104c6 5 6 9 0 14`
+                    : `M${72 + i * 26} 70c6 6 6 11 0 17`
                 }
                 fill="none"
                 stroke="hsl(var(--mcs-orange))"
