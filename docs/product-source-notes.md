@@ -9,10 +9,15 @@ Sist gjennomgått: 2026-08-14
 
 - Kun konservative, kundevennlige formuleringer: "passer ofte for", "aktuelt ved",
   "typisk valgt når", "må vurderes på befaring".
-- Ingen priser, ingen eksakte ytelsestall (SCOP, dB, kW), ingen "best i test",
-  ingen garanterte besparelser.
-- Lyd- og kuldeklima-notater brukes kun der produsent/leverandør selv posisjonerer
-  modellen slik, og formuleres som posisjonering – ikke som måltall.
+- Ingen priser, ingen "best i test", ingen garanterte besparelser.
+- Ytelsestall (SCOP, SEER, dB, kW, energiklasse) er tillatt **kun** som direkte
+  gjengivelse av offisielle produsent-/importørdata, lagret i
+  `src/components/public/product-specs.ts`. Ingenting estimeres eller
+  interpoleres. Mangler en verdi, utelates linjen.
+- Lyd- og kuldeklima-notater i `product-catalog.ts` brukes kun der
+  produsent/leverandør selv posisjonerer modellen slik, og formuleres som
+  posisjonering – ikke som måltall.
+
 
 ## Bildestatus
 
@@ -61,3 +66,48 @@ Sist gjennomgått: 2026-08-14
 `src/assets/lier/products/<merke>/`. Ingen hotlinking. Formell forhandler-/
 leverandørgodkjenning må foreligge før offentlig lansering – se
 `docs/product-image-import-plan.md` for full oversikt per bilde.
+
+## Spesifikasjoner (product-specs.ts)
+
+Sist gjennomgått: 2026-08-14. Alle tall er hentet ordrett fra kilden i tabellen.
+Kildelenkene (`specSourceUrl` / `specSourceLabel`) er interne og rendres aldri.
+
+| Produkt | Kilde | Gjelder modell | Spesifikasjoner brukt | Mangler |
+| --- | --- | --- | --- | --- |
+| UWANO Pure | mee.no/uwanopure | UWANO Pure 7000 | SCOP (kaldt klima), energiklasse varme, lyd inne/ute, driftstemp. varme, kuldemedium (R290) | kW nominell/min-maks, kjøleeffekt, SEER, energiklasse kjøling, mål |
+| Kaiteki | mee.no/kaiteki | Kaiteki 6300/6600 | SCOP, energiklasse varme, lyd inne/ute, driftstemp. varme, kuldemedium | kW nominell/min-maks, kjøleeffekt, SEER, energiklasse kjøling, mål |
+| GUSSURI | mee.no/gussuri | serie | Lyd inne/ute | alt annet – MEE oppgir ikke tabell |
+| IGURU | mee.no/iguru | IGURU 6200 | Varmeeffekt nominell, driftstemp. varme, kuldemedium, mål innedel | SCOP, SEER, energiklasser, lyd, kjøleeffekt, mål utedel |
+| Furo | mee.no/furo | Furo 5100/6000 | Lyd innedel, garantert kapasitet ved -15/-25 °C | SCOP, SEER, energiklasser, kjøleeffekt, kuldemedium, mål |
+| Zen | mee.no/zen | serie | SCOP, lyd innedel, driftstemp. varme, dybde innedel | kW, kjøleeffekt, SEER, energiklasser, lyd utedel, kuldemedium |
+| Duo-modellen | mee.no/duo-7000 | Duo 7000 | Kapasitet ved -15 °C, driftstemp. varme, kuldemedium | SCOP, SEER, energiklasser, lyd, mål, kjøleeffekt |
+| Nordic Multi | mee.no/nordic-multi | Nordic Multi 2/3/4 | Driftstemp. varme, kuldemedium | SCOP, SEER, energiklasser, lyd, kW, mål |
+| Toshiba Signatur | toshibavarmepumper.no/signatur-25 | Signatur 25 | Full tabell: varme nom./maks, kjøling nom./maks, SCOP, SEER, begge energiklasser, lyd inne/ute, -25 °C, R32, mål inne/ute | veiledende areal |
+| Toshiba Daiseikai 10 Kontur | toshibavarmepumper.no/toshiba-kontur-25 | Kontur 25 | Full tabell (som over) | veiledende areal |
+| Toshiba Daiseikai 10 Ask | toshibavarmepumper.no/toshiba-ask-25 | Ask 25 | Full tabell (som over) | veiledende areal |
+| Toshiba Polar | toshibavarmepumper.no/toshiba-polar-25 | Polar 25 | Full tabell (som over) | veiledende areal |
+| Toshiba Seiya | toshibavarmepumper.no/toshiba-seiya-nordic-25 | Seiya Nordic 25 | Full tabell (som over) | stillemodus dB, veiledende areal |
+| Toshiba Gulvmodell | toshibavarmepumper.no/toshiba-gulvmodell-25 | Gulvmodell 25 | Full tabell. SCOP 4,3 og energiklasse varme A+ fra produktbeskrivelsen; A++ i tabellen gjelder kjøling | veiledende areal |
+| Toshiba Multisplitt Nordic | toshibavarmepumper.no/multi-nordic | Multi Nordic, 2 innedeler | Full tabell (samlet kapasitet) | veiledende areal |
+| Panasonic HZ Flagship | Panasonic distributørkatalog – KIT-HZ25ZKE | KIT-HZ25ZKE | Varme nom./min-maks, kjøling nom./min-maks, SCOP 5,69, energiklasse varme, lyd inne/ute, -25 °C, R32, mål inne/ute | SEER, energiklasse kjøling, veiledende areal |
+| Panasonic NZ | aircon.panasonic.eu (NZ25YKE) + distributørkatalog | KIT-NZ25YKE | Varme nom./min-maks, kjøling nom./min-maks, SCOP 5,0, SEER 8,0, begge energiklasser, lyd inne/ute, -25 °C, R32, mål inne/ute | veiledende areal |
+| Panasonic CZ | distributørkatalog – KIT-CZ25ZKE | KIT-CZ25ZKE | Varme, kjøling, SCOP 4,3, energiklasse varme, lyd inne/ute, -25 °C, R32, mål | SEER, energiklasse kjøling, veiledende areal |
+| Panasonic LZ | distributørkatalog – KIT-LZ25TKE | KIT-LZ25TKE | Varme, kjøling, SCOP 5,0, energiklasse varme, lyd inne/ute, -15 °C, R32, mål | SEER, energiklasse kjøling, kapasitet ved -25 °C, veiledende areal |
+| Panasonic VZ Heatcharge | distributørkatalog – KIT-VZ12-SKE | KIT-VZ12-SKE | Varme, kjøling, SCOP 5,9, energiklasse varme, lyd inne/ute, -25 °C, R32, mål | SEER, energiklasse kjøling, dybde utedel, veiledende areal |
+| Panasonic Gulvmodell | distributørkatalog – KIT-Z25CFEA-1 | KIT-Z25CFEA-1 | Varme, kjøling, SCOP 4,7, begge energiklasser, lyd inne/ute, -25 °C, R32, mål | SEER-tall, veiledende areal |
+
+### Uten spesifikasjoner (viser ingen Nøkkeldata-blokk)
+
+Panasonic Multisplitt, Panasonic Multisplitt nordisk, Panasonic Luft/vann,
+Panasonic Næring, Toshiba Multisplitt, Tekstiltrekk til Signatur,
+Større lokaler / flere soner.
+
+### Trenger manuell verifisering
+
+- **Panasonic Multisplitt (CU-3Z52TBE)** – distributørens produktside svarte 404
+  ved gjennomgang. Spesifikasjoner må hentes på nytt.
+- **Mitsubishi Electric samlet** – MEE publiserer ikke fullstendige
+  spesifikasjonstabeller offentlig. Kun tall som står eksplisitt i teksten er
+  brukt. Bør suppleres fra offisielle datablad/produktark når disse er tilgjengelige.
+- **Veiledende areal** – ingen av kildene oppgir dette. Feltet
+  `suitableAreaIndicative` er derfor tomt for alle produkter.

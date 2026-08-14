@@ -18,6 +18,12 @@ import { productImageFor, productImageForKey } from "./useProductImages";
 import { HeatPumpIllustration } from "./HeatPumpIllustration";
 import { useLead, type LeadContext } from "./LeadContext";
 import { productDetailsFor, type ProductDetails } from "./product-catalog";
+import {
+  compactSpecRows,
+  fullSpecRows,
+  SPEC_DISCLAIMER,
+} from "./product-specs";
+
 
 
 export type { BrandName, Segment, ProductType } from "./product-types";
@@ -843,6 +849,69 @@ function resolveProduct(item: ProductItem): ResolvedProduct {
   };
 }
 
+/** Compact "Nøkkeldata" strip on the card. Hidden when no official specs exist. */
+function CardKeyFacts({ details }: { details: ProductDetails | null }) {
+  if (!details?.specs) return null;
+  const rows = compactSpecRows(details.specs);
+  if (!rows.length) return null;
+
+  return (
+    <div className="mt-3 rounded-lg bg-[hsl(var(--warm-beige))]/40 border border-[hsl(var(--warm-beige))] px-3 py-2.5">
+      <p className="text-[11px] uppercase tracking-wider text-[hsl(var(--mcs-muted))] mb-1.5">
+        Nøkkeldata
+      </p>
+      <dl className="space-y-1">
+        {rows.slice(0, 4).map((r) => (
+          <div
+            key={r.label}
+            className="flex flex-wrap items-baseline gap-x-1.5 text-[13px] leading-snug"
+          >
+            <dt className="text-[hsl(var(--mcs-muted))]">{r.label}:</dt>
+            <dd className="min-w-0 font-medium text-[hsl(var(--mcs-navy))] break-words">
+              {r.value}
+            </dd>
+          </div>
+        ))}
+      </dl>
+    </div>
+  );
+}
+
+/** Full spec list in the modal. */
+function ModalKeyFacts({ details }: { details: ProductDetails | null }) {
+  if (!details?.specs) return null;
+  const rows = fullSpecRows(details.specs);
+  if (!rows.length) return null;
+
+  return (
+    <DialogSection title="Nøkkeldata fra produsent/importør">
+      {details.specBasis && (
+        <p className="text-xs text-[hsl(var(--mcs-muted))] mb-2">
+          Gjelder {details.specBasis}
+        </p>
+      )}
+      <dl className="rounded-lg border border-[hsl(var(--warm-beige))] divide-y divide-[hsl(var(--warm-beige))] overflow-hidden">
+        {rows.map((r) => (
+          <div
+            key={r.label}
+            className="grid grid-cols-1 sm:grid-cols-[minmax(0,10rem)_1fr] gap-x-3 px-3 py-2 odd:bg-[hsl(var(--warm-beige))]/25"
+          >
+            <dt className="text-[13px] text-[hsl(var(--mcs-muted))]">{r.label}</dt>
+            <dd className="text-[13px] font-medium text-[hsl(var(--mcs-navy))] min-w-0 break-words">
+              {r.value}
+            </dd>
+          </div>
+        ))}
+      </dl>
+      <p className="mt-2 text-xs text-[hsl(var(--mcs-muted))] leading-relaxed">
+        {SPEC_DISCLAIMER}
+      </p>
+    </DialogSection>
+  );
+}
+
+
+
 /** Shared image area — fixed 4:3 slot so all cards line up. */
 function ProductMedia({ rp }: { rp: ResolvedProduct }) {
   const { item, details, imageAlt } = rp;
@@ -962,6 +1031,16 @@ function ProductCard({
         {rp.positioning}
       </p>
 
+      {rp.details?.guidanceNote && (
+        <p className="mt-2 text-sm font-medium text-[hsl(var(--mcs-navy))] leading-snug">
+          {rp.details.guidanceNote}
+        </p>
+      )}
+
+      <CardKeyFacts details={rp.details} />
+
+
+
       <div className="mt-4">
         <p className="text-[11px] uppercase tracking-wider text-[hsl(var(--mcs-muted))] mb-2">
           Styrker
@@ -1068,6 +1147,13 @@ function ProductDetailDialog({
           {rp.positioning}
         </p>
 
+        {rp.details?.guidanceNote && (
+          <p className="-mt-1 text-sm font-medium text-[hsl(var(--mcs-navy))]">
+            {rp.details.guidanceNote}
+          </p>
+        )}
+
+
         <TagRow tags={item.tags} />
 
         <div className="space-y-5">
@@ -1084,6 +1170,9 @@ function ProductDetailDialog({
               ))}
             </ul>
           </DialogSection>
+
+          <ModalKeyFacts details={rp.details} />
+
 
           <DialogSection title="Typisk bruk">
             <p className="text-sm text-[hsl(var(--mcs-muted))] leading-relaxed">
