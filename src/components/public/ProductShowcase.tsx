@@ -796,6 +796,22 @@ function leadForItem(item: ProductItem, segment: Segment): LeadContext {
     : { source: "solution", segment, interestType: "losning-anbefaling", solutionName: item.name };
 }
 
+/** Stable anchor id for deep-linking a product, e.g. #produkt-mitsubishi-electric-uwano-pure */
+function slugify(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/æ/g, "ae")
+    .replace(/ø/g, "o")
+    .replace(/å/g, "a")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function productAnchorId(item: ProductItem) {
+  return `produkt-${slugify(`${item.brand ?? "losning"}-${item.name}`)}`;
+}
+
+
 /** Generic fallback usage text per product type, used when no structured entry exists. */
 const TYPICAL_USE: Record<string, string> = {
   "Luft-luft":
