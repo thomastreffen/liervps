@@ -1,79 +1,69 @@
-# Produktbilder — Lier VPS
+# Produktbilder – Lier VPS
 
-Her legges **kun rettighetsklarerte** produktbilder som Lier VPS har lov til å bruke
-(offisielt forhandlermateriell, egne foto fra utførte installasjoner, eller bilder
-med skriftlig tillatelse fra leverandør).
+Bilder som legges her vises automatisk i produktseksjonen på forsiden.
 
-Ikke tillatt:
+## Rettigheter – les først
 
-- hotlinking til leverandørens bilder
-- skraping av bilder fra nett
-- tilfeldige produktbilder funnet på internett
-- AI-genererte «fake» produktbilder som utgir seg for å være en ekte modell
+Bruk **kun**:
 
-Mangler bildet, faller kortet automatisk tilbake til vår egen illustrasjon av en
-moderne veggmontert varmepumpe. Det er helt greit å la slots stå tomme.
+- bilder som er lastet opp til prosjektet av Lier VPS
+- offisielle produktbilder fra produsent der bruk er avklart
+- bilder fra leverandør-/distributørbildebank der bruk er tillatt
 
-## Mappestruktur
+**Aldri**:
+
+- skrape eller laste ned bilder fra tilfeldige nettsider
+- hotlinke til bilder på produsent- eller distributørsider
+- bruke bilder uten avklart bruksrett
+
+Hvis et bilde mangler, viser kortet vår egen illustrasjon. Det er alltid bedre
+enn et ulisensiert bilde, og det vises aldri et ødelagt bildeikon.
+
+## Hvor filene skal ligge
 
 ```
-src/assets/lier/products/
-  mitsubishi/
-  panasonic/
-  toshiba/
-  <merkeuavhengige løsningsbilder>
+src/assets/lier/products/mitsubishi/
+src/assets/lier/products/panasonic/
+src/assets/lier/products/toshiba/
+src/assets/lier/products/            (merkeuavhengige løsninger)
 ```
 
-Undermappen er kun for ryddighet. Oppslaget skjer på **filnavnet** (uten filtype).
+Undermappen er kun for ryddighet – oppslaget skjer på filnavnet.
 
 ## Filnavn
 
-Filnavnet må matche nøkkelen i `PRODUCT_IMAGE_KEY` i
-`src/components/public/useProductImages.ts`:
+Filnavnet (uten filendelse) må være identisk med `imageKey` i
+`src/components/public/product-catalog.ts`.
 
-| Modell                      | Filnavn (base)               | Mappe        |
-| --------------------------- | ---------------------------- | ------------ |
-| UWANO Pure                  | `mitsubishi-uwano-pure`      | `mitsubishi` |
-| Kaiteki                     | `mitsubishi-kaiteki`         | `mitsubishi` |
-| GUSSURI                     | `mitsubishi-gussuri`         | `mitsubishi` |
-| Nordic Multi                | `mitsubishi-nordic-multi`    | `mitsubishi` |
-| Panasonic HZ Flagship       | `panasonic-hz`               | `panasonic`  |
-| Panasonic NZ                | `panasonic-nz`               | `panasonic`  |
-| Panasonic VZ Heatcharge     | `panasonic-vz`               | `panasonic`  |
-| Panasonic Gulvmodell        | `panasonic-gulvmodell`       | `panasonic`  |
-| Toshiba Signatur            | `toshiba-signatur`           | `toshiba`    |
-| Toshiba Daiseikai 10 Kontur | `toshiba-daiseikai-kontur`   | `toshiba`    |
-| Toshiba Polar               | `toshiba-polar`              | `toshiba`    |
-| Toshiba Gulvmodell          | `toshiba-gulvmodell`         | `toshiba`    |
+Format: `<merke>-<modell>` med små bokstaver og bindestrek.
 
-Eksempel: `src/assets/lier/products/toshiba/toshiba-polar.webp`
+Eksempler:
 
-Godkjente filtyper: `.webp` (anbefalt), `.png`, `.jpg`, `.jpeg`, `.svg`.
+```
+mitsubishi-uwano-pure.webp
+mitsubishi-kaiteki.webp
+panasonic-hz.webp
+toshiba-daiseikai-kontur.webp
+```
 
 ## Anbefalte dimensjoner
 
-- Format: **4:3** (bildeflaten på kort og i modal er 4:3)
-- Størrelse: **1200 × 900 px** (min. 800 × 600 px)
-- Bakgrunn: hvit eller transparent PNG/WebP — produktet fritstilt
-- Filstørrelse: helst under 250 kB per bilde
-- Produktet bør ha litt luft rundt seg; bildet vises med `object-contain`,
-  så det blir aldri strukket eller feil beskåret.
+- Format: 4:3 (bildeflaten på kortene er 4:3)
+- Størrelse: 1200 × 900 px
+- Filtype: `.webp` (foretrukket), alternativt `.jpg` eller `.png`
+- Filstørrelse: helst under 250 kB
+- Bakgrunn: hvit eller nøytral, produktet sentrert med litt luft
 
-## Slik kobles bildet til produktdata
+## Koble bilde til produktdata
 
-1. Legg filen i riktig mappe med riktig basenavn (tabellen over).
-2. Ferdig — `import.meta.glob` plukker den opp automatisk ved build.
+1. Legg filen i riktig merkemappe med riktig filnavn.
+2. Sjekk at `imageKey` i `product-catalog.ts` matcher filnavnet.
+3. Oppdater `imageStatus` fra `missing` til `local` for produktet.
+4. Oppdater `docs/product-source-notes.md` med hvor bildet kommer fra.
 
-Nytt produkt uten oppføring i tabellen:
-
-1. Legg til modellen i `GROUPS` i `src/components/public/ProductShowcase.tsx`.
-2. Legg til `"<Modellnavn>": "<filnavn-base>"` i `PRODUCT_IMAGE_KEY`.
-3. Legg bildefilen i riktig merkemappe.
-
-Alternativt kan et enkelt kort peke direkte på en URL via feltet `image` på
-produktet — bruk kun til lokale/rettighetsklarerte filer.
+Ingen kodeendringer utover dette er nødvendig – bildene plukkes opp automatisk.
 
 ## Store filer
 
-Bilder over ~100 kB bør legges på CDN med `lovable-assets` og committes som
-`<filnavn>.asset.json` i samme mappe. Pointer-filer plukkes opp automatisk.
+Store bildefiler kan legges på CDN i stedet. Da ligger en `<filnavn>.asset.json`
+her i stedet for selve bildet, med samme navnekonvensjon. Begge deler fungerer.

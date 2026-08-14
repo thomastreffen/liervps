@@ -1,0 +1,906 @@
+/**
+ * Structured, product-specific content for the public product showcase.
+ *
+ * Rules for this file:
+ * - Customer-friendly and conservative wording only.
+ * - No prices, no exact performance specs, no "best i test"-claims,
+ *   no savings guarantees.
+ * - `sourceUrl` / `sourceLabel` / `lastReviewed` are INTERNAL traceability
+ *   fields. They must never be rendered or linked in public UI.
+ * - `imageKey` points at a locally stored, rights-cleared image placed in
+ *   `src/assets/lier/products/<brand>/`. Never hotlink supplier images.
+ */
+
+import type { BrandName, ProductType } from "./product-types";
+
+export type ImageStatus = "missing" | "local" | "approved-source-needed";
+
+export type ProductDetails = {
+  brand?: BrandName;
+  /** Name as shown to the customer — matches the name used in the showcase groups. */
+  modelName: string;
+  /** Series/family the model belongs to, when relevant. */
+  modelFamily?: string;
+  /** One short, specific sentence about where this model sits in the range. */
+  shortPositioning: string;
+  productType: ProductType;
+  /** "Passer ofte for" — customer situations. */
+  suitableFor: string[];
+  /** How the model typically gets used in practice. */
+  typicalUse: string;
+  /** 2–4 concrete strengths. */
+  keyStrengths: string[];
+  designNotes?: string;
+  heatingNotes?: string;
+  coolingNotes?: string;
+  placementNotes?: string;
+  /** Only when officially stated by the manufacturer/distributor. */
+  noiseNote?: string;
+  /** Only when officially stated by the manufacturer/distributor. */
+  coldClimateNote?: string;
+  /** Local asset base name (without extension) under src/assets/lier/products/<brand>/. */
+  imageKey?: string;
+  imageAlt?: string;
+  imageStatus: ImageStatus;
+  /** Internal only. */
+  sourceUrl?: string;
+  /** Internal only. */
+  sourceLabel?: string;
+  /** Internal only. ISO date of last content review. */
+  lastReviewed?: string;
+};
+
+const REVIEWED = "2026-08-14";
+
+const SRC = {
+  mee: {
+    url: "https://mee.no/privat/produktkategori/luft-luft-varmepumper/",
+    label: "Mitsubishi Electric Norge (produsent)",
+  },
+  paBest: {
+    url: "https://www.varmepumpeservice.no/panasonic-bestselgere",
+    label: "Panasonic – distributørkatalog",
+  },
+  paMulti: {
+    url: "https://www.varmepumpeservice.no/panasonic-multisplitt-med-innedeler",
+    label: "Panasonic multisplitt – distributørkatalog",
+  },
+  paMultiNordic: {
+    url: "https://www.varmepumpeservice.no/panasonic-multisplitt-nordisk-med-innedeler",
+    label: "Panasonic multisplitt nordisk – distributørkatalog",
+  },
+  paVann: {
+    url: "https://www.varmepumpeservice.no/panasonic-luft-vann",
+    label: "Panasonic luft-vann – distributørkatalog",
+  },
+  paNaering: {
+    url: "https://www.varmepumpeservice.no/panasonic-naering",
+    label: "Panasonic næring – distributørkatalog",
+  },
+  toBest: {
+    url: "https://www.varmepumpeservice.no/toshiba-bestselgere",
+    label: "Toshiba – distributørkatalog",
+  },
+  toTekstil: {
+    url: "https://www.varmepumpeservice.no/tekstiltrekk-til-toshiba-signatur",
+    label: "Toshiba tilbehør – distributørkatalog",
+  },
+  toMulti: {
+    url: "https://www.varmepumpeservice.no/toshiba-multisplitt",
+    label: "Toshiba multisplitt – distributørkatalog",
+  },
+  toMultiNordic: {
+    url: "https://www.varmepumpeservice.no/toshiba-multisplitt-nordic",
+    label: "Toshiba multisplitt nordic – distributørkatalog",
+  },
+};
+
+/** Keyed by the exact product name used in the showcase groups. */
+export const PRODUCT_DETAILS: Record<string, ProductDetails> = {
+  /* ---------------- Mitsubishi Electric ---------------- */
+  "UWANO Pure": {
+    brand: "Mitsubishi Electric",
+    modelName: "UWANO Pure",
+    modelFamily: "UWANO",
+    productType: "Luft-luft",
+    shortPositioning:
+      "Toppmodellen i serien, typisk valgt når komfort og stabil varme gjennom hele året veier tyngst.",
+    suitableFor: [
+      "Enebolig eller rekkehus med ett hovedoppholdsrom",
+      "Boliger der varmepumpen skal være hovedvarmekilde",
+      "Kunder som prioriterer komfort framfor lavest mulig investering",
+    ],
+    typicalUse:
+      "Montert i stue eller åpen kjøkkenløsning, og brukt som primær varmekilde store deler av året.",
+    keyStrengths: [
+      "Bygget for helårsdrift i norsk klima",
+      "Jevn varmefordeling i større oppholdsrom",
+      "Luftrensefunksjon i toppsegmentet",
+      "Styring via app når anlegget settes opp for det",
+    ],
+    heatingNotes:
+      "Aktuelt der du ønsker god varmeleveranse også i kalde perioder. Faktisk dekningsgrad avhenger av bolig og plassering, og må vurderes på befaring.",
+    placementNotes:
+      "Plassering av innedel og utedel har mye å si for resultatet. Vi ser på luftveier, avstander og støy mot naboer på befaring.",
+    imageKey: "mitsubishi-uwano-pure",
+    imageAlt: "Mitsubishi Electric UWANO Pure innedel montert på vegg",
+    imageStatus: "missing",
+    sourceUrl: SRC.mee.url,
+    sourceLabel: SRC.mee.label,
+    lastReviewed: REVIEWED,
+  },
+  Kaiteki: {
+    brand: "Mitsubishi Electric",
+    modelName: "Kaiteki",
+    modelFamily: "Kaiteki",
+    productType: "Luft-luft",
+    shortPositioning:
+      "Populær allroundmodell som treffer de fleste vanlige boliger, med god balanse mellom ytelse, design og pris.",
+    suitableFor: [
+      "Vanlig enebolig, rekkehus eller leilighet",
+      "Boliger som i dag varmes opp med panelovner",
+      "Kunder som vil ha en trygg totalpakke",
+    ],
+    typicalUse:
+      "Førstevalget når boligen ikke har spesielle utfordringer og varmepumpen skal dekke hovedoppholdsrommet.",
+    keyStrengths: [
+      "God totaløkonomi i normale boliger",
+      "Flere fargevalg på innedelen",
+      "Kjent og godt utbredt modell i Norge",
+    ],
+    designNotes:
+      "Fargevalg gjør det enklere å tilpasse innedelen til rommet. Tilgjengelige varianter avklares ved bestilling.",
+    imageKey: "mitsubishi-kaiteki",
+    imageAlt: "Mitsubishi Electric Kaiteki innedel",
+    imageStatus: "missing",
+    sourceUrl: SRC.mee.url,
+    sourceLabel: SRC.mee.label,
+    lastReviewed: REVIEWED,
+  },
+  GUSSURI: {
+    brand: "Mitsubishi Electric",
+    modelName: "GUSSURI",
+    modelFamily: "GUSSURI",
+    productType: "Luft-luft",
+    shortPositioning:
+      "Komfortmodell der jevn varme og et rolig lydbilde er viktigere enn maksimal effekt.",
+    suitableFor: [
+      "Soverom, hybel eller mindre oppholdsrom",
+      "Boliger der innedelen står nær der man sover eller jobber",
+      "Kunder som er sensitive for lyd fra innedelen",
+    ],
+    typicalUse:
+      "Valgt når varmepumpen står i et rom der man oppholder seg over lengre tid og ønsker minst mulig merkbar drift.",
+    keyStrengths: [
+      "Komfortprofil rettet mot lavt lydnivå",
+      "Jevn temperatur uten store svingninger",
+      "Enkel daglig bruk",
+    ],
+    noiseNote:
+      "Modellen er posisjonert av produsenten som en stillegående komfortmodell. Faktisk opplevd lyd avhenger av rom, montasje og driftsnivå.",
+    imageKey: "mitsubishi-gussuri",
+    imageAlt: "Mitsubishi Electric GUSSURI innedel",
+    imageStatus: "missing",
+    sourceUrl: SRC.mee.url,
+    sourceLabel: SRC.mee.label,
+    lastReviewed: REVIEWED,
+  },
+  IGURU: {
+    brand: "Mitsubishi Electric",
+    modelName: "IGURU",
+    modelFamily: "IGURU",
+    productType: "Luft-luft",
+    shortPositioning:
+      "Kompakt innedel for boliger der veggplassen er begrenset eller pumpen skal være lite synlig.",
+    suitableFor: [
+      "Leilighet eller mindre bolig",
+      "Rom med smal eller delvis opptatt vegg",
+      "Kunder som vil ha en diskret installasjon",
+    ],
+    typicalUse:
+      "Brukt der en standard innedel blir for dominerende, men behovet for varme fortsatt er reelt.",
+    keyStrengths: [
+      "Mindre fysisk fotavtrykk på veggen",
+      "Diskret uttrykk i rommet",
+      "Fleksibel plassering",
+    ],
+    placementNotes:
+      "Kompakt størrelse gir flere plasseringsmuligheter, men luftveien i rommet må fortsatt vurderes på befaring.",
+    imageKey: "mitsubishi-iguru",
+    imageAlt: "Mitsubishi Electric IGURU kompakt innedel",
+    imageStatus: "missing",
+    sourceUrl: SRC.mee.url,
+    sourceLabel: SRC.mee.label,
+    lastReviewed: REVIEWED,
+  },
+  Furo: {
+    brand: "Mitsubishi Electric",
+    modelName: "Furo",
+    modelFamily: "Furo",
+    productType: "Gulvmodell",
+    shortPositioning:
+      "Gulvmodell for lav plassering på vegg, aktuelt der høy montering ikke passer.",
+    suitableFor: [
+      "Eldre boliger med lav takhøyde eller mange vinduer",
+      "Rom der veggen over er opptatt av vindu eller skap",
+      "Boliger der man ønsker varmen nær gulvnivå",
+    ],
+    typicalUse:
+      "Plassert lavt på vegg, ofte der en radiator eller panelovn står i dag.",
+    keyStrengths: [
+      "Varme nær gulvet der man oppholder seg",
+      "Alternativ når høy vegg ikke er tilgjengelig",
+      "Passer i planløsninger med mye vindusflate",
+    ],
+    placementNotes:
+      "Krever fri luftvei foran enheten. Møblering og gardiner må hensyntas, og vurderes på befaring.",
+    imageKey: "mitsubishi-furo",
+    imageAlt: "Mitsubishi Electric Furo gulvmodell",
+    imageStatus: "missing",
+    sourceUrl: SRC.mee.url,
+    sourceLabel: SRC.mee.label,
+    lastReviewed: REVIEWED,
+  },
+  Zen: {
+    brand: "Mitsubishi Electric",
+    modelName: "Zen",
+    modelFamily: "Zen",
+    productType: "Luft-luft",
+    shortPositioning:
+      "Designmodell for boliger der innedelen er godt synlig og skal passe inn i interiøret.",
+    suitableFor: [
+      "Stue eller kjøkken med synlig plassering",
+      "Nyere boliger med tydelig interiøruttrykk",
+      "Kunder som legger vekt på utseende",
+    ],
+    typicalUse:
+      "Valgt når plasseringen er i et representativt rom og et nøytralt, rent uttrykk er viktig.",
+    keyStrengths: [
+      "Rent og dempet designuttrykk",
+      "Passer i synlige plasseringer",
+      "Kjent Mitsubishi-plattform i bunn",
+    ],
+    designNotes:
+      "Designmodellene har et flatere frontuttrykk enn standardmodellene. Endelig valg avhenger av rommet og plasseringen.",
+    imageKey: "mitsubishi-zen",
+    imageAlt: "Mitsubishi Electric Zen designmodell",
+    imageStatus: "missing",
+    sourceUrl: SRC.mee.url,
+    sourceLabel: SRC.mee.label,
+    lastReviewed: REVIEWED,
+  },
+  "Duo-modellen": {
+    brand: "Mitsubishi Electric",
+    modelName: "Duo-modellen",
+    modelFamily: "Duo",
+    productType: "Multisplitt",
+    shortPositioning:
+      "To innedeler på samme utedel, aktuelt når varmen skal nå to soner uten to komplette anlegg.",
+    suitableFor: [
+      "Bolig over to plan",
+      "Delt planløsning med to naturlige soner",
+      "Boliger med begrenset plass til flere utedeler",
+    ],
+    typicalUse:
+      "Typisk valgt når hovedetasjen dekkes i dag, men en ekstra sone som kjeller, loft eller sokkelleilighet også skal ha varme.",
+    keyStrengths: [
+      "Én utedel dekker to innedeler",
+      "Mindre inngrep på fasaden",
+      "Bedre dekning enn ett enkelt anlegg",
+    ],
+    placementNotes:
+      "Rørføring mellom sonene er avgjørende for hva som er praktisk mulig, og må kartlegges på befaring.",
+    imageKey: "mitsubishi-duo",
+    imageAlt: "Mitsubishi Electric Duo multiløsning",
+    imageStatus: "missing",
+    sourceUrl: SRC.mee.url,
+    sourceLabel: SRC.mee.label,
+    lastReviewed: REVIEWED,
+  },
+  "Nordic Multi": {
+    brand: "Mitsubishi Electric",
+    modelName: "Nordic Multi",
+    modelFamily: "Nordic Multi",
+    productType: "Multisplitt",
+    shortPositioning:
+      "Multiløsning der flere innedeler kobles til én utedel for å dekke flere rom.",
+    suitableFor: [
+      "Større boliger med flere rom som skal varmes",
+      "Boliger med lukket planløsning",
+      "Mindre næringslokaler med flere soner",
+    ],
+    typicalUse:
+      "Brukt der ett anlegg i stua ikke er nok, og varmen skal fordeles til flere rom eller etasjer.",
+    keyStrengths: [
+      "Flere innedeler fra samme utedel",
+      "Fleksibel soneinndeling",
+      "Færre utedeler på fasaden",
+      "Tilpasset nordiske driftsforhold",
+    ],
+    coldClimateNote:
+      "Serien er posisjonert av produsenten for nordiske forhold. Dimensjonering settes etter befaring.",
+    imageKey: "mitsubishi-nordic-multi",
+    imageAlt: "Mitsubishi Electric Nordic Multi utedel med flere innedeler",
+    imageStatus: "missing",
+    sourceUrl: SRC.mee.url,
+    sourceLabel: SRC.mee.label,
+    lastReviewed: REVIEWED,
+  },
+
+  /* ---------------- Panasonic ---------------- */
+  "Panasonic HZ Flagship": {
+    brand: "Panasonic",
+    modelName: "HZ Flagship",
+    modelFamily: "Etherea HZ",
+    productType: "Luft-luft",
+    shortPositioning:
+      "Panasonics toppserie, typisk valgt når man vil ha det meste av teknologi og komfortfunksjoner.",
+    suitableFor: [
+      "Boliger der varmepumpen skal dekke mye av oppvarmingen",
+      "Kunder som ønsker luftrensefunksjon",
+      "Moderne boliger med krav til komfort",
+    ],
+    typicalUse:
+      "Montert i hovedoppholdsrommet og brukt aktivt gjennom hele fyringssesongen.",
+    keyStrengths: [
+      "Toppserie i Panasonic-utvalget",
+      "nanoe X luftbehandling",
+      "God varmeleveranse i kalde perioder",
+      "App-styring når anlegget settes opp for det",
+    ],
+    heatingNotes:
+      "Aktuelt ved høyere varmebehov. Hvor stor andel av oppvarmingen den dekker må vurderes på befaring.",
+    imageKey: "panasonic-hz",
+    imageAlt: "Panasonic HZ Etherea innedel",
+    imageStatus: "missing",
+    sourceUrl: SRC.paBest.url,
+    sourceLabel: SRC.paBest.label,
+    lastReviewed: REVIEWED,
+  },
+  "Panasonic NZ": {
+    brand: "Panasonic",
+    modelName: "NZ Etherea",
+    modelFamily: "Etherea NZ",
+    productType: "Luft-luft",
+    shortPositioning:
+      "Ligger like under toppserien og gir mye av samme funksjonalitet til et lavere nivå.",
+    suitableFor: [
+      "Vanlig bolig med normalt varmebehov",
+      "Kunder som vil ha god ytelse uten toppmodell",
+      "Utskifting av eldre varmepumpe",
+    ],
+    typicalUse:
+      "Et vanlig valg når boligen ikke har spesielle utfordringer, men man fortsatt vil ha en solid modell.",
+    keyStrengths: [
+      "God balanse mellom ytelse og investering",
+      "Samme designfamilie som toppserien",
+      "Enkel styring i hverdagen",
+    ],
+    imageKey: "panasonic-nz",
+    imageAlt: "Panasonic NZ Etherea innedel",
+    imageStatus: "missing",
+    sourceUrl: SRC.paBest.url,
+    sourceLabel: SRC.paBest.label,
+    lastReviewed: REVIEWED,
+  },
+  "Panasonic CZ": {
+    brand: "Panasonic",
+    modelName: "CZ",
+    modelFamily: "CZ",
+    productType: "Luft-luft",
+    shortPositioning:
+      "Kompakt veggmodell for mindre rom og boliger med begrenset plass.",
+    suitableFor: [
+      "Leilighet, hybel eller mindre rom",
+      "Boliger med kort vegg tilgjengelig",
+      "Kunder med moderat varmebehov",
+    ],
+    typicalUse:
+      "Brukt der behovet er avgrenset til ett mindre rom, og en full toppmodell blir unødvendig.",
+    keyStrengths: [
+      "Kompakt innedel",
+      "Innebygget WiFi-styring",
+      "Enkelt og rimelig utgangspunkt",
+    ],
+    imageKey: "panasonic-cz",
+    imageAlt: "Panasonic CZ kompakt innedel",
+    imageStatus: "missing",
+    sourceUrl: SRC.paBest.url,
+    sourceLabel: SRC.paBest.label,
+    lastReviewed: REVIEWED,
+  },
+  "Panasonic LZ": {
+    brand: "Panasonic",
+    modelName: "LZ",
+    modelFamily: "LZ",
+    productType: "Luft-luft",
+    shortPositioning:
+      "Praktisk utskiftingsmodell når en eldre varmepumpe skal byttes på samme sted.",
+    suitableFor: [
+      "Bolig med eksisterende varmepumpe som skal erstattes",
+      "Installasjoner der plassering og rørføring beholdes",
+      "Kunder som vil ha en enkel og forutsigbar utskifting",
+    ],
+    typicalUse:
+      "Valgt når kunden er fornøyd med dagens plassering, men anlegget har gått ut på dato.",
+    keyStrengths: [
+      "Tilpasset utskifting av eksisterende anlegg",
+      "Ofte kortere monteringstid",
+      "Forutsigbart resultat",
+    ],
+    placementNotes:
+      "Om eksisterende rørføring kan gjenbrukes avgjøres på befaring, og påvirker både arbeid og pris.",
+    imageKey: "panasonic-lz",
+    imageAlt: "Panasonic LZ innedel",
+    imageStatus: "missing",
+    sourceUrl: SRC.paBest.url,
+    sourceLabel: SRC.paBest.label,
+    lastReviewed: REVIEWED,
+  },
+  "Panasonic VZ Heatcharge": {
+    brand: "Panasonic",
+    modelName: "VZ Heatcharge",
+    modelFamily: "Heatcharge VZ",
+    productType: "Luft-luft",
+    shortPositioning:
+      "Kraftig premiummodell med Heatcharge-teknologi, aktuelt ved høyt varmebehov i kalde perioder.",
+    suitableFor: [
+      "Enebolig med høyt varmebehov",
+      "Områder med kalde vintre",
+      "Boliger der varmepumpen skal jobbe hardt over tid",
+    ],
+    typicalUse:
+      "Typisk valgt der andre modeller vurderes som for svake til å holde temperaturen når det er kaldest.",
+    keyStrengths: [
+      "Heatcharge-teknologi for varmeleveranse i kulde",
+      "Kraftig modell i Panasonic-utvalget",
+      "Premiumnivå på komfortfunksjoner",
+    ],
+    coldClimateNote:
+      "Posisjonert av produsenten for stabil varme i kalde perioder. Konkret effekt avhenger av bolig og dimensjonering.",
+    imageKey: "panasonic-vz",
+    imageAlt: "Panasonic VZ Heatcharge innedel",
+    imageStatus: "missing",
+    sourceUrl: SRC.paBest.url,
+    sourceLabel: SRC.paBest.label,
+    lastReviewed: REVIEWED,
+  },
+  "Panasonic Gulvmodell": {
+    brand: "Panasonic",
+    modelName: "Gulvmodell",
+    modelFamily: "Gulvmodell",
+    productType: "Gulvmodell",
+    shortPositioning:
+      "Lav plassering på vegg, aktuelt der veggplassen over er opptatt eller planløsningen krever det.",
+    suitableFor: [
+      "Eldre bolig med mye vindusflate",
+      "Rom uten ledig plass høyt på vegg",
+      "Kunder som ønsker varmen nær gulvnivå",
+    ],
+    typicalUse:
+      "Montert lavt på vegg, ofte der en eksisterende varmekilde står i dag.",
+    keyStrengths: [
+      "Alternativ plassering når vegg høyt oppe ikke er mulig",
+      "Varme nær oppholdssonen",
+      "Diskret i rom med lav takhøyde",
+    ],
+    placementNotes:
+      "Møbler, gardiner og fri luftvei foran enheten må vurderes på befaring.",
+    imageKey: "panasonic-gulvmodell",
+    imageAlt: "Panasonic gulvmodell innedel",
+    imageStatus: "missing",
+    sourceUrl: SRC.paBest.url,
+    sourceLabel: SRC.paBest.label,
+    lastReviewed: REVIEWED,
+  },
+  "Panasonic Luft/vann": {
+    brand: "Panasonic",
+    modelName: "Luft-vann",
+    modelFamily: "Aquarea",
+    productType: "Luft-vann",
+    shortPositioning:
+      "For bygg med vannbåren varme, der varmepumpen kobles til eksisterende anlegg.",
+    suitableFor: [
+      "Boliger med gulvvarme eller radiatorer",
+      "Bygg som skal fase ut olje eller elkjel",
+      "Kunder som vil dekke en større del av oppvarmingsbehovet",
+    ],
+    typicalUse:
+      "Kobles på det vannbårne anlegget og kan i mange tilfeller også bidra til varmtvann.",
+    keyStrengths: [
+      "Utnytter eksisterende vannbårent anlegg",
+      "Jevn varme i hele bygget",
+      "Ofte høyere dekningsgrad enn luft-luft",
+    ],
+    heatingNotes:
+      "Hva anlegget kan levere avhenger av turtemperatur, isolasjon og dagens installasjon. Dette kartlegges alltid på befaring.",
+    imageKey: "panasonic-luft-vann",
+    imageAlt: "Panasonic luft-vann utedel",
+    imageStatus: "missing",
+    sourceUrl: SRC.paVann.url,
+    sourceLabel: SRC.paVann.label,
+    lastReviewed: REVIEWED,
+  },
+  "Multisplitt med innedeler": {
+    brand: "Panasonic",
+    modelName: "Multisplitt",
+    modelFamily: "Multisplitt",
+    productType: "Multisplitt",
+    shortPositioning:
+      "Flere innedeler koblet til samme utedel, for å dekke flere rom med ett anlegg.",
+    suitableFor: [
+      "Bolig med lukket planløsning",
+      "Bolig over flere plan",
+      "Lokaler med flere mindre rom",
+    ],
+    typicalUse:
+      "Brukt når varmen skal fordeles til flere rom uten å sette opp flere separate anlegg.",
+    keyStrengths: [
+      "Én utedel for flere rom",
+      "Fleksibel plassering av innedelene",
+      "Ryddigere fasade",
+    ],
+    imageKey: "panasonic-multisplitt",
+    imageAlt: "Panasonic multisplitt utedel",
+    imageStatus: "missing",
+    sourceUrl: SRC.paMulti.url,
+    sourceLabel: SRC.paMulti.label,
+    lastReviewed: REVIEWED,
+  },
+  "Multisplitt nordisk": {
+    brand: "Panasonic",
+    modelName: "Multisplitt nordisk",
+    modelFamily: "Multisplitt Nordic",
+    productType: "Multisplitt",
+    shortPositioning:
+      "Multisplitt satt sammen for nordiske driftsforhold og helårsbruk.",
+    suitableFor: [
+      "Boliger og lokaler i områder med kalde vintre",
+      "Bygg som skal ha varme i flere soner hele året",
+      "Kunder som vil unngå flere utedeler",
+    ],
+    typicalUse:
+      "Valgt når multiløsning er riktig, men anlegget også skal fungere godt i kulde.",
+    keyStrengths: [
+      "Nordisk tilpasset multiløsning",
+      "Flere soner fra samme utedel",
+      "Egnet for helårsdrift",
+    ],
+    coldClimateNote:
+      "Nordisk-serien er posisjonert av leverandøren for kaldt klima. Dimensjonering settes etter befaring.",
+    imageKey: "panasonic-multisplitt-nordisk",
+    imageAlt: "Panasonic multisplitt nordisk utedel",
+    imageStatus: "missing",
+    sourceUrl: SRC.paMultiNordic.url,
+    sourceLabel: SRC.paMultiNordic.label,
+    lastReviewed: REVIEWED,
+  },
+  "Panasonic Multisplitt nordisk": {
+    brand: "Panasonic",
+    modelName: "Multisplitt nordisk",
+    modelFamily: "Multisplitt Nordic",
+    productType: "Multisplitt",
+    shortPositioning:
+      "Multisplitt for næringslokaler med flere soner og krav til drift hele året.",
+    suitableFor: [
+      "Cellekontorer og møterom",
+      "Butikk med flere avdelinger",
+      "Lokaler som skal holde jevn temperatur i driftstiden",
+    ],
+    typicalUse:
+      "Brukt der flere rom skal dekkes uten å fylle fasaden med utedeler.",
+    keyStrengths: [
+      "Flere soner fra samme utedel",
+      "Tilpasset nordiske forhold",
+      "Fleksibel plassering av innedeler",
+    ],
+    imageKey: "panasonic-multisplitt-nordisk",
+    imageAlt: "Panasonic multisplitt nordisk for næring",
+    imageStatus: "missing",
+    sourceUrl: SRC.paMultiNordic.url,
+    sourceLabel: SRC.paMultiNordic.label,
+    lastReviewed: REVIEWED,
+  },
+  "Panasonic Næring": {
+    brand: "Panasonic",
+    modelName: "Næringsserier",
+    modelFamily: "Panasonic Pro",
+    productType: "Næring",
+    shortPositioning:
+      "Serier laget for næringsbygg der drift, kapasitet og styring stiller andre krav enn i bolig.",
+    suitableFor: [
+      "Kontor, butikk og publikumsareal",
+      "Tekniske rom med jevn varmelast",
+      "Bygg med behov for stabil drift i åpningstiden",
+    ],
+    typicalUse:
+      "Prosjektert som del av en samlet løsning med riktig kapasitet og soneinndeling.",
+    keyStrengths: [
+      "Bredt utvalg av innedelstyper",
+      "Egnet for kontinuerlig drift",
+      "Kan settes opp med sentral styring",
+    ],
+    coolingNotes:
+      "I næringslokaler er kjølebehovet ofte like viktig som varmebehovet. Begge deler vurderes i befaringen.",
+    imageKey: "panasonic-naering",
+    imageAlt: "Panasonic næringsløsning montert i lokale",
+    imageStatus: "missing",
+    sourceUrl: SRC.paNaering.url,
+    sourceLabel: SRC.paNaering.label,
+    lastReviewed: REVIEWED,
+  },
+
+  /* ---------------- Toshiba ---------------- */
+  "Toshiba Signatur": {
+    brand: "Toshiba",
+    modelName: "Signatur",
+    modelFamily: "Signatur",
+    productType: "Luft-luft",
+    shortPositioning:
+      "Designmodell med utskiftbar tekstilfront, aktuelt der innedelen er godt synlig.",
+    suitableFor: [
+      "Stue eller rom med synlig plassering",
+      "Designbevisste hjem",
+      "Kunder som vil kunne bytte uttrykk senere",
+    ],
+    typicalUse:
+      "Valgt når varmepumpen skal være en del av interiøret framfor et teknisk element.",
+    keyStrengths: [
+      "Utskiftbar tekstilfront",
+      "Energismarte funksjoner",
+      "Dempet designuttrykk",
+    ],
+    designNotes:
+      "Tekstiltrekk kan bestilles separat, slik at uttrykket kan endres uten å bytte anlegg.",
+    imageKey: "toshiba-signatur",
+    imageAlt: "Toshiba Signatur innedel med tekstilfront",
+    imageStatus: "missing",
+    sourceUrl: SRC.toBest.url,
+    sourceLabel: SRC.toBest.label,
+    lastReviewed: REVIEWED,
+  },
+  "Toshiba Daiseikai 10 Kontur": {
+    brand: "Toshiba",
+    modelName: "Daiseikai 10 Kontur",
+    modelFamily: "Daiseikai 10",
+    productType: "Luft-luft",
+    shortPositioning:
+      "Toppmodell i Toshiba-utvalget, typisk valgt ved høyere varmebehov og krav til komfort.",
+    suitableFor: [
+      "Enebolig med større oppholdsrom",
+      "Boliger der pumpen skal dekke mye av oppvarmingen",
+      "Områder med kalde vintre",
+    ],
+    typicalUse:
+      "Brukt som hovedvarmekilde i hovedetasjen gjennom hele fyringssesongen.",
+    keyStrengths: [
+      "Toppmodell med kraftig varmeleveranse",
+      "Avansert styring og komfortfunksjoner",
+      "Bygget for helårsdrift",
+    ],
+    heatingNotes:
+      "Aktuelt ved høyt varmebehov. Riktig størrelse settes etter befaring, ikke etter kvadratmeter alene.",
+    imageKey: "toshiba-daiseikai-kontur",
+    imageAlt: "Toshiba Daiseikai 10 Kontur innedel",
+    imageStatus: "missing",
+    sourceUrl: SRC.toBest.url,
+    sourceLabel: SRC.toBest.label,
+    lastReviewed: REVIEWED,
+  },
+  "Toshiba Daiseikai 10 Ask": {
+    brand: "Toshiba",
+    modelName: "Daiseikai 10 Ask",
+    modelFamily: "Daiseikai 10",
+    productType: "Luft-luft",
+    shortPositioning:
+      "Samme toppserie som Kontur, men med et mer dempet designuttrykk.",
+    suitableFor: [
+      "Boliger som vil ha toppmodell i et synlig rom",
+      "Interiør med nøytrale farger",
+      "Kunder som vil ha ytelse uten et teknisk preg",
+    ],
+    typicalUse:
+      "Valgt når man vil ha toppserien, men innedelen skal falle mer inn i rommet.",
+    keyStrengths: [
+      "Toppserie-teknologi",
+      "Rolig og nøytralt uttrykk",
+      "God komfort i større oppholdsrom",
+    ],
+    designNotes:
+      "Ask og Kontur er varianter i samme serie. Valget handler først og fremst om uttrykk.",
+    imageKey: "toshiba-daiseikai-ask",
+    imageAlt: "Toshiba Daiseikai 10 Ask innedel",
+    imageStatus: "missing",
+    sourceUrl: SRC.toBest.url,
+    sourceLabel: SRC.toBest.label,
+    lastReviewed: REVIEWED,
+  },
+  "Toshiba Polar": {
+    brand: "Toshiba",
+    modelName: "Polar",
+    modelFamily: "Polar",
+    productType: "Luft-luft",
+    shortPositioning:
+      "Modell tilpasset kaldt klima, aktuelt der vintrene er lange og varmebehovet stort.",
+    suitableFor: [
+      "Enebolig i kaldere strøk",
+      "Boliger med høyt varmebehov",
+      "Kunder som prioriterer varme framfor kjøling",
+    ],
+    typicalUse:
+      "Brukt der anlegget skal levere varme også når temperaturen ligger godt under null over tid.",
+    keyStrengths: [
+      "Tilpasset nordiske forhold",
+      "Kraftig varmeleveranse",
+      "God energiklasse i serien",
+    ],
+    coldClimateNote:
+      "Serien er posisjonert av leverandøren for kaldt klima. Faktisk ytelse avhenger av bolig og dimensjonering.",
+    imageKey: "toshiba-polar",
+    imageAlt: "Toshiba Polar innedel",
+    imageStatus: "missing",
+    sourceUrl: SRC.toBest.url,
+    sourceLabel: SRC.toBest.label,
+    lastReviewed: REVIEWED,
+  },
+  "Toshiba Seiya": {
+    brand: "Toshiba",
+    modelName: "Seiya Nordic",
+    modelFamily: "Seiya",
+    productType: "Luft-luft",
+    shortPositioning:
+      "Inngangsmodellen i Toshiba-utvalget, tilpasset nordiske forhold.",
+    suitableFor: [
+      "Mindre bolig, hytte eller hybel",
+      "Kunder med moderat varmebehov",
+      "Prisbevisste kjøp der grunnfunksjonene holder",
+    ],
+    typicalUse:
+      "Valgt når behovet er avgrenset og man vil komme i gang med varmepumpe uten toppmodell.",
+    keyStrengths: [
+      "Lavere inngangsnivå",
+      "Nordisk tilpasset variant",
+      "Enkle, smarte funksjoner",
+    ],
+    imageKey: "toshiba-seiya",
+    imageAlt: "Toshiba Seiya Nordic innedel",
+    imageStatus: "missing",
+    sourceUrl: SRC.toBest.url,
+    sourceLabel: SRC.toBest.label,
+    lastReviewed: REVIEWED,
+  },
+  "Toshiba Gulvmodell": {
+    brand: "Toshiba",
+    modelName: "Gulvmodell",
+    modelFamily: "Gulvmodell",
+    productType: "Gulvmodell",
+    shortPositioning:
+      "Gulvmodell for alternative plasseringer der høy vegg ikke er tilgjengelig.",
+    suitableFor: [
+      "Eldre boliger og spesielle planløsninger",
+      "Rom med vindusrekke eller skråtak",
+      "Kunder som vil ha varmen lavt i rommet",
+    ],
+    typicalUse:
+      "Montert lavt på vegg, ofte som erstatning for en eksisterende varmekilde.",
+    keyStrengths: [
+      "Fleksibel plassering",
+      "Varme nær gulvnivå",
+      "Diskret i rom med lav takhøyde",
+    ],
+    placementNotes:
+      "Fri luftvei foran enheten er en forutsetning, og vurderes på befaring.",
+    imageKey: "toshiba-gulvmodell",
+    imageAlt: "Toshiba gulvmodell innedel",
+    imageStatus: "missing",
+    sourceUrl: SRC.toBest.url,
+    sourceLabel: SRC.toBest.label,
+    lastReviewed: REVIEWED,
+  },
+  "Toshiba Multisplitt": {
+    brand: "Toshiba",
+    modelName: "Multisplitt",
+    modelFamily: "Multisplitt",
+    productType: "Multisplitt",
+    shortPositioning:
+      "Flere innedeler på samme utedel for bedre romdekning i bolig og mindre lokaler.",
+    suitableFor: [
+      "Boliger med flere rom som skal dekkes",
+      "Cellekontorer og møterom",
+      "Bygg med begrenset fasadeplass",
+    ],
+    typicalUse:
+      "Brukt der ett anlegg ikke dekker nok av arealet, og flere soner skal ha varme.",
+    keyStrengths: [
+      "Flere innedeler fra én utedel",
+      "Fleksibel soneinndeling",
+      "Ryddigere fasade",
+    ],
+    imageKey: "toshiba-multisplitt",
+    imageAlt: "Toshiba multisplitt utedel",
+    imageStatus: "missing",
+    sourceUrl: SRC.toMulti.url,
+    sourceLabel: SRC.toMulti.label,
+    lastReviewed: REVIEWED,
+  },
+  "Toshiba Multisplitt Nordic": {
+    brand: "Toshiba",
+    modelName: "Multi Nordic",
+    modelFamily: "Multi Nordic",
+    productType: "Multisplitt",
+    shortPositioning:
+      "Multisplitt satt sammen for nordiske forhold og drift gjennom hele året.",
+    suitableFor: [
+      "Bygg i områder med kalde vintre",
+      "Lokaler med flere rom og fast driftstid",
+      "Boliger som skal ha varme i flere soner",
+    ],
+    typicalUse:
+      "Valgt når multiløsning er riktig og anlegget også skal fungere godt i kulde.",
+    keyStrengths: [
+      "Nordisk tilpasset multiløsning",
+      "Stabil drift i flere soner",
+      "Færre utedeler på fasaden",
+    ],
+    coldClimateNote:
+      "Nordic-serien er posisjonert av leverandøren for kaldt klima. Kapasitet settes etter befaring.",
+    imageKey: "toshiba-multi-nordic",
+    imageAlt: "Toshiba Multi Nordic utedel",
+    imageStatus: "missing",
+    sourceUrl: SRC.toMultiNordic.url,
+    sourceLabel: SRC.toMultiNordic.label,
+    lastReviewed: REVIEWED,
+  },
+  "Tekstiltrekk til Signatur": {
+    brand: "Toshiba",
+    modelName: "Tekstiltrekk til Signatur",
+    modelFamily: "Signatur tilbehør",
+    productType: "Tilbehør",
+    shortPositioning:
+      "Tilbehør som lar deg endre fronten på Toshiba Signatur uten å bytte anlegget.",
+    suitableFor: [
+      "Eiere av Toshiba Signatur",
+      "Rom som pusses opp eller endrer farger",
+      "Kunder som vil tilpasse uttrykket over tid",
+    ],
+    typicalUse: "Bestilles sammen med anlegget eller senere ved behov.",
+    keyStrengths: [
+      "Endrer uttrykket enkelt",
+      "Beholder eksisterende installasjon",
+      "Flere varianter tilgjengelig",
+    ],
+    designNotes: "Tilgjengelige varianter avklares ved bestilling.",
+    imageKey: "toshiba-signatur-tekstil",
+    imageAlt: "Tekstiltrekk til Toshiba Signatur",
+    imageStatus: "missing",
+    sourceUrl: SRC.toTekstil.url,
+    sourceLabel: SRC.toTekstil.label,
+    lastReviewed: REVIEWED,
+  },
+
+  /* ---------------- Merkeuavhengig ---------------- */
+  "Større lokaler / flere soner": {
+    modelName: "Større lokaler / flere soner",
+    productType: "Næring",
+    shortPositioning:
+      "Prosjektert løsning på tvers av merker, satt sammen etter bygget sitt faktiske behov.",
+    suitableFor: [
+      "Større næringsbygg",
+      "Lokaler med flere soner og ulik bruk",
+      "Bygg med krav til driftssikkerhet",
+    ],
+    typicalUse:
+      "Brukt der standardpakker ikke treffer, og kapasitet, soner og styring må settes sammen fra bunnen.",
+    keyStrengths: [
+      "Merkeuavhengig sammensetning",
+      "Kapasitet tilpasset bygget",
+      "Soneinndeling og styring vurderes samlet",
+    ],
+    imageStatus: "missing",
+    lastReviewed: REVIEWED,
+  },
+};
+
+export function productDetailsFor(name: string): ProductDetails | null {
+  return PRODUCT_DETAILS[name] ?? null;
+}

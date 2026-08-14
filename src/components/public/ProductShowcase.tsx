@@ -14,20 +14,14 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useBrandLogos, BRAND_LOGO_CLASS } from "./useBrandLogos";
-import { productImageFor } from "./useProductImages";
+import { productImageFor, productImageForKey } from "./useProductImages";
 import { HeatPumpIllustration } from "./HeatPumpIllustration";
 import { useLead, type LeadContext } from "./LeadContext";
+import { productDetailsFor, type ProductDetails } from "./product-catalog";
 
 
-export type BrandName = "Mitsubishi Electric" | "Panasonic" | "Toshiba";
-export type Segment = "bolig" | "naering";
-export type ProductType =
-  | "Luft-luft"
-  | "Gulvmodell"
-  | "Multisplitt"
-  | "Luft-vann"
-  | "Næring"
-  | "Tilbehør";
+export type { BrandName, Segment, ProductType } from "./product-types";
+import type { BrandName, Segment, ProductType } from "./product-types";
 
 export type ProductItem = {
   /** Omitted for merkeuavhengige løsningskort. */
@@ -791,7 +785,7 @@ function leadForItem(item: ProductItem, segment: Segment): LeadContext {
     : { source: "solution", segment, interestType: "losning-anbefaling", solutionName: item.name };
 }
 
-/** Generic, non-technical usage text per product type. No specs, no claims. */
+/** Generic fallback usage text per product type, used when no structured entry exists. */
 const TYPICAL_USE: Record<string, string> = {
   "Luft-luft":
     "Montert i hovedoppholdsrommet, typisk stue, og varmer opp den delen av boligen du bruker mest.",
@@ -806,51 +800,81 @@ const TYPICAL_USE: Record<string, string> = {
   Tilbehør: "Supplerer en eksisterende installasjon.",
 };
 
-function typicalUseFor(item: ProductItem) {
-  return (
-    TYPICAL_USE[item.productType ?? ""] ??
-    "Tilpasses bygget etter befaring, planløsning og varmebehov."
-  );
-}
+/** Merged view of a showcase item and its structured catalog entry. */
+type ResolvedProduct = {
+  item: ProductItem;
+  details: ProductDetails | null;
+  positioning: string;
+  suitableFor: string[];
+  typicalUse: string;
+  strengths: string[];
+  /** "Viktig å vurdere på befaring" — only conservative, non-spec notes. */
+  considerations: string[];
+  imageAlt: string;
+};
 
-function whyWeRecommend(item: ProductItem) {
-  const reasons = item.bestFor.slice(0, 3).join(", ").toLowerCase();
-  return `${item.description} Vi trekker den fram når ${reasons} står sentralt. Endelig anbefaling gjør vi først etter befaring.`;
+function resolveProduct(item: ProductItem): ResolvedProduct {
+  const details = productDetailsFor(item.name);
+  const considerations = [
+    details?.placementNotes,
+    details?.heatingNotes,
+    details?.coolingNotes,
+    details?.designNotes,
+    details?.noiseNote,
+    details?.coldClimateNote,
+  ].filter((v): v is string => Boolean(v));
+
+  return {
+    item,
+    details,
+    positioning: details?.shortPositioning ?? item.description,
+    suitableFor: details?.suitableFor?.length ? details.suitableFor : item.bestFor,
+    typicalUse:
+      details?.typicalUse ??
+      TYPICAL_USE[item.productType ?? ""] ??
+      "Tilpasses bygget etter befaring, planløsning og varmebehov.",
+    strengths: details?.keyStrengths?.length ? details.keyStrengths : item.tags,
+    considerations: considerations.length
+      ? considerations
+      : [
+          "Endelig modell og størrelse avhenger av bolig, planløsning, plassering og varmebehov, og må vurderes på befaring.",
+        ],
+    imageAlt: details?.imageAlt ?? `${item.name} varmepumpe`,
+  };
 }
 
 /** Shared image area — fixed 4:3 slot so all cards line up. */
-function ProductMedia({
-  item,
-  size = "card",
-}: {
-  item: ProductItem;
-  size?: "card" | "dialog";
-}) {
-  const photo = item.image ?? productImageFor(item.name);
+function ProductMedia({ rp }: { rp: ResolvedProduct }) {
+  const { item, details, imageAlt } = rp;
+  const [failed, setFailed] = useState(false);
+  const photo =
+    item.image ??
+    (details?.imageKey ? productImageForKey(details.imageKey) : null) ??
+    productImageFor(item.name);
+  const showPhoto = Boolean(photo) && !failed;
+
   return (
-    <div
-      className={`relative overflow-hidden rounded-lg border border-[hsl(var(--warm-beige))] bg-white ${
-        size === "dialog" ? "" : ""
-      }`}
-    >
+    <div className="relative overflow-hidden rounded-lg border border-[hsl(var(--warm-beige))] bg-white">
       <div className="aspect-[4/3] w-full">
-        {photo ? (
+        {showPhoto ? (
           <img
-            src={photo}
-            alt={`${item.name} varmepumpe`}
+            src={photo!}
+            alt={imageAlt}
             loading="lazy"
+            onError={() => setFailed(true)}
             className="h-full w-full object-contain p-3"
           />
         ) : (
           <HeatPumpIllustration
-            variant={illustrationVariant(item.productType)}
-            label={`Illustrasjon · ${item.productType ?? item.subtitle}`}
+            variant={illustrationVariant(item.productType ?? details?.productType)}
+            label={`Illustrasjon · ${item.productType ?? details?.productType ?? item.subtitle}`}
           />
         )}
       </div>
     </div>
   );
 }
+
 
 function BrandRow({
   brand,
@@ -908,6 +932,9 @@ function ProductCard({
   onOpen: () => void;
 }) {
   const { startLead } = useLead();
+  const rp = useMemo(() => resolveProduct(item), [item]);
+  const displayName = rp.details?.modelName ?? item.name;
+  const family = rp.details?.modelFamily;
 
   return (
     <article className="h-full bg-white rounded-xl border border-[hsl(var(--warm-beige))] p-4 sm:p-5 flex flex-col shadow-[0_1px_2px_hsl(var(--mcs-navy)/0.04)] hover:shadow-[0_8px_24px_-12px_hsl(var(--mcs-navy)/0.18)] transition-shadow">
@@ -915,10 +942,10 @@ function ProductCard({
         <BrandRow brand={item.brand} logo={logo} />
       </div>
 
-      <ProductMedia item={item} />
+      <ProductMedia rp={rp} />
 
       <h4 className="mt-4 text-base font-bold text-[hsl(var(--mcs-navy))] leading-snug">
-        {item.name}
+        {displayName}
       </h4>
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1.5">
         {item.productType && (
@@ -927,31 +954,41 @@ function ProductCard({
           </span>
         )}
         <span className="text-[11px] uppercase tracking-wider text-[hsl(var(--mcs-muted))]">
-          {item.subtitle}
+          {family && family !== displayName ? `${family} · ${item.subtitle}` : item.subtitle}
         </span>
       </div>
 
       <p className="mt-2.5 text-sm text-[hsl(var(--mcs-muted))] leading-relaxed">
-        {item.description}
+        {rp.positioning}
       </p>
 
-      <div className="mt-3">
-        <TagRow tags={item.tags} max={3} />
-      </div>
-
-      <div className="mt-4 flex-1">
+      <div className="mt-4">
         <p className="text-[11px] uppercase tracking-wider text-[hsl(var(--mcs-muted))] mb-2">
-          Passer for
+          Styrker
         </p>
         <ul className="space-y-1.5">
-          {item.bestFor.map((b) => (
-            <li key={b} className="flex items-start gap-2 text-sm text-[hsl(var(--mcs-muted))]">
+          {rp.strengths.slice(0, 4).map((s) => (
+            <li key={s} className="flex items-start gap-2 text-sm text-[hsl(var(--mcs-muted))]">
               <Check className="h-4 w-4 mt-0.5 shrink-0 text-[hsl(var(--mcs-orange))]" />
-              <span className="min-w-0">{b}</span>
+              <span className="min-w-0">{s}</span>
             </li>
           ))}
         </ul>
       </div>
+
+      <div className="mt-4 flex-1">
+        <p className="text-[11px] uppercase tracking-wider text-[hsl(var(--mcs-muted))] mb-2">
+          Passer ofte for
+        </p>
+        <ul className="space-y-1">
+          {rp.suitableFor.slice(0, 3).map((b) => (
+            <li key={b} className="text-sm text-[hsl(var(--mcs-muted))] leading-snug">
+              · {b}
+            </li>
+          ))}
+        </ul>
+      </div>
+
 
       <div className="mt-5 pt-4 border-t border-[hsl(var(--warm-beige))] flex flex-col gap-2">
         <button
@@ -1002,6 +1039,10 @@ function ProductDetailDialog({
 }) {
   const { startLead } = useLead();
   if (!item) return null;
+  const rp = resolveProduct(item);
+  const displayName = rp.details?.modelName ?? item.name;
+  const family = rp.details?.modelFamily;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="w-[calc(100%-1.5rem)] sm:w-full max-w-xl max-h-[88vh] overflow-y-auto bg-white p-5 sm:p-6">
@@ -1010,23 +1051,29 @@ function ProductDetailDialog({
             <BrandRow brand={item.brand} logo={logo} />
           </div>
           <DialogTitle className="text-xl sm:text-2xl text-[hsl(var(--mcs-navy))] leading-tight">
-            {item.name}
+            {displayName}
           </DialogTitle>
           <DialogDescription className="text-[hsl(var(--mcs-muted))]">
-            {[item.productType, item.subtitle].filter(Boolean).join(" · ")}
+            {[item.brand, family, item.productType ?? rp.details?.productType]
+              .filter(Boolean)
+              .join(" · ")}
           </DialogDescription>
         </DialogHeader>
 
         <div className="mt-1">
-          <ProductMedia item={item} size="dialog" />
+          <ProductMedia rp={rp} />
         </div>
+
+        <p className="text-sm text-[hsl(var(--mcs-navy))] leading-relaxed">
+          {rp.positioning}
+        </p>
 
         <TagRow tags={item.tags} />
 
         <div className="space-y-5">
-          <DialogSection title="Passer for">
+          <DialogSection title="Passer ofte for">
             <ul className="space-y-1.5">
-              {item.bestFor.map((b) => (
+              {rp.suitableFor.map((b) => (
                 <li
                   key={b}
                   className="flex items-start gap-2 text-sm text-[hsl(var(--mcs-muted))]"
@@ -1040,15 +1087,34 @@ function ProductDetailDialog({
 
           <DialogSection title="Typisk bruk">
             <p className="text-sm text-[hsl(var(--mcs-muted))] leading-relaxed">
-              {typicalUseFor(item)}
+              {rp.typicalUse}
             </p>
           </DialogSection>
 
-          <DialogSection title="Hvorfor vi anbefaler den">
-            <p className="text-sm text-[hsl(var(--mcs-muted))] leading-relaxed">
-              {whyWeRecommend(item)}
-            </p>
+          <DialogSection title="Styrker">
+            <ul className="space-y-1.5">
+              {rp.strengths.map((s) => (
+                <li
+                  key={s}
+                  className="flex items-start gap-2 text-sm text-[hsl(var(--mcs-muted))]"
+                >
+                  <Check className="h-4 w-4 mt-0.5 shrink-0 text-[hsl(var(--mcs-orange))]" />
+                  <span className="min-w-0">{s}</span>
+                </li>
+              ))}
+            </ul>
           </DialogSection>
+
+          <DialogSection title="Viktig å vurdere på befaring">
+            <ul className="space-y-2">
+              {rp.considerations.map((c) => (
+                <li key={c} className="text-sm text-[hsl(var(--mcs-muted))] leading-relaxed">
+                  {c}
+                </li>
+              ))}
+            </ul>
+          </DialogSection>
+
 
           <DialogSection title="Neste steg">
             <p className="text-sm text-[hsl(var(--mcs-muted))] leading-relaxed mb-3">
