@@ -14,7 +14,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useBrandLogos, BRAND_LOGO_CLASS } from "./useBrandLogos";
-import { productImageFor, productImageForKey } from "./useProductImages";
+import {
+  resolveProductGallery,
+  type ResolvedImage,
+} from "./useProductImages";
+
 import { HeatPumpIllustration } from "./HeatPumpIllustration";
 import { useLead, type LeadContext } from "./LeadContext";
 import { productDetailsFor, type ProductDetails } from "./product-catalog";
