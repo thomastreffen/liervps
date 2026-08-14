@@ -754,6 +754,19 @@ function LeadDetailInner() {
                           >
                             Forhåndsvis tilbud
                           </Button>
+                          {offer.pdf_drive_url && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 text-xs rounded-lg"
+                              asChild
+                            >
+                              <a href={offer.pdf_drive_url} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>
+                                Åpne PDF
+                              </a>
+                            </Button>
+                          )}
+
                         </div>
                       </div>
                     ))}
