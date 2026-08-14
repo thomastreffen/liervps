@@ -1227,6 +1227,7 @@ export type Database = {
           next_step: string | null
           next_step_at: string | null
           norm_table_id: string | null
+          offer_sent_at: string | null
           package_id: string | null
           parent_offer_id: string | null
           project_title: string
@@ -1271,6 +1272,7 @@ export type Database = {
           next_step?: string | null
           next_step_at?: string | null
           norm_table_id?: string | null
+          offer_sent_at?: string | null
           package_id?: string | null
           parent_offer_id?: string | null
           project_title: string
@@ -1315,6 +1317,7 @@ export type Database = {
           next_step?: string | null
           next_step_at?: string | null
           norm_table_id?: string | null
+          offer_sent_at?: string | null
           package_id?: string | null
           parent_offer_id?: string | null
           project_title?: string
