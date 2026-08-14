@@ -467,9 +467,17 @@ function LeadDetailInner() {
               <span className="text-sm text-muted-foreground">Opprettet {format(new Date(lead.created_at), "d. MMM yyyy", { locale: nb })}</span>
             </div>
           </div>
-          <Button onClick={() => setBefaringOpen(true)} className="mt-1 gap-1.5 rounded-xl shrink-0">
-            <CalendarPlus className="h-4 w-4" /> Lag befaring
-          </Button>
+          <div className="mt-1 flex flex-wrap items-center gap-2 shrink-0">
+            <Button onClick={() => setBefaringOpen(true)} className="gap-1.5 rounded-xl">
+              <CalendarPlus className="h-4 w-4" /> Lag befaring
+            </Button>
+            <Button variant="outline" onClick={() => setOfferDraftOpen(true)} className="gap-1.5 rounded-xl">
+              <FileText className="h-4 w-4" /> Lag tilbud
+            </Button>
+            <Button variant="outline" onClick={() => setJobDrawerOpen(true)} className="gap-1.5 rounded-xl">
+              <ArrowRightLeft className="h-4 w-4" /> Opprett oppdrag
+            </Button>
+          </div>
         </div>
 
         {/* ── Flyt-kjede (Postkontor → Lead → Bestilling → Oppdrag) ── */}
