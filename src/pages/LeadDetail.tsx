@@ -24,6 +24,9 @@ import { PublicLeadContextCard } from "@/components/leads/PublicLeadContextCard"
 import { GoogleWorkspaceStatusCard } from "@/components/leads/GoogleWorkspaceStatusCard";
 import { CreateBefaringDrawer } from "@/components/leads/CreateBefaringDrawer";
 import { LeadNextStepPanel } from "@/components/leads/LeadNextStepPanel";
+import { CreateOfferDraftDrawer } from "@/components/leads/CreateOfferDraftDrawer";
+import { CreateJobFromLeadDrawer } from "@/components/leads/CreateJobFromLeadDrawer";
+import { LeadLinkedJobsCard } from "@/components/leads/LeadLinkedJobsCard";
 import { FlowTrail } from "@/components/flow/FlowTrail";
 import { useFlowChain } from "@/components/flow/useFlowChain";
 import { ContractListSection } from "@/components/contracts/ContractListSection";
@@ -144,6 +147,9 @@ function LeadDetailInner() {
   // Inline convert panel
   const [showConvertPanel, setShowConvertPanel] = useState(false);
   const [befaringOpen, setBefaringOpen] = useState(false);
+  const [offerDraftOpen, setOfferDraftOpen] = useState(false);
+  const [jobDrawerOpen, setJobDrawerOpen] = useState(false);
+  const [jobsRefreshKey, setJobsRefreshKey] = useState(0);
 
   // Side panel
   const [actionPanelOpen, setActionPanelOpen] = useState(false);
@@ -461,9 +467,17 @@ function LeadDetailInner() {
               <span className="text-sm text-muted-foreground">Opprettet {format(new Date(lead.created_at), "d. MMM yyyy", { locale: nb })}</span>
             </div>
           </div>
-          <Button onClick={() => setBefaringOpen(true)} className="mt-1 gap-1.5 rounded-xl shrink-0">
-            <CalendarPlus className="h-4 w-4" /> Lag befaring
-          </Button>
+          <div className="mt-1 flex flex-wrap items-center gap-2 shrink-0">
+            <Button onClick={() => setBefaringOpen(true)} className="gap-1.5 rounded-xl">
+              <CalendarPlus className="h-4 w-4" /> Lag befaring
+            </Button>
+            <Button variant="outline" onClick={() => setOfferDraftOpen(true)} className="gap-1.5 rounded-xl">
+              <FileText className="h-4 w-4" /> Lag tilbud
+            </Button>
+            <Button variant="outline" onClick={() => setJobDrawerOpen(true)} className="gap-1.5 rounded-xl">
+              <ArrowRightLeft className="h-4 w-4" /> Opprett oppdrag
+            </Button>
+          </div>
         </div>
 
         {/* ── Flyt-kjede (Postkontor → Lead → Bestilling → Oppdrag) ── */}
@@ -675,7 +689,14 @@ function LeadDetailInner() {
 
             {/* Tilbud */}
             <Card className="rounded-2xl shadow-sm">
-              <CardHeader className="pb-3"><CardTitle className="text-base">Tilbud</CardTitle></CardHeader>
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base">Tilbud</CardTitle>
+                  <Button size="sm" variant="ghost" className="gap-1 h-7 text-xs" onClick={() => setOfferDraftOpen(true)}>
+                    <Plus className="h-3 w-3" /> Lag tilbud
+                  </Button>
+                </div>
+              </CardHeader>
               <CardContent>
                 {offers.length === 0 ? (
                   <div className="text-center py-4">
@@ -685,9 +706,9 @@ function LeadDetailInner() {
                       size="sm"
                       variant="outline"
                       className="mt-2 gap-1.5 text-xs rounded-xl"
-                      onClick={() => navigate(`/sales/offers/new?lead_id=${lead.id}`)}
+                      onClick={() => setOfferDraftOpen(true)}
                     >
-                      <Plus className="h-3 w-3" /> Opprett tilbud
+                      <Plus className="h-3 w-3" /> Opprett tilbudsutkast
                     </Button>
                   </div>
                 ) : (
@@ -713,6 +734,15 @@ function LeadDetailInner() {
                 )}
               </CardContent>
             </Card>
+
+            {/* Oppdrag fra henvendelsen */}
+            <LeadLinkedJobsCard
+              leadId={lead.id}
+              refreshKey={jobsRefreshKey}
+              onCreate={() => setJobDrawerOpen(true)}
+            />
+
+
 
             {/* Bestilling fra lead */}
             <CreateOrderFromLeadCard
@@ -832,6 +862,41 @@ function LeadDetailInner() {
         }}
         onCreated={() => { fetchLead(); fetchActivities(); fetchCalendarLinks(); }}
       />
+
+      {/* ── Lag tilbud ── */}
+      <CreateOfferDraftDrawer
+        open={offerDraftOpen}
+        onOpenChange={setOfferDraftOpen}
+        lead={{
+          id: lead.id,
+          company_name: lead.company_name,
+          contact_name: lead.contact_name,
+          email: lead.email,
+          phone: lead.phone,
+          notes: lead.notes,
+          company_id: lead.company_id,
+          public_lead_id: lead.public_lead_id,
+        }}
+        onCreated={() => { fetchLead(); fetchActivities(); fetchOffers(); }}
+      />
+
+      {/* ── Opprett oppdrag ── */}
+      <CreateJobFromLeadDrawer
+        open={jobDrawerOpen}
+        onOpenChange={setJobDrawerOpen}
+        lead={{
+          id: lead.id,
+          company_name: lead.company_name,
+          contact_name: lead.contact_name,
+          email: lead.email,
+          phone: lead.phone,
+          notes: lead.notes,
+          company_id: lead.company_id,
+          public_lead_id: lead.public_lead_id,
+        }}
+        onCreated={() => { fetchLead(); fetchActivities(); setJobsRefreshKey(k => k + 1); }}
+      />
+
 
 
       {/* ── Only confirmation dialogs remain ── */}
