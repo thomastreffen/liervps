@@ -102,14 +102,16 @@ export async function ensureFreshAccessToken(
   const data = await res.json().catch(() => ({}));
   if (!res.ok || !data.access_token) {
     console.error("[google-token] refresh failed", data);
-    return null;
+    return await fail(typeof data?.error === "string" ? data.error : "refresh_failed");
   }
   const newExpiresAt = new Date(Date.now() + (data.expires_in ?? 3600) * 1000).toISOString();
   await admin
     .from("user_integration_tokens")
     .update({ access_token: data.access_token, expires_at: newExpiresAt })
     .eq("id", tokenRow.id);
+  if (service) await recordGoogleHealth(admin, service, "ok");
   return data.access_token;
+
 }
 
 function toBase64Url(str: string): string {
