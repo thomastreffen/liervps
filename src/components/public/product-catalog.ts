@@ -117,6 +117,34 @@ const SRC = {
     url: "https://www.varmepumpeservice.no/toshiba-bestselgere",
     label: "Toshiba – distributørkatalog",
   },
+  toSignatur: {
+    url: "https://www.toshibavarmepumper.no/varmepumper-luft-luft/signatur-25/",
+    label: "Toshiba Norge (ABK-Qviller, importør)",
+  },
+  toKontur: {
+    url: "https://www.toshibavarmepumper.no/varmepumper-luft-luft/toshiba-kontur-25/",
+    label: "Toshiba Norge (ABK-Qviller, importør)",
+  },
+  toAsk: {
+    url: "https://www.toshibavarmepumper.no/varmepumper-luft-luft/toshiba-ask-25/",
+    label: "Toshiba Norge (ABK-Qviller, importør)",
+  },
+  toPolar: {
+    url: "https://www.toshibavarmepumper.no/varmepumper-luft-luft/toshiba-polar-25/",
+    label: "Toshiba Norge (ABK-Qviller, importør)",
+  },
+  toSeiyaNordic: {
+    url: "https://www.toshibavarmepumper.no/varmepumper-luft-luft/toshiba-seiya-nordic-25/",
+    label: "Toshiba Norge (ABK-Qviller, importør)",
+  },
+  toGulv: {
+    url: "https://www.toshibavarmepumper.no/varmepumper-luft-luft/toshiba-gulvmodell-25/",
+    label: "Toshiba Norge (ABK-Qviller, importør)",
+  },
+  toMultiNordicOff: {
+    url: "https://www.toshibavarmepumper.no/varmepumper-luft-luft/multi-nordic/",
+    label: "Toshiba Norge (ABK-Qviller, importør)",
+  },
   toTekstil: {
     url: "https://www.varmepumpeservice.no/tekstiltrekk-til-toshiba-signatur",
     label: "Toshiba tilbehør – distributørkatalog",
@@ -673,7 +701,7 @@ export const PRODUCT_DETAILS: Record<string, ProductDetails> = {
     modelFamily: "Signatur",
     productType: "Luft-luft",
     shortPositioning:
-      "Designmodell med utskiftbar tekstilfront, aktuelt der innedelen er godt synlig.",
+      "Designmodellen i Toshiba-utvalget, med tekstiltrekk som kan byttes der innedelen er godt synlig.",
     suitableFor: [
       "Stue eller rom med synlig plassering",
       "Designbevisste hjem",
@@ -690,9 +718,9 @@ export const PRODUCT_DETAILS: Record<string, ProductDetails> = {
       "Tekstiltrekk kan bestilles separat, slik at uttrykket kan endres uten å bytte anlegg.",
     imageKey: "toshiba-signatur",
     imageAlt: "Toshiba Signatur innedel med tekstilfront",
-    imageStatus: "missing",
-    sourceUrl: SRC.toBest.url,
-    sourceLabel: SRC.toBest.label,
+    imageStatus: "needs_approval",
+    sourceUrl: SRC.toSignatur.url,
+    sourceLabel: SRC.toSignatur.label,
     lastReviewed: REVIEWED,
   },
   "Toshiba Daiseikai 10 Kontur": {
@@ -701,7 +729,7 @@ export const PRODUCT_DETAILS: Record<string, ProductDetails> = {
     modelFamily: "Daiseikai 10",
     productType: "Luft-luft",
     shortPositioning:
-      "Toppmodell i Toshiba-utvalget, typisk valgt ved høyere varmebehov og krav til komfort.",
+      "Toppmodellen i Daiseikai 10-serien, typisk valgt når komfortfunksjoner og helårsdrift veier tyngst.",
     suitableFor: [
       "Enebolig med større oppholdsrom",
       "Boliger der pumpen skal dekke mye av oppvarmingen",
@@ -716,11 +744,11 @@ export const PRODUCT_DETAILS: Record<string, ProductDetails> = {
     ],
     heatingNotes:
       "Aktuelt ved høyt varmebehov. Riktig størrelse settes etter befaring, ikke etter kvadratmeter alene.",
-    imageKey: "toshiba-daiseikai-kontur",
+    imageKey: "toshiba-daiseikai-10-kontur",
     imageAlt: "Toshiba Daiseikai 10 Kontur innedel",
-    imageStatus: "missing",
-    sourceUrl: SRC.toBest.url,
-    sourceLabel: SRC.toBest.label,
+    imageStatus: "needs_approval",
+    sourceUrl: SRC.toKontur.url,
+    sourceLabel: SRC.toKontur.label,
     lastReviewed: REVIEWED,
   },
   "Toshiba Daiseikai 10 Ask": {
@@ -729,7 +757,7 @@ export const PRODUCT_DETAILS: Record<string, ProductDetails> = {
     modelFamily: "Daiseikai 10",
     productType: "Luft-luft",
     shortPositioning:
-      "Samme toppserie som Kontur, men med et mer dempet designuttrykk.",
+      "Toppmodell i designklassen, samme serie som Kontur, men med et tydeligere nordisk designuttrykk.",
     suitableFor: [
       "Boliger som vil ha toppmodell i et synlig rom",
       "Interiør med nøytrale farger",
@@ -744,11 +772,11 @@ export const PRODUCT_DETAILS: Record<string, ProductDetails> = {
     ],
     designNotes:
       "Ask og Kontur er varianter i samme serie. Valget handler først og fremst om uttrykk.",
-    imageKey: "toshiba-daiseikai-ask",
+    imageKey: "toshiba-daiseikai-10-ask",
     imageAlt: "Toshiba Daiseikai 10 Ask innedel",
-    imageStatus: "missing",
-    sourceUrl: SRC.toBest.url,
-    sourceLabel: SRC.toBest.label,
+    imageStatus: "needs_approval",
+    sourceUrl: SRC.toAsk.url,
+    sourceLabel: SRC.toAsk.label,
     lastReviewed: REVIEWED,
   },
   "Toshiba Polar": {
@@ -757,7 +785,7 @@ export const PRODUCT_DETAILS: Record<string, ProductDetails> = {
     modelFamily: "Polar",
     productType: "Luft-luft",
     shortPositioning:
-      "Modell tilpasset kaldt klima, aktuelt der vintrene er lange og varmebehovet stort.",
+      "Kompakt modell posisjonert for nordisk klima, aktuelt der vintrene er lange og varmebehovet stort.",
     suitableFor: [
       "Enebolig i kaldere strøk",
       "Boliger med høyt varmebehov",
@@ -774,9 +802,9 @@ export const PRODUCT_DETAILS: Record<string, ProductDetails> = {
       "Serien er posisjonert av leverandøren for kaldt klima. Faktisk ytelse avhenger av bolig og dimensjonering.",
     imageKey: "toshiba-polar",
     imageAlt: "Toshiba Polar innedel",
-    imageStatus: "missing",
-    sourceUrl: SRC.toBest.url,
-    sourceLabel: SRC.toBest.label,
+    imageStatus: "needs_approval",
+    sourceUrl: SRC.toPolar.url,
+    sourceLabel: SRC.toPolar.label,
     lastReviewed: REVIEWED,
   },
   "Toshiba Seiya": {
@@ -785,7 +813,7 @@ export const PRODUCT_DETAILS: Record<string, ProductDetails> = {
     modelFamily: "Seiya",
     productType: "Luft-luft",
     shortPositioning:
-      "Inngangsmodellen i Toshiba-utvalget, tilpasset nordiske forhold.",
+      "Inngangsmodellen i Toshiba-utvalget, tilpasset nordiske forhold og boliger med lavt til middels varmebehov.",
     suitableFor: [
       "Mindre bolig, hytte eller hybel",
       "Kunder med moderat varmebehov",
@@ -798,11 +826,11 @@ export const PRODUCT_DETAILS: Record<string, ProductDetails> = {
       "Nordisk tilpasset variant",
       "Enkle, smarte funksjoner",
     ],
-    imageKey: "toshiba-seiya",
+    imageKey: "toshiba-seiya-nordic",
     imageAlt: "Toshiba Seiya Nordic innedel",
-    imageStatus: "missing",
-    sourceUrl: SRC.toBest.url,
-    sourceLabel: SRC.toBest.label,
+    imageStatus: "needs_approval",
+    sourceUrl: SRC.toSeiyaNordic.url,
+    sourceLabel: SRC.toSeiyaNordic.label,
     lastReviewed: REVIEWED,
   },
   "Toshiba Gulvmodell": {
@@ -811,7 +839,7 @@ export const PRODUCT_DETAILS: Record<string, ProductDetails> = {
     modelFamily: "Gulvmodell",
     productType: "Gulvmodell",
     shortPositioning:
-      "Gulvmodell for alternative plasseringer der høy vegg ikke er tilgjengelig.",
+      "Gulvmodellen i Toshiba-utvalget, for plasseringer der høy vegg ikke er tilgjengelig.",
     suitableFor: [
       "Eldre boliger og spesielle planløsninger",
       "Rom med vindusrekke eller skråtak",
@@ -828,9 +856,9 @@ export const PRODUCT_DETAILS: Record<string, ProductDetails> = {
       "Fri luftvei foran enheten er en forutsetning, og vurderes på befaring.",
     imageKey: "toshiba-gulvmodell",
     imageAlt: "Toshiba gulvmodell innedel",
-    imageStatus: "missing",
-    sourceUrl: SRC.toBest.url,
-    sourceLabel: SRC.toBest.label,
+    imageStatus: "needs_approval",
+    sourceUrl: SRC.toGulv.url,
+    sourceLabel: SRC.toGulv.label,
     lastReviewed: REVIEWED,
   },
   "Toshiba Multisplitt": {
@@ -865,7 +893,7 @@ export const PRODUCT_DETAILS: Record<string, ProductDetails> = {
     modelFamily: "Multi Nordic",
     productType: "Multisplitt",
     shortPositioning:
-      "Multisplitt satt sammen for nordiske forhold og drift gjennom hele året.",
+      "Multimodellen tilpasset kaldt klima, der flere innedeler kan kombineres på én utedel.",
     suitableFor: [
       "Bygg i områder med kalde vintre",
       "Lokaler med flere rom og fast driftstid",
@@ -882,9 +910,9 @@ export const PRODUCT_DETAILS: Record<string, ProductDetails> = {
       "Nordic-serien er posisjonert av leverandøren for kaldt klima. Kapasitet settes etter befaring.",
     imageKey: "toshiba-multi-nordic",
     imageAlt: "Toshiba Multi Nordic utedel",
-    imageStatus: "missing",
-    sourceUrl: SRC.toMultiNordic.url,
-    sourceLabel: SRC.toMultiNordic.label,
+    imageStatus: "needs_approval",
+    sourceUrl: SRC.toMultiNordicOff.url,
+    sourceLabel: SRC.toMultiNordicOff.label,
     lastReviewed: REVIEWED,
   },
   "Tekstiltrekk til Signatur": {

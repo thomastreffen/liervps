@@ -56,7 +56,10 @@ export const PRODUCT_IMAGE_KEY: Record<string, string> = {
   "Panasonic VZ Heatcharge": "panasonic-vz",
   "Panasonic Gulvmodell": "panasonic-gulvmodell",
   "Toshiba Signatur": "toshiba-signatur",
-  "Toshiba Daiseikai 10 Kontur": "toshiba-daiseikai-kontur",
+  "Toshiba Daiseikai 10 Kontur": "toshiba-daiseikai-10-kontur",
+  "Toshiba Daiseikai 10 Ask": "toshiba-daiseikai-10-ask",
+  "Toshiba Seiya": "toshiba-seiya-nordic",
+  "Toshiba Multisplitt Nordic": "toshiba-multi-nordic",
   "Toshiba Polar": "toshiba-polar",
   "Toshiba Gulvmodell": "toshiba-gulvmodell",
 };
