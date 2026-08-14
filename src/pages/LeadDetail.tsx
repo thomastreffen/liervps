@@ -25,7 +25,8 @@ import { GoogleWorkspaceStatusCard } from "@/components/leads/GoogleWorkspaceSta
 import { CreateBefaringDrawer } from "@/components/leads/CreateBefaringDrawer";
 import { LeadNextStepPanel } from "@/components/leads/LeadNextStepPanel";
 import { CreateOfferDraftDrawer } from "@/components/leads/CreateOfferDraftDrawer";
-import { CreateJobFromLeadDrawer } from "@/components/leads/CreateJobFromLeadDrawer";
+import { CreateJobFromLeadDrawer, type JobOfferContext } from "@/components/leads/CreateJobFromLeadDrawer";
+import { OfferAcceptActions } from "@/components/leads/OfferAcceptActions";
 import { LeadLinkedJobsCard } from "@/components/leads/LeadLinkedJobsCard";
 import { OfferPreviewDialog } from "@/components/leads/OfferPreviewDialog";
 import { FlowTrail } from "@/components/flow/FlowTrail";
@@ -101,6 +102,7 @@ interface LeadCalc {
   total_price: number | null;
   created_at: string;
   offer_sent_at?: string | null;
+  offer_accepted_at?: string | null;
   customer_name?: string | null;
   customer_email?: string | null;
   description?: string | null;
@@ -162,6 +164,7 @@ function LeadDetailInner() {
   const [jobDrawerOpen, setJobDrawerOpen] = useState(false);
   const [jobsRefreshKey, setJobsRefreshKey] = useState(0);
   const [previewOffer, setPreviewOffer] = useState<LeadCalc | null>(null);
+  const [jobOffer, setJobOffer] = useState<JobOfferContext | null>(null);
 
   // Side panel
   const [actionPanelOpen, setActionPanelOpen] = useState(false);
@@ -219,7 +222,7 @@ function LeadDetailInner() {
     if (!id) return;
     try {
       const { data } = await supabase.from("calculations")
-        .select("id, project_title, status, total_price, created_at, offer_sent_at, customer_name, customer_email, description, input_snapshot, pdf_drive_file_id, pdf_drive_url, pdf_generated_at, pdf_content_hash")
+        .select("id, project_title, status, total_price, created_at, offer_sent_at, offer_accepted_at, customer_name, customer_email, description, input_snapshot, pdf_drive_file_id, pdf_drive_url, pdf_generated_at, pdf_content_hash")
         .eq("lead_id", id)
         .is("deleted_at", null)
         .order("created_at", { ascending: false });
@@ -767,6 +770,15 @@ function LeadDetailInner() {
                             </Button>
                           )}
 
+                          <OfferAcceptActions
+                            offer={offer}
+                            leadId={lead.id}
+                            onUpdated={() => { fetchOffers(); fetchLead(); fetchActivities(); }}
+                            onCreateJob={(o) => {
+                              setJobOffer({ id: o.id, project_title: o.project_title });
+                              setJobDrawerOpen(true);
+                            }}
+                          />
                         </div>
                       </div>
                     ))}
@@ -779,7 +791,7 @@ function LeadDetailInner() {
             <LeadLinkedJobsCard
               leadId={lead.id}
               refreshKey={jobsRefreshKey}
-              onCreate={() => setJobDrawerOpen(true)}
+              onCreate={() => { setJobOffer(null); setJobDrawerOpen(true); }}
             />
 
 
@@ -923,7 +935,8 @@ function LeadDetailInner() {
       {/* ── Opprett oppdrag ── */}
       <CreateJobFromLeadDrawer
         open={jobDrawerOpen}
-        onOpenChange={setJobDrawerOpen}
+        onOpenChange={(v) => { setJobDrawerOpen(v); if (!v) setJobOffer(null); }}
+        offer={jobOffer}
         lead={{
           id: lead.id,
           company_name: lead.company_name,
@@ -934,7 +947,7 @@ function LeadDetailInner() {
           company_id: lead.company_id,
           public_lead_id: lead.public_lead_id,
         }}
-        onCreated={() => { fetchLead(); fetchActivities(); setJobsRefreshKey(k => k + 1); }}
+        onCreated={() => { fetchLead(); fetchActivities(); fetchOffers(); setJobsRefreshKey(k => k + 1); }}
       />
 
       {/* ── Forhåndsvis / send tilbud ── */}
