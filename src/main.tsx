@@ -2,7 +2,11 @@ import { createRoot } from "react-dom/client";
 import "./index.css";
 import { handleFreshResetIfRequested, runLierVpsRuntimeCleanup } from "./pwa/freshReset";
 import { installNavigationGuard } from "./lib/navigationGuard";
-import { installChunkErrorRecovery } from "./pwa/chunkErrorRecovery";
+import {
+  installChunkErrorRecovery,
+  markChunkLoadHealthy,
+  recoverFromChunkError,
+} from "./pwa/chunkErrorRecovery";
 
 // Install before the bootstrap imports. Otherwise a stale App.tsx URL rejects
 // before the recovery listeners exist and leaves the preview blank.
@@ -40,6 +44,12 @@ async function bootstrap() {
       </HelmetProvider>
     </ErrorBoundary>,
   );
+
+  // Do not clear the one-shot retry guard until every bootstrap import has
+  // resolved and React has mounted successfully.
+  markChunkLoadHealthy();
 }
 
-void bootstrap();
+void bootstrap().catch((error: unknown) => {
+  void recoverFromChunkError(error);
+});
