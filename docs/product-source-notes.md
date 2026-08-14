@@ -24,48 +24,40 @@ Sist gjennomgått: 2026-08-14
 
 | Produkt | Kilde brukt | Hva som er hentet | Bildenøkkel | Bildestatus |
 | --- | --- | --- | --- | --- |
-| UWANO Pure | MEE – https://mee.no/privat/produktkategori/luft-luft-varmepumper/uwanopure/ | Navn, familieplassering (Toppmodellen), komfortprofil | mitsubishi-uwano-pure | needs_approval (2026-08-14) |
-| Kaiteki | MEE – https://mee.no/privat/produktkategori/luft-luft-varmepumper/kaiteki/ | Navn, familieplassering (Bestselgeren), fargevalg | mitsubishi-kaiteki | needs_approval (2026-08-14) |
-| GUSSURI | MEE – https://mee.no/privat/produktkategori/luft-luft-varmepumper/gussuri/ | Navn, familieplassering (Komfortmodellen), lydposisjonering | mitsubishi-gussuri | needs_approval (2026-08-14) |
-| IGURU | MEE – https://mee.no/privat/produktkategori/luft-luft-varmepumper/iguru/ | Navn, familieplassering (Kompaktmodellen) | mitsubishi-iguru | needs_approval (2026-08-14) |
-| Furo | MEE – https://mee.no/privat/produktkategori/luft-luft-varmepumper/furo/ | Navn, familieplassering (Gulvmodellen), plassering | mitsubishi-furo | needs_approval (2026-08-14) |
-| Zen | MEE – https://mee.no/privat/produktkategori/luft-luft-varmepumper/zen/ | Navn, familieplassering (Designmodellen) | mitsubishi-zen | needs_approval (2026-08-14) |
-| Duo-modellen | MEE – https://mee.no/privat/produktkategori/luft-luft-varmepumper/duo-7000/ | Navn, familieplassering (Duomodellen), to soner / én utedel | mitsubishi-duo-modellen | needs_approval (2026-08-14) |
-| Nordic Multi | MEE – https://mee.no/privat/produktkategori/luft-luft-varmepumper/nordic-multi/ | Navn, familieplassering (Multimodellen), nordisk tilpasning | mitsubishi-nordic-multi | needs_approval (2026-08-14) |
-| Panasonic HZ Flagship | Distributørkatalog | Toppserie, nanoe X | panasonic-hz | missing |
-| Panasonic NZ Etherea | Distributørkatalog | Plassering under toppserie | panasonic-nz | missing |
-| Panasonic CZ | Distributørkatalog | Kompakt, innebygget WiFi | panasonic-cz | missing |
-| Panasonic LZ | Distributørkatalog | Utskiftingsmodell | panasonic-lz | missing |
-| Panasonic VZ Heatcharge | Distributørkatalog | Heatcharge-posisjonering | panasonic-vz | missing |
-| Panasonic Gulvmodell | Distributørkatalog | Gulvplassering | panasonic-gulvmodell | missing |
+| UWANO Pure | MEE – mee.no/uwanopure | Navn, familieplassering (Toppmodellen), komfortprofil, produktbilde | mitsubishi-uwano-pure | local_approved (2026-08-14) |
+| Kaiteki | MEE – mee.no/kaiteki | Navn, familieplassering (Bestselgeren), fargevalg, produktbilde | mitsubishi-kaiteki | local_approved (2026-08-14) |
+| GUSSURI | MEE – mee.no/gussuri | Navn, familieplassering (Komfortmodellen), lydposisjonering, produktbilde | mitsubishi-gussuri | local_approved (2026-08-14) |
+| IGURU | MEE – mee.no/iguru | Navn, familieplassering (Kompaktmodellen), produktbilde | mitsubishi-iguru | local_approved (2026-08-14) |
+| Furo | MEE – mee.no/furo | Navn, familieplassering (Gulvmodellen), plassering, produktbilde | mitsubishi-furo | local_approved (2026-08-14) |
+| Zen | MEE – mee.no/zen | Navn, familieplassering (Designmodellen), produktbilde | mitsubishi-zen | local_approved (2026-08-14) |
+| Duo-modellen | MEE – mee.no/duo-7000 | Navn, familieplassering (Duomodellen), produktbilde | mitsubishi-duo-modellen | local_approved (2026-08-14) |
+| Nordic Multi | MEE – mee.no/nordic-multi | Navn, familieplassering (Multimodellen), produktbilde | mitsubishi-nordic-multi | local_approved (2026-08-14) |
+| Panasonic HZ Flagship | Distributørkatalog – KIT-HZ25ZKE | Toppserie, nanoe X, produktbilde | panasonic-hz-flagship | local_approved (2026-08-14) |
+| Panasonic NZ Etherea | Distributørkatalog – KIT-NZ25YKE | Plassering under toppserie, produktbilde | panasonic-nz-etherea | local_approved (2026-08-14) |
+| Panasonic CZ | Distributørkatalog – KIT-CZ25ZKE | Kompakt, innebygget WiFi, produktbilde | panasonic-cz | local_approved (2026-08-14) |
+| Panasonic LZ | Distributørkatalog – KIT-LZ25TKE | Utskiftingsmodell, produktbilde | panasonic-lz-retro-fit | local_approved (2026-08-14) |
+| Panasonic VZ Heatcharge | Distributørkatalog – KIT-VZ12-SKE | Heatcharge-posisjonering, produktbilde | panasonic-vz-heatcharge | local_approved (2026-08-14) |
+| Panasonic Gulvmodell | Distributørkatalog – KIT-Z25CFEA-1 | Gulvplassering, produktbilde | panasonic-gulvmodell | local_approved (2026-08-14) |
+| Panasonic Multisplitt | Distributørkatalog – CU-3Z52TBE | Flere innedeler, én utedel, produktbilde (utedel) | panasonic-multisplitt | local_approved (2026-08-14) |
 | Panasonic Luft-vann | Distributørkatalog | Vannbåren varme | panasonic-luft-vann | missing |
-| Panasonic Multisplitt | Distributørkatalog | Flere innedeler, én utedel | panasonic-multisplitt | missing |
 | Panasonic Multisplitt nordisk | Distributørkatalog | Nordisk multiløsning | panasonic-multisplitt-nordisk | missing |
 | Panasonic Næring | Distributørkatalog | Næringsserier, drift | panasonic-naering | missing |
-| Toshiba Signatur | Toshiba Norge (ABK-Qviller) – https://www.toshibavarmepumper.no/varmepumper-luft-luft/signatur-25/ | Navn, designposisjonering, tekstiltrekk | toshiba-signatur | needs_approval (2026-08-14) |
-| Toshiba Daiseikai 10 Kontur | Toshiba Norge (ABK-Qviller) – https://www.toshibavarmepumper.no/varmepumper-luft-luft/toshiba-kontur-25/ | Navn, toppmodell-plassering, komfortfunksjoner | toshiba-daiseikai-10-kontur | needs_approval (2026-08-14) |
-| Toshiba Daiseikai 10 Ask | Toshiba Norge (ABK-Qviller) – https://www.toshibavarmepumper.no/varmepumper-luft-luft/toshiba-ask-25/ | Navn, toppmodell i designklassen, nordisk designuttrykk | toshiba-daiseikai-10-ask | needs_approval (2026-08-14) |
-| Toshiba Polar | Toshiba Norge (ABK-Qviller) – https://www.toshibavarmepumper.no/varmepumper-luft-luft/toshiba-polar-25/ | Navn, kompakt modell for nordisk klima | toshiba-polar | needs_approval (2026-08-14) |
-| Toshiba Seiya Nordic | Toshiba Norge (ABK-Qviller) – https://www.toshibavarmepumper.no/varmepumper-luft-luft/toshiba-seiya-nordic-25/ | Navn, inngangsmodell, nordisk tilpasning | toshiba-seiya-nordic | needs_approval (2026-08-14) |
-| Toshiba Gulvmodell | Toshiba Norge (ABK-Qviller) – https://www.toshibavarmepumper.no/varmepumper-luft-luft/toshiba-gulvmodell-25/ | Navn, gulvmodell-plassering | toshiba-gulvmodell | needs_approval (2026-08-14) |
+| Toshiba Signatur | Toshiba Norge (ABK-Qviller) – signatur-25 | Navn, designposisjonering, produktbilde | toshiba-signatur | local_approved (2026-08-14) |
+| Toshiba Daiseikai 10 Kontur | Toshiba Norge – toshiba-kontur-25 | Navn, toppmodell-plassering, produktbilde | toshiba-daiseikai-10-kontur | local_approved (2026-08-14) |
+| Toshiba Daiseikai 10 Ask | Toshiba Norge – toshiba-ask-25 | Navn, designklasse, produktbilde | toshiba-daiseikai-10-ask | local_approved (2026-08-14) |
+| Toshiba Polar | Toshiba Norge – toshiba-polar-25 | Navn, kompakt nordisk modell, produktbilde | toshiba-polar | local_approved (2026-08-14) |
+| Toshiba Seiya Nordic | Toshiba Norge – toshiba-seiya-nordic-25 | Navn, inngangsmodell, produktbilde | toshiba-seiya-nordic | local_approved (2026-08-14) |
+| Toshiba Gulvmodell | Toshiba Norge – toshiba-gulvmodell-25 | Navn, gulvmodell, produktbilde | toshiba-gulvmodell | local_approved (2026-08-14) |
+| Toshiba Multi Nordic | Toshiba Norge – multi-nordic | Navn, multiløsning kaldt klima, produktbilde | toshiba-multi-nordic | local_approved (2026-08-14) |
 | Toshiba Multisplitt | Distributørkatalog | Flere innedeler | toshiba-multisplitt | missing |
-| Toshiba Multi Nordic | Toshiba Norge (ABK-Qviller) – https://www.toshibavarmepumper.no/varmepumper-luft-luft/multi-nordic/ | Navn, multiløsning med kombinerbare innedeler for kaldt klima | toshiba-multi-nordic | needs_approval (2026-08-14) |
 | Tekstiltrekk til Signatur | Distributørkatalog | Tilbehør | toshiba-signatur-tekstil | missing |
 | Større lokaler / flere soner | Egen tekst (merkeuavhengig) | Prosjektert løsning | – | missing |
 
-## Neste steg for bilder
+## Bildeimport – godkjenningsgrunnlag
 
-1. Be Mitsubishi Electric Norge, samt distributør for Panasonic og Toshiba,
-   om skriftlig bekreftelse på bruk av produktbilder på liervps.no.
-2. Last ned kun fra offisiell bildebank etter bekreftelse.
-3. Legg filene i `src/assets/lier/products/<merke>/` etter navnekonvensjonen
-   i `src/assets/lier/products/README.md`.
-4. Sett `imageStatus: "local"` i `product-catalog.ts` og oppdater tabellen over.
+> «Approved by site owner for use pending dealer/supplier approval before public launch.»
 
-
-Mitsubishi-bilder: se `docs/product-image-import-plan.md`. Ingen MEE-bilder er
-importert – bruksrett for forhandler-/partnerbruk er ikke skriftlig bekreftet.
-
-Toshiba-bilder: kandidater finnes på Toshiba Norges produktsider, men bruksrett
-for forhandlerbruk er ikke skriftlig bekreftet av ABK-Qviller. Ingen bilder er
-importert. Se `docs/product-image-import-plan.md`.
+22 produktbilder er lastet ned lokalt, konvertert til `.webp` og lagret i
+`src/assets/lier/products/<merke>/`. Ingen hotlinking. Formell forhandler-/
+leverandørgodkjenning må foreligge før offentlig lansering – se
+`docs/product-image-import-plan.md` for full oversikt per bilde.
