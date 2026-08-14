@@ -42,9 +42,14 @@ export function offerContentHash(input: OfferPdfInput): string {
 }
 
 export function offerPdfFilename(input: OfferPdfInput): string {
-  const safe = input.title.replace(/[^\wæøåÆØÅ\- ]+/g, "").trim().replace(/\s+/g, "-").slice(0, 60);
+  // ASCII-only: filnavnet brukes i MIME-headere for Gmail-vedlegg.
+  const ascii = input.title
+    .replace(/[æÆ]/g, "ae").replace(/[øØ]/g, "oe").replace(/[åÅ]/g, "aa")
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const safe = ascii.replace(/[^\w\- ]+/g, "").trim().replace(/\s+/g, "-").slice(0, 60);
   return `Tilbud-${safe || "Lier-VPS"}-${input.offerId.slice(0, 8)}.pdf`;
 }
+
 
 export function buildOfferPdf(input: OfferPdfInput): jsPDF {
   const doc = new jsPDF({ unit: "mm", format: "a4" });
