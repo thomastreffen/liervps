@@ -30,7 +30,12 @@ export function Header() {
     <header className="sticky top-0 z-40 bg-[hsl(var(--warm-cream))]/95 backdrop-blur border-b border-[hsl(var(--warm-beige))]/70">
       <div className="mx-auto max-w-[1600px] px-6 sm:px-10 lg:px-12 xl:px-16 2xl:px-24">
         <div className="flex h-[88px] lg:h-[96px] items-center justify-between gap-6">
-          <Link to="/" className="flex items-center shrink-0 h-full" aria-label="Lier Varmepumpeservice — Hjem">
+          <Link
+            to="/"
+            onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+            className="flex items-center shrink-0 h-full"
+            aria-label="Lier Varmepumpeservice — Hjem"
+          >
             <img
               src={logo}
               alt="Lier Varmepumpeservice"
