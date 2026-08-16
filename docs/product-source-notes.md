@@ -165,3 +165,35 @@ Felt som mangler hos MEE og derfor står tomt: veiledende areal (alle),
 vekt inne/ute for Zen, energiklasse kjøling for IGURU 6600, energiklasse varme
 for Nordic Multi 3, kapasitet ved -25 °C for GUSSURI og Nordic Multi/Duo.
 Duo og Nordic Multi viser «Avhenger av valgt kombinasjon» for innedelsdata.
+
+## Farger og utførelser (gjennomgått 2026-08-16)
+
+Datamodell: `colorOptions?: string[]` og `colorNote?: string` på produktnivå i
+`product-specs.ts` (`COLOR_DATA`), med `colorOptions` også tilgjengelig på
+variantnivå (`ProductSpecVariant`) dersom en farge kun gjelder én størrelse.
+Vises inline under «Farger og utførelser». Kort viser kun en liten tag
+(«Flere farger» / «Tekstiltrekk»). Ingen eksterne lenker rendres.
+
+| Produkt | Farger/utførelser | Kilde | Merknad |
+| --- | --- | --- | --- |
+| Kaiteki | Hvit, Perlehvit, Safirsort, Rubinrød | mee.no/…/kaiteki/ | Perlehvit/safirsort/rubinrød har Hairline-struktur; fjernkontroll i samme utførelse. Gjelder alle tre størrelser (6300/6600/8700) |
+| UWANO Pure | Hvit, Sort | mee.no/…/uwanopure/ | Begge matt finish |
+| Zen | Hvit, Sølv, Sort | mee.no/…/zen/ | Hvit → hvit fjernkontroll; sølv/sort → sort fjernkontroll |
+| Nordic Multi | – | mee.no/…/nordic-multi/ | Kun kombinasjonsnotat: avhenger av valgte innedeler |
+| Duo-modellen | – | mee.no/…/duo-7000/ | Kun kombinasjonsnotat |
+| Toshiba Signatur | Skifer + Granitt (inkludert tekstiltrekk); tilvalg: Elvegress, Friskus, Hav, Kjærlighet, Kornåker, Nattsvart, Perle, Sand, Skogbunn, Solgul, Stormhav, Ullhvit | toshibavarmepumper.no/varmepumper-luft-luft/signatur-25/ og /tilbehor/tekstiltrekk-toshiba-signatur/ | Tilvalg tydelig merket; utvalg og pris avklares ved bestilling |
+
+### Ingen publiserte fargevalg hos kilden (feltet står tomt)
+
+GUSSURI, IGURU, Furo (mee.no nevner ingen fargevarianter),
+Toshiba Daiseikai 10 Kontur, Toshiba Daiseikai 10 Ask, Toshiba Polar,
+Toshiba Seiya Nordic, Toshiba Gulvmodell, Toshiba Multi Nordic
+(ABK-Qviller oppgir ingen fargetabell).
+
+### Trenger manuell verifisering
+
+- **Panasonic (HZ, NZ, CZ, LZ, VZ, gulvmodell, multisplitt)** – den norske
+  distributørkatalogen oppgir ikke fargevalg per modell. Ingen farger er lagt
+  inn. Må bekreftes mot Panasonic/distributør før eventuell publisering.
+- **Toshiba Polar** – nettsiden nevner «Signatur og Polar sort» i
+  brukermanual-titler, men ingen offisiell fargetabell. Ikke lagt inn.

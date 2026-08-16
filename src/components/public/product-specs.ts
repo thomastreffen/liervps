@@ -38,6 +38,8 @@ export type ProductSpecVariant = {
   /** Type designation as published by manufacturer/importer. */
   label: string;
   specs: ProductSpecs;
+  /** Officially listed colours/finishes for THIS size only. */
+  colorOptions?: string[];
 };
 
 export type ProductSpecEntry = {
@@ -48,6 +50,13 @@ export type ProductSpecEntry = {
   specBasis?: string;
   /** Short customer-friendly guidance line. Shown publicly. */
   guidanceNote?: string;
+  /**
+   * Officially published colours/finishes that apply to the whole series.
+   * Only names used by the manufacturer/importer. Never invented.
+   */
+  colorOptions?: string[];
+  /** Short public note about colours/finishes (options, combination-based, etc). */
+  colorNote?: string;
   /** Internal only. */
   specSourceUrl: string;
   /** Internal only. */
@@ -55,6 +64,7 @@ export type ProductSpecEntry = {
   /** Internal only. ISO date of last spec review. */
   specLastReviewed: string;
 };
+
 
 const R = "2026-08-14";
 /** Mitsubishi-gjennomgang mot mee.no per modellside. */
@@ -1424,9 +1434,61 @@ export const PRODUCT_SPECS: Record<string, ProductSpecEntry> = {
   },
 };
 
+/**
+ * Officially published colours / finishes / covers.
+ *
+ * Same rules as the specs above: only names the manufacturer or the Norwegian
+ * importer publishes themselves. Products missing here simply have no
+ * published colour range — nothing is invented or assumed.
+ *
+ * Reviewed 2026-08-16 against mee.no and toshibavarmepumper.no (ABK-Qviller).
+ */
+const COLOR_DATA: Record<
+  string,
+  { colorOptions?: string[]; colorNote?: string }
+> = {
+  /* Mitsubishi Electric — mee.no */
+  Kaiteki: {
+    colorOptions: ["Hvit", "Perlehvit", "Safirsort", "Rubinrød"],
+    colorNote:
+      "Perlehvit, safirsort og rubinrød leveres med Hairline-struktur. Fjernkontrollen leveres i samme utførelse som innedelen. Gjelder alle tre størrelser i serien.",
+  },
+  "UWANO Pure": {
+    colorOptions: ["Hvit", "Sort"],
+    colorNote: "Begge utførelser har matt finish.",
+  },
+  Zen: {
+    colorOptions: ["Hvit", "Sølv", "Sort"],
+    colorNote:
+      "Hvit innedel leveres med hvit fjernkontroll. Sølv og sort innedel leveres med sort fjernkontroll.",
+  },
+  "Nordic Multi": {
+    colorNote:
+      "Farge og utførelse avhenger av valgt kombinasjon av innedeler. Vi går gjennom aktuelle innedeler på befaring.",
+  },
+  "Duo-modellen": {
+    colorNote:
+      "Farge og utførelse avhenger av valgt kombinasjon av innedeler. Vi går gjennom aktuelle innedeler på befaring.",
+  },
+
+  /* Toshiba — ABK-Qviller (toshibavarmepumper.no) */
+  "Toshiba Signatur": {
+    colorOptions: [
+      "Skifer (tekstiltrekk, følger med)",
+      "Granitt (tekstiltrekk, følger med)",
+    ],
+    colorNote:
+      "Signatur leveres med tekstiltrekk i basisfargene Skifer og Granitt. Tekstiltrekk i flere farger og mønstre kan bestilles som tilvalg: Elvegress, Friskus, Hav, Kjærlighet, Kornåker, Nattsvart, Perle, Sand, Skogbunn, Solgul, Stormhav og Ullhvit. Utvalg og pris avklares ved bestilling.",
+  },
+};
+
 export function productSpecsFor(name: string): ProductSpecEntry | null {
-  return PRODUCT_SPECS[name] ?? null;
+  const entry = PRODUCT_SPECS[name];
+  if (!entry) return null;
+  const colors = COLOR_DATA[name];
+  return colors ? { ...entry, ...colors } : entry;
 }
+
 
 /** Compact card rows — only the few lines a customer scans quickly. */
 export function compactSpecRows(

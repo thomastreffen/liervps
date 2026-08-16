@@ -1068,6 +1068,43 @@ function TechnicalSpecs({ details }: { details: ProductDetails | null }) {
   );
 }
 
+/**
+ * "Farger og utførelser" — only rendered when the manufacturer/importer
+ * actually publishes colour, finish or cover options.
+ */
+function ColorOptions({ details }: { details: ProductDetails | null }) {
+  const colors = details?.colorOptions;
+  const note = details?.colorNote;
+  if (!colors?.length && !note) return null;
+
+  return (
+    <DialogSection title="Farger og utførelser">
+      {colors?.length ? (
+        <ul className="flex flex-wrap gap-1.5">
+          {colors.map((c) => (
+            <li
+              key={c}
+              className="rounded-full border border-[hsl(var(--warm-beige))] bg-[hsl(var(--warm-beige))]/30 px-3 py-1 text-[13px] font-medium text-[hsl(var(--mcs-navy))]"
+            >
+              {c}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {note && (
+        <p
+          className={`text-[13px] leading-relaxed text-[hsl(var(--mcs-muted))] ${
+            colors?.length ? "mt-2" : ""
+          }`}
+        >
+          {note}
+        </p>
+      )}
+    </DialogSection>
+  );
+}
+
+
 
 
 
@@ -1251,6 +1288,14 @@ function ProductCard({
   const displayName = rp.details?.modelName ?? item.name;
   const family = rp.details?.modelFamily;
   const hasVariants = (rp.details?.specVariants?.length ?? 0) > 1;
+  const colorCount = rp.details?.colorOptions?.length ?? 0;
+  const colorTag =
+    colorCount > 1
+      ? rp.details?.colorOptions?.some((c) => c.toLowerCase().includes("tekstiltrekk"))
+        ? "Tekstiltrekk"
+        : "Flere farger"
+      : null;
+
 
   return (
     <article
@@ -1277,6 +1322,12 @@ function ProductCard({
             {item.productType}
           </span>
         )}
+        {colorTag && (
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-[hsl(var(--mcs-navy))] border border-[hsl(var(--mcs-navy))]/20 rounded-full px-2 py-0.5">
+            {colorTag}
+          </span>
+        )}
+
         <span className="text-[11px] uppercase tracking-wider text-[hsl(var(--mcs-muted))]">
           {family && family !== displayName ? `${family} · ${item.subtitle}` : item.subtitle}
         </span>
@@ -1443,6 +1494,8 @@ function ProductDetailDialog({
 
           <ModalKeyFacts details={rp.details} />
           <ModalVariants details={rp.details} />
+          <ColorOptions details={rp.details} />
+
 
 
           <DialogSection title="Typisk bruk">
@@ -1602,6 +1655,8 @@ function InlineProductDetail({
 
           <TechnicalSpecs details={rp.details} />
           <ModalVariants details={rp.details} />
+          <ColorOptions details={rp.details} />
+
 
 
           <DialogSection title="Viktig å vurdere på befaring">
