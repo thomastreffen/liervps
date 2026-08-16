@@ -1162,6 +1162,9 @@ export function productDetailsFor(name: string): ProductDetails | null {
     specs: spec.specs,
     specBasis: spec.specBasis,
     guidanceNote: spec.guidanceNote,
+    colorOptions: spec.colorOptions,
+    colorNote: spec.colorNote,
+
     specSourceUrl: spec.specSourceUrl,
     specSourceLabel: spec.specSourceLabel,
     specLastReviewed: spec.specLastReviewed,
