@@ -1594,8 +1594,9 @@ function InlineProductDetail({
             </ul>
           </DialogSection>
 
-          <ModalKeyFacts details={rp.details} />
+          <TechnicalSpecs details={rp.details} />
           <ModalVariants details={rp.details} />
+
 
           <DialogSection title="Viktig å vurdere på befaring">
             <ul className="space-y-2">
