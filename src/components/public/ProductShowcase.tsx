@@ -25,9 +25,12 @@ import { productDetailsFor, type ProductDetails } from "./product-catalog";
 import {
   compactSpecRows,
   fullSpecRows,
+  technicalSpecRows,
   SPEC_DISCLAIMER,
+  TECH_DATA_NOTE,
   VARIANT_ROWS,
 } from "./product-specs";
+
 
 
 
