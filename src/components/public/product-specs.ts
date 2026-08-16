@@ -38,6 +38,8 @@ export type ProductSpecVariant = {
   /** Type designation as published by manufacturer/importer. */
   label: string;
   specs: ProductSpecs;
+  /** Officially listed colours/finishes for THIS size only. */
+  colorOptions?: string[];
 };
 
 export type ProductSpecEntry = {
@@ -48,6 +50,13 @@ export type ProductSpecEntry = {
   specBasis?: string;
   /** Short customer-friendly guidance line. Shown publicly. */
   guidanceNote?: string;
+  /**
+   * Officially published colours/finishes that apply to the whole series.
+   * Only names used by the manufacturer/importer. Never invented.
+   */
+  colorOptions?: string[];
+  /** Short public note about colours/finishes (options, combination-based, etc). */
+  colorNote?: string;
   /** Internal only. */
   specSourceUrl: string;
   /** Internal only. */
@@ -55,6 +64,7 @@ export type ProductSpecEntry = {
   /** Internal only. ISO date of last spec review. */
   specLastReviewed: string;
 };
+
 
 const R = "2026-08-14";
 /** Mitsubishi-gjennomgang mot mee.no per modellside. */
