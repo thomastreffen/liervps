@@ -1480,6 +1480,8 @@ function ProductDetailDialog({
 
           <ModalKeyFacts details={rp.details} />
           <ModalVariants details={rp.details} />
+          <ColorOptions details={rp.details} />
+
 
 
           <DialogSection title="Typisk bruk">
