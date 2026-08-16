@@ -1068,6 +1068,43 @@ function TechnicalSpecs({ details }: { details: ProductDetails | null }) {
   );
 }
 
+/**
+ * "Farger og utførelser" — only rendered when the manufacturer/importer
+ * actually publishes colour, finish or cover options.
+ */
+function ColorOptions({ details }: { details: ProductDetails | null }) {
+  const colors = details?.colorOptions;
+  const note = details?.colorNote;
+  if (!colors?.length && !note) return null;
+
+  return (
+    <DialogSection title="Farger og utførelser">
+      {colors?.length ? (
+        <ul className="flex flex-wrap gap-1.5">
+          {colors.map((c) => (
+            <li
+              key={c}
+              className="rounded-full border border-[hsl(var(--warm-beige))] bg-[hsl(var(--warm-beige))]/30 px-3 py-1 text-[13px] font-medium text-[hsl(var(--mcs-navy))]"
+            >
+              {c}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {note && (
+        <p
+          className={`text-[13px] leading-relaxed text-[hsl(var(--mcs-muted))] ${
+            colors?.length ? "mt-2" : ""
+          }`}
+        >
+          {note}
+        </p>
+      )}
+    </DialogSection>
+  );
+}
+
+
 
 
 
