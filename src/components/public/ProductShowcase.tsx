@@ -984,8 +984,7 @@ function ModalVariants({ details }: { details: ProductDetails | null }) {
         </table>
       </div>
       <p className="mt-2 text-xs text-[hsl(var(--mcs-muted))] leading-relaxed">
-        Riktig størrelse velges ut fra bolig, planløsning og varmebehov – vi
-        vurderer dette på befaring.
+        {TECH_DATA_NOTE}
       </p>
     </DialogSection>
   );
