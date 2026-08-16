@@ -182,6 +182,7 @@ Vises inline under «Farger og utførelser». Kort viser kun en liten tag
 | Nordic Multi | – | mee.no/…/nordic-multi/ | Kun kombinasjonsnotat: avhenger av valgte innedeler |
 | Duo-modellen | – | mee.no/…/duo-7000/ | Kun kombinasjonsnotat |
 | Toshiba Signatur | Skifer + Granitt (inkludert tekstiltrekk); tilvalg: Elvegress, Friskus, Hav, Kjærlighet, Kornåker, Nattsvart, Perle, Sand, Skogbunn, Solgul, Stormhav, Ullhvit | toshibavarmepumper.no/varmepumper-luft-luft/signatur-25/ og /tilbehor/tekstiltrekk-toshiba-signatur/ | Tilvalg tydelig merket; utvalg og pris avklares ved bestilling |
+| Panasonic HZ Flagship | Hvit, Grafittgrå | aircon.panasonic.eu/NO_no/hzflagship/ | Fargevalg gjelder innedelen |
 
 ### Ingen publiserte fargevalg hos kilden (feltet står tomt)
 
