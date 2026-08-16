@@ -173,7 +173,7 @@ export default function Home() {
             <div className="p-6 lg:p-7 flex flex-col">
               <h3 className="text-xl font-bold text-[hsl(var(--mcs-navy))] mb-2">For deg hjemme</h3>
               <div className="h-0.5 w-10 bg-[hsl(var(--mcs-orange))] mb-3" />
-              <p className="text-sm text-[hsl(var(--mcs-muted))] mb-4 leading-relaxed">
+              <p className="text-[15px] text-[hsl(var(--mcs-navy))]/80 mb-4 leading-relaxed">
                 Et bedre inneklima, jevn varme og lavere strømforbruk gjør hverdagen mer behagelig.
               </p>
               <ul className="space-y-1.5 mb-5 text-sm text-[hsl(var(--mcs-navy))]">
@@ -193,7 +193,7 @@ export default function Home() {
                 <button
                   type="button"
                   onClick={() => startLead({ source: "bolig", segment: "bolig", interestType: "befaring" })}
-                  className="text-sm font-semibold text-[hsl(var(--mcs-navy))] border border-[hsl(var(--mcs-navy))]/20 hover:border-[hsl(var(--mcs-navy))] px-4 py-2.5 rounded-md"
+                  className="text-sm font-semibold text-[hsl(var(--mcs-navy))] bg-white border border-[hsl(var(--mcs-navy))]/40 hover:border-[hsl(var(--mcs-navy))] hover:bg-[hsl(var(--warm-beige))]/40 px-4 py-2.5 rounded-md"
                 >
                   Bestill befaring
                 </button>
@@ -205,7 +205,7 @@ export default function Home() {
             <div className="p-6 lg:p-7 flex flex-col order-2 sm:order-1">
               <h3 className="text-xl font-bold text-[hsl(var(--mcs-navy))] mb-2">For næringslokaler</h3>
               <div className="h-0.5 w-10 bg-[hsl(var(--mcs-orange))] mb-3" />
-              <p className="text-sm text-[hsl(var(--mcs-muted))] mb-4 leading-relaxed">
+              <p className="text-[15px] text-[hsl(var(--mcs-navy))]/80 mb-4 leading-relaxed">
                 Effektiv oppvarming og stabil temperatur gir bedre arbeidsmiljø og lavere driftskostnader.
               </p>
               <ul className="space-y-1.5 mb-5 text-sm text-[hsl(var(--mcs-navy))]">
@@ -225,7 +225,7 @@ export default function Home() {
                 <button
                   type="button"
                   onClick={() => startLead({ source: "naering", segment: "naering", interestType: "befaring" })}
-                  className="text-sm font-semibold text-[hsl(var(--mcs-navy))] border border-[hsl(var(--mcs-navy))]/20 hover:border-[hsl(var(--mcs-navy))] px-4 py-2.5 rounded-md"
+                  className="text-sm font-semibold text-[hsl(var(--mcs-navy))] bg-white border border-[hsl(var(--mcs-navy))]/40 hover:border-[hsl(var(--mcs-navy))] hover:bg-[hsl(var(--warm-beige))]/40 px-4 py-2.5 rounded-md"
                 >
                   Bestill befaring
                 </button>
