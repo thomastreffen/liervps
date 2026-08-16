@@ -3,7 +3,7 @@
 Internt arbeidsdokument for innholdet i `src/components/public/product-catalog.ts`.
 Ingenting herfra vises på nettsiden. Eksterne lenker skal aldri eksponeres mot kunde.
 
-Sist gjennomgått: 2026-08-14
+Sist gjennomgått: 2026-08-16
 
 ## Prinsipper for tekst
 
@@ -29,14 +29,14 @@ Sist gjennomgått: 2026-08-14
 
 | Produkt | Kilde brukt | Hva som er hentet | Bildenøkkel | Bildestatus |
 | --- | --- | --- | --- | --- |
-| UWANO Pure | MEE – mee.no/uwanopure | Navn, familieplassering (Toppmodellen), komfortprofil, produktbilde | mitsubishi-uwano-pure | local_approved (2026-08-14) |
-| Kaiteki | MEE – mee.no/kaiteki | Navn, familieplassering (Bestselgeren), fargevalg, produktbilde | mitsubishi-kaiteki | local_approved (2026-08-14) |
-| GUSSURI | MEE – mee.no/gussuri | Navn, familieplassering (Komfortmodellen), lydposisjonering, produktbilde | mitsubishi-gussuri | local_approved (2026-08-14) |
-| IGURU | MEE – mee.no/iguru | Navn, familieplassering (Kompaktmodellen), produktbilde | mitsubishi-iguru | local_approved (2026-08-14) |
-| Furo | MEE – mee.no/furo | Navn, familieplassering (Gulvmodellen), plassering, produktbilde | mitsubishi-furo | local_approved (2026-08-14) |
-| Zen | MEE – mee.no/zen | Navn, familieplassering (Designmodellen), produktbilde | mitsubishi-zen | local_approved (2026-08-14) |
-| Duo-modellen | MEE – mee.no/duo-7000 | Navn, familieplassering (Duomodellen), produktbilde | mitsubishi-duo-modellen | local_approved (2026-08-14) |
-| Nordic Multi | MEE – mee.no/nordic-multi | Navn, familieplassering (Multimodellen), produktbilde | mitsubishi-nordic-multi | local_approved (2026-08-14) |
+| UWANO Pure | mee.no/.../uwanopure/ (6300, 7000, 8700) | UWANO Pure 6300 / 7000 / 8700 | Full tabell per størrelse: varme nom./min-maks, kjøling nom./min-maks, SCOP, SEER, begge energiklasser, lyd inne/ute, kapasitet -15/-25 °C, R290, mål og vekt inne/ute | veiledende areal |
+| Kaiteki | mee.no/.../kaiteki/ (6300, 6600, 8700) | Kaiteki 6300 / 6600 / 8700 | Full tabell per størrelse (som over), R32 | veiledende areal |
+| GUSSURI | mee.no/.../gussuri/ (4100, 4600, 7300) | GUSSURI 4100 / 4600 / 7300 | Full tabell per størrelse, R32 | kapasitet ved -25 °C (ikke oppgitt), veiledende areal |
+| IGURU | mee.no/.../iguru/ (6200, 6600, 7800) | IGURU 6200 / 6600 / 7800 | Full tabell per størrelse, R32 | energiklasse kjøling for 6600, veiledende areal |
+| Furo | mee.no/.../furo/ (5100, 6000, 8400) | Furo 5100 / 6000 / 8400 | Full tabell per størrelse, R32 | lyd utedel for 5100 og 8400 (delvis), veiledende areal |
+| Zen | mee.no/.../zen/ (Zen 55) | Zen (MSZ-EF35VGK) | Varme/kjøling nom. og min-maks, SCOP, SEER, energiklasser, lyd inne/ute, mål inne/ute, R32 | vekt inne/ute (blank hos MEE), kapasitet -15/-25 °C, veiledende areal |
+| Duo-modellen | mee.no/.../duo-7000/ (Duo 7000) | Duo 7000 (MXZ-2F53VFHZ) | Systemdata for utedel: varme/kjøling, SCOP, SEER, energiklasser, lyd, mål og vekt utedel, R32 | innedelsdata – «Avhenger av valgt kombinasjon» |
+| Nordic Multi | mee.no/.../nordic-multi/ (Multi 2, 3, 4) | Nordic Multi 2 / 3 / 4 | Systemdata for utedel per størrelse: varme/kjøling, SCOP, SEER, energiklasser, lyd, mål og vekt utedel, R32 | innedelsdata – «Avhenger av valgt kombinasjon»; energiklasse varme for Multi 3 |
 | Panasonic HZ Flagship | Distributørkatalog – KIT-HZ25ZKE | Toppserie, nanoe X, produktbilde | panasonic-hz-flagship | local_approved (2026-08-14) |
 | Panasonic NZ Etherea | Distributørkatalog – KIT-NZ25YKE | Plassering under toppserie, produktbilde | panasonic-nz-etherea | local_approved (2026-08-14) |
 | Panasonic CZ | Distributørkatalog – KIT-CZ25ZKE | Kompakt, innebygget WiFi, produktbilde | panasonic-cz | local_approved (2026-08-14) |
@@ -69,19 +69,20 @@ leverandørgodkjenning må foreligge før offentlig lansering – se
 
 ## Spesifikasjoner (product-specs.ts)
 
-Sist gjennomgått: 2026-08-14. Alle tall er hentet ordrett fra kilden i tabellen.
+Sist gjennomgått: 2026-08-14 (Toshiba/Panasonic), 2026-08-16 (Mitsubishi Electric).
+Alle tall er hentet ordrett fra kilden i tabellen.
 Kildelenkene (`specSourceUrl` / `specSourceLabel`) er interne og rendres aldri.
 
 | Produkt | Kilde | Gjelder modell | Spesifikasjoner brukt | Mangler |
 | --- | --- | --- | --- | --- |
-| UWANO Pure | mee.no/uwanopure | UWANO Pure 7000 | SCOP (kaldt klima), energiklasse varme, lyd inne/ute, driftstemp. varme, kuldemedium (R290) | kW nominell/min-maks, kjøleeffekt, SEER, energiklasse kjøling, mål |
-| Kaiteki | mee.no/kaiteki | Kaiteki 6300/6600 | SCOP, energiklasse varme, lyd inne/ute, driftstemp. varme, kuldemedium | kW nominell/min-maks, kjøleeffekt, SEER, energiklasse kjøling, mål |
-| GUSSURI | mee.no/gussuri | serie | Lyd inne/ute | alt annet – MEE oppgir ikke tabell |
-| IGURU | mee.no/iguru | IGURU 6200 | Varmeeffekt nominell, driftstemp. varme, kuldemedium, mål innedel | SCOP, SEER, energiklasser, lyd, kjøleeffekt, mål utedel |
-| Furo | mee.no/furo | Furo 5100/6000 | Lyd innedel, garantert kapasitet ved -15/-25 °C | SCOP, SEER, energiklasser, kjøleeffekt, kuldemedium, mål |
-| Zen | mee.no/zen | serie | SCOP, lyd innedel, driftstemp. varme, dybde innedel | kW, kjøleeffekt, SEER, energiklasser, lyd utedel, kuldemedium |
-| Duo-modellen | mee.no/duo-7000 | Duo 7000 | Kapasitet ved -15 °C, driftstemp. varme, kuldemedium | SCOP, SEER, energiklasser, lyd, mål, kjøleeffekt |
-| Nordic Multi | mee.no/nordic-multi | Nordic Multi 2/3/4 | Driftstemp. varme, kuldemedium | SCOP, SEER, energiklasser, lyd, kW, mål |
+| UWANO Pure | mee.no/.../uwanopure/ (6300, 7000, 8700) | UWANO Pure 6300 / 7000 / 8700 | Full tabell per størrelse: varme nom./min-maks, kjøling nom./min-maks, SCOP, SEER, begge energiklasser, lyd inne/ute, kapasitet -15/-25 °C, R290, mål og vekt inne/ute | veiledende areal |
+| Kaiteki | mee.no/.../kaiteki/ (6300, 6600, 8700) | Kaiteki 6300 / 6600 / 8700 | Full tabell per størrelse (som over), R32 | veiledende areal |
+| GUSSURI | mee.no/.../gussuri/ (4100, 4600, 7300) | GUSSURI 4100 / 4600 / 7300 | Full tabell per størrelse, R32 | kapasitet ved -25 °C (ikke oppgitt), veiledende areal |
+| IGURU | mee.no/.../iguru/ (6200, 6600, 7800) | IGURU 6200 / 6600 / 7800 | Full tabell per størrelse, R32 | energiklasse kjøling for 6600, veiledende areal |
+| Furo | mee.no/.../furo/ (5100, 6000, 8400) | Furo 5100 / 6000 / 8400 | Full tabell per størrelse, R32 | lyd utedel for 5100 og 8400 (delvis), veiledende areal |
+| Zen | mee.no/.../zen/ (Zen 55) | Zen (MSZ-EF35VGK) | Varme/kjøling nom. og min-maks, SCOP, SEER, energiklasser, lyd inne/ute, mål inne/ute, R32 | vekt inne/ute (blank hos MEE), kapasitet -15/-25 °C, veiledende areal |
+| Duo-modellen | mee.no/.../duo-7000/ (Duo 7000) | Duo 7000 (MXZ-2F53VFHZ) | Systemdata for utedel: varme/kjøling, SCOP, SEER, energiklasser, lyd, mål og vekt utedel, R32 | innedelsdata – «Avhenger av valgt kombinasjon» |
+| Nordic Multi | mee.no/.../nordic-multi/ (Multi 2, 3, 4) | Nordic Multi 2 / 3 / 4 | Systemdata for utedel per størrelse: varme/kjøling, SCOP, SEER, energiklasser, lyd, mål og vekt utedel, R32 | innedelsdata – «Avhenger av valgt kombinasjon»; energiklasse varme for Multi 3 |
 | Toshiba Signatur | toshibavarmepumper.no/signatur-25 | Signatur 25 | Full tabell: varme nom./maks, kjøling nom./maks, SCOP, SEER, begge energiklasser, lyd inne/ute, -25 °C, R32, mål inne/ute | veiledende areal |
 | Toshiba Daiseikai 10 Kontur | toshibavarmepumper.no/toshiba-kontur-25 | Kontur 25 | Full tabell (som over) | veiledende areal |
 | Toshiba Daiseikai 10 Ask | toshibavarmepumper.no/toshiba-ask-25 | Ask 25 | Full tabell (som over) | veiledende areal |
@@ -106,9 +107,12 @@ Større lokaler / flere soner.
 
 - **Panasonic Multisplitt (CU-3Z52TBE)** – distributørens produktside svarte 404
   ved gjennomgang. Spesifikasjoner må hentes på nytt.
-- **Mitsubishi Electric samlet** – MEE publiserer ikke fullstendige
-  spesifikasjonstabeller offentlig. Kun tall som står eksplisitt i teksten er
-  brukt. Bør suppleres fra offisielle datablad/produktark når disse er tilgjengelige.
+- **Mitsubishi Electric** – gjennomgått 2026-08-16 mot modellsidene på mee.no.
+  Hver modellside har HOVEDDATA, VARMEFUNKSJON, KJØLEFUNKSJON, TEKNISKE DATA,
+  INNEDEL- og UTEDEL TEKNISKE DATA. Alle tall i `product-specs.ts` er hentet
+  ordrett derfra, per størrelse. Fargevarianter (Kaiteki Hairline, UWANO Pure
+  Sort) har identiske tekniske tall som standardmodellen og er derfor ikke egne
+  rader i `variants[]`.
 - **Veiledende areal** – ingen av kildene oppgir dette. Feltet
   `suitableAreaIndicative` er derfor tomt for alle produkter.
 
@@ -126,6 +130,38 @@ serien») når serien har to eller flere dokumenterte størrelser.
 | Panasonic LZ | KIT-LZ25TKE, KIT-LZ35TKE | distributørkatalog |
 | Panasonic Gulvmodell | KIT-Z25CFEA-1, KIT-Z35CFEA-1 | distributørkatalog |
 
-Toshiba-kildene publiserer kun 25-varianten med full tabell, og Mitsubishi
-Electric publiserer ikke variantvise tabeller offentlig. Disse har derfor
+Toshiba-kildene publiserer kun 25-varianten med full tabell og har derfor
 ingen variantsammenlikning – ingenting er estimert eller interpolert.
+
+### Mitsubishi Electric – kilde per variant (gjennomgått 2026-08-16)
+
+Alle URL-er ligger under
+`https://mee.no/privat/produktkategori/luft-luft-varmepumper/`.
+
+| Serie | Variant (modellbetegnelse) | Understi |
+| --- | --- | --- |
+| UWANO Pure | UWANO Pure 6300 (MSZ-RZ25VUHZ) | uwanopure/uwanopure-6300/ |
+| UWANO Pure | UWANO Pure 7000 (MSZ-RZ35VUHZ) | uwanopure/uwanopure-7000/ |
+| UWANO Pure | UWANO Pure 8700 (MSZ-RZ50VUHZ) | uwanopure/uwanopure-8700/ |
+| Kaiteki | Kaiteki 6300 (MSZ-LN25VGHZ) | kaiteki/kaiteki-6300/ |
+| Kaiteki | Kaiteki 6600 (MSZ-LN35VGHZ) | kaiteki/kaiteki-6600/ |
+| Kaiteki | Kaiteki 8700 (MSZ-LN50VGHZ) | kaiteki/kaiteki-8700/ |
+| GUSSURI | GUSSURI 4100 (MSZ-AY25VGK) | gussuri/gussuri-4100/ |
+| GUSSURI | GUSSURI 4600 (MSZ-AY35VGK) | gussuri/gussuri-4600/ |
+| GUSSURI | GUSSURI 7300 (MSZ-AY50VGK) | gussuri/gussuri-7300/ |
+| IGURU | IGURU 6200 (MSZ-FT25VGK) | iguru/iguru-6200/ |
+| IGURU | IGURU 6600 (MSZ-FT35VGK) | iguru/iguru-6600/ |
+| IGURU | IGURU 7800 (MSZ-FT50VGK) | iguru/iguru-7800/ |
+| Furo | Furo 5100 (MFZ-KW25VGHZ) | furo/kirigamine-furo-3400/ |
+| Furo | Furo 6000 (MFZ-KW35VGHZ) | furo/kirigamine-furo-4300/ |
+| Furo | Furo 8400 (MFZ-KW50VGHZ) | furo/furo-8400/ |
+| Zen | Zen (MSZ-EF35VGK) | zen/zen-55/ |
+| Duo-modellen | Duo 7000 (MXZ-2F53VFHZ) | duo-7000/kirigamine-duo-6400-2/ |
+| Nordic Multi | Nordic Multi 2 (MXZ-2F53VFH) | nordic-multi/7571-2/ |
+| Nordic Multi | Nordic Multi 3 (MXZ-3F54VF) | nordic-multi/nordic-multi-3/ |
+| Nordic Multi | Nordic Multi 4 (MXZ-4F72VF) | nordic-multi/nordic-multi-4/ |
+
+Felt som mangler hos MEE og derfor står tomt: veiledende areal (alle),
+vekt inne/ute for Zen, energiklasse kjøling for IGURU 6600, energiklasse varme
+for Nordic Multi 3, kapasitet ved -25 °C for GUSSURI og Nordic Multi/Duo.
+Duo og Nordic Multi viser «Avhenger av valgt kombinasjon» for innedelsdata.
