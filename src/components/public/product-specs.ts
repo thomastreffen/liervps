@@ -1154,10 +1154,11 @@ export const PRODUCT_SPECS: Record<string, ProductSpecEntry> = {
     ],
     specBasis: "KIT-HZ25ZKE",
     guidanceNote: "Aktuell ved større varmebehov og kalde vintre.",
-    specSourceUrl:
-      "https://www.varmepumpeservice.no/panasonic-hz25zke-flagship-kit",
-    specSourceLabel: PAN_DIST,
-    specLastReviewed: R,
+    colorOptions: ["Hvit", "Grafittgrå"],
+    colorNote: "Fargevalg gjelder innedelen.",
+    specSourceUrl: "https://www.aircon.panasonic.eu/NO_no/hzflagship/",
+    specSourceLabel: PAN_OFF,
+    specLastReviewed: "2026-08-16",
   },
   "Panasonic NZ": {
     specs: {
