@@ -107,18 +107,21 @@ export default function Home() {
               height={1200}
             />
 
-            <div className="absolute inset-0 bg-gradient-to-r from-[hsl(var(--warm-cream))]/95 via-[hsl(var(--warm-cream))]/55 to-transparent" />
+            {/* Readability overlay: strong on mobile (text sits on top of the
+                photo), softer horizontal fade from md and up. */}
+            <div className="absolute inset-0 bg-gradient-to-b from-[hsl(var(--warm-cream))]/95 via-[hsl(var(--warm-cream))]/80 to-[hsl(var(--warm-cream))]/40 md:bg-gradient-to-r md:from-[hsl(var(--warm-cream))]/95 md:via-[hsl(var(--warm-cream))]/55 md:to-transparent" />
             <div className="absolute inset-0 flex items-center">
               <div className="w-full mx-auto max-w-[1600px] px-6 sm:px-10 lg:px-12 xl:px-16 2xl:px-24">
 
-                <div className="max-w-2xl">
+                <div className="max-w-2xl rounded-2xl bg-[hsl(var(--warm-cream))]/70 backdrop-blur-[2px] p-5 -mx-1 md:mx-0 md:bg-transparent md:backdrop-blur-none md:p-0">
                   <h1 className={`font-bold leading-[1.05] tracking-tight text-[hsl(var(--mcs-navy))] mb-6 ${user ? "text-3xl" : "text-4xl lg:text-5xl xl:text-6xl"}`}>
                     Varmepumper som gir komfort, kontroll og lavere strømregning
                   </h1>
-                  <p className="text-[hsl(var(--mcs-navy))]/75 text-base lg:text-lg leading-relaxed mb-8 max-w-xl">
+                  <p className="text-[hsl(var(--mcs-navy))]/90 md:text-[hsl(var(--mcs-navy))]/75 text-base lg:text-lg leading-relaxed mb-8 max-w-xl">
                     Lier Varmepumpeservice hjelper både boligeiere og bedrifter med rådgivning,
                     montering, service og driftssikre løsninger tilpasset norske forhold.
                   </p>
+
                   <div className="flex flex-col sm:flex-row gap-3">
                     <button
                       type="button"
