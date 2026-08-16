@@ -27,8 +27,11 @@ export type ProductSpecs = {
   refrigerant?: string;
   indoorUnitDimensions?: string;
   outdoorUnitDimensions?: string;
+  weightIndoor?: string;
+  weightOutdoor?: string;
   suitableAreaIndicative?: string;
 };
+
 
 /** One size/variant within a series, with its own official numbers. */
 export type ProductSpecVariant = {
