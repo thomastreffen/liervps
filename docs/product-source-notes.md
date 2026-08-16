@@ -193,7 +193,7 @@ Toshiba Seiya Nordic, Toshiba Gulvmodell, Toshiba Multi Nordic
 
 ### Trenger manuell verifisering
 
-- **Panasonic (HZ, NZ, CZ, LZ, VZ, gulvmodell, multisplitt)** – den norske
+- **Panasonic (NZ, CZ, LZ, VZ, gulvmodell, multisplitt)** – den norske
   distributørkatalogen oppgir ikke fargevalg per modell. Ingen farger er lagt
   inn. Må bekreftes mot Panasonic/distributør før eventuell publisering.
 - **Toshiba Polar** – nettsiden nevner «Signatur og Polar sort» i
