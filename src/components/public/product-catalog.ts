@@ -96,6 +96,11 @@ export type ProductDetails = {
   specBasis?: string;
   /** Short customer-friendly guidance line. Public. */
   guidanceNote?: string;
+  /** Officially published colours/finishes. Public. */
+  colorOptions?: string[];
+  /** Public note about colours/finishes. */
+  colorNote?: string;
+
   /** Internal only. */
   specSourceUrl?: string;
   /** Internal only. */
