@@ -168,9 +168,11 @@ export default function Home() {
       <section className="bg-[hsl(var(--warm-cream))] pb-16 scroll-mt-28">
         <div className="mx-auto max-w-[1600px] px-6 sm:px-10 lg:px-12 xl:px-16 2xl:px-24 grid lg:grid-cols-2 gap-6">
           {/* Bolig */}
-          <div id="for-bolig" className="scroll-mt-28 bg-white rounded-2xl overflow-hidden border border-[hsl(var(--warm-beige))] shadow-sm grid sm:grid-cols-[220px_1fr]">
-            <img src={homeImg} alt="Koselig stue med varmepumpe" loading="lazy" width={1280} height={960} className="h-full w-full object-cover min-h-[280px]" />
-            <div className="p-6 lg:p-7 flex flex-col">
+          <div id="for-bolig" className="scroll-mt-28 bg-white rounded-2xl overflow-hidden border border-[hsl(var(--warm-beige))] shadow-sm flex flex-col sm:grid sm:grid-cols-[220px_1fr]">
+            <div className="relative h-52 sm:h-full sm:min-h-[280px]">
+              <img src={homeImg} alt="Koselig stue med varmepumpe" loading="lazy" width={1280} height={960} className="absolute inset-0 h-full w-full object-cover" />
+            </div>
+            <div className="bg-[hsl(var(--warm-cream))] p-5 sm:p-6 lg:p-7 flex flex-col">
               <h3 className="text-xl font-bold text-[hsl(var(--mcs-navy))] mb-2">For deg hjemme</h3>
               <div className="h-0.5 w-10 bg-[hsl(var(--mcs-orange))] mb-3" />
               <p className="text-[15px] text-[hsl(var(--mcs-navy))]/80 mb-4 leading-relaxed">
@@ -183,7 +185,7 @@ export default function Home() {
                   </li>
                 ))}
               </ul>
-              <div className="mt-auto flex flex-wrap items-center gap-3">
+              <div className="mt-auto flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3">
                 <Link
                   to="/#varmepumper-bolig"
                   className="inline-flex items-center justify-center gap-2 bg-[hsl(var(--mcs-orange))] hover:bg-[hsl(var(--mcs-orange-hover))] text-white font-semibold px-5 py-2.5 rounded-md"
@@ -201,8 +203,8 @@ export default function Home() {
             </div>
           </div>
           {/* Næring */}
-          <div id="for-naering" className="scroll-mt-28 bg-white rounded-2xl overflow-hidden border border-[hsl(var(--warm-beige))] shadow-sm grid sm:grid-cols-[1fr_220px]">
-            <div className="p-6 lg:p-7 flex flex-col order-2 sm:order-1">
+          <div id="for-naering" className="scroll-mt-28 bg-white rounded-2xl overflow-hidden border border-[hsl(var(--warm-beige))] shadow-sm flex flex-col sm:grid sm:grid-cols-[1fr_220px]">
+            <div className="bg-[hsl(var(--warm-cream))] p-5 sm:p-6 lg:p-7 flex flex-col order-2 sm:order-1">
               <h3 className="text-xl font-bold text-[hsl(var(--mcs-navy))] mb-2">For næringslokaler</h3>
               <div className="h-0.5 w-10 bg-[hsl(var(--mcs-orange))] mb-3" />
               <p className="text-[15px] text-[hsl(var(--mcs-navy))]/80 mb-4 leading-relaxed">
@@ -215,7 +217,7 @@ export default function Home() {
                   </li>
                 ))}
               </ul>
-              <div className="mt-auto flex flex-wrap items-center gap-3">
+              <div className="mt-auto flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3">
                 <Link
                   to="/#varmepumper-naering"
                   className="inline-flex items-center justify-center gap-2 bg-[hsl(var(--mcs-orange))] hover:bg-[hsl(var(--mcs-orange-hover))] text-white font-semibold px-5 py-2.5 rounded-md"
@@ -231,7 +233,9 @@ export default function Home() {
                 </button>
               </div>
             </div>
-            <img src={commercialImg} alt="Moderne kontorlokale med varmepumpe" loading="lazy" width={1280} height={960} className="h-full w-full object-cover min-h-[280px] order-1 sm:order-2" />
+            <div className="relative h-52 sm:h-full sm:min-h-[280px] order-1 sm:order-2">
+              <img src={commercialImg} alt="Moderne kontorlokale med varmepumpe" loading="lazy" width={1280} height={960} className="absolute inset-0 h-full w-full object-cover" />
+            </div>
           </div>
         </div>
       </section>
