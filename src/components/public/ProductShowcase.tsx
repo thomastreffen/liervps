@@ -1288,6 +1288,14 @@ function ProductCard({
   const displayName = rp.details?.modelName ?? item.name;
   const family = rp.details?.modelFamily;
   const hasVariants = (rp.details?.specVariants?.length ?? 0) > 1;
+  const colorCount = rp.details?.colorOptions?.length ?? 0;
+  const colorTag =
+    colorCount > 1
+      ? rp.details?.colorOptions?.some((c) => c.toLowerCase().includes("tekstiltrekk"))
+        ? "Tekstiltrekk"
+        : "Flere farger"
+      : null;
+
 
   return (
     <article
