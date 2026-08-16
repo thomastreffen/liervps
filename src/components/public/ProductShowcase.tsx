@@ -25,9 +25,12 @@ import { productDetailsFor, type ProductDetails } from "./product-catalog";
 import {
   compactSpecRows,
   fullSpecRows,
+  technicalSpecRows,
   SPEC_DISCLAIMER,
+  TECH_DATA_NOTE,
   VARIANT_ROWS,
 } from "./product-specs";
+
 
 
 
@@ -981,8 +984,7 @@ function ModalVariants({ details }: { details: ProductDetails | null }) {
         </table>
       </div>
       <p className="mt-2 text-xs text-[hsl(var(--mcs-muted))] leading-relaxed">
-        Riktig størrelse velges ut fra bolig, planløsning og varmebehov – vi
-        vurderer dette på befaring.
+        {TECH_DATA_NOTE}
       </p>
     </DialogSection>
   );
@@ -1020,6 +1022,46 @@ function ModalKeyFacts({ details }: { details: ProductDetails | null }) {
     </DialogSection>
   );
 }
+
+/**
+ * "Tekniske mål og data" — inline detail section with dimensions, capacity,
+ * efficiency, noise, operating range and refrigerant. Only official values.
+ */
+function TechnicalSpecs({ details }: { details: ProductDetails | null }) {
+  if (!details?.specs) return null;
+  const rows = technicalSpecRows(details.specs);
+  if (!rows.length) return null;
+  const hasVariants = (details.specVariants?.length ?? 0) > 1;
+
+  return (
+    <DialogSection title="Tekniske mål og data">
+      {details.specBasis && (
+        <p className="text-xs text-[hsl(var(--mcs-muted))] mb-2">
+          Gjelder {details.specBasis}
+          {hasVariants && " — øvrige størrelser står i tabellen under"}
+        </p>
+      )}
+      <dl className="rounded-lg border border-[hsl(var(--warm-beige))] divide-y divide-[hsl(var(--warm-beige))] overflow-hidden">
+        {rows.map((r) => (
+          <div
+            key={r.label}
+            className="grid grid-cols-1 sm:grid-cols-[minmax(0,11rem)_1fr] gap-x-3 px-3 py-2 odd:bg-[hsl(var(--warm-beige))]/25"
+          >
+            <dt className="text-[13px] text-[hsl(var(--mcs-muted))]">{r.label}</dt>
+            <dd className="text-[13px] font-medium text-[hsl(var(--mcs-navy))] min-w-0 break-words">
+              {r.value}
+            </dd>
+          </div>
+        ))}
+      </dl>
+      <p className="mt-2 text-xs text-[hsl(var(--mcs-muted))] leading-relaxed">
+        {TECH_DATA_NOTE}
+      </p>
+    </DialogSection>
+  );
+}
+
+
 
 
 
@@ -1551,8 +1593,9 @@ function InlineProductDetail({
             </ul>
           </DialogSection>
 
-          <ModalKeyFacts details={rp.details} />
+          <TechnicalSpecs details={rp.details} />
           <ModalVariants details={rp.details} />
+
 
           <DialogSection title="Viktig å vurdere på befaring">
             <ul className="space-y-2">
