@@ -959,8 +959,6 @@ export function compactSpecRows(
     rows.push({ label: "Lydnivå innedel", value: specs.indoorNoiseDb });
   if (specs.energyClassHeating)
     rows.push({ label: "Energiklasse varme", value: specs.energyClassHeating });
-  if (specs.operationTempHeating)
-    rows.push({ label: "Drift varme", value: specs.operationTempHeating });
   return rows;
 }
 
@@ -986,7 +984,39 @@ export function fullSpecRows(
   push("Kuldemedium", specs.refrigerant);
   push("Mål innedel", specs.indoorUnitDimensions);
   push("Mål utedel", specs.outdoorUnitDimensions);
+  push("Vekt innedel", specs.weightIndoor);
+  push("Vekt utedel", specs.weightOutdoor);
   push("Veiledende areal", specs.suitableAreaIndicative);
+  return rows;
+}
+
+/**
+ * "Tekniske mål og data" — dimensions first, then capacity, efficiency,
+ * noise, operating range and refrigerant. Missing values are dropped.
+ */
+export function technicalSpecRows(
+  specs: ProductSpecs,
+): Array<{ label: string; value: string }> {
+  const rows: Array<{ label: string; value: string }> = [];
+  const push = (label: string, value?: string) => {
+    if (value) rows.push({ label, value });
+  };
+  push("Mål innedel", specs.indoorUnitDimensions);
+  push("Vekt innedel", specs.weightIndoor);
+  push("Mål utedel", specs.outdoorUnitDimensions);
+  push("Vekt utedel", specs.weightOutdoor);
+  push("Varmeeffekt (nominell)", specs.heatingCapacityNominalKw);
+  push("Varmeeffekt (min–maks)", specs.heatingCapacityMinMaxKw);
+  push("Kjøleeffekt (nominell)", specs.coolingCapacityNominalKw);
+  push("Kjøleeffekt (min–maks)", specs.coolingCapacityMinMaxKw);
+  push("SCOP", specs.scop);
+  push("SEER", specs.seer);
+  push("Energiklasse varme", specs.energyClassHeating);
+  push("Energiklasse kjøling", specs.energyClassCooling);
+  push("Lydnivå innedel", specs.indoorNoiseDb);
+  push("Lydnivå utedel", specs.outdoorNoiseDb);
+  push("Driftstemperatur varme", specs.operationTempHeating);
+  push("Kuldemedium", specs.refrigerant);
   return rows;
 }
 
@@ -998,12 +1028,25 @@ export const VARIANT_ROWS: Array<{
   { label: "Varmeeffekt (min–maks)", get: (s) => s.heatingCapacityMinMaxKw },
   { label: "Varmeeffekt (nominell)", get: (s) => s.heatingCapacityNominalKw },
   { label: "Kjøleeffekt (nominell)", get: (s) => s.coolingCapacityNominalKw },
+  { label: "Kjøleeffekt (min–maks)", get: (s) => s.coolingCapacityMinMaxKw },
   { label: "SCOP", get: (s) => s.scop },
+  { label: "SEER", get: (s) => s.seer },
   { label: "Energiklasse varme", get: (s) => s.energyClassHeating },
+  { label: "Energiklasse kjøling", get: (s) => s.energyClassCooling },
   { label: "Lydnivå innedel", get: (s) => s.indoorNoiseDb },
   { label: "Lydnivå utedel", get: (s) => s.outdoorNoiseDb },
   { label: "Drift varme", get: (s) => s.operationTempHeating },
+  { label: "Mål innedel", get: (s) => s.indoorUnitDimensions },
+  { label: "Vekt innedel", get: (s) => s.weightIndoor },
+  { label: "Mål utedel", get: (s) => s.outdoorUnitDimensions },
+  { label: "Vekt utedel", get: (s) => s.weightOutdoor },
+  { label: "Kuldemedium", get: (s) => s.refrigerant },
 ];
 
 export const SPEC_DISCLAIMER =
   "Tallene er produsent-/importørdata. Riktig modell må vurderes ut fra bolig, planløsning, plassering, klima og faktisk varmebehov.";
+
+/** Note shown under the technical section and the variant table. */
+export const TECH_DATA_NOTE =
+  "Data er hentet fra produsent/importør. Riktig størrelse vurderes på befaring ut fra bolig, plassering og varmebehov.";
+
