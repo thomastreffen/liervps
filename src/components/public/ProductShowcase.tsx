@@ -909,6 +909,7 @@ function CardKeyFacts({ details }: { details: ProductDetails | null }) {
   if (!details?.specs) return null;
   const rows = compactSpecRows(details.specs);
   if (!rows.length) return null;
+  const multipleSizes = (details.specVariants?.length ?? 0) > 1;
 
   return (
     <div className="mt-3 rounded-lg bg-[hsl(var(--warm-beige))]/40 border border-[hsl(var(--warm-beige))] px-3 py-2.5">
@@ -928,8 +929,14 @@ function CardKeyFacts({ details }: { details: ProductDetails | null }) {
           </div>
         ))}
       </dl>
+      {multipleSizes && (
+        <p className="mt-1.5 text-[11px] leading-snug text-[hsl(var(--mcs-muted))]">
+          Avhenger av valgt størrelse — se alle størrelser i detaljene.
+        </p>
+      )}
     </div>
   );
+
 }
 
 /** Side-by-side comparison of officially documented sizes in a series. */
