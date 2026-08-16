@@ -1314,6 +1314,12 @@ function ProductCard({
             {item.productType}
           </span>
         )}
+        {colorTag && (
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-[hsl(var(--mcs-navy))] border border-[hsl(var(--mcs-navy))]/20 rounded-full px-2 py-0.5">
+            {colorTag}
+          </span>
+        )}
+
         <span className="text-[11px] uppercase tracking-wider text-[hsl(var(--mcs-muted))]">
           {family && family !== displayName ? `${family} · ${item.subtitle}` : item.subtitle}
         </span>
