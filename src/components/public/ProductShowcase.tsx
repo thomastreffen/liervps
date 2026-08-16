@@ -1639,6 +1639,8 @@ function InlineProductDetail({
 
           <TechnicalSpecs details={rp.details} />
           <ModalVariants details={rp.details} />
+          <ColorOptions details={rp.details} />
+
 
 
           <DialogSection title="Viktig å vurdere på befaring">
