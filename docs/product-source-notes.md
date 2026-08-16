@@ -90,7 +90,7 @@ Kildelenkene (`specSourceUrl` / `specSourceLabel`) er interne og rendres aldri.
 | Toshiba Seiya | toshibavarmepumper.no/toshiba-seiya-nordic-25 | Seiya Nordic 25 | Full tabell (som over) | stillemodus dB, veiledende areal |
 | Toshiba Gulvmodell | toshibavarmepumper.no/toshiba-gulvmodell-25 | Gulvmodell 25 | Full tabell. SCOP 4,3 og energiklasse varme A+ fra produktbeskrivelsen; A++ i tabellen gjelder kjøling | veiledende areal |
 | Toshiba Multisplitt Nordic | toshibavarmepumper.no/multi-nordic | Multi Nordic, 2 innedeler | Full tabell (samlet kapasitet) | veiledende areal |
-| Panasonic HZ Flagship | Panasonic distributørkatalog – KIT-HZ25ZKE | KIT-HZ25ZKE | Varme nom./min-maks, kjøling nom./min-maks, SCOP 5,69, energiklasse varme, lyd inne/ute, -25 °C, R32, mål inne/ute | SEER, energiklasse kjøling, veiledende areal |
+| Panasonic HZ Flagship | aircon.panasonic.eu/NO_no/hzflagship/ | KIT-HZ25ZKE / KIT-HZ35ZKE | Varme nom./min-maks, kjøling nom./min-maks, SCOP 5,69/5,30, energiklasse varme, lyd inne/ute, -25 °C, R32, mål inne/ute, farger Hvit/Grafittgrå | SEER, energiklasse kjøling, veiledende areal |
 | Panasonic NZ | aircon.panasonic.eu (NZ25YKE) + distributørkatalog | KIT-NZ25YKE | Varme nom./min-maks, kjøling nom./min-maks, SCOP 5,0, SEER 8,0, begge energiklasser, lyd inne/ute, -25 °C, R32, mål inne/ute | veiledende areal |
 | Panasonic CZ | distributørkatalog – KIT-CZ25ZKE | KIT-CZ25ZKE | Varme, kjøling, SCOP 4,3, energiklasse varme, lyd inne/ute, -25 °C, R32, mål | SEER, energiklasse kjøling, veiledende areal |
 | Panasonic LZ | distributørkatalog – KIT-LZ25TKE | KIT-LZ25TKE | Varme, kjøling, SCOP 5,0, energiklasse varme, lyd inne/ute, -15 °C, R32, mål | SEER, energiklasse kjøling, kapasitet ved -25 °C, veiledende areal |
