@@ -472,6 +472,24 @@ function AssumptionsPanel({ rough }: { rough: boolean }) {
               Besparelsen kommer av at varmepumpen leverer flere kWh varme per kWh strøm den bruker.
             </li>
           </ol>
+
+          <div className="rounded-lg bg-[hsl(var(--warm-cream))] border border-[hsl(var(--warm-beige))] px-4 py-3 space-y-2">
+            <p className="font-semibold text-[hsl(var(--mcs-navy))] text-[13px]">
+              Hvorfor vårt anslag kan avvike fra enkle «opptil»-eksempler
+            </p>
+            <p>
+              En del sparekalkulatorer bruker en enkel tommelfingerregel, for eksempel at en bolig
+              bruker rundt 20 000 kWh i året, at ca. 60 % går til oppvarming, og at varmepumpen kan
+              spare opptil 60 % av oppvarmingen.
+            </p>
+            <p>
+              Vi bruker samme grunnidé, men gjør beregningen mer individuell. Derfor justerer vi for
+              boligtype, areal, boligens standard, dagens oppvarming, valgt varmepumpeløsning,
+              dekningsgrad og SCOP. Resultatet vises som lavt, forventet og høyt anslag, der
+              forventet anslag er ment å være nøkternt og realistisk.
+            </p>
+          </div>
+
           <p>
             Hvis du oppgir årlig strømforbruk, bruker vi dette som hovedgrunnlag. Oppvarmet areal
             brukes likevel til å justere varmebehov og hvor mye en varmepumpe realistisk kan dekke.{" "}
