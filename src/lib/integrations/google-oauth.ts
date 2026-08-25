@@ -39,6 +39,9 @@ export const GOOGLE_SCOPE_BUNDLES = {
 
 export type GoogleScopeBundle = keyof typeof GOOGLE_SCOPE_BUNDLES;
 
+/** Workspace-domenet. Brukes som standard `hd` slik at kun Lier VPS-brukere kan logge inn. */
+export const GOOGLE_WORKSPACE_DOMAIN = "liervarmepumpeservice.no";
+
 /**
  * Client ID is a public value — fetched at runtime from the
  * google-oauth-config edge function (which reads GOOGLE_OAUTH_CLIENT_ID).
@@ -108,7 +111,7 @@ export async function startGoogleLogin(options?: {
     include_granted_scopes: "true",
     prompt: "consent select_account",
   });
-  if (options?.hostedDomain) params.set("hd", options.hostedDomain);
+  params.set("hd", options?.hostedDomain ?? GOOGLE_WORKSPACE_DOMAIN);
   if (options?.loginHint) params.set("login_hint", options.loginHint);
 
   const maskedClientId = maskGoogleClientId(clientId);
