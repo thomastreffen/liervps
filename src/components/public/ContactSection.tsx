@@ -718,10 +718,10 @@ export function ContactSection() {
                 <Phone className="h-4 w-4" /> Ring 32 00 00 00
               </a>
               <a
-                href="mailto:post@liervps.no"
+                href="mailto:post@liervarmepumpeservice.no"
                 className="bg-white/10 border border-white/40 hover:bg-white/20 text-white font-semibold px-5 py-3 rounded-md inline-flex items-center justify-center gap-2"
               >
-                <Mail className="h-4 w-4" /> post@liervps.no
+                <Mail className="h-4 w-4" /> post@liervarmepumpeservice.no
               </a>
             </div>
 
