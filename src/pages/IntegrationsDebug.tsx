@@ -122,6 +122,8 @@ export default function IntegrationsDebug() {
 
       <ReleaseStatusPanel />
 
+      <CalendarSyncLogCard />
+
       {/* Setup checklist — always visible so admin kan feilsøke Google Cloud oppsett */}
       <Alert className="border-amber-500/40 bg-amber-500/5">
         <ShieldAlert className="h-4 w-4 text-amber-600" />
