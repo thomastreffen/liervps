@@ -15,6 +15,7 @@ import {
 import { startGoogleLogin, isGoogleConfigured } from "@/lib/integrations/google-oauth";
 import { GoogleReconnectBanner } from "@/components/integrations/GoogleReconnectBanner";
 import { ReleaseStatusPanel } from "@/components/integrations/ReleaseStatusPanel";
+import { CalendarSyncLogCard } from "@/components/integrations/CalendarSyncLogCard";
 
 type ScopeState = { connected: boolean; email: string | null; grantedAt: string | null };
 
