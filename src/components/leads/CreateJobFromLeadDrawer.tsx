@@ -268,7 +268,7 @@ export function CreateJobFromLeadDrawer({ open, onOpenChange, lead, offer, onCre
             "Neste steg: vi tar kontakt for endelig avtale om montering og forbereder utstyret.",
             "",
             "Lier Varmepumpeservice AS",
-            "post@liervps.no · liervps.no",
+            "post@liervarmepumpeservice.no · liervps.no",
           ].filter(Boolean).join("\n");
 
           const { error: mailError } = await supabase.functions.invoke("gmail-send", {

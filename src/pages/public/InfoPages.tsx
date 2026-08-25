@@ -31,7 +31,7 @@ export function Kontakt() {
                   <Mail className="h-5 w-5 text-[hsl(var(--mcs-orange))] mt-1" />
                   <div>
                     <p className="text-sm text-[hsl(var(--mcs-muted))]">E-post</p>
-                    <a href="mailto:post@liervps.no" className="text-lg font-semibold text-[hsl(var(--mcs-charcoal))]">post@liervps.no</a>
+                    <a href="mailto:post@liervarmepumpeservice.no" className="text-lg font-semibold text-[hsl(var(--mcs-charcoal))]">post@liervarmepumpeservice.no</a>
                   </div>
                 </li>
                 <li className="flex items-start gap-3">
@@ -69,7 +69,7 @@ function ContactForm() {
         const body = encodeURIComponent(
           `Navn: ${fd.get("name")}\nE-post: ${fd.get("email")}\nTelefon: ${fd.get("phone")}\nHva gjelder henvendelsen: ${fd.get("topic")}\n\n${fd.get("message")}`
         );
-        window.location.href = `mailto:post@liervps.no?subject=${subject}&body=${body}`;
+        window.location.href = `mailto:post@liervarmepumpeservice.no?subject=${subject}&body=${body}`;
         setSent(true);
       }}
       className="bg-white border border-[hsl(var(--mcs-border))] rounded-xl p-6 lg:p-8 shadow-sm space-y-4"

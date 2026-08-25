@@ -79,7 +79,7 @@ export default function Home() {
     name: "Lier Varmepumpeservice AS",
     "@id": SITE_URL,
     url: SITE_URL,
-    email: "post@liervps.no",
+    email: "post@liervarmepumpeservice.no",
     address: { "@type": "PostalAddress", addressLocality: "Lier", addressCountry: "NO" },
     areaServed: "Lier og omegn",
     priceRange: "$$",

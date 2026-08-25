@@ -15,7 +15,7 @@ import { SCOPE_GMAIL_SEND, ensureFreshAccessToken, gmailSendText, loadAnyInterna
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const DEFAULT_RECIPIENT = "post@liervps.no";
+const DEFAULT_RECIPIENT = "post@liervarmepumpeservice.no";
 const DEFAULT_ORIGIN = "https://liervps.lovable.app";
 
 function json(body: unknown) {
