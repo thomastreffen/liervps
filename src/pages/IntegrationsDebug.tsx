@@ -15,6 +15,7 @@ import {
 import { startGoogleLogin, isGoogleConfigured } from "@/lib/integrations/google-oauth";
 import { GoogleReconnectBanner } from "@/components/integrations/GoogleReconnectBanner";
 import { ReleaseStatusPanel } from "@/components/integrations/ReleaseStatusPanel";
+import { CalendarSyncLogCard } from "@/components/integrations/CalendarSyncLogCard";
 
 type ScopeState = { connected: boolean; email: string | null; grantedAt: string | null };
 
@@ -121,6 +122,8 @@ export default function IntegrationsDebug() {
       <GoogleReconnectBanner />
 
       <ReleaseStatusPanel />
+
+      <CalendarSyncLogCard />
 
       {/* Setup checklist — always visible so admin kan feilsøke Google Cloud oppsett */}
       <Alert className="border-amber-500/40 bg-amber-500/5">

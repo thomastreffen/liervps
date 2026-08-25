@@ -4408,6 +4408,8 @@ export type Database = {
           external_tripletex_id: string | null
           google_calendar_event_id: string | null
           google_calendar_id: string | null
+          google_calendar_sync_error: string | null
+          google_calendar_sync_status: string | null
           google_calendar_synced_at: string | null
           id: string
           internal_number: string | null
@@ -4498,6 +4500,8 @@ export type Database = {
           external_tripletex_id?: string | null
           google_calendar_event_id?: string | null
           google_calendar_id?: string | null
+          google_calendar_sync_error?: string | null
+          google_calendar_sync_status?: string | null
           google_calendar_synced_at?: string | null
           id?: string
           internal_number?: string | null
@@ -4588,6 +4592,8 @@ export type Database = {
           external_tripletex_id?: string | null
           google_calendar_event_id?: string | null
           google_calendar_id?: string | null
+          google_calendar_sync_error?: string | null
+          google_calendar_sync_status?: string | null
           google_calendar_synced_at?: string | null
           id?: string
           internal_number?: string | null
@@ -5263,6 +5269,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      google_calendar_sync_log: {
+        Row: {
+          action: string
+          created_at: string
+          error_code: string | null
+          error_detail: string | null
+          event_id: string | null
+          google_event_id: string | null
+          id: string
+          status: string
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          error_code?: string | null
+          error_detail?: string | null
+          event_id?: string | null
+          google_event_id?: string | null
+          id?: string
+          status: string
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          error_code?: string | null
+          error_detail?: string | null
+          event_id?: string | null
+          google_event_id?: string | null
+          id?: string
+          status?: string
+          user_id?: string | null
+        }
+        Relationships: []
       }
       hms_action_items: {
         Row: {
