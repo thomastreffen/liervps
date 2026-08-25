@@ -130,7 +130,7 @@ export async function startGoogleLogin(options?: {
     scope_bundle: bundle,
     scope: scopes,
     response_type: "code",
-    access_type: "offline",
+    access_type: params.get("access_type"),
     prompt: params.get("prompt"),
     authorization_url_masked: maskedAuthorizationUrl,
   };
