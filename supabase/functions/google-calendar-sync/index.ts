@@ -163,55 +163,102 @@ Deno.serve(async (req) => {
   const calendarId = ev.google_calendar_id || "primary";
   const gEventBody = buildGoogleEventBody(ev, attendeeEmails);
 
+  const logSync = async (opts: {
+    status: string;
+    googleEventId?: string | null;
+    errorCode?: string | null;
+    errorDetail?: string | null;
+  }) => {
+    await admin.from("google_calendar_sync_log").insert({
+      event_id,
+      user_id: user.id,
+      action,
+      status: opts.status,
+      google_event_id: opts.googleEventId ?? null,
+      error_code: opts.errorCode ?? null,
+      error_detail: opts.errorDetail ? String(opts.errorDetail).slice(0, 1000) : null,
+    });
+  };
+
+  const markEvent = async (patch: Record<string, unknown>) => {
+    await admin.from("events").update(patch).eq("id", event_id);
+  };
+
+  const fail = async (code: string | number, detail: string) => {
+    console.error("[google-calendar-sync] failed", action, code, detail);
+    await markEvent({
+      google_calendar_sync_status: "error",
+      google_calendar_sync_error: `${code}: ${detail}`.slice(0, 500),
+    });
+    await logSync({ status: "error", errorCode: String(code), errorDetail: detail });
+    return json({ status: "error", code, detail });
+  };
+
+  const calUrl = (gid?: string | null) =>
+    gid
+      ? `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(gid)}`
+      : `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?sendUpdates=none`;
+
   if (action === "delete") {
-    if (!ev.google_calendar_event_id) return json({ status: "not_found" });
-    const res = await fetch(
-      `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(ev.google_calendar_event_id)}`,
-      { method: "DELETE", headers: { Authorization: `Bearer ${accessToken}` } },
-    );
-    if (res.status === 404 || res.status === 410) {
-      await admin.from("events").update({ google_calendar_event_id: null }).eq("id", event_id);
-      return json({ status: "deleted" });
+    if (!ev.google_calendar_event_id) {
+      await logSync({ status: "not_found" });
+      return json({ status: "not_found" });
     }
-    if (!res.ok) {
-      const errText = await res.text();
-      console.error("[google-calendar-sync] delete failed", res.status, errText);
-      return json({ status: "error", code: res.status, detail: errText });
+    const res = await fetch(calUrl(ev.google_calendar_event_id), {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    if (!res.ok && res.status !== 404 && res.status !== 410) {
+      return await fail(res.status, await res.text());
     }
-    await admin.from("events").update({ google_calendar_event_id: null }).eq("id", event_id);
+    await markEvent({
+      google_calendar_event_id: null,
+      google_calendar_sync_status: "deleted",
+      google_calendar_sync_error: null,
+      google_calendar_synced_at: new Date().toISOString(),
+    });
+    await logSync({ status: "deleted", googleEventId: ev.google_calendar_event_id });
     return json({ status: "deleted" });
   }
 
-  const isUpdate = action === "update" && !!ev.google_calendar_event_id;
-  const url = isUpdate
-    ? `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(ev.google_calendar_event_id!)}`
-    : `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?sendUpdates=none`;
+  // Idempotent write: if we already know a Google event id, always PATCH it —
+  // even when the caller asked for "create". This prevents duplicates when a
+  // create is retried. A PATCH on a missing/cancelled event falls back to POST.
+  const existingId: string | null = ev.google_calendar_event_id ?? null;
 
-  const res = await fetch(url, {
-    method: isUpdate ? "PATCH" : "POST",
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(gEventBody),
-  });
-  const data = await res.json();
-  if (!res.ok) {
-    console.error("[google-calendar-sync] write failed", res.status, data);
-    return json({ status: "error", code: res.status, detail: data?.error?.message ?? "unknown" });
+  const writeOnce = async (gid: string | null) =>
+    await fetch(calUrl(gid), {
+      method: gid ? "PATCH" : "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(gEventBody),
+    });
+
+  let usedUpdate = !!existingId;
+  let res = await writeOnce(existingId);
+  if (!res.ok && existingId && (res.status === 404 || res.status === 410)) {
+    usedUpdate = false;
+    res = await writeOnce(null);
   }
 
-  await admin
-    .from("events")
-    .update({
-      google_calendar_event_id: data.id,
-      google_calendar_id: calendarId,
-      google_calendar_synced_at: new Date().toISOString(),
-    })
-    .eq("id", event_id);
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    return await fail(res.status, data?.error?.message ?? "unknown");
+  }
+
+  await markEvent({
+    google_calendar_event_id: data.id,
+    google_calendar_id: calendarId,
+    google_calendar_synced_at: new Date().toISOString(),
+    google_calendar_sync_status: "synced",
+    google_calendar_sync_error: null,
+  });
+  await logSync({ status: usedUpdate ? "updated" : "created", googleEventId: data.id });
 
   return json({
-    status: isUpdate ? "updated" : "created",
+    status: usedUpdate ? "updated" : "created",
     google_event_id: data.id,
     html_link: data.htmlLink,
   });
