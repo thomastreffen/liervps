@@ -68,10 +68,12 @@ export function GoogleReconnectBanner({ compact = false }: { compact?: boolean }
       <AlertTriangle className="h-4 w-4" />
       <AlertTitle>Google Workspace må kobles til på nytt</AlertTitle>
       <AlertDescription className="space-y-2">
-        <p>Varsler, kalender og Drive-lagring kjører ikke før dette er gjort.</p>
+        <p>Hver tjeneste godkjennes separat. Innlogging (SSO) berøres ikke.</p>
         {affected && <p className="text-xs opacity-80">Berørte tjenester: {affected}</p>}
-        <div className="pt-1">
-          <GoogleReconnectButton />
+        <div className="flex flex-wrap gap-2 pt-1">
+          {failing.map((f) => (
+            <GoogleReconnectButton key={f.service} service={f.service} />
+          ))}
         </div>
       </AlertDescription>
     </Alert>
