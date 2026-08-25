@@ -10,7 +10,25 @@ import { toast } from "sonner";
 import { startGoogleLogin } from "@/lib/integrations/google-oauth";
 import { GOOGLE_SERVICE_LABEL, useGoogleHealth } from "@/hooks/useGoogleHealth";
 
-export function GoogleReconnectButton({ size = "sm" }: { size?: "sm" | "default" }) {
+/**
+ * Én tjeneste av gangen — innlogging (SSO) ber aldri om Kalender/Gmail/Drive.
+ * Ekstra scopes autoriseres kun her, som separat consent-flow.
+ */
+const SERVICE_BUNDLE = {
+  calendar: "calendar",
+  gmail: "mail",
+  drive: "files",
+} as const;
+
+export function GoogleReconnectButton({
+  size = "sm",
+  service = "calendar",
+  label,
+}: {
+  size?: "sm" | "default";
+  service?: keyof typeof SERVICE_BUNDLE;
+  label?: string;
+}) {
   const [busy, setBusy] = useState(false);
   return (
     <Button
@@ -21,8 +39,10 @@ export function GoogleReconnectButton({ size = "sm" }: { size?: "sm" | "default"
       onClick={async () => {
         setBusy(true);
         try {
-          // Ber om Gmail-, Kalender- og Drive-tilgang i én runde.
-          await startGoogleLogin({ scopeBundle: "full", intendedPath: window.location.pathname });
+          await startGoogleLogin({
+            scopeBundle: SERVICE_BUNDLE[service],
+            intendedPath: window.location.pathname,
+          });
         } catch (e) {
           setBusy(false);
           toast.error("Kunne ikke starte Google-tilkobling", {
@@ -32,7 +52,7 @@ export function GoogleReconnectButton({ size = "sm" }: { size?: "sm" | "default"
       }}
     >
       {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plug className="h-3.5 w-3.5" />}
-      Koble til Google på nytt
+      {label ?? `Koble til ${GOOGLE_SERVICE_LABEL[service]} på nytt`}
     </Button>
   );
 }
