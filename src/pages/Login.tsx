@@ -7,7 +7,11 @@ import { Flame, Loader2, AlertTriangle } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { isGoogleConfigured, startGoogleLogin } from "@/lib/integrations/google-oauth";
+import { startGoogleLogin } from "@/lib/integrations/google-oauth";
+
+function getErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : "Ukjent feil";
+}
 
 export default function Login() {
   const navigate = useNavigate();
@@ -17,8 +21,6 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [googleError, setGoogleError] = useState<string | null>(null);
-  const origin = typeof window !== "undefined" ? window.location.origin : "";
-  const expectedRedirectUri = `${origin}/auth/google/callback`;
 
   useEffect(() => {
     if (!authLoading && session) {
@@ -39,8 +41,8 @@ export default function Login() {
         toast.error("Innlogging feilet", { description: error.message });
         return;
       }
-    } catch (err: any) {
-      toast.error("Innlogging feilet", { description: err?.message });
+    } catch (err: unknown) {
+      toast.error("Innlogging feilet", { description: getErrorMessage(err) });
     } finally {
       setSubmitting(false);
     }
@@ -48,23 +50,13 @@ export default function Login() {
 
   const handleGoogle = async () => {
     setGoogleError(null);
-    // eslint-disable-next-line no-console
     console.info("[Google OAuth] click", {
-      window_origin: origin,
-      expected_redirect_uri: expectedRedirectUri,
       scope_bundle: "sso",
     });
     try {
-      if (!(await isGoogleConfigured())) {
-        const msg = "GOOGLE_OAUTH_CLIENT_ID mangler i backend.";
-        setGoogleError(msg);
-        toast.error("Google-innlogging ikke konfigurert", { description: msg });
-        return;
-      }
       await startGoogleLogin({ scopeBundle: "sso" });
-    } catch (err: any) {
-      const msg = err?.message ?? "Ukjent feil";
-      // eslint-disable-next-line no-console
+    } catch (err: unknown) {
+      const msg = getErrorMessage(err);
       console.error("[Google OAuth] failed", { message: msg, err });
       setGoogleError(msg);
       toast.error("Kunne ikke starte Google-innlogging", { description: msg });
@@ -113,20 +105,9 @@ export default function Login() {
               Google-innlogging feilet
             </div>
             <p className="mb-2 text-destructive/90">{googleError}</p>
-            <p className="mb-1 text-destructive/80">
-              Google OAuth-klienten må ha eksakt dette domenet oppført under
-              <span className="font-semibold"> Authorized JavaScript origins</span>:
+            <p className="text-destructive/80">
+              Google-innlogging er aktivert på nytt. Last siden på nytt og prøv igjen.
             </p>
-            <code className="mb-2 block break-all rounded bg-background/60 px-2 py-1 font-mono text-[11px] text-foreground">
-              {origin}
-            </code>
-            <p className="mb-1 text-destructive/80">
-              …og eksakt denne callback-URL-en under
-              <span className="font-semibold"> Authorized redirect URIs</span>:
-            </p>
-            <code className="block break-all rounded bg-background/60 px-2 py-1 font-mono text-[11px] text-foreground">
-              {expectedRedirectUri}
-            </code>
           </div>
         )}
 
