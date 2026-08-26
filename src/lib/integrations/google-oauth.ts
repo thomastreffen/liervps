@@ -147,6 +147,19 @@ function waitForGoogleWorkspacePopup(
   });
 }
 
+function redirectTopLevel(url: string) {
+  try {
+    const topWindow = window.top;
+    if (topWindow && topWindow !== window.self) {
+      topWindow.location.href = url;
+      return;
+    }
+  } catch (error) {
+    console.warn("[Google OAuth] kunne ikke navigere toppvindu", error);
+  }
+  window.location.href = url;
+}
+
 export async function startGoogleLogin(options?: {
   scopeBundle?: GoogleScopeBundle;
   hostedDomain?: string;
@@ -246,14 +259,14 @@ export async function startGoogleLogin(options?: {
   console.info("[Google OAuth] authorize →", debug);
   console.table(debug);
 
-  if (options?.mode === "redirect") {
-    window.location.href = authorizationUrl;
-    return debug;
+  if (options?.mode === "popup") {
+    const popup = window.open(authorizationUrl, "google-workspace-oauth", "popup,width=560,height=760");
+    if (!popup) {
+      throw new Error("Nettleseren blokkerte Google-vinduet. Tillat popup for denne siden og prøv igjen.");
+    }
+    return waitForGoogleWorkspacePopup(popup, flowId, intendedPath, debug);
   }
 
-  const popup = window.open(authorizationUrl, "google-workspace-oauth", "popup,width=560,height=760");
-  if (!popup) {
-    throw new Error("Nettleseren blokkerte Google-vinduet. Tillat popup for denne siden og prøv igjen.");
-  }
-  return waitForGoogleWorkspacePopup(popup, flowId, intendedPath, debug);
+  redirectTopLevel(authorizationUrl);
+  return debug;
 }
