@@ -18,7 +18,6 @@ export const GOOGLE_SCOPE_BUNDLES = {
     "openid",
     "email",
     "profile",
-    "https://www.googleapis.com/auth/gmail.modify",
     "https://www.googleapis.com/auth/gmail.send",
   ],
   files: [
@@ -32,7 +31,6 @@ export const GOOGLE_SCOPE_BUNDLES = {
     "email",
     "profile",
     "https://www.googleapis.com/auth/calendar",
-    "https://www.googleapis.com/auth/gmail.modify",
     "https://www.googleapis.com/auth/gmail.send",
     "https://www.googleapis.com/auth/drive.file",
   ],
@@ -49,6 +47,8 @@ export const GOOGLE_WORKSPACE_DOMAIN = "liervarmepumpeservice.no";
  * Cached in-memory for the session.
  */
 let _clientIdCache: { id: string; configured: boolean } | null = null;
+const GOOGLE_OAUTH_PENDING_KEY = "google-oauth-pending";
+const GOOGLE_OAUTH_PENDING_PREFIX = "google-oauth-pending:";
 
 export function maskGoogleClientId(clientId: string) {
   if (!clientId) return "<empty>";
@@ -79,20 +79,90 @@ export async function isGoogleConfigured(): Promise<boolean> {
   return configured;
 }
 
+function sanitizeIntendedPath(path?: string) {
+  if (!path || !path.startsWith("/") || path.startsWith("//")) return "/";
+  return path;
+}
+
+function createFlowId() {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function storePendingGoogleOAuth(flowId: string, scopeBundle: GoogleScopeBundle, intendedPath: string) {
+  const payload = JSON.stringify({
+    flow_id: flowId,
+    scope_bundle: scopeBundle,
+    intended_path: intendedPath,
+    started_at: Date.now(),
+  });
+  sessionStorage.setItem(GOOGLE_OAUTH_PENDING_KEY, payload);
+  localStorage.setItem(`${GOOGLE_OAUTH_PENDING_PREFIX}${flowId}`, payload);
+}
+
+function waitForGoogleWorkspacePopup(
+  popup: Window,
+  flowId: string,
+  intendedPath: string,
+  debug: Record<string, unknown>,
+) {
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const cleanup = () => {
+      settled = true;
+      window.removeEventListener("message", onMessage);
+      window.clearInterval(closedTimer);
+      window.clearTimeout(timeoutTimer);
+    };
+    const finish = (fn: () => void) => {
+      if (settled) return;
+      cleanup();
+      fn();
+    };
+    const onMessage = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin) return;
+      const data = event.data as { type?: string; flow_id?: string; ok?: boolean; error?: string; intended_path?: string } | null;
+      if (data?.type !== "google-workspace-oauth-complete" || data.flow_id !== flowId) return;
+      finish(() => {
+        if (data.ok) {
+          window.location.replace(sanitizeIntendedPath(data.intended_path || intendedPath));
+          resolve(debug);
+        } else {
+          reject(new Error(data.error || "Google-tilkoblingen feilet."));
+        }
+      });
+    };
+    const closedTimer = window.setInterval(() => {
+      if (popup.closed) {
+        finish(() => reject(new Error("Google-vinduet ble lukket før tilkoblingen var ferdig.")));
+      }
+    }, 700);
+    const timeoutTimer = window.setTimeout(() => {
+      finish(() => reject(new Error("Google-tilkoblingen tok for lang tid. Prøv igjen.")));
+    }, 5 * 60 * 1000);
+    window.addEventListener("message", onMessage);
+    popup.focus();
+  });
+}
+
 export async function startGoogleLogin(options?: {
   scopeBundle?: GoogleScopeBundle;
   hostedDomain?: string;
   loginHint?: string;
   intendedPath?: string;
+  mode?: "redirect" | "popup";
 }) {
   const bundle = options?.scopeBundle ?? "sso";
+  const intendedPath = sanitizeIntendedPath(options?.intendedPath);
 
   if (bundle === "sso") {
     sessionStorage.setItem(
-      "google-oauth-pending",
+      GOOGLE_OAUTH_PENDING_KEY,
       JSON.stringify({
         scope_bundle: bundle,
-        intended_path: options?.intendedPath ?? "/",
+        intended_path: intendedPath,
         started_at: Date.now(),
       }),
     );
@@ -120,7 +190,7 @@ export async function startGoogleLogin(options?: {
       };
     }
 
-    window.location.replace(options?.intendedPath ?? "/");
+    window.location.replace(intendedPath);
     return {
       window_origin: window.location.origin,
       redirect_uri: window.location.origin,
@@ -137,15 +207,9 @@ export async function startGoogleLogin(options?: {
 
   const redirectUri = `${window.location.origin}/auth/google/callback`;
   const scopes = GOOGLE_SCOPE_BUNDLES[bundle].join(" ");
+  const flowId = createFlowId();
 
-  sessionStorage.setItem(
-    "google-oauth-pending",
-    JSON.stringify({
-      scope_bundle: bundle,
-      intended_path: options?.intendedPath ?? "/",
-      started_at: Date.now(),
-    }),
-  );
+  storePendingGoogleOAuth(flowId, bundle, intendedPath);
 
   const params = new URLSearchParams({
     client_id: clientId,
@@ -153,9 +217,10 @@ export async function startGoogleLogin(options?: {
     response_type: "code",
     scope: scopes,
     access_type: "offline",
-    prompt: "consent select_account",
+    prompt: "consent",
+    state: flowId,
   });
-  params.set("include_granted_scopes", "true");
+  params.set("include_granted_scopes", "false");
   params.set("hd", options?.hostedDomain ?? GOOGLE_WORKSPACE_DOMAIN);
   if (options?.loginHint) params.set("login_hint", options.loginHint);
 
@@ -175,13 +240,20 @@ export async function startGoogleLogin(options?: {
     response_type: "code",
     access_type: params.get("access_type"),
     prompt: params.get("prompt"),
+    state: flowId,
     authorization_url_masked: maskedAuthorizationUrl,
   };
-  // eslint-disable-next-line no-console
   console.info("[Google OAuth] authorize →", debug);
-  // eslint-disable-next-line no-console
   console.table(debug);
 
-  window.location.href = authorizationUrl;
-  return debug;
+  if (options?.mode === "redirect") {
+    window.location.href = authorizationUrl;
+    return debug;
+  }
+
+  const popup = window.open(authorizationUrl, "google-workspace-oauth", "popup,width=560,height=760");
+  if (!popup) {
+    throw new Error("Nettleseren blokkerte Google-vinduet. Tillat popup for denne siden og prøv igjen.");
+  }
+  return waitForGoogleWorkspacePopup(popup, flowId, intendedPath, debug);
 }
