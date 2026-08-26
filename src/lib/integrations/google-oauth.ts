@@ -243,9 +243,7 @@ export async function startGoogleLogin(options?: {
     state: flowId,
     authorization_url_masked: maskedAuthorizationUrl,
   };
-  // eslint-disable-next-line no-console
   console.info("[Google OAuth] authorize →", debug);
-  // eslint-disable-next-line no-console
   console.table(debug);
 
   if (options?.mode === "redirect") {
