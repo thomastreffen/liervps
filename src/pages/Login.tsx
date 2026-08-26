@@ -17,8 +17,6 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [googleError, setGoogleError] = useState<string | null>(null);
-  const origin = typeof window !== "undefined" ? window.location.origin : "";
-  const expectedRedirectUri = `${origin}/auth/google/callback`;
 
   useEffect(() => {
     if (!authLoading && session) {
@@ -50,8 +48,6 @@ export default function Login() {
     setGoogleError(null);
     // eslint-disable-next-line no-console
     console.info("[Google OAuth] click", {
-      window_origin: origin,
-      expected_redirect_uri: expectedRedirectUri,
       scope_bundle: "sso",
     });
     try {
@@ -113,20 +109,9 @@ export default function Login() {
               Google-innlogging feilet
             </div>
             <p className="mb-2 text-destructive/90">{googleError}</p>
-            <p className="mb-1 text-destructive/80">
-              Google OAuth-klienten må ha eksakt dette domenet oppført under
-              <span className="font-semibold"> Authorized JavaScript origins</span>:
+            <p className="text-destructive/80">
+              Google-innlogging er aktivert på nytt. Last siden på nytt og prøv igjen.
             </p>
-            <code className="mb-2 block break-all rounded bg-background/60 px-2 py-1 font-mono text-[11px] text-foreground">
-              {origin}
-            </code>
-            <p className="mb-1 text-destructive/80">
-              …og eksakt denne callback-URL-en under
-              <span className="font-semibold"> Authorized redirect URIs</span>:
-            </p>
-            <code className="block break-all rounded bg-background/60 px-2 py-1 font-mono text-[11px] text-foreground">
-              {expectedRedirectUri}
-            </code>
           </div>
         )}
 
