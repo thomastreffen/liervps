@@ -4,6 +4,7 @@
  */
 
 import { supabase } from "@/integrations/supabase/client";
+import { lovable } from "@/integrations/lovable/index";
 
 export const GOOGLE_SCOPE_BUNDLES = {
   sso: ["openid", "email", "profile"],
@@ -84,15 +85,58 @@ export async function startGoogleLogin(options?: {
   loginHint?: string;
   intendedPath?: string;
 }) {
+  const bundle = options?.scopeBundle ?? "sso";
+
+  if (bundle === "sso") {
+    sessionStorage.setItem(
+      "google-oauth-pending",
+      JSON.stringify({
+        scope_bundle: bundle,
+        intended_path: options?.intendedPath ?? "/",
+        started_at: Date.now(),
+      }),
+    );
+
+    const result = await lovable.auth.signInWithOAuth("google", {
+      redirect_uri: window.location.origin,
+      extraParams: {
+        hd: options?.hostedDomain ?? GOOGLE_WORKSPACE_DOMAIN,
+        prompt: "select_account",
+        ...(options?.loginHint ? { login_hint: options.loginHint } : {}),
+      },
+    });
+
+    if (result.error) {
+      throw result.error;
+    }
+
+    if (result.redirected) {
+      return {
+        window_origin: window.location.origin,
+        redirect_uri: window.location.origin,
+        scope_bundle: bundle,
+        scope: GOOGLE_SCOPE_BUNDLES[bundle].join(" "),
+        provider: "lovable-managed-google",
+      };
+    }
+
+    window.location.replace(options?.intendedPath ?? "/");
+    return {
+      window_origin: window.location.origin,
+      redirect_uri: window.location.origin,
+      scope_bundle: bundle,
+      scope: GOOGLE_SCOPE_BUNDLES[bundle].join(" "),
+      provider: "lovable-managed-google",
+    };
+  }
+
   const { id: clientId, configured } = await getGoogleClientId();
   if (!configured) {
     throw new Error("Google OAuth er ikke konfigurert enda.");
   }
 
-  const bundle = options?.scopeBundle ?? "sso";
   const redirectUri = `${window.location.origin}/auth/google/callback`;
   const scopes = GOOGLE_SCOPE_BUNDLES[bundle].join(" ");
-  const isSso = bundle === "sso";
 
   sessionStorage.setItem(
     "google-oauth-pending",
@@ -108,11 +152,10 @@ export async function startGoogleLogin(options?: {
     redirect_uri: redirectUri,
     response_type: "code",
     scope: scopes,
-    // Ren SSO: ingen offline-tilgang og ingen arv av tidligere Workspace-scopes.
-    access_type: isSso ? "online" : "offline",
-    prompt: isSso ? "select_account" : "consent select_account",
+    access_type: "offline",
+    prompt: "consent select_account",
   });
-  if (!isSso) params.set("include_granted_scopes", "true");
+  params.set("include_granted_scopes", "true");
   params.set("hd", options?.hostedDomain ?? GOOGLE_WORKSPACE_DOMAIN);
   if (options?.loginHint) params.set("login_hint", options.loginHint);
 
