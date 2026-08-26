@@ -17,6 +17,7 @@ import { AuthProvider } from "@/hooks/useAuth";
 import { HashScroll } from "@/components/public/HashScroll";
 import { LeadProvider } from "@/components/public/LeadContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { PublicSiteGate } from "@/components/PublicSiteGate";
 import { AppLayout } from "@/components/AppLayout";
 import OverviewPage from "./pages/OverviewPage";
 import KpiDashboard from "./pages/KpiDashboard";
@@ -181,25 +182,27 @@ const App = () => (
           <HashScroll />
           <LeadProvider>
           <Routes>
-            {/* Public marketing site */}
-            <Route path="/" element={<PublicHome />} />
-            <Route path="/tjenester/befaring" element={<Befaring />} />
-            <Route path="/tjenester/salg" element={<Salg />} />
-            <Route path="/tjenester/montering" element={<Montering />} />
-            <Route path="/tjenester/service" element={<Service />} />
-            <Route path="/tjenester/feilsoking" element={<Feilsoking />} />
-            <Route path="/tjenester/serviceavtale" element={<Serviceavtale />} />
-            {/* Gamle elektro-URL-er fra MCS – videresendes til varmepumpesidene */}
-            <Route path="/tjenester/service-og-feilsoking" element={<Navigate to="/tjenester/feilsoking" replace />} />
-            <Route path="/tjenester/elektrotavler" element={<Navigate to="/tjenester/salg" replace />} />
-            <Route path="/tjenester/stromskinner" element={<Navigate to="/tjenester/montering" replace />} />
-            <Route path="/tjenester/hasteoppdrag" element={<Navigate to="/tjenester/service" replace />} />
-            <Route path="/om-oss" element={<OmMcs />} />
-            <Route path="/om-mcs" element={<Navigate to="/om-oss" replace />} />
+            {/* Public marketing site – skjult bak pre-launch-port inntil lansering */}
+            <Route element={<PublicSiteGate />}>
+              <Route path="/" element={<PublicHome />} />
+              <Route path="/tjenester/befaring" element={<Befaring />} />
+              <Route path="/tjenester/salg" element={<Salg />} />
+              <Route path="/tjenester/montering" element={<Montering />} />
+              <Route path="/tjenester/service" element={<Service />} />
+              <Route path="/tjenester/feilsoking" element={<Feilsoking />} />
+              <Route path="/tjenester/serviceavtale" element={<Serviceavtale />} />
+              {/* Gamle elektro-URL-er fra MCS – videresendes til varmepumpesidene */}
+              <Route path="/tjenester/service-og-feilsoking" element={<Navigate to="/tjenester/feilsoking" replace />} />
+              <Route path="/tjenester/elektrotavler" element={<Navigate to="/tjenester/salg" replace />} />
+              <Route path="/tjenester/stromskinner" element={<Navigate to="/tjenester/montering" replace />} />
+              <Route path="/tjenester/hasteoppdrag" element={<Navigate to="/tjenester/service" replace />} />
+              <Route path="/om-oss" element={<OmMcs />} />
+              <Route path="/om-mcs" element={<Navigate to="/om-oss" replace />} />
 
-            <Route path="/referanser" element={<Referanser />} />
-            <Route path="/kontakt" element={<Kontakt />} />
-            <Route path="/bestill-service" element={<BestillService />} />
+              <Route path="/referanser" element={<Referanser />} />
+              <Route path="/kontakt" element={<Kontakt />} />
+              <Route path="/bestill-service" element={<BestillService />} />
+            </Route>
 
             <Route path="/login" element={<Login />} />
             <Route path="/auth/callback" element={<AuthCallback />} />
