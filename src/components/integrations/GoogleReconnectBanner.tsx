@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { AlertTriangle, Loader2, Plug } from "lucide-react";
 import { toast } from "sonner";
 import { startGoogleLogin } from "@/lib/integrations/google-oauth";
+import { useAuth } from "@/hooks/useAuth";
 import { GOOGLE_SERVICE_LABEL, useGoogleHealth } from "@/hooks/useGoogleHealth";
 
 /**
@@ -29,6 +30,7 @@ export function GoogleReconnectButton({
   service?: keyof typeof SERVICE_BUNDLE;
   label?: string;
 }) {
+  const { user } = useAuth();
   const [busy, setBusy] = useState(false);
   return (
     <Button
@@ -42,6 +44,7 @@ export function GoogleReconnectButton({
           await startGoogleLogin({
             scopeBundle: SERVICE_BUNDLE[service],
             intendedPath: window.location.pathname,
+            loginHint: user?.email,
           });
         } catch (e) {
           setBusy(false);

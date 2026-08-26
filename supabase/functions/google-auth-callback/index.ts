@@ -12,7 +12,7 @@
  * scope_bundle values:
  *   - "sso"       → openid email profile
  *   - "calendar"  → + calendar
- *   - "mail"      → + gmail.modify gmail.send
+ *   - "mail"      → + gmail.send
  *   - "files"     → + drive.file
  *   - "full"      → everything
  */
@@ -37,7 +37,6 @@ const SCOPE_BUNDLES: Record<string, string[]> = {
     "openid",
     "email",
     "profile",
-    "https://www.googleapis.com/auth/gmail.modify",
     "https://www.googleapis.com/auth/gmail.send",
   ],
   files: [
@@ -51,7 +50,6 @@ const SCOPE_BUNDLES: Record<string, string[]> = {
     "email",
     "profile",
     "https://www.googleapis.com/auth/calendar",
-    "https://www.googleapis.com/auth/gmail.modify",
     "https://www.googleapis.com/auth/gmail.send",
     "https://www.googleapis.com/auth/drive.file",
   ],
