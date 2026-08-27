@@ -262,12 +262,28 @@ export default function Home() {
         </div>
       </section>
 
+      {/* ANBEFALTE LØSNINGER ETTER BEHOV */}
+      <RecommendedSolutions />
+
+      <CtaBand
+        tone="sand"
+        title="Usikker på hvilken løsning som passer?"
+        text="Vi gjør en befaring, ser på planløsning og varmebehov, og anbefaler riktig modell — uforpliktende."
+        primaryLead={{ source: "solution", interestType: "losning-anbefaling" }}
+      />
+
       {/* BESPARELSESKALKULATOR */}
       <SavingsCalculator />
 
+      <CtaBand
+        title="Vil du ha en beregning tilpasset boligen din?"
+        text="Kalkulatoren gir et forsiktig estimat. Etter befaring får du et konkret anslag og fast pris."
+        primaryLead={{ source: "calculator", interestType: "beregning" }}
+        secondaryLead={{ source: "service", interestType: "service" }}
+        secondaryLabel="Snakk om serviceavtale"
+      />
 
-      {/* KVALITETSMERKER VI ANBEFALER */}
-      <ProductShowcase />
+
 
 
       {/* VÅRE TJENESTER */}
