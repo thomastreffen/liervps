@@ -1827,7 +1827,9 @@ export function ProductShowcase() {
   const [brandFilter, setBrandFilter] = useState<BrandName | typeof ALL_BRANDS>(
     ALL_BRANDS
   );
+  const [expanded, setExpanded] = useState(false);
   const [detail, setDetail] = useState<ProductItem | null>(null);
+
   const [selected, setSelected] = useState<ProductItem | null>(null);
   const inlineRef = useRef<HTMLDivElement | null>(null);
 
