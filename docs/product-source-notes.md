@@ -198,3 +198,9 @@ Toshiba Seiya Nordic, Toshiba Gulvmodell, Toshiba Multi Nordic
   inn. Må bekreftes mot Panasonic/distributør før eventuell publisering.
 - **Toshiba Polar** – nettsiden nevner «Signatur og Polar sort» i
   brukermanual-titler, men ingen offisiell fargetabell. Ikke lagt inn.
+
+## Servicebil-asset (VW ID. Buzz)
+
+- `servicebil-v3.webp` / `servicebil-v3.png`: manuelt renset alpha (stray-pixel-fjerning, hullfyll, defringe/matte removal, 0.5px erosjon + mykt feather). Brukes på nettsiden.
+- Skal fortsatt vises på lys/beige/hvit bakgrunn med diskret lys flate bak — ikke rett på mørk/blå flate.
+- `servicebil-v2.*` er kun webvisual og skal ikke brukes til folie/trykk/profilproduksjon. For trykk kreves et separat høyoppløst produksjonsasset fra designfil.
