@@ -2057,8 +2057,11 @@ export function ProductShowcase() {
             planløsning og varmebehov. Modellutvalg kan variere.
           </p>
         </div>
+        </>
+        )}
 
       </div>
     </section>
+
   );
 }
