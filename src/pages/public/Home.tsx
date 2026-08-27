@@ -22,6 +22,7 @@ import { ProductShowcase } from "@/components/public/ProductShowcase";
 import { QuickChoice } from "@/components/public/QuickChoice";
 import { RecommendedSolutions } from "@/components/public/RecommendedSolutions";
 import { CtaBand } from "@/components/public/CtaBand";
+import { ServiceVanSection } from "@/components/public/ServiceVanSection";
 import { BrandStrip } from "@/components/public/BrandStrip";
 import { ContactSection } from "@/components/public/ContactSection";
 import { useLead } from "@/components/public/LeadContext";
@@ -327,6 +328,9 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      {/* SERVICEBIL — MØT OSS UTE HOS KUNDE */}
+      <ServiceVanSection />
 
       {/* SERVICEAVTALE */}
       <section id="serviceavtale" className="bg-[hsl(var(--warm-cream))] pb-16 scroll-mt-28">
