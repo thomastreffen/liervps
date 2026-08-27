@@ -10,6 +10,7 @@ import {
   ChevronDown,
   Settings,
   LayoutGrid,
+  Globe,
   Receipt,
   Gauge,
   BarChart3,
@@ -405,6 +406,19 @@ export function AppSidebar() {
           </SidebarGroup>
         )}
       </SidebarContent>
+
+      <div className="mt-auto border-t border-sidebar-border p-3">
+        <a
+          href="/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-2 rounded-md px-2 py-2 text-sm text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
+          title="Vis nettside"
+        >
+          <Globe className="h-4 w-4 shrink-0" />
+          {!collapsed && <span>Vis nettside</span>}
+        </a>
+      </div>
     </Sidebar>
   );
 }

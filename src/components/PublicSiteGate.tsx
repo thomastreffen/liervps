@@ -4,13 +4,13 @@ import { PUBLIC_SITE_LIVE } from "@/lib/feature-flags";
 import { useAuth } from "@/hooks/useAuth";
 
 /**
- * Pre-launch port for den offentlige nettsiden.
+ * Port for den offentlige nettsiden.
  *
- * Når PUBLIC_SITE_LIVE er false:
- *  - Ikke innlogget → viser påloggingssiden
- *  - Innlogget → sendes rett til dashboardet (/overview)
+ * Innloggede brukere skal ALLTID se den offentlige forsiden – de skal aldri
+ * automatisk sendes til /overview fra rot-pathen.
  *
- * Når PUBLIC_SITE_LIVE er true: nettsiden vises som bygget.
+ * Når PUBLIC_SITE_LIVE er false (pre-launch): kun innloggede ansatte ser
+ * nettsiden, besøkende sendes til påloggingssiden.
  */
 export function PublicSiteGate() {
   const { session, loading } = useAuth();
@@ -28,7 +28,7 @@ export function PublicSiteGate() {
   }
 
   if (session) {
-    return <Navigate to="/overview" replace />;
+    return <Outlet />;
   }
 
   return <Navigate to="/login" replace />;
