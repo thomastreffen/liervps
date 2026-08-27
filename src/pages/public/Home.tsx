@@ -338,18 +338,18 @@ export default function Home() {
             <div>
               <p className="text-[hsl(var(--mcs-orange))] text-[11px] font-bold uppercase tracking-widest mb-2">Serviceavtale</p>
               <h2 className="text-xl lg:text-2xl font-bold mb-3 leading-tight">
-                Årlig serviceavtale — trygghet hele året
+                Trygghet hele året
               </h2>
               <p className="text-white/75 text-sm leading-relaxed mb-4">
-                Med serviceavtale får du regelmessig kontroll, rengjøring og prioritet når du trenger
-                hjelp. Perfekt for både boligeiere og bedrifter.
+                Årlig kontroll, rengjøring og dokumentert servicehistorikk — med prioritert
+                responstid hvis noe skjer. For både bolig og næring.
               </p>
               <button
                 type="button"
                 onClick={() => startLead({ source: "service", interestType: "service" })}
                 className="inline-flex items-center gap-2 bg-[hsl(var(--mcs-orange))] hover:bg-[hsl(var(--mcs-orange-hover))] text-white text-sm font-semibold px-5 py-2.5 rounded-md"
               >
-                Snakk med oss om serviceavtale
+                Snakk med oss om serviceavtale <ArrowRight className="h-4 w-4" />
               </button>
             </div>
             <ul className="grid sm:grid-cols-2 gap-2 text-sm">
@@ -362,6 +362,19 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      <CtaBand
+        tone="sand"
+        title="Vil du ha serviceavtale på anlegget ditt?"
+        text="Vi setter opp fast årlig kontroll og holder styr på historikken, så du slipper å tenke på det."
+        primaryLabel="Snakk med oss om serviceavtale"
+        primaryLead={{ source: "service", interestType: "service" }}
+      />
+
+      {/* ALLE MODELLER OG TEKNISKE DATA */}
+      <ProductShowcase />
+
+
 
       {/* SLIK GJØR VI DET */}
       <section className="bg-[hsl(var(--warm-cream))] pb-16">
