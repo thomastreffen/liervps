@@ -13,10 +13,15 @@ import {
   Award,
   Calendar,
   Monitor,
+  FileCheck,
+  Phone,
 } from "lucide-react";
 import { PublicLayout } from "@/components/public/PublicLayout";
 import { SavingsCalculator } from "@/components/public/SavingsCalculator";
 import { ProductShowcase } from "@/components/public/ProductShowcase";
+import { QuickChoice } from "@/components/public/QuickChoice";
+import { RecommendedSolutions } from "@/components/public/RecommendedSolutions";
+import { CtaBand } from "@/components/public/CtaBand";
 import { BrandStrip } from "@/components/public/BrandStrip";
 import { ContactSection } from "@/components/public/ContactSection";
 import { useLead } from "@/components/public/LeadContext";
@@ -28,12 +33,15 @@ import homeImg from "@/assets/lier/home-interior.jpg";
 import commercialImg from "@/assets/lier/commercial-interior.jpg";
 import technicianImg from "@/assets/lier/technician.jpg";
 
+
 const TRUST = [
   { icon: Award, title: "F-gass-sertifiserte teknikere" },
-  { icon: HomeIcon, title: "For bolig og næring" },
-  { icon: Calendar, title: "Service hele året" },
-  { icon: MapPin, title: "Lokal i Lier" },
+  { icon: FileCheck, title: "Tydelig pris før arbeid" },
+  { icon: HomeIcon, title: "Ryddig montering og dokumentasjon" },
+  { icon: Calendar, title: "Servicehistorikk og oppfølging" },
+  { icon: MapPin, title: "Lokal aktør i Lier og omegn" },
 ];
+
 
 const SERVICES = [
   { icon: Search, title: "Befaring og rådgivning", desc: "Vi kommer hjem til deg, vurderer behovet og anbefaler riktig løsning." },
@@ -115,11 +123,11 @@ export default function Home() {
 
                 <div className="max-w-2xl rounded-2xl bg-[hsl(var(--warm-cream))]/70 backdrop-blur-[2px] p-5 -mx-1 md:mx-0 md:bg-transparent md:backdrop-blur-none md:p-0">
                   <h1 className={`font-bold leading-[1.05] tracking-tight text-[hsl(var(--mcs-navy))] mb-6 ${user ? "text-3xl" : "text-4xl lg:text-5xl xl:text-6xl"}`}>
-                    Varmepumper som gir komfort, kontroll og lavere strømregning
+                    Varmepumpe, service og rådgivning i Lier og omegn
                   </h1>
                   <p className="text-[hsl(var(--mcs-navy))]/90 md:text-[hsl(var(--mcs-navy))]/75 text-base lg:text-lg leading-relaxed mb-8 max-w-xl">
-                    Lier Varmepumpeservice hjelper både boligeiere og bedrifter med rådgivning,
-                    montering, service og driftssikre løsninger tilpasset norske forhold.
+                    Vi hjelper boligeiere og bedrifter hele veien — befaring, riktig løsning,
+                    ryddig montering og fast serviceoppfølging etterpå.
                   </p>
 
                   <div className="flex flex-col sm:flex-row gap-3">
@@ -130,12 +138,13 @@ export default function Home() {
                     >
                       Bestill befaring <ArrowRight className="h-4 w-4" />
                     </button>
-                    <Link
-                      to="/#for-bolig"
-                      className="bg-white border border-[hsl(var(--mcs-navy))]/20 text-[hsl(var(--mcs-navy))] font-semibold px-7 py-3.5 rounded-lg text-center hover:border-[hsl(var(--mcs-navy))]"
+                    <button
+                      type="button"
+                      onClick={() => startLead({ source: "service", interestType: "feilsoking" })}
+                      className="bg-white border border-[hsl(var(--mcs-navy))]/20 text-[hsl(var(--mcs-navy))] font-semibold px-7 py-3.5 rounded-lg hover:border-[hsl(var(--mcs-navy))] inline-flex items-center justify-center gap-2"
                     >
-                      Se løsninger
-                    </Link>
+                      <Phone className="h-4 w-4" /> Trenger service?
+                    </button>
                   </div>
                 </div>
               </div>
@@ -146,7 +155,8 @@ export default function Home() {
           <div className="relative -mt-10 lg:-mt-12 px-4 sm:px-8 lg:px-12">
             <div className="mx-auto max-w-[1200px] bg-white rounded-2xl shadow-xl border border-[hsl(var(--warm-beige))] px-6 sm:px-10 py-5">
 
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-3">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 md:gap-3">
+
                 {TRUST.map((t) => (
                   <div key={t.title} className="flex items-center gap-3 text-[hsl(var(--mcs-navy))]">
                     <div className="h-9 w-9 rounded-full bg-[hsl(var(--mcs-navy))] text-white flex items-center justify-center shrink-0">
@@ -161,8 +171,20 @@ export default function Home() {
         </div>
       </section>
 
+      {/* RASK VALGSEKSJON */}
+      <QuickChoice />
+
+      <CtaBand
+        title="Vi svarer raskt og gir deg tydelig pris før arbeid starter"
+        text="Fortell hva du trenger, så tar en av våre teknikere kontakt og avtaler tid som passer."
+        primaryLead={{ source: "hero", interestType: "befaring" }}
+        secondaryLead={{ source: "service", interestType: "feilsoking" }}
+      />
+
       {/* Brand strip */}
       <BrandStrip />
+
+
 
       {/* FOR BOLIG OG NÆRING */}
       <section className="bg-[hsl(var(--warm-cream))] pb-16 scroll-mt-28">
@@ -240,12 +262,28 @@ export default function Home() {
         </div>
       </section>
 
+      {/* ANBEFALTE LØSNINGER ETTER BEHOV */}
+      <RecommendedSolutions />
+
+      <CtaBand
+        tone="sand"
+        title="Usikker på hvilken løsning som passer?"
+        text="Vi gjør en befaring, ser på planløsning og varmebehov, og anbefaler riktig modell — uforpliktende."
+        primaryLead={{ source: "solution", interestType: "losning-anbefaling" }}
+      />
+
       {/* BESPARELSESKALKULATOR */}
       <SavingsCalculator />
 
+      <CtaBand
+        title="Vil du ha en beregning tilpasset boligen din?"
+        text="Kalkulatoren gir et forsiktig estimat. Etter befaring får du et konkret anslag og fast pris."
+        primaryLead={{ source: "calculator", interestType: "beregning" }}
+        secondaryLead={{ source: "service", interestType: "service" }}
+        secondaryLabel="Snakk om serviceavtale"
+      />
 
-      {/* KVALITETSMERKER VI ANBEFALER */}
-      <ProductShowcase />
+
 
 
       {/* VÅRE TJENESTER */}
@@ -300,18 +338,18 @@ export default function Home() {
             <div>
               <p className="text-[hsl(var(--mcs-orange))] text-[11px] font-bold uppercase tracking-widest mb-2">Serviceavtale</p>
               <h2 className="text-xl lg:text-2xl font-bold mb-3 leading-tight">
-                Årlig serviceavtale — trygghet hele året
+                Trygghet hele året
               </h2>
               <p className="text-white/75 text-sm leading-relaxed mb-4">
-                Med serviceavtale får du regelmessig kontroll, rengjøring og prioritet når du trenger
-                hjelp. Perfekt for både boligeiere og bedrifter.
+                Årlig kontroll, rengjøring og dokumentert servicehistorikk — med prioritert
+                responstid hvis noe skjer. For både bolig og næring.
               </p>
               <button
                 type="button"
                 onClick={() => startLead({ source: "service", interestType: "service" })}
                 className="inline-flex items-center gap-2 bg-[hsl(var(--mcs-orange))] hover:bg-[hsl(var(--mcs-orange-hover))] text-white text-sm font-semibold px-5 py-2.5 rounded-md"
               >
-                Snakk med oss om serviceavtale
+                Snakk med oss om serviceavtale <ArrowRight className="h-4 w-4" />
               </button>
             </div>
             <ul className="grid sm:grid-cols-2 gap-2 text-sm">
@@ -324,6 +362,19 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      <CtaBand
+        tone="sand"
+        title="Vil du ha serviceavtale på anlegget ditt?"
+        text="Vi setter opp fast årlig kontroll og holder styr på historikken, så du slipper å tenke på det."
+        primaryLabel="Snakk med oss om serviceavtale"
+        primaryLead={{ source: "service", interestType: "service" }}
+      />
+
+      {/* ALLE MODELLER OG TEKNISKE DATA */}
+      <ProductShowcase />
+
+
 
       {/* SLIK GJØR VI DET */}
       <section className="bg-[hsl(var(--warm-cream))] pb-16">
