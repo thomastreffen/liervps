@@ -30,10 +30,12 @@ import technicianImg from "@/assets/lier/technician.jpg";
 
 const TRUST = [
   { icon: Award, title: "F-gass-sertifiserte teknikere" },
-  { icon: HomeIcon, title: "For bolig og næring" },
-  { icon: Calendar, title: "Service hele året" },
-  { icon: MapPin, title: "Lokal i Lier" },
+  { icon: FileCheck, title: "Tydelig pris før arbeid" },
+  { icon: HomeIcon, title: "Ryddig montering og dokumentasjon" },
+  { icon: Calendar, title: "Servicehistorikk og oppfølging" },
+  { icon: MapPin, title: "Lokal aktør i Lier og omegn" },
 ];
+
 
 const SERVICES = [
   { icon: Search, title: "Befaring og rådgivning", desc: "Vi kommer hjem til deg, vurderer behovet og anbefaler riktig løsning." },
