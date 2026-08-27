@@ -13,10 +13,15 @@ import {
   Award,
   Calendar,
   Monitor,
+  FileCheck,
+  Phone,
 } from "lucide-react";
 import { PublicLayout } from "@/components/public/PublicLayout";
 import { SavingsCalculator } from "@/components/public/SavingsCalculator";
 import { ProductShowcase } from "@/components/public/ProductShowcase";
+import { QuickChoice } from "@/components/public/QuickChoice";
+import { RecommendedSolutions } from "@/components/public/RecommendedSolutions";
+import { CtaBand } from "@/components/public/CtaBand";
 import { BrandStrip } from "@/components/public/BrandStrip";
 import { ContactSection } from "@/components/public/ContactSection";
 import { useLead } from "@/components/public/LeadContext";
@@ -27,6 +32,7 @@ import heroImg from "@/assets/lier/hero-warm.jpg";
 import homeImg from "@/assets/lier/home-interior.jpg";
 import commercialImg from "@/assets/lier/commercial-interior.jpg";
 import technicianImg from "@/assets/lier/technician.jpg";
+
 
 const TRUST = [
   { icon: Award, title: "F-gass-sertifiserte teknikere" },
