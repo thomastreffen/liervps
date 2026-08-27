@@ -25,7 +25,8 @@ const INTERNAL_NAV = [
 export function Header() {
   const [open, setOpen] = useState(false);
   const { user, signOut } = useAuth();
-  const NAV = user ? INTERNAL_NAV : PUBLIC_NAV;
+  // Forsiden skal alltid vises som offentlig nettside – også for innloggede.
+  const NAV = PUBLIC_NAV;
   return (
     <header className="sticky top-0 z-40 bg-[hsl(var(--warm-cream))]/95 backdrop-blur border-b border-[hsl(var(--warm-beige))]/70">
       <div className="mx-auto max-w-[1600px] px-6 sm:px-10 lg:px-12 xl:px-16 2xl:px-24">
