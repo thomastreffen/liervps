@@ -1918,17 +1918,31 @@ export function ProductShowcase() {
       <div className="mx-auto max-w-[1600px] px-6 sm:px-10 lg:px-12 xl:px-16 2xl:px-24">
         <div className="max-w-2xl mb-7">
           <h2 className="text-2xl lg:text-3xl font-bold text-[hsl(var(--mcs-navy))] leading-tight">
-            Løsninger og kvalitetsmerker vi anbefaler
+            Alle modeller og tekniske data
           </h2>
           <div className="h-0.5 w-10 bg-[hsl(var(--mcs-orange))] mt-3 mb-4" />
           <p className="text-sm text-[hsl(var(--mcs-muted))] leading-relaxed">
-            Start med hva bygget ditt trenger. Vi hjelper deg å finne riktig løsning for bolig,
-            næring, flere rom eller vannbåren varme.
+            Vil du se detaljene? Her finner du modellutvalget vårt for bolig og næring,
+            med mulighet for å sammenligne tekniske data.
           </p>
         </div>
 
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          aria-expanded={expanded}
+          className="inline-flex items-center gap-2 text-sm font-semibold text-[hsl(var(--mcs-navy))] bg-white border border-[hsl(var(--mcs-navy))]/25 hover:border-[hsl(var(--mcs-navy))] px-5 py-2.5 rounded-md mb-6"
+        >
+          {expanded ? "Skjul modeller" : "Se alle modeller / sammenlign tekniske data"}
+          <ArrowRight className={`h-4 w-4 transition-transform ${expanded ? "rotate-90" : ""}`} />
+        </button>
+
+        {expanded && (
+        <>
+
         {/* Primary segment control */}
         <div
+
           role="tablist"
           aria-label="Bolig eller næring"
           className="inline-flex gap-1 bg-white border border-[hsl(var(--warm-beige))] rounded-full p-1 mb-5"
