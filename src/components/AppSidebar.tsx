@@ -10,6 +10,7 @@ import {
   ChevronDown,
   Settings,
   LayoutGrid,
+  Globe,
   Receipt,
   Gauge,
   BarChart3,
