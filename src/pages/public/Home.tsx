@@ -171,8 +171,20 @@ export default function Home() {
         </div>
       </section>
 
+      {/* RASK VALGSEKSJON */}
+      <QuickChoice />
+
+      <CtaBand
+        title="Vi svarer raskt og gir deg tydelig pris før arbeid starter"
+        text="Fortell hva du trenger, så tar en av våre teknikere kontakt og avtaler tid som passer."
+        primaryLead={{ source: "hero", interestType: "befaring" }}
+        secondaryLead={{ source: "service", interestType: "feilsoking" }}
+      />
+
       {/* Brand strip */}
       <BrandStrip />
+
+
 
       {/* FOR BOLIG OG NÆRING */}
       <section className="bg-[hsl(var(--warm-cream))] pb-16 scroll-mt-28">
