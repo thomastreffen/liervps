@@ -1,6 +1,6 @@
 import { Check, Phone, Mail, Globe, ArrowRight } from "lucide-react";
 import { useLead } from "./LeadContext";
-import vanAsset from "@/assets/lier/servicebil-v2.png.asset.json";
+import vanAsset from "@/assets/lier/servicebil-v2.webp.asset.json";
 
 /**
  * «Vi kommer til deg» — seksjon med profilert servicebil.
@@ -86,6 +86,7 @@ export function ServiceVanSection() {
               src={CONTENT.imageSrc}
               alt={CONTENT.imageAlt}
               loading="lazy"
+              decoding="async"
               width={1619}
               height={971}
               className="w-full max-w-[760px] xl:max-w-[840px] h-auto drop-shadow-[0_32px_36px_rgba(15,35,60,0.16)]"
