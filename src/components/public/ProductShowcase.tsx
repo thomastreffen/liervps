@@ -1845,6 +1845,8 @@ export function ProductShowcase() {
   // Deep links from the bolig/næring cards: #varmepumper-bolig / #varmepumper-naering
   useEffect(() => {
     const id = hash.replace("#", "");
+    if (id.startsWith("varmepumper") || id.startsWith("produkt-")) setExpanded(true);
+
     if (id === "varmepumper-naering") selectSegment("naering");
     else if (id === "varmepumper-bolig") selectSegment("bolig");
     else if (id.startsWith("produkt-")) {
