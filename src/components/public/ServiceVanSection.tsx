@@ -1,6 +1,7 @@
 import { Check, Phone, Mail, Globe, ArrowRight } from "lucide-react";
 import { useLead } from "./LeadContext";
-import vanAsset from "@/assets/lier/servicebil-v2.webp.asset.json";
+// Renset alpha-cutout (v3). Bruk kun på lys bakgrunn — se docs for produksjonsasset.
+import vanAsset from "@/assets/lier/servicebil-v3.webp.asset.json";
 
 /**
  * «Vi kommer til deg» — seksjon med profilert servicebil.
