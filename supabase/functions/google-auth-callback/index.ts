@@ -90,6 +90,24 @@ Deno.serve(async (req) => {
     return jsonResponse({ error: "code and redirect_uri are required" }, 400);
   }
 
+  const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+  const authorization = req.headers.get("Authorization");
+  const bearerToken = authorization?.startsWith("Bearer ")
+    ? authorization.slice("Bearer ".length)
+    : null;
+  const { data: authenticated, error: authError } = bearerToken
+    ? await admin.auth.getUser(bearerToken)
+    : { data: { user: null }, error: null };
+
+  // Workspace product consent must extend the currently signed-in app user.
+  // It must never create/sign into another app account based on the Google
+  // account selected in the consent screen.
+  if (scope_bundle !== "sso" && (authError || !authenticated.user)) {
+    return jsonResponse({ error: "Du må være innlogget før Google Workspace kan kobles til." }, 401);
+  }
+
   // 1. Exchange authorization code for tokens
   const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
@@ -139,53 +157,63 @@ Deno.serve(async (req) => {
   const email = String(userinfo.email).toLowerCase();
   const fullName = userinfo.name || email;
 
-  const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
-    auth: { autoRefreshToken: false, persistSession: false },
-  });
+  const signedInEmail = (authenticated.user?.email ?? "").toLowerCase();
+  if (scope_bundle !== "sso" && email !== signedInEmail) {
+    return jsonResponse(
+      {
+        error: `Du valgte ${email}. Velg den innloggede Workspace-kontoen ${signedInEmail}.`,
+        code: "workspace_account_mismatch",
+      },
+      403,
+    );
+  }
 
   // 3. Find or create the Supabase auth user
-  let userId: string | null = null;
+  let userId: string | null = scope_bundle !== "sso" ? authenticated.user?.id ?? null : null;
 
-  const { data: existingList, error: listErr } = await admin.auth.admin.listUsers({
-    page: 1,
-    perPage: 1000,
-  });
-  if (listErr) {
-    console.error("[google-auth-callback] listUsers failed", listErr);
-    return jsonResponse({ error: "User lookup failed" }, 500);
-  }
-  const existing = existingList.users.find(
-    (u) => (u.email ?? "").toLowerCase() === email,
-  );
-
-  if (existing) {
-    userId = existing.id;
-    // Refresh metadata name/picture
-    await admin.auth.admin.updateUserById(existing.id, {
-      user_metadata: {
-        ...existing.user_metadata,
-        full_name: fullName,
-        avatar_url: userinfo.picture,
-        provider: "google",
-      },
+  if (scope_bundle === "sso") {
+    const { data: existingList, error: listErr } = await admin.auth.admin.listUsers({
+      page: 1,
+      perPage: 1000,
     });
-  } else {
-    const { data: created, error: createErr } = await admin.auth.admin.createUser({
-      email,
-      email_confirm: true,
-      user_metadata: {
-        full_name: fullName,
-        avatar_url: userinfo.picture,
-        provider: "google",
-        app_role: "montør",
-      },
-    });
-    if (createErr || !created.user) {
-      console.error("[google-auth-callback] createUser failed", createErr);
-      return jsonResponse({ error: "Could not create user" }, 500);
+    if (listErr) {
+      console.error("[google-auth-callback] listUsers failed", listErr);
+      return jsonResponse({ error: "User lookup failed" }, 500);
     }
-    userId = created.user.id;
+    const existing = existingList.users.find(
+      (u) => (u.email ?? "").toLowerCase() === email,
+    );
+
+    if (existing) {
+      userId = existing.id;
+      await admin.auth.admin.updateUserById(existing.id, {
+        user_metadata: {
+          ...existing.user_metadata,
+          full_name: fullName,
+          avatar_url: userinfo.picture,
+          provider: "google",
+        },
+      });
+    } else {
+      const { data: created, error: createErr } = await admin.auth.admin.createUser({
+        email,
+        email_confirm: true,
+        user_metadata: {
+          full_name: fullName,
+          avatar_url: userinfo.picture,
+          provider: "google",
+          app_role: "montør",
+        },
+      });
+      if (createErr || !created.user) {
+        console.error("[google-auth-callback] createUser failed", createErr);
+        return jsonResponse({ error: "Could not create user" }, 500);
+      }
+      userId = created.user.id;
+    }
   }
+
+  if (!userId) return jsonResponse({ error: "Could not resolve signed-in user" }, 500);
 
   // 4. Store tokens (skip for pure SSO if no refresh token — we don't need long-lived access)
   const grantedScopes = (granted_scope_string ?? "").split(" ").filter(Boolean);
@@ -197,7 +225,7 @@ Deno.serve(async (req) => {
     const expiresAt = new Date(Date.now() + (expires_in ?? 3600) * 1000).toISOString();
     const { error: upsertErr } = await admin.from("user_integration_tokens").upsert(
       {
-        user_id: userId!,
+        user_id: userId,
         provider: "google",
         scope: scope_bundle,
         access_token,
@@ -220,6 +248,15 @@ Deno.serve(async (req) => {
       if (has("https://www.googleapis.com/auth/calendar")) await recordGoogleHealth(admin, "calendar", "ok");
       if (has("https://www.googleapis.com/auth/drive")) await recordGoogleHealth(admin, "drive", "ok");
     }
+  }
+
+  if (scope_bundle !== "sso") {
+    return jsonResponse({
+      connected: true,
+      user: { id: userId, email: signedInEmail, name: fullName },
+      provider_account_email: email,
+      granted_scopes: grantedScopes,
+    });
   }
 
   // 5. Mint a Supabase session via magic link (admin.generateLink)

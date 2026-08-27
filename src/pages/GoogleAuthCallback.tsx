@@ -65,13 +65,22 @@ export default function GoogleAuthCallback() {
         body: { code, redirect_uri: redirectUri, scope_bundle: scopeBundle },
       })
       .then(async ({ data, error: fnError }) => {
-        if (fnError || !data?.session) {
+        const isWorkspaceConsent = scopeBundle !== "sso";
+        if (fnError || (!data?.session && !data?.connected)) {
           console.error("[GoogleAuthCallback]", fnError, data);
           if (notifyOpener({ flow_id: state, ok: false, error: data?.error || fnError?.message || "Kunne ikke logge inn." })) return;
-          toast.error("Google-innlogging feilet", {
-            description: data?.error || fnError?.message || "Kunne ikke logge inn.",
+          toast.error(isWorkspaceConsent ? "Google Workspace-tilkobling feilet" : "Google-innlogging feilet", {
+            description: data?.error || fnError?.message || (isWorkspaceConsent ? "Kunne ikke koble til tjenesten." : "Kunne ikke logge inn."),
           });
-          navigate("/login", { replace: true });
+          navigate(isWorkspaceConsent ? intendedPath : "/login", { replace: true });
+          return;
+        }
+        if (isWorkspaceConsent) {
+          toast.success("Google Workspace er koblet til", {
+            description: `${data.provider_account_email || data.user?.email || "Workspace-kontoen"} er godkjent.`,
+          });
+          if (notifyOpener({ flow_id: state, ok: true, intended_path: intendedPath })) return;
+          navigate(intendedPath, { replace: true });
           return;
         }
         await supabase.auth.setSession({
