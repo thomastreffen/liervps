@@ -65,6 +65,53 @@ interface AuditEntry {
   override_conflicts: boolean;
 }
 
+function GoogleServiceHealthSection() {
+  const { services, loading, refresh } = useGoogleHealth();
+  const statusBadge = (s: string) =>
+    s === "ok" ? (
+      <Badge className="bg-emerald-100 text-emerald-700">OK</Badge>
+    ) : s === "needs_reconnect" ? (
+      <Badge variant="destructive">Må kobles til</Badge>
+    ) : (
+      <Badge variant="secondary">Ukjent</Badge>
+    );
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+        <div>
+          <CardTitle className="text-base">Google Workspace</CardTitle>
+          <p className="text-xs text-muted-foreground">Tjeneste-tilkoblinger — samme kilde som reconnect-banneret</p>
+        </div>
+        <Button variant="ghost" size="sm" className="gap-1.5 h-7" onClick={refresh} disabled={loading}>
+          <RefreshCw className="h-3 w-3" /> Oppdater
+        </Button>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {services.map((s) => (
+          <div key={s.service} className="flex items-center justify-between gap-3 rounded-md border px-3 py-2.5">
+            <div className="flex items-center gap-3">
+              {statusBadge(s.status)}
+              <div>
+                <p className="text-sm font-medium">{GOOGLE_SERVICE_LABEL[s.service]}</p>
+                {s.errorCode && <p className="text-xs text-muted-foreground">Feil: {s.errorCode}</p>}
+                {s.lastSuccessAt && !s.errorCode && (
+                  <p className="text-xs text-muted-foreground">
+                    OK siden {formatDistanceToNow(new Date(s.lastSuccessAt), { addSuffix: true, locale: nb })}
+                  </p>
+                )}
+              </div>
+            </div>
+            {s.status === "needs_reconnect" && (
+              <GoogleReconnectButton service={s.service === "gmail" ? "gmail" : s.service === "calendar" ? "calendar" : "drive"} />
+            )}
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function IntegrationHealthPage() {
   const { isAdmin } = useAuth();
   const navigate = useNavigate();
