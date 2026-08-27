@@ -123,11 +123,11 @@ export default function Home() {
 
                 <div className="max-w-2xl rounded-2xl bg-[hsl(var(--warm-cream))]/70 backdrop-blur-[2px] p-5 -mx-1 md:mx-0 md:bg-transparent md:backdrop-blur-none md:p-0">
                   <h1 className={`font-bold leading-[1.05] tracking-tight text-[hsl(var(--mcs-navy))] mb-6 ${user ? "text-3xl" : "text-4xl lg:text-5xl xl:text-6xl"}`}>
-                    Varmepumper som gir komfort, kontroll og lavere strømregning
+                    Varmepumpe, service og rådgivning i Lier og omegn
                   </h1>
                   <p className="text-[hsl(var(--mcs-navy))]/90 md:text-[hsl(var(--mcs-navy))]/75 text-base lg:text-lg leading-relaxed mb-8 max-w-xl">
-                    Lier Varmepumpeservice hjelper både boligeiere og bedrifter med rådgivning,
-                    montering, service og driftssikre løsninger tilpasset norske forhold.
+                    Vi hjelper boligeiere og bedrifter hele veien — befaring, riktig løsning,
+                    ryddig montering og fast serviceoppfølging etterpå.
                   </p>
 
                   <div className="flex flex-col sm:flex-row gap-3">
@@ -138,12 +138,13 @@ export default function Home() {
                     >
                       Bestill befaring <ArrowRight className="h-4 w-4" />
                     </button>
-                    <Link
-                      to="/#for-bolig"
-                      className="bg-white border border-[hsl(var(--mcs-navy))]/20 text-[hsl(var(--mcs-navy))] font-semibold px-7 py-3.5 rounded-lg text-center hover:border-[hsl(var(--mcs-navy))]"
+                    <button
+                      type="button"
+                      onClick={() => startLead({ source: "service", interestType: "feilsoking" })}
+                      className="bg-white border border-[hsl(var(--mcs-navy))]/20 text-[hsl(var(--mcs-navy))] font-semibold px-7 py-3.5 rounded-lg hover:border-[hsl(var(--mcs-navy))] inline-flex items-center justify-center gap-2"
                     >
-                      Se løsninger
-                    </Link>
+                      <Phone className="h-4 w-4" /> Trenger service?
+                    </button>
                   </div>
                 </div>
               </div>
@@ -154,7 +155,8 @@ export default function Home() {
           <div className="relative -mt-10 lg:-mt-12 px-4 sm:px-8 lg:px-12">
             <div className="mx-auto max-w-[1200px] bg-white rounded-2xl shadow-xl border border-[hsl(var(--warm-beige))] px-6 sm:px-10 py-5">
 
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-3">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 md:gap-3">
+
                 {TRUST.map((t) => (
                   <div key={t.title} className="flex items-center gap-3 text-[hsl(var(--mcs-navy))]">
                     <div className="h-9 w-9 rounded-full bg-[hsl(var(--mcs-navy))] text-white flex items-center justify-center shrink-0">
