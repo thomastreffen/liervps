@@ -82,15 +82,20 @@ export function ServiceVanSection() {
           </div>
 
           {/* Bil — under teksten på mobil, høyre side på desktop */}
-          <div className="lg:order-2 flex items-center justify-center">
+          <div className="lg:order-2 relative flex items-center justify-center">
+            {/* Diskret lys flate bak bilen — holder cutouten på lys bakgrunn */}
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-x-0 top-1/2 -translate-y-1/2 h-[78%] rounded-[999px] bg-[radial-gradient(closest-side,rgba(255,255,255,0.95),rgba(255,255,255,0))]"
+            />
             <img
               src={CONTENT.imageSrc}
               alt={CONTENT.imageAlt}
               loading="lazy"
               decoding="async"
-              width={1619}
-              height={971}
-              className="w-full max-w-[760px] xl:max-w-[840px] h-auto drop-shadow-[0_32px_36px_rgba(15,35,60,0.16)]"
+              width={1608}
+              height={855}
+              className="relative w-full max-w-[760px] xl:max-w-[840px] h-auto drop-shadow-[0_28px_30px_rgba(15,35,60,0.14)]"
             />
           </div>
         </div>
